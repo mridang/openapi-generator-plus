@@ -44,6 +44,48 @@ class TestCustomCaBundle:
         assert response.status_code == 200
         assert '"method"' in response.body
 
+    def test_bhv_transport_066_a_ca_bundle_file_trusts_every_certificate_it_contains(
+        self,
+        chasm_https_url: Any,
+        ca_cert_path: Any,
+        system_root_pem: Any,
+        tmp_path: Any,
+    ) -> None:
+        # The first block is an unrelated system root, so the chasm certificate
+        # verifies only through the second block: every block must be trusted.
+        with open(ca_cert_path) as handle:
+            bundle = tmp_path / "bundle.pem"
+            bundle.write_text(system_root_pem + handle.read())
+        transport = (
+            TransportOptions.builder()
+            .verify_ssl(True)
+            .ca_cert_path(str(bundle))
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+
+    def test_bhv_transport_065_a_configured_ca_bundle_replaces_the_system_trust_store(
+        self, chasm_https_url: Any, system_root_pem: Any, tmp_path: Any
+    ) -> None:
+        # The bundle holds only an unrelated system root, so the chasm certificate
+        # must fail: the system roots are not consulted once a bundle is configured.
+        bundle = tmp_path / "system_root.pem"
+        bundle.write_text(system_root_pem)
+        client = DefaultApiClient(
+            TransportOptions.builder()
+            .verify_ssl(True)
+            .ca_cert_path(str(bundle))
+            .build()
+        )
+
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+
+        assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
+
 
 def _proxy_manager(client: DefaultApiClient) -> urllib3.ProxyManager:
     """The client's pool manager, which a proxied transport makes a ProxyManager."""
@@ -115,6 +157,19 @@ class TestProxyWithCredentials:
         assert '"method"' in response.body
 
     def test_bhv_transport_059_authenticating_proxy_refuses_a_request_without_credentials(
+        self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder().proxy(f"http://{proxy_auth_host_port}").build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", chasm_internal_http_url + "/test/echo", {}, None
+        )
+
+        assert response.status_code == 407
+
+    def test_bhv_transport_063_proxy_that_requires_credentials_answers_407_when_none_sent(
         self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
     ) -> None:
         transport = (
@@ -1089,7 +1144,7 @@ class TestTlsVerificationEnforced:
         assert excinfo.value.status_code == 0
         assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
 
-    def test_verify_ssl_false_accepts_an_address_the_certificate_does_not_name(
+    def test_bhv_transport_062_verify_ssl_false_accepts_an_address_the_certificate_does_not_name(
         self, chasm_https_url: Any
     ) -> None:
         transport = TransportOptions.builder().verify_ssl(False).build()
@@ -1107,7 +1162,7 @@ class TestCancellation:
     """Cancelling an in-flight request really aborts it: the connection is
     dropped instead of the call running on in a worker thread."""
 
-    async def test_cancelling_the_task_aborts_the_request(
+    async def test_bhv_transport_060_cancelling_the_task_aborts_the_request(
         self, chasm_http_url: Any
     ) -> None:
         client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())

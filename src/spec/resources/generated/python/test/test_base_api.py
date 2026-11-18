@@ -2137,7 +2137,7 @@ class TestHeaderFlowThrough:
         )
         assert client.captured_headers["Accept"] == "application/xml"
 
-    async def test_a_lower_case_default_header_replaces_the_negotiated_one(
+    async def test_bhv_headers_030_a_lower_case_default_header_replaces_the_negotiated_one(
         self,
     ) -> None:
         client = CapturingApiClient()
@@ -3009,6 +3009,33 @@ class TestAutomaticRetries:
         await _get(_retry_api(server))
 
         assert len(server.requests) == 2
+
+    async def test_bhv_retries_042_a_timeout_is_not_retried(self) -> None:
+        import urllib3.exceptions
+        from petstore_client.errors import NetworkTimeoutException
+
+        class _TimingOutPool:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls += 1
+                raise urllib3.exceptions.ReadTimeoutError(None, url, "read timed out")
+
+            def clear(self) -> None:
+                return None
+
+        pool = _TimingOutPool()
+        builder = TransportOptions.builder().max_retries(3)
+        api = StubApi(
+            api_client=DefaultApiClient(builder.build(), pool_manager=pool),
+            config=Configuration(base_url="http://127.0.0.1"),
+        )
+
+        with pytest.raises(NetworkTimeoutException):
+            await _get(api)
+
+        assert pool.calls == 1
 
     async def test_a_dropped_connection_surfaces_once_the_retries_are_spent(
         self, scripted: Any

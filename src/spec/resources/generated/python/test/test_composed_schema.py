@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from petstore_client.errors import SerializationException
 from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.dry_food import DryFood
+from petstore_client.models.pet_food import PetFood
 from petstore_client.models.wet_food import WetFood
 from petstore_client.models.medication import Medication
 from petstore_client.models.surgery import Surgery
@@ -68,6 +69,72 @@ class TestOneOfPetFood:
         serialized = ObjectSerializer().serialize(result)
         assert "dry" in serialized
         assert "2.5" in serialized
+
+    def test_bhv_unions_029_oneof_wrappers_have_value_equality(self) -> None:
+        first = PetFood(DryFood(weightKg=2.5))
+        second = PetFood(DryFood(weightKg=2.5))
+        other = PetFood(WetFood(volumeMl=400))
+        assert first == second
+        assert hash(first) == hash(second)
+        assert first != other
+
+    def test_bhv_unions_030_an_absent_discriminator_is_filled_with_the_mapping_default(
+        self,
+    ) -> None:
+        import json
+
+        result = ObjectSerializer().deserialize('{"weightKg":2.5}', "DryFood")
+        assert result.food_type == "dry"
+        assert json.loads(ObjectSerializer().serialize(result))["foodType"] == "dry"
+
+    def test_bhv_unions_032_a_oneof_wrapper_built_from_a_variant_serializes_with_its_discriminator(
+        self,
+    ) -> None:
+        import json
+
+        wrapped = PetFood(DryFood(weightKg=2.5))
+        assert wrapped.actual_instance == DryFood(weightKg=2.5)
+        assert json.loads(ObjectSerializer().serialize(wrapped)) == {
+            "foodType": "dry",
+            "weightKg": 2.5,
+        }
+
+    def test_bhv_unions_034_a_oneof_wrapper_holds_its_variant_and_not_the_other(
+        self,
+    ) -> None:
+        dry = PetFood(DryFood(weightKg=2.5))
+        assert isinstance(dry.actual_instance, DryFood)
+        assert not isinstance(dry.actual_instance, WetFood)
+        wet = PetFood(WetFood(volumeMl=400))
+        assert isinstance(wet.actual_instance, WetFood)
+        assert not isinstance(wet.actual_instance, DryFood)
+
+    @pytest.mark.parametrize(
+        "json_str",
+        [
+            '{"foodType":"raw","calories":300}',
+            '{"foodType":"Dry","weightKg":2.5}',
+        ],
+    )
+    def test_bhv_unions_035_a_discriminator_value_not_in_the_mapping_fails_to_deserialize(
+        self, json_str: str
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(json_str, "PetFood")
+
+    @pytest.mark.parametrize(
+        "json_str",
+        [
+            '{"weightKg":2.5}',
+            '{"foodType":"","weightKg":2.5}',
+            '{"foodType":"raw","calories":300}',
+        ],
+    )
+    def test_bhv_unions_033_an_unknown_missing_or_empty_discriminator_is_a_serialization_error(
+        self, json_str: str
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(json_str, "PetFood")
 
 
 class TestAnyOfPetTreatment:

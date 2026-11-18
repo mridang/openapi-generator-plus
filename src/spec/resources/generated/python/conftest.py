@@ -193,3 +193,23 @@ def proxy_auth_host_port(squid_container):
 @pytest.fixture(scope="session")
 def ca_cert_path():
     return os.path.join(os.getcwd(), "test", "fixtures", "certs", "ca.pem")
+
+
+@pytest.fixture
+def system_root_pem():
+    """The first certificate of the system trust bundle, as PEM text, for a CA file
+    that must hold a certificate unrelated to the chasm server."""
+    import re
+    import ssl
+
+    cafile = ssl.get_default_verify_paths().cafile
+    if cafile is None:
+        pytest.skip("no system trust bundle file on this platform")
+    with open(cafile) as handle:
+        block = re.search(
+            r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+            handle.read(),
+            re.S,
+        )
+    assert block is not None, "the system trust bundle holds no certificate"
+    return block.group(0) + "\n"

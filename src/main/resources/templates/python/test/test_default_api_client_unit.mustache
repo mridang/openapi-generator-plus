@@ -571,7 +571,7 @@ class TestMultipartFilenameSanitization:
         assert b"filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf" in body
 
 
-    def test_multipart_body_leaves_a_caller_supplied_handle_open(self) -> None:
+    def test_bhv_transport_061_multipart_body_leaves_a_caller_supplied_handle_open(self) -> None:
         import io
         client = DefaultApiClient()
         bare = io.BytesIO(b"hello")
@@ -941,7 +941,7 @@ class TestBodyReplayOnTlsDowngrade:
         # The replay over plaintext must never have happened.
         assert len(pool.calls) == 1
 
-    def test_refused_downgrade_releases_the_redirect_connection(self) -> None:
+    def test_bhv_transport_064_refused_downgrade_releases_the_redirect_connection(self) -> None:
         from {{packageName}}.errors import ApiException
 
         redirect = _FakeResp(307, {"location": "http://example.com/insecure"})
@@ -1991,7 +1991,7 @@ class TestRedirectCredentialForwarding:
             ("http://example.com:80/start", "http://example.com/dest"),
         ],
     )
-    def test_explicit_default_port_is_the_same_origin(
+    def test_bhv_redirects_037_a_redirect_to_the_explicit_default_port_keeps_the_authorization_header(
         self, start: str, location: str
     ) -> None:
         followed = _headers_on_second_hop(
