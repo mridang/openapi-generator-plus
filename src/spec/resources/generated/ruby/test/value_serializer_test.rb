@@ -553,6 +553,11 @@ describe Petstore::Client::ValueSerializer do
   end
 
   describe 'content cookie encoding' do
+    it 'bhv_serializationobject_224 percent-encodes the serialized JSON of a content cookie keeping only the unreserved set' do
+      encoded = Petstore::Client::ValueSerializer.encode_content_cookie(Petstore::Client::ObjectSerializer.serialize({ 'k' => 'a' }))
+      _(encoded).must_equal('%7B%22k%22%3A%22a%22%7D')
+    end
+
     it 'keeps only the unreserved set literal and encodes the rest as UTF-8' do
       encoded = Petstore::Client::ValueSerializer.encode_content_cookie('{"k":"a b~*é"}')
 
