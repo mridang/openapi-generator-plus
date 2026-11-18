@@ -1465,7 +1465,7 @@ public class DefaultApiClientUnitTest
     [InlineData("X-Tenant-Token")]
     [InlineData("X-Custom-Auth-Key")]
     [InlineData("X-Client-Secret")]
-    public async Task CrossOriginRedirectStripsAnyHeaderNamedLikeACredential(
+    public async Task BhvLangcsharp042CrossOriginRedirectStripsAnyHeaderNamedLikeACredential(
         string credentialHeader
     )
     {
@@ -1765,7 +1765,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task Redirect307ReplaysByteArrayBodyWithItsContentType()
+    public async Task BhvLangcsharp043Redirect307ReplaysByteArrayBodyWithItsContentType()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1786,7 +1786,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task Redirect307ReplaysTextBodyWithBareContentType()
+    public async Task BhvLangcsharp044Redirect307ReplaysTextBodyWithBareContentType()
     {
         var handler = new RedirectingHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb,
@@ -1837,7 +1837,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task TextBodyWithoutDeclaredContentTypeDefaultsToBareJson()
+    public async Task BhvMisc202TextBodyWithoutDeclaredContentTypeDefaultsToBareJson()
     {
         string? sent = null;
         var handler = new CapturingHandler(req =>
@@ -2416,7 +2416,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CredentialsDroppedOnACrossOriginHopStayDroppedWhenTheChainReturns()
+    public async Task BhvMisc130CredentialsDroppedOnACrossOriginHopStayDroppedWhenTheChainReturns()
     {
         // F898: A -> B -> A. The hop to B strips the credentials; the hop back
         // to the original origin must not bring them back, because the third
@@ -3201,7 +3201,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void ZeroTimeoutIsRejectedAtConfiguration()
+    public void BhvMisc134ZeroTimeoutIsRejectedAtConfiguration()
     {
         var ex = Assert.ThrowsAny<ArgumentException>(() => TransportOptions.Builder().Timeout(0));
         Assert.False(
@@ -3365,7 +3365,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task ClientLevelTokenAbortsAnInFlightRequest()
+    public async Task BhvTransport083ClientLevelTokenAbortsAnInFlightRequest()
     {
         var handler = new SignallingHangingHandler();
         using var clientSource = new CancellationTokenSource();
@@ -3413,7 +3413,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task TimeoutStaysDistinctFromCancellationWhenATokenIsSupplied()
+    public async Task BhvTransport085TimeoutStaysDistinctFromCancellationWhenATokenIsSupplied()
     {
         var client = new DefaultApiClient(
             new HttpClient(new HangingHandler()),

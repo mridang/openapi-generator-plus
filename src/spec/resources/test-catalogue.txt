@@ -2124,3 +2124,6 @@ langcsharp038 | An enum header parameter is sent as its wire value
 langcsharp039 | A set query parameter with a multi collection format expands to one entry per value
 langcsharp040 | A null element in a multi query array keeps an empty entry
 langcsharp041 | A byte array is encoded as one base64 string rather than a list
+langcsharp042 | A cross-origin redirect drops any header whose name looks like a credential
+langcsharp043 | A 307 redirect replays a byte array body with its content type
+langcsharp044 | A 307 redirect replays a text body with a bare content type
