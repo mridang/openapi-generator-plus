@@ -2555,4 +2555,19 @@ private final class UnitStubURLProtocol: URLProtocol {
   }
 
   override func stopLoading() {}
+
+  /* A CA path that does not exist fails at construction, naming the path and wrapping the read failure. */
+  @Test func testBhvErrors098AMissingCaPathNamesTheCertificateAndWrapsTheCause() throws {
+    let transport = try TransportOptionsBuilder().caCertPath("/nonexistent/ca.pem").build()
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try DefaultApiClient(transportOptions: transport)
+    }
+    guard case .invalidCACertificate(let message)? = error else {
+      Issue.record("expected invalidCACertificate, got \(String(describing: error))")
+      return
+    }
+    let prefix = "failed to read CA certificate from \"/nonexistent/ca.pem\": "
+    #expect(message.hasPrefix(prefix))
+    #expect(message.count > prefix.count)
+  }
 }
