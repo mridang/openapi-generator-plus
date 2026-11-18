@@ -1194,12 +1194,13 @@ defmodule PetstoreClient.DefaultApiClient do
 
   @doc false
   # Whether following a redirect would replay a request body over an HTTPS ->
-  # HTTP downgrade. Only 307/308 preserve the body, and only a real body can
-  # leak: nil is no body, and so is the empty string the client substitutes on
-  # POST/PUT/PATCH to force an explicit `Content-Length: 0`.
+  # HTTP downgrade. 301 and 302 are refused too, since a method they keep (PUT,
+  # for example) replays the body; 303 is never refused because it becomes a GET.
+  # Only a real body can leak: nil is no body, and so is the empty string the
+  # client substitutes on POST/PUT/PATCH to force an explicit `Content-Length: 0`.
   @spec refuse_body_replay?(integer(), String.t(), String.t(), term()) :: boolean()
   def refuse_body_replay?(status, url, next_url, body) do
-    status in [307, 308] and body not in [nil, ""] and downgrade?(url, next_url)
+    status in [301, 302, 307, 308] and body not in [nil, ""] and downgrade?(url, next_url)
   end
 
   @doc false

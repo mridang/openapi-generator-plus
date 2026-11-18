@@ -4986,3 +4986,139 @@ func TestBhvMisc287_ObjectSerializer_AWireKeyNamedAdditionalPropertiesIsKeptAsAn
 		t.Errorf("expected the extra key kept, got %v", got)
 	}
 }
+
+// A date-only value is written as yyyy-mm-dd with no time part.
+func TestBhvMisc236_ObjectSerializer_DateOnlyIsWrittenAsYyyyMmDd(t *testing.T) {
+	t.Parallel()
+	day := time.Date(2024, 3, 9, 0, 0, 0, 0, time.UTC)
+	if got := stringifyDate(day); got != "2024-03-09" {
+		t.Errorf("expected 2024-03-09, got %q", got)
+	}
+}
+
+// A model nested in another model, or in a list of models, keeps its additional properties.
+func TestBhvMisc234_ObjectSerializer_NestedAdditionalPropertiesRoundTrip(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(map[string]any{
+		"outer": map[string]any{"known": "a", "extra": "b"},
+		"list":  []any{map[string]any{"extra": 2}},
+	})
+	if err != nil {
+		t.Fatalf("unexpected serialize error: %v", err)
+	}
+	var out map[string]any
+	if err := deserialize(data, &out); err != nil {
+		t.Fatalf("unexpected deserialize error: %v", err)
+	}
+	outer, _ := out["outer"].(map[string]any)
+	list, _ := out["list"].([]any)
+	if outer["extra"] != "b" || len(list) != 1 || list[0].(map[string]any)["extra"] != float64(2) {
+		t.Errorf("expected additional properties kept, got %v", out)
+	}
+}
+
+// An enum wire value containing separators round-trips unchanged.
+func TestBhvMisc252_ObjectSerializer_EnumWireValueWithSeparatorsRoundTrips(t *testing.T) {
+	t.Parallel()
+	const wire = "a,b; c d"
+	data, err := serialize(wire)
+	if err != nil {
+		t.Fatalf("unexpected serialize error: %v", err)
+	}
+	var got string
+	if err := deserialize(data, &got); err != nil {
+		t.Fatalf("unexpected deserialize error: %v", err)
+	}
+	if got != wire {
+		t.Errorf("expected %q unchanged, got %q", wire, got)
+	}
+}
+
+// A free-form object keeps its object and integer entries through a JSON round trip.
+func TestBhvMisc249_ObjectSerializer_FreeFormObjectKeepsObjectAndIntegerEntries(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(map[string]any{"meta": map[string]any{"count": 3, "nested": map[string]any{"ok": true}}})
+	if err != nil {
+		t.Fatalf("unexpected serialize error: %v", err)
+	}
+	var out map[string]any
+	if err := deserialize(data, &out); err != nil {
+		t.Fatalf("unexpected deserialize error: %v", err)
+	}
+	meta, _ := out["meta"].(map[string]any)
+	nested, _ := meta["nested"].(map[string]any)
+	if meta["count"] != float64(3) || nested["ok"] != true {
+		t.Errorf("expected object and integer entries kept, got %v", out)
+	}
+}
+
+// A time of day in a plain object is serialized as a JSON string.
+func TestBhvMisc245_ObjectSerializer_TimeOfDayInAPlainObjectIsAJsonString(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(map[string]any{"at": time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)})
+	if err != nil {
+		t.Fatalf("unexpected serialize error: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unexpected json error: %v", err)
+	}
+	if _, ok := out["at"].(string); !ok {
+		t.Errorf("expected a JSON string for the time of day, got %T", out["at"])
+	}
+}
+
+// A body with a leading byte-order mark decodes into the model.
+func TestBhvMisc244_ObjectSerializer_LeadingByteOrderMarkDecodesIntoTheModel(t *testing.T) {
+	t.Parallel()
+	var out map[string]any
+	if err := deserialize([]byte("\xEF\xBB\xBF"+`{"name":"x"}`), &out); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out["name"] != "x" {
+		t.Errorf("expected name x, got %v", out)
+	}
+}
+
+// An absent optional array field decodes to null, not to an empty list.
+func TestBhvMisc243_ObjectSerializer_AbsentOptionalArrayDecodesToNull(t *testing.T) {
+	t.Parallel()
+	var out struct {
+		Tags []string `json:"tags,omitempty"`
+	}
+	if err := deserialize([]byte(`{}`), &out); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out.Tags != nil {
+		t.Errorf("expected a nil list for an absent array, got %#v", out.Tags)
+	}
+}
+
+// A UUID string with the wrong segment lengths is rejected.
+func TestBhvMisc247_ObjectSerializer_UuidWithWrongSegmentLengthsIsRejected(t *testing.T) {
+	t.Parallel()
+	var id uuid.UUID
+	if err := deserialize([]byte(`"12345678-1234-1234-1234-12345678901"`), &id); err == nil {
+		t.Error("expected an error for a UUID with short final segment, got nil")
+	}
+}
+
+// A read-only property is decoded and a write-only property is written, and neither is sent in the wrong direction.
+func TestBhvMisc242_ObjectSerializer_ReadOnlyAndWriteOnlyPropertiesHaveNoWireEffectInTheOtherDirection(t *testing.T) {
+	t.Parallel()
+	var decoded models.Account
+	if err := json.Unmarshal([]byte(`{"id":7,"username":"u","password":"p"}`), &decoded); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if decoded.Id == nil || *decoded.Id != 7 {
+		t.Errorf("expected the read-only id 7 to be decoded, got %v", decoded.Id)
+	}
+	password := "p"
+	data, err := json.Marshal(models.Account{Username: "u", Password: &password})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := `{"username":"u","password":"p"}`; string(data) != want {
+		t.Errorf("expected %s, got %s", want, data)
+	}
+}

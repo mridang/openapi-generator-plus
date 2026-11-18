@@ -2648,3 +2648,7 @@ test('bhv enums 010 a member without a description keeps the comment it has toda
 test('bhv enums 011 a description with comment terminators still yields a compiling comment', function (): void {
     expect(enumModelSource('Tier'))->toContain("/** The largest tier. Ends with *_/ and #{x} and \$x. */\n    case LARGE");
 });
+
+test('bhv misc 085 a non canonical uuid text is refused as a type error when the model is built', function (): void {
+    expect(fn () => new \PetstoreClient\Models\Order(trackingId: 'not-a-uuid'))->toThrow(\TypeError::class);
+});

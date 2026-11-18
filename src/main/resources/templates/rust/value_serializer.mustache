@@ -472,6 +472,19 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_misc_120_an_object_parameter_is_sorted_by_wire_name() {
+        let obj = HashMap::from([("b".to_string(), "2".to_string()), ("a".to_string(), "1".to_string())]);
+        let result = super::serialize_deep_object("filter", &obj);
+        assert_eq!(result, vec![("filter[a]".to_string(), "1".to_string()), ("filter[b]".to_string(), "2".to_string())]);
+    }
+
+    #[test]
+    fn test_bhv_misc_107_a_scalar_form_query_parameter_keeps_its_string_value() {
+        let result = super::serialize_value(Some("x"), "query", "string", "");
+        assert_eq!(result.unwrap(), "x");
+    }
+
+    #[test]
     fn test_bhv_serializationparam_096_serialize_value_query_string() {
         let result = super::serialize_value(Some("hello"), "query", "string", "");
         assert_eq!(result.unwrap(), "hello");

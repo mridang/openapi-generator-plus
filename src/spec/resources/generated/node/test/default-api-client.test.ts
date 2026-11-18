@@ -17,6 +17,7 @@ import { OAuth2TokenManager } from "../src/auth/oauth/oauth2-token-manager.js";
 import { OAuth2TokenError } from "../src/errors/oauth2-token-error.js";
 import * as dns from "node:dns/promises";
 import * as zlib from "node:zlib";
+import { Readable } from "node:stream";
 import * as fs from "node:fs";
 import * as http from "node:http";
 import * as os from "node:os";
@@ -1000,5 +1001,312 @@ describe("DefaultApiClient", () => {
       .catch((e: unknown) => e);
     expect((error as Error).constructor).toBe(Error);
     expect((error as Error).message).toContain("closed");
+  });
+});
+
+describe("DefaultApiClient redirect misc behaviours", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  function scriptFetch(
+    steps: Array<{ status: number; location?: string }>,
+  ): Array<{ url: string; init: RequestInit }> {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      const step = steps[Math.min(calls.length - 1, steps.length - 1)];
+      const headers: Record<string, string> = step.location
+        ? { Location: step.location }
+        : {};
+      if (step.status === 200) {
+        headers["Content-Type"] = "application/json";
+      }
+      return new Response(step.status === 200 ? '{"ok":true}' : null, {
+        status: step.status,
+        headers,
+      });
+    }) as unknown as typeof fetch;
+    return calls;
+  }
+
+  it("bhv misc 124 a request body is not replayed across a 301 redirect from HTTPS to plain HTTP, and the call fails", async () => {
+    const calls = scriptFetch([
+      { status: 301, location: "http://api.example/plain" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await expect(
+      client.sendRequest(
+        "PUT",
+        "https://api.example/start",
+        { "Content-Type": "application/json" },
+        { name: "x" },
+      ),
+    ).rejects.toThrow("Refusing to replay request body");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("bhv misc 126 a HEAD request redirected by 303 is followed as HEAD rather than converted to GET", async () => {
+    const calls = scriptFetch([
+      { status: 303, location: "https://example.com/elsewhere" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest("HEAD", "https://example.com/start", {}, null);
+    expect(calls).toHaveLength(2);
+    expect(String(calls[1].init.method).toUpperCase()).toBe("HEAD");
+  });
+
+  it("bhv misc 127 a Location that holds only a query keeps the redirected path and replaces its query", async () => {
+    const calls = scriptFetch([
+      { status: 302, location: "?page=2" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest(
+      "GET",
+      "https://h.example.com/v1/items/1?page=1",
+      {},
+      null,
+    );
+    expect(calls[1].url).toBe("https://h.example.com/v1/items/1?page=2");
+  });
+
+  it("bhv misc 128 a cross-origin redirect keeps the proxy credential on every request through the shared transport", async () => {
+    const seen: Array<{ url: string; auth: string | undefined }> = [];
+    const proxy = http.createServer((req, res) => {
+      seen.push({
+        url: String(req.url),
+        auth: req.headers["proxy-authorization"],
+      });
+      if (req.url === "http://origin-a.example/start") {
+        res.writeHead(302, { Location: "http://origin-b.example/hop" });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"ok":true}');
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (proxy.address() as { port: number }).port;
+      const client = new DefaultApiClient(
+        TransportOptions.builder()
+          .proxy(`http://user:pass@127.0.0.1:${port}`)
+          .followRedirects(true)
+          .build(),
+      );
+      const response = await client.sendRequest(
+        "GET",
+        "http://origin-a.example/start",
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(200);
+      expect(seen.map((s) => s.url)).toEqual([
+        "http://origin-a.example/start",
+        "http://origin-b.example/hop",
+      ]);
+      expect(seen.every((s) => s.auth !== undefined)).toBe(true);
+    } finally {
+      proxy.close();
+    }
+  });
+
+  it("bhv misc 129 a proxy credential the SDK adds is not sent again when a redirect moves an HTTPS request to another origin", async () => {
+    const calls = scriptFetch([
+      { status: 302, location: "https://other.example/landing" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest(
+      "GET",
+      "https://api.example/start",
+      { "Proxy-Authorization": "Basic dXNlcjpwYXNz" },
+      null,
+    );
+    expect(new Headers(calls[0].init.headers).has("proxy-authorization")).toBe(
+      true,
+    );
+    expect(new Headers(calls[1].init.headers).has("proxy-authorization")).toBe(
+      false,
+    );
+  });
+
+  it("bhv misc 130 a credential removed by a cross-origin hop is not restored when a later redirect returns to the original origin", async () => {
+    const calls = scriptFetch([
+      { status: 302, location: "https://other.example/hop" },
+      { status: 302, location: "https://api.example/back" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest(
+      "GET",
+      "https://api.example/start",
+      { Authorization: "Bearer secret" },
+      null,
+    );
+    const auth = (i: number) =>
+      new Headers(calls[i].init.headers).get("authorization");
+    expect(auth(0)).toBe("Bearer secret");
+    expect(auth(1)).toBeNull();
+    expect(auth(2)).toBeNull();
+  });
+
+  it.each([300, 305])(
+    "bhv misc 133 a %i response is returned as it is, even when it carries a Location header",
+    async (status) => {
+      const calls = scriptFetch([
+        { status, location: "https://example.com/elsewhere" },
+      ]);
+      const client = new DefaultApiClient(
+        TransportOptions.builder().followRedirects(true).build(),
+      );
+      const response = await client.sendRequest(
+        "GET",
+        "https://example.com/start",
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(status);
+      expect(calls).toHaveLength(1);
+    },
+  );
+});
+
+describe("DefaultApiClient retry misc behaviours", () => {
+  const url = "https://api.example.com/items";
+
+  /** A transport that answers each attempt with the next step: a status code, or an error it throws. */
+  function scripted(steps: Array<number | Error>): {
+    fetch: typeof fetch;
+    methods: string[];
+  } {
+    const methods: string[] = [];
+    const fn = (async (_input: unknown, init?: RequestInit) => {
+      methods.push(String(init?.method ?? "GET"));
+      const step = steps[Math.min(methods.length - 1, steps.length - 1)]!;
+      if (step instanceof Error) throw step;
+      return new Response(step === 200 ? "{}" : "", {
+        status: step,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    return { fetch: fn, methods };
+  }
+
+  /** The TypeError fetch rejects with when the connection drops before any response. */
+  function connectionDropped(): TypeError {
+    return new TypeError("fetch failed", {
+      cause: Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }),
+    });
+  }
+
+  function clientFor(fetchFn: typeof fetch): DefaultApiClient {
+    return new DefaultApiClient(
+      TransportOptions.builder().fetch(fetchFn).build(),
+    );
+  }
+
+  test("bhvMisc160 an error that is not a network failure is never retried", async () => {
+    const transport = scripted([new Error("boom"), 200]);
+    const error = await clientFor(transport.fetch)
+      .sendRequest("GET", url, {}, null)
+      .catch((e: unknown) => e);
+    expect(error).not.toBeInstanceOf(NetworkError);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test.each(["POST", "PATCH"])(
+    "bhvMisc161 a %s whose connection drops is sent exactly once",
+    async (method) => {
+      const transport = scripted([connectionDropped(), 200]);
+      await expect(
+        clientFor(transport.fetch).sendRequest(method, url, {}, null),
+      ).rejects.toBeInstanceOf(NetworkError);
+      expect(transport.methods).toHaveLength(1);
+    },
+  );
+
+  test("bhvMisc161 a QUERY whose connection drops is treated as idempotent and sent again", async () => {
+    const transport = scripted([connectionDropped(), 200]);
+    const response = await clientFor(transport.fetch).sendRequest(
+      "QUERY",
+      url,
+      {},
+      "{}",
+    );
+    expect(response.statusCode).toBe(200);
+    expect(transport.methods).toEqual(["QUERY", "QUERY"]);
+  });
+
+  test("bhvMisc163 a one-shot stream body is not replayed on a retryable status", async () => {
+    const transport = scripted([503, 200]);
+    const stream = Readable.from(["payload"]);
+    await clientFor(transport.fetch)
+      .sendRequest(
+        "POST",
+        url,
+        {},
+        stream as unknown as Record<string, unknown>,
+      )
+      .catch(() => undefined);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test("bhvMisc163 a text body is replayed on a retryable status", async () => {
+    const transport = scripted([503, 200]);
+    const response = await clientFor(transport.fetch).sendRequest(
+      "POST",
+      url,
+      {},
+      "payload",
+    );
+    expect(response.statusCode).toBe(200);
+    expect(transport.methods).toHaveLength(2);
+  });
+
+  test("bhvMisc170 a TLS certificate failure is a network error on the first attempt and is not retried", async () => {
+    const tlsFailure = new TypeError("fetch failed", {
+      cause: Object.assign(
+        new Error("unable to verify the first certificate"),
+        { code: "UNABLE_TO_VERIFY_LEAF_SIGNATURE" },
+      ),
+    });
+    const transport = scripted([tlsFailure, 200]);
+    await expect(
+      clientFor(transport.fetch).sendRequest("GET", url, {}, null),
+    ).rejects.toBeInstanceOf(NetworkError);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test("bhvMisc186 a value that is not a fetch function is refused when the options are built", () => {
+    expect(() =>
+      TransportOptions.builder()
+        .fetch("not a function" as unknown as typeof fetch)
+        .build(),
+    ).toThrow(TypeError);
+  });
+
+  test("bhvMisc186 a ready-made fetch combined with a CA bundle is refused when the options are built", () => {
+    const transport = scripted([200]);
+    expect(() =>
+      TransportOptions.builder()
+        .fetch(transport.fetch)
+        .caCertPath("/path/to/ca.pem")
+        .build(),
+    ).toThrow(TypeError);
   });
 });

@@ -853,6 +853,29 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in PetStoreBasicAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    PetStoreBasicAuthenticatorVariables,
+                    PetStoreBasicAuthenticatorFields,
+                    variable,
+                    null
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.PetStoreBasicAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063PetStoreBasicAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in PetStoreBasicAuthenticatorVariables)
@@ -960,6 +983,29 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in AdminBasicAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    AdminBasicAuthenticatorVariables,
+                    AdminBasicAuthenticatorFields,
+                    variable,
+                    null
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.AdminBasicAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063AdminBasicAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in AdminBasicAuthenticatorVariables)
@@ -1049,6 +1095,29 @@ public sealed class SchemeAuthenticatorTest
                     PetStoreBearerAuthenticatorFields,
                     variable,
                     ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in PetStoreBearerAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    PetStoreBearerAuthenticatorVariables,
+                    PetStoreBearerAuthenticatorFields,
+                    variable,
+                    null
                 ),
                 () =>
                 {
@@ -1217,6 +1286,29 @@ public sealed class SchemeAuthenticatorTest
                     ServiceTokenAuthenticatorFields,
                     variable,
                     ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ServiceTokenAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in ServiceTokenAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ServiceTokenAuthenticatorVariables,
+                    ServiceTokenAuthenticatorFields,
+                    variable,
+                    null
                 ),
                 () =>
                 {
@@ -1414,6 +1506,29 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in ApiKeyHeaderAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ApiKeyHeaderAuthenticatorVariables,
+                    ApiKeyHeaderAuthenticatorFields,
+                    variable,
+                    null
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063ApiKeyHeaderAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in ApiKeyHeaderAuthenticatorVariables)
@@ -1495,6 +1610,29 @@ public sealed class SchemeAuthenticatorTest
                     InternalApiKeyAuthenticatorFields,
                     variable,
                     ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.InternalApiKeyAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in InternalApiKeyAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    InternalApiKeyAuthenticatorVariables,
+                    InternalApiKeyAuthenticatorFields,
+                    variable,
+                    null
                 ),
                 () =>
                 {
@@ -1625,6 +1763,29 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in ApiKeyQueryAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ApiKeyQueryAuthenticatorVariables,
+                    ApiKeyQueryAuthenticatorFields,
+                    variable,
+                    null
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ApiKeyQueryAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063ApiKeyQueryAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in ApiKeyQueryAuthenticatorVariables)
@@ -1742,6 +1903,29 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in SessionCookieAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    SessionCookieAuthenticatorVariables,
+                    SessionCookieAuthenticatorFields,
+                    variable,
+                    null
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.SessionCookieAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063SessionCookieAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in SessionCookieAuthenticatorVariables)
@@ -1845,6 +2029,31 @@ public sealed class SchemeAuthenticatorTest
                     MachineAuthClientCredentialsAuthenticatorFields,
                     variable,
                     ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator(
+                            Host
+                        )
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in MachineAuthClientCredentialsAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    MachineAuthClientCredentialsAuthenticatorVariables,
+                    MachineAuthClientCredentialsAuthenticatorFields,
+                    variable,
+                    null
                 ),
                 () =>
                 {
@@ -1995,6 +2204,29 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in LegacyAuthPasswordAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    LegacyAuthPasswordAuthenticatorVariables,
+                    LegacyAuthPasswordAuthenticatorFields,
+                    variable,
+                    null
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063LegacyAuthPasswordAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in LegacyAuthPasswordAuthenticatorVariables)
@@ -2129,6 +2361,29 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in UserAuthAuthorizationCodeAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    UserAuthAuthorizationCodeAuthenticatorVariables,
+                    UserAuthAuthorizationCodeAuthenticatorFields,
+                    variable,
+                    null
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063UserAuthAuthorizationCodeAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in UserAuthAuthorizationCodeAuthenticatorVariables)
@@ -2245,6 +2500,29 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in BrowserAuthImplicitAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    BrowserAuthImplicitAuthenticatorVariables,
+                    BrowserAuthImplicitAuthenticatorFields,
+                    variable,
+                    null
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063BrowserAuthImplicitAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in BrowserAuthImplicitAuthenticatorVariables)
@@ -2345,6 +2623,24 @@ public sealed class SchemeAuthenticatorTest
         {
             WithEnvironment(
                 Complete(SsoAuthAuthenticatorVariables, SsoAuthAuthenticatorFields, variable, ""),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.SsoAuthAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in SsoAuthAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(SsoAuthAuthenticatorVariables, SsoAuthAuthenticatorFields, variable, null),
                 () =>
                 {
                     var ex = Assert.Throws<InvalidOperationException>(() =>

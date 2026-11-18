@@ -495,6 +495,83 @@ defmodule PetstoreClient.ClientTest do
            }
   end
 
+  test "bhv misc 203 closing a client that is already closed does nothing and raises no error" do
+    client =
+      PetstoreClient.Client.new(
+        PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "test-token")
+      )
+
+    assert PetstoreClient.Client.close(client) == :ok
+    assert PetstoreClient.Client.close(client) == :ok
+  end
+
+  test "bhv misc 204 constructing a client without a required host or token fails immediately with a missing-credential error" do
+    assert_raise ArgumentError, ~r/At least one credential is required/, fn ->
+      PetstoreClient.Client.new(nil)
+    end
+  end
+
+  test "bhv misc 206 a client built with only a default authenticator takes its host from that authenticator" do
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "test-token")
+
+    client = PetstoreClient.Client.new(authenticator)
+
+    assert PetstoreClient.Auth.BearerAuthenticator.host(client.authenticator) ==
+             "https://api.example.com"
+
+    assert PetstoreClient.Client.close(client) == :ok
+  end
+
+  test "bhv misc 207 a token not passed to the client is read from its environment variable" do
+    name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+    System.put_env(name, "from-env")
+    on_exit(fn -> System.delete_env(name) end)
+
+    client =
+      PetstoreClient.Client.new(
+        PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", nil)
+      )
+
+    assert PetstoreClient.Auth.BearerAuthenticator.auth_headers(client.authenticator)[
+             "Authorization"
+           ] == "Bearer from-env"
+
+    assert PetstoreClient.Client.close(client) == :ok
+  end
+
+  test "bhv misc 183 closing a client whose credentials hold nothing to release succeeds" do
+    client =
+      PetstoreClient.Client.new(
+        PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "test-token")
+      )
+
+    assert PetstoreClient.Client.close(client) == :ok
+  end
+
+  test "bhv misc 184 closing a client returns while a request is still running and does not cancel it" do
+    {_adapter, transport} = blocked_transport()
+    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+
+    task = Task.async(call_through(client))
+    assert_receive {:waiting, in_flight}, 5_000
+
+    assert PetstoreClient.Client.close(client) == :ok
+    assert Task.yield(task, 0) == nil
+
+    send(in_flight, :proceed)
+    assert {:ok, _result} = Task.await(task)
+  end
+
+  test "bhv misc 188 a client is not closed until close is called, and requests fail with the closed error afterwards" do
+    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()})
+    refute_received {:released, _label}
+
+    assert PetstoreClient.Client.close(client) == :ok
+    error = assert_raise RuntimeError, call_through(client)
+    assert error.message == "ApiClient has been closed and can no longer send requests"
+  end
+
   test "bhv lifecycle 001 API groups are accessible" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
 

@@ -334,6 +334,91 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvMisc212A404And500ResponseRaiseTheMatchingErrorThroughTheApiLayer()
+    {
+        var notFound = new TestableApi(new StatusSequenceApiClient(404), "http://localhost");
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            notFound.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        var failed = new TestableApi(new StatusSequenceApiClient(500), "http://localhost");
+        await Assert.ThrowsAsync<InternalServerErrorException>(() =>
+            failed.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc209AVoidOperationIgnoresASuccessBodyThatIsTextOrANonObjectJson()
+    {
+        var textApi = new TestableApi(
+            new FixedBodyApiClient("Deleted", "text/plain"),
+            "http://localhost"
+        );
+        Assert.Null(
+            await textApi.CallAsyncWithNullReturnType(
+                "DELETE",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["text/plain"],
+                "application/json"
+            )
+        );
+
+        var numberApi = new TestableApi(
+            new FixedBodyApiClient("42", "application/json"),
+            "http://localhost"
+        );
+        Assert.Null(
+            await numberApi.CallAsyncWithNullReturnType(
+                "DELETE",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+    }
+
+    private sealed class FixedBodyApiClient(string responseBody, string responseType) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromResult(
+                new ApiHttpResponse(
+                    200,
+                    responseBody,
+                    new Dictionary<string, string> { { "Content-Type", responseType } }
+                )
+            );
+        }
+    }
+
+    [Fact]
     public async Task BhvErrors036AnApiErrorNamesTheRequestMethodAndPathWithoutTheQuery()
     {
         var client = new StatusSequenceApiClient(404);
@@ -1672,6 +1757,18 @@ public class BaseApiTest
         await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithAuth(client, auth, "{}"));
 
         Assert.Single(client.Authorizations);
+    }
+
+    [Fact]
+    public async Task BhvMisc159A401IsReplayedOnceEvenWithRetriesOffWhenTheAuthenticatorCanRefresh()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        _ = await CallWithAuth(client, auth, "{}");
+
+        Assert.Equal(1, auth.Invalidations);
+        Assert.Equal(2, client.Authorizations.Count);
     }
 
     [Fact]
@@ -3417,5 +3514,89 @@ public class BaseApiTest
         _ = await api.CallAsync<object>("/items/7", auth: auth);
 
         Assert.Equal("session=a%20b=c", client.CapturedHeaders["Cookie"]);
+    }
+
+    private sealed class RawBodyApiClient(string payload, string contentType) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromResult(
+                new ApiHttpResponse(
+                    200,
+                    payload,
+                    new Dictionary<string, string> { { "Content-Type", contentType } }
+                )
+            );
+        }
+    }
+
+    [Fact]
+    public async Task BhvSerialization122AFormArrayRepeatsItsKeyInOrder()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>
+            {
+                { "name", "alice" },
+                {
+                    "tags",
+                    new List<string> { "a", "b" }
+                },
+            },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.Equal("name=alice&tags=a&tags=b", client.CapturedBody?.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerialization125FormValuesPercentEncodeAPlusSign()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "q", "a+b" } },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.Equal("q=a%2Bb", client.CapturedBody?.ToString());
+    }
+
+    [Theory]
+    [InlineData("application/octet-stream")]
+    [InlineData("text/plain")]
+    [InlineData("application/json")]
+    public async Task BhvSerialization128AStringResponseIsReturnedUnchangedWhateverItsContentType(
+        string contentType
+    )
+    {
+        var testApi = new TestableApi(
+            new RawBodyApiClient("{\"a\":1}", contentType),
+            "http://localhost"
+        );
+        var result = await testApi.CallAsync<string>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["*/*"],
+            "application/json"
+        );
+        Assert.Equal("{\"a\":1}", result);
     }
 }

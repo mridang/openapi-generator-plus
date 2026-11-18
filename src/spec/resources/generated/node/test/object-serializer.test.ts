@@ -64,6 +64,18 @@ import { uuid, isUuid } from "../src/brand.js";
 import { Temporal } from "temporal-polyfill";
 
 describe("ObjectSerializer", () => {
+  test("bhvMisc139 a collection passed into a model is copied, so later changes to the source do not reach the model", () => {
+    const source = [{ weightKg: "7" }];
+    const edge = new EdgeCases({ freeFormAny: source });
+    source.push({ weightKg: "8" });
+    expect(edge.freeFormAny).toEqual([{ weightKg: "7" }]);
+  });
+
+  test("bhvMisc139 a collection held by a model cannot be changed through the model", () => {
+    const edge = new EdgeCases({ freeFormAny: [{ weightKg: "7" }] });
+    expect(Object.isFrozen(edge.freeFormAny)).toBe(true);
+  });
+
   describe("unified exception hierarchy", () => {
     // SerializationError must extend the branded OpenAPIError root so
     // callers can catch every SDK-originated error — transport and serde
@@ -4227,5 +4239,43 @@ describe("ObjectSerializer misc behaviours", () => {
       a: 1,
       b: "x",
     });
+  });
+});
+
+describe("ObjectSerializer enum and default misc behaviours", () => {
+  it("bhv misc 122 a string default from the schema is applied as the exact literal", () => {
+    const filled = ObjectSerializer.deserialize({}, Defaults) as Defaults;
+    expect(filled.greeting).toBe(
+      'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b',
+    );
+  });
+
+  it("bhv misc 137 a generated enum lists its declared values and refuses any other", () => {
+    expect(Object.values(Separator)).toEqual([" ", "@@", "a-b", "a_b"]);
+    expect(() =>
+      ObjectSerializer.deserializeEnum<Separator>(
+        "nope",
+        Separator as unknown as Record<string, unknown>,
+      ),
+    ).toThrow();
+  });
+
+  it("bhv misc 138 converting an enum member to text yields its wire value", () => {
+    expect(String(Separator.AB)).toBe("a-b");
+    expect(`${Separator.SPACE1}`).toBe(" ");
+  });
+
+  it("bhv misc 141 a model built without a defaulted property holds the default", () => {
+    const model = new Defaults();
+    expect(model.retries).toBe(3);
+    expect(model.greeting).toBe(
+      'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b',
+    );
+  });
+
+  it("bhv misc 144 validating a model refuses a string given for a numeric field", () => {
+    expect(() =>
+      ObjectSerializer.deserialize('{"retries":"3"}', Defaults),
+    ).toThrow(SerializationError);
   });
 });

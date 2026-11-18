@@ -318,11 +318,34 @@ T _deserializeElement<T>(Object? item, T Function(dynamic) deserializeElement) {
 
 /// Projects a model's array field to its JSON list.
 ///
-/// A `Set` (a `uniqueItems` array) is written in its own iteration order
-/// (insertion order for the default `LinkedHashSet`); the order is never
-/// sorted (S6).
-List<E> wireList<E>(Iterable<Object?> source, Iterable<E> encoded) =>
-    encoded.toList();
+/// A `Set` (a `uniqueItems` array) is written in a defined sorted order: code
+/// point order for strings and numeric order for numbers. Any other array keeps
+/// its own order.
+List<E> wireList<E>(Iterable<Object?> source, Iterable<E> encoded) {
+  final list = encoded.toList();
+  if (source is Set) list.sort(_compareWireValues);
+  return list;
+}
+
+/// Orders two wire values of a `Set`: numbers numerically, strings by code
+/// point. Other values compare equal, so their order is kept.
+int _compareWireValues(Object? a, Object? b) {
+  if (a is num && b is num) return a.compareTo(b);
+  if (a is String && b is String) return _compareCodePoints(a, b);
+  return 0;
+}
+
+int _compareCodePoints(String a, String b) {
+  final x = a.runes.iterator;
+  final y = b.runes.iterator;
+  while (true) {
+    final hasX = x.moveNext();
+    final hasY = y.moveNext();
+    if (!hasX || !hasY) return (hasX ? 1 : 0) - (hasY ? 1 : 0);
+    final c = x.current.compareTo(y.current);
+    if (c != 0) return c;
+  }
+}
 
 /// The nullable counterpart of [wireList] for an optional array field.
 List<E>? wireListOrNull<E>(Iterable<Object?>? source, Iterable<E>? encoded) {

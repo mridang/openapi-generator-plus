@@ -109,3 +109,21 @@ describe("credentials", () => {
     expect(resolved).toBe("first");
   });
 });
+
+describe("credentials misc behaviours", () => {
+  it("bhv misc 187 a credential not passed explicitly is taken from the environment", () => {
+    const saved = process.env[TOKEN_VARIABLE];
+    process.env[TOKEN_VARIABLE] = "from-env";
+    try {
+      expect(resolveCredential(undefined, TOKEN_VARIABLE, "token")).toBe(
+        "from-env",
+      );
+    } finally {
+      if (saved === undefined) {
+        delete process.env[TOKEN_VARIABLE];
+      } else {
+        process.env[TOKEN_VARIABLE] = saved;
+      }
+    }
+  });
+});

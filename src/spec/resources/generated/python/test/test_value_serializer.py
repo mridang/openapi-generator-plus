@@ -78,6 +78,44 @@ class TestValueSerializerPath:
             == ""
         )
 
+    def test_bhv_misc_250_array_items_with_a_comma_keep_the_literal_separator_on_a_path(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize(["a,b", "c"], "path", "array", "csv") == "a%2Cb,c"
+        )
+
+    def test_bhv_misc_232_a_string_path_parameter_in_simple_style_percent_encodes_slashes(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize("a/b", "path", "string") == "a%2Fb"
+
+    def test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded(
+        self,
+    ) -> None:
+        rendered = ValueSerializer.serialize('{"a":1.5}', "cookie", "string")
+
+        assert "%7B" in rendered
+        assert "%3A" in rendered
+        assert ":" not in rendered
+
+    def test_bhv_misc_211_a_date_time_inside_a_json_query_parameter_keeps_its_wire_form(
+        self,
+    ) -> None:
+        json_text = '{"takenAt":"2024-01-02T03:04:05+00:00"}'
+
+        assert ValueSerializer.encode_content("filter", json_text, "query") == json_text
+
+    def test_bhv_misc_213_an_optional_array_query_parameter_is_joined_in_its_declared_style(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize_styled(
+                "colors", ["blue", "black"], "query", "array", style="pipeDelimited"
+            )
+            == "blue|black"
+        )
+
 
 class TestValueSerializerQuery:
     def test_bhv_serializationparam_067_null_returns_none(self) -> None:
@@ -171,6 +209,19 @@ class TestValueSerializerQuery:
         assert (
             ValueSerializer.serialize([True, False], "query", "array") == "true,false"
         )
+
+    def test_bhv_misc_238_a_number_query_value_is_sent_as_a_plain_number(self) -> None:
+        assert ValueSerializer.serialize(2.5, "query", "number") == "2.5"
+
+    def test_bhv_misc_254_an_unmarked_query_value_percent_encodes_slash_and_colon(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize("a/b:c", "query", "string") == "a%2Fb%3Ac"
+
+    def test_bhv_misc_255_separate_query_parameters_encode_a_space_as_percent_20(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize("a b", "query", "string") == "a%20b"
 
 
 class TestValueSerializerHeader:
@@ -604,6 +655,14 @@ class TestAllowReserved:
         assert isinstance(wrapped, AllowReservedValue)
         assert wrapped.value == "v1/beta"
         assert ValueSerializer.maybe_allow_reserved(None, True) is None
+
+    def test_bhv_misc_253_an_allow_reserved_value_still_encodes_hash_and_brackets(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize(AllowReservedValue("a/b#c[d]"), "query", "string")
+            == "a/b%23c%5Bd%5D"
+        )
 
 
 class TestPathEncodingParity:

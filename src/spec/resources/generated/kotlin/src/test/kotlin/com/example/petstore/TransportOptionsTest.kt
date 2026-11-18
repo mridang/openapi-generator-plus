@@ -798,4 +798,10 @@ class TransportOptionsTest {
             assertNull(TransportOptions.builder().build().proxy)
         }
     }
+
+    @Test
+    @DisplayName("bhvMisc134 a zero timeout is refused when the options are built, with an argument error")
+    fun bhvMisc134ZeroTimeoutIsRefusedAtBuild() {
+        assertThrowsExactly(IllegalArgumentException::class.java) { TransportOptions.builder().timeout(0L).build() }
+    }
 }
