@@ -92,6 +92,50 @@ import Testing
         #expect(url.hasPrefix("https://auth.example.com/authorize?"))
     }
 
+    /* The authorization-code flow builds the authorize URL and exchanges the code at the declared token URL with the declared scopes. */
+    @Test func testBhvAuth048AuthorizationCodeFlowUsesTheDeclaredUrlsAndScopes() async throws {
+        let client = MockApiClient()
+        client.responses.append(ApiHttpResponse(statusCode: 200, body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}", headers: [:]))
+        let auth = OAuth2AuthorizationCodeAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            authorizationURL: "https://auth.example.com/authorize",
+            tokenURL: "https://auth.example.com/token",
+            redirectURI: "https://app.example.com/callback",
+            scopes: ["read", "write"],
+            refreshURL: "https://auth.example.com/refresh"
+        )
+        auth.setApiClient(client)
+
+        let url = try auth.buildAuthorizationURL()
+        #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+        #expect(url.contains("scope=read%20write"))
+
+        try await auth.exchangeCode("the-code")
+        #expect(client.urls == ["https://auth.example.com/token"])
+        let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(body.split(separator: "&").contains("scope=read+write"))
+    }
+
+    /* An authorization-code authenticator holding no token refuses to produce headers, synchronously-throwing and async alike. */
+    @Test func testBhvAuth052WithoutATokenAuthHeadersRefuseToProduceThem() async {
+        let auth = OAuth2AuthorizationCodeAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            authorizationURL: "https://auth.example.com/authorize",
+            tokenURL: "https://auth.example.com/token",
+            redirectURI: "https://app.example.com/callback"
+        )
+        await #expect(throws: OAuth2AuthorizationCodeError.codeNotExchanged) {
+            _ = try await auth.authHeadersOrThrow()
+        }
+        await #expect(throws: OAuth2AuthorizationCodeError.self) {
+            _ = try await auth.authHeaders()
+        }
+    }
+
     @Test func testBhvAuthoauthtwoauthcode007BuildsAuthorizationURLWithState() throws {
         let auth = createAuthenticator()
 

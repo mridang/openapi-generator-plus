@@ -115,6 +115,30 @@ import Testing
     #expect(headers["Authorization"] == "Bearer tok-pwd")
   }
 
+  /* The password grant posts to the declared token URL with the declared scopes. */
+  @Test func testBhvAuth051PasswordGrantPostsToTheTokenUrlWithDeclaredScopes() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let auth = OAuth2PasswordAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      tokenURL: "https://auth.example.com/token",
+      username: "testuser",
+      password: "testpass",
+      scopes: ["read", "write"],
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+
+    #expect(client.lastURL == "https://auth.example.com/token")
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body.split(separator: "&").contains("scope=read+write"))
+  }
+
   @Test func testBhvAuthoauthtwopassword019UsesRefreshTokenOnSubsequentCalls() async throws {
     let client = MockApiClient()
     client.responses.append(

@@ -396,6 +396,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  @Test func testBhvAuth023AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
+    let value = try BaseAuthenticator.credential(
+      "", name: "token", variable: "EXAMPLE_TOKEN",
+      environment: ["EXAMPLE_TOKEN": "env-value"])
+    #expect(value == "")
+  }
+
+  /* An explicitly passed empty value is kept, so its own validation rejects it rather than the environment. */
   @Test func testBhvAuth042AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
     let value = try BaseAuthenticator.credential(
       "", name: "token", variable: "EXAMPLE_TOKEN",
@@ -1150,7 +1158,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   /* An operation declared without security never carries a credential, even
      when the client holds one for every scheme. */
-  @Test func testBhvAuth044AnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
+  @Test func testBhvAuth021AnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
     let host = "https://unauthenticated.example.com"
     let client = try schemeClient(
       host: host,
@@ -1162,6 +1170,70 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     _ = try? await client.store.getInventory()
 
     let request = try #require(ClientStubProtocol.lastRequest(host: "unauthenticated.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
+  }
+
+  /* A client holding a credential sends none on an operation that declares no security requirement. */
+  @Test func testBhvAuth044AnOperationWithoutSecurityCarriesNoCredential() async throws {
+    let host = "https://no-security-044.example.com"
+    let client = try schemeClient(
+      host: host,
+      petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"))
+    defer { client.close() }
+
+    _ = try? await client.store.getInventory()
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "no-security-044.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+  }
+
+  /* A credential supplied for an operation's scheme replaces a default Authorization header set on the client. */
+  @Test func testBhvAuth045SchemeCredentialReplacesADefaultAuthorizationHeader() async throws {
+    let host = "https://default-header-045.example.com"
+    let transport = try TransportOptionsBuilder()
+      .session(ClientStubProtocol.session())
+      .defaultHeaders(["Authorization": "Default fallback"])
+      .build()
+    let client = try Client(
+      host: host,
+      petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"),
+      transportOptions: transport)
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(
+      ClientStubProtocol.lastRequest(host: "default-header-045.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer scheme-token")
+  }
+
+  /* The client's authenticator reaches an operation that names its scheme, without any per-call credential. */
+  @Test func testBhvAuth046TheClientAuthenticatorReachesAnOperationThatNamesItsScheme() async throws
+  {
+    let host = "https://client-authenticator-046.example.com"
+    let client = try schemeClient(
+      host: host, petStoreBearer: try BearerAuthenticator(host: host, token: "client-token"))
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(
+      ClientStubProtocol.lastRequest(host: "client-authenticator-046.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer client-token")
+  }
+
+  /* An operation lists several schemes and the client holds none of them, so no scheme credential is sent. */
+  @Test func testBhvAuth047NoSchemeCredentialIsSentWhenTheClientHoldsNoneOfTheListedSchemes()
+    async throws
+  {
+    let host = "https://none-held-047.example.com"
+    let client = try schemeClient(host: host)
+    defer { client.close() }
+
+    _ = try await client.pet.addPet(pet: Pet(name: "Fido", photoUrls: []))
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "none-held-047.example.com"))
     #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
     #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
   }
