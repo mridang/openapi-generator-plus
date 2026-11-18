@@ -329,8 +329,8 @@ models008 | Serialize empty metadata
 models009 | The additional properties of a model whose additionalProperties schema declares a value type are exposed as a string-keyed map of that value type, not a map of any
 models010 | Test declared property wins over colliding additional property
 models011 | Test round trip preserves additional properties
-models025 | An additional property whose value has the wrong JSON type fails the decode with the serialization error | multi
-models026 | An additional property whose value type is a model decodes to that model
+models025 | An additional property whose value has the wrong JSON type fails the decode with the serialization error / Two instances that differ only in their undeclared extra properties are not equal. | multi
+models026 | An additional property whose value type is a model decodes to that model / Undeclared keys in incoming JSON survive deserialization and are written back at the top level of the JSON on serialization. | multi
 models027 | A null additional property value is rejected unless the value schema is nullable
 models028 | A typed additional property is written back at the top level in its wire form after the declared properties
 models029 | A free-form additionalProperties keeps accepting and returning any JSON value
@@ -1016,7 +1016,7 @@ authapikey018 | Rejects a CR in a header API key value at construction
 authoauthtwoimplicit014 | Rejects a non-ASCII access token with the RFC 7230 message
 operations125 | Raises the language's argument error, naming the required query param category, when it is nil | multi
 errors044 | Every error lives in src/errors and the package root exports it
-serializationparam104 | EncodeContentCookie keeps only the unreserved set literal
+serializationparam104 | EncodeContentCookie keeps only the unreserved set literal / A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s | multi
 config017 | Configuration is immutable
 retries027 | Backoff doubles from half a second to eight seconds with quarter jitter
 serializationobject182 | Unknown enum value on deserialize throws
@@ -1045,11 +1045,11 @@ authbearer018 | An explicit token wins over the environment | multi
 transport059 | Authenticating proxy refuses a request without credentials
 servers018 | EnumValues are exposed for validation
 servers019 | Enum does not contain a value outside the allowed set
-serializationparam105 | SerializeStyled form scalar
+serializationparam105 | SerializeStyled form scalar / An ipv4 or ipv6 query, header and path parameter is written in the same canonical text as a body field | multi
 serializationwire055 | #3 space in a form value encodes as plus
 lifecycle025 | Reads the environment once, when the authenticator is built | multi
 serializationwire056 | Falls back to application/octet-stream when extension is unknown
-serializationparam106 | Path with null style behaves like simple
+serializationparam106 | Path with null style behaves like simple / A type: number parameter given as the language's exact decimal is written in plain notation with no exponent and no float widening | multi
 authoidc029 | Concurrent callers on a cold authenticator share one discovery request
 retries029 | Falls back to the backoff when Retry-After is not understood
 authapikey021 | An API key is read from the environment when none is passed, and a passed key wins
@@ -1432,12 +1432,9 @@ serializationobject409 | A format: hostname or email value is kept as given and 
 serializationobject410 | A type: number field keeps all 25 digits of 12.345678901234567890123 from decode to encode and writes them as a bare JSON number in plain notation where the language has an exact decimal | multi
 serializationobject411 | A type: string field with format decimal decodes a quoted number into the native decimal, writes it back as a JSON string, and rejects a bare JSON number | multi
 serializationobject412 | A type: number value the native decimal cannot hold fails with the SDK serialization error and is never rounded | multi
-serializationparam104 | A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s | multi
-serializationparam105 | An ipv4 or ipv6 query, header and path parameter is written in the same canonical text as a body field | multi
-serializationparam106 | A type: number parameter given as the language's exact decimal is written in plain notation with no exponent and no float widening | multi
-operations157 | A null required nullable query parameter is sent as the key with an empty value
-operations158 | Every null required nullable query parameter is sent as an empty value in declaration order
-operations159 | A non-null required nullable query parameter is sent with its value
+operations157 | A null required nullable query parameter is sent as the key with an empty value / A binary request body is sent as its exact raw bytes with no multipart encoding, whatever the binary input type. | multi
+operations158 | Every null required nullable query parameter is sent as an empty value in declaration order / A header supplied on an individual call is sent with that call. | multi
+operations159 | A non-null required nullable query parameter is sent with its value / A call that returns a value raises a typed API error when a success response arrives with an empty body. | multi
 enums001 | A string enum member named by an array of names exposes the given name and keeps its wire value
 enums002 | An integer enum member named by an array of names exposes the given name and keeps its number
 enums003 | An enum named by an object keyed by wire value names the members it lists and derives the rest
@@ -1838,11 +1835,6 @@ misc296 | By default a failed request is retried twice with backoff, so three re
 misc297 | Server URL template variables are replaced with the supplied values when the URL is built, including when more than one variable is present.
 misc298 | Constructing a client with a malformed proxy URL fails with an invalid proxy URL error.
 misc299 | A header set by the caller on a request is sent on the wire with the caller's value, overriding the transport's default header of the same role.
-models025 | Two instances that differ only in their undeclared extra properties are not equal.
-models026 | Undeclared keys in incoming JSON survive deserialization and are written back at the top level of the JSON on serialization.
-operations157 | A binary request body is sent as its exact raw bytes with no multipart encoding, whatever the binary input type.
-operations158 | A header supplied on an individual call is sent with that call.
-operations159 | A call that returns a value raises a typed API error when a success response arrives with an empty body.
 operations160 | A call to an external-variant operation is sent to the URL of the generated server variant.
 operations161 | A text/plain response is returned as the raw text and is never decoded, even when the text looks like base64.
 operations162 | A date-only parameter is sent as a bare date with no time component in form, query, header and path positions.
