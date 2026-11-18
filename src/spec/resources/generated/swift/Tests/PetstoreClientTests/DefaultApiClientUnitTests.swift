@@ -824,6 +824,30 @@ import Testing
     #expect(!(error is NetworkError))
   }
 
+  // Linux ships no zlib module, so a gzip body that URLSession left encoded has
+  // no codec to decode it, and the SDK must raise rather than hand back the
+  // still-encoded bytes. Apple platforms do decode it, so this runs only where
+  // the codec library is missing.
+  #if !canImport(zlib)
+    @Test func testBhvTransport074GzipBodyWithoutACodecRaisesInsteadOfEncodedBytes() async throws {
+      // A well-formed gzip stream of a small JSON object, still encoded on the wire.
+      let encoded = Data([
+        0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+        0xAB, 0x56, 0x2A, 0x2D, 0x4E, 0x2D, 0xF2, 0x4C, 0x51, 0xB2,
+        0x32, 0xD4, 0x51, 0xCA, 0x04, 0x51, 0xB5, 0x00, 0x63, 0x68,
+        0x14, 0xBB, 0x13, 0x00, 0x00, 0x00,
+      ])
+      let client = makeClient { _ in
+        (encoded, 200, ["Content-Type": "application/json", "Content-Encoding": "gzip"])
+      }
+      let error = await #expect(throws: ApiError.self) {
+        _ = try await client.sendRequest(
+          method: "GET", url: "http://localhost/gzip-without-codec", headers: [:], body: nil)
+      }
+      #expect(error?.statusCode == 200)
+    }
+  #endif
+
   // A body URLSession itself cannot decode (it reports
   // URLError.cannotDecodeContentData after the response arrived) is likewise
   // an ApiError with the real status, never a NetworkError.
