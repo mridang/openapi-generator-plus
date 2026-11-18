@@ -2590,9 +2590,9 @@ class TestTransportBehaviours:
     ) -> None:
         from petstore_client.default_api_client import _redact_query
 
-        redacted = _redact_query("https://api.example.test:8443/v1/pets?token=abc")
+        redacted = _redact_query("https://api.example.test:8443/v1/items?token=abc")
 
-        assert redacted.startswith("https://api.example.test:8443/v1/pets")
+        assert redacted.startswith("https://api.example.test:8443/v1/items")
         assert "token" not in redacted
         assert "abc" not in redacted
 
@@ -2643,12 +2643,12 @@ class TestTransportBehaviours:
 
         with pytest.raises(OpenAPIException):
             client.send_request(
-                "GET", "https://api.example.test/v1/pets?limit=2", {"X-Caller": "a"}
+                "GET", "https://api.example.test/v1/items?limit=2", {"X-Caller": "a"}
             )
 
         method, url, kwargs = pool.calls[0]
         assert method == "GET"
-        assert url == "https://api.example.test/v1/pets?limit=2"
+        assert url == "https://api.example.test/v1/items?limit=2"
         assert kwargs["headers"]["X-Caller"] == "a"
 
 
@@ -2657,7 +2657,7 @@ class TestRelativeRedirectTargets:
         self,
     ) -> None:
         resolved = DefaultApiClient._resolve_url(
-            "https://api.example.test/v1/pets/1", "../owners?id=2"
+            "https://api.example.test/v1/items/1", "../owners?id=2"
         )
 
         assert resolved == "https://api.example.test/v1/owners?id=2"
