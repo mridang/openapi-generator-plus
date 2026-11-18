@@ -21,6 +21,8 @@ import {
   Account,
   BinaryVault,
   Category,
+  Department,
+  Employee,
   EdgeCases,
   ModelError,
   ModelResult,
@@ -455,6 +457,10 @@ describe("ObjectSerializer", () => {
       expect(parsed.name).toBe("Dogs");
     });
 
+    test("bhv serializationobject 188 an empty object serializes to an empty JSON object", () => {
+      expect(ObjectSerializer.serialize(new Category({}))).toBe("{}");
+    });
+
     test("bhv serializationobject 183 handles null", () => {
       const result = ObjectSerializer.serialize(null);
       expect(result).toBe("null");
@@ -718,6 +724,17 @@ describe("ObjectSerializer", () => {
     expect(top!.child).toBeInstanceOf(TreeNode);
     expect(top!.child!.value).toBe("leaf");
     expect(top!.child!.child == null).toBe(true);
+  });
+
+  test("bhv serializationobject 189 decodes mutually recursive models from nested JSON", () => {
+    const json = {
+      name: "eng",
+      lead: { name: "ann", department: { name: "ops" } },
+    };
+    const top = ObjectSerializer.deserialize(json, Department);
+    expect(top!.lead).toBeInstanceOf(Employee);
+    expect(top!.lead!.department).toBeInstanceOf(Department);
+    expect(top!.lead!.department!.name).toBe("ops");
   });
 
   describe("SerializeDiscardsNullFields", () => {

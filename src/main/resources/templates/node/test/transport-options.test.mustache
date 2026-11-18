@@ -141,16 +141,27 @@ describe('TransportOptions', () => {
     expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
   });
 
-  test('proxy URL with a non-http scheme throws TypeError', () => {
+  test('bhv options 051 a proxy URL with a scheme other than http or https throws TypeError', () => {
     expect(() => {
       TransportOptions.builder().proxy('ftp://proxy.example.com');
     }).toThrow(TypeError);
   });
 
-  test('constructing directly with a non-http proxy scheme throws TypeError', () => {
+  test('bhv options 046 constructing directly with a non-http proxy scheme is rejected with TypeError', () => {
     const construct = () => new TransportOptions({ ...directOptions, proxy: 'ftp://proxy.example.com' });
     expect(construct).toThrow(TypeError);
     expect(construct).toThrow('Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com');
+  });
+
+  test('bhv options 045 a negative maxRedirects is rejected at configuration', () => {
+    expect(() => TransportOptions.builder().maxRedirects(-1)).toThrow(TypeError);
+    expect(() => new TransportOptions({ ...directOptions, maxRedirects: -1 })).toThrow(
+      'Invalid maxRedirects: must be a non-negative integer (got -1)'
+    );
+  });
+
+  test('bhv options 047 a negative timeout is rejected at configuration', () => {
+    expect(() => TransportOptions.builder().timeout(-1)).toThrow(TypeError);
   });
 
   test('bhv options 013 constructing directly with an unparseable proxy URL throws TypeError', () => {

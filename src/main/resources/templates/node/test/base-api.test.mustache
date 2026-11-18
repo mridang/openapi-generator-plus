@@ -720,7 +720,7 @@ describe('BaseApi', () => {
     expect(Object.keys(client.capturedHeaders).map((name) => name.toLowerCase())).not.toContain('content-type');
   });
 
-  test('a POST with a null body sends no body and no Content-Type', async () => {
+  test('bhv operations 131 a request with a null body sends no body and no Content-Type header', async () => {
     const client = new CapturingApiClient();
     const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
     await testApi.call('POST', '/test/echo', {}, {}, null,

@@ -100,6 +100,20 @@ function assertValidMaxRetries(maxRetries: number): void {
 }
 
 /**
+ * Reject a redirect limit that is not a non-negative integer.
+ *
+ * @param maxRedirects redirect hop limit
+ * @throws TypeError when the value is not a non-negative integer
+ */
+function assertValidMaxRedirects(maxRedirects: number): void {
+  if (!Number.isInteger(maxRedirects) || maxRedirects < 0) {
+    throw new TypeError(
+      `Invalid maxRedirects: must be a non-negative integer (got ${maxRedirects})`,
+    );
+  }
+}
+
+/**
  * Whether a header's value must never appear in a string representation:
  * Authorization, Proxy-Authorization, Cookie, and any name containing key,
  * token or secret (case-insensitive).
@@ -275,6 +289,8 @@ export class TransportOptions {
     assertValidProxy(options.proxy);
     assertFetchCompatible(options);
     assertValidMaxRetries(options.maxRetries ?? 2);
+    if (options.maxRedirects != null)
+      assertValidMaxRedirects(options.maxRedirects);
     this.verifySsl = options.verifySsl;
     this.caCertPath = options.caCertPath;
     this.proxy = options.proxy;
@@ -431,6 +447,7 @@ export class TransportOptionsBuilder {
    * @returns this builder
    */
   maxRedirects(maxRedirects: number | null): this {
+    if (maxRedirects !== null) assertValidMaxRedirects(maxRedirects);
     this._maxRedirects = maxRedirects;
     return this;
   }
