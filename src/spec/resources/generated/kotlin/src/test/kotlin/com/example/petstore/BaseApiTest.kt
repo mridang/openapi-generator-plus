@@ -1069,6 +1069,17 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvAuth045 a credential supplied for an operation's scheme replaces a default Authorization header")
+        fun bhvAuth045SchemeCredentialReplacesDefaultAuthorization() {
+            val client = CapturingApiClient()
+            val clientAuth = TestAuthenticator(mapOf("Authorization" to "Bearer default"), emptyMap(), emptyMap())
+            val schemeAuth = TestAuthenticator(mapOf("Authorization" to "Bearer scheme"), emptyMap(), emptyMap())
+            val testApi = TestableApiWithAuth(client, "http://localhost", clientAuth)
+            runBlocking { testApi.call("GET", "/test/echo", auth = schemeAuth) }
+            assertEquals("Bearer scheme", client.capturedHeaders["Authorization"])
+        }
+
+        @Test
         @DisplayName("bhvAuthintegration009 falls back to client-level authenticator when no per-call auth is supplied")
         fun fallsBackToClientLevelAuthenticator() {
             val client = CapturingApiClient()
@@ -1136,6 +1147,34 @@ class BaseApiTest {
             val api = TestableApiWithSchemes(CapturingApiClient(), "http://localhost", null, held)
             held["b"] = TestAuthenticator(mapOf("X" to "b"), emptyMap(), emptyMap())
             assertNull(api.pick("b"))
+        }
+
+        @Test
+        @DisplayName("bhvAuth043 each operation sends only the credential of the scheme it names")
+        fun bhvAuth043EachOperationSendsOnlyItsSchemeCredential() {
+            val client = CapturingApiClient()
+            val api =
+                TestableApiWithSchemes(
+                    client,
+                    "http://localhost",
+                    null,
+                    mapOf(
+                        "a" to TestAuthenticator(mapOf("X-A" to "a-secret"), emptyMap(), emptyMap()),
+                        "b" to TestAuthenticator(mapOf("X-B" to "b-secret"), emptyMap(), emptyMap()),
+                    ),
+                )
+            runBlocking { api.call("/test/echo", api.pick("b")) }
+            assertEquals("b-secret", client.capturedHeaders["X-B"])
+            assertFalse(client.capturedHeaders.containsKey("X-A"))
+        }
+
+        @Test
+        @DisplayName("bhvAuth047 with several schemes listed, the first one held is used and none is sent when none is held")
+        fun bhvAuth047FirstHeldSchemeIsUsedOrNoneIsSent() {
+            val second = TestAuthenticator(mapOf("X-B" to "b-secret"), emptyMap(), emptyMap())
+            val api = TestableApiWithSchemes(CapturingApiClient(), "http://localhost", null, mapOf("b" to second))
+            assertSame(second, api.pick("a", "b"))
+            assertNull(api.pick("c", "d"))
         }
 
         @Test

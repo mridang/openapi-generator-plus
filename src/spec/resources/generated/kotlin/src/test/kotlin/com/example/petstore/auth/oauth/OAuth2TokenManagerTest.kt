@@ -1295,6 +1295,20 @@ class OAuth2TokenManagerTest {
     fun bhvAuth054TokenServerErrorNamesStatusAndBody() = tokenServerErrorMessageNamesTheStatusCodeAndDescription()
 
     @Test
+    @DisplayName("bhvAuth055 a network failure during a token request reaches the caller unchanged")
+    fun bhvAuth055NetworkFailureReachesTheCallerUnchanged() {
+        val manager = OAuth2TokenManager()
+        manager.apiClient = FakeApiClient()
+        val ex =
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking {
+                    manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+                }
+            }
+        assertEquals("No responses queued", ex.message)
+    }
+
+    @Test
     @DisplayName(
         "bhvAuthoauthtwotokenmgr042 a token server error message names the status and, when present, the error code and description",
     )

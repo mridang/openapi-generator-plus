@@ -525,6 +525,16 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuth048 the authorization-code flow routes the code exchange and refresh to the declared token and refresh URLs")
+    fun bhvAuth048RoutesTheExchangeAndRefreshToTheDeclaredUrls() =
+        bhvAuthoauthtwoauthcode024RoutesTheCodeExchangeToTheTokenUrlAndTheRefreshToTheRefreshUrl()
+
+    @Test
+    @DisplayName("bhvAuth052 an OAuth authenticator holding no token refuses to produce auth headers, synchronously and asynchronously")
+    fun bhvAuth052NoTokenRefusesAuthHeaders() =
+        bhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError()
+
+    @Test
     @DisplayName("bhvAuth053 exchanging a code discards any refresh token previously held")
     fun bhvAuth053ExchangeDiscardsThePreviousRefreshToken() =
         bhvAuthoauthtwoauthcode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken()
