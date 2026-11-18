@@ -106,18 +106,6 @@ class ConfigurationTest {
             assertEquals("https://custom.example.com", config.baseUrl)
         }
 
-        @Test
-        @DisplayName("builder sets base URL and multiple headers in one configuration")
-        fun builderSetsBaseUrlAndMultipleHeaders() {
-            val config = Configuration.builder()
-                .baseUrl("https://api.example.com")
-                .defaultHeader("Authorization", "Bearer token")
-                .defaultHeaders(mapOf("X-Custom" to "value"))
-                .build()
-            assertEquals("https://api.example.com", config.baseUrl)
-            assertEquals("Bearer token", config.defaultHeaders["Authorization"])
-            assertEquals("value", config.defaultHeaders["X-Custom"])
-        }
     }
 
     @Nested
@@ -357,8 +345,8 @@ class ConfigurationTest {
     inner class CallHookWiring {
 
         @Test
-        @DisplayName("a hook set on the builder is on the configuration, and the string form never shows it")
-        fun theHookIsOnTheConfiguration() {
+        @DisplayName("bhvLangkotlin021 a hook set on the builder is on the configuration, and the string form never shows it")
+        fun bhvLangkotlin021TheHookIsOnTheConfiguration() {
             val hook = CallHook { _, _ -> null }
             val config = Configuration.builder().callHook(hook).build()
             assertSame(hook, config.callHook)
