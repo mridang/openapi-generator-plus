@@ -530,6 +530,7 @@ elixir | misc103 | Elixir decodes every model leniently and has no strict-mode o
 elixir | misc116 | Elixir generated models do not enforce declared integer minimum and maximum bounds, so an out-of-range integer decodes like any other integer
 elixir | misc135 | Elixir has no cancellation handle or signal option on the client or its configuration: a call is cancelled by ending the calling process, so the builder stores no signal
 elixir | misc152 | Elixir has no cancel signal for a call: a call is cancelled by ending the calling process, so no call can be given an already-aborted signal to reject with
+elixir | misc153 | Elixir has no cancel signal for a call or the client: a call is cancelled by ending the calling process, so no signal set anywhere reaches the in-flight request as a value
 rust | misc047 | Rust unions are enums, so a value that is not one of the variants cannot be built and the compiler admits only variants when serializing, so no run-time error naming the union exists
 rust | misc050 | RequestOptions is a plain struct whose flags default to false, so an unset per-call flag cannot be told apart from an explicit false and cannot fall through to the transport options
 rust | misc051 | Rust builders expose only typed setters, so an option the builder does not have cannot be passed and the compiler rejects it before any run-time check

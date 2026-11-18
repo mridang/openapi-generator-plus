@@ -3090,4 +3090,13 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert [_only] = collect_hops()
     end
   end
+
+  test "bhv misc 165 a request body is replayed across a redirect that keeps the same plain-text scheme" do
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(
+             307,
+             "http://api.example.com/x",
+             "http://api.example.com/y",
+             ~s({"a":1})
+           )
+  end
 end
