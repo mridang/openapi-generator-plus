@@ -1555,8 +1555,8 @@ func TestBhvErrors078_DefaultApiClientUnit_NetworkErrorMessageRedactsTheQuery(t 
 	if strings.Contains(err.Error(), "SECRET-KEY") {
 		t.Errorf("the API key leaked into the message: %q", err.Error())
 	}
-	if !strings.Contains(err.Error(), "/items?***") {
-		t.Errorf("expected the query to read ***, got %q", err.Error())
+	if !strings.Contains(err.Error(), "/items") || strings.Contains(err.Error(), "?") {
+		t.Errorf("expected the path shown and the query left out, got %q", err.Error())
 	}
 }
 
