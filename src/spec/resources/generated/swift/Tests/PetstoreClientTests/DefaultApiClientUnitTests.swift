@@ -2762,4 +2762,410 @@ private final class UnitStubURLProtocol: URLProtocol {
     #expect(value.components(separatedBy: "filename=").count - 1 == 1)
     #expect(value.contains("filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"))
   }
+
+  // MARK: - Redirect following (Darwin only: the stub reports redirects through wasRedirectedTo)
+
+  #if !os(Linux)
+    /* A request body is not replayed across a 301 that moves HTTPS to plain HTTP: the call fails instead. */
+    @Test func testBhvMisc124ARequestBodyIsNotReplayedAcross301FromHttpsToHttp() async throws {
+      var calls = 0
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { request in
+          calls += 1
+          if request.url?.scheme == "https" {
+            return (self.body("moved"), 301, ["Location": "http://example.com/plain"])
+          }
+          return (self.body(), 200, [:])
+        })
+      await #expect(throws: ApiError.self) {
+        _ = try await client.sendRequest(
+          method: "POST", url: "https://example.com/secure",
+          headers: ["Content-Type": "application/json"],
+          body: Data("{\"a\":1}".utf8), noRedirect: false)
+      }
+      #expect(calls == 1)
+    }
+
+    /* A 307 that upgrades HTTP to HTTPS is followed, and the request is repeated with its method. */
+    @Test func testBhvMisc125A307RedirectThatUpgradesToHttpsIsFollowed() async throws {
+      var methods: [String] = []
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { request in
+          methods.append(request.httpMethod ?? "")
+          if request.url?.scheme == "http" {
+            return (self.body("moved"), 307, ["Location": "https://example.com/upgraded"])
+          }
+          return (self.body(), 200, [:])
+        })
+      let resp = try await client.sendRequest(
+        method: "POST", url: "http://example.com/secure",
+        headers: ["Content-Type": "application/json"],
+        body: Data("{\"a\":1}".utf8), noRedirect: false)
+      #expect(resp.statusCode == 200)
+      #expect(methods == ["POST", "POST"])
+    }
+
+    /* A HEAD request that receives a 303 is followed as HEAD rather than converted to GET. */
+    @Test func testBhvMisc126AHeadRequestRedirectedBy303IsFollowedAsHead() async throws {
+      var methods: [String] = []
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { request in
+          methods.append(request.httpMethod ?? "")
+          if methods.count == 1 {
+            return (self.body(), 303, ["Location": "https://example.com/elsewhere"])
+          }
+          return (self.body(), 200, [:])
+        })
+      _ = try await client.sendRequest(
+        method: "HEAD", url: "https://example.com/start", headers: [:], body: nil, noRedirect: false
+      )
+      #expect(methods == ["HEAD", "HEAD"])
+    }
+
+    /* A Location that holds only a query keeps the path of the redirected request and replaces its query. */
+    @Test func testBhvMisc127ALocationWithOnlyAQueryKeepsTheRedirectedPath() async throws {
+      var urls: [String] = []
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { request in
+          urls.append(request.url?.absoluteString ?? "")
+          if urls.count == 1 {
+            return (self.body(), 302, ["Location": "?page=2"])
+          }
+          return (self.body(), 200, [:])
+        })
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://h.example.com/v1/items/1?page=1", headers: [:], body: nil,
+        noRedirect: false)
+      #expect(urls.last == "https://h.example.com/v1/items/1?page=2")
+    }
+
+    /* A header whose name marks it as a credential, set for one call, is removed when a redirect leaves the origin. */
+    @Test func testBhvMisc132APerCallCredentialHeaderIsRemovedOnACrossOriginRedirect() async throws
+    {
+      var seen: [URLRequest] = []
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { request in
+          seen.append(request)
+          if seen.count == 1 {
+            return (self.body(), 302, ["Location": "https://other.example.com/end"])
+          }
+          return (self.body(), 200, [:])
+        })
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/start", headers: ["X-Call-Key": "abc"], body: nil,
+        noRedirect: false)
+      #expect(seen[0].value(forHTTPHeaderField: "X-Call-Key") == "abc")
+      #expect(seen[1].value(forHTTPHeaderField: "X-Call-Key") == nil)
+    }
+
+    /* A credential removed by a cross-origin hop is not restored when a later hop returns to the original origin. */
+    @Test func testBhvMisc130ACredentialRemovedByACrossOriginHopIsNotRestoredOnReturn() async throws
+    {
+      var seen: [URLRequest] = []
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { request in
+          seen.append(request)
+          switch seen.count {
+          case 1: return (self.body(), 302, ["Location": "https://other.example.com/hop"])
+          case 2: return (self.body(), 302, ["Location": "https://example.com/back"])
+          default: return (self.body(), 200, [:])
+          }
+        })
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/start",
+        headers: ["Authorization": "Bearer secret"], body: nil, noRedirect: false)
+      #expect(seen.count == 3)
+      #expect(seen[1].value(forHTTPHeaderField: "Authorization") == nil)
+      #expect(seen[2].value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    /* A caller-supplied session still applies the SDK's redirect rules to the requests made through it. */
+    @Test func testBhvMisc131ASuppliedSessionFollowsRedirectsUnderTheSdkRules() async throws {
+      var calls = 0
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { _ in
+          calls += 1
+          if calls == 1 {
+            return (self.body(), 302, ["Location": "https://example.com/landing"])
+          }
+          return (self.body("landed"), 200, [:])
+        })
+      let resp = try await client.sendRequest(
+        method: "GET", url: "https://example.com/start", headers: [:], body: nil, noRedirect: false)
+      #expect(calls == 2)
+      #expect(resp.statusCode == 200)
+    }
+
+    /* A 300 or 305 response is returned as it is, even when it carries a Location header. */
+    @Test(arguments: [300, 305]) func testBhvMisc133A300Or305IsReturnedUnfollowed(status: Int)
+      async throws
+    {
+      var calls = 0
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { _ in
+          calls += 1
+          return (self.body(), status, ["Location": "https://example.com/elsewhere"])
+        })
+      let resp = try await client.sendRequest(
+        method: "GET", url: "https://example.com/start", headers: [:], body: nil, noRedirect: false)
+      #expect(calls == 1)
+      #expect(resp.statusCode == status)
+    }
+  #endif
+
+  /* An error that is not a network failure is never retried. */
+  @Test func testBhvMisc160AnErrorThatIsNotANetworkFailureIsNeverRetried() {
+    #expect(!DefaultApiClient.isRetryableError(ConfigurationError.invalidTimeout(0)))
+  }
+
+  /* A request dropped before any response, when it is idempotent, is sent again exactly once. */
+  @Test func testBhvMisc162AnIdempotentRequestDroppedBeforeAResponseIsSentAgainOnce() async throws {
+    var calls = 0
+    let client = makeClient(
+      transport: try TransportOptionsBuilder().build(),
+      handler: { _ in
+        calls += 1
+        if calls == 1 {
+          return (self.body(), 200, ["X-Stub-Fail-Before-Response": "cannotConnectToHost"])
+        }
+        return (self.body(), 200, [:])
+      })
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com/test", headers: [:], body: nil, noRedirect: false)
+    #expect(calls == 2)
+  }
+
+  /* A body held as a one-shot stream is not replayed, while text, bytes and an absent body remain replayable. */
+  @Test func testBhvMisc163AOneShotStreamBodyIsNotReplayable() {
+    #expect(!DefaultApiClient.isReplayable(InputStream(data: Data())))
+    #expect(DefaultApiClient.isReplayable("text"))
+    #expect(DefaultApiClient.isReplayable(Data()))
+    #expect(DefaultApiClient.isReplayable(nil))
+  }
+
+  /* A retry whose wait fits within the remaining timeout budget is sent. */
+  @Test func testBhvMisc164ARetryWhoseWaitFitsTheBudgetIsSent() async throws {
+    var calls = 0
+    let client = makeClient(
+      transport: try TransportOptionsBuilder().timeout(10000).build(),
+      handler: { _ in
+        calls += 1
+        if calls == 1 {
+          return (self.body(), 503, ["Retry-After": "0"])
+        }
+        return (self.body(), 200, [:])
+      })
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com/test", headers: [:], body: nil, noRedirect: false)
+    #expect(calls == 2)
+  }
+
+  /* A call that disables its deadline is not cut short while it waits to retry. */
+  @Test func testBhvMisc166ACallWithNoDeadlineIsNotCutShortWhileWaitingToRetry() async throws {
+    var calls = 0
+    let client = makeClient(
+      transport: try TransportOptionsBuilder().timeout(nil).build(),
+      handler: { _ in
+        calls += 1
+        if calls == 1 {
+          return (self.body(), 503, ["Retry-After": "1"])
+        }
+        return (self.body(), 200, [:])
+      })
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com/test", headers: [:], body: nil, noRedirect: false)
+    #expect(calls == 2)
+  }
+
+  /* A request that keeps receiving a retryable status is attempted up to the retry limit, then raises the error for that status. */
+  @Test func testBhvMisc167ARetryableStatusIsAttemptedUpToTheLimitThenRaised() async throws {
+    var calls = 0
+    let client = makeClient(
+      transport: try TransportOptionsBuilder().build(),
+      handler: { _ in
+        calls += 1
+        return (self.body(), 503, ["Retry-After": "0"])
+      })
+    let api = StoreApi(
+      apiClient: client, config: ConfigurationBuilder().baseURL("http://localhost").build())
+    await #expect(throws: ApiError.self) {
+      _ = try await api.getInventory(options: GetInventoryOptions(maxRetries: 1))
+    }
+    #expect(calls == 2)
+  }
+
+  /* With no retry setting, the pauses between attempts are half a second, then one second. */
+  @Test func testBhvMisc168TheDefaultPausesBetweenAttemptsAreHalfASecondThenOneSecond() {
+    #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: nil, jitter: 0) == 0.5)
+    #expect(DefaultApiClient.retryDelay(attempt: 1, retryAfter: nil, jitter: 0) == 1.0)
+  }
+
+  /* The pause between retries starts at half a second, doubles on each attempt, and never exceeds eight seconds. */
+  @Test func testBhvMisc169TheRetryPauseDoublesFromHalfASecondAndNeverExceedsEight() {
+    #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: nil, jitter: 0) == 0.5)
+    #expect(DefaultApiClient.retryDelay(attempt: 2, retryAfter: nil, jitter: 0) == 2.0)
+    #expect(DefaultApiClient.retryDelay(attempt: 20, retryAfter: nil, jitter: 0) == 8.0)
+  }
+
+  /* A per-call maximum retry count larger than the transport limit applies to that call and allows more attempts. */
+  @Test func testBhvMisc171APerCallRetryCountAboveTheTransportLimitAllowsMoreAttempts() async throws
+  {
+    var calls = 0
+    let client = makeClient(
+      transport: try TransportOptionsBuilder().maxRetries(0).build(),
+      handler: { _ in
+        calls += 1
+        return (self.body(), 503, ["Retry-After": "0"])
+      })
+    let api = StoreApi(
+      apiClient: client, config: ConfigurationBuilder().baseURL("http://localhost").build())
+    await #expect(throws: ApiError.self) {
+      _ = try await api.getInventory(options: GetInventoryOptions(maxRetries: 2))
+    }
+    #expect(calls == 3)
+  }
+
+  /* A streamed body crossing from HTTPS to HTTP is replayed only when the original body was empty, and a missing original is refused. */
+  @Test func testBhvMisc173AStreamedBodyCrossingHttpsToHttpNeedsAnEmptyOriginal() throws {
+    var streamed = URLRequest(url: try #require(URL(string: "http://other.example/x")))
+    streamed.httpBodyStream = InputStream(data: Data())
+    #expect(
+      !DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: streamed, originalBody: Data()))
+    #expect(
+      DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: streamed, originalBody: nil))
+  }
+
+  /* A header value refused for a line break is never repeated in the error raised for it. */
+  @Test func testBhvMisc174ARefusedHeaderValueIsNotRepeatedInTheError() async throws {
+    let client = makeClient { _ in (self.body(), 200, [:]) }
+    do {
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/x",
+        headers: ["X-Secret": "top\nsecret-value"], body: nil, noRedirect: false)
+      Issue.record("A header value holding a line break must be refused")
+    } catch {
+      #expect(!"\(error)".contains("secret-value"))
+      #expect(!error.localizedDescription.contains("secret-value"))
+    }
+  }
+
+  /* Credential-bearing header names are recognised regardless of letter case, and ordinary header names are not. */
+  @Test func testBhvMisc175CredentialHeaderNamesAreRecognisedInAnyCase() {
+    #expect(DefaultApiClient.isSensitiveRedirectHeader("AUTHORIZATION"))
+    #expect(DefaultApiClient.isSensitiveRedirectHeader("X-Api-KEY"))
+    #expect(!DefaultApiClient.isSensitiveRedirectHeader("Content-Type"))
+  }
+
+  #if !os(Linux)
+    /* A request body is replayed across a 307 redirect that keeps the same plain-text scheme. */
+    @Test func testBhvMisc165ABodyIsReplayedAcrossAHttpToHttpRedirect() async throws {
+      var calls = 0
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { _ in
+          calls += 1
+          if calls == 1 {
+            return (self.body(), 307, ["Location": "http://example.com/next"])
+          }
+          return (self.body(), 200, [:])
+        })
+      let resp = try await client.sendRequest(
+        method: "POST", url: "http://example.com/start",
+        headers: ["Content-Type": "application/json"],
+        body: Data("{\"a\":1}".utf8), noRedirect: false)
+      #expect(resp.statusCode == 200)
+      #expect(calls == 2)
+    }
+  #endif
+
+  /* A default Content-Type header given in any letter case is not sent when the request has no body. */
+  @Test func testBhvMisc177ADefaultContentTypeInAnyCaseIsNotSentWithoutABody() async throws {
+    var seen: URLRequest?
+    let transport = try TransportOptionsBuilder().defaultHeader(
+      name: "content-TYPE", value: "application/json"
+    ).build()
+    let client = makeClient(
+      transport: transport,
+      handler: { request in
+        seen = request
+        return (self.body(), 200, [:])
+      })
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com/test", headers: [:], body: nil, noRedirect: false)
+    #expect(seen?.value(forHTTPHeaderField: "Content-Type") == nil)
+  }
+
+  /* Content placed in a header is sent exactly as serialised, with no percent-encoding applied. */
+  @Test func testBhvMisc181AHeaderValueIsSentExactlyAsSerialised() async throws {
+    var seen: URLRequest?
+    let client = makeClient { request in
+      seen = request
+      return (self.body(), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com/test",
+      headers: ["X-Raw": "a b%20c/d"], body: nil, noRedirect: false)
+    #expect(seen?.value(forHTTPHeaderField: "X-Raw") == "a b%20c/d")
+  }
+
+  #if !os(Linux)
+    /* Removing a credential header on a cross-origin hop matches its name without regard to letter case. */
+    @Test func testBhvMisc182ACredentialHeaderIsRemovedOnACrossOriginHopWhateverItsCase()
+      async throws
+    {
+      var seen: [URLRequest] = []
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().followRedirects(true).build(),
+        handler: { request in
+          seen.append(request)
+          if seen.count == 1 {
+            return (self.body(), 302, ["Location": "https://other.example.com/end"])
+          }
+          return (self.body(), 200, [:])
+        })
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/start",
+        headers: ["authorization": "Bearer t"], body: nil, noRedirect: false)
+      #expect(seen[0].value(forHTTPHeaderField: "authorization") == "Bearer t")
+      #expect(seen[1].value(forHTTPHeaderField: "Authorization") == nil)
+    }
+  #endif
+
+  /* A client reports itself as closed only after close has been called on it. */
+  @Test func testBhvMisc188AClientReportsClosedOnlyAfterClose() {
+    let client = makeClient { _ in (self.body(), 200, [:]) }
+    #expect(!client.isClosed)
+    client.close()
+    #expect(client.isClosed)
+  }
+
+  /* Calling close on a client that is already closed does nothing and raises no error. */
+  @Test func testBhvMisc203ClosingAnAlreadyClosedClientDoesNothing() {
+    let client = makeClient { _ in (self.body(), 200, [:]) }
+    client.close()
+    client.close()
+    #expect(client.isClosed)
+  }
+
+  /* A 404 or 500 response from a call raises the corresponding error through the API layer. */
+  @Test(arguments: [404, 500]) func testBhvMisc212A404Or500RaisesAnApiError(status: Int)
+    async throws
+  {
+    let client = makeClient { _ in (self.body("{}"), status, [:]) }
+    let api = StoreApi(
+      apiClient: client, config: ConfigurationBuilder().baseURL("http://localhost").build())
+    await #expect(throws: ApiError.self) {
+      _ = try await api.getInventory()
+    }
+  }
 }

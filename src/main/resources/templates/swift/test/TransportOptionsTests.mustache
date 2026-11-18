@@ -543,4 +543,11 @@ import FoundationNetworking
         }
         #expect(message.contains("verifySsl(false)"))
     }
+
+    /* A zero timeout is refused when the options are built, with a configuration error rather than a request error. */
+    @Test func testBhvMisc134AZeroTimeoutIsRefusedAtBuildWithAConfigurationError() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try TransportOptionsBuilder().timeout(0).build()
+        }
+    }
 }

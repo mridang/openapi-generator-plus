@@ -708,9 +708,7 @@ java | misc176 | The Java petstore fixture declares no operation with a required
 java | misc178 | The Java SDK takes no declared multipart subtype and always sends a multipart body as multipart/form-data, so a declared non-form-data type cannot reach the transport
 php | misc068 | php takes credentials only as constructor arguments and never reads an environment variable, so an empty argument has no environment fallback
 php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
-
 dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
-
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
 node | retries045 | node has no streamed request body: sendRequest accepts only a string, Buffer, record or null, all held in memory, so a 401 replay never has a stream to consume
 java | misc267 | java.net.http.HttpClient has no per-client default headers API, so headers set on a caller-supplied client cannot be sent on the wire by the SDK
