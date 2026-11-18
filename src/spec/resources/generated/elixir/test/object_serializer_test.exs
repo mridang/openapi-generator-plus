@@ -3209,4 +3209,38 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert text =~ ~s(%{"k" => "v"})
     end
   end
+
+  describe "misc parity three" do
+    test "bhv misc 117 an absent value writes the JSON null literal" do
+      assert PetstoreClient.ObjectSerializer.serialize(nil) == "null"
+    end
+
+    test "bhv misc 118 when a payload carries a name and a differently cased duplicate, the exact-case value is decoded" do
+      assert PetstoreClient.ObjectSerializer.deserialize(
+               ~s({"NAME":"Other","name":"Exact"}),
+               "Category"
+             ).name == "Exact"
+    end
+
+    test "bhv misc 119 two object keys that differ only by an escape sequence are one key and the last value wins" do
+      assert PetstoreClient.ObjectSerializer.deserialize(
+               ~S({"name":"First","\u006eame":"Last"}),
+               "Category"
+             ).name == "Last"
+    end
+
+    test "bhv misc 121 an object with no declared schema is written as a JSON object of its properties" do
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(%{"a" => 1, "b" => "x"})) ==
+               %{"a" => 1, "b" => "x"}
+    end
+
+    test "bhv misc 122 a string default from the schema is applied as the exact literal" do
+      assert PetstoreClient.ObjectSerializer.deserialize("{}", "Defaults").greeting ==
+               "it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b"
+    end
+
+    test "bhv misc 123 a cookie value the caller has already percent-encoded reaches the wire unchanged" do
+      assert PetstoreClient.ObjectSerializer.to_cookie_value("a%20b") == "a%20b"
+    end
+  end
 end
