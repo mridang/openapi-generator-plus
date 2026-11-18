@@ -1007,6 +1007,51 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvSerialization056MultipartFieldNameQuotesAndBackslashesAreEscaped()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "a\"b\\c", "value" } };
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/resource/1/files"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"a\\\"b\\\\c\"\r\n\r\nvalue\r\n",
+            wireText,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvSerialization057MultipartFieldNameWithALineBreakIsRefusedBeforeAnyRequest()
+    {
+        var handler = new SequenceHandler(_ => Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "a\nb", "value" } };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("http://example.com/resource/1/files"),
+                new Dictionary<string, string>(),
+                formData
+            )
+        );
+
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
     public void BhvSerializationwire061MultipartFilenameWithQuoteIsBackslashEscaped()
     {
         string directive = DefaultApiClient.BuildFilenameDirective("a\"b.png");
@@ -1027,6 +1072,27 @@ public class DefaultApiClientUnitTest
         Assert.Throws<ArgumentException>(() =>
             DefaultApiClient.ValidateMultipartFilename("a\0b.pdf")
         );
+    }
+
+    [Fact]
+    public async Task BhvSerialization055ACharsetNamedOnlyByASuffixParameterIsNotHonoured()
+    {
+        byte[] latin1Bytes = new byte[] { 0x63, 0x61, 0x66, 0xE9 }; // "caf" plus an ISO-8859-1 e-acute
+        var handler = new RawByteHandler(
+            HttpStatusCode.OK,
+            latin1Bytes,
+            "text/plain; xcharset=iso-8859-1"
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/latin1-word"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal("caf�", response.Body);
     }
 
     // -- Gap H: response body charset handling --
@@ -1219,6 +1285,33 @@ public class DefaultApiClientUnitTest
 
         HttpRequestMessage second = handler.Requests[1];
         Assert.True(second.Headers.Contains("Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvRedirects044CrossOriginRedirectDropsTheCallerCredentialsAndKeepsTheProxyCredential()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var transport = TransportOptions.Builder().Proxy("http://user:pass@127.0.0.1:3128").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer caller-secret" },
+                { "X-Tenant-Token", "tenant-secret" },
+            },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        HttpRequestMessage second = handler.Requests[1];
+        Assert.False(second.Headers.Contains("Authorization"));
+        Assert.False(second.Headers.Contains("X-Tenant-Token"));
+        Assert.Equal("Basic dXNlcjpwYXNz", client.ProxyAuthorizationHeader);
     }
 
     [Theory]
@@ -4024,6 +4117,35 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvRetries043AnUnauthorizedResponseIsNotReplayedWithoutFreshCredentials()
+    {
+        var handler = new SequenceHandler(_ => Respond(401));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(3).Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(401, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvRetries044EveryRetryCarriesADifferentRequestId()
+    {
+        var handler = new SequenceHandler(n => n < 2 ? Respond(503) : Respond(200, null));
+        var transport = TransportOptions.Builder().InjectRequestId(true).MaxRetries(2).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(3, handler.RequestIds.Count);
+        Assert.Equal(3, handler.RequestIds.Distinct().Count());
+    }
+
+    [Fact]
     public async Task BhvRetries039EveryRetryIsAFreshRequestCarryingTheSameAuthenticationHeaders()
     {
         var handler = new SequenceHandler(n => n < 2 ? Respond(503) : Respond(200, null));
@@ -4240,6 +4362,7 @@ public class DefaultApiClientUnitTest
         public List<string> Requests { get; } = [];
         public List<string?> Authorizations { get; } = [];
         public List<string> Bodies { get; } = [];
+        public List<string?> RequestIds { get; } = [];
 
         public SequenceHandler(Func<int, HttpResponseMessage> respond)
         {
@@ -4253,6 +4376,11 @@ public class DefaultApiClientUnitTest
         {
             Requests.Add(request.Method + " " + request.RequestUri);
             Authorizations.Add(request.Headers.Authorization?.ToString());
+            RequestIds.Add(
+                request.Headers.TryGetValues("X-Request-ID", out var ids)
+                    ? ids.FirstOrDefault()
+                    : null
+            );
             Bodies.Add(
                 request.Content == null
                     ? ""

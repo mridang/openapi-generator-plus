@@ -147,6 +147,15 @@ public static class ObjectSerializerTest
             var date = new DateOnly(2024, 1, 15);
             Assert.Equal("2024-01-15", ObjectSerializer.Stringify(date));
         }
+
+        [Fact]
+        public void BhvSerialization037DecimalDigitsAreNotRoundedToFloatingPointPrecision()
+        {
+            Assert.Equal(
+                "0.1000000000000000055511",
+                ObjectSerializer.Stringify(0.1000000000000000055511m)
+            );
+        }
     }
 
     public class ToPathValueTests
@@ -316,6 +325,12 @@ public static class ObjectSerializerTest
             var list = new List<string> { "red", "green" };
             Assert.Equal("red,green", ObjectSerializer.ToHeaderValue(list));
         }
+
+        [Fact]
+        public void BhvSerialization013ArrayParameterInAHeaderIsWrittenAsItsItems()
+        {
+            Assert.Equal("a,b", ObjectSerializer.ToHeaderValue(new List<string> { "a", "b" }));
+        }
     }
 
     public class ToFormValueTests
@@ -354,6 +369,15 @@ public static class ObjectSerializerTest
         public void BhvSerializationobject035ConvertsFalseToString()
         {
             Assert.Equal("false", ObjectSerializer.ToFormValue(false));
+        }
+
+        [Fact]
+        public void BhvSerialization040FormValuesUseTheirCanonicalWireText()
+        {
+            Assert.Equal("true", ObjectSerializer.ToFormValue(true));
+            Assert.Equal("1.50", ObjectSerializer.ToFormValue(1.50m));
+            Assert.Equal("1.500s", ObjectSerializer.ToFormValue(TimeSpan.FromMilliseconds(1500)));
+            Assert.Equal("2024-01-15", ObjectSerializer.ToFormValue(new DateOnly(2024, 1, 15)));
         }
     }
 
@@ -847,6 +871,57 @@ public static class ObjectSerializerTest
             Assert.IsType<TreeNode>(top.Child);
             Assert.Equal("leaf", top.Child!.Value);
             Assert.Null(top.Child.Child);
+        }
+
+        [Fact]
+        public void BhvSerialization042DateOnlyStringIsPassedThroughAsGiven()
+        {
+            Assert.Equal(
+                new DateOnly(2024, 1, 15),
+                _serializer.Deserialize<DateOnly>("\"2024-01-15\"")
+            );
+            Assert.Equal("2024-01-15", ObjectSerializer.Stringify(new DateOnly(2024, 1, 15)));
+        }
+
+        [Fact]
+        public void BhvSerialization049UriFormatRequiresAnAbsoluteUri()
+        {
+            Assert.Equal(
+                new Uri("https://example.com/a"),
+                _serializer.Deserialize<Uri>("\"https://example.com/a\"")
+            );
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Uri>("\"relative/path\"")
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization050PropertyNameStartingWithADigitUsesItsExactWireName()
+        {
+            EdgeCases? decoded = _serializer.Deserialize<EdgeCases>("{\"2fa\":true}");
+            Assert.Equal(true, decoded!.N2fa);
+            Assert.Contains(
+                "\"2fa\":true",
+                _serializer.Serialize(decoded),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization054FreeFormValueKeepsItsJsonType()
+        {
+            EdgeCases? decoded = _serializer.Deserialize<EdgeCases>("{\"freeFormAny\":\"text\"}");
+            Assert.Contains(
+                "\"freeFormAny\":\"text\"",
+                _serializer.Serialize(decoded),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void FreeFormNullStaysNullAfterDecoding()
+        {
+            Assert.Null(_serializer.Deserialize<EdgeCases>("{\"freeFormAny\":null}")!.FreeFormAny);
         }
     }
 
@@ -1459,6 +1534,48 @@ public static class ObjectSerializerTest
                 _serializer.Deserialize<TimeSpan>(json)
             );
             Assert.IsAssignableFrom<OpenAPIException>(ex);
+        }
+
+        [Fact]
+        public void BhvSerialization041TimeStringParsesIntoHoursMinutesAndSeconds()
+        {
+            Assert.Equal(
+                new TimeOnly(10, 30, 15),
+                _serializer.Deserialize<TimeOnly>("\"10:30:15\"")
+            );
+        }
+
+        [Fact]
+        public void BhvSerialization043TimeOfDayIsWrittenAsItsIsoTimeNeverAsADateTime()
+        {
+            Assert.Equal("10:30:05", ObjectSerializer.Stringify(new TimeOnly(10, 30, 5)));
+        }
+
+        [Theory]
+        [InlineData(15000000L, "1.500s")]
+        [InlineData(1234560L, "0.123456s")]
+        public void BhvSerialization046FractionalSecondsTrimToTheShortestGroupOfThreeSixOrNine(
+            long ticks,
+            string expected
+        )
+        {
+            Assert.Equal(expected, ObjectSerializer.Stringify(TimeSpan.FromTicks(ticks)));
+        }
+
+        [Fact]
+        public void BhvSerialization047HugeDurationRoundTripsWithoutOverflow()
+        {
+            TimeSpan huge = TimeSpan.FromTicks(100_000_000_005_000_000L);
+            string json = _serializer.Serialize(huge);
+            Assert.Equal(huge, _serializer.Deserialize<TimeSpan>(json));
+        }
+
+        [Fact]
+        public void DurationBeyondTheProtobufBoundIsRefusedAsASerializationError()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<TimeSpan>("\"315576000001s\"")
+            );
         }
     }
 
@@ -2104,6 +2221,17 @@ public static class ObjectSerializerTest
             var beyond = new string('[', 1500) + new string(']', 1500);
             Assert.Throws<SerializationException>(() => _serializer.Deserialize<object>(beyond));
         }
+
+        [Fact]
+        public void BhvSerialization021EqualContentComparesEqualAndHashesAlike()
+        {
+            var first = new Category { Id = 7, Name = "dogs" };
+            var second = new Category { Id = 7, Name = "dogs" };
+            var other = new Category { Id = 8, Name = "dogs" };
+            Assert.Equal(first, second);
+            Assert.Equal(first.GetHashCode(), second.GetHashCode());
+            Assert.NotEqual(first, other);
+        }
     }
 
     public class StrictWireFormatTests
@@ -2244,6 +2372,15 @@ public static class ObjectSerializerTest
                 )
             );
             Assert.IsType<SerializationException>(ex);
+        }
+
+        [Fact]
+        public void BhvSerialization051StrictModelExposesNoSeparateUnknownKeyMethod()
+        {
+            int unknownKeyMethods = typeof(StrictTag)
+                .GetMethods()
+                .Count(m => m.Name.Contains("unknown", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(0, unknownKeyMethods);
         }
     }
 

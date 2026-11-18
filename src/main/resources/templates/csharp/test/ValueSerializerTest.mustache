@@ -983,4 +983,41 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
             _ => throw new System.Text.Json.JsonException(),
         });
     }
+
+    [Fact]
+    public void BhvSerialization015MatrixAndLabelStylesExpandAnObjectPerTheExplodeFlag()
+    {
+        var category = new Category { Id = 3, Name = "lab" };
+        Assert.Equal(";id=3;name=lab", ValueSerializer.SerializeStyled("c", category, "query", "object", null, "matrix", true));
+        Assert.Equal(";c=id,3,name,lab", ValueSerializer.SerializeStyled("c", category, "query", "object", null, "matrix", false));
+        Assert.Equal(".id=3.name=lab", ValueSerializer.SerializeStyled("c", category, "query", "object", null, "label", true));
+        Assert.Equal(".id,3,name,lab", ValueSerializer.SerializeStyled("c", category, "query", "object", null, "label", false));
+    }
+
+    [Theory]
+    [InlineData("spaceDelimited", "id 3 name lab")]
+    [InlineData("pipeDelimited", "id|3|name|lab")]
+    public void BhvSerialization016ObjectInADelimitedStyleIsAlternatingKeysAndValues(string style, string expected)
+    {
+        var category = new Category { Id = 3, Name = "lab" };
+        Assert.Equal(expected, ValueSerializer.SerializeStyled("c", category, "query", "object", null, style, false));
+    }
+
+    [Theory]
+    [InlineData("matrix")]
+    [InlineData("label")]
+    [InlineData("simple")]
+    public void BhvSerialization017ModelObjectParameterUsesWireNamesInDeclarationOrder(string style)
+    {
+        var category = new Category { Id = 3, Name = "lab" };
+        string text = Assert.IsType<string>(ValueSerializer.SerializeStyled("c", category, "query", "object", null, style, false));
+        Assert.True(text.IndexOf("id", StringComparison.Ordinal) < text.IndexOf("name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void BhvSerialization018ANestedObjectInsideAnObjectValuedParameterIsRefused()
+    {
+        var nested = new Dictionary<string, object?> { { "outer", new Dictionary<string, object?> { { "inner", "1" } } } };
+        Assert.Throws<SerializationException>(() => ValueSerializer.SerializeStyled("c", nested, "query", "object", null, "matrix", true));
+    }
 }
