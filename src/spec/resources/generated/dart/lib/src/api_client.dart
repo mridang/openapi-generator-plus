@@ -48,6 +48,28 @@ abstract class ApiClient {
   });
 }
 
+/// Optional capability of an [ApiClient]: a request is admitted when its API
+/// method is called, before any await (such as an OAuth token fetch), so a
+/// close made while the request waits for its credential still lets the
+/// request finish. An [ApiClient] without it is sent to through [sendRequest].
+abstract class AdmittingApiClient implements ApiClient {
+  /// Admits one request now and returns the function that marks it finished.
+  /// Throws a [StateError] when the client is already closed.
+  void Function() beginRequest();
+
+  /// Sends a request admitted by [beginRequest]. Takes the same parameters as
+  /// [ApiClient.sendRequest] and does not check whether the client is closed.
+  Future<ApiHttpResponse> sendAdmittedRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  });
+}
+
 /// Optional capability of an [ApiClient]: the retry policy the API classes
 /// apply around [ApiClient.sendRequest].
 ///
