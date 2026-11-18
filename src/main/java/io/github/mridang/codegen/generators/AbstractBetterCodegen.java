@@ -517,6 +517,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * control which files are emitted, and reads the
      * {@code generateTests} and {@code clientClassName} options.
      */
+    /**
+     * Whether this language ships the optional OpenTelemetry adapter built on the call hook.
+     * The templates read it as {@code hasOpenTelemetryAdapter} so one README section can show
+     * the adapter or, where the language has no stable OpenTelemetry API, the recipe.
+     *
+     * @return true for the languages with an adapter, false (the default) for the recipe languages
+     */
+    protected boolean hasOpenTelemetryAdapter() {
+        return false;
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
@@ -534,6 +545,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     Boolean.parseBoolean(additionalProperties.get("generateUnitTests").toString());
         }
         additionalProperties.put("generateUnitTests", generateUnitTests);
+        additionalProperties.put("hasOpenTelemetryAdapter", hasOpenTelemetryAdapter());
 
         getPropertyOrDefault("clientClassName", "Client");
 
