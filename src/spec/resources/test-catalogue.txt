@@ -1976,3 +1976,9 @@ langcsharp017 | A bare number read in exponent notation is written back in plain
 langcsharp018 | A duplicate key inside a nested object keeps the last value
 langcsharp019 | A copy with changed fields keeps every other field of the source model
 langcsharp020 | A copy of a model keeps its concrete type when held through its base type
+langjava014 | An empty service token is rejected when the authenticator is built, before any request is made.
+langjava015 | An empty explicit argument counts as not passed, so the value from the environment is used. | multi
+langjava016 | A control character in a credential read from the environment is rejected when the authenticator is built. | multi
+langjava017 | Each wrapper authenticator emits its key at the location its security scheme declares.
+langjava018 | Each wrapper kind reads only its own environment variable, so one kind never sees another kind's value.
+langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
