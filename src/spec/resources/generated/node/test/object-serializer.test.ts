@@ -747,6 +747,35 @@ describe("ObjectSerializer", () => {
     expect(pet.name).toBe("a");
   });
 
+  test("bhv serialization 067 extra properties set on a model are written as top-level keys beside its declared fields", () => {
+    const pet = reattachAdditionalProperties(
+      new Pet({ id: 1, name: "x", photoUrls: new Set<string>() }),
+      { region: "eu" },
+    );
+
+    expect(JSON.parse(ObjectSerializer.stringify(pet))).toMatchObject({
+      id: 1,
+      name: "x",
+      region: "eu",
+    });
+  });
+
+  test("bhv serialization 071 JSON nested deeper than the allowed depth is refused before parsing begins", () => {
+    const deep = "[".repeat(1001) + "]".repeat(1001);
+    expect(() => ObjectSerializer.parseJson(deep)).toThrow(SerializationError);
+    expect(() => ObjectSerializer.parseJson(deep)).toThrow(
+      "JSON nesting depth 1001 exceeds limit 1000",
+    );
+  });
+
+  test("bhv serialization 075 an enum value decodes from its wire casing to the matching member", () => {
+    const pet = ObjectSerializer.deserialize(
+      { name: "x", photoUrls: [], status: "sold" },
+      Pet,
+    )!;
+    expect(pet.status).toBe(PetStatusEnum.Sold);
+  });
+
   test("bhv serialization 077 a duration written to its wire string and decoded back is the same duration", () => {
     for (const fields of [
       { seconds: 0 },
