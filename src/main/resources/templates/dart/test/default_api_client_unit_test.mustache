@@ -4761,6 +4761,61 @@ void main() {
         )),
       );
     });
+    test('bhv misc 296 By default a failed request is retried twice so three requests reach the wire', () async {
+      var hits = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) {
+        hits++;
+        request.response
+          ..statusCode = 503
+          ..close();
+      });
+
+      final client = DefaultApiClient(transportOptions: TransportOptionsBuilder().build());
+      await client.sendRequest('GET', 'http://127.0.0.1:${server.port}/flaky', {}, null);
+
+      expect(hits, equals(3));
+    });
+
+    test('bhv misc 299 A header the caller sets on a request is sent with the caller value, overriding the transport default', () async {
+      http.BaseRequest? seen;
+      final transport = TransportOptionsBuilder()
+          .userAgent('MyApp/1.0')
+          .httpClient(MockClient((request) async {
+            seen = request;
+            return http.Response('ok', 200);
+          }))
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+
+      await client.sendRequest('GET', 'http://custom.test/echo', {'User-Agent': 'Caller/2.0'}, null);
+
+      expect(seen, isNotNull);
+      expect(seen!.headers['user-agent'], equals('Caller/2.0'));
+    });
+
+    test('bhv redirects 056 An opted-out request sends no transport default header and the next normal request sends it', () async {
+      final received = <String?>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) {
+        received.add(request.headers.value('x-default'));
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+      final transport = TransportOptionsBuilder()
+          .defaultHeader('X-Default', 'default-value')
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final base = 'http://127.0.0.1:${server.port}';
+
+      await client.sendRequest('POST', '$base/token', {}, 'a=b', noRedirect: true, noDefaultHeaders: true);
+      await client.sendRequest('GET', '$base/next', {}, null);
+
+      expect(received, equals([null, 'default-value']));
+    });
   });
 }
 {{/generateTests}}

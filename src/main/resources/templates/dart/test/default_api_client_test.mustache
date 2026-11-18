@@ -466,7 +466,17 @@ Future<void> main(List<String> args) async {
       expect(resp.statusCode, equals(200));
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       expect(parsed['method'], equals('PATCH'));
+      test('bhv redirects 054 A redirect chain that runs past the timeout budget fails with a timeout error', () async {
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().timeout(1200).build(),
+      );
+
+      await expectLater(
+        client.sendRequest('GET', '$chasmHttpUrl/test/redirect/chain/1', {}, null),
+        throwsA(isA<NetworkTimeoutException>().having((e) => e.statusCode, 'statusCode', 0)),
+      );
     });
+  });
 }
 ''');
         final packages =
