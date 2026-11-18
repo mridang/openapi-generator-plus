@@ -302,6 +302,9 @@ public final class TransportOptionsBuilder {
     if maxRetries < 0 {
       throw ConfigurationError.invalidArgument("maxRetries must not be negative: \(maxRetries)")
     }
+    if let maxRedirects = maxRedirects, maxRedirects < 0 {
+      throw ConfigurationError.invalidArgument("maxRedirects must not be negative: \(maxRedirects)")
+    }
     var parsedProxy: URL? = nil
     if let val = proxy {
       /* A string with no scheme at all is "not a valid URL", whether or

@@ -1356,6 +1356,19 @@ import Testing
       "body should be nil for GET request with no body")
   }
 
+  /* A request with no body carries no Content-Type header. */
+  @Test func testBhvOperations131NoBodyRequestSendsNoContentType() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    _ = try await api.getPetById(petId: 1)
+    #expect(
+      mockClient.lastHeaders["Content-Type"] == nil,
+      "a request with no body must not send a Content-Type header")
+  }
+
   @Test func testBhvOperations011EmptyStringBodyIncludesContentType() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"TestPet\",\"photoUrls\":[]}"

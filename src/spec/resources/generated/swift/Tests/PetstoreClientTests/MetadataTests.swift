@@ -274,6 +274,30 @@ import Testing
     #expect(!text.contains("has no options struct yet"))
   }
 
+  // MARK: - SKILLS.md
+
+  private func skillsGuide() throws -> String {
+    let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      .appendingPathComponent("SKILLS.md")
+    return try String(contentsOf: file, encoding: .utf8)
+  }
+
+  @Test func testBhvSkills001ErrorHandlingNamesTheRootAndTheSiblingsOfApiError() throws {
+    let text = try skillsGuide()
+    #expect(text.contains("- `OpenAPIError` (root)"))
+    #expect(text.contains("  - `SerializationError`"))
+    #expect(text.contains("  - `OAuth2ServerError`"))
+    #expect(text.contains("  - `OAuth2TokenError`"))
+  }
+
+  @Test func testBhvSkills002ConfigurationDocumentsTheRetries() throws {
+    let text = try skillsGuide()
+    let configuration = try #require(text.range(of: "## Configuration"))
+    let retries = try #require(text.range(of: "### Retries"))
+    #expect(configuration.lowerBound < retries.lowerBound)
+    #expect(text.contains("`0` disables"))
+  }
+
   @Test func testReadmeListsTheLicenseInThePackageSection() throws {
     #expect(try readme().contains("- License: MIT"))
   }

@@ -82,6 +82,25 @@ import Testing
     }
   }
 
+  @Test func testBhvOptions045NegativeMaxRedirectsIsRejectedAtConfiguration() throws {
+    #expect(throws: ConfigurationError.invalidArgument("maxRedirects must not be negative: -1")) {
+      try TransportOptionsBuilder().maxRedirects(-1).build()
+    }
+  }
+
+  @Test func testBhvOptions047NegativeTimeoutIsRejectedAtConfiguration() throws {
+    #expect(throws: ConfigurationError.invalidTimeout(-1)) {
+      try TransportOptionsBuilder().timeout(-1).build()
+    }
+  }
+
+  @Test func testBhvOptions051ProxyWithAnFtpSchemeIsRejected() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("ftp://proxy.example.com:3128").build()
+    }
+    #expect(error?.errorDescription?.contains("must use http or https scheme") == true)
+  }
+
   @Test func testSessionDefaultsToNil() throws {
     #expect(try TransportOptionsBuilder().build().session == nil)
   }

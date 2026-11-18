@@ -442,7 +442,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     /* addPet accepts apiKeyHeader first and petStoreBearer second, so a client
        holding both sends the api key and not the bearer token. */
-    @Test func testAnOperationUsesTheFirstSchemeItListsThatTheClientHolds() async throws {
+    @Test func testBhvOperations148AnOperationUsesTheFirstSchemeItListsThatTheClientHolds() async throws {
         let host = "https://first-scheme.example.com"
         let client = try schemeClient(
             host: host,

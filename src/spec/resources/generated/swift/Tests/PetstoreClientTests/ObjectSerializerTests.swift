@@ -584,6 +584,13 @@ import Testing
 
   // MARK: - Gap #13 — null fields omitted on serialise
 
+  /* A model with every property unset serializes to an empty JSON object, never to an empty array or null. */
+  @Test func testBhvSerializationobject188EmptyObjectSerializesToEmptyJsonObject() throws {
+    let category = PetstoreClient.Category(id: nil, name: nil)
+    let json = try ObjectSerializer.serialize(category)
+    #expect(json == "{}", "an all-nil model must serialize to {}, got: \(json)")
+  }
+
   @Test func testNilFieldsOmittedOnSerialize() throws {
     // Category encodes optional fields with encodeIfPresent, so a field
     // left nil must be dropped from the payload rather than emitted as null.
@@ -1201,7 +1208,7 @@ import Testing
   // cycle with no direct self-reference. The cycle must be broken by storing
   // an edge @Indirect; deserialization must still decode every level into a
   // typed struct and the terminating leaf must decode as nil.
-  @Test func testDeserializeMutuallyRecursiveModels() throws {
+  @Test func testBhvSerializationobject189DeserializeMutuallyRecursiveModels() throws {
     let json = "{\"name\":\"Eng\",\"lead\":{\"name\":\"Ada\",\"department\":{\"name\":\"Core\"}}}"
     let dept = try ObjectSerializer.deserialize(json, as: Department.self)
     #expect(dept?.name == "Eng")
