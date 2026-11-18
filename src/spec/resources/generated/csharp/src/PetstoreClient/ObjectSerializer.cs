@@ -9,6 +9,7 @@
 using System.Collections;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using PetstoreClient.Errors;
 
@@ -71,6 +72,7 @@ internal partial class ObjectSerializer
         {
             value = wrapper.ActualInstance;
         }
+        value = WithSortedKeys(value);
         try
         {
             return JsonSerializer.Serialize(value, _options);
@@ -573,6 +575,30 @@ internal partial class ObjectSerializer
             };
     }
 
+    /// <summary>
+    /// Returns a plain map (any non-JSON-tree <see cref="IDictionary"/>, at any
+    /// depth) as a <see cref="SortedDictionary{TKey,TValue}"/> keyed by ordinal
+    /// comparison, so its keys are written in ascending order. Models and other
+    /// values are returned unchanged and keep their declared property order.
+    /// </summary>
+    private static object? WithSortedKeys(object? value)
+    {
+        if (value is not IDictionary dictionary || value is JsonNode)
+        {
+            return value;
+        }
+        SortedDictionary<string, object?> sorted = new(StringComparer.Ordinal);
+        foreach (DictionaryEntry entry in dictionary)
+        {
+            if (entry.Key is not string key)
+            {
+                return value;
+            }
+            sorted.Add(key, WithSortedKeys(entry.Value));
+        }
+        return sorted;
+    }
+
     private static Dictionary<string, TValue> WithoutDeclaredKeys<TValue>(
         Dictionary<string, TValue> source,
         HashSet<string> declared
@@ -1005,6 +1031,9 @@ internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan
     private const long TicksPerSecond = 10_000_000L;
     private const long NanosPerTick = 100L;
 
+    /* protobuf bounds a Duration to +/-315576000000 seconds inclusive, even where TimeSpan could hold more. */
+    private const long MaxProtobufSeconds = 315_576_000_000L;
+
     public override TimeSpan Read(
         ref Utf8JsonReader reader,
         Type typeToConvert,
@@ -1060,7 +1089,7 @@ internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan
     /// Parses a protobuf-JSON duration string into a <see cref="TimeSpan"/>.
     /// Throws <see cref="JsonException"/> on anything not matching
     /// <c>^-?[0-9]+(\.[0-9]{1,9})?s$</c> (e.g. ISO-8601 or unsuffixed numbers)
-    /// and on a value too large for <see cref="TimeSpan"/>;
+    /// and on a value past the protobuf bound of +/-315576000000 seconds or too large for <see cref="TimeSpan"/>;
     /// <see cref="ObjectSerializer"/> surfaces it as a
     /// <see cref="SerializationException"/>.
     /// </summary>
@@ -1092,6 +1121,11 @@ internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan
                  * its nanosecond weight (".5" → 500_000_000ns). */
                 string fracText = body[(dot + 1)..].PadRight(9, '0');
                 nanos = long.Parse(fracText, System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            if (secs > MaxProtobufSeconds || (secs == MaxProtobufSeconds && nanos > 0L))
+            {
+                throw new JsonException($"Invalid protobuf duration: {text}");
             }
 
             /* checked: a second count past TimeSpan's range must fail, not wrap. */

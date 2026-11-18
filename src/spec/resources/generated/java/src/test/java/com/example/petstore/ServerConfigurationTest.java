@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.errors.OpenAPIException;
 import java.util.List;
@@ -31,6 +32,12 @@ class ServerConfigurationTest {
                 "version", new ServerVariable("1", null, List.of())));
 
     assertEquals("https://prod.api.example.com/v1", config.getUrl());
+  }
+
+  @Test
+  void bhvServers028GeneratedServerListCannotBeChangedAfterCreation() {
+    org.junit.jupiter.api.Assertions.assertThrows(
+        UnsupportedOperationException.class, () -> Servers.ALL.add(Servers.ALL.get(0)));
   }
 
   @Test
@@ -154,7 +161,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void copiesTheCallersVariablesMapAtConstruction() {
+  void bhvServers025CopiesTheCallersVariablesMapAtConstruction() {
     java.util.Map<String, ServerVariable> source = new java.util.HashMap<>();
     source.put("env", new ServerVariable("prod", null, List.of()));
     ServerConfiguration config =
@@ -168,7 +175,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void copiesTheCallersEnumListAtConstruction() {
+  void bhvServers026CopiesTheCallersEnumListAtConstruction() {
     java.util.List<String> allowed = new java.util.ArrayList<>(List.of("prod"));
     ServerVariable variable = new ServerVariable("prod", null, allowed);
     ServerConfiguration config =
@@ -238,5 +245,36 @@ class ServerConfigurationTest {
     assertEquals("o'neil", tenant.getDefaultValue());
     assertEquals("Tenant's \"id\"", tenant.getDescription());
     assertEquals(List.of("o'neil", "a&b"), tenant.getEnumValues());
+  }
+
+  @Test
+  void bhvServers020AServerVariableValueOutsideItsEnumIsRejectedWithItsName() {
+    ServerConfiguration server = Servers.SERVER_2;
+
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> server.getUrl(Map.of("tenant", "dev")));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage())
+            .contains("'dev' for server variable 'tenant'"));
+  }
+
+  @Test
+  void bhvServers021ASpecialCharacterDefaultAndEnumValueResolvesRaw() {
+    ServerConfiguration server = Servers.SERVER_2;
+
+    assertEquals("https://o'neil.example.com/api", server.getUrl());
+    assertEquals("https://a&b.example.com/api", server.getUrl(Map.of("tenant", "a&b")));
+  }
+
+  @Test
+  void bhvServers023AReplacementPatternInAValueIsSubstitutedLiterally() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{env}.api.example.com",
+            null,
+            Map.of("env", new ServerVariable("api", null, List.of())));
+
+    assertEquals("https://$1$&$$.api.example.com", config.getUrl(Map.of("env", "$1$&$$")));
   }
 }

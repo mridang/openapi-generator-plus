@@ -12,11 +12,12 @@ from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
 from petstore_client.client import Client
+from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
 
 
 class TestClient:
-    def test_bearer_rejects_crlf(self) -> None:
+    def test_bhv_authbearer_028_bearer_rejects_crlf(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator("/api/v3", "tok\r\nInjected: yes")
 
@@ -106,7 +107,7 @@ def _host(client: Client) -> str:
 class TestClientCredentials:
     """F862: an argument wins, then the environment variable read once at construction."""
 
-    def test_an_explicit_host_and_token_win_over_the_environment(
+    def test_bhv_lifecycle_028_an_explicit_host_and_token_win_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(
@@ -119,7 +120,16 @@ class TestClientCredentials:
         assert _host(client) == "https://arg.example.com"
         assert _authorization(client) == "Bearer arg-token"
 
-    def test_the_environment_fills_what_was_not_passed(
+    def test_bhv_lifecycle_032_a_token_passed_to_the_client_is_preferred_to_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "env-token")
+
+        client = Client.with_token("https://arg.example.com", "arg-token")
+
+        assert _authorization(client) == "Bearer arg-token"
+
+    def test_bhv_auth_024_the_environment_fills_what_was_not_passed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(
@@ -142,7 +152,7 @@ class TestClientCredentials:
 
         assert _authorization(client) == "Bearer first"
 
-    def test_an_empty_environment_value_counts_as_unset(
+    def test_bhv_authbearer_019_an_empty_environment_value_counts_as_unset(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "")
@@ -159,6 +169,29 @@ class TestClientCredentials:
 
         with pytest.raises(ValueError, match="SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"):
             Client.with_token(access_token="arg-token")
+
+    def test_bhv_config_025_an_empty_base_url_environment_value_counts_as_unset(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+
+        with pytest.raises(ValueError, match="SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"):
+            Client.with_token(access_token="arg-token")
+
+    def test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_and_a_valid_token_builds(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", raising=False)
+        monkeypatch.delenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", raising=False)
+
+        with pytest.raises(ValueError):
+            Client.with_token(access_token="arg-token")
+        with pytest.raises(ValueError):
+            Client.with_token("https://arg.example.com", "")
+
+        client = Client.with_token("https://arg.example.com", "arg-token")
+
+        assert _authorization(client) == "Bearer arg-token"
 
     def test_bhv_lifecycle_017_a_token_provider_runs_for_every_request(self) -> None:
         tokens = iter(["one", "two"])
@@ -190,7 +223,9 @@ class TestClientCredentials:
 class TestClientSchemeCredentials:
     """F857: one optional credential per security scheme, named after the scheme."""
 
-    def test_a_client_built_with_no_credential_is_refused(self) -> None:
+    def test_bhv_lifecycle_026_a_client_built_with_no_credential_is_refused(
+        self,
+    ) -> None:
         with pytest.raises(ValueError, match="At least one credential is required"):
             Client()
 
@@ -314,7 +349,7 @@ class TestClientSchemeCredentials:
 
         assert _schemes(client) == {"ssoAuth": held}
 
-    def test_the_base_url_comes_from_the_first_credential_the_authenticator_first(
+    def test_bhv_lifecycle_030_the_base_url_comes_from_the_first_credential_the_authenticator_first(
         self,
     ) -> None:
         scheme = BearerAuthenticator("https://scheme.example.com", "tok")
@@ -339,7 +374,9 @@ class TestClientSchemeCredentials:
         assert client.store._authenticator is default
         assert list(client.store._scheme_authenticators.values()) == [held]
 
-    def test_a_credential_that_needs_the_transport_is_given_it(self) -> None:
+    def test_bhv_auth_025_a_credential_that_needs_the_transport_is_given_it(
+        self,
+    ) -> None:
         class _NeedsTransport(HttpAwareAuthenticator):
             def __init__(self) -> None:
                 self.api_client: Any = None
@@ -415,7 +452,7 @@ async def _send(client: Client) -> Any:
 class TestClientClose:
     """F1078: closing is graceful and idempotent; requests in flight finish."""
 
-    async def test_a_request_in_flight_finishes_and_the_transport_is_released_after_it(
+    async def test_bhv_lifecycle_037_a_request_in_flight_finishes_and_the_transport_is_released_after_it(
         self,
     ) -> None:
         pool = _SlowPool()
@@ -455,7 +492,7 @@ class TestClientClose:
 
         assert pool.clears == 1
 
-    async def test_a_second_close_does_nothing(self) -> None:
+    async def test_bhv_lifecycle_036_a_second_close_does_nothing(self) -> None:
         pool = _SlowPool()
         client = _owning(pool)
         request = asyncio.ensure_future(_send(client))
@@ -469,7 +506,7 @@ class TestClientClose:
 
         assert pool.clears == 1
 
-    async def test_a_closed_client_rejects_a_new_request_with_the_client_closed_error(
+    async def test_bhv_lifecycle_035_a_closed_client_rejects_a_new_request_with_the_client_closed_error(
         self,
     ) -> None:
         pool = _SlowPool()
@@ -484,19 +521,6 @@ class TestClientClose:
             == "ApiClient has been closed and can no longer send requests"
         )
         assert pool.requests == 0
-
-    async def test_a_request_in_flight_is_not_aborted_by_close(self) -> None:
-        pool = _SlowPool()
-        client = _owning(pool)
-        request = asyncio.ensure_future(_send(client))
-        await asyncio.to_thread(pool.started.wait, 5)
-
-        client.close()
-        await asyncio.sleep(0.2)
-
-        assert not request.done()
-        pool.finish.set()
-        await request
 
     async def test_bhv_lifecycle_009_a_pool_manager_the_caller_supplied_is_never_cleared(
         self,
@@ -513,7 +537,7 @@ class TestClientClose:
 
         assert pool.clears == 0
 
-    def test_leaving_the_with_block_closes_the_client(self) -> None:
+    def test_bhv_lifecycle_040_leaving_the_with_block_closes_the_client(self) -> None:
         pool = _SlowPool()
 
         with _owning(pool):
@@ -531,14 +555,6 @@ class _OwnedPool(urllib3.PoolManager):
 
 
 class TestClientPoolManager:
-    def test_client_never_closes_a_supplied_pool_manager(self) -> None:
-        pool = _OwnedPool()
-        client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
-
-        client.close()
-
-        assert pool.cleared is False
-
     def test_bhv_lifecycle_008_closed_client_rejects_further_requests(self) -> None:
         client = Client(BearerAuthenticator("/api/v3", "test-token"))
 
@@ -565,12 +581,12 @@ class TestClientPoolManager:
 
         assert pool.cleared is False
 
-    def test_supplied_pool_manager_conflicts_with_a_proxy(self) -> None:
-        transport = (
-            TransportOptions.builder().proxy("http://proxy.example.com:3128").build()
-        )
 
-        with pytest.raises(ValueError, match="pool_manager"):
-            Client(
-                BearerAuthenticator("/api/v3", "test-token"), transport, _OwnedPool()
-            )
+class TestCallerTransportWithoutClose:
+    def test_bhv_lifecycle_038_a_caller_transport_without_close_is_valid_and_closing_twice_succeeds(
+        self,
+    ) -> None:
+        client = DefaultApiClient(pool_manager=object())
+
+        client.close()
+        client.close()

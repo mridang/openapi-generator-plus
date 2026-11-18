@@ -14,17 +14,49 @@ class ConfigurationTest {
     inner class Defaults {
 
         @Test
-        @DisplayName("default builder uses spec base URL")
+        @DisplayName("bhvConfig018 a default constructed or built configuration uses the base URL from the spec")
         fun defaultBuilderUsesSpecBaseUrl() {
             val config = Configuration.builder().build()
             assertEquals("{{{basePath}}}", config.baseUrl)
         }
 
         @Test
-        @DisplayName("default builder has empty headers")
-        fun defaultBuilderHasEmptyHeaders() {
-            val config = Configuration.builder().build()
-            assertTrue(config.defaultHeaders.isEmpty())
+        @DisplayName("bhvConfig022 mutating the returned default headers does not change the configuration")
+        fun mutatingReturnedHeadersLeavesTheConfigurationUnchanged() {
+            val config = Configuration.builder()
+                .defaultHeader("X-Key", "value")
+                .build()
+            val returned = config.defaultHeaders as MutableMap<String, String>
+            assertThrows(UnsupportedOperationException::class.java) { returned["X-New"] = "value" }
+            assertFalse(config.defaultHeaders.containsKey("X-New"))
+            assertEquals(mapOf("X-Key" to "value"), config.defaultHeaders)
+        }
+
+        @Test
+        @DisplayName("bhvConfig021 a server URL template resolves its variables to their defaults")
+        fun serverUrlTemplateResolvesVariablesToDefaults() {
+            val server = ServerConfiguration(
+                "https://{env}.example.com/api/{version}",
+                null,
+                mapOf(
+                    "env" to ServerVariable("api", null, listOf("api", "staging")),
+                    "version" to ServerVariable("v3", null, listOf("v2", "v3"))
+                )
+            )
+            assertEquals("https://api.example.com/api/v3", server.getUrl())
+            assertEquals("https://api.example.com/api/v3", Configuration.builder().server(server).build().baseUrl)
+        }
+
+        @Test
+        @DisplayName("bhvConfig017 default headers cannot be changed through the configuration")
+        fun defaultHeadersAreUnmodifiable() {
+            val config = Configuration.builder()
+                .defaultHeader("X-Key", "value")
+                .defaultHeader("X-Other", "other")
+                .build()
+            assertThrows(UnsupportedOperationException::class.java) {
+                (config.defaultHeaders as MutableMap<String, String>)["X-New"] = "value"
+            }
         }
 
         @Test
@@ -225,12 +257,22 @@ class ConfigurationTest {
     inner class DefaultFactory {
 
         @Test
-        @DisplayName("defaultConfiguration uses the spec base URL")
+        @DisplayName("bhvConfig019 the default configuration factory returns the spec base URL")
         fun defaultConfigurationUsesSpecBaseUrl() {
             val config = Configuration.defaultConfiguration()
             assertNotNull(config)
             assertEquals("{{{basePath}}}", config.baseUrl)
             assertTrue(config.defaultHeaders.isEmpty())
+        }
+
+        @Test
+        @DisplayName("bhvConfig023 repeated calls to the default factory give the same base URL and headers")
+        fun repeatedDefaultCallsAgree() {
+            val first = Configuration.defaultConfiguration()
+            val second = Configuration.defaultConfiguration()
+            assertEquals(first.baseUrl, second.baseUrl)
+            assertEquals(first.defaultHeaders, second.defaultHeaders)
+            assertEquals("{{{basePath}}}", second.baseUrl)
         }
 
         @Test
@@ -284,6 +326,18 @@ class ConfigurationTest {
     @Nested
     @DisplayName("builder chaining")
     inner class BuilderChaining {
+
+        @Test
+        @DisplayName("bhvConfig020 a builder chain sets the base URL and default headers in one configuration")
+        fun builderChainSetsBaseUrlAndHeadersTogether() {
+            val config = Configuration.builder()
+                .baseUrl("https://chain.example.com")
+                .defaultHeader("X-Key", "value")
+                .defaultHeaders(mapOf("X-Other" to "other"))
+                .build()
+            assertEquals("https://chain.example.com", config.baseUrl)
+            assertEquals(mapOf("X-Key" to "value", "X-Other" to "other"), config.defaultHeaders)
+        }
 
         @Test
         @DisplayName("bhvConfig003 builder methods are fluent")

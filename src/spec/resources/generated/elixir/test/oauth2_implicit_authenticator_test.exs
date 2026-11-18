@@ -11,6 +11,23 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
   end
 
   describe "OAuth2ImplicitAuthenticator" do
+    test "bhv authscheme 016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'client_id': pass it, or set the environment variable #{name}",
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+                       "https://api.example.com",
+                       nil,
+                       "https://auth.example.com/authorize",
+                       ["read", "write"]
+                     )
+                   end
+    end
+
     test "bhv authoauthtwoimplicit 006 scheme authenticator keeps the declared scopes in the authorization URL" do
       auth =
         PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator.new(
@@ -116,7 +133,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       end
     end
 
-    test "set_access_token rejects a token that is not printable ASCII" do
+    test "bhv authoauthtwoimplicit 014 set_access_token rejects a token that is not printable ASCII" do
       auth = create_authenticator()
 
       for token <- ["tok\r\nX-Injected: 1", "tok\nX", "tok\rX", "tok\0X", "t\u00F6k", "tok\u007F"] do
@@ -129,6 +146,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
                        )
                      end
       end
+    end
+
+    test "bhv authoauthtwoimplicit 016 a tab is allowed inside the access token" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "tok\tX")
+
+      headers = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
+
+      assert headers["Authorization"] == "Bearer tok\tX"
     end
 
     test "bhv authoauthtwoimplicit 001 authorization URL percent-encodes * ! ' ( ) and keeps ~ literal" do

@@ -23,6 +23,19 @@ describe Petstore::Client::DefaultApiClient do
       json = JSON.parse(response.body)
       _(json['method']).must_equal('GET')
     end
+
+    it 'bhv_transport_062 with verify_ssl false accepts a certificate that fails validation' do
+      chasm_url = ENV.fetch('CHASM_HTTPS_URL')
+
+      transport = Petstore::Client::TransportOptions.builder
+        .verify_ssl(false)
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+    end
   end
 
   describe 'custom CA bundle' do
@@ -134,7 +147,19 @@ describe Petstore::Client::DefaultApiClient do
       _(JSON.parse(response.body)['method']).must_equal('GET')
     end
 
-    it 'authenticating proxy refuses a request without credentials' do
+    it 'bhv_transport_059 authenticating proxy refuses a request without credentials' do
+      chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
+      transport = Petstore::Client::TransportOptions.builder
+        .proxy("http://#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(407)
+    end
+
+    it 'bhv_transport_063 authenticating proxy answers 407 when no credentials are sent' do
       chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
       transport = Petstore::Client::TransportOptions.builder
         .proxy("http://#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")
@@ -230,6 +255,20 @@ describe Petstore::Client::DefaultApiClient do
       error = _ { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }.must_raise Petstore::Client::Errors::NetworkTimeoutError
       _(error.status_code).must_equal 0
       _(error.cause).wont_be_nil
+    end
+
+    it 'bhv_transport_060 cancelling an in-flight call aborts the request without reporting a timeout' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.timeout(30_000).build)
+      cancelled = Class.new(StandardError)
+
+      worker = Thread.new { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }
+      worker.report_on_exception = false
+      sleep 0.3
+      worker.raise(cancelled.new('cancelled by the caller'))
+
+      _(assert_raises(cancelled) { worker.join(10) }.message).must_equal 'cancelled by the caller'
+      _(worker.alive?).must_equal false
     end
 
     it 'bhv_redirects_009 spends one budget across every redirect hop' do
@@ -574,20 +613,6 @@ describe Petstore::Client::DefaultApiClient do
       _(response).wont_be_nil
     end
 
-    it 'rejects multipart field name with CRLF (Gap W2)' do
-      chasm_url = ENV.fetch('CHASM_HTTP_URL')
-
-      client = Petstore::Client::DefaultApiClient.new
-      assert_raises(ArgumentError) do
-        client.send_request(
-          :POST,
-          "#{chasm_url}/test/echo",
-          {},
-          { "name\r\nInjected: yes" => 'value' }
-        )
-      end
-    end
-
     # W-new-2: multipart field-name validation must run on every branch (not
     # just binary). Confirm that even for a plain String value, a CR/LF in
     # the field name is rejected, preventing Content-Disposition smuggling.
@@ -665,7 +690,7 @@ describe Petstore::Client::DefaultApiClient do
       _(cookies.index('a=1')).must_be :<, cookies.index('b=2')
     end
 
-    it 'returns a 200 without a body as an empty body, not an error' do
+    it 'bhv_transport_067 returns a 200 without a body as an empty body, not an error' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       response = Petstore::Client::DefaultApiClient.new.send_request(:GET, "#{chasm_url}/test/empty", {}, nil)
 
@@ -796,6 +821,38 @@ describe Petstore::Client::DefaultApiClient do
           _(seen).must_equal([[expected, expected == verb ? 'payload' : '']])
         end
       end
+    end
+
+    it 'bhv_redirects_029 rewrites the method only as RFC 9110 section 15.4 allows' do
+      run = lambda do |status, verb|
+        seen = [] # : Array[Array[String]]
+        transport = Petstore::Client::TransportOptions.builder
+                                                    .connection(redirect_connection(status, seen))
+                                                    .follow_redirects(true).build
+        Petstore::Client::DefaultApiClient.new(transport).send_request(verb, 'http://localhost/start', {}, 'payload')
+        seen
+      end
+
+      _(run.call(301, :post)).must_equal([['GET', '']])
+      _(run.call(302, :post)).must_equal([['GET', '']])
+      _(run.call(307, :post)).must_equal([%w[POST payload]])
+      _(run.call(308, :post)).must_equal([%w[POST payload]])
+    end
+
+    it 'bhv_redirects_036 turns every method except HEAD into GET on a 303' do
+      run = lambda do |verb, body|
+        seen = [] # : Array[Array[String]]
+        transport = Petstore::Client::TransportOptions.builder
+                                                    .connection(redirect_connection(303, seen))
+                                                    .follow_redirects(true).build
+        Petstore::Client::DefaultApiClient.new(transport).send_request(verb, 'http://localhost/start', {}, body)
+        seen
+      end
+
+      %i[post put patch delete].each do |verb|
+        _(run.call(verb, 'payload')).must_equal([['GET', '']])
+      end
+      _(run.call(:head, nil)).must_equal([['HEAD', '']])
     end
   end
 

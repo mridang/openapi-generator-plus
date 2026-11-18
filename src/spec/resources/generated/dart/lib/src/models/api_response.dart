@@ -19,13 +19,17 @@ class ApiResponse {
 
   /// Creates a [ApiResponse] from a JSON map.
   factory ApiResponse.fromJson(Map<String, dynamic> json) {
-    return ApiResponse(
-      code: readInt32OrNull(json['code']),
+    try {
+      return ApiResponse(
+        code: readInt32OrNull(json['code']),
 
-      type: json['type'] as String?,
+        type: json['type'] as String?,
 
-      message: json['message'] as String?,
-    );
+        message: json['message'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for ApiResponse: $e', e);
+    }
   }
 
   /// Converts this [ApiResponse] to a JSON map.

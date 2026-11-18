@@ -91,9 +91,15 @@ class HeaderSelectorTest {
     @DisplayName("selectAcceptHeader")
     inner class SelectAcceptHeaderTests {
         @Test
-        @DisplayName("returns empty string for empty accept list")
+        @DisplayName("bhvHeaders027 returns empty string for empty accept list")
         fun returnsEmptyStringForEmptyAccepts() {
             assertEquals("", selector.selectAcceptHeader(arrayOf()))
+        }
+
+        @Test
+        @DisplayName("bhvHeaders029 the Accept header is empty when every entry is blank")
+        fun bhvHeaders029AcceptIsEmptyWhenEveryEntryIsBlank() {
+            assertEquals("", selector.selectAcceptHeader(arrayOf("", "   ")))
         }
     }
 
@@ -149,7 +155,7 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("does not add quality weights")
+        @DisplayName("bhvHeaders032 does not add quality weights")
         fun doesNotAddQualityWeights() {
             val headers =
                 selector.selectHeaders(

@@ -128,8 +128,14 @@ defmodule PetstoreClient.Client do
     host_source = authenticator || credentials |> hd() |> elem(1)
     credentials = Map.new(credentials)
 
-    config =
-      PetstoreClient.Configuration.new(base_url: host_source.__struct__.host(host_source))
+    base_url = host_source.__struct__.host(host_source)
+
+    if base_url in [nil, ""] do
+      raise ArgumentError,
+            "A base URL is required: the authenticator or the first scheme credential must carry a host"
+    end
+
+    config = PetstoreClient.Configuration.new(base_url: base_url)
 
     %__MODULE__{
       api_client: api_client,

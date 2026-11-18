@@ -7,7 +7,7 @@ use PetstoreClient\ConfigurationBuilder;
 use PetstoreClient\ServerConfiguration;
 use PetstoreClient\ServerVariable;
 
-test('default constructor uses spec base url', function (): void {
+test('bhv config 018 default constructor uses spec base url', function (): void {
     $config = new Configuration();
 
     expect($config->baseUrl)->toBe('/api/v3');
@@ -33,6 +33,43 @@ test('bhv config 011 builder sets base url', function (): void {
         ->build();
 
     expect($config->baseUrl)->toBe('https://custom.example.com');
+});
+
+test('bhv config 020 a builder chain sets the base url and default headers in one configuration', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://custom.example.com')
+        ->defaultHeader('Authorization', 'Bearer token123')
+        ->defaultHeader('X-Custom', 'value')
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://custom.example.com');
+    expect($config->defaultHeaders)->toBe([
+        'Authorization' => 'Bearer token123',
+        'X-Custom' => 'value',
+    ]);
+});
+
+test('bhv config 021 a server url template resolves its variables to their defaults', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
+
+    $config = Configuration::builder()
+        ->server($server)
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
 });
 
 test('bhv config 013 builder sets single default header', function (): void {
@@ -168,7 +205,7 @@ test('bhv config 001 builder base url overrides server', function (): void {
     expect($config->baseUrl)->toBe('https://override.example.com');
 });
 
-test('default configuration uses spec base url', function (): void {
+test('bhv config 019 default configuration uses spec base url', function (): void {
     $config = Configuration::defaultConfiguration();
 
     expect($config)->toBeInstanceOf(Configuration::class);
@@ -186,7 +223,27 @@ test('bhv config 014 default configuration is stateless', function (): void {
     expect($second->baseUrl)->toBe($first->baseUrl);
 });
 
-test('configuration is immutable', function (): void {
+test('bhv config 023 repeated default configuration calls return an equal configuration with the same base url', function (): void {
+    $first = Configuration::defaultConfiguration();
+    $second = Configuration::defaultConfiguration();
+
+    expect($second)->toEqual($first);
+    expect($second->baseUrl)->toBe($first->baseUrl);
+});
+
+test('bhv config 022 mutating the returned default headers does not change the configuration', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('X-Key', 'value')
+        ->build();
+
+    $headers = $config->defaultHeaders;
+    $headers['X-Other'] = 'changed';
+
+    expect($headers)->toHaveKey('X-Other');
+    expect($config->defaultHeaders)->toBe(['X-Key' => 'value']);
+});
+
+test('bhv config 017 configuration is immutable', function (): void {
     $config = Configuration::builder()
         ->defaultHeader('X-Key', 'value')
         ->build();
@@ -194,6 +251,18 @@ test('configuration is immutable', function (): void {
     // readonly properties cannot be modified after construction;
     // verify the values are frozen
     expect($config->defaultHeaders['X-Key'])->toBe('value');
+    expect(fn () => (new \ReflectionProperty(Configuration::class, 'baseUrl'))
+        ->setValue($config, 'https://other.example.com'))->toThrow(\Error::class);
+    expect(fn () => (new \ReflectionProperty(Configuration::class, 'defaultHeaders'))
+        ->setValue($config, ['X-Other' => 'value']))->toThrow(\Error::class);
+});
+
+test('bhv options 044 the README names the builder setter that rejects a SOCKS proxy', function (): void {
+    $readme = (string) file_get_contents(__DIR__ . '/../README.md');
+    $section = strpos($readme, '### SOCKS proxies');
+
+    expect($section)->not->toBeFalse();
+    expect(substr($readme, (int) $section, 400))->toContain('`TransportOptions::builder()->proxy()`');
 });
 
 test('bhv config 015 debug output masks credential default headers', function (): void {
@@ -290,13 +359,28 @@ test('phpunit.xml runs the hand written spec directory as well as tests', functi
     expect($directories)->toContain('spec');
 });
 
-test('SKILLS documents the whole error tree under the root exception', function (): void {
+test('bhv skills 001 SKILLS names the root exception and the error types that are siblings of ApiException', function (): void {
     $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
 
+    expect(preg_match('/- `[A-Za-z0-9]+Exception` \(root\)/', $skills))->toBe(1);
     foreach (['SerializationException', 'OAuth2ServerException', 'OAuth2TokenException'] as $name) {
-        expect($skills)->toContain('`' . $name . '`');
+        expect($skills)->toContain('  - `' . $name . '`');
     }
+    expect($skills)->toContain('  - `ApiException`');
     expect($skills)->toContain('Every failure the SDK raises derives from');
+});
+
+test('bhv skills 002 SKILLS documents the retries in the configuration section', function (): void {
+    $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
+    $start = strpos($skills, "\n## Configuration\n");
+    $end = strpos($skills, "\n## API Methods\n");
+    expect($start)->toBeInt();
+    expect($end)->toBeInt();
+    assert(is_int($start) && is_int($end));
+    $section = substr($skills, $start, $end - $start);
+
+    expect($section)->toContain("\n### Retries\n");
+    expect($section)->toContain('`Retry-After`');
 });
 
 test('bhv config 004 builder merges single and bulk default headers', function (): void {

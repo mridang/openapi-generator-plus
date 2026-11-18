@@ -870,7 +870,7 @@ mod tests {
     /* -- serialize_styled: form -- */
 
     #[test]
-    fn test_serialize_styled_form_scalar() {
+    fn test_bhv_serializationparam_105_serialize_styled_form_scalar() {
         let result = super::serialize_styled(
             "color",
             Some("blue"),
@@ -882,6 +882,16 @@ mod tests {
             true,
         );
         assert_eq!(unwrap_single(result), "blue");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_106_path_with_null_style_behaves_like_simple() {
+        let null_style =
+            super::serialize_styled("id", Some("5"), None, "path", "string", "", "", false);
+        let simple =
+            super::serialize_styled("id", Some("5"), None, "path", "string", "", "simple", false);
+        assert_eq!(unwrap_single(null_style), "5");
+        assert_eq!(unwrap_single(simple), "5");
     }
 
     #[test]
@@ -1032,7 +1042,7 @@ mod tests {
     /* -- serialize_deep_object -- */
 
     #[test]
-    fn test_serialize_deep_object() {
+    fn test_bhv_serializationparam_111_serialize_deep_object() {
         let mut obj = std::collections::HashMap::new();
         obj.insert("status".to_string(), "active".to_string());
         obj.insert("type".to_string(), "dog".to_string());
@@ -1079,7 +1089,7 @@ mod tests {
     /* -- serialize_styled: unknown style fallback -- */
 
     #[test]
-    fn test_serialize_styled_unknown_style_fallback() {
+    fn test_bhv_serializationparam_109_serialize_styled_unknown_style_fallback() {
         let result = super::serialize_styled(
             "id",
             Some("5"),
@@ -1339,6 +1349,18 @@ mod tests {
         assert_eq!(unwrap_single(result), "a b");
     }
 
+    #[test]
+    fn test_bhv_serializationparam_119_a_tilde_is_kept_literal_in_a_path_value() {
+        assert_eq!(
+            super::serialize_value(Some("a~b"), "path", "string", "").unwrap(),
+            "a~b"
+        );
+        assert_eq!(
+            super::serialize_value(Some("~"), "path", "string", "").unwrap(),
+            "~"
+        );
+    }
+
     /* -- regression tests -- */
 
     #[test]
@@ -1522,6 +1544,26 @@ mod tests {
         assert_eq!(
             super::encode_query_allowing_reserved("a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u"),
             "a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_122_an_allow_reserved_value_keeps_its_reserved_characters_literal(
+    ) {
+        assert_eq!(
+            super::encode_query_allowing_reserved(":/?@!$&'()*+,;=~"),
+            ":/?@!$&'()*+,;=~"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_005_a_path_value_keeps_unreserved_and_sub_delimiters_and_encodes_the_rest(
+    ) {
+        let literal = ";=,:@!$&'()*+~-._";
+        assert_eq!(super::encode_path_segment(literal), literal);
+        assert_eq!(
+            super::encode_path_segment("a/b c?d#e%f"),
+            "a%2Fb%20c%3Fd%23e%25f"
         );
     }
 }

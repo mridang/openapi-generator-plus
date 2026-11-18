@@ -60,7 +60,7 @@ describe('Composed Schema', () => {
     }
   });
 
-  test('oneOf: discriminator maps to unresolvable class throws SerializationError (4.7)', () => {
+  test('bhv unions 038 oneOf: discriminator maps to unresolvable class throws SerializationError (4.7)', () => {
     // Simulate a misconfigured spec where the discriminator mapping names a
     // class that does not exist in the generated models index. Previously
     // we returned null and silently fell through; now we throw so
@@ -117,6 +117,35 @@ describe('Composed Schema', () => {
     expect(serialized).toBeDefined();
     expect(serialized).toContain('dry');
     expect(serialized).toContain('2.5');
+  });
+
+  test('bhv unions 030 a subtype whose discriminator key is absent is filled with the mapping default', () => {
+    const food = ObjectSerializer.deserialize({ weightKg: 2.5 }, DryFood);
+    expect(food).toBeInstanceOf(DryFood);
+    expect(food!.foodType).toBe('dry');
+  });
+
+  test('bhv unions 032 a oneOf wrapper built from a variant holds that variant and serializes it with its discriminator', () => {
+    const food = new PetFood(new DryFood({ weightKg: 2.5 }));
+    expect(food.isDryFood()).toBe(true);
+    const wire = JSON.parse(ObjectSerializer.serialize(food.getActualInstance())) as Record<string, unknown>;
+    expect(wire).toMatchObject({ foodType: 'dry', weightKg: 2.5 });
+  });
+
+  test('bhv unions 033 an unknown, missing or empty discriminator fails with the SDK serialization error', () => {
+    const payloads: Array<Record<string, unknown>> = [
+      { foodType: 'raw', calories: 300 },
+      { weightKg: 2.5 },
+      { foodType: '', weightKg: 2.5 },
+    ];
+    for (const data of payloads) {
+      expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+    }
+  });
+
+  test('bhv unions 035 a discriminator value not listed in the mapping fails to deserialize', () => {
+    const data = { foodType: 'DRY', weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
   });
 
   // -- allOf with a discriminator: Vehicle and Shape --
@@ -371,7 +400,7 @@ describe('Composed Schema', () => {
     expect(a.equals(null)).toBe(false);
   });
 
-  test('oneOf: wrappers compare by value', () => {
+  test('bhv unions 029 oneOf: wrappers compare by value', () => {
     const a = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
     const b = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
     const other = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 3 }, PetFood)!;
@@ -379,7 +408,7 @@ describe('Composed Schema', () => {
     expect(a.equals(b)).toBe(true);
     expect(a.equals(other)).toBe(false);
   });
-  test('oneOf: a wrapper tells which variant it holds and hands it back', () => {
+  test('bhv unions 034 oneOf: a wrapper typed accessor returns the held variant and nothing for the other', () => {
     const food = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
 
     expect(food.isDryFood()).toBe(true);
@@ -395,6 +424,41 @@ describe('Composed Schema', () => {
     expect(food.asWetFood()!.volumeMl).toBe(400);
     expect(food.isDryFood()).toBe(false);
     expect(food.asDryFood()).toBeNull();
+  });
+
+  test('bhv unions 037 a union wrapper built from a variant holds that exact value and returns it unchanged', () => {
+    const dry = new DryFood({ weightKg: 2.5 });
+    const food = new PetFood(dry);
+
+    expect(food.getActualInstance()).toBe(dry);
+    expect(Object.getOwnPropertyNames(PetFood.prototype).filter((name) => name.startsWith('set'))).toEqual([]);
+  });
+
+  test('bhv unions 039 building a union wrapper from a value never validates it or throws', () => {
+    expect(() => new PetFood(null as unknown as DryFood)).not.toThrow();
+    expect(() => new PetFood('not a food' as unknown as DryFood)).not.toThrow();
+    expect(() => new PetFood({ foodType: 'fish' } as unknown as DryFood)).not.toThrow();
+  });
+
+  test('bhv unions 040 a union wrapper typed accessor returns the variant it holds and nothing for the other variants', () => {
+    const dry = new DryFood({ weightKg: 2.5 });
+    const food = new PetFood(dry);
+
+    expect(food.isDryFood()).toBe(true);
+    expect(food.asDryFood()).toBe(dry);
+    expect(food.isWetFood()).toBe(false);
+    expect(food.asWetFood()).toBeNull();
+  });
+
+  test('bhv unions 042 a union wrapper built with no variant or a null variant holds no actual instance', () => {
+    for (const variant of [null, undefined]) {
+      const food = new PetFood(variant as unknown as DryFood);
+
+      expect(food.isDryFood()).toBe(false);
+      expect(food.isWetFood()).toBe(false);
+      expect(food.asDryFood()).toBeNull();
+      expect(food.asWetFood()).toBeNull();
+    }
   });
 
   test('anyOf: a composite tells which variants matched and hands each back', () => {

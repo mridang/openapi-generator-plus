@@ -335,7 +335,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              "https://sandbox.example.com/api/v3"
   end
 
-  test "per-operation server variant rejects a value outside the variable enum" do
+  test "bhv servers 020 per-operation server variant rejects a value outside the variable enum" do
     server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{
       environment: "attacker.net/x#",
       version: "v2"
@@ -817,7 +817,8 @@ defmodule PetstoreClient.Api.PetApiTest do
              PetstoreClient.Api.PetApi.get_pet_by_id(api, 99_999)
   end
 
-  test "an operation takes the per-call timeout, headers and max_retries in opts", %{api: api} do
+  test "bhv options 054 an operation takes the per-call timeout, headers and max_retries in opts",
+       %{api: api} do
     assert {:ok, result} =
              PetstoreClient.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000), nil,
                timeout: 30_000,
@@ -838,7 +839,9 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
-  test "an options struct takes the per-call timeout, headers and max_retries", %{api: api} do
+  test "bhv options 056 an options struct takes the per-call timeout, headers and max_retries", %{
+    api: api
+  } do
     options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{
       status: "available",
       timeout: 30_000,
@@ -1097,7 +1100,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "a call without any credential sends none" do
+  test "bhv auth 021 a call without any credential sends none" do
     headers = delete_with(nil, %{})
 
     refute Map.has_key?(headers, "Authorization")
@@ -1208,6 +1211,16 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   @sample_pet ~s({"name":"sample","photoUrls":[]})
+
+  test "bhv operations 153 an operation with no chosen server is sent to the client base URL" do
+    {name, api} = stub_pet_api(@sample_pet)
+
+    assert {:ok, _result} = PetstoreClient.Api.PetApi.get_external_pet_info(api, 1)
+
+    assert StubResponseApiClient.captured(name).url == "http://localhost/pet/1/external"
+
+    Agent.stop(name)
+  end
 
   test "get_external_pet_info sends the request to the generated variant's URL" do
     {name, api} = stub_pet_api(@sample_pet)
@@ -1443,7 +1456,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   # Query, form and multipart parts go on the wire in the order the spec
   # declares them, whatever order the caller filled the options in.
-  test "get_pet_tag sends the query parameters in declaration order" do
+  test "bhv operations 155 get_pet_tag sends the query parameters in declaration order" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1465,7 +1478,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "set_pet_preferences sends the form fields in declaration order" do
+  test "bhv operations 156 set_pet_preferences sends the form fields in declaration order" do
     {:ok, name} = StubResponseApiClient.start(200, ~s({"code":200}), "application/json")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
@@ -1485,7 +1498,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "upload_pet_document sends the multipart parts in declaration order" do
+  test "bhv operations 147 upload_pet_document sends the multipart parts in declaration order" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
@@ -1735,7 +1748,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # required-nested-param-validation: get_pet_by_name has a REQUIRED query param
   # `category`. A nil value or empty string must raise before any HTTP call,
   # and a present value must be serialized onto the wire.
-  test "get_pet_by_name raises when required category is nil" do
+  test "bhv operations 125 get_pet_by_name raises when required category is nil" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)

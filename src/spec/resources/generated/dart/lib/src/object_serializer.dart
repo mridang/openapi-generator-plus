@@ -130,10 +130,31 @@ class UuidValue {
 /// Throws [SerializationException] if serialization fails.
 String serialize(Object? object) {
   try {
-    return jsonEncode(object, toEncodable: _encodeNonJsonValue);
+    return jsonEncode(
+      _withSortedMapKeys(object),
+      toEncodable: _encodeNonJsonValue,
+    );
   } catch (e) {
     throw SerializationException('Failed to serialize object to JSON: $e', e);
   }
+}
+
+/// Returns [value] with every plain map rebuilt in ascending key order, so a map
+/// serialises the same way whatever order it was built in. Models are left as
+/// they are: their `toJson()` keeps the declared property order.
+Object? _withSortedMapKeys(Object? value) {
+  if (value is Uint8List) return base64Encode(value);
+  if (value is Map<Object?, Object?>) {
+    final entries = value.entries.toList()
+      ..sort((a, b) => '${a.key}'.compareTo('${b.key}'));
+    return <Object?, Object?>{
+      for (final e in entries) e.key: _withSortedMapKeys(e.value),
+    };
+  }
+  if (value is Iterable<Object?>) {
+    return [for (final item in value) _withSortedMapKeys(item)];
+  }
+  return value;
 }
 
 /// Converts the Dart values `jsonEncode` cannot write on its own: a [DateTime]
@@ -406,22 +427,41 @@ dynamic deserializeRaw(String data) {
 }
 
 final RegExp _rfc3339DateTime = RegExp(
-  r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$',
+  r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|([+-])(\d{2}):(\d{2}))$',
 );
 
 /// Decodes a `format: date-time` value.
 ///
 /// Only an RFC 3339 date-time is accepted: `YYYY-MM-DDTHH:MM:SS`, an optional
-/// fraction of any length, then `Z` or a `+HH:MM`/`-HH:MM` offset. An
-/// offset-less, date-only or free-text value would otherwise be read in the
-/// host's time zone by [DateTime.parse], so it raises a
-/// [SerializationException] instead. The result never depends on the host
-/// clock or zone.
+/// fraction of any length, then `Z` or a `+HH:MM`/`-HH:MM` offset. Every field
+/// must be in range (no month 13, no 31 February, no hour 24), because
+/// [DateTime.parse] silently rolls an out-of-range field over. An offset-less,
+/// date-only or free-text value would otherwise be read in the host's time zone
+/// by [DateTime.parse], so it raises a [SerializationException] instead. The
+/// result never depends on the host clock or zone.
 DateTime parseDateTime(String text) {
-  if (!_rfc3339DateTime.hasMatch(text)) {
+  final match = _rfc3339DateTime.firstMatch(text);
+  if (match == null || !_dateTimeFieldsInRange(match)) {
     throw SerializationException('Invalid RFC 3339 date-time: $text');
   }
   return DateTime.parse(text);
+}
+
+bool _dateTimeFieldsInRange(RegExpMatch match) {
+  final year = int.parse(match[1]!);
+  final month = int.parse(match[2]!);
+  final day = int.parse(match[3]!);
+  final hour = int.parse(match[4]!);
+  final minute = int.parse(match[5]!);
+  final second = int.parse(match[6]!);
+  if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) {
+    return false;
+  }
+  final lastDay = DateTime.utc(year, month + 1, 0).day;
+  if (day < 1 || day > lastDay) return false;
+  final offset = match[9];
+  if (offset == null) return true;
+  return int.parse(match[10]!) <= 23 && int.parse(match[11]!) <= 59;
 }
 
 final RegExp _base64Standard = RegExp(

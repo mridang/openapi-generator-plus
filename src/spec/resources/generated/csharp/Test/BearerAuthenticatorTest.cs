@@ -46,6 +46,14 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuthbearer028ABearerTokenWithCrlfIsRejectedAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        );
+    }
+
+    [Fact]
     public void BhvAuthbearer012RejectsCrlfAndNonAscii()
     {
         // auth-validation-timing: the token is validated eagerly at
@@ -136,8 +144,8 @@ public class BearerAuthenticatorTest
             _ => Task.FromResult("t" + (++calls))
         );
 
-        var first = await auth.GetAuthHeadersAsync();
-        var second = await auth.GetAuthHeadersAsync();
+        var first = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        var second = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Bearer t1", first["Authorization"]);
         Assert.Equal("Bearer t2", second["Authorization"]);
@@ -151,9 +159,59 @@ public class BearerAuthenticatorTest
             _ => Task.FromResult("from-provider")
         );
 
-        var headers = await auth.GetAuthHeadersAsync();
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Bearer from-provider", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void BhvAuth009TokenWithALineBreakOrNulIsRefusedWhenBuilt()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "abc\rdef")
+        );
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "abc\ndef")
+        );
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "abc\0def")
+        );
+    }
+
+    [Fact]
+    public void BhvAuth012EachRefusedBearerTokenStatesWhyItWasRefused()
+    {
+        ArgumentException blank = Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "  ")
+        );
+        Assert.Contains("must not be empty", blank.Message, StringComparison.Ordinal);
+
+        ArgumentException control = Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "abc\r\n")
+        );
+        Assert.Contains("printable ASCII", control.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuth016EveryStringFormOfTheBearerAuthenticatorMasksTheToken()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "secret-token-value");
+
+        string text = auth.ToString();
+
+        Assert.Contains("BearerAuthenticator", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-token-value", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-token-value", $"{auth}", StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuth018RefusedSecretNeverAppearsInTheExceptionText()
+    {
+        ArgumentException ex = Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "secret-value\r\nX-Injected: yes")
+        );
+
+        Assert.DoesNotContain("secret-value", ex.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -169,7 +227,25 @@ public class BearerAuthenticatorTest
     {
         var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult(" "));
 
-        await Assert.ThrowsAsync<ArgumentException>(() => auth.GetAuthHeadersAsync());
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public void BhvAuthbearer022RejectsANonAsciiTokenAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "ñoño")
+        );
+    }
+
+    [Fact]
+    public void BhvAuthbearer027RejectsAWhitespaceOnlyTokenAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "\t\n")
+        );
     }
 
     [Fact]

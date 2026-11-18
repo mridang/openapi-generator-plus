@@ -243,8 +243,14 @@ module {{moduleName}}
       # @return [String]
       def rendered_body
         text = response_body.to_s.scrub
-        excess = text.bytesize - MAX_RENDERED_BODY_BYTES
-        text = text.byteslice(0, MAX_RENDERED_BODY_BYTES).to_s.scrub if excess.positive?
+        excess = 0
+        if text.bytesize > MAX_RENDERED_BODY_BYTES
+          # A cut can fall inside a multi-byte character: drop that partial
+          # character rather than replacing it, and count what was left out.
+          kept = text.byteslice(0, MAX_RENDERED_BODY_BYTES).to_s.scrub('')
+          excess = text.bytesize - kept.bytesize
+          text = kept
+        end
         text = text.gsub(/[\x00-\x1f\x7f]/) do |char|
           { "\n" => '\\n', "\r" => '\\r', "\t" => '\\t' }.fetch(char) { format('\\x%02X', char.ord) }
         end

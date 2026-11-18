@@ -143,6 +143,47 @@ describe("SchemeAuthenticators", () => {
       SessionCookieAuthenticator,
       ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"],
     ],
+    [
+      "MachineAuthClientCredentialsAuthenticator",
+      MachineAuthClientCredentialsAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET",
+      ],
+    ],
+    [
+      "LegacyAuthPasswordAuthenticator",
+      LegacyAuthPasswordAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD",
+      ],
+    ],
+    [
+      "UserAuthAuthorizationCodeAuthenticator",
+      UserAuthAuthorizationCodeAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI",
+      ],
+    ],
+    [
+      "BrowserAuthImplicitAuthenticator",
+      BrowserAuthImplicitAuthenticator,
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"],
+    ],
+    [
+      "SsoAuthAuthenticator",
+      SsoAuthAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI",
+      ],
+    ],
   ];
 
   const withVariables = (
@@ -173,6 +214,21 @@ describe("SchemeAuthenticators", () => {
     }
   };
 
+  test("bhv authscheme 010 an empty bearer variable is treated as unset and fails naming the variable", () => {
+    const bearer = environmentSchemes.find(([name]) =>
+      name.endsWith("BearerAuthenticator"),
+    );
+    expect(bearer).toBeDefined();
+    const [, cls, variables] = bearer!;
+    withVariables(
+      variables,
+      variables.map(() => ""),
+      () => {
+        expect(() => new cls("https://api.example.com")).toThrow(variables[0]);
+      },
+    );
+  });
+
   for (const [name, cls, variables] of environmentSchemes) {
     it(`bhv authscheme 001 ${name} reads its own credential variables from the environment`, () => {
       withVariables(
@@ -188,18 +244,6 @@ describe("SchemeAuthenticators", () => {
       withVariables(
         variables,
         variables.map(() => undefined),
-        () => {
-          expect(() => new cls("https://api.example.com")).toThrow(
-            variables[0],
-          );
-        },
-      );
-    });
-
-    it(`${name} treats an empty variable as unset`, () => {
-      withVariables(
-        variables,
-        variables.map(() => ""),
         () => {
           expect(() => new cls("https://api.example.com")).toThrow(
             variables[0],
@@ -325,6 +369,116 @@ describe("SchemeAuthenticators", () => {
         headers: { "content-type": "application/json" },
       };
     },
+  });
+
+  const expectEmptyVariableNamed = (className: string): void => {
+    const entry = environmentSchemes.find(([name]) => name === className);
+    if (entry === undefined) {
+      throw new Error(`no environment scheme named ${className}`);
+    }
+    const [, cls, variables] = entry;
+    withVariables(
+      variables,
+      variables.map(() => ""),
+      () => {
+        expect(() => new cls("https://api.example.com")).toThrow(variables[0]);
+      },
+    );
+  };
+
+  const schemeClassesOf = (base: string): string[] =>
+    schemeWrappers
+      .filter(([, , baseClass]) => baseClass.name === base)
+      .map(([name]) => name);
+
+  it("bhv authscheme 003 a scheme authenticator fails at construction naming the variable when its environment variable is empty", () => {
+    for (const [, cls, variables] of environmentSchemes) {
+      withVariables(
+        variables,
+        variables.map(() => ""),
+        () => {
+          expect(() => new cls("https://api.example.com")).toThrow(
+            variables[0],
+          );
+        },
+      );
+    }
+  });
+
+  it("bhv authscheme 004 the AdminBasic scheme authenticator treats an empty environment variable as unset and names it", () => {
+    expectEmptyVariableNamed("AdminBasicAuthenticator");
+  });
+
+  it("bhv authscheme 005 the ApiKeyHeader scheme authenticator treats an empty environment variable as unset and names it", () => {
+    expectEmptyVariableNamed("ApiKeyHeaderAuthenticator");
+  });
+
+  it("bhv authscheme 006 the ApiKeyQuery scheme authenticator treats an empty environment variable as unset and names it", () => {
+    expectEmptyVariableNamed("ApiKeyQueryAuthenticator");
+  });
+
+  it("bhv authscheme 007 the SessionCookie scheme authenticator treats an empty environment variable as unset and names it", () => {
+    expectEmptyVariableNamed("SessionCookieAuthenticator");
+  });
+
+  it("bhv authscheme 011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable", () => {
+    const names = schemeClassesOf("BearerAuthenticator").filter((name) =>
+      environmentSchemes.some(([known]) => known === name),
+    );
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expectEmptyVariableNamed(name);
+    }
+  });
+
+  it("bhv authscheme 012 an empty environment variable for the api key scheme credential is treated as unset and fails naming the variable", () => {
+    const names = schemeClassesOf("ApiKeyAuthenticator").filter((name) =>
+      environmentSchemes.some(([known]) => known === name),
+    );
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expectEmptyVariableNamed(name);
+    }
+  });
+
+  it("bhv authscheme 013 an empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable", () => {
+    const names = schemeClassesOf(
+      "OAuth2ClientCredentialsAuthenticator",
+    ).filter((name) => environmentSchemes.some(([known]) => known === name));
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expectEmptyVariableNamed(name);
+    }
+  });
+
+  it("bhv authscheme 014 an empty environment variable for the password scheme credential is treated as unset and fails naming the variable", () => {
+    const names = schemeClassesOf("OAuth2PasswordAuthenticator").filter(
+      (name) => environmentSchemes.some(([known]) => known === name),
+    );
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expectEmptyVariableNamed(name);
+    }
+  });
+
+  it("bhv authscheme 015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable", () => {
+    const names = schemeClassesOf(
+      "OAuth2AuthorizationCodeAuthenticator",
+    ).filter((name) => environmentSchemes.some(([known]) => known === name));
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expectEmptyVariableNamed(name);
+    }
+  });
+
+  it("bhv authscheme 016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable", () => {
+    const names = schemeClassesOf("OAuth2ImplicitAuthenticator").filter(
+      (name) => environmentSchemes.some(([known]) => known === name),
+    );
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expectEmptyVariableNamed(name);
+    }
   });
 
   for (const [name, cls] of schemeWrappers.filter(

@@ -20,7 +20,7 @@ describe Petstore::Client::ApiResult do
     _(result.status_code).must_equal 200
   end
 
-  it 'exposes the deserialized data' do
+  it 'bhv_results_004 exposes the deserialized data' do
     data = { 'id' => 1, 'name' => 'Dogs' }
     result = Petstore::Client::ApiResult.new(
       status_code: 200, data: data, raw_body: '{"id":1,"name":"Dogs"}', headers: {}
@@ -35,7 +35,7 @@ describe Petstore::Client::ApiResult do
     _(result.data).must_be_nil
   end
 
-  it 'exposes the raw body' do
+  it 'bhv_results_005 exposes the raw body' do
     result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '{"id":1}', headers: {}
     )
@@ -51,7 +51,7 @@ describe Petstore::Client::ApiResult do
     _(result.headers['Content-Type']).must_equal 'application/json'
   end
 
-  it 'freezes the headers map' do
+  it 'bhv_results_006 freezes the headers map' do
     result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: { 'Content-Type' => 'application/json' }
     )

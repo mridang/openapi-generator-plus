@@ -148,7 +148,7 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.COOKIE,
             )
 
-    def test_header_rejects_crlf(self) -> None:
+    def test_bhv_authapikey_018_header_rejects_crlf(self) -> None:
         # RFC 7230 §3.2.6 — HEADER location must reject anything outside
         # printable ASCII + TAB to prevent header injection (\r\n).
         with pytest.raises(ValueError):
@@ -167,16 +167,6 @@ class TestApiKeyAuthenticator:
                 api_key="kéy",
                 location=ApiKeyLocation.HEADER,
             )
-
-    def test_api_key_is_not_leaked_in_repr(self) -> None:
-        auth = ApiKeyAuthenticator(
-            host="https://api.example.com",
-            key_param_name="X-API-Key",
-            api_key="topsecretkey",
-            location=ApiKeyLocation.HEADER,
-        )
-        assert "topsecretkey" not in repr(auth)
-        assert "topsecretkey" not in str(auth)
 
     def test_bhv_authapikey_010_redacts_secret(self) -> None:
         """The repr masks the API key as ``***`` and never leaks its value."""
@@ -236,7 +226,7 @@ class TestApiKeyLocationEmission:
             (ApiKeyLocation.COOKIE, {}, {}, {"k": "abc123"}),
         ],
     )
-    def test_key_is_emitted_only_at_its_own_location(
+    def test_bhv_authapikey_022_key_is_emitted_only_at_its_own_location(
         self,
         location: ApiKeyLocation,
         headers: dict[str, str],
@@ -253,6 +243,16 @@ class TestApiKeyLocationEmission:
         assert auth.get_auth_headers() == headers
         assert auth.get_query_params() == query
         assert auth.get_cookie_params() == cookies
+
+    def test_bhv_authapikey_023_a_cookie_key_accepts_a_non_ascii_value(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="session",
+            api_key="kéy",
+            location=ApiKeyLocation.COOKIE,
+        )
+
+        assert auth.get_cookie_params() == {"session": "kéy"}
 
 
 _API_KEY_WRAPPERS = [
@@ -301,7 +301,7 @@ class TestApiKeySchemeWrappers:
         assert auth.get_host() == "https://api.example.com"
 
     @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
-    def test_wrapper_rejects_an_empty_key_at_construction(
+    def test_bhv_authapikey_019_wrapper_rejects_an_empty_key_at_construction(
         self, module: str, name: str, key_name: str, where: str
     ) -> None:
         with pytest.raises(
@@ -310,10 +310,46 @@ class TestApiKeySchemeWrappers:
             _api_key_wrapper(module, name)("https://api.example.com", "")
 
     @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
-    def test_wrapper_masks_the_key_in_its_repr(
+    def test_bhv_authapikey_020_wrapper_masks_the_key_in_its_repr(
         self, module: str, name: str, key_name: str, where: str
     ) -> None:
         auth = _api_key_wrapper(module, name)("https://api.example.com", "topsecret")
 
         assert "topsecret" not in repr(auth)
         assert f"key_param_name='{key_name}', api_key='***'" in repr(auth)
+
+    @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
+    def test_bhv_authapikey_025_wrapper_masks_the_key_in_str_and_repr(
+        self, module: str, name: str, key_name: str, where: str
+    ) -> None:
+        auth = _api_key_wrapper(module, name)("https://api.example.com", "topsecret")
+
+        assert "topsecret" not in str(auth)
+        assert "topsecret" not in repr(auth)
+
+
+class TestApiKeyBehaviours:
+    def test_bhv_auth_006_an_api_key_header_is_sent_under_the_declared_name(
+        self,
+    ) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="X-Custom-Key",
+            api_key="k1",
+            location=ApiKeyLocation.HEADER,
+        )
+
+        assert auth.get_auth_headers() == {"X-Custom-Key": "k1"}
+
+    def test_bhv_auth_007_a_generic_authenticator_built_without_credentials_reads_no_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("X_API_KEY", "from-environment")
+
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host="https://api.example.com",
+                key_param_name="X-API-Key",
+                api_key="",
+                location=ApiKeyLocation.HEADER,
+            )

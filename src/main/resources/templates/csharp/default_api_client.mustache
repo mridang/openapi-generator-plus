@@ -216,7 +216,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             X509Certificate2Collection caCerts = [];
             try
             {
-                caCerts.ImportFromPemFile(transportOptions.CaCertPath);
+                /* Read the bundle as text and normalise CRLF to LF before parsing:
+                 * a bundle written on Windows (or by keytool) must load the same
+                 * as an LF one, and ImportFromPemFile does not accept CRLF. */
+                string caPem = System.IO.File.ReadAllText(transportOptions.CaCertPath);
+                caCerts.ImportFromPem(caPem.Replace("\r\n", "\n", StringComparison.Ordinal));
             }
             catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
             {
@@ -705,6 +709,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             mergedHeaders["Accept-Encoding"] = SupportedEncodings();
         }
 
+        /* A CR or LF in a header value would let the value end the header and
+           inject another one, so the request is refused before it is built. */
+        foreach (KeyValuePair<string, string> header in mergedHeaders)
+        {
+            if (header.Value.Contains('\r', StringComparison.Ordinal) || header.Value.Contains('\n', StringComparison.Ordinal))
+            {
+                throw new ArgumentException($"Header {header.Key} must not contain CR or LF characters", nameof(headers));
+            }
+        }
+
         using HttpRequestMessage request = new(new HttpMethod(method), url);
 
         string? contentType = null;
@@ -1130,7 +1144,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// </summary>
     internal static string RedactQuery(Uri url)
     {
-        string text = url.GetLeftPart(UriPartial.Path);
+        /* GetLeftPart keeps user:password, so the userinfo is cleared before rendering. */
+        var bare = new UriBuilder(url) { UserName = string.Empty, Password = string.Empty };
+        string text = bare.Uri.GetLeftPart(UriPartial.Path);
         return string.IsNullOrEmpty(url.Query) ? text : text + "?***";
     }
 
@@ -1556,6 +1572,15 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             if (coding is "IDENTITY" or "")
             {
                 continue;
+            }
+            /* A non-empty gzip body is at least 18 bytes (a 10-byte header and an
+             * 8-byte trailer). A shorter one is a truncated stream, which GZipStream
+             * would otherwise read as an empty body without raising an error. An
+             * empty body is a valid empty response and passes through unchanged. */
+            if (coding is "GZIP" or "X-GZIP" && current.Length is > 0 and < 18)
+            {
+                throw new InvalidDataException(
+                    "truncated gzip stream: a gzip member is at least 18 bytes");
             }
             using MemoryStream source = new(current);
             Stream decoder = coding switch

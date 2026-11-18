@@ -80,73 +80,85 @@ class Defaults {
 
   /// Creates a [Defaults] from a JSON map.
   factory Defaults.fromJson(Map<String, dynamic> json) {
-    return Defaults(
-      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+    try {
+      return Defaults(
+        /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      retries: json.containsKey('retries')
-          ? readInt32OrNull(json['retries'])
-          : 3,
+        retries: json.containsKey('retries')
+            ? readInt32OrNull(json['retries'])
+            : 3,
 
-      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+        /* Cross-cutting `default-applies-only-when-absent`: apply the enum
          default solely when the key is OMITTED; an explicit `null` is
          preserved as null per the JSON-Schema contract. */
-      mode: json.containsKey('mode')
-          ? (json['mode'] != null
-                ? DefaultsModeEnum.fromJson(json['mode'] as String)
-                : null)
-          : DefaultsModeEnum.medium,
+        mode: json.containsKey('mode')
+            ? (json['mode'] != null
+                  ? DefaultsModeEnum.fromJson(json['mode'] as String)
+                  : null)
+            : DefaultsModeEnum.medium,
 
-      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+        /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      label: json.containsKey('label') ? json['label'] as String? : 'untitled',
+        label: json.containsKey('label')
+            ? json['label'] as String?
+            : 'untitled',
 
-      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+        /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      greeting: json.containsKey('greeting')
-          ? json['greeting'] as String?
-          : 'it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b',
+        greeting: json.containsKey('greeting')
+            ? json['greeting'] as String?
+            : 'it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b',
 
-      /* Cross-cutting `default-applies-only-when-absent`: apply the default
+        /* Cross-cutting `default-applies-only-when-absent`: apply the default
          solely when the key is OMITTED; an explicit `null` is preserved as
          null per the JSON-Schema contract. */
-      swatch: json.containsKey('swatch')
-          ? (json['swatch'] != null
-                ? Swatch.fromJson(json['swatch'] as String)
-                : null)
-          : Swatch.green,
+        swatch: json.containsKey('swatch')
+            ? (json['swatch'] != null
+                  ? Swatch.fromJson(json['swatch'] as String)
+                  : null)
+            : Swatch.green,
 
-      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+        /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      ratio: json.containsKey('ratio') ? readDoubleOrNull(json['ratio']) : 1.5,
+        ratio: json.containsKey('ratio')
+            ? readDoubleOrNull(json['ratio'])
+            : 1.5,
 
-      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+        /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      scale: json.containsKey('scale') ? readDoubleOrNull(json['scale']) : 0.25,
+        scale: json.containsKey('scale')
+            ? readDoubleOrNull(json['scale'])
+            : 0.25,
 
-      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+        /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      weight: json.containsKey('weight') ? readDoubleOrNull(json['weight']) : 2,
+        weight: json.containsKey('weight')
+            ? readDoubleOrNull(json['weight'])
+            : 2,
 
-      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+        /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
          JSON `null` is a provided value and is preserved as null (not replaced
          by the default), matching the JSON-Schema contract. */
-      ceiling: json.containsKey('ceiling')
-          ? readInt64OrNull(json['ceiling'])
-          : 9000000000,
-    );
+        ceiling: json.containsKey('ceiling')
+            ? readInt64OrNull(json['ceiling'])
+            : 9000000000,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Defaults: $e', e);
+    }
   }
 
   /// Converts this [Defaults] to a JSON map.

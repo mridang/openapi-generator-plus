@@ -393,7 +393,12 @@ export class ApiError<T = unknown> extends OpenAPIError {
    */
   private static renderBody(body: string): string {
     const limit = 1024;
-    const kept = body.length > limit ? body.slice(0, limit) : body;
+    let end = Math.min(limit, body.length);
+    const lastUnit = body.charCodeAt(end - 1);
+    if (end < body.length && lastUnit >= 0xd800 && lastUnit <= 0xdbff) {
+      end -= 1;
+    }
+    const kept = body.slice(0, end);
     let escaped = "";
     for (const ch of kept) {
       const code = ch.charCodeAt(0);

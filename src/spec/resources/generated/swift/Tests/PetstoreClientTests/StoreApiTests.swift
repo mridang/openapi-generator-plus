@@ -112,12 +112,32 @@ import Testing
   }
 
   /* An optional request body can be left out of the call altogether. */
-  @Test func testPlaceOrderBodyCanBeOmitted() async throws {
+  @Test func testBhvOperations126PlaceOrderBodyCanBeOmitted() async throws {
     let mockApi = storeApiForMock(statusCode: 200, body: "{\"id\":1}")
     let result = try await mockApi.placeOrder()
     #expect(result.id == 1)
     let info = try await mockApi.placeOrderWithHTTPInfo()
     #expect(info.statusCode == 200)
+  }
+
+  /* A 200 from reserveStock is the existing reservation, not a new receipt. */
+  @Test func testBhvOperations129ReserveStockDecodesA200AsTheExistingReservation() async throws {
+    let mockApi = storeApiForMock(statusCode: 200, body: "{\"reservationId\":31,\"quantity\":4}")
+    let result = try await mockApi.reserveStock()
+    #expect(result.isReservation)
+    #expect(!result.isReservationReceipt)
+    #expect(result.asReservation?.reservationId == 31)
+    #expect(result.asReservationReceipt == nil)
+  }
+
+  /* A malformed 2xx JSON body is not returned raw: the decoding error propagates. */
+  @Test func testBhvOperations130MalformedJsonSuccessBodyPropagatesTheDeserializationError()
+    async throws
+  {
+    let mockApi = storeApiForMock(statusCode: 200, body: "{ this is not valid json ::: }")
+    await #expect(throws: SerializationError.self) {
+      _ = try await mockApi.getOrderById(orderId: 1)
+    }
   }
 
   /* readOnly and writeOnly have no wire effect: the writeOnly password is
@@ -253,7 +273,7 @@ import Testing
 
   /* A content-encoded parameter that cannot be serialized is an error and
      no request is sent. */
-  @Test func testSearchStoreRejectsUnserializableContentParameter() async throws {
+  @Test func testBhvOperations128SearchStoreRejectsUnserializableContentParameter() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = StoreApi(apiClient: mockClient, config: config)
@@ -264,6 +284,18 @@ import Testing
           q: PhotoMetadata(location: PhotoMetadataLocation(lat: Double.nan))))
     }
     #expect(mockClient.lastURL.isEmpty)
+  }
+
+  /* A time parameter goes on the wire with its fractional seconds when they are non-zero. */
+  @Test func testBhvOperations139SearchStoreTimeQueryKeepsNonZeroMilliseconds() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "[]"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+    _ = try await api.searchStore(options: SearchStoreOptions(at: "10:30:00.123"))
+    #expect(mockClient.lastURL.contains("at=10%3A30%3A00.123"))
   }
 
   @Test func testBhvOperations114GetSwatchGroupsDeserializesEnumLeaves() async throws {

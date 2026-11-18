@@ -32,6 +32,8 @@ public partial class OpenIdConnectAuthenticator
     private OAuth2AuthorizationCodeAuthenticator? _delegate;
     private DateTimeOffset _discoveryExpiry = DateTimeOffset.MinValue;
     private string? _discoveredEndpoints;
+    private readonly object _discoveryLock = new();
+    private Task<OAuth2AuthorizationCodeAuthenticator>? _discovery;
 
     [GeneratedRegex("max-age=(\\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex MaxAgePattern();
@@ -93,13 +95,49 @@ public partial class OpenIdConnectAuthenticator
             );
         }
 
+        /* Concurrent cold callers share one discovery request: the first caller
+           starts it and every other caller awaits the same task. The shared task
+           is cleared once it completes, so a later expiry starts a fresh one. */
+        Task<OAuth2AuthorizationCodeAuthenticator> pending;
+        lock (_discoveryLock)
+        {
+            /* A caller that arrives after the first discovery finished and cleared
+               the shared task must see its result, not start a second request. */
+            if (_delegate is not null && DateTimeOffset.UtcNow < _discoveryExpiry)
+            {
+                return _delegate;
+            }
+
+            _discovery ??= DiscoverAsync();
+            pending = _discovery;
+        }
+        try
+        {
+            return await pending.ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_discoveryLock)
+            {
+                if (ReferenceEquals(_discovery, pending))
+                {
+                    _discovery = null;
+                }
+            }
+        }
+    }
+
+    private async Task<OAuth2AuthorizationCodeAuthenticator> DiscoverAsync()
+    {
         /* Discovery is an HTTP call like any other: a transport failure
            propagates unchanged as NetworkException / NetworkTimeoutException.
            The request goes to the identity provider, not to the API, so it is
            sent as a no-redirect request: the transport default headers (an
            API Authorization or key header) stay off it, like the token POST. */
+        IApiClient apiClient = _apiClient ?? throw new InvalidOperationException(
+            "ApiClient has not been injected. Call SetApiClient() before discovery.");
         Dictionary<string, string> headers = new() { ["Accept"] = "application/json" };
-        ApiHttpResponse response = await _apiClient
+        ApiHttpResponse response = await apiClient
             .SendRequestAsync("GET", _openIdConnectUrl, headers, null, true)
             .ConfigureAwait(false);
 
@@ -337,7 +375,7 @@ public partial class OpenIdConnectAuthenticator
     /// OpenID Connect requires asynchronous discovery and token exchange.
     /// The synchronous path is not safe (it deadlocks under non-default
     /// <see cref="System.Threading.SynchronizationContext"/>); callers
-    /// must use <see cref="GetAuthHeadersAsync"/> instead.
+    /// must use <see cref="GetAuthHeadersAsync(CancellationToken)"/> instead.
     /// </remarks>
     public override Dictionary<string, string> GetAuthHeaders()
     {
@@ -348,10 +386,10 @@ public partial class OpenIdConnectAuthenticator
     }
 
     /// <inheritdoc/>
-    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken)
     {
         OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
-        return await d.GetAuthHeadersAsync().ConfigureAwait(false);
+        return await d.GetAuthHeadersAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

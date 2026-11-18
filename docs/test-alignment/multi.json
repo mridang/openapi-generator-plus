@@ -1,0 +1,2877 @@
+{
+ "authapikey001": {
+  "promise": "A Unicode space is not blank and is a valid query key",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "go",
+   "java",
+   "php",
+   "python",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,go,java,php,python,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "authapikey002": {
+  "promise": "Crlf in cookie key throws at construction",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "node",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in dart,node,rust (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authapikey005": {
+  "promise": "Empty key header throws at construction",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart"
+  ],
+  "cause": "one function per language, data-driven in dart (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authapikey007": {
+  "promise": "Generated scheme wrappers emit their key at their spec location",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 4,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "go",
+   "php",
+   "python",
+   "ruby",
+   "swift"
+  ],
+  "cause": "per-generated-wrapper repetition of one behaviour (fine)",
+  "bundles_several_claims": false
+ },
+ "authapikey011": {
+  "promise": "Rejects a key made only of ASCII whitespace such as a vertical tab",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 2,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "kotlin",
+   "node",
+   "php",
+   "python"
+  ],
+  "cause": "several functions with different names (review)",
+  "bundles_several_claims": false
+ },
+ "authbasic001": {
+  "promise": "Basic credentials are read from the environment when none are passed",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 2,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 13,
+   "swift": 2,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php",
+   "python"
+  ],
+  "cause": "per-generated-wrapper repetition of one behaviour (fine)",
+  "bundles_several_claims": false
+ },
+ "authbasic002": {
+  "promise": "Generated scheme wrapper emits a basic header and masks the password",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 2,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "elixir",
+   "go",
+   "node",
+   "php",
+   "python",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "per-generated-wrapper repetition of one behaviour (fine)",
+  "bundles_several_claims": true
+ },
+ "authbasic003": {
+  "promise": "Missing or empty credentials fail at construction",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 13,
+   "swift": 2,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "go",
+   "node",
+   "php",
+   "python"
+  ],
+  "cause": "per-generated-wrapper repetition of one behaviour (fine)",
+  "bundles_several_claims": true
+ },
+ "authbearer001": {
+  "promise": "$name prints its own name with the token masked",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 2,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php",
+   "ruby"
+  ],
+  "cause": "per-generated-wrapper repetition of one behaviour (fine)",
+  "bundles_several_claims": false
+ },
+ "authbearer005": {
+  "promise": "Empty token is rejected at construction",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "java",
+   "kotlin",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in java,kotlin,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authbearer006": {
+  "promise": "Generated scheme wrapper emits a bearer header and masks the token",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 2,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "node",
+   "php",
+   "ruby",
+   "swift"
+  ],
+  "cause": "per-generated-wrapper repetition of one behaviour (fine)",
+  "bundles_several_claims": true
+ },
+ "authbearer010": {
+  "promise": "Reads the token from the environment when none is passed",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 8,
+   "go": 1,
+   "rust": 1,
+   "swift": 2,
+   "elixir": 1
+  },
+  "data_driven_in": [],
+  "cause": "per-generated-wrapper repetition of one behaviour (fine)",
+  "bundles_several_claims": false
+ },
+ "authbearer016": {
+  "promise": "Unicode space is not blank so the printable ascii check rejects it",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "java",
+   "kotlin",
+   "php",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in java,kotlin,php,rust (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authbearer017": {
+  "promise": "Whitespace only token is rejected at construction",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "java",
+   "kotlin",
+   "php",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in java,kotlin,php,python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authintegration011": {
+  "promise": "Has no per-call authenticator on any Options object",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "kotlin",
+   "php",
+   "python",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in csharp,kotlin,php,python,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwoauthcode008": {
+  "promise": "Code exchange proves the challenge of the authorization url",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp"
+  ],
+  "cause": "one function per language, data-driven in csharp (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwoauthcode024": {
+  "promise": "The code exchange goes to tokenUrl and the refresh grant to refreshUrl",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "python",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in python,rust (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "authoauthtwoimplicit013": {
+  "promise": "Throws when access token set to empty",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwopassword006": {
+  "promise": "Password sends the refresh grant to the refresh url and falls back to the token url",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [],
+  "cause": "one function per language, no parametrisation marker found (multi may be unnecessary or covers several asserts in one body)",
+  "bundles_several_claims": true
+ },
+ "authoauthtwotokenmgr002": {
+  "promise": "A bearer or absent token_type is accepted",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "kotlin",
+   "node",
+   "php",
+   "python",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,kotlin,node,php,python,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "authoauthtwotokenmgr004": {
+  "promise": "A token with expires_in of 60 is reused once and not refetched on every call",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "php",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in csharp,php,rust (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "authoauthtwotokenmgr005": {
+  "promise": "An expires_in beyond one year is clamped to one year",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "kotlin",
+   "php",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,kotlin,php,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwotokenmgr007": {
+  "promise": "Expires in applies one margin capped at half the lifetime",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in elixir,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwotokenmgr012": {
+  "promise": "Expires in of zero is stale at once",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart"
+  ],
+  "cause": "one function per language, data-driven in dart (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwotokenmgr020": {
+  "promise": "Non string refresh token is ignored",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in php,python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwotokenmgr033": {
+  "promise": "Token endpoint redirect is rejected",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "kotlin",
+   "php",
+   "python",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,kotlin,php,python,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwotokenmgr038": {
+  "promise": "Token type other than bearer is refused without echoing it",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "kotlin",
+   "php",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,kotlin,php,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoauthtwotokenmgr040": {
+  "promise": "Unusable token response has the canonical message and no cause",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "elixir",
+   "go",
+   "kotlin",
+   "php",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in csharp,elixir,go,kotlin,php,rust (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "authoidc001": {
+  "promise": "A max-age beyond one year is clamped to one year",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "kotlin"
+  ],
+  "cause": "one function per language, data-driven in dart,kotlin (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoidc003": {
+  "promise": "Caches the discovery document for the Cache-Control max-age",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "go",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,go,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoidc005": {
+  "promise": "Discovery rejects a clear text endpoint unless it is loopback",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "go",
+   "kotlin",
+   "python",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in go,kotlin,python,rust (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoidc022": {
+  "promise": "The authorization url always requests the openid scope once",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "go",
+   "kotlin",
+   "php",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in elixir,go,kotlin,php,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authoidc027": {
+  "promise": "Throws when discovery returns a non-2xx status",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "python"
+  ],
+  "cause": "one function per language, data-driven in python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "authscheme001": {
+  "promise": "${name} reads its own credential variables from the environment",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 11,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 8,
+   "go": 1,
+   "rust": 13,
+   "swift": 13,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "node",
+   "ruby"
+  ],
+  "cause": "several functions with different names (review)",
+  "bundles_several_claims": false
+ },
+ "authscheme002": {
+  "promise": "Explicit arguments need no environment",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 2,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 2,
+   "rust": 13,
+   "swift": 13,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "php",
+   "ruby"
+  ],
+  "cause": "several functions with different names (review)",
+  "bundles_several_claims": false
+ },
+ "config015": {
+  "promise": "Inspect masks sensitive default headers",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "node",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in node,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "errors002": {
+  "promise": "Every status exception carries the request context",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "java",
+   "kotlin",
+   "php",
+   "ruby",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,java,kotlin,php,ruby,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "errors003": {
+  "promise": "Every status-specific error accepts an optional cause",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "php",
+   "ruby",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in dart,php,ruby,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "errors006": {
+  "promise": "From response maps every status to its exception",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "elixir",
+   "go",
+   "php",
+   "ruby",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,elixir,go,php,ruby,rust (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "errors007": {
+  "promise": "From response records the request method and path without the query string",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "node",
+   "php",
+   "python",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,node,php,python,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "errors010": {
+  "promise": "FromResponse keeps a scalar json body as the error body",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php"
+  ],
+  "cause": "one function per language, data-driven in php (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "errors027": {
+  "promise": "Absolute URL in path bypasses client base_url (per-op server override)",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in php,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "errors035": {
+  "promise": "Rejects a text/plain body for a model return with a SerializationError naming the Content-Type",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [],
+  "cause": "one function per language, no parametrisation marker found (multi may be unnecessary or covers several asserts in one body)",
+  "bundles_several_claims": false
+ },
+ "errors037": {
+  "promise": "Throws correct exception",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "java",
+   "kotlin",
+   "php",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in csharp,java,kotlin,php,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "errors039": {
+  "promise": "Garbage-PEM caCertPath throws ArgumentError at construction",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp"
+  ],
+  "cause": "one function per language, data-driven in csharp (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "lifecycle004": {
+  "promise": "ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 \u00a73.2.6)",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 13,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "java",
+   "rust"
+  ],
+  "cause": "several functions with different names (review)",
+  "bundles_several_claims": true
+ },
+ "lifecycle015": {
+  "promise": "Takes one optional keyword credential per security scheme, named after it",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "rust": 1,
+   "swift": 13,
+   "elixir": 1
+  },
+  "data_driven_in": [],
+  "cause": "several functions with different names (review)",
+  "bundles_several_claims": false
+ },
+ "operations028": {
+  "promise": "Delete pet cookie param with a character outside cookie-octet fails before sending",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "kotlin",
+   "php",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,kotlin,php,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations029": {
+  "promise": "Delete pet cookie param with CRLF fails closed",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations030": {
+  "promise": "Delete pet sends a legal cookie value raw",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php",
+   "ruby",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in php,ruby,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations050": {
+  "promise": "Get pet by name refuses an empty required header before sending",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations051": {
+  "promise": "Get pet by name rejects a dot segment before dispatch",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "java",
+   "kotlin",
+   "node",
+   "php",
+   "python",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,java,kotlin,node,php,python,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations056": {
+  "promise": "Get pet summary refuses an empty required cookie before sending",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations059": {
+  "promise": "Get pet tag sends byte parameters as standard padded base64",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "go",
+   "node",
+   "php",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in csharp,go,node,php,python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations066": {
+  "promise": "GetPetTag percent-encodes # in an allowReserved value",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in csharp,python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations082": {
+  "promise": "Test no operation options offers a per call authenticator",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "go",
+   "java",
+   "kotlin",
+   "node",
+   "php",
+   "python",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in elixir,go,java,kotlin,node,php,python,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations083": {
+  "promise": "The generated staging server variant resolves its variables into the request URL",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "go",
+   "php",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in go,php,rust (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations084": {
+  "promise": "The mirror operation server resolves reserved characters raw",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in php,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations085": {
+  "promise": "The multi-server operation offers a fixed and a templated server",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "java",
+   "kotlin",
+   "php"
+  ],
+  "cause": "one function per language, data-driven in java,kotlin,php (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "operations086": {
+  "promise": "Unsecured operation options has no auth field",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "python",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in python,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "operations110": {
+  "promise": "GetOrderById picks the status-specific error class for each typed status route",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "go",
+   "java",
+   "kotlin",
+   "php",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in elixir,go,java,kotlin,php,rust (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "operations120": {
+  "promise": "ReserveStock decodes a 201 body as the new receipt",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "go",
+   "php",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in go,php,python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "options007": {
+  "promise": "A negative maxRetries is rejected",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php",
+   "python",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in php,python,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "options008": {
+  "promise": "A proxy URL error never carries the user-info",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "elixir",
+   "kotlin",
+   "php",
+   "python",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,elixir,kotlin,php,python,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "options009": {
+  "promise": "A proxy URL with an IPv6 literal host is accepted and kept verbatim",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "kotlin",
+   "php",
+   "python",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,kotlin,php,python,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "options010": {
+  "promise": "A proxy URL with an unterminated IPv6 literal is rejected",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "kotlin",
+   "php",
+   "python",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,kotlin,php,python,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "options011": {
+  "promise": "A proxy URL with no host is rejected",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "elixir",
+   "kotlin",
+   "node",
+   "php",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in csharp,elixir,kotlin,node,php,rust (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "options014": {
+  "promise": "An upper-case proxy scheme is accepted",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "python"
+  ],
+  "cause": "one function per language, data-driven in python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "options023": {
+  "promise": "Inspect masks the proxy password and sensitive default headers",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php"
+  ],
+  "cause": "one function per language, data-driven in php (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "options027": {
+  "promise": "MaxRetries is set by the builder and by the constructor, 0 disabling retries",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "node",
+   "php",
+   "python",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in node,php,python,ruby (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "options031": {
+  "promise": "Proxy \"$url\" is rejected with \"$message\"",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "elixir",
+   "go",
+   "kotlin",
+   "python",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in dart,elixir,go,kotlin,python,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "options033": {
+  "promise": "Rejects a non-positive timeout with the canonical message",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "kotlin",
+   "python",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,kotlin,python,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "redirects010": {
+  "promise": "A 3xx whose Location is absent or unparseable comes back as the redirect response",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "go",
+   "kotlin",
+   "php",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in dart,go,kotlin,php,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "redirects013": {
+  "promise": "Keeps Authorization and Cookie on a same-origin redirect",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "java",
+   "ruby",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in java,ruby,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "redirects023": {
+  "promise": "Returns the last 3xx without a Location when the redirect budget is used up",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp"
+  ],
+  "cause": "one function per language, data-driven in csharp (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "redirects024": {
+  "promise": "Same origin redirect keeps sensitive headers",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "java",
+   "php",
+   "python",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in csharp,java,php,python,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "redirects025": {
+  "promise": "Strips default headers and credential-named headers on a cross-origin redirect",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "go",
+   "java",
+   "php",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in csharp,go,java,php,python (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "retries007": {
+  "promise": "Does not replay other statuses",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "php",
+   "python",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,php,python,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "retries011": {
+  "promise": "308 https->http with a body throws (no body replay)",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [],
+  "cause": "one function per language, no parametrisation marker found (multi may be unnecessary or covers several asserts in one body)",
+  "bundles_several_claims": false
+ },
+ "retries021": {
+  "promise": "Retries exactly the retryable statuses",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "java",
+   "kotlin",
+   "python",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,java,kotlin,python,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "retries023": {
+  "promise": "Retry-After is capped at 60 seconds",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "go",
+   "php",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in go,php,python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject002": {
+  "promise": "A bare type: number is exact and written in plain notation",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "node": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "kotlin",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,kotlin,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject003": {
+  "promise": "A date-time without an offset is rejected",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "node",
+   "php",
+   "python",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in node,php,python,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject006": {
+  "promise": "A duplicate object key resolves to the last value",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "go"
+  ],
+  "cause": "one function per language, data-driven in go (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject008": {
+  "promise": "A format: uri model field rejects a relative reference",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "kotlin",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,kotlin,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject010": {
+  "promise": "A nickname longer than its declared maximum still decodes and round-trips",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "python"
+  ],
+  "cause": "one function per language, data-driven in python (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject011": {
+  "promise": "A non RFC 3339 date-time \"$text\" is rejected",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "php",
+   "ruby",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,php,ruby,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject013": {
+  "promise": "A protobuf-JSON duration decodes, encodes back and keeps its sign",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "java",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,java,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject021": {
+  "promise": "An absolute URI $uri is accepted verbatim",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "php",
+   "python",
+   "ruby",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,php,python,ruby,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject022": {
+  "promise": "An inline enum (EdgeCases.phase) round-trips its non-identifier wire values",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "java",
+   "kotlin",
+   "php",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in dart,java,kotlin,php,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject024": {
+  "promise": "An unknown inline enum value is rejected",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "node",
+   "php",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in dart,node,php,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject030": {
+  "promise": "Builds a model with an out-of-range integer and rejects it when decoded",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "kotlin",
+   "python",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in kotlin,python,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject057": {
+  "promise": "Deserialize raises on a double literal that overflows to Infinity",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "java",
+   "kotlin",
+   "node",
+   "php"
+  ],
+  "cause": "one function per language, data-driven in dart,java,kotlin,node,php (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject073": {
+  "promise": "Duration round-trips through a model body",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "ruby",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in ruby,rust (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject076": {
+  "promise": "Every Availability member, hostile ones included, round-trips its wire value",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "go",
+   "java",
+   "kotlin",
+   "php",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,go,java,kotlin,php,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject077": {
+  "promise": "Every wire-shape failure is a SerializationError",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "elixir",
+   "go",
+   "kotlin",
+   "php",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in dart,elixir,go,kotlin,php,ruby (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject080": {
+  "promise": "Format:duration that is malformed or overflows raises the SDK SerializationException",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "kotlin",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in csharp,kotlin,rust (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject089": {
+  "promise": "Incomplete JSON object raises SerializationError",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "python",
+   "rust"
+  ],
+  "cause": "one function per language, data-driven in python,rust (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject102": {
+  "promise": "Malformed date-time throws SerializationException",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "python"
+  ],
+  "cause": "one function per language, data-driven in python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject103": {
+  "promise": "Malformed UUID string raises SerializationException on decode",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp"
+  ],
+  "cause": "one function per language, data-driven in csharp (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject120": {
+  "promise": "Rejects a fractional number for an int32 field",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "kotlin",
+   "python",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in kotlin,python,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject121": {
+  "promise": "Rejects a null element in an array of models",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in php,python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject122": {
+  "promise": "Rejects a null element of a map of int32 and of a nested array of int32",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "java",
+   "php",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in elixir,java,php,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject124": {
+  "promise": "Request JSON writes U+2028, U+2029 and DEL literally and escapes only quote, backslash and",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "dart",
+   "go",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in dart,go,python (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject153": {
+  "promise": "Serializing a non-finite double throws SerializationException",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "python",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in python,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationobject161": {
+  "promise": "The four Separator wire values decode to distinct constants and re-encode",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "elixir",
+   "java",
+   "kotlin",
+   "php",
+   "python",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,elixir,java,kotlin,php,python,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": true
+ },
+ "serializationobject166": {
+  "promise": "ToPathValue bool",
+  "functions_per_language": {
+   "java": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php"
+  ],
+  "cause": "one function per language, data-driven in php (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationparam001": {
+  "promise": "A null array element keeps its empty slot",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in elixir,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationparam002": {
+  "promise": "Allow reserved leaves reserved chars literal but still encodes others",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "kotlin",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in kotlin,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationparam011": {
+  "promise": "Array keeps an empty slot for a null element with multi",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp"
+  ],
+  "cause": "one function per language, data-driven in csharp (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationparam029": {
+  "promise": "Dot-segment path values raise ArgumentError",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "java",
+   "kotlin",
+   "php",
+   "python",
+   "ruby",
+   "rust",
+   "swift"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,java,kotlin,php,python,ruby,rust,swift (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationparam060": {
+  "promise": "MaybeAllowReserved wraps only when allowReserved is true",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 2,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [],
+  "cause": "several functions with different names (review)",
+  "bundles_several_claims": false
+ },
+ "serializationparam071": {
+  "promise": "Path is segment-encoded once",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "dart",
+   "elixir",
+   "ruby"
+  ],
+  "cause": "one function per language, data-driven in csharp,dart,elixir,ruby (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationparam081": {
+  "promise": "Semicolon preserved (sub-delimiter)",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "elixir",
+   "python"
+  ],
+  "cause": "one function per language, data-driven in elixir,python (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationwire014": {
+  "promise": "Form-urlencoded body rejects a nested object field",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [],
+  "cause": "one function per language, no parametrisation marker found (multi may be unnecessary or covers several asserts in one body)",
+  "bundles_several_claims": false
+ },
+ "serializationwire028": {
+  "promise": "A non-BMP character in a multipart filename becomes one underscore",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "csharp",
+   "kotlin"
+  ],
+  "cause": "one function per language, data-driven in csharp,kotlin (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "serializationwire037": {
+  "promise": "Multipart file part content type follows the filename extension",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "go",
+   "java",
+   "php"
+  ],
+  "cause": "one function per language, data-driven in go,java,php (parametrised cases, fine)",
+  "bundles_several_claims": false
+ },
+ "transport033": {
+  "promise": "Content-Encoding: identity passes the body through undecoded",
+  "functions_per_language": {
+   "java": 1,
+   "kotlin": 1,
+   "csharp": 1,
+   "php": 1,
+   "python": 1,
+   "ruby": 1,
+   "node": 1,
+   "dart": 1,
+   "go": 1,
+   "rust": 1,
+   "swift": 1,
+   "elixir": 1
+  },
+  "data_driven_in": [
+   "php"
+  ],
+  "cause": "one function per language, data-driven in php (parametrised cases, fine)",
+  "bundles_several_claims": false
+ }
+}

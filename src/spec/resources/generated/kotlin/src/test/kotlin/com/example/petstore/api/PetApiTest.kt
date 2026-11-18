@@ -828,6 +828,184 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("bhvOperations130 a malformed 2xx JSON body propagates the deserialization error")
+        fun malformedSuccessJsonPropagatesTheDeserializationError() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "{\"id\":1,\"name\":",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            assertThrows(SerializationException::class.java) {
+                runBlocking { api.getPetById(1L) }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvOperations132 a missing required options object or body names the first required field")
+        fun missingRequiredOptionsNameTheFirstRequiredField() {
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(), config)
+
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking { api.getPetByName("Rex", GetPetByNameOptions(category = "", xCorrelationId = "")) }
+                }
+            assertEquals("Missing the required parameter 'category' when calling PetApi.getPetByName", ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvOperations136 a bare JSON null body from a model operation throws an API error naming the operation")
+        fun bareNullBodyThrowsAnApiExceptionNamingTheOperation() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "null",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val exception =
+                assertThrows(ApiException::class.java) {
+                    runBlocking { api.getPetById(1L) }
+                }
+            assertTrue(
+                exception.message!!.contains("Expected a response body for getPetById but received none"),
+                "null-body message must name the operation, got: ${exception.message}",
+            )
+        }
+
+        @Test
+        @DisplayName("bhvOperations138 an error response is thrown as the exception class specific to its status through the typed routes")
+        fun errorResponseIsThrownAsTheStatusSpecificClass() {
+            val table =
+                listOf(
+                    400 to com.example.petstore.errors.BadRequestException::class.java,
+                    401 to com.example.petstore.errors.UnauthorizedException::class.java,
+                    403 to com.example.petstore.errors.ForbiddenException::class.java,
+                    409 to com.example.petstore.errors.ConflictException::class.java,
+                    418 to com.example.petstore.errors.ClientException::class.java,
+                    422 to com.example.petstore.errors.UnprocessableEntityException::class.java,
+                    502 to com.example.petstore.errors.BadGatewayException::class.java,
+                )
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            for ((status, expected) in table) {
+                val engine =
+                    MockEngine { _ ->
+                        respond(
+                            content = "{}",
+                            status = HttpStatusCode.fromValue(status),
+                            headers = headersOf("Content-Type", "application/json"),
+                        )
+                    }
+                val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+                val ex =
+                    assertThrows(ApiException::class.java) {
+                        runBlocking {
+                            api.getPetById(
+                                1L,
+                                com.example.petstore.api.options
+                                    .GetPetByIdOptions(maxRetries = 0),
+                            )
+                        }
+                    }
+                assertEquals(expected, ex::class.java, "wrong class for status $status")
+                assertEquals(status, ex.statusCode)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvOperations147 multipart parts are sent in declaration order")
+        fun multipartPartsAreSentInDeclarationOrder() {
+            var wire = ""
+            val api = capturingPetApi("""{"code":200,"type":"ok","message":"m"}""") { _, body -> wire = body }
+
+            runBlocking {
+                api.uploadPetDocument(
+                    1L,
+                    UploadPetDocumentOptions(
+                        _file = "doc".toByteArray(),
+                        documentType = "vaccination_record",
+                        notes = "n",
+                    ),
+                )
+            }
+
+            val positions = listOf("file", "documentType", "notes").map { wire.indexOf("name=\"$it\"") }
+            assertTrue(positions.all { it >= 0 }, "every part must be sent, got: $wire")
+            assertEquals(positions.sorted(), positions, "parts must keep declaration order, got: $wire")
+        }
+
+        @Test
+        @DisplayName("bhvOperations148 an operation uses the first scheme of its security requirement that the client holds")
+        fun operationUsesTheFirstHeldSchemeOfItsRequirement() {
+            val captured = Captured()
+            val api =
+                apiWithSchemes(
+                    captured,
+                    mapOf(
+                        "petStoreBearer" to PetStoreBearerAuthenticator("http://localhost", "bearer-token"),
+                        "apiKeyHeader" to ApiKeyHeaderAuthenticator("http://localhost", "key-token"),
+                    ),
+                )
+
+            runBlocking { api.addPet(Pet(name = "Ordered", photoUrls = setOf("http://example.com/p.jpg"))) }
+
+            assertEquals("key-token", captured.apiKey)
+            assertNull(captured.authorization)
+        }
+
+        @Test
+        @DisplayName("bhvOperations153 an operation with no chosen server is sent to the client base URL")
+        fun operationWithoutAChosenServerUsesTheClientBaseUrl() {
+            var requested = ""
+            val engine =
+                MockEngine { request ->
+                    requested = request.url.toString()
+                    respond(
+                        content = "{}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runCatching { runBlocking { api.getExternalPetInfo(1L) } }
+
+            assertEquals("http://localhost/pet/1/external", requested)
+        }
+
+        @Test
         @DisplayName("bhvOperations065 getPetByName sends the required query param on the wire")
         fun testGetPetByNameSendsRequiredQuery() {
             var capturedQuery: String? = null
@@ -852,6 +1030,36 @@ class PetApiTest {
             }
 
             assertTrue(capturedQuery!!.contains("category=dog"), "query was: $capturedQuery")
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam122 an allowReserved query value keeps its reserved characters literal on the wire")
+        fun testGetPetTagAllowReservedKeepsReservedCharactersLiteral() {
+            var capturedQuery: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.getPetTag(5L, "cute", GetPetTagOptions(revision = "v1.0/beta:rc1"))
+            }
+
+            assertTrue(
+                capturedQuery!!.contains("revision=v1.0/beta:rc1"),
+                "query was: $capturedQuery",
+            )
         }
 
         @Test
@@ -1200,7 +1408,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("required-nested-param-validation: missing required query param fails loud")
+        @DisplayName("bhvOperations125 required-nested-param-validation: missing required query param fails loud")
         fun testGetPetByNameMissingRequiredQueryFailsLoud() {
             // required-nested-param-validation: `category` is a REQUIRED query
             // param carried in options. A null value (e.g. arriving via Java
@@ -1408,7 +1616,7 @@ class PetApiTest {
                         headers = headersOf("Content-Type", "application/json"),
                     )
                 }
-            val transport = TransportOptions.builder().httpClient(HttpClient(engine)).build()
+            val transport = TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build()
             val client =
                 Client(
                     "http://localhost",
@@ -1495,7 +1703,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("Options are immutable and built via named-arg constructor")
+        @DisplayName("bhvOptions062 Options are immutable and built via named-arg constructor")
         fun testOptionsAreImmutableAndConstructedWithNamedArgs() {
             // Options classes are immutable: every property is a `val` set
             // through the primary constructor via named/default args. Reads
@@ -1593,6 +1801,63 @@ class PetApiTest {
                 "Content-Type must be application/x-www-form-urlencoded, got: $capturedContentType",
             )
             assertEquals("nickname=a+b&tags=x&tags=y", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvOperations156 an operation sends its form-encoded body fields in the order the specification declares them")
+        fun testSetPetPreferencesFormFieldsFollowDeclarationOrder() {
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(
+                        nickname = "n",
+                        tags = listOf("x", "y"),
+                        note = "m",
+                        renewalDate = LocalDate.of(2025, 1, 2),
+                    ),
+                )
+            }
+
+            assertEquals("nickname=n&tags=x&tags=y&note=m&renewalDate=2025-01-02", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvOptions054 an operation accepts per-call request options alongside its other arguments")
+        fun testSetPetPreferencesAcceptsPerCallHeaders() {
+            var capturedTrace: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedTrace = request.headers["X-Trace"]
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(nickname = "n", headers = mapOf("X-Trace" to "t1")),
+                )
+            }
+
+            assertEquals("t1", capturedTrace)
         }
 
         @Test
@@ -1930,6 +2195,14 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("bhvServers020 a per-operation server variable value outside its enum is rejected")
+        fun perOperationServerVariableOutsideItsEnumIsRejected() {
+            assertThrows(IllegalArgumentException::class.java) {
+                PetApi.GetStagingPetInfoServer.Environment.valueOf("production")
+            }
+        }
+
+        @Test
         @DisplayName("bhvOperations084 the mirror operation server resolves reserved characters raw")
         fun bhvOperations084TheMirrorOperationServerResolvesReservedCharactersRaw() {
             val mirror =
@@ -2069,7 +2342,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("malformed 2xx body fails loud rather than returning the raw string")
+        @DisplayName("bhvOperations127 malformed 2xx body fails loud rather than returning the raw string")
         fun testMalformedSuccessBodyFailsLoud() {
             // Parity rule 11: a 2xx response whose body is not valid JSON for the
             // declared return type must propagate the deserialize error, never be

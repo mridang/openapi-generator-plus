@@ -147,6 +147,53 @@ describe("Configuration", () => {
     expect(config.baseUrl).toBe("https://override.example.com");
   });
 
+  test("bhv config 018 a default constructed or built configuration uses the base URL from the spec", () => {
+    expect(new Configuration().baseUrl).toBe("/api/v3");
+    expect(Configuration.builder().build().baseUrl).toBe("/api/v3");
+  });
+
+  test("bhv config 019 default configuration returns the spec base URL and no headers", () => {
+    const config = Configuration.defaultConfiguration();
+
+    expect(config.baseUrl).toBe("/api/v3");
+    expect(config.defaultHeaders).toEqual({});
+  });
+
+  test("bhv config 020 builder chain sets base URL and default headers in one configuration", () => {
+    const config = Configuration.builder()
+      .baseUrl("https://custom.example.com")
+      .defaultHeader("X-Team", "platform")
+      .build();
+
+    expect(config.baseUrl).toBe("https://custom.example.com");
+    expect(config.defaultHeaders).toEqual({ "X-Team": "platform" });
+  });
+
+  test("bhv config 021 server URL template resolves its variables to their defaults", () => {
+    const server = new ServerConfiguration(
+      "https://{region}.example.org/{version}",
+      "Regional server",
+      {
+        region: new ServerVariable("eu", null, ["eu", "us"]),
+        version: new ServerVariable("v1", null, ["v1", "v2"]),
+      },
+    );
+
+    const config = Configuration.builder().server(server).build();
+
+    expect(config.baseUrl).toBe("https://eu.example.org/v1");
+  });
+
+  test("bhv config 022 mutating default headers does not change the configuration", () => {
+    const config = Configuration.builder()
+      .defaultHeader("X-Team", "platform")
+      .build();
+    const headers = config.defaultHeaders as Record<string, string>;
+
+    expect(Reflect.set(headers, "X-Team", "attacker")).toBe(false);
+    expect(config.defaultHeaders).toEqual({ "X-Team": "platform" });
+  });
+
   test("bhv config 014 defaultConfiguration returns an instance", () => {
     const config = Configuration.defaultConfiguration();
 
@@ -154,7 +201,7 @@ describe("Configuration", () => {
     expect(config.baseUrl).toBe("/api/v3");
   });
 
-  test("defaultConfiguration returns a fresh instance", () => {
+  test("bhv config 023 defaultConfiguration returns a fresh instance with the same base URL", () => {
     /* There is no settable process-wide default: every call builds a new
      * Configuration, so nothing one caller does can change what another
      * gets. */
@@ -165,7 +212,7 @@ describe("Configuration", () => {
     expect(first.baseUrl).toBe(second.baseUrl);
   });
 
-  test("Configuration has no settable process-wide default", () => {
+  test("bhv config 024 configuration has no settable process-wide default", () => {
     expect(
       (Configuration as unknown as Record<string, unknown>).setDefault,
     ).toBeUndefined();
@@ -183,7 +230,7 @@ describe("Configuration", () => {
     expect(first.baseUrl).toBe(second.baseUrl);
   });
 
-  test("configuration is immutable", () => {
+  test("bhv config 017 configuration is immutable", () => {
     const config = Configuration.builder()
       .defaultHeader("X-Key", "value")
       .build();

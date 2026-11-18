@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -150,5 +151,41 @@ func TestBhvAuthbasic002_BasicAuthenticator_BasicWrappers_EmitTheBasicHeaderUnde
 		if _, err := tc.build("ali:ce", "s3cret"); !errors.Is(err, auth.ErrBasicAuthUsernameColon) {
 			t.Errorf("%s: expected ErrBasicAuthUsernameColon, got %v", tc.name, err)
 		}
+	}
+}
+
+// A colon is allowed in the password; only the username is forbidden from carrying one.
+func TestBhvAuthbasic018_BasicAuthenticator_PasswordMayContainAColon(t *testing.T) {
+	t.Parallel()
+	a := mustBasic(t, "https://api.example.com", "alice", "pass:word")
+	want := "Basic " + base64.StdEncoding.EncodeToString([]byte("alice:pass:word"))
+	if got := a.AuthHeaders()["Authorization"]; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+// The password is masked in every debug form of the authenticator, including when it is nested in another value.
+func TestBhvAuthbasic020_BasicAuthenticator_PasswordIsMaskedInEveryDebugForm(t *testing.T) {
+	t.Parallel()
+	a := mustBasic(t, "https://api.example.com", "alice", "s3cret")
+	holder := struct{ Auth *auth.BasicAuthenticator }{a}
+	for _, v := range []interface{}{a, *a, holder, []*auth.BasicAuthenticator{a}} {
+		for _, s := range []string{fmt.Sprint(v), fmt.Sprintf("%+v", v), fmt.Sprintf("%#v", v)} {
+			if strings.Contains(s, "s3cret") {
+				t.Errorf("expected the password to be masked, got %q", s)
+			}
+		}
+	}
+}
+
+func TestBhvErrors081_BasicAuthenticator_RefusalNamesTheFaultyField(t *testing.T) {
+	t.Parallel()
+	_, userErr := auth.NewBasicAuthenticator("https://api.example.com", "bad:user", "secret")
+	if userErr == nil || !strings.Contains(userErr.Error(), "username") || strings.Contains(userErr.Error(), "password") {
+		t.Errorf("expected a refusal naming the username only, got %v", userErr)
+	}
+	_, passErr := auth.NewBasicAuthenticator("https://api.example.com", "user", "pass\nword")
+	if passErr == nil || !strings.Contains(passErr.Error(), "password") || strings.Contains(passErr.Error(), "username") {
+		t.Errorf("expected a refusal naming the password only, got %v", passErr)
 	}
 }

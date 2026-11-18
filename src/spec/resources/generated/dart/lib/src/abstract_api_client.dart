@@ -42,7 +42,8 @@ import 'transport_options.dart';
 ///     auth, operation headers)
 ///  3. [TransportOptions.userAgent] -- injected if not already set
 ///  4. [TransportOptions.injectRequestId] -- injected if not already set
-abstract class AbstractApiClient implements RetryingApiClient {
+abstract class AbstractApiClient
+    implements RetryingApiClient, AdmittingApiClient {
   final TransportOptions _transportOptions;
   final http.Client _httpClient;
   /* dart:io's HttpClient has no API for proxy basic-auth credentials, so
@@ -147,6 +148,24 @@ abstract class AbstractApiClient implements RetryingApiClient {
     int? timeout,
     bool noDefaultHeaders = false,
   }) async {
+    final finish = beginRequest();
+    try {
+      return await sendAdmittedRequest(
+        method,
+        url,
+        headers,
+        body,
+        noRedirect: noRedirect,
+        timeout: timeout,
+        noDefaultHeaders: noDefaultHeaders,
+      );
+    } finally {
+      finish();
+    }
+  }
+
+  @override
+  void Function() beginRequest() {
     /* Using a client after close() is a wrong call order: the invalid-state
      * built-in StateError, not an SDK exception. */
     if (_closed) {
@@ -154,25 +173,41 @@ abstract class AbstractApiClient implements RetryingApiClient {
         'ApiClient has been closed and can no longer send requests',
       );
     }
-    /* A request that started before close() finishes: the transport is
-     * released only when the last one is done. */
+    /* A request admitted before close() finishes: the transport is released
+     * only when the last admitted request is done. */
     _inFlight++;
-    try {
-      return await _send(
-        method,
-        url,
-        headers,
-        body,
-        noRedirect,
-        timeout,
-        noDefaultHeaders,
-      );
-    } finally {
+    var finished = false;
+    return () {
+      if (finished) {
+        return;
+      }
+      finished = true;
       _inFlight--;
       if (_closed && _inFlight == 0) {
         _release();
       }
-    }
+    };
+  }
+
+  @override
+  Future<ApiHttpResponse> sendAdmittedRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  }) {
+    return _send(
+      method,
+      url,
+      headers,
+      body,
+      noRedirect,
+      timeout,
+      noDefaultHeaders,
+    );
   }
 
   Future<ApiHttpResponse> _send(
@@ -449,6 +484,15 @@ abstract class AbstractApiClient implements RetryingApiClient {
             );
             next.bodyBytes = await replay.finalize().toBytes();
             next.headers['content-type'] = replay.headers['content-type']!;
+          } else if (const {
+            'POST',
+            'PUT',
+            'PATCH',
+          }.contains(nextMethod.toUpperCase())) {
+            /* A bodyless POST/PUT/PATCH replays with an explicit empty body, as the
+             * first send does, so the hop carries Content-Length: 0. */
+            next.bodyBytes = Uint8List(0);
+            next.headers['content-length'] = '0';
           }
           currentUri = nextUri;
           currentMethod = nextMethod;

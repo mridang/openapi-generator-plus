@@ -1460,7 +1460,25 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         entry.put("isBearer", bearer);
         entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+        entry.put("flow", oauthFlow(spec.baseClass()));
         perSchemeAuthEntries.add(entry);
+    }
+
+    /** The OAuth flow a per-scheme authenticator wraps, or {@code none} for any other scheme. */
+    private static String oauthFlow(String baseClass) {
+        if ("OAuth2ClientCredentialsAuthenticator".equals(baseClass)) {
+            return "client_credentials";
+        }
+        if ("OAuth2PasswordAuthenticator".equals(baseClass)) {
+            return "password";
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(baseClass)) {
+            return "authorization_code";
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(baseClass)) {
+            return "implicit";
+        }
+        return "none";
     }
 
     /**

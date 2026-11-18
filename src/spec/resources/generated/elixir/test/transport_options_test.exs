@@ -11,6 +11,20 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.ca_cert_path == nil
   end
 
+  test "bhv options 052 a proxy URL carrying credentials is accepted" do
+    credentials = "user:" <> "pass"
+    proxy = "http://" <> credentials <> "@proxy.example.com:8080"
+
+    opts = PetstoreClient.TransportOptions.new(proxy: proxy)
+
+    assert opts.proxy == proxy
+
+    assert PetstoreClient.DefaultApiClient.proxy_auth_header(
+             PetstoreClient.DefaultApiClient.new(opts)
+           ) ==
+             "Basic " <> Base.encode64(credentials)
+  end
+
   test "bhv options 032 proxy defaults to null" do
     opts = PetstoreClient.TransportOptions.new()
     assert opts.proxy == nil
@@ -135,6 +149,32 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
+  test "bhv options 045 a negative max_redirects is rejected at configuration" do
+    assert_raise ArgumentError,
+                 "Invalid max_redirects: must be a non-negative integer (got -1)",
+                 fn -> PetstoreClient.TransportOptions.new(max_redirects: -1) end
+  end
+
+  test "bhv options 046 constructing transport options directly with a non-http proxy scheme is rejected" do
+    assert_raise ArgumentError, ~r/must use http or https scheme/, fn ->
+      PetstoreClient.TransportOptions.new(proxy: "socks5://proxy.example.com:1080")
+    end
+  end
+
+  test "bhv options 047 a negative timeout is rejected at configuration" do
+    assert_raise ArgumentError,
+                 "Invalid timeout: must be a positive number of milliseconds (got -5)",
+                 fn -> PetstoreClient.TransportOptions.new(timeout: -5) end
+  end
+
+  test "bhv options 051 a proxy URL with a scheme other than http or https is rejected" do
+    assert_raise ArgumentError,
+                 "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+                 fn ->
+                   PetstoreClient.TransportOptions.new(proxy: "ftp://proxy.example.com:21")
+                 end
+  end
+
   test "bhv options 033 a zero or negative timeout is rejected with the canonical message" do
     for bad <- [-1, 0] do
       err =
@@ -215,7 +255,7 @@ defmodule PetstoreClient.TransportOptionsTest do
              "http://[::1]:3128"
   end
 
-  test "the README names the proxy option of new/1 as the SOCKS setter" do
+  test "bhv options 044 the README names the proxy option of new/1 as the SOCKS setter" do
     readme = File.read!("README.md")
 
     assert readme =~ "The `proxy:` option of `TransportOptions.new/1` accepts only"
@@ -336,6 +376,94 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.proxy == "http://user:hunter2@proxy.example.com:8080"
   end
 
+  test "bhv options 058 the injected HTTP client is none unless supplied and a supplied one is kept as the same instance" do
+    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+
+    assert PetstoreClient.TransportOptions.new().req_options == []
+
+    built = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    assert Keyword.fetch!(built.req_options, :adapter) === adapter
+  end
+
+  test "bhv options 059 a caller-supplied transport hook is unset unless given and is kept unchanged when supplied" do
+    options = [
+      adapter: fn request -> {request, Req.Response.new(status: 200)} end,
+      receive_timeout: 1_000
+    ]
+
+    assert PetstoreClient.TransportOptions.new().req_options == []
+    assert PetstoreClient.TransportOptions.new(req_options: options).req_options == options
+  end
+
+  test "bhv options 060 the builder entry point carries the values set on it and the defaults of a direct build" do
+    built = PetstoreClient.TransportOptions.new(timeout: 5_000, max_retries: 4)
+
+    assert built.timeout == 5_000
+    assert built.max_retries == 4
+    assert PetstoreClient.TransportOptions.new() == %PetstoreClient.TransportOptions{}
+  end
+
+  test "bhv options 062 an options object reports the values it was built with and unset fields read back as unset" do
+    built = PetstoreClient.TransportOptions.new(verify_ssl: false, max_retries: 4)
+
+    assert built.verify_ssl == false
+    assert built.max_retries == 4
+    assert built.proxy == nil
+    assert built.ca_cert_path == nil
+    assert built.req_options == []
+  end
+
+  test "bhv options 063 a built options object is unchanged by an update to a copy" do
+    built = PetstoreClient.TransportOptions.new(timeout: 5_000)
+    updated = %{built | timeout: 1_000, max_retries: 9}
+
+    assert built.timeout == 5_000
+    assert built.max_retries == 2
+    assert updated.timeout == 1_000
+  end
+
+  test "bhv options 064 the printable form of transport options shows the configured maximum number of retries" do
+    shown = inspect(PetstoreClient.TransportOptions.new(max_retries: 7))
+
+    assert shown =~ "max_retries: 7"
+  end
+
+  test "bhv options 065 the printable form of transport options never shows a proxy password or caller-supplied hook values" do
+    opts =
+      PetstoreClient.TransportOptions.new(
+        proxy: "http://user:s3cret-pass@proxy.example.com:8080",
+        req_options: [
+          adapter: fn request -> {request, Req.Response.new(status: 200)} end,
+          auth: {:bearer, "hook-token-value"}
+        ]
+      )
+
+    shown = inspect(opts)
+    refute shown =~ "s3cret-pass"
+    refute shown =~ "hook-token-value"
+    assert shown =~ "adapter:"
+  end
+
+  test "bhv options 066 the printable form of transport options shows a proxy URL with no credentials exactly as configured" do
+    shown = inspect(PetstoreClient.TransportOptions.new(proxy: "http://proxy.example.com:3128"))
+    assert shown =~ ~s(proxy: "http://proxy.example.com:3128")
+  end
+
+  test "bhv options 067 building transport options directly with a valid proxy keeps it, and with no proxy the proxy is unset" do
+    proxy = "http://proxy.example.com:8080"
+
+    direct = %PetstoreClient.TransportOptions{proxy: proxy}
+    assert direct.proxy == proxy
+    assert PetstoreClient.TransportOptions.new(proxy: proxy).proxy == proxy
+    assert PetstoreClient.TransportOptions.new().proxy == nil
+  end
+
+  test "bhv redirects 045 supplying req_options that follow redirects on their own is refused with an error" do
+    assert_raise ArgumentError, ~r/redirect/, fn ->
+      PetstoreClient.TransportOptions.new(req_options: [redirect: true])
+    end
+  end
+
   test "req_options defaults to an empty list" do
     assert PetstoreClient.TransportOptions.new().req_options == []
   end
@@ -353,7 +481,7 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "req_options connect_options conflicts with the SDK's own proxy settings" do
+  test "bhv transport 078 req_options connect_options conflicts with the SDK's own proxy settings" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
       PetstoreClient.TransportOptions.new(
         proxy: "http://proxy:8080",
@@ -362,9 +490,43 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
+  test "bhv transport 079 turning off verification with a supplied connect_options client setting fails at construction" do
+    assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(
+        verify_ssl: false,
+        req_options: [connect_options: [timeout: 1]]
+      )
+    end
+  end
+
+  test "bhv transport 080 a proxy the supplied finch pool cannot apply fails at construction" do
+    assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(
+        proxy: "http://proxy:8080",
+        req_options: [finch: MyFinch]
+      )
+    end
+  end
+
   test "req_options finch conflicts with verify_ssl false" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
       PetstoreClient.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
+    end
+  end
+
+  test "bhv lifecycle 024 a supplied client conflicts with the SDK's proxy and TLS settings" do
+    assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(
+        proxy: "http://proxy:8080",
+        req_options: [finch: MyFinch]
+      )
+    end
+
+    assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(
+        verify_ssl: false,
+        req_options: [connect_options: [timeout: 1]]
+      )
     end
   end
 

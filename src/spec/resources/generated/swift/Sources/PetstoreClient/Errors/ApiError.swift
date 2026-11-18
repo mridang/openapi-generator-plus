@@ -93,7 +93,7 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
   /// (`... for GET /items/7`). An error that already names its request keeps
   /// it, so a request is never named twice.
   func attachRequest(method: String, path: String) {
-    guard requestMethod == nil else { return }
+    guard requestMethod == nil, !method.isEmpty, !path.isEmpty else { return }
     let shown = ApiError.pathWithoutQuery(path)
     requestMethod = method
     requestPath = shown
@@ -142,9 +142,14 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
   /// a log nor forge a line in it.
   static func renderedBody(_ body: String) -> String {
     let bytes = Array(body.utf8)
-    let omitted = bytes.count - maxRenderedBodyBytes
-    let shown =
-      omitted > 0 ? String(decoding: bytes.prefix(maxRenderedBodyBytes), as: UTF8.self) : body
+    /* Cut back to the start of a character: a continuation byte (0b10xxxxxx)
+     * at the cut means the cut would split a multi-byte character. */
+    var cut = min(maxRenderedBodyBytes, bytes.count)
+    if cut < bytes.count {
+      while cut > 0 && (bytes[cut] & 0xC0) == 0x80 { cut -= 1 }
+    }
+    let omitted = bytes.count - cut
+    let shown = omitted > 0 ? String(decoding: bytes.prefix(cut), as: UTF8.self) : body
     var out = ""
     for scalar in shown.unicodeScalars {
       if scalar.value < 0x20 || scalar.value == 0x7F {

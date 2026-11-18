@@ -186,7 +186,7 @@ public sealed class TransportOptions
     /// </summary>
     public override string ToString()
     {
-        return $"{GetType().Name}(VerifySsl={VerifySsl}, Proxy={RedactProxy(Proxy)}, DefaultHeaders={RedactHeaders(DefaultHeaders)})";
+        return $"{GetType().Name}(VerifySsl={VerifySsl}, Proxy={RedactProxy(Proxy)}, DefaultHeaders={RedactHeaders(DefaultHeaders)}, MaxRetries={MaxRetries})";
     }
 
     /// <summary>

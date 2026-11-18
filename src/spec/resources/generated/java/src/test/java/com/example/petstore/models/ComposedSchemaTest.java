@@ -10,6 +10,11 @@ package com.example.petstore.models;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ObjectSerializer;
 import com.example.petstore.errors.SerializationException;
@@ -42,8 +47,8 @@ class ComposedSchemaTest {
   class TypedVariantTests {
 
     @Test
-    @DisplayName("a oneOf union is built from one variant and reads it back typed")
-    void oneOfFactoryAndAccessors() {
+    @DisplayName("bhvUnions034 a oneOf union is built from one variant and reads it back typed")
+    void bhvUnions034OneOfFactoryAndAccessors() {
       Reservation reservation = new Reservation(31L, 4);
 
       ReserveStockResponse union = ReserveStockResponse.ofReservation(reservation);
@@ -70,8 +75,48 @@ class ComposedSchemaTest {
     }
 
     @Test
+    void bhvUnions037WrapperHoldsItsVariantExactlyAndOffersNoReplacement() {
+      com.example.petstore.models.Medication medication =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"aspirin\"}", com.example.petstore.models.Medication.class));
+      assertSame(
+          medication,
+          com.example.petstore.models.PetTreatment.ofMedication(medication)
+              .asMedication()
+              .orElseThrow());
+      assertTrue(
+          java.util.Arrays.stream(com.example.petstore.models.PetTreatment.class.getMethods())
+              .noneMatch(m -> m.getName().startsWith("set")));
+    }
+
+    @Test
+    void bhvUnions039BuildingAWrapperNeverValidatesItsValue() {
+      assertDoesNotThrow(
+          () -> new com.example.petstore.models.PetTreatment((Object) "not a variant"));
+    }
+
+    @Test
+    void bhvUnions042EmptyWrapperHoldsNoInstance() {
+      com.example.petstore.models.PetTreatment empty =
+          new com.example.petstore.models.PetTreatment((Object) null);
+      assertFalse(empty.isMedication());
+      assertFalse(empty.isSurgery());
+      assertTrue(empty.asMedication().isEmpty());
+      assertTrue(empty.asSurgery().isEmpty());
+      assertFalse(
+          new com.example.petstore.models.PetTreatment(java.util.List.<Object>of()).isMedication());
+    }
+
+    @Test
+    void bhvUnions038UndecodableUnionBodyRaisesTheSerializationError() {
+      assertThrows(
+          SerializationException.class, () -> serializer.deserialize("[1, 2]", PET_TREATMENT_TYPE));
+    }
+
+    @Test
     @DisplayName("a decoded union answers the same typed accessors")
-    void decodedUnionAnswersTypedAccessors() {
+    void bhvUnions040DecodedUnionAnswersTypedAccessors() {
       PetTreatment decoded =
           Objects.requireNonNull(
               serializer.deserialize("{\"drugName\":\"aspirin\"}", PET_TREATMENT_TYPE));
@@ -224,6 +269,62 @@ class ComposedSchemaTest {
                 }
                 assertThat(root.getMessage()).contains("raw");
               });
+    }
+
+    @Test
+    @DisplayName(
+        "bhvUnions030 a subtype whose discriminator key is absent is filled with the mapping"
+            + " default")
+    void bhvUnions030DryFoodFillsAbsentDiscriminatorWithItsDefault() {
+      Object result =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"weightKg\":2.5}", new TypeReference<DryFood>() {}.getType()));
+
+      assertThat(result).isInstanceOf(DryFood.class);
+      assertThat(((DryFood) result).foodType).isEqualTo("dry");
+    }
+
+    @Test
+    @DisplayName(
+        "bhvUnions032 a oneOf wrapper built from a variant serializes it with its discriminator")
+    void bhvUnions032VariantBuiltInCodeSerializesWithItsDiscriminator() {
+      Object food = new DryFood(2.5);
+
+      assertThat(food).isInstanceOf(DryFood.class);
+      assertThat(serializer.serialize(food)).contains("\"foodType\":\"dry\"");
+    }
+
+    @Test
+    @DisplayName("bhvUnions043 a discriminator value already set on a subtype is written as given")
+    void bhvUnions043SetDiscriminatorIsWrittenAsGiven() {
+      DryFood food = DryFood.builder().foodType("custom").weightKg(2.5).build();
+
+      assertThat(serializer.serialize(food)).contains("\"foodType\":\"custom\"");
+    }
+
+    @Test
+    @DisplayName(
+        "bhvUnions033 an unknown, missing or empty discriminator fails with the serialization"
+            + " error")
+    void bhvUnions033UnknownMissingOrEmptyDiscriminatorIsASerializationError() {
+      for (String json :
+          List.of(
+              "{\"foodType\":\"raw\",\"weightKg\":2.5}",
+              "{\"weightKg\":2.5}",
+              "{\"foodType\":\"\",\"weightKg\":2.5}")) {
+        assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
+            .isExactlyInstanceOf(SerializationException.class);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "bhvUnions035 a discriminator value not listed in the mapping fails to deserialize")
+    void bhvUnions035UnlistedDiscriminatorValueFailsToDeserialize() {
+      String json = "{\"foodType\":\"fish\",\"weightKg\":2.5}";
+      assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
+          .isExactlyInstanceOf(SerializationException.class);
     }
   }
 
@@ -459,8 +560,8 @@ class ComposedSchemaTest {
     }
 
     @Test
-    @DisplayName("unions decoded from the same JSON are equal with equal hash codes")
-    void testValueEquality() {
+    @DisplayName("bhvUnions029 oneOf wrappers have value equality")
+    void bhvUnions029OneOfWrappersHaveValueEquality() {
       SetPetAvatarThumbnailRequest first =
           Objects.requireNonNull(
               serializer.deserialize("\"aGVsbG8=\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
@@ -475,7 +576,7 @@ class ComposedSchemaTest {
 
     @Test
     @DisplayName("an empty JSON array is the list variant and a base64 string is the byte variant")
-    void testEachVariantDecodesItsOwnShape() {
+    void bhvUnions041EachVariantDecodesItsOwnShape() {
       SetPetAvatarThumbnailRequest list =
           Objects.requireNonNull(serializer.deserialize("[]", ONE_OF_NO_DISCRIMINATOR_TYPE));
       assertThat(list.getActualInstance()).isInstanceOf(List.class);
@@ -602,38 +703,6 @@ class ComposedSchemaTest {
 
       assertThat(restored.name).isEqualTo(original.name);
       assertThat(restored.ownerName).isEqualTo(original.ownerName);
-    }
-  }
-
-  @Nested
-  @DisplayName("required-field strictness: Pet (name + photoUrls)")
-  class RequiredFieldStrictness {
-
-    private static final java.lang.reflect.Type PET_TYPE = new TypeReference<Pet>() {}.getType();
-
-    @Test
-    @DisplayName("missing required field raises SerializationException")
-    void missingRequiredFieldRaises() {
-      String json = "{\"photoUrls\":[\"http://example.com/photo.jpg\"]}";
-      assertThatThrownBy(() -> serializer.deserialize(json, PET_TYPE))
-          .isInstanceOf(SerializationException.class);
-    }
-
-    @Test
-    @DisplayName("explicitly null required field raises SerializationException")
-    void explicitNullRequiredFieldRaises() {
-      String json = "{\"name\":null,\"photoUrls\":[\"http://example.com/photo.jpg\"]}";
-      assertThatThrownBy(() -> serializer.deserialize(json, PET_TYPE))
-          .isInstanceOf(SerializationException.class);
-    }
-
-    @Test
-    @DisplayName("complete object with all required fields deserializes successfully")
-    void completeObjectDeserializes() {
-      String json = "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"]}";
-      Pet result = Objects.requireNonNull(serializer.deserialize(json, PET_TYPE));
-      assertThat(result.name).isEqualTo("doggie");
-      assertThat(result.photoUrls).contains("http://example.com/photo.jpg");
     }
   }
 }

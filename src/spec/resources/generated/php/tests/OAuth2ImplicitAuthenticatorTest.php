@@ -121,7 +121,15 @@ test('bhv authoauthtwoimplicit 010 redacts secret', function (): void {
     expect($printR)->toContain('***');
 });
 
-test('set access token rejects a token outside printable ascii', function (string $token): void {
+test('bhv authoauthtwoimplicit 016 an implicit access token may contain a tab', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $authenticator->setAccessToken("a\tb");
+
+    expect($authenticator->getAuthHeaders()['Authorization'])->toBe("Bearer a\tb");
+});
+
+test('bhv authoauthtwoimplicit 014 set access token rejects a token outside printable ascii', function (string $token): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     expect(fn () => $authenticator->setAccessToken($token))
@@ -166,4 +174,38 @@ test('bhv authoauthtwoimplicit 011 debug output keeps the non secret fields and 
     expect($printR)->toContain('[clientId] => my-client-id');
     expect($printR)->toContain('[authorizationUrl] => https://auth.example.com/authorize');
     expect($printR)->toContain('[accessToken] => ***');
+});
+
+test('bhv authscheme 016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/OAuth/*.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\OAuth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, OAuth2ImplicitAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+        \assert(is_array($constants));
+        $variables = array_values(array_map(static function (mixed $name): string {
+            \assert(is_string($name));
+
+            return $name;
+        }, $constants));
+        foreach ($variables as $empty) {
+            $saved = [];
+            foreach ($variables as $variable) {
+                $saved[$variable] = getenv($variable);
+                putenv($variable === $empty ? $variable . '=' : $variable . '=set-value');
+            }
+            try {
+                expect(fn () => (new \ReflectionClass($class))->newInstance('https://api.example.com'))
+                    ->toThrow(\InvalidArgumentException::class, $empty);
+            } finally {
+                foreach ($saved as $variable => $value) {
+                    putenv($value === false ? $variable : $variable . '=' . $value);
+                }
+            }
+        }
+    }
+    expect($wrappers)->toBeGreaterThan(0);
 });

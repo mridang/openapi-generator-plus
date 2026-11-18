@@ -56,6 +56,16 @@ end
 describe 'Metadata', 'with' do
   parallelize_me!
 
+  it 'bhv_models_012 inspect dumps the fields and the additional properties map' do
+    metadata = Petstore::Client::Models::Metadata.new(
+      created_at: Time.utc(2024, 1, 1, 0, 0, 0),
+      additional_properties: { 'customField' => 'a' }
+    )
+
+    _(metadata.inspect).must_include 'additional_properties'
+    _(metadata.inspect).must_include 'customField'
+  end
+
   it 'returns a copy with the changes applied and leaves the receiver as it was' do
     original = Petstore::Client::Models::Metadata.new(
       created_at: Time.utc(2024, 1, 1, 0, 0, 0),
@@ -100,7 +110,7 @@ describe 'Metadata', 'round-trip and constants' do
     _(first.eql?(other)).must_equal(false)
   end
 
-  it 'defines ADDITIONAL_PROPERTIES constant' do
+  it 'bhv_models_022 defines ADDITIONAL_PROPERTIES constant' do
     _(Petstore::Client::Models::Metadata.const_defined?(:ADDITIONAL_PROPERTIES)).must_equal(true)
     _(Petstore::Client::Models::Metadata::ADDITIONAL_PROPERTIES).must_equal(true)
   end
@@ -149,5 +159,74 @@ describe 'gem manifest' do
     %w[base64 json set].each do |gem_name|
       _(declared).must_include(gem_name)
     end
+  end
+end
+
+describe 'Metadata', 'copy, equality and enum contract' do
+  parallelize_me!
+
+  it 'bhv_models_013 a newly built model starts with empty additional properties, never nil' do
+    _(Petstore::Client::Models::Metadata.new.additional_properties).must_equal({})
+  end
+
+  it 'bhv_models_014 a built model has no writers, so its properties cannot be reassigned' do
+    _(Petstore::Client::Models::Metadata.new).wont_respond_to(:created_at=)
+    _(Petstore::Client::Models::Metadata.new).wont_respond_to(:additional_properties=)
+  end
+
+  it 'bhv_models_015 a changed copy keeps the additional properties of the original' do
+    original = Petstore::Client::Models::Metadata.new(additional_properties: { 'customField' => 'a' })
+    changed = original.with(created_at: Time.utc(2024, 1, 1, 0, 0, 0))
+
+    _(changed.additional_properties).must_equal('customField' => 'a')
+  end
+
+  it 'bhv_models_016 a copy clears an optional field only when nil is passed and keeps it when omitted' do
+    original = Petstore::Client::Models::Metadata.new(created_at: Time.utc(2024, 1, 1, 0, 0, 0))
+
+    _(original.with(created_at: nil).created_at).must_be_nil
+    _(original.with(additional_properties: { 'a' => 'b' }).created_at).must_equal(original.created_at)
+  end
+
+  it 'bhv_models_017 a copy can set an optional field while the original model keeps its value' do
+    first = Time.utc(2024, 1, 1, 0, 0, 0)
+    original = Petstore::Client::Models::Metadata.new(created_at: first)
+    changed = original.with(created_at: Time.utc(2025, 1, 1, 0, 0, 0))
+
+    _(changed.created_at).must_equal(Time.utc(2025, 1, 1, 0, 0, 0))
+    _(original.created_at).must_equal(first)
+  end
+
+  it 'bhv_models_019 two models with a different value in any field compare unequal' do
+    _(Petstore::Client::Models::Metadata.new(created_at: Time.utc(2024, 1, 1)))
+      .wont_equal(Petstore::Client::Models::Metadata.new(created_at: Time.utc(2025, 1, 1)))
+  end
+
+  it 'bhv_models_020 equal models hash alike so a set stores them as one entry' do
+    first = Petstore::Client::Models::Metadata.new(created_at: Time.utc(2024, 1, 1))
+    same = Petstore::Client::Models::Metadata.new(created_at: Time.utc(2024, 1, 1))
+
+    _(Set.new([first, same]).size).must_equal(1)
+  end
+
+  it 'bhv_models_021 each member of an integer-backed enum carries its declared number as its value' do
+    _(Petstore::Client::Models::Priority::NUMBER_1).must_equal(1)
+    _(Petstore::Client::Models::Priority::NUMBER_3).must_equal(3)
+  end
+
+  it 'bhv_models_023 undeclared keys named like methods are kept as additional properties' do
+    metadata = Petstore::Client::ObjectSerializer.deserialize('{"with":"x","validate!":"y"}', 'Metadata')
+
+    _(metadata.additional_properties).must_equal('with' => 'x', 'validate!' => 'y')
+  end
+
+  it 'bhv_models_024 a newly built model leaves its optional properties unset' do
+    _(Petstore::Client::Models::Metadata.new.created_at).must_be_nil
+  end
+
+  it 'bhv_models_018 models whose decimal fields hold numerically equal values compare equal' do
+    short = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.5}', 'Pet')
+    padded = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.50}', 'Pet')
+    _(short).must_equal(padded)
   end
 end

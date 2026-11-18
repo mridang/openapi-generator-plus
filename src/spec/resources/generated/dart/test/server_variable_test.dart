@@ -35,7 +35,7 @@ void main() {
       },
     );
 
-    test('enumValues are exposed for validation', () {
+    test('bhv servers 018 enumValues are exposed for validation', () {
       // ServerConfiguration validates overrides against this set, so the
       // enum list must surface exactly the allowed values.
       const variable = ServerVariable(
@@ -49,15 +49,50 @@ void main() {
       expect(variable.enumValues, contains('staging'));
     });
 
-    test('enum does not contain a value outside the allowed set', () {
-      // An out-of-set value (e.g. "dev") is absent from the enum, which is
-      // what drives ServerConfiguration to reject it.
-      const variable = ServerVariable(
-        defaultValue: 'prod',
-        enumValues: ['prod', 'staging'],
-      );
+    test(
+      'bhv servers 019 enum does not contain a value outside the allowed set',
+      () {
+        // An out-of-set value (e.g. "dev") is absent from the enum, which is
+        // what drives ServerConfiguration to reject it.
+        const variable = ServerVariable(
+          defaultValue: 'prod',
+          enumValues: ['prod', 'staging'],
+        );
 
-      expect(variable.enumValues, isNot(contains('dev')));
-    });
+        expect(variable.enumValues, isNot(contains('dev')));
+      },
+    );
+
+    test(
+      'bhv servers 024 a server variable freezes its enum values so they cannot be mutated',
+      () {
+        // The list is passed growable on purpose: the SDK must freeze it itself.
+        final variable = ServerVariable(
+          defaultValue: 'prod',
+          enumValues: ['prod', 'staging'],
+        );
+
+        expect(() => variable.enumValues.add('dev'), throwsUnsupportedError);
+      },
+    );
+
+    test(
+      'bhv servers 027 two server variables with the same default, description and allowed values are equal',
+      () {
+        const first = ServerVariable(
+          defaultValue: 'prod',
+          description: 'environment',
+          enumValues: ['prod', 'dev'],
+        );
+        const second = ServerVariable(
+          defaultValue: 'prod',
+          description: 'environment',
+          enumValues: ['prod', 'dev'],
+        );
+
+        expect(first, equals(second));
+        expect(first.hashCode, equals(second.hashCode));
+      },
+    );
   });
 }

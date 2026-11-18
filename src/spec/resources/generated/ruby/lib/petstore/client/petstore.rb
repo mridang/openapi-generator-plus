@@ -86,6 +86,7 @@ module Petstore::Client
       schemes['ssoAuth'] = sso_auth unless sso_auth.nil?
       first_credential = authenticator || schemes.values.first
       raise ArgumentError, 'At least one credential is required' if first_credential.nil?
+      raise ArgumentError, 'A base URL is required: pass the host to the client' if first_credential.host.to_s.strip.empty?
 
       transport_options ||= TransportOptions.builder.build
       api_client = DefaultApiClient.new(transport_options)

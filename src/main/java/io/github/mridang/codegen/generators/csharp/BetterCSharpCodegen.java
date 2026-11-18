@@ -61,6 +61,18 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     /** One entry per per-scheme authenticator, read by {@code SchemeAuthenticatorTest}. */
     private final List<Map<String, Object>> schemeAuthTests = new ArrayList<>();
 
+    /**
+     * The behaviour token of the empty-variable failure test of each named scheme authenticator:
+     * authscheme003 to authscheme008 name the scheme, so one test name carries one id.
+     */
+    private static final Map<String, String> EMPTY_VARIABLE_BHV = Map.of(
+            "PetStoreBasicAuthenticator", "BhvAuthscheme003",
+            "AdminBasicAuthenticator", "BhvAuthscheme004",
+            "ApiKeyHeaderAuthenticator", "BhvAuthscheme005",
+            "ApiKeyQueryAuthenticator", "BhvAuthscheme006",
+            "SessionCookieAuthenticator", "BhvAuthscheme007",
+            "SsoAuthAuthenticator", "BhvAuthscheme008");
+
     protected String sourceFolder = "src";
     protected String packageName = "OpenApi";
 
@@ -1022,6 +1034,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             final List<Map<String, Object>> envVars) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        final String emptyVariableBhv = EMPTY_VARIABLE_BHV.getOrDefault((String) entry.get("className"), "");
+        entry.put("emptyVariableBhv", emptyVariableBhv);
+        entry.put("hasEmptyVariableBhv", !emptyVariableBhv.isEmpty());
         if (namespaceSuffix != null) {
             entry.put("namespaceSuffix", namespaceSuffix);
         }
@@ -1254,11 +1269,38 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             final boolean multiConsume = op.consumes != null && op.consumes.size() > 1;
             deco.put("cancellationLeadComma", hasArgs || multiConsume);
             op.vendorExtensions.put("op", deco);
+            reorderAuthMethodsToSpecOrder(op, deco);
             flagJsonContent(op.pathParams);
             flagJsonContent(op.headerParams);
             flagJsonContent(op.cookieParams);
         }
         return result;
+    }
+
+    /**
+     * Puts the operation's auth methods in the order its own security block lists them (F857).
+     * Core lists them in component declaration order; the first scheme an operation names that
+     * the client holds supplies its credential, so the list follows the shared
+     * {@code securitySchemeOrder}. Schemes not in that order keep their place at the end.
+     */
+    @SuppressWarnings("unchecked")
+    private static void reorderAuthMethodsToSpecOrder(
+            final CodegenOperation op, final Map<String, Object> deco) {
+        final Object order = deco.get("securitySchemeOrder");
+        if (op.authMethods == null || !(order instanceof List)) {
+            return;
+        }
+        final List<String> names = new ArrayList<>();
+        for (final Object entry : (List<Object>) order) {
+            names.add(String.valueOf(((Map<String, Object>) entry).get("schemeId")));
+        }
+        final int unlisted = names.size();
+        final List<org.openapitools.codegen.CodegenSecurity> sorted =
+                new ArrayList<>(op.authMethods);
+        sorted.sort(
+                java.util.Comparator.comparingInt(
+                        am -> names.contains(am.name) ? names.indexOf(am.name) : unlisted));
+        op.authMethods = sorted;
     }
 
     /**

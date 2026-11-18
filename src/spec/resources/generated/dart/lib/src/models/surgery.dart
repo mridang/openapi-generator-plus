@@ -33,13 +33,17 @@ class Surgery {
         "Missing required field 'procedureName' for Surgery",
       );
     }
-    return Surgery(
-      procedureName: json['procedureName'] as String,
+    try {
+      return Surgery(
+        procedureName: json['procedureName'] as String,
 
-      durationMinutes: readInt32OrNull(json['durationMinutes']),
+        durationMinutes: readInt32OrNull(json['durationMinutes']),
 
-      notes: json['notes'] as String?,
-    );
+        notes: json['notes'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Surgery: $e', e);
+    }
   }
 
   /// Converts this [Surgery] to a JSON map.

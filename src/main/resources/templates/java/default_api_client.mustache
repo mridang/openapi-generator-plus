@@ -794,10 +794,10 @@ public final class DefaultApiClient implements ApiClient {
         } catch (HttpTimeoutException e) {
             /* Covers HttpConnectTimeoutException too: the request timed out
              * before a response arrived. */
-            throw new NetworkTimeoutException(e.toString(), e);
+            throw new NetworkTimeoutException(e.toString(), e, method, url);
         } catch (IOException e) {
             /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
-            throw new NetworkException(e.toString(), e);
+            throw new NetworkException(e.toString(), e, method, url);
         } catch (InterruptedException e) {
             /* Thread interruption is Java's cancellation signal, not an API
              * failure: restore the interrupt flag and surface it as the
@@ -887,7 +887,11 @@ public final class DefaultApiClient implements ApiClient {
     private static HttpRequest waitAndRebuild(
             HttpRequest request, long delayMillis, long deadlineNanos)
             throws InterruptedException {
-        HttpRequest.Builder next = HttpRequest.newBuilder(request, (name, value) -> true);
+        /* Every attempt carries its own request identifier, so a retry never repeats the id of an earlier attempt. */
+        HttpRequest.Builder next =
+                HttpRequest.newBuilder(request, (name, value) -> !"X-Request-ID".equalsIgnoreCase(name));
+        request.headers().firstValue("X-Request-ID").ifPresent(
+                previous -> next.header("X-Request-ID", UUID.randomUUID().toString()));
         if (request.timeout().isPresent()) {
             long remainingNanos = deadlineNanos - System.nanoTime();
             if (remainingNanos <= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(delayMillis)) {
@@ -1205,13 +1209,16 @@ public final class DefaultApiClient implements ApiClient {
     }
 
     private static final Pattern CHARSET_PATTERN =
-            Pattern.compile("(?i)charset\\s*=\\s*\"?([^\";\\s]+)\"?");
+            Pattern.compile("(?i)(?:^|;)\\s*charset\\s*=\\s*\"?([^\";\\s]+)\"?");
 
     /**
      * Parse the {@code charset=} parameter from a Content-Type header value.
      *
-     * <p>Falls back to UTF-8 if the header omits a charset, names an unsupported
-     * charset, or names an illegal charset (no exception is propagated).
+     * <p>The parameter is matched by name, ignoring letter case and spacing around
+     * the {@code =}: a parameter that merely ends in {@code charset} (such as
+     * {@code xcharset=}) is not the charset. Falls back to UTF-8 if the header omits a
+     * charset, names an unsupported charset, or names an illegal charset (no exception is
+     * propagated).
      *
      * @param contentType the raw Content-Type header value (possibly empty)
      * @return the resolved {@link Charset}, never {@code null}

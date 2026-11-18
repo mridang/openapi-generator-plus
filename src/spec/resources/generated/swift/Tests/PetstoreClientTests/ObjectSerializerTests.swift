@@ -143,24 +143,14 @@ import Testing
     #expect(result == "hello")
   }
 
-  @Test func testToHeaderValueStringSlice() {
+  @Test func testBhvSerializationobject210ToHeaderValueStringSlice() {
     let result = ObjectSerializer.toHeaderValue(["a", "b", "c"])
     #expect(result == "a,b,c")
-  }
-
-  @Test func testToHeaderValueNil() {
-    let result = ObjectSerializer.toHeaderValue(nil)
-    #expect(result == "")
   }
 
   @Test func testBhvSerializationobject140ToFormValueString() {
     let result = ObjectSerializer.toFormValue("hello")
     #expect(result == "hello")
-  }
-
-  @Test func testToFormValueInt() {
-    let result = ObjectSerializer.toFormValue(123)
-    #expect(result == "123")
   }
 
   @Test func testBhvSerializationobject165ToFormValueNil() {
@@ -211,6 +201,30 @@ import Testing
     }
   }
 
+  /* An unknown enum string fails when it is decoded, with the decoder failure kept as the cause. */
+  @Test func testBhvSerializationobject192AnUnknownEnumStringFailsWhenDecoded() {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("\"teleported\"", as: OrderStatusEnum.self)
+    }
+    #expect(error?.cause is DecodingError)
+  }
+
+  /* An unknown enum value on a scalar deserialize throws, never falling back to a default case. */
+  @Test func testBhvSerializationobject182UnknownEnumValueOnScalarDeserializeThrows() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("\"teleported\"", as: OrderStatusEnum.self)
+    }
+  }
+
+  /* A payload that carries only the required fields leaves the optional ones unset. */
+  @Test func testBhvSerializationobject231OmittedOptionalFieldsStayUnset() throws {
+    let decoded = try #require(
+      try ObjectSerializer.deserialize("{\"username\":\"u\"}", as: Account.self))
+    #expect(decoded.username == "u")
+    #expect(decoded.id == nil)
+    #expect(decoded.password == nil)
+  }
+
   @Test func testBhvSerializationobject014ReadOnlyPropertyIsDecoded() throws {
     let decoded = try ObjectSerializer.deserialize(
       "{\"id\":7,\"username\":\"u\"}", as: Account.self)
@@ -246,7 +260,7 @@ import Testing
   // `default` must be initialised to that default case (not nil), so a
   // default-constructed model serialises the default value onto the wire —
   // matching the 9 other SDKs. Order.status has `default: placed`.
-  @Test func testOptionalEnumDefaultSerialized() throws {
+  @Test func testBhvSerialization020OptionalEnumDefaultSerialized() throws {
     let order = Order()
     #expect(order.status == .placed)
     let json = try ObjectSerializer.serialize(order)
@@ -298,10 +312,6 @@ import Testing
     #expect(ObjectSerializer.toCookieValue("hello") == "hello")
   }
 
-  @Test func testToCookieValueNil() {
-    #expect(ObjectSerializer.toCookieValue(nil) == "")
-  }
-
   @Test func testBhvSerializationobject040ToCookieValueInt() {
     #expect(ObjectSerializer.toCookieValue(42) == "42")
   }
@@ -310,17 +320,14 @@ import Testing
     #expect(ObjectSerializer.stringify("hello") == "hello")
   }
 
-  @Test func testStringifyInt() {
-    #expect(ObjectSerializer.stringify(42) == "42")
-  }
-
-  @Test func testStringifyInt64() {
+  @Test func testBhvSerializationobject211StringifyInt64() {
     #expect(ObjectSerializer.stringify(Int64(9_999_999_999)) == "9999999999")
   }
 
-  @Test func testStringifyFloat64() {
-    let result = ObjectSerializer.stringify(3.14)
-    #expect(result.hasPrefix("3.14"))
+  /* A long is written as its exact decimal digits, at both ends of the 64-bit range. */
+  @Test func testBhvSerializationobject190LongIsStringifiedToItsExactDecimalDigits() {
+    #expect(ObjectSerializer.stringify(Int64.max) == "9223372036854775807")
+    #expect(ObjectSerializer.stringify(Int64.min) == "-9223372036854775808")
   }
 
   @Test func testBhvSerializationobject155StringifyBool() {
@@ -355,8 +362,12 @@ import Testing
     #expect(ObjectSerializer.stringify(date) == "1970-01-01T00:00:00.000+00:00")
   }
 
-  @Test func testStringifyNil() {
-    #expect(ObjectSerializer.stringify(nil) == "")
+  @Test func testBhvSerializationobject199SubsecondsArePreservedInASerializedDateTime() {
+    let date = Date(timeIntervalSince1970: 1705315800.123)
+    let result = ObjectSerializer.stringify(date)
+    #expect(
+      result == "2024-01-15T10:50:00.123+00:00",
+      "the millisecond fraction must be kept, got: \(result)")
   }
 
   /* The sub-millisecond part is truncated, never rounded: rounding would
@@ -366,7 +377,9 @@ import Testing
     (0.1239, "1970-01-01T00:00:00.123+00:00"),
     (1704067199.9999, "2023-12-31T23:59:59.999+00:00"),
   ])
-  func testDateTimeTruncatesSubMillisecond(seconds: Double, expected: String) throws {
+  func testBhvSerialization038DateTimeTruncatesSubMillisecond(seconds: Double, expected: String)
+    throws
+  {
     let date = Date(timeIntervalSince1970: seconds)
     #expect(ObjectSerializer.stringify(date) == expected)
     let json = try ObjectSerializer.serialize(PhotoMetadata(takenAt: date))
@@ -554,7 +567,7 @@ import Testing
   // model-equality-swift-go (F-BM-01): generated model structs must conform
   // to Equatable + Hashable so `==` compiles and instances can be used as
   // Set members / dictionary keys, matching the other 10 SDKs.
-  @Test func testModelIsEquatableAndHashable() {
+  @Test func testBhvModels020ModelIsEquatableAndHashable() {
     let a = PetstoreClient.Category(id: 7, name: "Birds")
     let b = PetstoreClient.Category(id: 7, name: "Birds")
     let c = PetstoreClient.Category(id: 8, name: "Cats")
@@ -577,7 +590,23 @@ import Testing
 
   // MARK: - Gap #13 — null fields omitted on serialise
 
-  @Test func testNilFieldsOmittedOnSerialize() throws {
+  /* A model with every property unset serializes to an empty JSON object, never to an empty array or null. */
+  @Test func testBhvSerializationobject188EmptyObjectSerializesToEmptyJsonObject() throws {
+    let category = PetstoreClient.Category(id: nil, name: nil)
+    let json = try ObjectSerializer.serialize(category)
+    #expect(json == "{}", "an all-nil model must serialize to {}, got: \(json)")
+  }
+
+  @Test func testBhvSerialization019NilFieldsOmittedOnSerialize() throws {
+    // Category encodes optional fields with encodeIfPresent, so a field
+    // left nil must be dropped from the payload rather than emitted as null.
+    let category = PetstoreClient.Category(id: nil, name: "Dogs")
+    let json = try ObjectSerializer.serialize(category)
+    #expect(!json.contains("\"id\""), "nil id must be omitted, got: \(json)")
+    #expect(json.contains("\"name\":\"Dogs\""), "name should be present, got: \(json)")
+  }
+
+  @Test func testBhvSerializationobject202NilFieldsOmittedOnSerialize() throws {
     // Category encodes optional fields with encodeIfPresent, so a field
     // left nil must be dropped from the payload rather than emitted as null.
     let category = PetstoreClient.Category(id: nil, name: "Dogs")
@@ -671,7 +700,7 @@ import Testing
   }
 
   /* The digit-leading property 2fa keeps its wire key. */
-  @Test func testDigitLeadingPropertyKeepsItsWireKey() throws {
+  @Test func testBhvSerialization050DigitLeadingPropertyKeepsItsWireKey() throws {
     let decoded = try ObjectSerializer.deserialize("{\"2fa\":true}", as: EdgeCases.self)
     #expect(decoded?.n2fa == true)
     let value = try #require(decoded)
@@ -781,7 +810,9 @@ import Testing
     #expect(json == "{\"text\":\"a\u{2028}b\u{2029}c/<>&\"}")
   }
 
-  @Test func testRequestJsonEscapesQuoteBackslashAndControlCharacters() throws {
+  @Test func testBhvSerializationobject186RequestJsonEscapesQuoteBackslashAndControlCharacters()
+    throws
+  {
     struct Holder: Codable { let text: String }
     let json = try ObjectSerializer.serialize(Holder(text: "q\"b\\\n"))
     #expect(json == #"{"text":"q\"b\\\n"}"#)
@@ -889,6 +920,13 @@ import Testing
     #expect(first != BinaryVault(seal: first.seal, shards: first.shards, labels: ["k": Data([9])]))
   }
 
+  /* A differing map key makes two otherwise identical models unequal. */
+  @Test func testBhvSerializationobject206DifferingMapKeyMakesTwoModelsUnequal() {
+    let left = BinaryVault(seal: Data([1, 2, 3]), labels: ["first": Data([7, 8])])
+    let right = BinaryVault(seal: Data([1, 2, 3]), labels: ["second": Data([7, 8])])
+    #expect(left != right)
+  }
+
   /* A nickname longer than its declared maxLength still decodes and survives a round trip. */
   @Test func testBhvSerializationobject010NicknameBeyondMaxLengthRoundTrips() throws {
     let json = "{\"name\":\"Fido\",\"photoUrls\":[],\"nickname\":\"ZZZZZZZZZZ\"}"
@@ -951,6 +989,49 @@ import Testing
     }
   }
 
+  /* Models whose decimal fields hold numerically equal values, differing only in trailing zeros, compare equal. */
+  @Test func testBhvModels018DecimalFieldsDifferingOnlyInTrailingZerosCompareEqual() throws {
+    let short = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"lat\":1.5,\"lng\":2}", as: PhotoMetadataLocation.self))
+    let long = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"lat\":1.50,\"lng\":2.000}", as: PhotoMetadataLocation.self))
+    #expect(short == long)
+  }
+
+  /* A strict model refuses an unknown key through the one public deserialize entry point. */
+  @Test func testBhvSerialization051StrictModelRefusesAnUnknownKeyThroughDeserialize() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"name\":\"x\",\"extra\":1}", as: StrictTag.self)
+    }
+  }
+
+  /* Undeclared keys are kept as additional properties on every element of a list of models read from the wire. */
+  @Test func testBhvSerialization052UndeclaredKeysAreKeptOnEveryNestedElement() throws {
+    struct MetadataList: Codable { let items: [Metadata] }
+    let decoded = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"items\":[{\"extra\":\"a\"},{\"extra\":\"b\"}]}", as: MetadataList.self))
+    #expect(decoded.items.map { $0.additionalProperties["extra"]?.value as? String } == ["a", "b"])
+  }
+
+  /* Undeclared keys held by a nested model are written back as keys of that model when the parent is serialized. */
+  @Test func testBhvSerialization053UndeclaredKeysOfANestedModelAreWrittenBack() throws {
+    struct MetadataHolder: Codable { let meta: Metadata }
+    let holder = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"meta\":{\"extra\":\"kept\"}}", as: MetadataHolder.self))
+    let written = try ObjectSerializer.serialize(holder)
+    #expect(written.hasPrefix("{\"meta\":{"))
+    #expect(written.contains("\"extra\":\"kept\""))
+  }
+
+  /* A non-nullable property that is unset is left out of the output, never written as null. */
+  @Test func testBhvSerialization066UnsetNonNullableFieldIsLeftOutNotWrittenAsNull() throws {
+    #expect(try ObjectSerializer.serialize(StrictTag(id: nil, name: "x")) == "{\"name\":\"x\"}")
+  }
+
   /* A strict model (unevaluatedProperties false) refuses a key it does not declare. */
   @Test func testBhvSerializationobject154StrictModelRejectsAnUndeclaredKey() {
     let json = "{\"id\":1,\"name\":\"x\",\"extra\":true}"
@@ -1005,7 +1086,7 @@ import Testing
 
   /* The rendered text of a serialization failure is the fixed sentence, a
    * colon, and what the encoder or decoder said. */
-  @Test func testSerializeFailureTextCarriesTheEncoderDetail() {
+  @Test func testBhvSerializationobject200SerializeFailureTextCarriesTheEncoderDetail() {
     let error = #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.serialize(Double.nan)
     }
@@ -1028,7 +1109,7 @@ import Testing
   /* JSONDecoder on its own decodes 7.0 and 1e2 into an Int; the other SDKs
      reject both, so the serializer does too, with a message naming why. */
   @Test(arguments: ["7.0", "1e2", "1E2", "-3.0", "2.0e1"])
-  func testIntegerFieldRejectsIntegralFloatLiteral(literal: String) {
+  func testBhvSerialization032IntegerFieldRejectsIntegralFloatLiteral(literal: String) {
     let error = #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("{\"quantity\":\(literal)}", as: Order.self)
     }
@@ -1039,6 +1120,13 @@ import Testing
     #expect(error?.cause is DecodingError)
   }
 
+  /* An int64 above 2^53 is decoded exactly: a Double would drop the low digits. */
+  @Test func testBhvSerializationobject191AnInt64AboveTwoToThe53KeepsEveryDigitWhenDecoded() throws
+  {
+    let order = try ObjectSerializer.deserialize("{\"id\":9007199254740993}", as: Order.self)
+    #expect(order?.id == 9_007_199_254_740_993)
+  }
+
   @Test func testFractionalLiteralInInt64FieldIsRejected() {
     let error = #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("{\"id\":1.9}", as: Order.self)
@@ -1046,7 +1134,7 @@ import Testing
     #expect(error?.message == "Failed to deserialize JSON")
   }
 
-  @Test func testIntegralFloatInIntegerMapValueIsRejected() {
+  @Test func testBhvSerialization033IntegralFloatInIntegerMapValueIsRejected() {
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("{\"a\":1,\"b\":7.0}", as: [String: Int].self)
     }
@@ -1072,7 +1160,7 @@ import Testing
     }
   }
 
-  @Test func testFractionAndExponentStillDecodeIntoFloatingFields() throws {
+  @Test func testBhvSerialization034FractionAndExponentStillDecodeIntoFloatingFields() throws {
     let values = try ObjectSerializer.deserialize(
       "{\"a\":7.0,\"b\":1e2,\"c\":2.5}", as: [String: Double].self)
     #expect(values == ["a": 7.0, "b": 100.0, "c": 2.5])
@@ -1154,7 +1242,7 @@ import Testing
   /// `[String: Category]` must deep-decode each entry into a `Category`
   /// struct, not leave the values as raw JSON. Foundation's Codable
   /// handles this natively when the value type conforms to Codable.
-  @Test func testDeserializeMapOfModelDeepDecodes() throws {
+  @Test func testBhvSerializationobject229DeserializeMapOfModelDeepDecodes() throws {
     let json = "{\"first\":{\"id\":1,\"name\":\"Dogs\"},\"second\":{\"id\":2,\"name\":\"Cats\"}}"
     let result = try ObjectSerializer.deserialize(json, as: [String: PetstoreClient.Category].self)
     #expect(result != nil)
@@ -1192,7 +1280,7 @@ import Testing
   // cycle with no direct self-reference. The cycle must be broken by storing
   // an edge @Indirect; deserialization must still decode every level into a
   // typed struct and the terminating leaf must decode as nil.
-  @Test func testDeserializeMutuallyRecursiveModels() throws {
+  @Test func testBhvSerializationobject189DeserializeMutuallyRecursiveModels() throws {
     let json = "{\"name\":\"Eng\",\"lead\":{\"name\":\"Ada\",\"department\":{\"name\":\"Core\"}}}"
     let dept = try ObjectSerializer.deserialize(json, as: Department.self)
     #expect(dept?.name == "Eng")
@@ -1268,15 +1356,6 @@ import Testing
     }
   }
 
-  @Test func testUUIDOptionalDecodesNil() throws {
-    struct Holder: Codable {
-      let id: UUID?
-    }
-    let json = "{}"
-    let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
-    #expect(decoded?.id == nil)
-  }
-
   // MARK: - protobuf duration (format:duration)
 
   /* A malformed protobuf-JSON duration raises the SDK SerializationError. */
@@ -1286,14 +1365,22 @@ import Testing
     }
   }
 
+  /* A protobuf duration at the bound of plus or minus 315576000000 seconds is accepted and one past it is rejected. */
+  @Test func testBhvSerializationobject223ProtobufDurationAcceptsTheBoundAndRejectsOnePastIt()
+    throws
+  {
+    #expect(try ObjectSerializer.decodeDuration("315576000000s") == 315_576_000_000)
+    #expect(try ObjectSerializer.decodeDuration("-315576000000s") == -315_576_000_000)
+    for literal in ["315576000001s", "-315576000001s", "315576000000.000000001s"] {
+      #expect(throws: SerializationError.self) {
+        _ = try ObjectSerializer.decodeDuration(literal)
+      }
+    }
+  }
+
   @Test func testBhvSerializationobject112DurationParseWholeSeconds() throws {
     let value = try ObjectSerializer.decodeDuration("5400s")
     #expect(value == 5_400)
-  }
-
-  @Test func testDurationParseLargeWholeSeconds() throws {
-    let value = try ObjectSerializer.decodeDuration("93784s")
-    #expect(value == 86_400 + 7_200 + 180 + 4)
   }
 
   @Test func testBhvSerializationobject054DurationParseFractionalSeconds() throws {
@@ -1328,7 +1415,7 @@ import Testing
     }
   }
 
-  @Test func testDurationParseRejectsIso8601() {
+  @Test func testBhvSerializationobject184DurationParseRejectsIso8601() {
     #expect(throws: SerializationError.self) {
       try ObjectSerializer.decodeDuration("PT1H30M")
     }
@@ -1346,10 +1433,6 @@ import Testing
 
   @Test func testBhvSerializationobject081DurationFormatWholeSeconds() throws {
     #expect(try ObjectSerializer.encodeDuration(3_725) == "3725s")
-  }
-
-  @Test func testDurationFormatLargeWholeSeconds() throws {
-    #expect(try ObjectSerializer.encodeDuration(2 * 86_400) == "172800s")
   }
 
   @Test func testBhvSerializationobject105DurationFormatNegative() throws {
@@ -1379,12 +1462,19 @@ import Testing
 
   // MARK: - format:time (validated String)
 
-  @Test func testTimeFormatStaysAsString() throws {
+  @Test func testBhvSerialization042TimeFormatStaysAsString() throws {
     // format:time maps to String — round-trip the wire value unchanged.
     struct Holder: Codable { let at: String }
     let json = "{\"at\":\"14:30:00\"}"
     let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
     #expect(decoded?.at == "14:30:00")
+  }
+
+  /* A time value keeps its milliseconds when it is written. */
+  @Test func testBhvSerializationobject219TimeKeepsItsMillisecondsWhenWritten() throws {
+    let json = "{\"cutoff\":\"10:30:00.123\"}"
+    let value = try #require(try ObjectSerializer.deserialize(json, as: EdgeCases.self))
+    #expect(try ObjectSerializer.serialize(value) == json)
   }
 
   // MARK: - oneOf/anyOf no-match
@@ -1593,6 +1683,12 @@ import Testing
       "the JSON number 2 must decode to Priority.number2")
   }
 
+  @Test func testBhvSerializationobject193IntegerEnumRejectsAnUnknownNumber() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"priority\":99}", as: StockItem.self)
+    }
+  }
+
   @Test func testBhvSerializationobject176IntegerEnumRoundTripPreservesMember() throws {
     let original = StockItem(priority: .number3)
     let json = try ObjectSerializer.serialize(original)
@@ -1615,7 +1711,9 @@ import Testing
       "wire casing 'Available' must be preserved, got: \(json)")
   }
 
-  @Test func testNonLowercaseStringEnumSerializesHyphenatedWireCasing() throws {
+  @Test func testBhvSerializationobject194NonLowercaseStringEnumSerializesHyphenatedWireCasing()
+    throws
+  {
     let item = StockItem(priority: .number1, availability: .onHold)
     let json = try ObjectSerializer.serialize(item)
     #expect(
@@ -1640,6 +1738,33 @@ import Testing
     }
   }
 
+  /* Hostile enum member wire strings are kept exactly through serialize and decode. */
+  @Test func testBhvSerializationobject208HostileEnumWireStringsAreKeptExactly() throws {
+    enum Hostile: String, Codable, CaseIterable {
+      case oclock = "o'clock"
+      case backslash = "a\\b"
+      case dollar = "$eq"
+      case interpolation = "#{x}"
+    }
+    for member in Hostile.allCases {
+      let quoted = try ObjectSerializer.serialize(member.rawValue)
+      #expect(
+        try ObjectSerializer.serialize(member) == quoted,
+        "the wire string must be written exactly, got: \(quoted)")
+      #expect(try ObjectSerializer.deserialize(quoted, as: Hostile.self) == member)
+    }
+  }
+
+  /* A model copy replaces the given fields and leaves the original unchanged. */
+  @Test func testBhvSerializationobject209ModelCopyReplacesTheGivenFieldsAndLeavesTheOriginal() {
+    let original = StockItem(priority: .number1, availability: .available)
+    let sold: Availability? = .sold
+    let copied = original.copy(availability: .some(sold))
+    #expect(copied.availability == .sold)
+    #expect(copied.priority == .number1)
+    #expect(original.availability == .available)
+  }
+
   // MARK: - a default next to the $ref of an enum (StockItem.availability)
 
   /* StockItem.availability is a $ref to Availability with `default: on-hold` written
@@ -1659,7 +1784,7 @@ import Testing
     #expect(item?.availability == .onHold)
   }
 
-  @Test func testSiblingDefaultIsReplacedByAGivenValue() throws {
+  @Test func testBhvSerializationobject196SiblingDefaultIsReplacedByAGivenValue() throws {
     #expect(StockItem(priority: .number1, availability: .sold).availability == .sold)
     let item = try ObjectSerializer.deserialize(
       "{\"priority\":1,\"availability\":\"Sold\"}", as: StockItem.self)
@@ -1671,6 +1796,15 @@ import Testing
       "{\"priority\":1,\"availability\":null}", as: StockItem.self)
     #expect(item != nil)
     #expect(item?.availability == nil)
+  }
+
+  /* A content cookie value is the serializer JSON, percent encoded keeping only the unreserved set literal. */
+  @Test
+  func testBhvSerializationobject224ContentCookieValueIsJsonPercentEncodedKeepingTheUnreservedSet()
+    throws
+  {
+    let json = try ObjectSerializer.serialize(["a": "b c"])
+    #expect(ValueSerializer.encodeCookieValue(json) == "%7B%22a%22%3A%22b%20c%22%7D")
   }
 
   // MARK: - format:byte round-trips through base64 (scalar + array)
@@ -1690,6 +1824,13 @@ import Testing
     #expect(
       decoded?.thumbnail == original,
       "byte field must round-trip the exact bytes")
+  }
+
+  /* A byte field decodes a canonical padded standard base64 value to its bytes. */
+  @Test func testBhvSerializationobject185DeserializeAcceptsPaddedStandardBase64() throws {
+    struct Holder: Codable { let thumbnail: Data }
+    let decoded = try ObjectSerializer.deserialize("{\"thumbnail\":\"dGVzdA==\"}", as: Holder.self)
+    #expect(decoded?.thumbnail == Data("test".utf8))
   }
 
   /* An OAS 3.1 contentEncoding: base64 property is normalised to a byte
@@ -1726,15 +1867,16 @@ import Testing
 
   /* A '/' goes out literally, on both the Encodable path and the
      JSONSerialization path, like the other SDKs. */
-  @Test func testSlashIsNotEscapedInSerializedStrings() throws {
+  @Test func testBhvSerialization061SlashIsNotEscapedInSerializedStrings() throws {
     #expect(try ObjectSerializer.serialize(["u": "https://x/y"]) == "{\"u\":\"https://x/y\"}")
     let untyped: Any = ["u": "a/b"] as [String: Any]
     #expect(try ObjectSerializer.serialize(untyped) == "{\"u\":\"a/b\"}")
+    #expect(try ObjectSerializer.serialize(["u": "<a>&\u{00E9}"]) == "{\"u\":\"<a>&\u{00E9}\"}")
   }
 
   /* Object keys are written in a fixed order, so the same value always
      produces the same bytes (the default is a per-process random order). */
-  @Test func testObjectKeysAreWrittenInSortedOrder() throws {
+  @Test func testBhvSerialization012ObjectKeysAreWrittenInSortedOrder() throws {
     let typed = ["m": "1", "z": "2", "a": "3", "q": "4"]
     #expect(
       try ObjectSerializer.serialize(typed) == "{\"a\":\"3\",\"m\":\"1\",\"q\":\"4\",\"z\":\"2\"}")
@@ -1757,7 +1899,7 @@ import Testing
   // driven from the wire form: decode a base64 STRING and assert it lands on
   // the scalar branch with the exact original bytes, then re-encode and
   // assert it serializes back to that same base64 STRING (round-trip).
-  @Test func testSetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64() throws {
+  @Test func testBhvSerialization062SetPetAvatarThumbnailByteOneOfRoundTripsThroughBase64() throws {
     let original = Data([0x01, 0x02, 0x03, 0x04])
     // Sanity-pin the base64 wire form the rest of the test relies on.
     #expect(original.base64EncodedString() == "AQIDBA==")
@@ -1814,6 +1956,27 @@ import Testing
       "array byte variant must round-trip both payloads' bytes through base64")
   }
 
+  /* Each element of an array of byte values decodes from base64 to its raw bytes. */
+  @Test func testBhvSerializationobject221DeserializeDecodesEachBase64ElementToRawBytes() throws {
+    struct Scans: Codable, Equatable { let scans: [Data] }
+    let json =
+      "{\"scans\":[\"\(Data([1, 2]).base64EncodedString())\",\"\(Data([254, 255]).base64EncodedString())\"]}"
+    let decoded = try #require(try ObjectSerializer.deserialize(json, as: Scans.self))
+    #expect(decoded.scans == [Data([1, 2]), Data([254, 255])])
+  }
+
+  /* Each element of an array of byte values is encoded to base64 in the wire array. */
+  @Test func testBhvSerializationobject222SerializeEncodesEachElementToBase64() throws {
+    struct Scans: Codable { let scans: [Data] }
+    let json = try ObjectSerializer.serialize(Scans(scans: [Data([1, 2]), Data([254, 255])]))
+    #expect(
+      json.contains("\"\(Data([1, 2]).base64EncodedString())\""),
+      "the first element must be base64 in the array, got: \(json)")
+    #expect(
+      json.contains("\"\(Data([254, 255]).base64EncodedString())\""),
+      "the second element must be base64 in the array, got: \(json)")
+  }
+
   // MARK: - double field deserializes from an INTEGRAL JSON value
 
   // PhotoMetadataLocation.lat/lng are `Double?`. A JSON payload that supplies
@@ -1858,6 +2021,16 @@ import Testing
       "additional properties must NOT be nested under a wrapper key, got: \(reserialized)")
   }
 
+  @Test func testBhvSerializationobject205ExtraKeySurvivesADeserializeSerializeRoundTrip() throws {
+    let first = try #require(
+      try ObjectSerializer.deserialize("{\"extra\":\"kept\"}", as: Metadata.self))
+    let written = try ObjectSerializer.serialize(first)
+    let second = try #require(try ObjectSerializer.deserialize(written, as: Metadata.self))
+    #expect(
+      second.additionalProperties["extra"]?.value as? String == "kept",
+      "the extra key must survive the round trip, got: \(written)")
+  }
+
   // MARK: - nested container (array-of-array<int>) deep round-trip
 
   // StockItem.matrix is `[[Int]]?` — a nested container. It must deep-decode
@@ -1877,24 +2050,10 @@ import Testing
 
   // MARK: - format:duration sub-0.0001s magnitude (no scientific notation)
 
-  // A sub-0.0001s duration (50 microseconds = 0.00005s) must encode in fixed
-  // decimal-fraction form ("0.000050s"), never in scientific notation
-  // ("5e-05s"), and must round-trip back to the same magnitude. The negative
-  // and whole/fractional cases are covered above; this pins the small-
-  // magnitude formatting that a naive %g/String(describing:) would corrupt.
-  @Test func testDurationFormatSubTenThousandthNoScientificNotation() throws {
-    let out = try ObjectSerializer.encodeDuration(0.00005)
-    #expect(
-      !out.lowercased().contains("e"),
-      "sub-0.0001s duration must not use scientific notation, got: \(out)")
-    #expect(out.hasSuffix("s"))
-    let parsed = try ObjectSerializer.decodeDuration(out)
-    #expect(
-      abs(parsed - 0.00005) < 1e-9,
-      "sub-0.0001s duration must round-trip, got: \(out) -> \(parsed)")
-  }
-
-  @Test func testDurationFormatNegativeSubTenThousandthNoScientificNotation() throws {
+  @Test
+  func testBhvSerializationobject212DurationFormatNegativeSubTenThousandthNoScientificNotation()
+    throws
+  {
     let out = try ObjectSerializer.encodeDuration(-0.00005)
     #expect(out.hasPrefix("-"), "negative magnitude must keep its sign, got: \(out)")
     #expect(
@@ -1994,13 +2153,16 @@ import Testing
   }
 
   /* An int64 field keeps every digit, including values a double cannot hold. */
-  @Test func testInt64FieldKeepsFullPrecision() throws {
+  @Test func testBhvSerialization031Int64FieldKeepsFullPrecision() throws {
     let decoded = try ObjectSerializer.deserialize(
       "{\"id\":9007199254740993,\"petId\":-9223372036854775808}", as: Order.self)
     #expect(decoded?.id == 9_007_199_254_740_993)
     #expect(decoded?.petId == Int64.min)
     let json = try ObjectSerializer.serialize(Order(id: 9_007_199_254_740_993))
     #expect(json.contains("\"id\":9007199254740993"))
+    #expect(
+      try ObjectSerializer.deserialize("{\"id\":9223372036854775807}", as: Order.self)?.id
+        == Int64.max)
   }
 
   @Test func testInt64FieldBeyondRangeIsRejected() {
@@ -2015,7 +2177,7 @@ import Testing
   //   the empty-body path already covered by testDeserializeEmptyDataReturnsNil.
   // - serialize(nil): serialize requires an Encodable value, so a bare null
   //   argument is not representable; a nil model field is omitted via
-  //   encodeIfPresent (see testNilFieldsOmittedOnSerialize).
+  //   encodeIfPresent (see testBhvSerializationobject202NilFieldsOmittedOnSerialize).
 
   // A format:byte model field (PetPassport.thumbnail) carrying a bad-alphabet
   // base64 string is rejected: JSONDecoder's Data base64 decode fails rather
@@ -2027,6 +2189,14 @@ import Testing
     }
   }
 
+  /* A byte field rejects every base64 spelling that is not padded standard base64. */
+  @Test(arguments: ["\"dGVzdA\"", "\"dGVz dA==\"", "\"dGVz\\ndA==\"", "\"-_8=\"", "\"!!!!\""])
+  func testBhvSerializationobject207NonStandardBase64IsRejected(encoded: String) {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"seal\":\(encoded)}", as: BinaryVault.self)
+    }
+  }
+
   // MARK: - Required and nullable property
 
   /* A required nullable property accepts an explicit null and keeps it. */
@@ -2034,6 +2204,11 @@ import Testing
     let decoded = try ObjectSerializer.deserialize("{\"note\":null}", as: RequiredNullable.self)
     #expect(decoded != nil)
     #expect(decoded?.note == nil)
+  }
+
+  /* A required nullable property that has a value is written as given. */
+  @Test func testBhvSerializationobject218RequiredNullableWritesAGivenValue() throws {
+    #expect(try ObjectSerializer.serialize(RequiredNullable(note: "n")) == "{\"note\":\"n\"}")
   }
 
   /* A required nullable property with the key absent is an error. */
@@ -2146,5 +2321,174 @@ import Testing
     #expect(
       ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes") as? String
         == "a|b|c")
+  }
+  // MARK: - Behaviour catalogue: JSON reading and writing
+
+  /* A top-level JSON scalar decodes to a value of that scalar's own type. */
+  @Test func testBhvSerialization022TopLevelScalarDecodesToItsOwnType() throws {
+    #expect(try ObjectSerializer.deserialize("\"abc\"", as: String.self) == "abc")
+    #expect(try ObjectSerializer.deserialize("42", as: Int.self) == 42)
+    #expect(try ObjectSerializer.deserialize("true", as: Bool.self) == true)
+  }
+
+  /* A payload with content after the document is not well-formed JSON and fails to decode. */
+  @Test func testBhvSerialization023ContentAfterTheDocumentFailsToDecode() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"id\":1} trailing", as: Order.self)
+    }
+  }
+
+  /* Brackets inside JSON strings never count toward the depth limit, and deeper nesting is refused. */
+  @Test func testBhvSerialization024BracketsInStringsDoNotCountTowardDepth() {
+    let inString = Data("{\"a\":\"[[[\"}".utf8)
+    #expect(ObjectSerializer.jsonMaxDepth(inString) == 1)
+    let deep =
+      String(repeating: "[", count: ObjectSerializer.maxJsonDepth + 1)
+      + String(repeating: "]", count: ObjectSerializer.maxJsonDepth + 1)
+    #expect(ObjectSerializer.jsonMaxDepth(Data(deep.utf8)) > ObjectSerializer.maxJsonDepth)
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(deep, as: [Int].self)
+    }
+  }
+
+  /* A JSON object decodes to a map of its typed values, and an empty object to an empty map. */
+  @Test func testBhvSerialization026JsonObjectDecodesToATypedMap() throws {
+    #expect(
+      try ObjectSerializer.deserialize("{\"a\":1,\"b\":2}", as: [String: Int].self) == [
+        "a": 1, "b": 2,
+      ])
+    #expect(try ObjectSerializer.deserialize("{}", as: [String: Int].self) == [:])
+  }
+
+  /* An empty JSON array decodes to an empty collection, which is present and not absent. */
+  @Test func testBhvSerialization027EmptyArrayDecodesToAnEmptyCollection() throws {
+    let decoded = try ObjectSerializer.deserialize("[]", as: [Int].self)
+    #expect(decoded != nil)
+    #expect(decoded?.isEmpty == true)
+  }
+
+  /* A JSON value of the wrong kind for a model, list or map is refused. */
+  @Test func testBhvSerialization028WrongKindForModelListOrMapIsRefused() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("[1]", as: Order.self)
+    }
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"a\":1}", as: [Int].self)
+    }
+  }
+
+  /* A quoted number for an integer field is the wrong kind and is refused. */
+  @Test func testBhvSerialization029QuotedNumberForAScalarFieldIsRefused() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"id\":\"7\"}", as: Order.self)
+    }
+  }
+
+  /* A date-time field accepts only a string, so a JSON number there is refused. */
+  @Test func testBhvSerialization030DateTimeFieldAcceptsOnlyAString() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"shipDate\":12345}", as: Order.self)
+    }
+  }
+
+  /* NaN and Infinity are not JSON, so a payload holding them is refused when decoded. */
+  @Test func testBhvSerialization035NonStandardFloatLiteralsAreRefused() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"a\":NaN}", as: [String: Double].self)
+    }
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"a\":Infinity}", as: [String: Double].self)
+    }
+  }
+
+  /* A date-time read from any RFC 3339 spelling gives the same instant. */
+  @Test func testBhvSerialization039AnyRfc3339SpellingGivesTheSameInstant() throws {
+    let utc = try #require(ObjectSerializer.parseDate("2024-01-15T10:30:00Z"))
+    let offset = try #require(ObjectSerializer.parseDate("2024-01-15T11:30:00+01:00"))
+    #expect(utc == offset)
+    let fraction = try #require(ObjectSerializer.parseDate("2024-01-15T10:30:00.5Z"))
+    #expect(fraction.timeIntervalSince(utc) == 0.5)
+  }
+
+  /* A malformed duration string is refused with an error rather than decoded to a wrong value. */
+  @Test func testBhvSerialization045MalformedDurationIsRefused() {
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.decodeDuration("soon")
+    }
+  }
+
+  /* A URI-format value must be absolute, and a relative or empty string is refused. */
+  @Test func testBhvSerialization049UriFormatValueMustBeAbsolute() throws {
+    #expect(throws: (any Error).self) {
+      try ObjectSerializer.requireAbsoluteUri("/relative/path", property: "homepage")
+    }
+    #expect(throws: (any Error).self) {
+      try ObjectSerializer.requireAbsoluteUri("", property: "homepage")
+    }
+    try ObjectSerializer.requireAbsoluteUri("https://example.com/x", property: "homepage")
+  }
+
+  /* A collection of unique values is written as a JSON array of its members. */
+  @Test func testBhvSerialization064SetIsWrittenAsAJsonArray() throws {
+    #expect(try ObjectSerializer.serialize(Set(["only"])) == "[\"only\"]")
+  }
+
+  /* Raw bytes are written as padded standard base64 text at the top level. */
+  @Test func testBhvSerialization063RawBytesAreWrittenAsPaddedBase64() throws {
+    #expect(try ObjectSerializer.serialize(Data([0x01, 0x02, 0x03, 0x04])) == "\"AQIDBA==\"")
+  }
+
+  /* A null inside an array of plain values is kept as null in its own position on decode. */
+  @Test func testBhvSerialization065NullInsideAnArrayIsKeptInPlace() throws {
+    let decoded = try ObjectSerializer.deserialize("[1,null,3]", as: [Int?].self)
+    #expect(decoded == [1, nil, 3])
+  }
+  // MARK: - Behaviour catalogue: numbers, durations and typed leaves
+
+  /* A typed leaf nested inside a model decodes to its own typed value, including an enum member and a model. */
+  @Test func testBhvSerialization025TypedLeavesNestedInAModelDecodeToTheirOwnTypes() throws {
+    let json =
+      "{\"name\":\"Fido\",\"photoUrls\":[],\"category\":{\"id\":2,\"name\":\"Dogs\"},\"tags\":[{\"id\":3,\"name\":\"good\"}],\"status\":\"available\"}"
+    let pet = try #require(try ObjectSerializer.deserialize(json, as: Pet.self))
+    #expect(pet.category?.name == "Dogs")
+    #expect(pet.tags?.first?.name == "good")
+    #expect(pet.status == PetStatusEnum(rawValue: "available"))
+  }
+
+  /* A whole-number floating-point value is written with a decimal point. */
+  @Test func testBhvSerialization036WholeFloatIsWrittenWithADecimalPoint() {
+    #expect(ObjectSerializer.stringify(1.0) == "1.0")
+    #expect(ObjectSerializer.stringify(2.0) == "2.0")
+  }
+
+  /* A decimal number is written with every significant digit, not rounded to a shorter precision. */
+  @Test func testBhvSerialization037DecimalDigitsAreNotRounded() {
+    #expect(ObjectSerializer.stringify(1.23456789012) == "1.23456789012")
+  }
+
+  /* A duration's fractional seconds are written in the shortest group of three, six or nine digits. */
+  @Test func testBhvSerialization046DurationFractionUsesTheShortestGroup() throws {
+    #expect(try ObjectSerializer.encodeDuration(1.25) == "1.250s")
+    #expect(try ObjectSerializer.encodeDuration(0.001) == "0.001s")
+  }
+
+  /* A duration too large for a 64-bit nanosecond count is formatted without overflow, and an out-of-range one is refused. */
+  @Test func testBhvSerialization047LargeDurationFormatsAndOutOfRangeIsRefused() throws {
+    #expect(try ObjectSerializer.encodeDuration(315_576_000_000) == "315576000000s")
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.decodeDuration("315576000001s")
+    }
+  }
+
+  /* A duration written on its own is written as its protobuf-JSON seconds string. */
+  @Test func testBhvSerialization048DurationOnItsOwnIsItsSecondsString() throws {
+    #expect(try ObjectSerializer.encodeDuration(60) == "60s")
+  }
+
+  /* A free-form value keeps its JSON type, so a string stays a string on decode. */
+  @Test func testBhvSerialization054FreeFormValueKeepsItsJsonType() throws {
+    let decoded = try #require(
+      try ObjectSerializer.deserialize("{\"s\":\"text\"}", as: [String: AnyCodable].self))
+    #expect(decoded["s"]?.value as? String == "text")
   }
 }

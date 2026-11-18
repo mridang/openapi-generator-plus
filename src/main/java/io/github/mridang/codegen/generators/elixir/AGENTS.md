@@ -410,3 +410,17 @@ Rule: a struct is built with `%Model{}`, which never validates a type or an enum
 - Test doubles and fixtures: canned responses need a body the decoder accepts once required fields are enforced (`body: "{}"` fails); `photo_urls` is a `MapSet`; `DateTime.from_iso8601/1` normalizes to UTC, so build offset DateTimes by hand; add `from_value/1` to doubles when the serializer calls it; do not redefine modules inside mocks. Redaction is by omission (`@derive {Inspect, except: ...}`), so assert absence of the secret.
 - Req and tasks: the method is a lowercase atom, the proxy host a binary, UUID hex lowercase; catch errors inside `Task.async`, assert `Req.TransportError` or `Finch.TransportError` resiliently, and make every deadline (pool wait included) raise the timeout error. Compare anyOf keys through `attribute_map()`.
 - Testcontainers ignores `TESTCONTAINERS_HOST_OVERRIDE` (read it explicitly) and leaks containers when Ryuk is disabled: add `ExUnit.after_suite` teardown and check `docker ps -q | wc -l` before a run. `mix deps.get` "Could not find a Mix.Project" in the formatting spec is a container flake; rerun solo. Install Elixir in devbox for a quick local `mix compile --warnings-as-errors` before the Docker loop.
+
+## Decisions taken in the test-alignment round (ELIXIR behaviours of the shared catalogue)
+
+### A client needs a host and a token at construction
+
+Rule: `Client.new/1` refuses an authenticator or scheme credential whose host is nil or empty with `ArgumentError`, and a bearer token that is empty is refused when the authenticator is built, so no client is returned. Why: the other eleven SDKs refuse both at construction (`lifecycle 039`). Where: `client.mustache` (`new/3`), `auth/bearer_authenticator.mustache`. Test: `test/client_test.mustache` (`bhv lifecycle 039`).
+
+### No User-Agent header when the transport user agent is nil
+
+Rule: `TransportOptions.user_agent: nil` removes the SDK's own default. Req adds `req/<version>` through its `put_user_agent` request step, so `DefaultApiClient` removes that step from the base request when the user agent is nil. Mint 1.11.0 then adds `mint/<version>` itself, because `Mint.HTTP1.add_default_headers/2` runs `Headers.put_new("User-Agent", ...)` on every request that has no user-agent, and no connect or request option turns it off (Finch 0.24 and Req 0.5.18 pass the request straight to Mint). Omitting the header entirely would need a bypass of Mint's HTTP/1 request path, which is not done. A caller-set `User-Agent` still goes out as given. Where: `default_api_client.mustache` (`base_request/1`). Test: `test/default_api_client_unit_test.mustache` (`bhv options 061`, which asserts the wire value is nil or `mint/`, never the SDK default).
+
+### Header values with CR or LF are refused before sending
+
+Rule: Mint refuses a header value containing CR or LF before any byte is written, and the SDK surfaces that as a `NetworkError`. Where: nothing to change, Mint validates it. Test: `test/default_api_client_unit_test.mustache` (`bhv headers 031`).

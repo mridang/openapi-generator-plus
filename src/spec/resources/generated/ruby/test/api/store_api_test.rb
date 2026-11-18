@@ -50,7 +50,52 @@ describe Petstore::Client::Api::StoreApi do
     [Petstore::Client::Api::StoreApi.new(nil, config), server, thread, captured]
   end
 
+  # Starts a one-shot TCP server that answers +count+ requests in turn and
+  # records the lower-cased headers of each, in order. The returned Queue
+  # receives one Hash of headers per request.
+  def capture_wire_headers(count, default_headers: {})
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = server.addr[1]
+    captured = Queue.new
+    thread = Thread.new do
+      count.times do
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
+        client.gets # request line
+        headers = {}
+        while (line = client.gets)
+          break if line.strip.empty?
+
+          name, value = line.split(':', 2)
+          headers[name.to_s.strip.downcase] = value.to_s.strip
+        end
+        captured << headers
+        client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                     "Content-Length: 2\r\nConnection: close\r\n\r\n{}")
+        client.close
+      end
+    end
+    config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: default_headers)
+    [Petstore::Client::Api::StoreApi.new(nil, config), server, thread, captured]
+  end
+
   describe '#search_store content-encoded query' do
+    it 'bhv_operations_139 keeps the fractional seconds of a time parameter when non-zero' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        at = Petstore::Client::ObjectSerializer.convert_to_type('10:30:00.123', 'Tod::TimeOfDay')
+        api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(at: at))
+        query = captured.pop[:request_line].split('?', 2).last.to_s.split.first
+        _(URI.decode_www_form(query).to_h['at']).must_equal '10:30:00.123'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     it 'bhv_operations_097 encodes the q value through the SDK serializer as compact JSON' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
@@ -64,13 +109,28 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'raises SerializationError for an unserializable q and sends nothing' do
+    it 'bhv_operations_128 a content query parameter that cannot be serialized raises a serialization error and sends no request' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         query = Petstore::Client::Models::PhotoMetadata.new(caption: 'c', location: { 'lat' => Float::NAN })
         _ { api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(q: query)) }
           .must_raise(Petstore::Client::Errors::SerializationError)
         _(captured.empty?).must_equal(true)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#search_store query order' do
+    it 'bhv_operations_155 sends the query parameters in the order the specification declares them' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        at = Petstore::Client::ObjectSerializer.convert_to_type('10:30:00', 'Tod::TimeOfDay')
+        api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(labels: Set['red', 'blue'], at: at))
+        query = captured.pop[:request_line].split[1].to_s.split('?', 2).last.to_s
+        _(query.split('&').map { |pair| pair.split('=', 2).first }).must_equal(%w[labels labels at])
       ensure
         server.close
         thread.join(2)
@@ -132,6 +192,18 @@ describe Petstore::Client::Api::StoreApi do
     end
   end
 
+  describe '#reserve_stock' do
+    it 'bhv_unions_036 a 200 body that fits only the 201 shape is refused with a serialization error' do
+      api, server, thread, _captured = capture_wire_request('{"receiptCode":"rcpt","expiresAt":"2030-01-01T00:00:00Z"}')
+      begin
+        _ { api.reserve_stock }.must_raise(Petstore::Client::Errors::SerializationError)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe '#get_inventory' do
     it 'bhv_operations_102 get_inventory' do
       result = @api.get_inventory
@@ -161,7 +233,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'rejects a per-call timeout that is not positive' do
+    it 'bhv_options_056 rejects a per-call timeout that is not positive' do
       _(-> { @api.get_inventory(Petstore::Client::Api::Options::GetInventoryOptions.new(timeout: 0)) }).must_raise ArgumentError
     end
 
@@ -171,12 +243,64 @@ describe Petstore::Client::Api::StoreApi do
       _(-> { @api.get_inventory_with_http_info(options) }).must_raise ArgumentError
     end
 
+    it 'bhv_options_053 per-call headers apply to that one call only' do
+      api, server, thread, captured = capture_wire_headers(2)
+      begin
+        api.get_inventory(Petstore::Client::Api::Options::GetInventoryOptions.new(headers: { 'X-Tenant' => 'a' }))
+        api.get_inventory
+        _(captured.pop['x-tenant']).must_equal('a')
+        _(captured.pop).wont_include('x-tenant')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_options_055 a call without per-call options keeps the client default headers' do
+      api, server, thread, captured = capture_wire_headers(1, default_headers: { 'X-Client' => 'c' })
+      begin
+        api.get_inventory
+        _(captured.pop['x-client']).must_equal('c')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_options_054 an operation takes its per-call options after its other arguments' do
+      api, server, thread, captured = capture_wire_request('{"id":1}')
+      begin
+        api.place_order(nil, Petstore::Client::Api::Options::PlaceOrderOptions.new(headers: { 'X-Tenant' => 'a' }))
+        _(captured.pop[:headers]['x-tenant']).must_equal('a')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_options_057 a per-call timeout below one millisecond is refused before anything is sent' do
+      _(-> { @api.get_inventory(Petstore::Client::Api::Options::GetInventoryOptions.new(timeout: 0.5)) }).must_raise ArgumentError
+    end
+
     it 'still takes no argument at all' do
       _(@api.get_inventory).must_be_kind_of(Hash)
     end
   end
 
   describe '#place_order' do
+    it 'bhv_operations_126 a place_order call without an order sends no body and no content type' do
+      api, server, thread, captured = capture_wire_request('{"id":1}')
+      begin
+        api.place_order
+        sent = captured.pop
+        _(sent[:body]).must_be_empty
+        _(sent[:headers]).wont_include 'content-type'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     it 'bhv_operations_117 place_order' do
       order = Petstore::Client::Models::Order.new(
         id: 1,
@@ -490,13 +614,23 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'decodes a 200 reserve_stock body as the existing reservation' do
+    it 'bhv_operations_129 decodes a 200 reserve_stock body as the existing reservation' do
       api, server, thread, = capture_wire_request('{"reservationId":31,"quantity":4}')
       begin
         result = api.reserve_stock
 
         _(result).must_be_kind_of(Petstore::Client::Models::Reservation)
         _(result.reservation_id).must_equal(31)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_154 a 201 body that fits the 200 schema but not its own status schema is refused' do
+      api, server, thread, = capture_wire_request('{"reservationId":31,"quantity":4}', status_line: '201 Created')
+      begin
+        _ { api.reserve_stock }.must_raise(Petstore::Client::Errors::SerializationError)
       ensure
         server.close
         thread.join(2)

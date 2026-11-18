@@ -261,6 +261,13 @@ class ObjectSerializer
             foreach ($data as $property => $value) {
                 $data[$property] = self::sanitizeForSerialization($value);
             }
+            /* A map (an array with keys, not a list) is written with its keys in
+             * ascending order, so equal data always produces identical output. A
+             * list keeps its order. A model is normalized by the object branch
+             * below and keeps its declaration order. */
+            if (!array_is_list($data)) {
+                ksort($data, SORT_STRING);
+            }
             return $data;
         }
 
@@ -2008,6 +2015,17 @@ class ObjectSerializer
         if ((string) (int) $digits !== $digits) {
             throw new SerializationException(
                 "Invalid protobuf-JSON duration '$value': seconds overflow the integer range"
+            );
+        }
+
+        /* D88: the protobuf range is +-315576000000 s. The bound itself is
+         * accepted only with a zero fraction; anything past it is rejected. */
+        if (
+            (int) $digits > 315576000000
+            || ((int) $digits === 315576000000 && isset($m[3]) && (int) $m[3] !== 0)
+        ) {
+            throw new SerializationException(
+                "Invalid protobuf-JSON duration '$value': outside the protobuf range of +-315576000000 seconds"
             );
         }
 

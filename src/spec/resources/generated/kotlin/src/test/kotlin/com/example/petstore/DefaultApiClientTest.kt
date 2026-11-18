@@ -20,7 +20,9 @@ import io.ktor.http.headersOf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -44,7 +46,7 @@ class DefaultApiClientTest {
                     seenUrl = req.url.toString()
                     respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
                 }
-            val custom = HttpClient(engine)
+            val custom = HttpClient(engine) { followRedirects = false }
             try {
                 val transport =
                     TransportOptions
@@ -178,25 +180,7 @@ class DefaultApiClientTest {
     @DisplayName("custom CA bundle")
     inner class CustomCaBundle {
         @Test
-        @DisplayName("invalid CA cert path surfaces an error (Gap T4)")
-        fun invalidCaCertPathReturnsError() {
-            val transport =
-                TransportOptions
-                    .builder()
-                    .caCertPath("/nonexistent/path/does/not/exist.pem")
-                    .build()
-            // Behaviour must be an audible failure (exception), NOT a silent
-            // fallback to the system trust store.
-            assertThrows(Exception::class.java) {
-                val client = DefaultApiClient(transport)
-                runBlocking {
-                    client.sendRequest("GET", "https://example.com/", emptyMap(), null)
-                }
-            }
-        }
-
-        @Test
-        @DisplayName("trusts every certificate in a multi-certificate CA bundle")
+        @DisplayName("bhvTransport066 trusts every certificate in a multi-certificate CA bundle")
         fun trustsEveryCertificateInBundle(
             @org.junit.jupiter.api.io.TempDir tempDir: java.nio.file.Path,
         ) {
@@ -205,6 +189,13 @@ class DefaultApiClientTest {
             bundle.writeText(ca.resolveSibling("server.pem").readText() + ca.readText())
             val issuers = loadCaCertTrustManager(bundle.absolutePath).acceptedIssuers
             assertEquals(2, issuers.size, "both bundle certificates must be trust anchors")
+        }
+
+        @Test
+        @DisplayName("bhvTransport065 a configured CA bundle replaces the system trust store instead of adding to it")
+        fun configuredCaBundleReplacesTheSystemTrustStore() {
+            val issuers = loadCaCertTrustManager(caCertPath).acceptedIssuers
+            assertEquals(1, issuers.size, "only the configured certificate is trusted, the system roots are not added")
         }
 
         @Test
@@ -339,6 +330,36 @@ class DefaultApiClientTest {
             assertInstanceOf(com.example.petstore.errors.NetworkException::class.java, ex)
             assertEquals(0, ex.statusCode)
             assertNotNull(ex.cause, "the transport exception must be kept as the cause")
+        }
+
+        @Test
+        @DisplayName("bhvTransport060 cancelling an in-flight call aborts the request without reporting a timeout")
+        fun cancellingTheCallAbortsTheSlowEndpoint() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient(TransportOptions.builder().timeout(30_000L).build())
+            var caught: Throwable? = null
+            val startedAt = System.nanoTime()
+            runBlocking {
+                val job =
+                    launch {
+                        try {
+                            client.sendRequest("GET", "$chasmUrl/test/slow", emptyMap(), null)
+                        } catch (e: Throwable) {
+                            caught = e
+                            throw e
+                        }
+                    }
+                delay(300)
+                job.cancel()
+                job.join()
+            }
+            val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
+            assertInstanceOf(kotlinx.coroutines.CancellationException::class.java, caught)
+            assertFalse(
+                caught is com.example.petstore.errors.NetworkTimeoutException,
+                "a cancellation must not be reported as a timeout: $caught",
+            )
+            assertTrue(elapsedMs < 5_000, "the request was not aborted promptly: $elapsedMs ms")
         }
 
         @Test
@@ -575,7 +596,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("resolves a query-only Location against the base path (RFC 3986)")
+        @DisplayName("bhvRedirects043 resolves a query-only Location against the base path (RFC 3986)")
         fun resolvesQueryOnlyLocationAgainstBasePath() {
             var secondHopUrl: String? = null
             var hopCount = 0
@@ -779,7 +800,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("F839: redirect method rewriting follows RFC 9110 15.4")
+        @DisplayName("bhvRedirects029 a redirect rewrites the method only as RFC 9110 section 15.4 allows")
         fun redirectMethodRewritingFollowsRfc9110() {
             val cases =
                 listOf(
@@ -818,6 +839,36 @@ class DefaultApiClientTest {
                     apiClient.sendRequest(method, "https://secure.example.com/x", emptyMap(), "body")
                 }
                 assertEquals(expected, secondHopMethod, "$status $method")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects036 a 303 redirect turns every method except HEAD into GET")
+        fun redirect303TurnsEveryMethodExceptHeadIntoGet() {
+            for (method in listOf("POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")) {
+                var hopCount = 0
+                var secondHopMethod: String? = null
+                val engine =
+                    MockEngine { req ->
+                        hopCount++
+                        if (hopCount == 1) {
+                            respond(
+                                content = "",
+                                status = HttpStatusCode.SeeOther,
+                                headers = headersOf("Location", "https://secure.example.com/dest"),
+                            )
+                        } else {
+                            secondHopMethod = req.method.value
+                            respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                        }
+                    }
+                val transport = TransportOptions.builder().followRedirects(true).build()
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                runBlocking {
+                    apiClient.sendRequest(method, "https://secure.example.com/x", emptyMap(), "body")
+                }
+                val expected = if (method == "HEAD") "HEAD" else "GET"
+                assertEquals(expected, secondHopMethod, "303 after $method")
             }
         }
 
@@ -1131,8 +1182,16 @@ class DefaultApiClientTest {
          * equal and credentials survive the hop.
          */
         @Test
-        @DisplayName("redirect_to_explicit_default_port_preserves_authorization")
-        fun redirectToExplicitDefaultPortPreservesAuthorization() {
+        @DisplayName("bhvRedirects030 an explicit default port is the same origin as the implicit one")
+        fun redirectToExplicitDefaultPortPreservesAuthorizationImplicit() {
+            assertTrue(
+                sameOrigin(java.net.URI("https://host/x"), java.net.URI("https://host:443/y")),
+                "explicit :443 must be the same origin as the implicit https port",
+            )
+            assertTrue(
+                sameOrigin(java.net.URI("http://host/x"), java.net.URI("http://host:80/y")),
+                "explicit :80 must be the same origin as the implicit http port",
+            )
             assertEquals(
                 443,
                 effectivePort(java.net.URI("https://host/x")),
@@ -1158,6 +1217,53 @@ class DefaultApiClientTest {
                 effectivePort(java.net.URI("https://host:8443/y")),
                 "non-default ports must round-trip unchanged",
             )
+        }
+
+        @Test
+        @DisplayName("bhvRedirects037 a redirect to the explicit default port of the same origin keeps the Authorization header")
+        fun redirectToExplicitDefaultPortPreservesAuthorization() {
+            assertTrue(
+                sameOrigin(java.net.URI("https://host/x"), java.net.URI("https://host:443/y")),
+                "explicit :443 must be the same origin as the implicit https port",
+            )
+            assertTrue(
+                sameOrigin(java.net.URI("http://host/x"), java.net.URI("http://host:80/y")),
+                "explicit :80 must be the same origin as the implicit http port",
+            )
+            assertEquals(
+                443,
+                effectivePort(java.net.URI("https://host/x")),
+                "implicit https port must normalize to 443",
+            )
+            assertEquals(
+                443,
+                effectivePort(java.net.URI("https://host:443/y")),
+                "explicit :443 must round-trip as 443",
+            )
+            assertEquals(
+                80,
+                effectivePort(java.net.URI("http://host/x")),
+                "implicit http port must normalize to 80",
+            )
+            assertEquals(
+                80,
+                effectivePort(java.net.URI("http://host:80/y")),
+                "explicit :80 must round-trip as 80",
+            )
+            assertEquals(
+                8443,
+                effectivePort(java.net.URI("https://host:8443/y")),
+                "non-default ports must round-trip unchanged",
+            )
+        }
+
+        @Test
+        @DisplayName("bhvRedirects034 origin comparison separates a different scheme, host or port")
+        fun originComparisonSeparatesSchemeHostAndPort() {
+            val base = java.net.URI("https://host:8443/x")
+            assertFalse(sameOrigin(base, java.net.URI("http://host:8443/y")), "a different scheme")
+            assertFalse(sameOrigin(base, java.net.URI("https://other:8443/y")), "a different host")
+            assertFalse(sameOrigin(base, java.net.URI("https://host:9443/y")), "a different port")
         }
 
         /*

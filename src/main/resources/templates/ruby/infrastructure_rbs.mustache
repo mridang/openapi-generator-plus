@@ -42,7 +42,7 @@
     attr_reader verify_ssl: bool
     attr_reader ca_cert_path: String?
     attr_reader proxy: String?
-    attr_reader timeout: Integer?
+    attr_reader timeout: Numeric?
     attr_reader follow_redirects: bool
     attr_reader max_redirects: Integer?
     attr_reader user_agent: String?
@@ -50,10 +50,12 @@
     attr_reader inject_request_id: bool
     attr_reader max_retries: Integer
     attr_reader connection: untyped
-    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?max_retries: Integer, ?connection: untyped) -> void
+    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Numeric?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?max_retries: Integer, ?connection: untyped) -> void
     def self.builder: () -> TransportOptions::Builder
+    def self.follows_redirects?: (untyped) -> bool
     def self.validate_proxy!: (String?) -> void
     def self.validate_max_retries!: (untyped) -> Integer
+    def self.validate_max_redirects!: (untyped) -> untyped
     def self.validate_connection!: (untyped, bool, String?, String?) -> void
     def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
     def self.redact_url: (String?) -> String?
@@ -66,7 +68,7 @@
       def verify_ssl: (bool) -> Builder
       def ca_cert_path: (String?) -> Builder
       def proxy: (String?) -> Builder
-      def timeout: (Integer?) -> Builder
+      def timeout: (Numeric?) -> Builder
       def follow_redirects: (bool) -> Builder
       def max_redirects: (Integer?) -> Builder
       def user_agent: (String?) -> Builder
@@ -84,6 +86,9 @@
     attr_reader description: String?
     attr_reader enum_values: Array[String]
     def initialize: (default_value: String, ?description: String?, ?enum_values: Array[String]) -> void
+    def ==: (untyped) -> bool
+    def eql?: (untyped) -> bool
+    def hash: () -> Integer
   end
 
   class ServerConfiguration
@@ -310,6 +315,8 @@
     def run_hop: (Symbol, String, untyped, Hash[String, String], Float?, Numeric?) -> untyped
     def dispatch: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
     def header?: (Hash[String, String], String) -> bool
+    def validate_header_values!: (Hash[String, untyped]) -> void
+    def redact_url_text: (String?) -> String
     def network_error_class: (Faraday::Error) -> singleton(Errors::NetworkError)
     def validate_ca_cert_path: (String?) -> void
     def https_to_http_downgrade?: (String, String) -> bool
@@ -321,6 +328,7 @@
     def decompress_body: (untyped, untyped) -> untyped
     def connection: () -> untyped
     def build_connection: () -> untyped
+    def proxy_settings: (String?) -> (String | Hash[Symbol, untyped])?
     def build_multipart_body: (Hash[String, untyped], String) -> String
     def multipart_part: (String, untyped, String) -> String
     def sanitize_multipart_field_name: (String | Symbol) -> String
@@ -362,7 +370,7 @@
     def self.encode_item: (untyped value, Symbol location) -> String
     def self.object_fields: (untyped) -> Hash[untyped, untyped]?
     def self.serialize_object: (String, Hash[untyped, untyped], Symbol, String?, bool) -> String
-    def self.object_field_text: (untyped) -> String
+    def self.object_field_text: (untyped, untyped) -> String
   end
 
   class ObjectSerializer

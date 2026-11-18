@@ -88,6 +88,9 @@ _STRICT_LEAF_TYPES: dict[str, Any] = {
 _STRICT_LEAF_ADAPTERS: dict[str, TypeAdapter[Any]] = {
     name: TypeAdapter(leaf) for name, leaf in _STRICT_LEAF_TYPES.items()
 }
+# Plain leaves whose array elements keep a null in its own position on decode
+# (catalogue serialization065). Model elements are not listed, so they reject it.
+_PLAIN_LEAF_TYPES: tuple[Any, ...] = (int, float, str, bool, *_STRICT_LEAF_TYPES.values())
 
 
 # Maximum allowed JSON nesting depth. Python's json.loads recurses through
@@ -375,7 +378,14 @@ class ObjectSerializer:
                     except TypeError:
                         sanitized = items
                 elif isinstance(obj, dict):
-                    sanitized = {key: cls._sanitize_for_serialization(val, _visited) for key, val in obj.items()}
+                    # A map is written in ascending key order, so equal data always
+                    # produces identical bytes. Keys that cannot be ordered keep
+                    # their insertion order.
+                    try:
+                        entries = sorted(obj.items(), key=lambda entry: entry[0])
+                    except TypeError:
+                        entries = list(obj.items())
+                    sanitized = {key: cls._sanitize_for_serialization(val, _visited) for key, val in entries}
                 else:
                     sanitized = str(obj)
             finally:
@@ -452,7 +462,8 @@ class ObjectSerializer:
                 # Falls back to the element-wise recursion only for inner
                 # types the adapter can't express (e.g. nested 'List[X]').
                 if inner is not None:
-                    return _list_adapter(inner).validate_python(
+                    element = Optional[inner] if inner in _PLAIN_LEAF_TYPES else inner
+                    return _list_adapter(element).validate_python(
                         data,
                         by_alias=True,
                         by_name=False,

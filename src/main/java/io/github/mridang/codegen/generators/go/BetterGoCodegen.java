@@ -76,6 +76,20 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      */
     private static final Pattern WRAPPER_TYPE = Pattern.compile("\\b(DateTime|Duration)\\b");
 
+    /**
+     * The behaviour id of the environment-failure test of each named scheme authenticator:
+     * authscheme004 to authscheme008 name the scheme, so one test name carries one id.
+     */
+    private static final Map<String, String> FAILS_NAMING_IDS = new HashMap<>();
+
+    static {
+        FAILS_NAMING_IDS.put("AdminBasicAuthenticator", "BhvAuthscheme004_");
+        FAILS_NAMING_IDS.put("ApiKeyHeaderAuthenticator", "BhvAuthscheme005_");
+        FAILS_NAMING_IDS.put("ApiKeyQueryAuthenticator", "BhvAuthscheme006_");
+        FAILS_NAMING_IDS.put("SessionCookieAuthenticator", "BhvAuthscheme007_");
+        FAILS_NAMING_IDS.put("SsoAuthAuthenticator", "BhvAuthscheme008_");
+    }
+
     private static final String OPTION_REPOSITORY_URL = "repositoryUrl";
     private static final String OPTION_HOMEPAGE_URL = "homepageUrl";
     private static final String OPTION_AUTHORS = "authors";
@@ -1217,6 +1231,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             final boolean isBearer) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        entry.put("failsNamingId", FAILS_NAMING_IDS.getOrDefault((String) entry.get("className"), ""));
         entry.put("package", spec.isOAuth() ? "oauth" : "auth");
         final boolean isBasic = "BasicAuthenticator".equals(spec.baseClass());
         entry.put("isBasic", isBasic);
@@ -1224,13 +1239,25 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
          * first Basic scheme names its tests with them (one test per id). */
         final boolean firstBasic = isBasic && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBasic")));
         entry.put("firstBasic", firstBasic);
+        /* The api-key behaviour ids name the first API-key scheme only, so one test name carries one id. */
+        entry.put(
+                "firstApiKey",
+                "ApiKeyAuthenticator".equals(spec.baseClass())
+                        && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("firstApiKey"))));
         /* authscheme001 names the first scheme that does not carry the basic id, so one
          * test name never carries two behaviour ids. */
         entry.put(
                 "firstEnvScheme",
                 !firstBasic && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("firstEnvScheme"))));
+        /* The explicit-credential and reads-once behaviours carry one id each, so only the
+         * first Bearer and the first API-key scheme name their tests with those ids. */
+        final boolean firstBearer = isBearer && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("firstBearer")));
+        entry.put("firstBearer", firstBearer);
+        final boolean isApiKey = "ApiKeyAuthenticator".equals(spec.baseClass());
+        final boolean firstApiKey = isApiKey && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("firstApiKey")));
+        entry.put("firstApiKey", firstApiKey);
         entry.put("isBearer", isBearer);
-        entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+        entry.put("isApiKey", isApiKey);
         entry.put("isOAuth", spec.isOAuth());
         final List<Map<String, Object>> vars = new ArrayList<>();
         for (final Map<String, Object> envVar : envVars) {
@@ -1240,7 +1267,35 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             vars.add(var);
         }
         entry.put("envVars", vars);
+        /* The environment-variable rejection carries one behaviour id per scheme kind: the four
+         * OAuth2 flows, the second bearer and the second API-key scheme. */
+        final long bearersBefore = schemeAuthTests.stream().filter(e -> Boolean.TRUE.equals(e.get("isBearer"))).count();
+        final long apiKeysBefore = schemeAuthTests.stream().filter(e -> Boolean.TRUE.equals(e.get("isApiKey"))).count();
+        entry.put("failsId", failsNamingId(spec.baseClass(), isBearer && bearersBefore == 1, isApiKey && apiKeysBefore == 1));
         schemeAuthTests.add(entry);
+    }
+
+    /** The behaviour id that names a scheme's FailsNamingAVariableThatIsEmptyOrUnset test, or empty. */
+    private static String failsNamingId(final String baseClass, final boolean secondBearer, final boolean secondApiKey) {
+        switch (baseClass) {
+            case "OAuth2ClientCredentialsAuthenticator":
+                return "BhvAuthscheme013_";
+            case "OAuth2PasswordAuthenticator":
+                return "BhvAuthscheme014_";
+            case "OAuth2AuthorizationCodeAuthenticator":
+                return "BhvAuthscheme015_";
+            case "OAuth2ImplicitAuthenticator":
+                return "BhvAuthscheme016_";
+            default:
+                break;
+        }
+        if (secondBearer) {
+            return "BhvAuthscheme011_";
+        }
+        if (secondApiKey) {
+            return "BhvAuthscheme012_";
+        }
+        return "";
     }
 
     /**

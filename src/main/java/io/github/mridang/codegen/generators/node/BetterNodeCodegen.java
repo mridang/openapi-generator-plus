@@ -1410,11 +1410,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, String> envNames = envNamesByField(ctx);
         recordSchemeAuthenticator(spec, String.valueOf(ctx.get("className")), envNames);
         final List<Map<String, String>> imports = new ArrayList<>(buildNodeImports(spec));
-        if (hasEnvCredentials(spec)) {
-            imports.add(imp("resolveCredential", "./credentials"));
+        final boolean credentialed = hasEnvCredentials(spec);
+        if (credentialed) {
+            imports.add(spec.isOAuth()
+                    ? imp("resolveOAuthCredential", "../credentials")
+                    : imp("resolveCredential", "./credentials"));
         }
         ctx.put("imports", imports);
-        final boolean credentialed = hasEnvCredentials(spec);
         final List<Map<String, String>> constructorParams = new ArrayList<>();
         for (final String name : spec.paramNames()) {
             final Map<String, String> param = new HashMap<>();
@@ -1550,11 +1552,44 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return out.toString();
     }
 
-    /** Whether the scheme's authenticator reads its credential from the environment when none is passed. */
+    /**
+     * Whether the scheme's authenticator reads its credentials from the environment when none is
+     * passed: every scheme with a credential field, the basic, bearer and API key ones and the
+     * OAuth2 and OpenID Connect ones alike.
+     */
     private static boolean hasEnvCredentials(SchemeAuthSpec spec) {
-        return "BasicAuthenticator".equals(spec.baseClass())
-                || "BearerAuthenticator".equals(spec.baseClass())
-                || "ApiKeyAuthenticator".equals(spec.baseClass());
+        return !credentialFields(spec).isEmpty();
+    }
+
+    /** The credential fields of a scheme, in constructor order: every parameter but the host. */
+    private static List<String> credentialFields(SchemeAuthSpec spec) {
+        final List<String> fields = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            if (!"host".equals(name)) {
+                fields.add(name);
+            }
+        }
+        return fields;
+    }
+
+    /** The label an OAuth2 or OpenID Connect credential is named by in its error message. */
+    private static String oauthLabel(String field) {
+        final String label = Map.of(
+                "clientId", "OAuth2 client ID",
+                "clientSecret", "OAuth2 client secret",
+                "username", "OAuth2 username",
+                "password", "OAuth2 password",
+                "redirectUri", "OAuth2 redirect URI").get(field);
+        return Objects.requireNonNull(label, "not an OAuth2 credential: " + field);
+    }
+
+    /**
+     * An OAuth2 or OpenID Connect credential argument of the per-scheme constructor: the caller's
+     * value, else the scheme's own environment variable, refused if it has a line break.
+     */
+    private static String oauthArg(Map<String, String> envNames, String field) {
+        return "resolveOAuthCredential(" + field + ", " + quoteSingle(envName(envNames, field))
+                + ", " + quoteSingle(oauthLabel(field)) + ")";
     }
 
     /**
@@ -1585,17 +1620,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * environment fallback.
      */
     private static String schemeEnvVars(SchemeAuthSpec spec, Map<String, String> envNames) {
-        final List<String> fields = new ArrayList<>();
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
-            fields.add("username");
-            fields.add("password");
-        } else if ("BearerAuthenticator".equals(spec.baseClass())) {
-            fields.add("token");
-        } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            fields.add("apiKey");
-        }
         final List<String> quoted = new ArrayList<>();
-        for (final String field : fields) {
+        for (final String field : credentialFields(spec)) {
             quoted.add(quoteSingle(envName(envNames, field)));
         }
         return String.join(", ", quoted);
@@ -1622,30 +1648,31 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     "ApiKeyLocation." + spec.keyIn());
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "clientId", "clientSecret",
+            return List.of("host", oauthArg(envNames, "clientId"), oauthArg(envNames, "clientSecret"),
                     "'" + spec.tokenUrl() + "'", formatNodeScopes(spec.scopes()));
         }
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
                     ? "'" + spec.refreshUrl() + "'" : "null";
-            return List.of("host", "clientId", "clientSecret",
-                    "'" + spec.tokenUrl() + "'", "username", "password",
-                    formatNodeScopes(spec.scopes()), refreshArg);
+            return List.of("host", oauthArg(envNames, "clientId"), oauthArg(envNames, "clientSecret"),
+                    "'" + spec.tokenUrl() + "'", oauthArg(envNames, "username"),
+                    oauthArg(envNames, "password"), formatNodeScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
                     ? "'" + spec.refreshUrl() + "'" : "null";
-            return List.of("host", "clientId", "clientSecret",
+            return List.of("host", oauthArg(envNames, "clientId"), oauthArg(envNames, "clientSecret"),
                     "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
-                    "redirectUri", formatNodeScopes(spec.scopes()), refreshArg);
+                    oauthArg(envNames, "redirectUri"), formatNodeScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "clientId",
+            return List.of("host", oauthArg(envNames, "clientId"),
                     "'" + spec.authorizationUrl() + "'", formatNodeScopes(spec.scopes()));
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "'" + spec.openIdConnectUrl() + "'",
-                    "clientId", "clientSecret", "redirectUri", "[]");
+                    oauthArg(envNames, "clientId"), oauthArg(envNames, "clientSecret"),
+                    oauthArg(envNames, "redirectUri"), "[]");
         }
         return List.of();
     }

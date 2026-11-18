@@ -234,7 +234,17 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
         end
 
       _ ->
-        cache_discovery(fetch_discovery(self, nil))
+        # Concurrent callers on a cold cache share one discovery request: the
+        # first takes the lock and fetches, the others wait and find the result
+        # in the cache when they get it.
+        lock = {__MODULE__, self.discovery_cache}
+
+        :global.trans({lock, self()}, fn ->
+          case Agent.get(self.discovery_cache, & &1.discovery) do
+            nil -> cache_discovery(fetch_discovery(self, nil))
+            {delegate, expiry} -> %{self | delegate: delegate, discovery_expiry: expiry}
+          end
+        end)
     end
   end
 
@@ -292,10 +302,14 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     # status before parsing keeps a 500-HTML / 404 body from surfacing as a
     # confusing "invalid JSON" error.
     if response.status_code < 200 or response.status_code >= 300 do
-      raise PetstoreClient.Errors.ApiError.from_response(
-              response.status_code,
-              response.headers,
-              response.body
+      raise PetstoreClient.Errors.ApiError.with_request(
+              PetstoreClient.Errors.ApiError.from_response(
+                response.status_code,
+                response.headers,
+                response.body
+              ),
+              :get,
+              self.openid_connect_url
             )
     end
 

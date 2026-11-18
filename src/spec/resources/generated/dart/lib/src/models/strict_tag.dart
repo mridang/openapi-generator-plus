@@ -27,11 +27,15 @@ class StrictTag {
         );
       }
     }
-    return StrictTag(
-      id: readInt64OrNull(json['id']),
+    try {
+      return StrictTag(
+        id: readInt64OrNull(json['id']),
 
-      name: json['name'] as String?,
-    );
+        name: json['name'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for StrictTag: $e', e);
+    }
   }
 
   /// Converts this [StrictTag] to a JSON map.

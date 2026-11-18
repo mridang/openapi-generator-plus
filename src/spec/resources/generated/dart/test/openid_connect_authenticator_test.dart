@@ -309,7 +309,7 @@ void main() {
       },
     );
 
-    test('refuses a cleartext token_endpoint', () async {
+    test('bhv authoidc 032 refuses a cleartext token_endpoint', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"authorization_endpoint":"https://auth.example.com/authorize",'
@@ -453,6 +453,29 @@ void main() {
       },
     );
 
+    test(
+      'bhv authoidc 029 concurrent callers on a cold authenticator share one discovery request',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        final urls = await Future.wait(
+          List.generate(5, (_) => auth.buildAuthorizationUrl()),
+        );
+
+        expect(client.getCount, equals(1));
+        for (final url in urls) {
+          expect(url, startsWith('https://auth.example.com/authorize?'));
+        }
+      },
+    );
+
     test('bhv authoidc 011 fetches discovery document only once', () async {
       final client = _FakeApiClient();
       client.enqueue(
@@ -482,6 +505,46 @@ void main() {
     const document =
         '{"authorization_endpoint":"https://auth.example.com/authorize",'
         '"token_endpoint":"https://auth.example.com/token"}';
+
+    test(
+      'bhv authoidc 031 a cached document is fetched again once its Cache-Control max-age has elapsed',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=1'});
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=1'});
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.buildAuthorizationUrl();
+        await Future<void>.delayed(const Duration(milliseconds: 1100));
+        await auth.buildAuthorizationUrl();
+
+        expect(client.getCount, equals(2));
+      },
+    );
+
+    test(
+      'bhv authoidc 033 a failed discovery request reports its method and path in the error',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('<html>internal server error</html>', statusCode: 500);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<InternalServerErrorException>()
+                .having((e) => e.requestMethod, 'requestMethod', equals('GET'))
+                .having(
+                  (e) => e.requestPath,
+                  'requestPath',
+                  equals('/.well-known/openid-configuration'),
+                ),
+          ),
+        );
+      },
+    );
 
     test(
       'bhv authoidc 006 a transport failure during discovery reaches the caller unchanged',
@@ -591,7 +654,7 @@ void main() {
     );
 
     test(
-      'Cache-Control max-age=0 forces a rediscovery on the next call',
+      'bhv authoidc 030 Cache-Control max-age=0 forces a rediscovery on the next call',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -656,7 +719,7 @@ void main() {
     }
 
     test(
-      'a Cache-Control header without max-age falls back to the default lifetime',
+      'bhv auth 011 a Cache-Control header without max-age falls back to the default lifetime',
       () async {
         final client = _FakeApiClient();
         client.enqueue(document, headers: {'Cache-Control': 'no-transform'});
@@ -729,6 +792,27 @@ void main() {
         );
         expect(uri.queryParameters['scope'], equals('openid'));
         expect(uri.queryParameters['code_challenge_method'], equals('S256'));
+      },
+    );
+
+    test(
+      'bhv auth 029 after the cached discovery document expires, later calls use the endpoints of the newly fetched document',
+      () async {
+        final moved = document.replaceFirst('/authorize"', '/authorize-v2"');
+        final client = _FakeApiClient();
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+        client.enqueue(moved, headers: {'Cache-Control': 'max-age=0'});
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        expect(
+          await auth.buildAuthorizationUrl(),
+          startsWith('https://auth.example.com/authorize?'),
+        );
+        expect(
+          await auth.buildAuthorizationUrl(),
+          startsWith('https://auth.example.com/authorize-v2?'),
+        );
       },
     );
   });

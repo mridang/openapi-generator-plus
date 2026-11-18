@@ -99,7 +99,7 @@ fn test_transport_options_user_agent_set_value_is_applied() {
 }
 
 #[test]
-fn test_transport_options_user_agent_opt_some_and_none() {
+fn test_bhv_options_061_transport_options_user_agent_opt_some_and_none() {
     let some = TransportOptionsBuilder::new()
         .user_agent_opt(Some("UA/1.0"))
         .build()
@@ -432,12 +432,41 @@ fn test_transport_options_ca_cert_block_without_end_line_is_rejected() {
 }
 
 #[test]
-fn test_transport_options_negative_timeout_is_rejected() {
+fn test_bhv_options_047_transport_options_negative_timeout_is_rejected() {
     let result = TransportOptionsBuilder::new().timeout(Some(-1)).build();
     assert!(
         matches!(result, Err(ConfigurationError::InvalidTimeout(-1))),
         "expected InvalidTimeout(-1), got {:?}",
         result
+    );
+}
+
+/* Built through the static entry point every SDK exposes, a proxy whose scheme
+ * is not http or https is refused when the options are built. */
+#[test]
+fn test_bhv_options_046_transport_options_builder_entry_point_refuses_a_non_http_proxy_scheme() {
+    let result = TransportOptions::builder()
+        .proxy("socks5://proxy.example.com:1080")
+        .build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidProxy(_))),
+        "expected InvalidProxy, got {:?}",
+        result
+    );
+}
+
+/* A proxy URL whose scheme is neither http nor https is refused with the
+ * canonical message, naming the scheme rule. */
+#[test]
+fn test_bhv_options_051_a_proxy_url_with_a_scheme_other_than_http_or_https_is_rejected_with_its_message(
+) {
+    let err = TransportOptionsBuilder::new()
+        .proxy("socks5://proxy.example.com:1080")
+        .build()
+        .expect_err("a socks5 proxy must be rejected");
+    assert_eq!(
+        err.to_string(),
+        "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080"
     );
 }
 
@@ -591,7 +620,7 @@ fn test_bhv_options_037_transport_options_no_timeout_is_expressible() {
 
 /// `TransportOptions::builder()` is the static entry point every SDK exposes.
 #[test]
-fn test_transport_options_builder_entry_point() {
+fn test_bhv_options_060_transport_options_builder_entry_point() {
     let opts = TransportOptions::builder()
         .timeout(Some(2500))
         .build()
@@ -627,6 +656,17 @@ fn test_bhv_options_035_transport_options_proxy_url_is_preserved_on_read_back() 
 }
 
 #[test]
+fn test_bhv_options_052_a_proxy_url_carrying_credentials_is_accepted() {
+    let secret = ["pa", "ss"].concat();
+    let proxy = format!("http://user:{}@proxy.example.com:8080", secret);
+    let opts = TransportOptionsBuilder::new()
+        .proxy(&proxy)
+        .build()
+        .expect("a proxy URL with credentials is valid");
+    assert_eq!(opts.proxy(), Some(proxy.as_str()));
+}
+
+#[test]
 fn test_bhv_options_034_transport_options_setting_proxy_is_supported_on_all_platforms() {
     // Proxy configuration must not panic on any platform.
     let opts = TransportOptionsBuilder::new()
@@ -638,7 +678,7 @@ fn test_bhv_options_034_transport_options_setting_proxy_is_supported_on_all_plat
 
 /// The README names the real builder setter, not another language's accessor.
 #[test]
-fn test_readme_socks_note_names_the_builder_proxy_setter() {
+fn test_bhv_options_044_readme_socks_note_names_the_builder_proxy_setter() {
     let readme = include_str!("../README.md");
     assert!(
         readme.contains(
@@ -707,5 +747,123 @@ fn test_default_api_client_reports_the_retry_budget_to_the_call() {
     assert_eq!(
         Some(std::time::Duration::from_millis(2_500)),
         ApiClient::request_timeout(&client)
+    );
+}
+
+#[test]
+fn test_bhv_options_062_transport_options_reports_the_values_it_was_built_with() {
+    let opts = TransportOptionsBuilder::new()
+        .timeout(Some(2_500))
+        .max_retries(4)
+        .user_agent("Probe/1.0")
+        .build()
+        .expect("valid transport options");
+    assert_eq!(opts.timeout(), Some(2_500));
+    assert_eq!(opts.max_retries(), 4);
+    assert_eq!(opts.user_agent(), Some("Probe/1.0"));
+
+    let unset = TransportOptionsBuilder::new()
+        .timeout(None)
+        .build()
+        .expect("valid transport options");
+    assert_eq!(
+        unset.timeout(),
+        None,
+        "an unset timeout must read back as absent"
+    );
+}
+
+#[test]
+fn test_bhv_options_064_transport_options_debug_shows_the_configured_max_retries() {
+    let opts = TransportOptionsBuilder::new()
+        .max_retries(7)
+        .build()
+        .expect("valid transport options");
+    let shown = format!("{:?}", opts);
+    assert!(shown.contains("max_retries: 7"), "{}", shown);
+}
+
+#[test]
+fn test_bhv_options_065_transport_options_debug_never_shows_proxy_password_or_hook_values() {
+    let secret = ["s3", "cr3t-", "pw"].concat();
+    let proxy = format!("http://user:{}@proxy.example.com:8080", secret);
+    let opts = TransportOptionsBuilder::new()
+        .proxy(&proxy)
+        .default_header("Authorization", &secret)
+        .build()
+        .expect("valid transport options");
+    let shown = format!("{:?}", opts);
+    assert!(
+        !shown.contains(&secret),
+        "the secret must not appear in the printable form: {}",
+        shown
+    );
+    assert!(shown.contains("***"), "{}", shown);
+}
+
+#[test]
+fn test_bhv_options_066_transport_options_debug_shows_a_credential_free_proxy_exactly() {
+    let opts = TransportOptionsBuilder::new()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+        .expect("valid transport options");
+    let shown = format!("{:?}", opts);
+    assert!(
+        shown.contains("\"http://proxy.example.com:8080\""),
+        "{}",
+        shown
+    );
+}
+
+#[test]
+fn test_bhv_options_067_transport_options_builder_keeps_a_valid_proxy_and_leaves_none_unset() {
+    let with = TransportOptionsBuilder::new()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+        .expect("valid transport options");
+    assert_eq!(with.proxy(), Some("http://proxy.example.com:8080"));
+
+    let without = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
+    assert!(
+        without.proxy().is_none(),
+        "no proxy must leave the proxy unset"
+    );
+}
+
+#[test]
+fn test_bhv_transport_078_a_caller_supplied_client_is_refused_when_a_proxy_is_also_configured() {
+    let transport = TransportOptions::builder()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+        .expect("valid transport options");
+    let result = DefaultApiClient::with_client(reqwest::Client::new(), Some(transport));
+    assert!(
+        result.is_err(),
+        "a proxy cannot be applied to a client the caller built"
+    );
+}
+
+#[test]
+fn test_bhv_transport_080_a_proxy_scheme_the_client_cannot_apply_fails_construction() {
+    let result = TransportOptions::builder()
+        .proxy("socks5://127.0.0.1:1080")
+        .build();
+    assert!(
+        result.is_err(),
+        "a proxy the client cannot apply must not be silently dropped"
+    );
+}
+
+#[test]
+fn test_bhv_transport_077_a_ca_certificate_path_naming_a_directory_is_refused_when_built() {
+    let dir = std::env::temp_dir();
+    let dir_text = dir.to_str().expect("a UTF-8 temp directory");
+    let result = TransportOptions::builder().ca_cert_path(dir_text).build();
+    assert!(result.is_err(), "a directory is not a certificate file");
+    assert!(
+        result.unwrap_err().to_string().contains(dir_text),
+        "the error must name the path"
     );
 }

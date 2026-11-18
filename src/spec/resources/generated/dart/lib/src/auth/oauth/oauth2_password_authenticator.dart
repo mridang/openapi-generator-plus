@@ -8,6 +8,7 @@
 import 'dart:convert';
 
 import '../../api_client.dart';
+import '../../environment.dart';
 import '../../value_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
@@ -36,23 +37,55 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
   /// Creates a new password authenticator.
   ///
   /// If [refreshUrl] is empty, the [tokenUrl] is used for refresh requests.
+  ///
+  /// Each credential not passed is read from its environment variable: the
+  /// client id and secret from [clientIdVariable] and [clientSecretVariable],
+  /// the resource owner from [usernameVariable] and [passwordVariable] (default
+  /// `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID`, `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET`,
+  /// `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` and `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD`). An empty
+  /// variable counts as unset.
   OAuth2PasswordAuthenticator({
     required String host,
-    required String clientId,
-    required String clientSecret,
+    String? clientId,
+    String? clientSecret,
+    String? clientIdVariable,
+    String? clientSecretVariable,
     required String tokenUrl,
-    required String username,
-    required String password,
+    String? username,
+    String? password,
+    String? usernameVariable,
+    String? passwordVariable,
     List<String> scopes = const [],
     String refreshUrl = '',
     ClientAuthMethod clientAuthMethod = ClientAuthMethod.body,
+    Map<String, String>? environment,
   }) : _host = host,
-       _clientId = clientId,
-       _clientSecret = clientSecret,
+       _clientId = requireCredential(
+         clientId,
+         clientIdVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID',
+         'clientId',
+         environment,
+       ),
+       _clientSecret = requireCredential(
+         clientSecret,
+         clientSecretVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET',
+         'clientSecret',
+         environment,
+       ),
        _tokenUrl = tokenUrl,
        _refreshUrl = refreshUrl.isEmpty ? tokenUrl : refreshUrl,
-       _username = username,
-       _password = password,
+       _username = requireCredential(
+         username,
+         usernameVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME',
+         'username',
+         environment,
+       ),
+       _password = requireCredential(
+         password,
+         passwordVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD',
+         'password',
+         environment,
+       ),
        _scopes = scopes,
        _clientAuthMethod = clientAuthMethod,
        _tokenManager = OAuth2TokenManager();

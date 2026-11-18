@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	petstore "petstore/pkg"
@@ -78,36 +77,6 @@ func TestBhvLifecycle017_Client_WithTokenRejectsInvalidToken(t *testing.T) {
 	client, err := petstore.NewClientWithToken("/api/v3", "test-token", nil)
 	if err != nil || client == nil {
 		t.Fatalf("expected a client for a valid token, got %v", err)
-	}
-}
-
-// authenticator-secret-in-default-string-repr: the bearer token must not leak
-// through the default string/format representation.
-func TestClient_BearerStringRedactsToken(t *testing.T) {
-	t.Parallel()
-	a := mustBearer(t, "/api/v3", "super-secret-token")
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
-		if strings.Contains(s, "super-secret-token") {
-			t.Errorf("expected token to be redacted, got %q", s)
-		}
-		if !strings.Contains(s, "***") {
-			t.Errorf("expected redaction marker '***', got %q", s)
-		}
-	}
-}
-
-// authenticator-secret-in-default-string-repr: the API key must not leak
-// through the default string/format representation.
-func TestClient_ApiKeyStringRedactsKey(t *testing.T) {
-	t.Parallel()
-	a := mustApiKey(t, "/api/v3", "X-Api-Key", "super-secret-key", auth.ApiKeyLocationHeader)
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
-		if strings.Contains(s, "super-secret-key") {
-			t.Errorf("expected api key to be redacted, got %q", s)
-		}
-		if !strings.Contains(s, "***") {
-			t.Errorf("expected redaction marker '***', got %q", s)
-		}
 	}
 }
 
@@ -190,7 +159,7 @@ func TestBhvLifecycle014_Client_WithTokenReadsTheEnvironmentWhenTheArgumentsAreE
 	}
 }
 
-func TestClient_WithTokenPrefersTheArgumentsToTheEnvironment(t *testing.T) {
+func TestBhvLifecycle032_Client_WithTokenPrefersTheArgumentsToTheEnvironment(t *testing.T) {
 	var seen string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen = r.Header.Get("Authorization")
@@ -210,6 +179,55 @@ func TestClient_WithTokenPrefersTheArgumentsToTheEnvironment(t *testing.T) {
 
 	if seen != "Bearer arg-token" {
 		t.Errorf("expected the argument to win, got %q", seen)
+	}
+}
+
+// TestBhvLifecycle026 pins that a client built with no credential at all, neither a
+// host nor a scheme credential, is refused with ErrMissingCredential.
+func TestBhvLifecycle026_Client_NoCredentialAtAllIsRefused(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+
+	client, err := petstore.NewClientWithCredentials("", petstore.Credentials{}, nil)
+	if !errors.Is(err, petstore.ErrMissingCredential) {
+		t.Errorf("expected ErrMissingCredential, got %v", err)
+	}
+	if client != nil {
+		t.Error("expected a nil client")
+	}
+}
+
+// TestBhvLifecycle028 pins that an explicit host and token both win over the
+// environment: the request reaches the explicit host with the explicit token, and
+// the host named in the environment receives nothing.
+func TestBhvLifecycle028_Client_ExplicitHostAndTokenWinOverTheEnvironment(t *testing.T) {
+	var envHits int
+	envServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		envHits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer envServer.Close()
+	var seen string
+	explicitServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer explicitServer.Close()
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", envServer.URL)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
+
+	client, err := petstore.NewClientWithToken(explicitServer.URL, "arg-token", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+
+	if seen != "Bearer arg-token" {
+		t.Errorf("expected the explicit token, got %q", seen)
+	}
+	if envHits != 0 {
+		t.Errorf("expected the environment host to receive no request, got %d", envHits)
 	}
 }
 

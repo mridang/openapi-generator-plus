@@ -145,3 +145,24 @@ describe Petstore::Client::TraceContextUtil do
     end
   end
 end
+
+# Swaps the process-wide propagator, so it runs serially, outside the
+# parallel block above, and restores the default afterwards.
+describe Petstore::Client::TraceContextUtil, 'caller-registered propagator' do
+  it 'bhv_misc_002 injects with the propagator the caller registers and keeps the headers already present' do
+    propagator = Object.new
+    def propagator.inject(carrier)
+      carrier['x-caller-propagator'] = 'registered'
+    end
+    previous = OpenTelemetry.propagation
+    begin
+      OpenTelemetry.propagation = propagator
+      headers = { 'Authorization' => 'Bearer token123' }
+      Petstore::Client::TraceContextUtil.inject_trace_context(headers)
+      _(headers['x-caller-propagator']).must_equal('registered')
+      _(headers['Authorization']).must_equal('Bearer token123')
+    ensure
+      OpenTelemetry.propagation = previous
+    end
+  end
+end

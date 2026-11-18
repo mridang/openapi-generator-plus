@@ -44,11 +44,15 @@ class DryFood {
         "Missing required field 'weightKg' for DryFood",
       );
     }
-    return DryFood(
-      foodType: json['foodType'] as String,
+    try {
+      return DryFood(
+        foodType: json['foodType'] as String,
 
-      weightKg: readDouble(json['weightKg']),
-    );
+        weightKg: readDouble(json['weightKg']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for DryFood: $e', e);
+    }
   }
 
   /// Converts this [DryFood] to a JSON map.

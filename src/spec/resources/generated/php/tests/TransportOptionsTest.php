@@ -4,6 +4,42 @@ declare(strict_types=1);
 
 use PetstoreClient\TransportOptions;
 
+test('bhv options 060 the static builder entry point carries the values set on it and the same defaults as a direct build', function (): void {
+    $built = TransportOptions::builder()->timeout(2500)->build();
+
+    expect($built->timeout)->toBe(2500);
+    expect(TransportOptions::builder()->build())->toEqual(new TransportOptions());
+});
+
+test('bhv options 062 an options object reports the values it was built with and unset fields read back as absent', function (): void {
+    $options = TransportOptions::builder()->timeout(2500)->maxRetries(4)->build();
+
+    expect($options->timeout)->toBe(2500);
+    expect($options->maxRetries)->toBe(4);
+    expect($options->proxy)->toBeNull();
+    expect($options->caCertPath)->toBeNull();
+    expect($options->maxRedirects)->toBeNull();
+    expect($options->defaultHeaders)->toBe([]);
+});
+
+test('bhv options 065 the printable form of transport options never shows a proxy password or a secret header', function (): void {
+    $options = TransportOptions::builder()
+        ->proxy('http://user:hunter2@proxy.example.com:8080')
+        ->defaultHeader('Authorization', 'Bearer s3cret-token')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->not->toContain('hunter2');
+    expect($printed)->not->toContain('s3cret-token');
+});
+
+test('bhv options 066 the printable form of transport options shows a proxy url without credentials exactly as configured', function (): void {
+    $options = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->build();
+
+    expect(print_r($options, true))->toContain('http://proxy.example.com:8080');
+});
+
 test('bhv options 043 verify ssl defaults to true', function (): void {
     $opts = TransportOptions::builder()->build();
     expect($opts->verifySsl)->toBeTrue();
@@ -108,9 +144,14 @@ test('bhv options 031 rejects a zero timeout with the canonical message', functi
         ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
 });
 
-test('rejects a negative maxRedirects', function (): void {
+test('bhv options 045 rejects a negative maxRedirects', function (): void {
     expect(fn () => TransportOptions::builder()->maxRedirects(-1)->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRedirects: must not be negative (got -1)');
+});
+
+test('bhv options 047 constructor rejects a negative timeout at configuration', function (): void {
+    expect(fn () => new TransportOptions(timeout: -5))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got -5)');
 });
 
 test('bhv options 024 invalid proxy url throws exception', function (): void {
@@ -226,17 +267,24 @@ test('bhv options 034 setting proxy is supported on all platforms', function ():
     expect($opts->proxy)->toBe('http://proxy.example.com:8080');
 });
 
+test('bhv options 052 a proxy url carrying credentials is accepted', function (): void {
+    $proxy = 'http://' . implode(':', ['svc', 'opaque']) . '@proxy.example.com:8080';
+    $opts = TransportOptions::builder()->proxy($proxy)->build();
+
+    expect($opts->proxy)->toBe($proxy);
+});
+
 test('bhv options 014 an upper-case proxy scheme is accepted', function (): void {
     $opts = TransportOptions::builder()->proxy('HTTP://proxy:3128')->build();
     expect($opts->proxy)->toBe('HTTP://proxy:3128');
 });
 
-test('builder rejects a proxy with a non http scheme at build', function (): void {
+test('bhv options 051 builder rejects a proxy with a non http scheme at build', function (): void {
     expect(fn () => TransportOptions::builder()->proxy('ftp://proxy:21')->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): ftp://proxy:21');
 });
 
-test('constructor rejects a proxy with a non http scheme', function (): void {
+test('bhv options 046 constructing directly with a non http proxy scheme is rejected', function (): void {
     expect(fn () => new TransportOptions(proxy: 'socks5://proxy:1080'))
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
 });
@@ -263,7 +311,7 @@ test('bhv options 008 a rejected proxy url never carries its userinfo into the m
     ],
 ]);
 
-test('constructor accepts a valid proxy and none', function (): void {
+test('bhv options 067 constructor accepts a valid proxy and none', function (): void {
     expect((new TransportOptions(proxy: 'https://proxy:3128'))->proxy)->toBe('https://proxy:3128');
     expect((new TransportOptions())->proxy)->toBeNull();
 });
@@ -325,7 +373,7 @@ test('bhv options 007 constructor rejects a negative max retries', function (): 
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
 });
 
-test('debug output shows the max retries', function (): void {
+test('bhv options 064 debug output shows the max retries', function (): void {
     expect(print_r(TransportOptions::builder()->maxRetries(4)->build(), true))->toContain('[maxRetries] => 4');
 });
 

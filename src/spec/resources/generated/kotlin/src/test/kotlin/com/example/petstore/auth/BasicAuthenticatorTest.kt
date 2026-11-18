@@ -84,6 +84,75 @@ class BasicAuthenticatorTest {
         }
     }
 
+    @Test
+    fun bhvAuthbasic018PasswordMayContainAColon() =
+        runBlocking {
+            val auth = BasicAuthenticator("https://api.example.com", "alice", "p:ss:w0rd")
+            assertEquals("Basic YWxpY2U6cDpzczp3MHJk", auth.getAuthHeaders()["Authorization"])
+        }
+
+    @Test
+    fun bhvAuthbasic019GeneratedBasicWrapperEmitsTheSameBasicHeaderAsTheBaseAuthenticator() =
+        runBlocking {
+            val base = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+            val wrapper = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+            assertEquals(base.getAuthHeaders(), wrapper.getAuthHeaders())
+            assertTrue(wrapper.toString().startsWith("AdminBasicAuthenticator("))
+        }
+
+    @Test
+    fun bhvAuthbasic020BasicAuthenticatorMasksThePasswordInItsDebugOutput() {
+        val auth = PetStoreBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val rendered = "$auth"
+        assertTrue(rendered.startsWith("PetStoreBasicAuthenticator("))
+        assertTrue(rendered.contains("password=***"))
+        assertFalse(rendered.contains("s3cret"))
+    }
+
+    @Test
+    fun bhvAuthscheme003PetStoreBasicAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val env =
+            mapOf(
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME" to "alice",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD" to "",
+            )
+        val ex =
+            withEnvironment(env) {
+                assertThrows(IllegalArgumentException::class.java) { PetStoreBasicAuthenticator("https://api.example.com") }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth007 a credential is read only from the variable it names, and nothing else is looked up")
+    fun bhvAuth007ReadsOnlyTheVariableItNames() {
+        val read = mutableListOf<String>()
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name ->
+            read.add(name)
+            null
+        }
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com")
+            }
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+        assertEquals(listOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"), read)
+    }
+
+    @Test
+    @DisplayName("bhvAuth024 each credential takes its passed value or its own variable, independently of the other")
+    fun bhvAuth024EachCredentialFallsBackIndependently() =
+        runBlocking {
+            val auth =
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "pw")) {
+                    BasicAuthenticator("https://api.example.com", "alice")
+                }
+            assertEquals("Basic YWxpY2U6cHc=", auth.getAuthHeaders()["Authorization"])
+        }
+
     private fun <T> withEnvironment(
         values: Map<String, String>,
         body: () -> T,
@@ -124,7 +193,7 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: an explicit credential wins over the environment, one credential at a time")
+    @DisplayName("bhvAuthbasic013 F862: an explicit credential wins over the environment, one credential at a time")
     fun explicitCredentialWinsOverTheEnvironment() =
         runBlocking {
             val env =
@@ -141,7 +210,7 @@ class BasicAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: an empty variable counts as unset and fails naming the variable")
+    @DisplayName("bhvAuthbasic012 an empty variable counts as unset and fails naming the variable")
     fun emptyUsernameVariableFails() {
         val ex =
             withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "", "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "x")) {
@@ -172,8 +241,8 @@ class BasicAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: a scheme's authenticator treats an empty variable as unset and names it when missing")
-    fun schemeWrapperEmptyVariableFails() {
+    @DisplayName("bhvAuthscheme004 AdminBasic treats an empty variable as unset and names it when missing")
+    fun bhvAuthscheme004AdminBasicTreatsAnEmptyVariableAsUnsetAndNamesIt() {
         val env =
             mapOf(
                 "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME" to "alice",
@@ -184,5 +253,20 @@ class BasicAuthenticatorTest {
                 assertThrows(IllegalArgumentException::class.java) { AdminBasicAuthenticator("https://api.example.com") }
             }
         assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvErrors081 a credential refused at construction names whether the username or the password is at fault")
+    fun refusedCredentialNamesTheFaultyField() {
+        val user =
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+            }
+        assertTrue(user.message!!.contains("username"), user.message)
+        val pass =
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com", "alice", "s3\r\ncret")
+            }
+        assertTrue(pass.message!!.contains("password"), pass.message)
     }
 }

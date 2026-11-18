@@ -181,7 +181,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetByNameMissingRequiredQueryParamThrows()
+    public async Task BhvOperations125GetPetByNameMissingRequiredQueryParamThrows()
     {
         // The 'category' query parameter is required by the spec. Passing a null
         // value for the required nested option must fail fast with an
@@ -219,7 +219,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetByNameNullOptionsNamesTheFirstRequiredField()
+    public async Task BhvOperations132TestGetPetByNameNullOptionsNamesTheFirstRequiredField()
     {
         // A null Options object is reported like its first missing required
         // field, with the canonical message, not as a bare null 'options'.
@@ -709,6 +709,17 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOperations153OperationWithNoChosenServerUsesTheClientBaseUrl()
+    {
+        var client = new UrlCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetMultiServerPetInfoAsync(1L);
+
+        Assert.Equal("http://localhost/pet/1/multi", client.CapturedUrl!.AbsoluteUri);
+    }
+
+    [Fact]
     public async Task BhvOperations083TestPerOperationServerVariantsResolveIntoTheRequestedUrl()
     {
         var client = new UrlCapturingApiClient();
@@ -972,8 +983,8 @@ public class PetApiTest
         };
         await api.AddPetAsync(pet);
 
-        Assert.Equal("Bearer scheme-token", client.CapturedHeaders["Authorization"]);
-        Assert.False(client.CapturedHeaders.ContainsKey("X-API-Key"));
+        Assert.Equal("key-1", client.CapturedHeaders["X-API-Key"]);
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"));
     }
 
     [Fact]
@@ -1205,22 +1216,25 @@ public class PetApiTest
     {
         public string ContentType { get; private set; } = string.Empty;
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        public string Body { get; private set; } = string.Empty;
+
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
             ContentType = request.Content?.Headers.ContentType?.MediaType ?? string.Empty;
-            return Task.FromResult(
-                new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-                {
-                    Content = new StringContent(
-                        "{\"code\":200,\"type\":\"\",\"message\":\"success\"}",
-                        System.Text.Encoding.UTF8,
-                        "application/json"
-                    ),
-                }
-            );
+            Body = request.Content is null
+                ? string.Empty
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"code\":200,\"type\":\"\",\"message\":\"success\"}",
+                    System.Text.Encoding.UTF8,
+                    "application/json"
+                ),
+            };
         }
     }
 
@@ -1480,6 +1494,91 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOperations147MultipartPartsAreSentInDeclarationOrder()
+    {
+        using var handler = new MultipartCapturingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var api = new PetApi(
+            new DefaultApiClient(transport),
+            Configuration.Builder().BaseUrl("http://localhost").Build()
+        );
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+
+        await api.UploadPetDocumentAsync(
+            1L,
+            new UploadPetDocumentOptions
+            {
+                File = fileData,
+                DocumentType = "vaccination",
+                Notes = "n",
+            }
+        );
+
+        var file = handler.Body.IndexOf("name=\"file\"", StringComparison.Ordinal);
+        var documentType = handler.Body.IndexOf("name=\"documentType\"", StringComparison.Ordinal);
+        var notes = handler.Body.IndexOf("name=\"notes\"", StringComparison.Ordinal);
+        Assert.True(file >= 0 && file < documentType && documentType < notes, handler.Body);
+    }
+
+    [Fact]
+    public async Task BhvOperations156FormBodyFieldsAreSentInTheOrderTheSpecDeclaresThem()
+    {
+        var client = new BodyCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions
+            {
+                Tags = new List<string> { "x" },
+                Nickname = "n",
+            }
+        );
+
+        string wire = client.CapturedBody!.ToString()!;
+        Assert.True(
+            wire.IndexOf("nickname=", StringComparison.Ordinal)
+                < wire.IndexOf("tags=", StringComparison.Ordinal),
+            wire
+        );
+    }
+
+    [Fact]
+    public async Task BhvOptions054AnOperationAcceptsPerCallOptionsAlongsideItsArguments()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        _ = await api.FindPetsByStatusAsync(
+            new FindPetsByStatusOptions
+            {
+                Status = "available",
+                Timeout = 5,
+                MaxRetries = 0,
+                Headers = new Dictionary<string, string> { ["x-trace"] = "abc" },
+            }
+        );
+
+        Assert.Equal("abc", client.CapturedHeaders["x-trace"]);
+    }
+
+    [Fact]
+    public void BhvOptions063APerCallOptionsObjectCannotHaveItsFieldsChanged()
+    {
+        Assert.All(
+            typeof(FindPetsByStatusOptions).GetProperties(),
+            property =>
+                Assert.True(
+                    property.SetMethod is null
+                        || property
+                            .SetMethod.ReturnParameter.GetRequiredCustomModifiers()
+                            .Contains(typeof(System.Runtime.CompilerServices.IsExternalInit)),
+                    property.Name
+                )
+        );
+    }
+
+    [Fact]
     public async Task BhvOperations037TestErrorHandlingNotFound()
     {
         var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
@@ -1509,7 +1608,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestJsonNullBodyForBodyReturningOpThrowsApiException()
+    public async Task BhvOperations136TestJsonNullBodyForBodyReturningOpThrowsApiException()
     {
         // A bare JSON null payload is an absent body, exactly like an empty
         // one: it must surface the canonical ApiException, never a null
@@ -1544,7 +1643,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestMalformedSuccessBodyFailsLoud()
+    public async Task BhvOperations127MalformedSuccessBodyFailsLoud()
     {
         // A 2xx response carrying a body that is NOT valid JSON for the
         // declared type must FAIL LOUD: the deserialization error propagates
@@ -1557,6 +1656,20 @@ public class PetApiTest
         await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
             mockApi.GetPetByIdAsync(1L)
         );
+    }
+
+    [Fact]
+    public async Task BhvOperations130TruncatedSuccessJsonPropagatesTheDeserializationError()
+    {
+        /* A 2xx body cut off mid-object is a deserialization failure. The
+           SDK exception must reach the caller as the exact type, not as a
+           base class and not as a value returned from the call. */
+        var mockApi = NewPetApiForMock(200, "application/json", "{\"id\":1,\"name\":");
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            mockApi.GetPetByIdAsync(1L)
+        );
+        Assert.Contains("Failed to deserialize JSON", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1735,6 +1848,22 @@ public class PetApiTest
         var multipartBody = Assert.IsType<Dictionary<string, object>>(multipartClient.CapturedBody);
         Assert.True(multipartBody.ContainsKey("file"));
         Assert.IsAssignableFrom<Stream>(multipartBody["file"]);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire055FormValueSpaceEncodesAsPlus()
+    {
+        var client = new BodyCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions { Nickname = "a b" }
+        );
+
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("nickname=a+b", client.CapturedBody!.ToString());
     }
 
     [Fact]
@@ -2168,7 +2297,7 @@ public class PetApiTest
     [InlineData(418, typeof(ClientException))]
     [InlineData(422, typeof(UnprocessableEntityException))]
     [InlineData(502, typeof(BadGatewayException))]
-    public async Task GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes(
+    public async Task BhvOperations138GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes(
         int status,
         Type expected
     )

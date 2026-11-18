@@ -88,6 +88,103 @@ describe 'Composed Schema' do
 
       _(serialized).must_include('dry')
     end
+
+    it 'bhv_unions_029 oneOf wrappers have value equality' do
+      left = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+      right = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+      other = Petstore::Client::ObjectSerializer.deserialize('"BQYHCA=="', 'SetPetAvatarThumbnailRequest')
+      _(left).must_equal(right)
+      _(left.hash).must_equal(right.hash)
+      _(left).wont_equal(other)
+
+      food = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+      same_food = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+      _(food).must_equal(same_food)
+      _(food.hash).must_equal(same_food.hash)
+    end
+
+    it 'bhv_unions_030 a subtype whose discriminator key is absent is filled with the mapping default' do
+      food = Petstore::Client::ObjectSerializer.deserialize('{"weightKg":2.5}', 'DryFood')
+
+      _(food.food_type).must_equal('dry')
+    end
+
+    it 'bhv_unions_032 a oneOf wrapper built from a variant holds it and serializes it with its discriminator' do
+      dry = Petstore::Client::Models::DryFood.new(weight_kg: 2.5)
+      food = Petstore::Client::Models::PetFood.from_dry_food(dry)
+
+      _(food).must_be_same_as(dry)
+      serialized = Petstore::Client::ObjectSerializer.serialize(food)
+      _(JSON.parse(serialized)).must_equal('foodType' => 'dry', 'weightKg' => 2.5)
+    end
+
+    it 'bhv_unions_033 an unknown, missing or empty discriminator fails with the SDK serialization error' do
+      [
+        '{"foodType":"raw","calories":300}',
+        '{"weightKg":2.5}',
+        '{"foodType":"","weightKg":2.5}'
+      ].each do |json|
+        _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
+          .must_raise Petstore::Client::Errors::SerializationError
+      end
+    end
+
+    it 'bhv_unions_034 a oneOf wrapper typed accessor returns the held variant and nothing for the other' do
+      wet = Petstore::Client::Models::WetFood.new(volume_ml: 400)
+      food = Petstore::Client::Models::PetFood.from_wet_food(wet)
+
+      _(Petstore::Client::Models::PetFood.as_wet_food(food)).must_be_same_as(wet)
+      assert_nil(Petstore::Client::Models::PetFood.as_dry_food(food))
+    end
+
+    it 'bhv_unions_035 a discriminator value not listed in the mapping fails even when the payload fits a variant' do
+      _ { Petstore::Client::ObjectSerializer.deserialize('{"foodType":"frozen","weightKg":3.0}', 'PetFood') }
+        .must_raise Petstore::Client::Errors::SerializationError
+    end
+
+    it 'bhv_unions_037 a union built from one of its variants holds that exact value and returns it unchanged' do
+      dry = Petstore::Client::Models::DryFood.new(weight_kg: 2.5)
+      food = Petstore::Client::Models::PetFood.from_dry_food(dry)
+
+      _(food).must_be_same_as(dry)
+      _(food.weight_kg).must_equal(2.5)
+      _(Petstore::Client::Models::PetFood.singleton_methods.grep(/\Aset_|=\z/)).must_be_empty
+    end
+
+    it 'bhv_unions_038 a union body that cannot be decoded raises the SDK serialization error' do
+      [
+        '{"foodType":3,"weightKg":2.5}',
+        '{"FoodType":"dry","weightKg":2.5}',
+        '{"foodType":"fish","weightKg":2.5}',
+        '{"foodType":"dry"}'
+      ].each do |json|
+        _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
+          .must_raise Petstore::Client::Errors::SerializationError
+      end
+    end
+
+    it 'bhv_unions_040 a typed accessor returns the variant a decoded union holds and nothing for the other' do
+      food = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+
+      _(food).must_be_kind_of(Petstore::Client::Models::DryFood)
+      _(Petstore::Client::Models::PetFood.as_dry_food(food)).must_be_same_as(food)
+      assert_nil(Petstore::Client::Models::PetFood.as_wet_food(food))
+      _(Petstore::Client::Models::PetFood.wet_food_variant?(food)).must_equal(false)
+    end
+
+    it 'bhv_unions_042 a union holding no variant answers false to every predicate and nil to every accessor' do
+      _(Petstore::Client::Models::PetFood.dry_food_variant?(nil)).must_equal(false)
+      _(Petstore::Client::Models::PetFood.wet_food_variant?(nil)).must_equal(false)
+      assert_nil(Petstore::Client::Models::PetFood.as_dry_food(nil))
+      assert_nil(Petstore::Client::Models::PetFood.as_wet_food(nil))
+    end
+
+    it 'bhv_unions_043 a discriminator value already set on a subtype is written as given' do
+      food = Petstore::Client::Models::DryFood.new(food_type: 'custom', weight_kg: 2.5)
+      serialized = Petstore::Client::ObjectSerializer.serialize(food)
+
+      _(JSON.parse(serialized)['foodType']).must_equal('custom')
+    end
   end
 
   describe 'anyOf without discriminator: PetTreatment' do
@@ -382,5 +479,15 @@ describe 'Composed Schema' do
     _(json).must_equal('["AQI=","AwQ="]')
     result = Petstore::Client::ObjectSerializer.deserialize(json, 'SetPetAvatarThumbnailRequest')
     _(result.map(&:bytes)).must_equal([[0x01, 0x02], [0x03, 0x04]])
+  end
+
+  it 'bhv_unions_041 a oneOf without a discriminator decodes each JSON shape to its own variant' do
+    single = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+    many = Petstore::Client::ObjectSerializer.deserialize('["AQIDBA==","BQYHCA=="]', 'SetPetAvatarThumbnailRequest')
+
+    _(single).must_be_kind_of(String)
+    _(single.bytes).must_equal([0x01, 0x02, 0x03, 0x04])
+    _(many).must_be_kind_of(Array)
+    _(many.map(&:bytes)).must_equal([[0x01, 0x02, 0x03, 0x04], [0x05, 0x06, 0x07, 0x08]])
   end
 end

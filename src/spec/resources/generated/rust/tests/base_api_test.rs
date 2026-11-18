@@ -77,7 +77,7 @@ async fn test_base_api_error_dispatch_404() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_409() {
+async fn test_bhv_errors_067_base_api_error_dispatch_409() {
     let base_url = format!(
         "{}/test/status/409",
         testcontainers_helper::chasm_http_url()
@@ -110,26 +110,7 @@ async fn test_base_api_error_dispatch_422() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_500() {
-    let base_url = format!(
-        "{}/test/status/500",
-        testcontainers_helper::chasm_http_url()
-    );
-    let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let client = DefaultApiClient::new(Some(
-        TransportOptions::builder()
-            .max_retries(0)
-            .build()
-            .expect("valid transport options"),
-    ));
-    let api = PetApi::new(Arc::new(client), config, None);
-
-    let result = api.get_pet_by_id(1, None, None).await;
-    assert!(result.is_err(), "expected error for status 500");
-}
-
-#[tokio::test]
-async fn test_base_api_error_dispatch_502() {
+async fn test_bhv_errors_070_base_api_error_dispatch_502() {
     let base_url = format!(
         "{}/test/status/502",
         testcontainers_helper::chasm_http_url()
@@ -182,7 +163,7 @@ async fn test_bhv_errors_034_base_api_parses_json_error_body() {
 // -- Empty 200 response --
 
 #[tokio::test]
-async fn test_base_api_handles_empty_200_response() {
+async fn test_bhv_transport_067_base_api_handles_empty_200_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
@@ -315,7 +296,7 @@ async fn test_bhv_authintegration_010_base_api_forwards_auth_headers() {
 // -- Nil body handling --
 
 #[tokio::test]
-async fn test_base_api_handles_nil_body() {
+async fn test_bhv_serializationobject_183_base_api_handles_nil_body() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
@@ -384,7 +365,7 @@ async fn test_base_api_rejects_a_text_plain_body_for_a_model_return() {
         .downcast_ref::<SerializationError>()
         .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
     assert_eq!(
-        "Unexpected response Content-Type 'text/plain' for a JSON return type",
+        "Unexpected response Content-Type 'text/plain' for PetApi.get_pet_by_id",
         serialization.message()
     );
 }
@@ -691,7 +672,7 @@ async fn test_bhv_errors_037_base_api_auth_code_not_exchanged_fails_the_call() {
 }
 
 #[tokio::test]
-async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
+async fn test_bhv_auth_021_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
     /* Passing None for both the op auth and the client authenticator is
      * permitted for endpoints that don't strictly require credentials. */
     let client = Arc::new(CapturingApiClient::new());
@@ -833,6 +814,37 @@ async fn test_bhv_operations_075_base_api_set_pet_preferences_form_body_date_tim
     );
 }
 
+/* A space in a form value encodes as `+` for every field. */
+#[tokio::test]
+async fn test_bhv_serializationwire_055_form_space_encodes_as_plus() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+
+    let opts = SetPetPreferencesOptions::new("good boy".to_string()).note("very fast".to_string());
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    assert!(
+        body_str.contains("nickname=good+boy"),
+        "space must encode as +: {}",
+        body_str
+    );
+    assert!(
+        body_str.contains("note=very+fast"),
+        "space must encode as +: {}",
+        body_str
+    );
+    assert!(
+        !body_str.contains("%20"),
+        "space must never encode as %20: {}",
+        body_str
+    );
+}
+
 // -- form-urlencoded Content-Type set on the generated operation --
 #[tokio::test]
 async fn test_set_pet_preferences_sends_form_content_type() {
@@ -942,7 +954,7 @@ async fn test_bhv_operations_019_base_api_date_form_param_serialises_date_only()
 // -- 418 Teapot (unrecognized status) --
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_418() {
+async fn test_bhv_errors_048_base_api_error_dispatch_418() {
     let base_url = format!(
         "{}/test/status/418",
         testcontainers_helper::chasm_http_url()
@@ -1118,7 +1130,7 @@ impl petstore::auth::Authenticator for InvalidCookieAuthenticator {
 /// mistake: `ConfigurationError::InvalidArgument` before any request is sent,
 /// never a panic.
 #[tokio::test]
-async fn test_base_api_invalid_auth_cookie_is_invalid_argument() {
+async fn test_bhv_authintegration_019_base_api_invalid_auth_cookie_is_invalid_argument() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1713,7 +1725,33 @@ async fn test_bhv_errors_035_text_plain_body_for_a_model_return_is_a_serializati
         .downcast_ref::<SerializationError>()
         .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
     assert_eq!(
-        "Unexpected response Content-Type 'text/plain' for a JSON return type",
+        "Unexpected response Content-Type 'text/plain' for PetApi.get_pet_by_id",
+        serialization.message()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_errors_054_an_unexpected_content_type_error_names_the_operation() {
+    let client = Arc::new(BinaryResponseApiClient {
+        body: "hello world".to_string(),
+        content_type: "text/plain".to_string(),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("text/plain cannot be a model");
+    let serialization = err
+        .downcast_ref::<SerializationError>()
+        .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
+    assert!(
+        serialization
+            .message()
+            .ends_with("for PetApi.get_pet_by_id"),
+        "the error must name the operation, got: {}",
         serialization.message()
     );
 }
@@ -1866,7 +1904,7 @@ async fn test_bhv_serializationwire_008_empty_json_object_body_includes_content_
 }
 
 #[tokio::test]
-async fn test_get_request_with_no_body_omits_content_type() {
+async fn test_bhv_operations_131_get_request_with_no_body_omits_content_type() {
     let client = Arc::new(HeaderCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1931,26 +1969,26 @@ fn make_api_error(code: u16) -> petstore::ApiError {
 }
 
 #[test]
-fn test_api_error_kind_bad_request_variant() {
+fn test_bhv_errors_058_api_error_kind_bad_request_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(400).into();
     assert!(matches!(kind, petstore::ApiErrorKind::BadRequest(_)));
     assert_eq!(kind.status_code(), 400);
 }
 
 #[test]
-fn test_api_error_kind_unauthorized_variant() {
+fn test_bhv_errors_071_api_error_kind_unauthorized_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(401).into();
     assert!(matches!(kind, petstore::ApiErrorKind::Unauthorized(_)));
 }
 
 #[test]
-fn test_api_error_kind_forbidden_variant() {
+fn test_bhv_errors_059_api_error_kind_forbidden_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(403).into();
     assert!(matches!(kind, petstore::ApiErrorKind::Forbidden(_)));
 }
 
 #[test]
-fn test_api_error_kind_not_found_variant() {
+fn test_bhv_errors_060_api_error_kind_not_found_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(404).into();
     assert!(matches!(kind, petstore::ApiErrorKind::NotFound(_)));
 }
@@ -1968,7 +2006,7 @@ fn test_api_error_kind_too_many_requests_variant() {
 }
 
 #[test]
-fn test_api_error_kind_unprocessable_entity_variant() {
+fn test_bhv_errors_068_api_error_kind_unprocessable_entity_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(422).into();
     assert!(matches!(
         kind,
@@ -1977,7 +2015,7 @@ fn test_api_error_kind_unprocessable_entity_variant() {
 }
 
 #[test]
-fn test_api_error_kind_internal_server_error_variant() {
+fn test_bhv_errors_069_api_error_kind_internal_server_error_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(500).into();
     assert!(matches!(
         kind,
@@ -2162,7 +2200,7 @@ async fn test_bhv_authintegration_006_base_api_configured_bearer_authenticator_r
 // the credential in a header (X-API-Key, as the spec's apiKeyHeader scheme
 // defines) must likewise reach the outbound request.
 #[tokio::test]
-async fn test_base_api_configured_apikey_authenticator_reaches_wire() {
+async fn test_bhv_authintegration_018_base_api_configured_apikey_authenticator_reaches_wire() {
     use petstore::auth::api_key_authenticator::ApiKeyAuthenticator;
     use petstore::auth::api_key_location::ApiKeyLocation;
     let client = Arc::new(CapturingApiClient::new());
@@ -2666,7 +2704,7 @@ fn retrying_api_with(
 }
 
 #[tokio::test]
-async fn test_a_retryable_status_is_retried_until_the_call_succeeds() {
+async fn test_bhv_retries_038_a_503_is_sent_again_until_it_succeeds() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(503, Some("0")),
@@ -2803,7 +2841,34 @@ async fn test_bhv_retries_005_a_retry_asks_the_authenticator_for_fresh_headers()
 }
 
 #[tokio::test]
-async fn test_retry_after_seconds_is_honoured() {
+async fn test_bhv_retries_039_every_retry_carries_the_same_authentication_headers() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some("0")),
+            Scripted::Status(200, None),
+        ],
+        2,
+        None,
+    );
+    let auth = petstore::auth::BearerAuthenticator::new("http://localhost", "secret-token")
+        .expect("a valid token");
+
+    retrying_api_with(&client, Arc::new(auth))
+        .delete_pet(1, None)
+        .await
+        .expect("the retry succeeds");
+
+    assert_eq!(
+        vec![
+            Some("Bearer secret-token".to_string()),
+            Some("Bearer secret-token".to_string())
+        ],
+        *client.authorizations.lock().unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_026_retry_after_seconds_is_honoured() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(429, Some("1")),
@@ -2824,6 +2889,30 @@ async fn test_retry_after_seconds_is_honoured() {
         "waited {:?}",
         started.elapsed()
     );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_028_cancelling_during_the_backoff_stops_the_retrying() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some("30")),
+            Scripted::Status(200, None),
+        ],
+        2,
+        None,
+    );
+
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        retrying_api(&client).delete_pet(1, None),
+    )
+    .await;
+
+    assert!(
+        outcome.is_err(),
+        "the call must still be waiting out the Retry-After"
+    );
+    assert_eq!(1, client.calls());
 }
 
 #[tokio::test]
@@ -3056,5 +3145,93 @@ async fn test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_
         !headers.contains_key("Cookie"),
         "got: {:?}",
         headers.get("Cookie")
+    );
+}
+
+// operations155: an operation sends its query parameters in the order the specification declares them.
+#[tokio::test]
+async fn test_bhv_operations_155_an_operation_sends_its_query_parameters_in_spec_order() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = FindPetsByStatusOptions::new()
+        .n2nd_page(2)
+        .born_after(chrono::NaiveDate::from_ymd_opt(2020, 1, 2).expect("a valid date"))
+        .status("available".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+
+    let url = client.captured_url.lock().unwrap().clone();
+    let status = url.find("status=").expect("status is sent");
+    let born = url.find("bornAfter=").expect("bornAfter is sent");
+    let page = url.find("2ndPage=").expect("2ndPage is sent");
+    assert!(
+        status < born && born < page,
+        "query parameters must follow the spec order: {}",
+        url
+    );
+}
+
+// operations156: an operation sends its form-encoded body fields in the order the specification declares them.
+#[tokio::test]
+async fn test_bhv_operations_156_an_operation_sends_its_form_body_fields_in_spec_order() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = SetPetPreferencesOptions::new("Good Boy".to_string())
+        .reminder(petstore::date_time::DateTime::new(
+            chrono::DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z").expect("a valid instant"),
+        ))
+        .note("quiet".to_string())
+        .tags(vec!["fluffy".to_string()])
+        .renewal_date(chrono::NaiveDate::from_ymd_opt(2024, 3, 4).expect("a valid date"));
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    let at = |key: &str| {
+        body_str
+            .find(key)
+            .unwrap_or_else(|| panic!("{} missing: {}", key, body_str))
+    };
+    assert!(
+        at("nickname=") < at("tags=")
+            && at("tags=") < at("note=")
+            && at("note=") < at("renewalDate=")
+            && at("renewalDate=") < at("reminder="),
+        "form fields must follow the spec order: {}",
+        body_str
+    );
+}
+
+// serialization040: a form-encoded body writes each date, date-time and boolean in its canonical wire text.
+#[tokio::test]
+async fn test_bhv_serialization_040_a_form_body_writes_dates_and_date_times_in_canonical_text() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let instant =
+        chrono::DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z").expect("a valid instant");
+    let opts = SetPetPreferencesOptions::new("Good Boy".to_string())
+        .renewal_date(chrono::NaiveDate::from_ymd_opt(2024, 3, 4).expect("a valid date"))
+        .reminder(petstore::date_time::DateTime::new(instant));
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    assert!(
+        body_str.contains("renewalDate=2024-03-04"),
+        "a date is written as its calendar day: {}",
+        body_str
+    );
+    assert!(
+        body_str.contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00"),
+        "a date-time is written in its canonical text: {}",
+        body_str
     );
 }

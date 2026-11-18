@@ -59,6 +59,14 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'host' => 'a\\0b\\&c' })).must_equal 'https://a\\0b\\&c.example.com/a\\0b\\&c'
   end
 
+  it 'bhv_servers_023 substitutes a value containing replacement patterns literally' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com',
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'a$1\\0b$&') }
+    )
+    _(config.url).must_equal('https://a$1\\0b$&.api.example.com')
+  end
+
   it 'bhv_servers_005 does not expand a placeholder that a substituted value introduces' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/{version}',
@@ -186,5 +194,32 @@ describe Petstore::Client::ServerConfiguration do
     _(server.description).must_equal "Bob's \"sandbox\" & co: $5 \#{x} a*/b"
     _(server.variables['tenant'].default_value).must_equal "o'neil"
     _(server.variables['tenant'].enum_values).must_equal ["o'neil", 'a&b']
+  end
+end
+
+describe Petstore::Client::ServerConfiguration, 'a configuration cannot change after creation' do
+  parallelize_me!
+
+  it 'bhv_servers_028 a server configuration and its variables cannot be changed after creation' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com',
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging]) }
+    )
+
+    _(-> { config.variables['extra'] = Petstore::Client::ServerVariable.new(default_value: 'x') }).must_raise FrozenError
+    _(config.variables.keys).must_equal(['env'])
+    _(config.variables['env'].enum_values).must_be :frozen?
+  end
+end
+
+describe Petstore::Client::ServerConfiguration, 'variables are not shared with the caller' do
+  parallelize_me!
+
+  it 'bhv_servers_025 changing the variables map after building does not change the configuration' do
+    variables = { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
+    config = Petstore::Client::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
+
+    _(-> { variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(config.variables.keys).must_equal(['region'])
   end
 end

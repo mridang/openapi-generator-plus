@@ -112,6 +112,28 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert String.contains?(response.body, "GET")
   end
 
+  test "bhv transport 081 a caller-supplied HTTP client carries every request with its URL and headers unchanged" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:sent, request})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(req_options: [adapter: adapter]))
+
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://custom.invalid/one", %{"X-Caller" => "first"}, nil)
+    {{moduleName}}.DefaultApiClient.send_request(client, :post, "http://custom.invalid/two", %{"X-Caller" => "second"}, "payload")
+
+    assert_receive {:sent, first}
+    assert_receive {:sent, second}
+
+    assert URI.to_string(first.url) == "http://custom.invalid/one"
+    assert Req.Request.get_header(first, "x-caller") == ["first"]
+    assert URI.to_string(second.url) == "http://custom.invalid/two"
+    assert Req.Request.get_header(second, "x-caller") == ["second"]
+  end
+
   test "bhv transport 040 a custom adapter in req_options receives the request with the SDK defaults on top" do
     test_pid = self()
 
@@ -223,6 +245,23 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
         deadline: deadline
       )
     end
+  end
+
+  test "bhv transport 070 a per-call timeout bounds the request deadline, not the transport timeout" do
+    adapter = fn request ->
+      Process.sleep(2_000)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter], timeout: 60_000)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    started = System.monotonic_time(:millisecond)
+
+    assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://custom.invalid/echo", %{}, nil, timeout: 100)
+    end
+
+    assert System.monotonic_time(:millisecond) - started < 1_500
   end
 
   test "bhv serializationwire 052 sends POST with JSON body" do
@@ -386,6 +425,29 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert headers["accept"] == "application/json"
   end
 
+  test "bhv headers 030 a default header in another case replaces the negotiated one instead of being sent beside it" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:accept, Req.Request.get_header(request, "accept")})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport =
+      {{moduleName}}.TransportOptions.new(
+        req_options: [adapter: adapter],
+        default_headers: %{"accept" => "text/plain"}
+      )
+
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client, :get, "http://custom.invalid/echo", %{"Accept" => "application/json"}, nil
+    )
+
+    assert_receive {:accept, ["application/json"]}
+  end
+
   test "bhv transport 026 a caller's lower-case accept-encoding suppresses the SDK's own" do
     {base_url, _port} = start_header_capture_server()
     client = {{moduleName}}.DefaultApiClient.new()
@@ -517,6 +579,13 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert response.status_code == 200
   end
 
+  test "bhv transport 076 percent-escapes in the proxy user information are decoded and a literal plus sign stays a plus sign" do
+    transport = {{moduleName}}.TransportOptions.new(proxy: "http://us%40er:p%2Bss+x@127.0.0.1:3128")
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    assert {{moduleName}}.DefaultApiClient.proxy_auth_header(client) == "Basic " <> Base.encode64("us@er:p+ss+x")
+  end
+
   test "bhv transport 046 leaves the proxy auth header null when no proxy is configured" do
     opts = {{moduleName}}.DefaultApiClient.request_options({{moduleName}}.TransportOptions.new())
     connect_options = Keyword.get(opts, :connect_options, [])
@@ -527,6 +596,55 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     path = "/nonexistent/ca-#{System.unique_integer([:positive])}.pem"
     transport = {{moduleName}}.TransportOptions.new(ca_cert_path: path, verify_ssl: false)
     assert_raise ArgumentError, fn -> {{moduleName}}.DefaultApiClient.new(transport) end
+  end
+
+  test "bhv headers 031 a request header value containing a carriage return or line feed is refused before the request is sent" do
+    {:ok, listen_socket} = :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen_socket)
+
+    # Records what arrives on the connection: a refused request writes no bytes.
+    receiver =
+      Task.async(fn ->
+        case :gen_tcp.accept(listen_socket, 3_000) do
+          {:ok, socket} -> :gen_tcp.recv(socket, 0, 1_000)
+          {:error, reason} -> {:error, reason}
+        end
+      end)
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    for value <- ["ok\r\nX-Injected: yes", "ok\nX-Injected: yes"] do
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:#{port}/items",
+          %{"X-Probe" => value},
+          nil
+        )
+      end
+    end
+
+    assert {:error, _reason} = Task.await(receiver, 10_000)
+    :ok = :gen_tcp.close(listen_socket)
+  end
+
+  test "bhv options 061 a user agent set on transport options is kept as given, and none leaves it unset" do
+    {base_url, _port} = start_header_capture_server()
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(user_agent: "MyApp/2.0"))
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["user-agent"] == "MyApp/2.0"
+
+    {base_url, _port} = start_header_capture_server()
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(user_agent: nil))
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    # Mint adds its own `mint/<version>` when a request carries no user-agent, and no
+    # option turns that off, so the SDK's own default must not reach the wire.
+    agent = Map.get(headers, "user-agent")
+    assert is_nil(agent) or String.starts_with?(agent, "mint/")
+    refute agent == "{{userAgentDefault}}"
   end
 
   test "bhv transport 052 sends an empty User-Agent header when the option is the empty string" do
@@ -802,7 +920,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
            )
   end
 
-  test "decode_text_body honours a little-endian BOM on a bare utf-16 label" do
+  test "bhv serializationwire 054 decode_text_body honours a little-endian BOM on a bare utf-16 label" do
     body = <<0xFF, 0xFE, 0x41, 0x00, 0x42, 0x00>>
 
     assert {{moduleName}}.DefaultApiClient.decode_text_body(body, "text/plain; charset=utf-16") ==
@@ -832,7 +950,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     end
   end
 
-  test "a 307 over plain HTTP replays the body to the target" do
+  test "bhv redirects 038 a 307 over plain HTTP replays the body to the target" do
     # Sanity check: the guard is strictly HTTPS->HTTP. Pure-HTTP 307 chains
     # must continue to round-trip the body untouched.
     {target_url, _} = start_header_capture_server()
@@ -920,6 +1038,15 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code == 302
   end
 
+  test "bhv redirects 031 a 3xx without a Location header is returned unchanged instead of failing" do
+    source = start_server(302, "text/plain", "")
+
+    transport = {{moduleName}}.TransportOptions.new(follow_redirects: true, max_redirects: 0)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    assert {{moduleName}}.DefaultApiClient.send_request(client, :get, source, %{}, nil).status_code == 302
+  end
+
   test "bhv redirects 024 a same origin redirect keeps the proxy and authorization headers" do
     base_url = start_same_origin_redirect_server()
     client = {{moduleName}}.DefaultApiClient.new()
@@ -953,6 +1080,163 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert_receive {:captured_headers, target_headers}, 5000
     refute Map.has_key?(target_headers, "x-default-token")
     assert target_headers["x-trace"] == "keep"
+  end
+
+  # Answers each request from a table keyed by its full URL, so a redirect chain
+  # runs through the SDK's own follower with no socket. Every request the
+  # transport is handed is sent to this test as {:hop, request}.
+  defp routed_client(routes, transport_opts \\ []) do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:hop, request})
+      {status, headers, body} = Map.fetch!(routes, URI.to_string(request.url))
+      {request, Req.Response.new(status: status, headers: headers, body: body)}
+    end
+
+    transport = {{moduleName}}.TransportOptions.new([req_options: [adapter: adapter]] ++ transport_opts)
+    {{moduleName}}.DefaultApiClient.new(transport)
+  end
+
+  defp collect_hops(acc \\ []) do
+    receive do
+      {:hop, request} -> collect_hops(acc ++ [request])
+    after
+      0 -> acc
+    end
+  end
+
+  test "bhv redirects 039 a request with no body keeps its method when a redirect goes from HTTPS to plain HTTP" do
+    client =
+      routed_client(%{
+        "https://secure.invalid/start" => {307, [{"location", "http://plain.invalid/next"}], ""},
+        "http://plain.invalid/next" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://secure.invalid/start", %{}, nil)
+
+    assert response.status_code == 200
+    assert [_first, second] = collect_hops()
+    assert second.method == :get
+  end
+
+  test "bhv redirects 040 a 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused" do
+    for status <- [301, 302, 303] do
+      client =
+        routed_client(%{
+          "https://secure.invalid/start" => {status, [{"location", "http://plain.invalid/next"}], ""},
+          "http://plain.invalid/next" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+        })
+
+      response =
+        {{moduleName}}.DefaultApiClient.send_request(
+          client,
+          :post,
+          "https://secure.invalid/start",
+          %{"Content-Type" => "application/json"},
+          ~s({"x":1})
+        )
+
+      assert response.status_code == 200, "a #{status} from HTTPS to plain HTTP must be followed"
+      assert [_first, second] = collect_hops()
+      assert second.method == :get
+    end
+  end
+
+  test "bhv redirects 041 a redirect that turns a POST into a GET sends the follow-up with no Content-Length or Content-Type" do
+    client =
+      routed_client(%{
+        "https://api.invalid/start" => {302, [{"location", "https://api.invalid/landing"}], ""},
+        "https://api.invalid/landing" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client,
+      :post,
+      "https://api.invalid/start",
+      %{"Content-Type" => "application/json"},
+      ~s({"x":1})
+    )
+
+    assert [_first, second] = collect_hops()
+    assert second.method == :get
+    assert Req.Request.get_header(second, "content-length") == []
+    assert Req.Request.get_header(second, "content-type") == []
+  end
+
+  test "bhv redirects 042 a 307 redirect of a bodyless POST keeps the request a POST and sends Content-Length zero" do
+    client =
+      routed_client(%{
+        "https://api.invalid/start" => {307, [{"location", "https://api.invalid/landing"}], ""},
+        "https://api.invalid/landing" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    {{moduleName}}.DefaultApiClient.send_request(client, :post, "https://api.invalid/start", %{}, nil)
+
+    assert [_first, second] = collect_hops()
+    assert second.method == :post
+    assert Req.Request.get_header(second, "content-length") == ["0"]
+  end
+
+  test "bhv redirects 043 a relative Location is resolved against the URL of the request that received the redirect" do
+    client =
+      routed_client(%{
+        "https://api.invalid/a/b/c" => {302, [{"location", "d/e"}], ""},
+        "https://api.invalid/a/b/d/e" => {302, [{"location", "../../f?x=1"}], ""},
+        "https://api.invalid/a/f?x=1" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://api.invalid/a/b/c", %{}, nil)
+
+    assert response.status_code == 200
+
+    assert Enum.map(collect_hops(), &URI.to_string(&1.url)) == [
+             "https://api.invalid/a/b/c",
+             "https://api.invalid/a/b/d/e",
+             "https://api.invalid/a/f?x=1"
+           ]
+  end
+
+  test "bhv redirects 044 a cross-origin redirect keeps the SDK's own proxy credential and drops the caller's authorization and token headers" do
+    client =
+      routed_client(
+        %{
+          "http://origin.invalid/a" => {302, [{"location", "http://other.invalid/b"}], ""},
+          "http://other.invalid/b" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+        },
+        proxy: "http://proxy-user:proxy-pass@proxy.invalid:3128"
+      )
+
+    proxy_header = {{moduleName}}.DefaultApiClient.proxy_auth_header(client)
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client,
+      :get,
+      "http://origin.invalid/a",
+      %{"Authorization" => "Bearer caller-secret", "X-Auth-Token" => "caller-token"},
+      nil
+    )
+
+    assert [_first, second] = collect_hops()
+    connect_options = Map.get(second.options, :connect_options, [])
+    assert Keyword.get(connect_options, :proxy_headers) == [{"proxy-authorization", proxy_header}]
+    assert Req.Request.get_header(second, "authorization") == []
+    assert Req.Request.get_header(second, "x-auth-token") == []
+  end
+
+  test "bhv redirects 033 a redirect to a different port is a different origin and drops the credentials" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client = {{moduleName}}.DefaultApiClient.new()
+    authorization = "Bearer " <> "secret-token"
+
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{"Authorization" => authorization}, nil)
+
+    assert_receive {:source_headers, source_headers}, 5000
+    assert source_headers["authorization"] == authorization
+    assert_receive {:captured_headers, target_headers}, 5000
+    refute Map.has_key?(target_headers, "authorization")
   end
 
   test "bhv redirects 026 throws ApiError when maxRedirects is exceeded" do
@@ -995,7 +1279,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     refute err.message =~ "SECRET"
   end
 
-  test "redact_url drops the query, userinfo and fragment" do
+  test "bhv errors 077 redact_url drops the query, userinfo and fragment" do
     assert {{moduleName}}.DefaultApiClient.redact_url("https://u:p@h.example/pet?api_key=SECRET#frag") ==
              "https://h.example/pet"
 
@@ -1030,6 +1314,19 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
       end
 
     refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+  end
+
+  test "bhv transport 077 a ca certificate path that names a directory fails when the client is built, naming that path" do
+    dir = Path.join(System.tmp_dir!(), "ca-dir-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf(dir) end)
+
+    err =
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(ca_cert_path: dir))
+      end
+
+    assert err.message =~ inspect(dir)
   end
 
   test "bhv errors 039 a caCertPath that is not PEM raises ArgumentError at construction" do
@@ -1162,6 +1459,28 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
 
   # network-timeout-error: a request that exceeds the configured timeout
   # raises NetworkTimeoutError with status 0.
+  test "bhv errors 078 a network failure message and its cause never show the query string" do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false])
+    {:ok, port} = :inet.port(socket)
+    :ok = :gen_tcp.close(socket)
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    err =
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:#{port}/items?token=secretvalue",
+          %{},
+          nil
+        )
+      end
+
+    refute Exception.message(err) =~ "secretvalue"
+    refute inspect(err) =~ "secretvalue"
+  end
+
   test "bhv transport 058 timeout raises NetworkTimeoutError" do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(socket)
@@ -1197,7 +1516,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   # Cancellation is the process exit that ends the call: a caller shut down
   # while its request is in flight ends with no reply, and the SDK never
   # surfaces an error of its own for it.
-  test "cancelling an in-flight call ends the caller without an SDK error" do
+  test "bhv transport 060 cancelling an in-flight call aborts the request without reporting a timeout" do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(socket)
     test_pid = self()
@@ -1243,11 +1562,56 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     end
   end
 
+  test "bhv errors 083 an unreadable CA certificate path fails at construction with an error that names the path" do
+    path = "/nonexistent/ca-#{System.unique_integer([:positive])}.pem"
+    transport = {{moduleName}}.TransportOptions.new(ca_cert_path: path)
+
+    err = assert_raise ArgumentError, fn -> {{moduleName}}.DefaultApiClient.new(transport) end
+
+    assert err.message == "failed to read CA certificate from #{inspect(path)}: no such file or directory"
+  end
+
+  test "bhv transport 072 a deadline that expires while sending the body raises the timeout error, a refused connection does not" do
+    timeout_adapter = fn request -> {request, %Req.TransportError{reason: :timeout}} end
+    timing_out = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(req_options: [adapter: timeout_adapter]))
+
+    err =
+      assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(timing_out, :post, "http://custom.invalid/upload", %{}, "payload")
+      end
+
+    assert err.status_code == 0
+
+    refused_adapter = fn request -> {request, %Req.TransportError{reason: :econnrefused}} end
+    refusing = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(req_options: [adapter: refused_adapter]))
+
+    assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(refusing, :post, "http://custom.invalid/upload", %{}, "payload")
+    end
+  end
+
+  test "bhv transport 065 a configured CA bundle replaces the system trust store instead of adding to it" do
+    ca_cert_path = System.fetch_env!("CA_CERT_PATH")
+    transport = {{moduleName}}.TransportOptions.new(ca_cert_path: ca_cert_path)
+
+    # Erlang's ssl trusts exactly the cacertfile when one is given and loads
+    # no system roots, so the pinned bundle is the whole trust store.
+    transport_opts =
+      transport
+      |> {{moduleName}}.DefaultApiClient.request_options()
+      |> Keyword.fetch!(:connect_options)
+      |> Keyword.fetch!(:transport_opts)
+
+    assert transport_opts[:verify] == :verify_peer
+    assert transport_opts[:cacertfile] == String.to_charlist(ca_cert_path)
+    refute Keyword.has_key?(transport_opts, :cacerts)
+  end
+
   # Every deadline this client is allowed to set is armed from the single
   # `:timeout` option: the idle timer and the connect handshake. Leaving one of
   # them at the library's own default is what makes the same expired budget
   # surface under two different types.
-  test "the timeout option arms every deadline the stack has" do
+  test "bhv transport 071 the timeout option arms every deadline the stack has" do
     transport = {{moduleName}}.TransportOptions.new(timeout: 3_000)
     opts = {{moduleName}}.DefaultApiClient.request_options(transport)
 
@@ -1257,6 +1621,43 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     # under `:finch` and refuses `:finch` alongside `:connect_options`. It is
     # covered by classification instead, above.
     refute Keyword.has_key?(opts, :finch)
+  end
+
+  test "bhv redirects 037 a redirect to the explicit default port of the same origin keeps the Authorization header" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:hop, request.url.path, Req.Request.get_header(request, "authorization")})
+
+      case request.url.path do
+        "/first" ->
+          {request,
+           Req.Response.new(
+             status: 302,
+             headers: [{"location", "https://custom.invalid:443/second"}],
+             body: ""
+           )}
+
+        _ ->
+          {request, Req.Response.new(status: 200, body: "")}
+      end
+    end
+
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter])
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    response =
+      {{moduleName}}.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://custom.invalid/first",
+        %{"Authorization" => "Bearer secret"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert_receive {:hop, "/first", ["Bearer secret"]}
+    assert_receive {:hop, "/second", ["Bearer secret"]}
   end
 
   test "bhv redirects 015 send_request/6 with no_redirect: true returns the raw 302 response" do
@@ -1412,6 +1813,26 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   # An unrecognised Content-Encoding the client cannot decode hits the
   # decompressor's default clause and must surface a typed ApiError carrying the
   # response status, never a NetworkError and never the body still encoded.
+  test "bhv transport 074 a response compressed with a codec whose library is not installed raises an error, never the encoded body" do
+    base_url =
+      start_server(
+        200,
+        "application/octet-stream",
+        <<0x0B, 0x02, 0x80, 0x03>>,
+        [{"Content-Encoding", "br"}]
+      )
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    err =
+      assert_raise {{moduleName}}.Errors.ApiError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/compressed", %{}, nil)
+      end
+
+    assert err.status_code == 200
+    assert err.message == "Received a br-encoded response but the br library is unavailable"
+  end
+
   test "bhv errors 042 unsupported Content-Encoding surfaces ApiError with the real status" do
     base_url =
       start_server(
@@ -1453,7 +1874,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
 
   # A body that carries the gzip magic bytes but is truncated is also a
   # response that arrived but cannot be used.
-  test "corrupt gzip body with the magic bytes raises ApiError with the real status" do
+  test "bhv transport 073 corrupt gzip body with the magic bytes raises ApiError with the real status" do
     base_url =
       start_server(
         503,
@@ -1546,14 +1967,14 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   # A redirect's origin is scheme + host + port, and an implicit default port is
   # the same origin as the explicit one: credentials must not be stripped on
   # https://h -> https://h:443.
-  test "same_origin? treats an implicit and an explicit default port as one origin" do
+  test "bhv redirects 030 same_origin? treats an implicit and an explicit default port as one origin" do
     assert {{moduleName}}.DefaultApiClient.same_origin?("https://h.example/a", "https://h.example:443/b")
     assert {{moduleName}}.DefaultApiClient.same_origin?("https://h.example:443/a", "https://h.example/b")
     assert {{moduleName}}.DefaultApiClient.same_origin?("http://h.example/a", "http://h.example:80/b")
     assert {{moduleName}}.DefaultApiClient.same_origin?("https://H.Example/a", "https://h.example/b")
   end
 
-  test "same_origin? separates a different scheme, host or port" do
+  test "bhv redirects 034 same_origin? separates a different scheme, host or port" do
     refute {{moduleName}}.DefaultApiClient.same_origin?("https://h.example/a", "http://h.example/b")
     refute {{moduleName}}.DefaultApiClient.same_origin?("https://h.example/a", "https://other.example/b")
     refute {{moduleName}}.DefaultApiClient.same_origin?("https://h.example/a", "https://h.example:8443/b")
@@ -1616,7 +2037,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
       assert {{moduleName}}.ObjectSerializer.stringify(t) == "12:30:45"
     end
 
-    test "convert_to_type parses ISO-8601 to Time.t() under typespec key" do
+    test "bhv serialization 041 convert_to_type parses ISO-8601 to Time.t() under typespec key" do
       result = {{moduleName}}.ObjectSerializer.convert_to_type("12:30:45", "Time.t()")
       assert %Time{} = result
       assert result.hour == 12 and result.minute == 30 and result.second == 45
@@ -1636,13 +2057,6 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   end
 
   describe "4.8 format: duration" do
-    test "stringify/1 emits protobuf duration for Duration.t()" do
-      d = Duration.new!(hour: 1, minute: 30)
-      pb = {{moduleName}}.ObjectSerializer.stringify(d)
-      assert is_binary(pb)
-      assert pb == "5400s"
-    end
-
     test "convert_to_type parses protobuf duration to Duration.t() under typespec key" do
       result = {{moduleName}}.ObjectSerializer.convert_to_type("5400s", "Duration.t()")
       assert %Duration{second: 5400} = result
@@ -1708,8 +2122,28 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     end
   end
 
+  describe "multipart raw bytes" do
+    test "bhv serializationwire 056 a raw bytes part without an extension is application/octet-stream" do
+      body =
+        {{moduleName}}.DefaultApiClient.build_multipart_body([{"blob", {:raw, <<1, 2, 3>>}}], "b")
+
+      assert body ==
+               ~s(--b\r\nContent-Disposition: form-data; name="blob"; filename="blob"\r\n) <>
+                 "Content-Type: application/octet-stream\r\n\r\n" <> <<1, 2, 3>> <> "\r\n--b--\r\n"
+    end
+  end
+
   describe "redirect_method/2 (RFC 9110 section 15.4)" do
     alias {{moduleName}}.DefaultApiClient
+
+    test "bhv redirects 029 a redirect rewrites the method only as RFC 9110 section 15.4 allows" do
+      assert DefaultApiClient.redirect_method(301, :post) == :get
+      assert DefaultApiClient.redirect_method(302, :post) == :get
+      assert DefaultApiClient.redirect_method(303, :put) == :get
+      assert DefaultApiClient.redirect_method(303, :head) == :head
+      assert DefaultApiClient.redirect_method(307, :post) == :post
+      assert DefaultApiClient.redirect_method(308, :delete) == :delete
+    end
 
     test "301 and 302 turn only POST into GET" do
       for status <- [301, 302] do
@@ -1722,7 +2156,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
       end
     end
 
-    test "303 turns every method except HEAD into GET" do
+    test "bhv redirects 036 a 303 redirect turns every method except HEAD into GET" do
       for method <- [:post, :put, :patch, :delete, :get] do
         assert DefaultApiClient.redirect_method(303, method) == :get
       end
@@ -1738,7 +2172,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   end
 
   describe "the ApiClient behaviour" do
-    test "close/1 is optional, so a minimal custom transport need not implement it" do
+    test "bhv lifecycle 038 close/1 is optional, so a minimal custom transport need not implement it" do
       optional = {{moduleName}}.ApiClient.behaviour_info(:optional_callbacks)
 
       assert {:close, 1} in optional

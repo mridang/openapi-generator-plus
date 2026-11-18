@@ -5,10 +5,12 @@ import { StoreApi } from '../../src/api/store-api{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
 import { DefaultApiClient } from '../../src/default-api-client{{importFileExtension}}';
 import { TransportOptions } from '../../src/transport-options{{importFileExtension}}';
-import { Account, Availability, Defaults, DefaultsModeEnum, Order, OrderStatusEnum, Category, PhotoMetadata, Priority, Reservation, ReservationReceipt, Swatch, TreeNode } from '../../src/models/index{{importFileExtension}}';
+import { Account, Availability, Defaults, DefaultsModeEnum, Order, OrderStatusEnum, Category, PhotoMetadata, PhotoMetadataLocation, Priority, Reservation, ReservationReceipt, Swatch, TreeNode } from '../../src/models/index{{importFileExtension}}';
 import { BadGatewayError, BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NotFoundError, SerializationError, UnauthorizedError, UnprocessableEntityError } from '../../src/errors/index{{importFileExtension}}';
+
 import { uuid, type UUID } from '../../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
+import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = Configuration.builder()
@@ -50,6 +52,20 @@ describe('StoreApi', () => {
 
     expect(result).toBeDefined();
     expect(result.id).toBeDefined();
+  });
+
+  test('bhv operations 126 placeOrder without an argument sends no body', async () => {
+    let sentBody: unknown = 'unset';
+    const client = {
+      sendRequest: async (...args: unknown[]) => {
+        sentBody = args[3];
+        return { statusCode: 200, body: '{"id":1}', headers: { 'content-type': 'application/json' } };
+      },
+    } as unknown as ApiClient;
+
+    await new StoreApi(client, config).placeOrder();
+
+    expect(sentBody ?? null).toBeNull();
   });
 
   test('bhv operations 103 getInventoryWithHttpInfo', async () => {
@@ -261,12 +277,30 @@ describe('StoreApi response shapes', () => {
     }
   });
 
-  test('reserveStock decodes a 200 body as the existing reservation', async () => {
+  test('bhv operations 129 a 200 response from reserveStock decodes as the existing reservation', async () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"reservationId":31,"quantity":4}');
     try {
       const result = await mockApi.reserveStock();
       expect(result).toBeInstanceOf(Reservation);
       expect((result as Reservation).reservationId).toBe(31);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 154 a 201 body that only fits the 200 schema is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(201, 'application/json', '{"reservationId":31,"quantity":4}');
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv unions 036 the status code selects the declared variant, so a 200 body of the 201 shape is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}');
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
     } finally {
       close();
     }
@@ -369,6 +403,13 @@ describe('StoreApi content-encoded query parameters', () => {
     expect(url).toContain('q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22');
   });
 
+  test('bhv serialization 008 a content-typed query parameter is JSON-encoded once, not twice', async () => {
+    const url = await captureSearch(new PhotoMetadata({ caption: 'a%b' }));
+
+    expect(url).toContain('a%25b');
+    expect(url).not.toContain('%2525');
+  });
+
   let hits = 0;
 
   async function captureRequest(call: (storeApi: StoreApi) => Promise<unknown>): Promise<string> {
@@ -391,6 +432,17 @@ describe('StoreApi content-encoded query parameters', () => {
     }
   }
 
+  test('bhv operations 155 searchStore sends its query parameters in the declared order', async () => {
+    const url = await captureRequest((s) =>
+      s.searchStore({
+        q: new PhotoMetadata({ location: new PhotoMetadataLocation({ lat: 1 }) }),
+        labels: new Set(['red']),
+        at: Temporal.PlainTime.from('10:30:00'),
+      }),
+    );
+    expect([...new URL(url, 'http://127.0.0.1').searchParams.keys()]).toEqual(['q', 'labels', 'at']);
+  });
+
   test('searchStore expands a Set parameter like an array', async () => {
     const url = await captureRequest((s) => s.searchStore({ labels: new Set(['red', 'blue']) }));
 
@@ -405,6 +457,22 @@ describe('StoreApi content-encoded query parameters', () => {
 
     expect(url).toContain(expected);
     expect(url).not.toContain(`${expected}0`);
+  });
+
+  test('bhv operations 139 searchStore keeps the fractional seconds of a time parameter when non-zero', async () => {
+    const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from('10:30:00.25') }));
+
+    expect(url).toContain('at=10%3A30%3A00.250');
+  });
+
+  test('bhv operations 128 searchStore with an unserializable content query raises SerializationError and sends no request', async () => {
+    hits = 0;
+    const call = captureRequest((s) =>
+      s.searchStore({ q: new PhotoMetadata({ location: new PhotoMetadataLocation({ lat: Number.NaN }) }) }),
+    );
+
+    await expect(call).rejects.toBeInstanceOf(SerializationError);
+    expect(hits).toBe(0);
   });
 
   test('bhv operations 124 getOrderByTrackingId puts the lowercase uuid in the path', async () => {
@@ -537,6 +605,20 @@ describe('StoreApi error dispatch through the typed status routes', () => {
 
     expect((error as Error).constructor).toBe(expected);
     expect((error as ClientError).statusCode).toBe(status);
+  });
+
+  test('an error response on a typed route is thrown as the exception class specific to its status, not the generic client error', async () => {
+    for (const status of [400, 404, 422, 500]) {
+      const statusApi = new StoreApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
+      );
+
+      const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
+
+      expect((error as Error).constructor).not.toBe(ClientError);
+      expect((error as ClientError).statusCode).toBe(status);
+    }
   });
 });
 

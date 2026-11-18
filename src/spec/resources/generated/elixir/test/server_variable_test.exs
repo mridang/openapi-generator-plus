@@ -35,10 +35,34 @@ defmodule PetstoreClient.ServerVariableTest do
       assert variable.enum_values == ["prod", "staging"]
     end
 
+    test "bhv servers 018 enum values are exposed for validation" do
+      variable = %ServerVariable{default_value: "prod", enum_values: ["prod", "staging"]}
+
+      assert variable.enum_values == ["prod", "staging"]
+    end
+
+    test "bhv servers 024 the enum values cannot be changed by updating a copy of the variable" do
+      variable = %ServerVariable{default_value: "prod", enum_values: ["prod", "staging"]}
+
+      updated = %{variable | enum_values: ["dev"]}
+
+      assert updated.enum_values == ["dev"]
+      assert variable.enum_values == ["prod", "staging"]
+    end
+
     test "requires the default_value key" do
       assert_raise ArgumentError, fn ->
         struct!(ServerVariable, description: "missing default")
       end
+    end
+  end
+
+  describe "equality" do
+    test "bhv servers 027 two variables with the same default, description and values are equal" do
+      first = %ServerVariable{default_value: "prod", description: "env", enum_values: ["prod"]}
+      second = %ServerVariable{default_value: "prod", description: "env", enum_values: ["prod"]}
+
+      assert first == second
     end
   end
 end

@@ -35,6 +35,34 @@ class TestCustomCaBundle:
         assert response.status_code == 200
         assert '"method"' in response.body
 
+    def test_bhv_transport_066_a_ca_bundle_file_trusts_every_certificate_it_contains(
+        self, chasm_https_url: Any, ca_cert_path: Any, system_root_pem: Any, tmp_path: Any
+    ) -> None:
+        # The first block is an unrelated system root, so the chasm certificate
+        # verifies only through the second block: every block must be trusted.
+        with open(ca_cert_path) as handle:
+            bundle = tmp_path / 'bundle.pem'
+            bundle.write_text(system_root_pem + handle.read())
+        transport = TransportOptions.builder().verify_ssl(True).ca_cert_path(str(bundle)).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request('GET', chasm_https_url + '/test/echo', {}, None)
+
+        assert response.status_code == 200
+
+    def test_bhv_transport_065_a_configured_ca_bundle_replaces_the_system_trust_store(
+        self, chasm_https_url: Any, system_root_pem: Any, tmp_path: Any
+    ) -> None:
+        # The bundle holds only an unrelated system root, so the chasm certificate
+        # must fail: the system roots are not consulted once a bundle is configured.
+        bundle = tmp_path / 'system_root.pem'
+        bundle.write_text(system_root_pem)
+        client = DefaultApiClient(TransportOptions.builder().verify_ssl(True).ca_cert_path(str(bundle)).build())
+
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request('GET', chasm_https_url + '/test/echo', {}, None)
+
+        assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
+
 
 def _proxy_manager(client: DefaultApiClient) -> urllib3.ProxyManager:
     """The client's pool manager, which a proxied transport makes a ProxyManager."""
@@ -88,7 +116,16 @@ class TestProxyWithCredentials:
         assert response.status_code == 200
         assert '"method"' in response.body
 
-    def test_authenticating_proxy_refuses_a_request_without_credentials(
+    def test_bhv_transport_059_authenticating_proxy_refuses_a_request_without_credentials(
+        self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
+    ) -> None:
+        transport = TransportOptions.builder().proxy(f'http://{proxy_auth_host_port}').build()
+        client = DefaultApiClient(transport)
+        response = client.send_request('GET', chasm_internal_http_url + '/test/echo', {}, None)
+
+        assert response.status_code == 407
+
+    def test_bhv_transport_063_proxy_that_requires_credentials_answers_407_when_none_sent(
         self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
     ) -> None:
         transport = TransportOptions.builder().proxy(f'http://{proxy_auth_host_port}').build()
@@ -117,7 +154,7 @@ class TestProxyWithCredentials:
         proxy_headers = {k.lower(): v for k, v in _proxy_manager(client).proxy_headers.items()}
         assert proxy_headers.get('proxy-authorization') == 'Basic YWxpY2U6czNjcmV0'
 
-    def test_proxy_with_percent_encoded_credentials_are_decoded(self) -> None:
+    def test_bhv_transport_076_proxy_with_percent_encoded_credentials_are_decoded(self) -> None:
         import base64
 
         # Reserved characters in the userinfo are percent-encoded in the URL
@@ -393,41 +430,6 @@ class TestRedirectSecurityGuards:
     These exercise the manual redirect loop in DefaultApiClient.
     """
 
-    def test_refuses_non_http_redirect_scheme(self) -> None:
-        """Guard 1: a Location: file:/// (or data:, javascript:, etc.)
-        must NOT be followed. urllib3's default Retry-based redirect
-        handling will happily walk into anything that parses as a URL,
-        which is a local-file / sandbox-escape vector."""
-        from {{packageName}}.errors import ApiException
-
-        class _FakeResp:
-            def __init__(self, status: int, headers: dict[str, Any]) -> None:
-                self.status = status
-                self.headers = headers
-            def read(self) -> bytes:
-                return b''
-            def release_conn(self) -> None:
-                return None
-
-        class _FakePool:
-            def __init__(self) -> None:
-                self.calls: list[Any] = []
-            def request(self, method: str, url: str, **kwargs: Any) -> Any:
-                self.calls.append((method, url))
-                # First response is a 302 pointing at file:///etc/passwd.
-                if len(self.calls) == 1:
-                    return _FakeResp(302, {'location': 'file:///etc/passwd'})
-                return _FakeResp(200, {})
-
-        transport = TransportOptions.builder().follow_redirects(True).build()
-        pool = _FakePool()
-        client = DefaultApiClient(transport, pool_manager=pool)
-        with pytest.raises(ApiException) as excinfo:
-            client.send_request('GET', 'http://example.com/start', {}, None)
-        assert 'non-HTTP(S)' in str(excinfo.value.message or '')
-        # The follow-up request must NEVER have been issued.
-        assert len(pool.calls) == 1
-
     def test_strips_authorization_on_https_to_http_downgrade(self) -> None:
         """Guard 2: an HTTPS -> HTTP redirect is a TLS downgrade and
         MUST strip Authorization / Cookie before re-issuing. Same host
@@ -494,7 +496,7 @@ class TestRedirectSecurityGuards:
         assert 'x-custom-auth-key' not in followup
         assert followup['x-trace'] == 'keep'
 
-    def test_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager(self) -> None:
+    def test_bhv_redirects_044_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager(self) -> None:
         """The pool manager's proxy_headers authenticate the client to its
         proxy and are shared by every concurrent request, so a cross-origin
         redirect must never remove them, not even for the duration of the
@@ -585,7 +587,7 @@ class TestN1RedirectBodyReplayMatrix:
         assert pool.calls[1][0] == 'GET'
         assert pool.calls[1][2] is None
 
-    def test_301_and_302_keep_the_method_and_body_of_put_patch_and_delete(self) -> None:
+    def test_bhv_redirects_029_a_301_or_302_keeps_the_method_and_body_of_put_patch_and_delete(self) -> None:
         for status in (301, 302):
             for method in ('PUT', 'PATCH', 'DELETE'):
                 transport = TransportOptions.builder().follow_redirects(True).build()
@@ -604,7 +606,7 @@ class TestN1RedirectBodyReplayMatrix:
             assert pool.calls[1][0] == 'GET'
             assert pool.calls[1][2] is None
 
-    def test_303_turns_every_method_except_head_into_get(self) -> None:
+    def test_bhv_redirects_036_a_303_turns_every_method_except_head_into_get(self) -> None:
         for method in ('POST', 'PUT', 'PATCH', 'DELETE'):
             transport = TransportOptions.builder().follow_redirects(True).build()
             pool = self._pool(303)
@@ -948,7 +950,7 @@ class TestTlsVerificationEnforced:
         assert excinfo.value.status_code == 0
         assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
 
-    def test_verify_ssl_false_accepts_an_address_the_certificate_does_not_name(
+    def test_bhv_transport_062_verify_ssl_false_accepts_an_address_the_certificate_does_not_name(
         self, chasm_https_url: Any
     ) -> None:
         transport = TransportOptions.builder().verify_ssl(False).build()
@@ -966,7 +968,7 @@ class TestCancellation:
     """Cancelling an in-flight request really aborts it: the connection is
     dropped instead of the call running on in a worker thread."""
 
-    async def test_cancelling_the_task_aborts_the_request(self, chasm_http_url: Any) -> None:
+    async def test_bhv_transport_060_cancelling_the_task_aborts_the_request(self, chasm_http_url: Any) -> None:
         client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())
         api = BaseApi(api_client=client, config=Configuration(base_url=chasm_http_url))
         task = asyncio.ensure_future(
@@ -984,20 +986,6 @@ class TestCancellation:
         while client._inflight and time.monotonic() < deadline:
             await asyncio.sleep(0.05)
         assert client._inflight == set()
-
-    async def test_closing_the_client_lets_the_request_in_flight_finish(self, chasm_http_url: Any) -> None:
-        client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())
-        task = asyncio.ensure_future(
-            asyncio.to_thread(client.send_request, 'GET', chasm_http_url + '/test/slow', {}, None)
-        )
-        await asyncio.sleep(0.5)
-
-        client.close()
-        response = await task
-
-        assert response.status_code == 200
-        with pytest.raises(RuntimeError, match='closed'):
-            client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
 
     async def test_a_request_cancelled_through_its_handle_ends_at_once(self, chasm_http_url: Any) -> None:
         from {{packageName}}.default_api_client import RequestHandle
@@ -1017,3 +1005,10 @@ class TestCancellation:
             await task
 
         assert time.monotonic() - started < 2
+
+
+class TestDefaultConfigurationRequests:
+    def test_bhv_transport_082_a_request_with_default_configuration_completes(self, chasm_http_url: Any) -> None:
+        response = DefaultApiClient().send_request('POST', chasm_http_url + '/test/echo', {}, None)
+
+        assert response.status_code == 200

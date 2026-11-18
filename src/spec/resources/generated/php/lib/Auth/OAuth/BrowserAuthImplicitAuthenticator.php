@@ -18,13 +18,17 @@ namespace PetstoreClient\Auth\OAuth;
  */
 final class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator
 {
+    protected const array ENV_VARS = [
+        'clientId' => 'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID',
+    ];
+
     public function __construct(
         string $host,
-        string $clientId
+        ?string $clientId = null
     ) {
         parent::__construct(
             $host,
-            $clientId,
+            self::credentialOrEnvironment($clientId, 'clientId'),
             'https://auth.example.com/authorize',
             ['read']
         );

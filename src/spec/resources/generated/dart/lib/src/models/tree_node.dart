@@ -27,13 +27,17 @@ class TreeNode {
         "Missing required field 'value' for TreeNode",
       );
     }
-    return TreeNode(
-      value: json['value'] as String,
+    try {
+      return TreeNode(
+        value: json['value'] as String,
 
-      child: json['child'] != null
-          ? TreeNode.fromJson(json['child'] as Map<String, dynamic>)
-          : null,
-    );
+        child: json['child'] != null
+            ? TreeNode.fromJson(json['child'] as Map<String, dynamic>)
+            : null,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for TreeNode: $e', e);
+    }
   }
 
   /// Converts this [TreeNode] to a JSON map.

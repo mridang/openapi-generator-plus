@@ -29,13 +29,17 @@ class Medication {
         "Missing required field 'drugName' for Medication",
       );
     }
-    return Medication(
-      drugName: json['drugName'] as String,
+    try {
+      return Medication(
+        drugName: json['drugName'] as String,
 
-      dosage: json['dosage'] as String?,
+        dosage: json['dosage'] as String?,
 
-      notes: json['notes'] as String?,
-    );
+        notes: json['notes'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Medication: $e', e);
+    }
   }
 
   /// Converts this [Medication] to a JSON map.

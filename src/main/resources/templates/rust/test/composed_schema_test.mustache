@@ -7,7 +7,7 @@ use {{packageName}}::models::*;
 // -- String enums render as their wire value (F869) --
 
 #[test]
-fn test_string_enum_displays_its_wire_value() {
+fn test_bhv_serialization_001_string_enum_displays_its_wire_value() {
     assert_eq!("green", Color::Green.to_string());
     assert_eq!("a-b", Separator::AB.to_string());
     assert_eq!("a_b", Separator::AB2.to_string());
@@ -132,7 +132,7 @@ fn test_bhv_unions_013_pet_food_deserialize_wet_food() {
 /* F129 / D59: a subtype payload that leaves out its required discriminator is
  * filled with the value its mapping declares, as in the other SDKs. */
 #[test]
-fn test_pet_food_subtype_without_its_discriminator_takes_the_mapping_value() {
+fn test_bhv_unions_030_pet_food_subtype_without_its_discriminator_takes_the_mapping_value() {
     let dry: DryFood = serde_json::from_str(r#"{"weightKg":2.5}"#).expect("failed to decode DryFood");
     let wet: WetFood = serde_json::from_str(r#"{"volumeMl":400}"#).expect("failed to decode WetFood");
 
@@ -165,7 +165,7 @@ fn test_pet_food_subtype_default_carries_its_mapping_value() {
 }
 
 #[test]
-fn test_pet_food_deserialize_unknown_discriminator() {
+fn test_bhv_unions_035_pet_food_deserialize_unknown_discriminator() {
     let json_data = r#"{"foodType":"raw","calories":300}"#;
 
     let result = serde_json::from_str::<PetFood>(json_data);
@@ -230,6 +230,31 @@ fn test_bhv_unions_020_pet_food_serialize_dry_food() {
     let parsed: serde_json::Value =
         serde_json::from_str(&data).expect("failed to parse serialized JSON");
     assert_eq!(parsed["foodType"], "dry");
+}
+
+#[test]
+fn test_bhv_unions_029_one_of_wrappers_have_value_equality() {
+    let dry = PetFood::DryFood(DryFood::new(2.5));
+    assert_eq!(dry, PetFood::DryFood(DryFood::new(2.5)));
+    assert_ne!(dry, PetFood::DryFood(DryFood::new(3.5)));
+    assert_ne!(dry, PetFood::WetFood(WetFood::new(400)));
+}
+
+#[test]
+fn test_bhv_unions_032_a_one_of_wrapper_built_from_a_variant_serializes_its_discriminator() {
+    let food = PetFood::WetFood(WetFood::new(400));
+    let data = serde_json::to_string(&food).expect("failed to serialize PetFood");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized PetFood");
+    assert_eq!(parsed["foodType"], "wet");
+    assert_eq!(parsed["volumeMl"], 400);
+}
+
+#[test]
+fn test_bhv_unions_034_a_one_of_typed_match_answers_for_the_held_variant_only() {
+    let food = PetFood::DryFood(DryFood::new(2.5));
+    assert!(matches!(food, PetFood::DryFood(_)));
+    assert!(!matches!(food, PetFood::WetFood(_)));
 }
 
 {{! M8 (rust discriminator-child Default) is deferred: the discriminator info is
@@ -508,6 +533,28 @@ fn test_bhv_unions_016_enum_unknown_value_on_deserialize_is_rejected() {
 }
 
 #[test]
+fn test_bhv_serializationobject_193_an_unknown_integer_enum_value_is_rejected_on_decode() {
+    assert_eq!(Priority::Number2, serde_json::from_str::<Priority>("2").expect("2 is a declared value"));
+    assert!(serde_json::from_str::<Priority>("4").is_err(), "4 is not a declared value");
+}
+
+#[test]
+fn test_bhv_serializationobject_194_a_hyphenated_enum_wire_value_is_serialized_as_declared() {
+    assert_eq!(r#""a-b""#, serde_json::to_string(&Separator::AB).expect("serializes"));
+    assert_eq!(r#""a_b""#, serde_json::to_string(&Separator::AB2).expect("serializes"));
+}
+
+#[test]
+fn test_bhv_serializationobject_208_hostile_enum_wire_strings_survive_serialize_and_decode() {
+    assert_eq!(r#""a\\b""#, serde_json::to_string(&Availability::AB).expect("serializes"));
+    for value in Availability::all_values() {
+        let wire = serde_json::to_string(&value).expect("serializes");
+        let back: Availability = serde_json::from_str(&wire).expect("decodes its own wire value");
+        assert_eq!(value, back, "wire value {} must decode to the same member", wire);
+    }
+}
+
+#[test]
 fn test_bhv_serializationobject_069_enum_known_value_on_deserialize_succeeds() {
     // Control: a declared enum value still deserializes cleanly, so the
     // strictness above does not break valid payloads.
@@ -521,13 +568,11 @@ fn test_bhv_serializationobject_069_enum_known_value_on_deserialize_succeeds() {
 }
 
 #[test]
-fn test_enum_direct_unknown_value_is_rejected() {
-    // Deserializing the enum type directly (not via its owning struct) must
-    // also reject an out-of-schema value.
-    let result: Result<PetStatusEnum, _> = serde_json::from_str("\"banished\"");
+fn test_bhv_serializationobject_192_an_unknown_enum_string_fails_at_decode() {
+    let result: Result<PetStatusEnum, _> = serde_json::from_str("\"teleported\"");
     assert!(
         result.is_err(),
-        "an unknown bare enum value must fail to deserialize"
+        "an unknown enum string must fail when it is decoded, never fall back to a variant"
     );
 }
 
@@ -604,7 +649,7 @@ fn test_bhv_serializationobject_068_tree_node_deserialize_recursive() {
 // decode each level into a typed value, and the terminating edge must be
 // `None`. `Box` derefs transparently for field access.
 #[test]
-fn test_mutually_recursive_models_deserialize() {
+fn test_bhv_serializationobject_189_mutually_recursive_models_deserialize() {
     let json_data = r#"{"name":"Eng","lead":{"name":"Ada","department":{"name":"Core"}}}"#;
 
     let dept: Department =
@@ -801,7 +846,7 @@ fn test_referenced_enum_with_sibling_default_applies_when_the_key_is_missing() {
 }
 
 #[test]
-fn test_referenced_enum_with_sibling_default_is_replaced_by_a_decoded_value() {
+fn test_bhv_serializationobject_196_an_explicit_wire_value_replaces_the_declared_default() {
     let item: StockItem = serde_json::from_str(r#"{"priority":1,"availability":"Sold"}"#)
         .expect("failed to deserialize StockItem");
     assert_eq!(item.availability, Some(Availability::Sold));
@@ -1243,6 +1288,42 @@ fn test_bhv_serializationobject_052_strict_model_accepts_every_declared_key() {
         serde_json::from_str(r#"{"id":1,"name":"x"}"#).expect("the declared keys are accepted");
     assert_eq!(Some(1), tag.id);
     assert!(tag.name.is_some());
+}
+
+#[test]
+fn test_bhv_unions_038_an_undecodable_union_body_raises_a_decode_error() {
+    use {{packageName}}::models::PetFood;
+    assert!(
+        serde_json::from_str::<PetFood>(r#"{"foodType":5,"weightKg":1.0}"#).is_err(),
+        "a discriminator that is not a string is refused"
+    );
+    assert!(
+        serde_json::from_str::<PetFood>(r#"{"FoodType":"dry","weightKg":1.0}"#).is_err(),
+        "a discriminator key of another case is missing and refused"
+    );
+    assert!(
+        serde_json::from_str::<PetFood>(r#"{"foodType":"laser","weightKg":1.0}"#).is_err(),
+        "a discriminator value with no model is refused"
+    );
+}
+
+#[test]
+fn test_bhv_unions_041_an_untagged_one_of_decodes_each_json_shape_to_its_variant() {
+    use {{packageName}}::models::SetPetAvatarThumbnailRequest;
+    let scalar: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(r#""AQI=""#).expect("a string decodes");
+    assert!(matches!(scalar, SetPetAvatarThumbnailRequest::VecU8(ref bytes) if bytes == &vec![1, 2]));
+    let nested: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(r#"["AQI=","BA=="]"#).expect("an array decodes");
+    assert!(matches!(nested, SetPetAvatarThumbnailRequest::VecVecU8(_)));
+}
+
+#[test]
+fn test_bhv_unions_043_a_discriminator_set_on_a_subtype_is_written_as_given() {
+    use {{packageName}}::models::{DryFood, PetFood};
+    let food = DryFood { food_type: "custom".to_string(), weight_kg: 2.5 };
+    let wire = serde_json::to_value(PetFood::DryFood(food)).expect("serializes");
+    assert_eq!(wire["foodType"], serde_json::json!("custom"));
 }
 
 // -- allOf with a discriminator: Vehicle and Shape --

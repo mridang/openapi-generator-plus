@@ -44,11 +44,18 @@ class SetPetAvatarRequest {
         "Missing required field 'mimeType' for SetPetAvatarRequest",
       );
     }
-    return SetPetAvatarRequest(
-      data: decodeBase64(json['data'] as String),
+    try {
+      return SetPetAvatarRequest(
+        data: decodeBase64(json['data'] as String),
 
-      mimeType: json['mimeType'] as String,
-    );
+        mimeType: json['mimeType'] as String,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException(
+        'Invalid value for SetPetAvatarRequest: $e',
+        e,
+      );
+    }
   }
 
   /// Converts this [SetPetAvatarRequest] to a JSON map.

@@ -7,6 +7,7 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.SerializationException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -164,7 +165,7 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("tilde preserved (unreserved, not over-encoded)")
+        @DisplayName("bhvSerializationparam119 a tilde is kept literal in a path parameter value")
         fun tildePreserved() {
             // java-kotlin-tilde-overencoded: URLEncoder emits `~`->`%7E`, but
             // `~` is an RFC 3986 unreserved character and the other 10 SDKs
@@ -249,6 +250,12 @@ class ValueSerializerTest {
             val slash = ValueSerializer.serializeStyled("id", "a/b", "path", "string", null, "simple", false)
             assertEquals("a%2Fb", slash)
             assertFalse((slash as String).contains("%252F"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam106 a path value with a null style behaves like simple")
+        fun pathWithNullStyleBehavesLikeSimple() {
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false))
         }
     }
 
@@ -660,6 +667,12 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationparam105 SerializeStyled form scalar returns the value as it is")
+        fun serializeStyledFormScalar() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", "", "form", true))
+        }
+
+        @Test
         @DisplayName("bhvSerializationparam042 single-element array with explode true returns list")
         fun singleElementArrayExplodeTrueReturnsList() {
             assertEquals(listOf("blue"), ValueSerializer.serializeStyled("color", listOf("blue"), "query", "array", null, "form", true))
@@ -741,7 +754,7 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("matrix and label prefix the fields in a path")
+        @DisplayName("bhvSerialization015 matrix and label prefix the fields in a path")
         fun matrixAndLabelPrefixFields() {
             assertEquals(";p=breed,lab,min_age,3", ValueSerializer.serializeStyled("p", fields, "path", "object", null, "matrix", false))
             assertEquals(";breed=lab;min_age=3", ValueSerializer.serializeStyled("p", fields, "path", "object", null, "matrix", true))
@@ -772,12 +785,6 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("unknown/empty style fallback")
     inner class FallbackTests {
-        @Test
-        @DisplayName("null style falls back to location-based serialization")
-        fun nullStyleFallsBack() {
-            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false))
-        }
-
         @Test
         @DisplayName("bhvSerializationparam035 empty style falls back to location-based serialization")
         fun emptyStyleFallsBack() {
@@ -861,7 +868,18 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("F833: cookie keeps only the unreserved set literal and encodes the rest as UTF-8")
+        @DisplayName(
+            "bhvSerializationobject224 a content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal",
+        )
+        fun contentCookieIsTheSerializerJsonPercentEncoded() {
+            assertEquals(
+                "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
+                ValueSerializer.serializeContent("p", mapOf("k" to "a b~*\u00e9"), "cookie"),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam104 cookie keeps only the unreserved set literal and encodes the rest as UTF-8")
         fun cookieKeepsOnlyTheUnreservedSetLiteral() {
             assertEquals(
                 "%22a%20b~%2A%C3%A9%22",
@@ -976,6 +994,180 @@ class ValueSerializerTest {
         @DisplayName("bhvSerializationparam102 a string with spaces is URL-encoded in a path")
         fun stringWithSpacesIsUrlEncoded() {
             assertEquals("a%20b", ValueSerializer.serializeStyled("name", "a b", "path", "string", null, "simple", false))
+        }
+    }
+
+    @Nested
+    @DisplayName("parameter wire forms")
+    inner class ParameterWireFormTests {
+        @Test
+        @DisplayName("bhvSerializationparam108 a nested object leaf in a styled parameter is rejected with a serialization error")
+        fun nestedObjectLeafInStyledParameterIsRejected() {
+            assertThrowsExactly(SerializationException::class.java) {
+                ValueSerializer.serializeStyled(
+                    "criteria",
+                    mapOf("inner" to mapOf("deeper" to 1)),
+                    "query",
+                    "object",
+                    null,
+                    "form",
+                    true,
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam109 an unknown parameter style falls back to plain value serialization")
+        fun unknownStyleFallsBackToPlainSerialization() {
+            assertEquals("a b", ValueSerializer.serializeStyled("color", "a b", "query", "string", null, "unknownStyle", false))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam110 a date value is written as YYYY-MM-DD")
+        fun dateValueIsWrittenAsDateOnly() {
+            assertEquals("2024-01-15", ValueSerializer.serialize(LocalDate.of(2024, 1, 15), "query", "string", null))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam111 a deepObject parameter writes each property as name[key]")
+        fun deepObjectWritesEachPropertyAsNameKey() {
+            assertEquals(
+                mapOf("filter[min_count]" to "3", "filter[color]" to "red"),
+                ValueSerializer.serializeDeepObject("filter", mapOf("min_count" to 3, "color" to "red")),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam115 a csv query array keeps an empty slot for a null element")
+        fun csvArrayKeepsEmptySlotForNull() {
+            assertEquals("a,,c", ValueSerializer.serialize(listOf("a", null, "c"), "query", "array", "csv"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam117 a set in form style without explode joins its elements with commas like an array")
+        fun setInFormStyleWithoutExplodeJoinsWithCommas() {
+            assertEquals(
+                "red,blue",
+                ValueSerializer.serializeStyled("labels", linkedSetOf("red", "blue"), "query", "array", null, "form", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam118 a content cookie value is encoded to the shared percent encoded bytes")
+        fun contentCookieValueIsEncodedToTheSharedBytes() {
+            assertEquals(
+                "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
+                ValueSerializer.serializeContent("k", mapOf("k" to "a b~*\u00e9"), "cookie"),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam120 an array of date values is written with each element as YYYY-MM-DD")
+        fun arrayOfDatesWritesEachElementAsDateOnly() {
+            assertEquals(
+                listOf("2024-01-15", "2024-02-01"),
+                ValueSerializer.serializeStyled(
+                    "dates",
+                    listOf(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 2, 1)),
+                    "query",
+                    "array",
+                    null,
+                    "form",
+                    true,
+                ),
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("wire contract parameter behaviours")
+    inner class WireContractParameterBehaviours {
+        @Test
+        @DisplayName("bhvSerialization005 a path value keeps unreserved characters literal and percent-encodes the rest")
+        fun pathValueKeepsUnreservedLiteralAndEncodesTheRest() {
+            assertEquals("a-._~b%20c%2Fd", ValueSerializer.serialize("a-._~b c/d", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization008 a content-typed parameter is JSON-encoded exactly once")
+        fun contentParameterIsJsonEncodedExactlyOnce() {
+            assertEquals("\"x\"", ValueSerializer.serializeContent("filter", "x", "query"))
+            assertEquals("{\"a\":\"b\"}", ValueSerializer.serializeContent("filter", mapOf("a" to "b"), "query"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization013 a set or array parameter in an unstyled, header or simple style is written as its items")
+        fun setOrArrayIsWrittenAsItsItems() {
+            assertEquals("x,y", ValueSerializer.serialize(listOf("x", "y"), "header", "array", null))
+            assertEquals("x,y", ValueSerializer.serialize(linkedSetOf("x", "y"), "header", "array", null))
+            assertEquals(
+                "1,2",
+                ValueSerializer.serializeStyled("ids", linkedSetOf(1, 2), "path", "array", null, "simple", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization014 a query parameter whose value is empty or unset produces no query entry")
+        fun emptyOrUnsetQueryParameterProducesNoEntry() {
+            assertNull(ValueSerializer.serialize(null, "query", "string", null))
+            val query = mutableMapOf<String, Any?>()
+            ValueSerializer.putQuery(query, "filter", null, false)
+            assertFalse(query.containsKey("filter"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization016 an object-valued parameter in a delimited style is alternating keys and values")
+        fun objectInSimpleStyleIsAlternatingKeysAndValues() {
+            assertEquals(
+                "a,1,b,2",
+                ValueSerializer.serializeStyled("p", mapOf("a" to "1", "b" to "2"), "path", "object", null, "simple", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization017 an object-valued parameter built from a model uses each wire name in declaration order")
+        fun modelObjectParameterUsesWireNamesInDeclarationOrder() {
+            val tag =
+                com.example.petstore.models
+                    .Tag(id = 1L, name = "x")
+            assertEquals(
+                "id,1,name,x",
+                ValueSerializer.serializeStyled("p", tag, "path", "object", null, "simple", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization018 a nested object or array inside an object-valued parameter is refused")
+        fun nestedValueInsideObjectParameterIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                ValueSerializer.serializeStyled("p", mapOf("a" to mapOf("b" to 1)), "path", "object", null, "simple", false)
+            }
+            assertThrows(SerializationException::class.java) {
+                ValueSerializer.serializeStyled("p", mapOf("a" to listOf(1)), "path", "object", null, "simple", false)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization019 a null entry in a parameter map is left out of the serialized output")
+        fun nullEntryInParameterMapIsLeftOut() {
+            assertEquals(
+                "a,1",
+                ValueSerializer.serializeStyled("p", mapOf("a" to "1", "b" to null), "path", "object", null, "simple", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization040 a form-encoded value writes each date-time, duration, number and boolean in its canonical text")
+        fun formValuesAreWrittenInCanonicalText() {
+            val objects = ObjectSerializer()
+            assertEquals(
+                "2024-01-02T03:04:05.000+00:00",
+                objects.toFormValue(OffsetDateTime.parse("2024-01-02T03:04:05Z")),
+            )
+            assertEquals("3s", objects.toFormValue(java.time.Duration.ofSeconds(3)))
+            assertEquals("1.50", objects.toFormValue(java.math.BigDecimal("1.50")))
+            assertEquals("42", objects.toFormValue(42))
+            assertEquals("true", objects.toFormValue(true))
         }
     }
 }

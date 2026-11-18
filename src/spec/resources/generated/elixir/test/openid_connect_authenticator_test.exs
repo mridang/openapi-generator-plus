@@ -351,6 +351,25 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     # oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
     # raise the typed ApiError for its status rather than surfacing as an
     # opaque "invalid JSON" parse error.
+    test "bhv authoidc 033 a failed discovery request reports its method and path in the error" do
+      fake_client =
+        FakeApiClient.new([%PetstoreClient.ApiHttpResponse{status_code: 404, body: "missing"}])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+          create_authenticator(),
+          fake_client
+        )
+
+      error =
+        assert_raise PetstoreClient.Errors.NotFoundError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end
+
+      assert error.request_method == "GET"
+      assert error.request_path == "/.well-known/openid-configuration"
+    end
+
     test "bhv authoidc 027 raises on non-2xx discovery response instead of parsing it as JSON" do
       fake_client =
         FakeApiClient.new([
@@ -418,6 +437,33 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert_raise PetstoreClient.Errors.SerializationError, ~r/token_endpoint/, fn ->
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
       end
+    end
+
+    test "bhv authoidc 032 a discovered endpoint that is not https is rejected" do
+      document = %{
+        "issuer" => "https://auth.example.com",
+        "authorization_endpoint" => "https://auth.example.com/authorize",
+        "token_endpoint" => "http://auth.example.com/token"
+      }
+
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{status_code: 200, body: Jason.encode!(document)}
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+          create_authenticator(),
+          fake_client
+        )
+
+      assert_raise PetstoreClient.Errors.SerializationError,
+                   ~r/'token_endpoint' must be an https URL/,
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(
+                       auth
+                     )
+                   end
     end
 
     test "bhv authoidc 005 a plain-http endpoint is refused unless it is loopback" do
@@ -788,6 +834,34 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert FakeApiClient.get_count(fake_client) == 2
     end
 
+    test "bhv authoidc 031 a cached discovery document is fetched again once its max-age has elapsed" do
+      discovery = %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        headers: %{"Cache-Control" => "max-age=1"},
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+
+      fake_client = FakeApiClient.new([discovery, discovery])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      assert FakeApiClient.get_count(fake_client) == 1
+
+      Process.sleep(1_100)
+
+      PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      assert FakeApiClient.get_count(fake_client) == 2
+    end
+
     test "bhv authoidc 001 an oversized max-age is clamped to one year" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
@@ -816,7 +890,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert expiry > before + 31_536_000 * 1000 - 5_000
     end
 
-    test "max-age=0 makes every use fetch the discovery document again" do
+    test "bhv authoidc 030 max-age=0 makes every use fetch the discovery document again" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         headers: %{"Cache-Control" => "max-age=0"},
@@ -843,6 +917,34 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
     # The discovery document must be cached: a second build should reuse it
     # rather than issue a second GET to the discovery endpoint.
+    test "bhv authoidc 029 concurrent callers on a cold authenticator share one discovery request" do
+      document = %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+
+      fake_client = FakeApiClient.new(List.duplicate(document, 8))
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      1..8
+      |> Enum.map(fn _ ->
+        Task.async(fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end)
+      end)
+      |> Enum.each(&Task.await/1)
+
+      assert FakeApiClient.get_count(fake_client) == 1
+    end
+
     test "bhv authoidc 011 fetches discovery document only once" do
       fake_client =
         FakeApiClient.new([
@@ -875,6 +977,68 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
 
       assert FakeApiClient.get_count(fake_client) == 1
+    end
+
+    test "bhv auth 011 a discovery response without a usable max-age is cached for the default lifetime" do
+      for headers <- [%{}, %{"Cache-Control" => "no-cache"}, %{"Cache-Control" => "max-age=soon"}] do
+        discovery = %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          headers: headers,
+          body:
+            Jason.encode!(%{
+              "issuer" => "https://auth.example.com",
+              "authorization_endpoint" => "https://auth.example.com/authorize",
+              "token_endpoint" => "https://auth.example.com/token"
+            })
+        }
+
+        fake_client = FakeApiClient.new([discovery, discovery])
+
+        auth = create_authenticator()
+
+        auth =
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+        assert FakeApiClient.get_count(fake_client) == 1,
+               "discovery refetched for #{inspect(headers)}"
+      end
+    end
+
+    test "bhv auth 029 after the cached discovery document expires, later calls use the endpoints of the newly fetched document" do
+      discovery = fn max_age, endpoint ->
+        %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          headers: %{"Cache-Control" => "max-age=#{max_age}"},
+          body:
+            Jason.encode!(%{
+              "issuer" => "https://auth.example.com",
+              "authorization_endpoint" => endpoint,
+              "token_endpoint" => "https://auth.example.com/token"
+            })
+        }
+      end
+
+      fake_client =
+        FakeApiClient.new([
+          discovery.(1, "https://auth.example.com/authorize-v1"),
+          discovery.(3600, "https://auth.example.com/authorize-v2")
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) =~
+               "https://auth.example.com/authorize-v1?"
+
+      Process.sleep(1_100)
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) =~
+               "https://auth.example.com/authorize-v2?"
     end
   end
 end

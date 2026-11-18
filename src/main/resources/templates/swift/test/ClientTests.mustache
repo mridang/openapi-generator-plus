@@ -56,6 +56,23 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
     }
 
+    /* A request after close fails before any task is created on the caller's session. */
+    @Test func testBhvLifecycle035ARequestAfterCloseFailsWithoutReachingTheTransport() async throws {
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let transport = try TransportOptionsBuilder().session(session).build()
+        let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+        client.close()
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await client.store.getInventory()
+        }
+        #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
+        let tasks: [URLSessionTask] = await withCheckedContinuation { continuation in
+            session.getAllTasks { continuation.resume(returning: $0) }
+        }
+        #expect(tasks.isEmpty)
+    }
+
     /* Closing the client never invalidates a session the caller supplied. */
     @Test func testBhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
         let probe = InvalidationProbe()
@@ -123,7 +140,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         }
     }
 
-    @Test func testWithTokenFactoryBuildsAClientAndRejectsInvalidTokens() throws {
+    @Test func testBhvLifecycle039WithTokenFactoryBuildsAClientAndRejectsInvalidTokens() throws {
         _ = try {{clientClassName}}.withToken(host: "{{{basePath}}}", accessToken: "abc.def-123")
         _ = try {{clientClassName}}.withToken(
             host: "{{{basePath}}}", accessToken: "abc", transportOptions: try TransportOptionsBuilder().build())
@@ -207,7 +224,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
     }
 
-    @Test func testExplicitArgumentsWinOverTheEnvironment() async throws {
+    @Test func testBhvLifecycle028ExplicitArgumentsWinOverTheEnvironment() async throws {
         let client = try environmentClient(
             host: "https://explicit.example.com", token: "explicit-token",
             environment: [
@@ -219,7 +236,53 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
     }
 
-    @Test func testAnEmptyEnvironmentValueCountsAsUnset() {
+    @Test func testBhvAuthbearer019AnEmptyEnvironmentValueCountsAsUnset() {
+        #expect(throws: ConfigurationError.invalidArgument(
+            "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
+        ) {
+            _ = try self.environmentClient(environment: [
+                "{{envVarPrefix}}_HOST": "", "{{envVarPrefix}}_TOKEN": "env-token",
+            ])
+        }
+        #expect(throws: ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
+        ) {
+            _ = try self.environmentClient(environment: [
+                "{{envVarPrefix}}_HOST": "https://env.example.com", "{{envVarPrefix}}_TOKEN": "",
+            ])
+        }
+    }
+
+    @Test func testBhvLifecycle032ATokenPassedToTheClientBeatsTheEnvironmentToken() async throws {
+        let client = try environmentClient(
+            token: "explicit-token",
+            environment: [
+                "{{envVarPrefix}}_HOST": "https://env.example.com",
+                "{{envVarPrefix}}_TOKEN": "env-token",
+            ])
+        let auth = try #require(firstApiAuthenticator(of: client))
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
+
+    @Test func testBhvLifecycle026AClientBuiltWithNoCredentialAtAllIsRefused() {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+        }
+        #expect(error == ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable"))
+    }
+
+    /* An authenticator with no token, no environment value and a nil provider is refused at construction. */
+    @Test func testBhvAuth004NoTokenNoEnvironmentAndANilProviderIsRefused() {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try self.environmentClient(
+                host: "https://explicit.example.com", token: nil, tokenProvider: nil, environment: [:])
+        }
+        #expect(error == ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable"))
+    }
+
+    @Test func testBhvConfig025AnEmptyEnvironmentValueCountsAsUnset() {
         #expect(throws: ConfigurationError.invalidArgument(
             "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
         ) {
@@ -260,11 +323,25 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     // MARK: - Credentials of the scheme authenticators
 
-    @Test func testAnExplicitCredentialWinsOverTheEnvironment() throws {
+    @Test func testBhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsEnvironmentVariable() throws {
         let value = try BaseAuthenticator.credential(
             "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
             environment: ["EXAMPLE_TOKEN": "env-value"])
         #expect(value == "explicit-value")
+    }
+
+    @Test func testBhvAuthbasic013AnExplicitCredentialWinsOverTheEnvironment() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "explicit-value")
+    }
+
+    @Test func testBhvSerializationobject187AnExplicitKeyWinsOverTheEnvironment() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit-key", name: "apiKey", variable: "EXAMPLE_API_KEY",
+            environment: ["EXAMPLE_API_KEY": "from-environment"])
+        #expect(value == "explicit-key")
     }
 
     @Test func testTheEnvironmentSuppliesACredentialThatWasNotPassed() throws {
@@ -274,14 +351,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(value == "env-value")
     }
 
-    @Test func testAnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
+    @Test func testBhvAuth023AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
         let value = try BaseAuthenticator.credential(
             "", name: "token", variable: "EXAMPLE_TOKEN",
             environment: ["EXAMPLE_TOKEN": "env-value"])
         #expect(value == "")
     }
 
-    @Test func testAnEmptyOrMissingVariableIsAMissingCredential() {
+    @Test func testBhvAuth003AnEmptyOrMissingVariableIsAMissingCredential() {
         let missing = ConfigurationError.invalidArgument(
             "Missing the credential 'token': pass it, or set the EXAMPLE_TOKEN environment variable")
         #expect(throws: missing) {
@@ -322,7 +399,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         }
     }
 
-    @Test func test{{className}}TreatsAnEmptyVariableAsUnset() {
+    @Test func test{{emptyVariableBhv}}{{className}}TreatsAnEmptyVariableAsUnset() {
 {{#envVars}}
 {{#-first}}
         let missing = ConfigurationError.invalidArgument(
@@ -363,7 +440,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     /* addPet accepts apiKeyHeader first and petStoreBearer second, so a client
        holding both sends the api key and not the bearer token. */
-    @Test func testAnOperationUsesTheFirstSchemeItListsThatTheClientHolds() async throws {
+    @Test func testBhvOperations148AnOperationUsesTheFirstSchemeItListsThatTheClientHolds() async throws {
         let host = "https://first-scheme.example.com"
         let client = try schemeClient(
             host: host,
@@ -392,7 +469,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     /* An operation declared without security never carries a credential, even
        when the client holds one for every scheme. */
-    @Test func testAnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
+    @Test func testBhvAuth021AnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
         let host = "https://unauthenticated.example.com"
         let client = try schemeClient(
             host: host,
@@ -409,7 +486,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
 
     /* A credential that needs the transport gets the client's own. */
-    @Test func testASchemeCredentialThatNeedsTheTransportGetsTheClientsOwn() throws {
+    @Test func testBhvAuth025ASchemeCredentialThatNeedsTheTransportGetsTheClientsOwn() throws {
         let aware = SchemeTransportProbe()
         let client = try schemeClient(host: "https://transport.example.com", petStoreBearer: aware)
         defer { client.close() }

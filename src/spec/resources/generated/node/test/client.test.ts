@@ -109,11 +109,108 @@ describe("Client", () => {
       );
     });
 
-    test("an empty variable counts as unset", () => {
+    test("bhv config 025 an empty token variable counts as unset and construction names the variable", () => {
+      process.env[variable] = "";
+
+      expect(() => Client.withToken("/api/v3")).toThrow(
+        new TypeError(
+          `Bearer token is required: pass it explicitly or set ${variable}`,
+        ),
+      );
+    });
+
+    test("bhv lifecycle 028 an explicit host and token win over the environment", async () => {
+      process.env[variable] = "env-token";
+      const seen: Array<{ url: string; authorization: string | undefined }> =
+        [];
+      const stub = (async (
+        input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        const headers = init?.headers as Record<string, string>;
+        seen.push({
+          url: String(input),
+          authorization: headers["Authorization"],
+        });
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch;
+      const client = Client.withToken(
+        "https://arg.example.com",
+        "arg-token",
+        TransportOptions.builder().fetch(stub).build(),
+      );
+
+      await client.pet.addPet(
+        new Pet({ id: 1, name: "x", photoUrls: new Set<string>() }),
+      );
+
+      expect(seen[0]!.url.startsWith("https://arg.example.com/")).toBe(true);
+      expect(seen[0]!.authorization).toBe("Bearer arg-token");
+    });
+
+    test("bhv lifecycle 032 a token passed to the client is preferred to the one in the environment", async () => {
+      process.env[variable] = "env-token";
+      const seen: Array<string | undefined> = [];
+      const stub = (async (
+        _input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        seen.push((init?.headers as Record<string, string>)["Authorization"]);
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch;
+      const client = Client.withToken(
+        "https://arg.example.com",
+        "arg-token",
+        TransportOptions.builder().fetch(stub).build(),
+      );
+
+      await client.pet.addPet(
+        new Pet({ id: 1, name: "x", photoUrls: new Set<string>() }),
+      );
+
+      expect(seen[0]).toBe("Bearer arg-token");
+    });
+
+    test("bhv authbasic 012 an empty variable counts as unset", () => {
       process.env[variable] = "";
 
       expect(() => Client.withToken("/api/v3")).toThrow(TypeError);
     });
+  });
+
+  test("bhv lifecycle 039 a client with no host or an empty token is refused at construction, and a valid token builds one", () => {
+    expect(() => Client.withToken("", "valid-token")).toThrow(TypeError);
+    expect(() => Client.withToken("/api/v3", "")).toThrow(TypeError);
+    expect(Client.withToken("/api/v3", "valid-token")).toBeDefined();
+  });
+
+  test("bhv retries 043 an unauthorized response is not replayed when no authenticator can supply fresh credentials", async () => {
+    let calls = 0;
+    const stub = (async (): Promise<Response> => {
+      calls++;
+      return new Response("{}", {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = Client.withToken(
+      "https://api.example.com",
+      "static-token",
+      TransportOptions.builder().fetch(stub).build(),
+    );
+
+    await expect(
+      client.pet.addPet(
+        new Pet({ id: 1, name: "x", photoUrls: new Set<string>() }),
+      ),
+    ).rejects.toThrow();
+    expect(calls).toBe(1);
   });
 
   test("construct with a custom fetch in the transport options", () => {
@@ -174,7 +271,7 @@ describe("Client", () => {
       expect(seen[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
     });
 
-    test("an operation uses the first scheme of its own list that the client holds", async () => {
+    test("bhv operations 148 an operation uses the first scheme of its own list that the client holds", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         {
@@ -230,7 +327,7 @@ describe("Client", () => {
       expect(seen[0]!.headers["Authorization"]).toBeUndefined();
     });
 
-    test("the base URL comes from the default authenticator, else from the first credential given", async () => {
+    test("bhv lifecycle 030 the base URL comes from the default authenticator, else from the first credential given", async () => {
       const first = recordingTransport();
       await new Client(
         {
@@ -277,13 +374,13 @@ describe("Client", () => {
       expect(new Client(credentials)).toBeDefined();
     });
 
-    test("a client with no credential at all is refused", () => {
+    test("bhv lifecycle 026 a client with no credential at all is refused", () => {
       expect(() => new Client({})).toThrow(
         new TypeError("At least one credential is required"),
       );
     });
 
-    test("an OAuth2 scheme credential shares the transport of the client", async () => {
+    test("bhv auth 025 an OAuth2 scheme credential shares the transport of the client", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         {
@@ -353,7 +450,7 @@ describe("Client", () => {
       expect((await pending).name).toBe("x");
     });
 
-    test("a request issued after close() fails with the one closed-client error and never reaches the transport", async () => {
+    test("bhv lifecycle 035 a request issued after close() fails with the one closed-client error and never reaches the transport", async () => {
       const { transport, calls } = gatedFetch();
       const client = new Client(closable, transport);
 
@@ -365,7 +462,7 @@ describe("Client", () => {
       expect(calls()).toBe(0);
     });
 
-    test("a second close() is a no-op", async () => {
+    test("bhv lifecycle 036 a second close() is a no-op", async () => {
       const client = new Client(closable);
 
       await client.close();
@@ -400,7 +497,7 @@ describe("Client", () => {
     );
   });
 
-  test("Symbol.asyncDispose closes the client", async () => {
+  test("bhv lifecycle 040 Symbol.asyncDispose closes the client", async () => {
     const client = new Client(authenticator);
 
     await client[Symbol.asyncDispose]();
@@ -461,28 +558,6 @@ describe("Client", () => {
     // bare "Authorization: Bearer " header that silently fails auth.
     expect(() => new BearerAuthenticator("/api/v3", "")).toThrow(TypeError);
     expect(() => new BearerAuthenticator("/api/v3", "   ")).toThrow(TypeError);
-  });
-
-  test("authenticators redact the secret from default string/inspect/JSON", () => {
-    // authenticator-secret-in-default-string-repr: console.log / util.inspect
-    // / JSON.stringify must never leak the live credential.
-    const bearer = new BearerAuthenticator("/api/v3", "super-secret-token");
-    expect(util.inspect(bearer)).not.toContain("super-secret-token");
-    expect(JSON.stringify(bearer)).not.toContain("super-secret-token");
-    expect(`${util.inspect(bearer)}`).toContain("***");
-
-    const basic = new BasicAuthenticator("/api/v3", "alice", "pw-secret-123");
-    expect(util.inspect(basic)).not.toContain("pw-secret-123");
-    expect(JSON.stringify(basic)).not.toContain("pw-secret-123");
-
-    const apiKey = new ApiKeyAuthenticator(
-      "/api/v3",
-      "X-Api-Key",
-      "key-secret-xyz",
-      ApiKeyLocation.HEADER,
-    );
-    expect(util.inspect(apiKey)).not.toContain("key-secret-xyz");
-    expect(JSON.stringify(apiKey)).not.toContain("key-secret-xyz");
   });
 
   test("bhv lifecycle 002 api key header rejects crlf and non ascii", () => {
@@ -595,30 +670,38 @@ describe("scheme authenticators the spec declares", () => {
     expect(() => new Wrapper(host, "")).toThrow(TypeError);
   });
 
-  test("the Bearer and Basic wrappers emit their Authorization headers", () => {
+  test("bhv authbasic 019 the generated Basic wrappers emit the same Basic header as the base authenticator", () => {
+    const base = new BasicAuthenticator(
+      host,
+      "alice",
+      "s3cret",
+    ).getAuthHeaders();
+    expect(base).toEqual({ Authorization: "Basic YWxpY2U6czNjcmV0" });
+    expect(
+      new PetStoreBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
+    ).toEqual(base);
+    expect(
+      new AdminBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
+    ).toEqual(base);
+    expect(
+      util.inspect(new AdminBasicAuthenticator(host, "alice", "s3cret")),
+    ).toBe(
+      "AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+    );
+  });
+
+  test("bhv authbearer 023 the generated Bearer wrappers emit a Bearer header and keep their own name", () => {
     expect(
       new PetStoreBearerAuthenticator(host, "tok").getAuthHeaders(),
     ).toEqual({ Authorization: "Bearer tok" });
     expect(new ServiceTokenAuthenticator(host, "tok").getAuthHeaders()).toEqual(
       { Authorization: "Bearer tok" },
     );
-    expect(
-      new PetStoreBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
-    ).toEqual({
-      Authorization: "Basic YWxpY2U6czNjcmV0",
-    });
-    expect(
-      new AdminBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
-    ).toEqual({
-      Authorization: "Basic YWxpY2U6czNjcmV0",
-    });
+    expect(util.inspect(new PetStoreBearerAuthenticator(host, "tok"))).toMatch(
+      /^PetStoreBearerAuthenticator\(/,
+    );
     expect(util.inspect(new ServiceTokenAuthenticator(host, "tok"))).toBe(
       "ServiceTokenAuthenticator(host=https://api.example.com, token=***)",
-    );
-    expect(
-      util.inspect(new AdminBasicAuthenticator(host, "alice", "s3cret")),
-    ).toBe(
-      "AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
     );
   });
 
@@ -868,7 +951,7 @@ describe("generated documentation", () => {
     expect(skills).toContain("} else if (error instanceof ApiError) {");
   });
 
-  test("SKILLS error handling names the root error and every branch of the tree", () => {
+  test("bhv skills 001 SKILLS error handling names the root error and the error types that are siblings of ApiError", () => {
     for (const name of [
       "`OpenAPIError` (root)",
       "`SerializationError`",
@@ -878,6 +961,18 @@ describe("generated documentation", () => {
     ]) {
       expect(skills).toContain(name);
     }
+  });
+
+  test("bhv skills 002 SKILLS documents the retries in its Configuration section", () => {
+    const configuration = skills.slice(
+      skills.indexOf("## Configuration"),
+      skills.indexOf("## API Methods"),
+    );
+
+    expect(configuration).toContain("### Retries");
+    expect(configuration).toContain(
+      "`TransportOptions.builder().maxRetries(n)`",
+    );
   });
 
   test("README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client", () => {
@@ -937,7 +1032,7 @@ describe("generated documentation", () => {
     expect(skills).toContain("TransportOptions.builder().fetch(stub).build()");
   });
 
-  test("README names the builder setter that rejects a SOCKS proxy", () => {
+  test("bhv options 044 README names the builder setter that rejects a SOCKS proxy", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",

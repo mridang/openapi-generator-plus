@@ -77,32 +77,36 @@ class Order {
 
   /// Creates a [Order] from a JSON map.
   factory Order.fromJson(Map<String, dynamic> json) {
-    return Order(
-      id: readInt64OrNull(json['id']),
+    try {
+      return Order(
+        id: readInt64OrNull(json['id']),
 
-      petId: readInt64OrNull(json['petId']),
+        petId: readInt64OrNull(json['petId']),
 
-      quantity: readInt32OrNull(json['quantity']),
+        quantity: readInt32OrNull(json['quantity']),
 
-      trackingId: json['trackingId'] != null
-          ? UuidValue.fromString(json['trackingId'] as String)
-          : null,
+        trackingId: json['trackingId'] != null
+            ? UuidValue.fromString(json['trackingId'] as String)
+            : null,
 
-      shipDate: json['shipDate'] != null
-          ? parseDateTime(json['shipDate'] as String)
-          : null,
+        shipDate: json['shipDate'] != null
+            ? parseDateTime(json['shipDate'] as String)
+            : null,
 
-      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+        /* Cross-cutting `default-applies-only-when-absent`: apply the enum
          default solely when the key is OMITTED; an explicit `null` is
          preserved as null per the JSON-Schema contract. */
-      status: json.containsKey('status')
-          ? (json['status'] != null
-                ? OrderStatusEnum.fromJson(json['status'] as String)
-                : null)
-          : OrderStatusEnum.placed,
+        status: json.containsKey('status')
+            ? (json['status'] != null
+                  ? OrderStatusEnum.fromJson(json['status'] as String)
+                  : null)
+            : OrderStatusEnum.placed,
 
-      complete: json['complete'] as bool?,
-    );
+        complete: json['complete'] as bool?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Order: $e', e);
+    }
   }
 
   /// Converts this [Order] to a JSON map.

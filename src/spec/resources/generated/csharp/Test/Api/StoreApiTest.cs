@@ -61,7 +61,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task TestPlaceOrderWithoutBodyCanBeCalledWithNoArguments()
+    public async Task BhvOperations126PlaceOrderWithoutBodyCanBeCalledWithNoArguments()
     {
         var client = new CapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -397,6 +397,62 @@ public class StoreApiTest
         Assert.Equal(Defaults.ModeEnum.Medium, result.Mode);
     }
 
+    [Fact]
+    public async Task BhvOperations155QueryParametersAreSentInTheSpecifiedOrder()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(
+            new SearchStoreOptions { Labels = ["a"], At = new TimeOnly(10, 30, 0) }
+        );
+
+        var names = client
+            .Url!.Query.TrimStart('?')
+            .Split('&')
+            .Select(part => part.Split('=')[0])
+            .ToArray();
+        string[] expected = ["labels", "at"];
+        Assert.Equal(expected, names);
+    }
+
+    [Fact]
+    public async Task BhvSerialization006QueryValuesCannotAddAParameter()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(new SearchStoreOptions { Labels = ["a&b=c"] });
+
+        string query = client.Url!.Query;
+        Assert.Single(query.TrimStart('?').Split('&'));
+        Assert.Contains("%26", query, StringComparison.Ordinal);
+        Assert.Contains("%3D", query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization007PlusIsSentAsPercentTwoBAndNonAsciiAsUtf8Escapes()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(new SearchStoreOptions { Labels = ["a+b", "café"] });
+
+        Assert.Contains("a%2Bb", client.Url!.Query, StringComparison.Ordinal);
+        Assert.Contains("caf%C3%A9", client.Url.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization014EmptyQueryParameterProducesNoEntry()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(new SearchStoreOptions { Labels = [] });
+
+        Assert.Equal("", client.Url!.Query);
+    }
+
     private sealed class RequestCapturingApiClient : IApiClient
     {
         public Uri? Url { get; private set; }
@@ -485,7 +541,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task OperationPassesTheCancellationTokenToTheTransport()
+    public async Task BhvTransport069OperationPassesTheCancellationTokenToTheTransport()
     {
         var client = new TokenCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -512,7 +568,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task SearchStoreTimeQueryKeepsNonZeroMilliseconds()
+    public async Task BhvOperations139SearchStoreTimeQueryKeepsNonZeroMilliseconds()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -575,7 +631,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task SearchStoreUnserializableContentQueryRaisesSerializationExceptionWithoutARequest()
+    public async Task BhvOperations128SearchStoreUnserializableContentQueryRaisesSerializationExceptionWithoutARequest()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -667,7 +723,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task ReserveStockDecodesA200AsTheExistingReservation()
+    public async Task BhvOperations129ReserveStockDecodesA200AsTheExistingReservation()
     {
         var api = NewStoreApiForMock(
             200,
@@ -699,7 +755,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task ReserveStockReadsA201BodyAsTheReceiptSchemaNotTheFirstThatFits()
+    public async Task BhvUnions036ReserveStockReadsA201BodyAsTheReceiptSchemaNotTheFirstThatFits()
     {
         var api = NewStoreApiForMock(
             201,
@@ -713,7 +769,22 @@ public class StoreApiTest
     }
 
     [Fact]
-    public void AUnionIsBuiltFromAVariantAndNeverChanges()
+    public async Task BhvOperations154ABodyThatFitsAnotherStatusSchemaIsRefused()
+    {
+        // The 200 response is checked against Reservation only; a receipt-shaped body fits 201, not 200.
+        var api = NewStoreApiForMock(
+            200,
+            "application/json",
+            "{\"receiptCode\":\"R-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}"
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            api.ReserveStockAsync()
+        );
+    }
+
+    [Fact]
+    public void BhvUnions037AUnionIsBuiltFromAVariantAndNeverChanges()
     {
         var reservation = new Reservation(31L, 4);
 
@@ -722,6 +793,18 @@ public class StoreApiTest
         Assert.Same(reservation, union.ActualInstance);
         Assert.True(union.IsReservation());
         Assert.Null(typeof(ReserveStockResponse).GetProperty("ActualInstance")!.SetMethod);
+    }
+
+    [Fact]
+    public async Task BhvOptions057NegativePerCallTimeoutIsRefusedBeforeAnyRequest()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            api.GetInventoryAsync(new GetInventoryOptions { Timeout = -1 })
+        );
+        Assert.Null(client.Timeout);
     }
 
     private sealed class CallOptionsApiClient : IApiClient
@@ -767,7 +850,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task AnOperationPassesItsPerCallOptionsToTheTransport()
+    public async Task BhvOptions053AnOperationPassesItsPerCallOptionsToTheTransport()
     {
         var client = new CallOptionsApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -787,7 +870,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task AnOperationWithoutPerCallOptionsLeavesTheTransportSettingsAlone()
+    public async Task BhvOptions055AnOperationWithoutPerCallOptionsLeavesTheTransportSettingsAlone()
     {
         var client = new CallOptionsApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -840,7 +923,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task APerCallTimeoutOfZeroIsRejectedOnAnOperationWithNoParameters()
+    public async Task BhvOptions056APerCallTimeoutOfZeroIsRejectedOnAnOperationWithNoParameters()
     {
         var client = new CallOptionsApiClient { Body = "{}" };
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());

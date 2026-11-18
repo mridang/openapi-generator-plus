@@ -58,10 +58,40 @@ public class ApiResultTest
     }
 
     [Fact]
+    public void BhvResults004ExposesTheDeserializedData()
+    {
+        var result = new ApiResult<string>(200, "payload", "\"payload\"", new Dictionary<string, string>());
+
+        Assert.Equal("payload", result.Data);
+    }
+
+    [Fact]
+    public void BhvResults005ExposesTheRawResponseBody()
+    {
+        var result = new ApiResult<string>(200, null, "{\"id\":1}", new Dictionary<string, string>());
+
+        Assert.Equal("{\"id\":1}", result.RawBody);
+    }
+
+    [Fact]
     public void CarriesTypedValueData()
     {
         var result = new ApiResult<int>(200, 42, "42", new Dictionary<string, string>());
 
         Assert.Equal(42, result.Data);
+    }
+
+    [Fact]
+    public void BhvResults006HeadersAreACopyTakenWhenTheResultIsBuilt()
+    {
+        var source = new Dictionary<string, string> { ["x-trace"] = "abc" };
+        var result = new ApiResult<string>(200, "ok", "ok", source);
+
+        source["x-trace"] = "changed";
+        source["x-evil"] = "1";
+
+        Assert.Equal("abc", result.Headers["x-trace"]);
+        Assert.False(result.Headers.ContainsKey("x-evil"));
+        Assert.True(result.Headers is not IDictionary<string, string> writable || writable.IsReadOnly);
     }
 }

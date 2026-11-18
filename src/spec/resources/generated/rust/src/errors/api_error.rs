@@ -210,6 +210,10 @@ impl ApiError {
     /// path, which is cut at the first `?` or `#` so a query string (and any
     /// credential in it) never reaches the error.
     pub fn with_request(mut self, method: &str, path: &str) -> Self {
+        /* The first complete attachment wins: a later one, or one missing its method or path, is ignored. */
+        if self.request_method.is_some() || method.is_empty() || path.is_empty() {
+            return self;
+        }
         self.request_method = Some(method.to_string());
         self.request_path = Some(strip_query(path).to_string());
         self

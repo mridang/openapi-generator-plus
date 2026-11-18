@@ -233,6 +233,11 @@ export class Client {
     if (host === undefined) {
       throw new TypeError("At least one credential is required");
     }
+    if (host.getHost().trim() === "") {
+      throw new TypeError(
+        "A base URL is required: pass the host the client sends requests to",
+      );
+    }
 
     const transport = transportOptions ?? TransportOptions.builder().build();
     const apiClient: DefaultApiClient = new DefaultApiClient(transport);

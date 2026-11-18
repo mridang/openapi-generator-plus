@@ -45,6 +45,14 @@ describe("OAuth2ImplicitAuthenticator", () => {
     expect(authenticator.buildAuthorizationUrl("")).not.toContain("state=");
   });
 
+  test("bhv authoauthtwoimplicit 016 an implicit access token may contain a tab", () => {
+    authenticator.setAccessToken("tok\ten");
+
+    expect(authenticator.getAuthHeaders()["Authorization"]).toBe(
+      "Bearer tok\ten",
+    );
+  });
+
   test("bhv authoauthtwoimplicit 013 throws when access token set to empty", () => {
     authenticator.setAccessToken("");
 
@@ -87,6 +95,12 @@ describe("OAuth2ImplicitAuthenticator", () => {
     );
     expect(() => authenticator.getAuthHeaders()).toThrow(
       "Must set the access token before making API requests",
+    );
+  });
+
+  test("bhv authoauthtwoimplicit 014 rejects a non-ASCII access token with the RFC 7230 message", () => {
+    expect(() => authenticator.setAccessToken("tök")).toThrow(
+      "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
     );
   });
 

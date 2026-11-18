@@ -12,8 +12,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
 /** DryFood. */
+@com.fasterxml.jackson.annotation.JsonTypeInfo(
+    use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NONE)
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = DryFood.Builder.class)
 public class DryFood extends PetFood {
+  /* A subtype reads its own discriminator as an ordinary property, so an absent key falls back to the
+   * builder default (the mapping value) instead of failing as a missing type id. */
 
   /** The {@code foodType} property. */
   @JsonProperty("foodType")

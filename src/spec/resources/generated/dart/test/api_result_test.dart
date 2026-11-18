@@ -41,17 +41,43 @@ void main() {
       expect(result.headers, isEmpty);
     });
 
-    test('ApiHttpResponse headers are an unmodifiable copy', () {
-      final source = {'content-type': 'text/plain'};
-      final response = ApiHttpResponse(
+    test('bhv results 004 exposes the deserialized data', () {
+      final data = {'id': 1, 'name': 'example'};
+      final result = ApiResult<Map<String, Object?>>(
         statusCode: 200,
-        body: '',
-        headers: source,
+        data: data,
+        rawBody: '{"id":1,"name":"example"}',
+        headers: {},
       );
-      source['x'] = 'y';
-      expect(response.headers.containsKey('x'), isFalse);
-      expect(() => response.headers['z'] = '1', throwsUnsupportedError);
+
+      expect(result.data, equals(data));
     });
+
+    test('bhv results 005 exposes the raw response body', () {
+      final result = ApiResult<String>(
+        statusCode: 200,
+        data: 'payload',
+        rawBody: '{"value":"payload"}',
+        headers: {},
+      );
+
+      expect(result.rawBody, equals('{"value":"payload"}'));
+    });
+
+    test(
+      'bhv results 006 ApiHttpResponse headers are an unmodifiable copy',
+      () {
+        final source = {'content-type': 'text/plain'};
+        final response = ApiHttpResponse(
+          statusCode: 200,
+          body: '',
+          headers: source,
+        );
+        source['x'] = 'y';
+        expect(response.headers.containsKey('x'), isFalse);
+        expect(() => response.headers['z'] = '1', throwsUnsupportedError);
+      },
+    );
 
     test(
       'bhv results 002 headers are an unmodifiable copy of the supplied map',

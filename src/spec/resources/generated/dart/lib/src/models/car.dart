@@ -56,13 +56,17 @@ class Car extends Vehicle {
         "Missing required field 'doorCount' for Car",
       );
     }
-    return Car(
-      vehicleType: json['vehicleType'] as String,
+    try {
+      return Car(
+        vehicleType: json['vehicleType'] as String,
 
-      plate: json['plate'] as String,
+        plate: json['plate'] as String,
 
-      doorCount: readInt32(json['doorCount']),
-    );
+        doorCount: readInt32(json['doorCount']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Car: $e', e);
+    }
   }
 
   /// Converts this [Car] to a JSON map.

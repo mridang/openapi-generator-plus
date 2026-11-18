@@ -60,6 +60,6 @@ end
 # collection omits but the generated client uses.
 module Faraday
   class Connection
-    def proxy=: (String?) -> void
+    def proxy=: ((String | Hash[Symbol, untyped])?) -> void
   end
 end

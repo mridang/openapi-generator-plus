@@ -124,6 +124,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.create_account",
             method: "POST",
             path: &path,
             query_params,
@@ -217,6 +218,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.delete_order",
             method: "DELETE",
             path: &path,
             query_params,
@@ -364,6 +366,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_by_swatch",
             method: "GET",
             path: &path,
             query_params,
@@ -442,6 +445,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_defaults",
             method: "GET",
             path: &path,
             query_params,
@@ -521,6 +525,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_department",
             method: "GET",
             path: &path,
             query_params,
@@ -609,6 +614,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_grouped_categories",
             method: "GET",
             path: &path,
             query_params,
@@ -696,6 +702,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_inventory",
             method: "GET",
             path: &path,
             query_params,
@@ -776,6 +783,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_matrix",
             method: "GET",
             path: &path,
             query_params,
@@ -886,6 +894,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_order_by_id",
             method: "GET",
             path: &path,
             query_params,
@@ -988,6 +997,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_order_by_tracking_id",
             method: "GET",
             path: &path,
             query_params,
@@ -1098,6 +1108,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_stock_item",
             method: "GET",
             path: &path,
             query_params,
@@ -1176,6 +1187,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_swatch",
             method: "GET",
             path: &path,
             query_params,
@@ -1264,6 +1276,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_swatch_groups",
             method: "GET",
             path: &path,
             query_params,
@@ -1354,6 +1367,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_timestamp_groups",
             method: "GET",
             path: &path,
             query_params,
@@ -1432,6 +1446,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_tree",
             method: "GET",
             path: &path,
             query_params,
@@ -1526,6 +1541,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.place_order",
             method: "POST",
             path: &path,
             query_params,
@@ -1606,6 +1622,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.reserve_stock",
             method: "POST",
             path: &path,
             query_params,
@@ -1769,6 +1786,7 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.search_store",
             method: "GET",
             path: &path,
             query_params,

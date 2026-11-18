@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"errors"
 	"time"
@@ -647,6 +648,60 @@ func TestBhvOperations096_StoreApi_AnOperationWithoutAnOptionsStructTakesPerCall
 	}
 }
 
+// A content-typed query value is JSON-encoded exactly once: the raw query holds the
+// encoded JSON, never an encoding of an encoding.
+func TestBhvSerialization008_StoreApi_ContentQueryIsJsonEncodedExactlyOnce(t *testing.T) {
+	t.Parallel()
+	var rawQuery string
+	server := jsonStoreServer(`[]`, func(r *http.Request) {
+		rawQuery = r.URL.RawQuery
+	})
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+	lat := 1.5
+	_, _ = api.SearchStore(context.Background(), &options.SearchStoreOptions{
+		Q: &models.PhotoMetadata{Location: &models.PhotoMetadataLocation{Lat: &lat}},
+	})
+
+	if strings.Contains(rawQuery, "%257B") {
+		t.Errorf("expected the JSON encoded once, got a double encoding in %q", rawQuery)
+	}
+	decoded, err := url.QueryUnescape(rawQuery)
+	if err != nil {
+		t.Fatalf("unexpected error unescaping the query: %v", err)
+	}
+	if !strings.Contains(decoded, `q={"location":{"lat":1.5}}`) {
+		t.Errorf("expected the JSON value of q once, got %q", decoded)
+	}
+}
+
+// A content-encoded value that fails serialization in one field raises the error
+// before any request, even when the other fields are valid.
+func TestBhvSerialization009_StoreApi_UnserializableContentFieldSendsNoPartialRequest(t *testing.T) {
+	t.Parallel()
+	requests := 0
+	server := jsonStoreServer(`[]`, func(_ *http.Request) {
+		requests++
+	})
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+	lat := 1.5
+	lng := math.NaN()
+	_, err := api.SearchStore(context.Background(), &options.SearchStoreOptions{
+		Q: &models.PhotoMetadata{Location: &models.PhotoMetadataLocation{Lat: &lat, Lng: &lng}},
+	})
+
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if requests != 0 {
+		t.Errorf("expected no request, got %d", requests)
+	}
+}
+
 // An optional date-time query parameter is sent in the canonical date-time form.
 func TestBhvOperations112_StoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
 	t.Parallel()
@@ -687,7 +742,7 @@ func TestBhvOperations097_StoreApi_SearchStoreSerializesTheContentQueryLikeABody
 
 // A content-encoded query value that cannot be serialized is a
 // *SerializationError and no request is sent.
-func TestStoreApi_SearchStoreRejectsAnUnserializableContentQuery(t *testing.T) {
+func TestBhvOperations128_StoreApi_SearchStoreRejectsAnUnserializableContentQuery(t *testing.T) {
 	t.Parallel()
 	requests := 0
 	server := jsonStoreServer(`[]`, func(_ *http.Request) {
@@ -733,5 +788,81 @@ func TestBhvOperations120_StoreApi_ReserveStockDecodesTheBodyByItsStatus(t *test
 		if result.IsReservation() != tc.existing || result.IsReservationReceipt() == tc.existing {
 			t.Errorf("status %d: expected a reservation=%v, got %T", tc.status, tc.existing, result.ActualInstance())
 		}
+	}
+}
+
+func TestBhvOperations129_StoreApi_ReserveStockDecodesA200AsTheExistingReservation(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`{"reservationId":31,"quantity":4}`, func(*http.Request) {})
+	defer server.Close()
+
+	result, err := newStoreApiForMock(t, server).ReserveStock(context.Background())
+	if err != nil {
+		t.Fatalf("ReserveStock failed: %v", err)
+	}
+	reservation, ok := result.AsReservation()
+	if !ok {
+		t.Fatalf("expected the existing reservation for a 200, got %T", result.ActualInstance())
+	}
+	if reservation.ReservationId != 31 || reservation.Quantity != 4 {
+		t.Errorf("expected reservation 31 with quantity 4, got %+v", reservation)
+	}
+}
+
+// A response body is checked only against the schema of its own status code: a 200
+// body that fits only the 201 schema, and a 201 body that fits only the 200 schema,
+// are both refused.
+func TestBhvOperations154_StoreApi_ResponseBodyIsCheckedOnlyAgainstItsOwnStatusSchema(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		status int
+		body   string
+	}{
+		{200, `{"receiptCode":"rcpt-77","expiresAt":"2030-01-01T00:00:00.000+00:00"}`},
+		{201, `{"reservationId":31,"quantity":4}`},
+	} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(tc.status)
+			_, _ = w.Write([]byte(tc.body))
+		}))
+		_, err := newStoreApiForMock(t, server).ReserveStock(context.Background())
+		server.Close()
+
+		var serErr *pkgerrors.SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("status %d: expected a body that does not fit its own schema to be refused with *SerializationError, got %T: %v", tc.status, err, err)
+		}
+	}
+}
+
+// The status code, not the shape of the body, selects the variant: this body fits
+// the receipt schema but not the reservation schema, so a 200 is refused.
+func TestBhvUnions036_StoreApi_ReserveStockRefusesABodyThatDoesNotFitTheStatusVariant(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`{"receiptCode":"rcpt-77","expiresAt":"2030-01-01T00:00:00.000+00:00"}`, func(*http.Request) {})
+	defer server.Close()
+
+	_, err := newStoreApiForMock(t, server).ReserveStock(context.Background())
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError for a 200 body that does not fit, got %T: %v", err, err)
+	}
+}
+
+func TestBhvOperations139_StoreApi_SearchStoreKeepsTheFractionOfATimeParameter(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := jsonStoreServer(`[]`, func(r *http.Request) {
+		query = r.URL.RawQuery
+	})
+	defer server.Close()
+
+	at := "10:30:00.123"
+	if _, err := newStoreApiForMock(t, server).SearchStore(context.Background(), &options.SearchStoreOptions{At: &at}); err != nil {
+		t.Fatalf("SearchStore failed: %v", err)
+	}
+	if want := "at=10%3A30%3A00.123"; query != want {
+		t.Errorf("expected query %q, got %q", want, query)
 	}
 }

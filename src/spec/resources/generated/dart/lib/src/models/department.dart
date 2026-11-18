@@ -29,13 +29,17 @@ class Department {
         "Missing required field 'name' for Department",
       );
     }
-    return Department(
-      name: json['name'] as String,
+    try {
+      return Department(
+        name: json['name'] as String,
 
-      lead: json['lead'] != null
-          ? Employee.fromJson(json['lead'] as Map<String, dynamic>)
-          : null,
-    );
+        lead: json['lead'] != null
+            ? Employee.fromJson(json['lead'] as Map<String, dynamic>)
+            : null,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Department: $e', e);
+    }
   }
 
   /// Converts this [Department] to a JSON map.

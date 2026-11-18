@@ -155,7 +155,7 @@ module Petstore::Client
         headers = {}
         headers['Accept'] = selected['Accept'] if selected['Accept']
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
-        headers.merge!(@config.default_headers)
+        merge_call_headers(headers, @config.default_headers)
         headers.merge!(header_params)
         merge_call_headers(headers, request_options.headers) if request_options&.headers
         request_headers = authenticated_headers(headers, effective_auth)
@@ -342,7 +342,7 @@ module Petstore::Client
       def transport_call_options(request_options)
         timeout = request_options&.timeout
         max_retries = request_options&.max_retries
-        raise ArgumentError, "Invalid timeout: must be a positive number of milliseconds (got #{timeout.inspect})" if timeout && (!timeout.is_a?(Numeric) || timeout <= 0)
+        raise ArgumentError, "Invalid timeout: must be at least one millisecond (got #{timeout.inspect})" if timeout && (!timeout.is_a?(Numeric) || timeout < 1)
 
         ::Petstore::Client::TransportOptions.validate_max_retries!(max_retries) unless max_retries.nil?
         { timeout: timeout, max_retries: max_retries }.compact

@@ -24,6 +24,10 @@ var ErrInvalidTimeout = errors.New("invalid timeout")
 // Match it with errors.Is.
 var ErrInvalidMaxRetries = errors.New("invalid max retries")
 
+// ErrInvalidMaxRedirects is returned by Build when the redirect limit is
+// negative. Match it with errors.Is.
+var ErrInvalidMaxRedirects = errors.New("invalid max redirects")
+
 // DefaultMaxRetries is the number of times a failed request is retried when
 // the builder does not set MaxRetries.
 const DefaultMaxRetries = 2
@@ -385,6 +389,9 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	if b.maxRetries < 0 {
 		return nil, fmt.Errorf("%w: must not be negative (got %d)", ErrInvalidMaxRetries, b.maxRetries)
 	}
+	if b.maxRedirects != nil && *b.maxRedirects < 0 {
+		return nil, fmt.Errorf("%w: must not be negative (got %d)", ErrInvalidMaxRedirects, *b.maxRedirects)
+	}
 	if b.httpClient != nil || b.roundTripper != nil {
 		switch {
 		case b.httpClient != nil && b.roundTripper != nil:
@@ -445,8 +452,8 @@ func defaultTransportOptions() *TransportOptions {
 // secrets held in the default headers, so credentials never leak into logs.
 func (t TransportOptions) String() string {
 	return fmt.Sprintf(
-		"TransportOptions{verifySsl: %t, caCertPath: %q, proxy: %s, followRedirects: %t, defaultHeaders: %s, injectRequestID: %t}",
-		t.verifySsl, t.caCertPath, redactedProxy(t.proxy), t.followRedirects, redactedHeaders(t.defaultHeaders), t.injectRequestID,
+		"TransportOptions{verifySsl: %t, caCertPath: %q, proxy: %s, followRedirects: %t, defaultHeaders: %s, injectRequestID: %t, maxRetries: %d}",
+		t.verifySsl, t.caCertPath, redactedProxy(t.proxy), t.followRedirects, redactedHeaders(t.defaultHeaders), t.injectRequestID, t.maxRetries,
 	)
 }
 

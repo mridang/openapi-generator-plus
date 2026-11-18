@@ -19,6 +19,31 @@ import Testing
     #expect(config.defaultHeaders.isEmpty)
   }
 
+  /* A default constructed or built configuration uses the base URL of the spec. */
+  @Test func testBhvConfig018DefaultConstructedAndBuiltConfigurationsUseTheSpecBaseURL() {
+    #expect(ConfigurationBuilder().build().baseURL == "/api/v3")
+    #expect(Configuration.builder().build().baseURL == "/api/v3")
+  }
+
+  @Test func testBhvConfig019DefaultConfigurationFactoryReturnsTheSpecBaseURL() {
+    #expect(Configuration.default().baseURL == "/api/v3")
+  }
+
+  /* Repeated calls to the factory give configurations with the same values. */
+  @Test func testBhvConfig023RepeatedDefaultConfigurationCallsShareTheBaseURL() {
+    let first = Configuration.default()
+    let second = Configuration.default()
+    #expect(first.baseURL == second.baseURL)
+    #expect(first.defaultHeaders == second.defaultHeaders)
+  }
+
+  /* Swift keeps no process-wide default that can be set: building another configuration
+   * leaves what the default lookup returns unchanged. */
+  @Test func testBhvConfig024ConfigurationHasNoSettableProcessWideDefault() {
+    _ = ConfigurationBuilder().baseURL("https://elsewhere.example.com").build()
+    #expect(Configuration.default().baseURL == "/api/v3")
+  }
+
   @Test func testBhvConfig007BuilderReturnsInstance() {
     let builder = ConfigurationBuilder()
     _ = builder
@@ -67,7 +92,7 @@ import Testing
     #expect(config.defaultHeaders["X-Second"] == "two")
   }
 
-  @Test func testBuilderChaining() {
+  @Test func testBhvConfig020BuilderChainingSetsBaseURLAndDefaultHeadersInOneConfiguration() {
     let config = ConfigurationBuilder()
       .baseURL("https://api.example.com")
       .defaultHeader(name: "Authorization", value: "Bearer token")
@@ -100,7 +125,7 @@ import Testing
     #expect(config.baseURL == "https://staging.example.com/api/v3")
   }
 
-  @Test func testServerURLResolutionWithDefaults() throws {
+  @Test func testBhvConfig021ServerURLTemplateResolvesItsVariablesToTheirDefaults() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.example.com/api/{version}",
       description: "Test server",
@@ -132,7 +157,7 @@ import Testing
     #expect(config.baseURL == "https://override.example.com")
   }
 
-  @Test func testDefaultHeadersCopyIsolation() {
+  @Test func testBhvConfig022MutatingTheReturnedDefaultHeadersLeavesTheConfigurationUnchanged() {
     let config = ConfigurationBuilder()
       .defaultHeader(name: "X-Test", value: "value")
       .build()
@@ -167,6 +192,14 @@ import Testing
     #expect(config.defaultHeaders["X-First"] == "one")
     #expect(config.defaultHeaders["X-Second"] == "two")
     #expect(config.defaultHeaders["X-Third"] == "three")
+  }
+
+  /* A built Configuration is immutable: a change made through the builder afterwards does not reach it. */
+  @Test func testBhvConfig017BuiltConfigurationIgnoresLaterBuilderChanges() {
+    let builder = ConfigurationBuilder().defaultHeader(name: "X-Test", value: "before")
+    let config = builder.build()
+    builder.defaultHeader(name: "X-Test", value: "after")
+    #expect(config.defaultHeaders["X-Test"] == "before")
   }
 
   @Test func testBhvConfig016InvalidServerVariableEnumValueThrows() {

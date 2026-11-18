@@ -11,6 +11,9 @@ use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\Context\Propagation\PropagationGetterInterface;
+use OpenTelemetry\Context\Propagation\PropagationSetterInterface;
+use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
 use OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter;
 use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
 use OpenTelemetry\SDK\Trace\TracerProvider;
@@ -173,4 +176,36 @@ test('bhv tracing 004 formats trace flags correctly on the active span', functio
         expect($sampled['traceparent'] ?? '')->toEndWith('-01');
         expect($unsampled['traceparent'] ?? '')->toEndWith('-00');
     });
+});
+
+test('bhv misc 002 a trace propagator the caller registers is the one used and headers already present are kept', function (): void {
+    $propagator = new class implements TextMapPropagatorInterface {
+        /** @param mixed $carrier */
+        public function inject(&$carrier, ?PropagationSetterInterface $setter = null, ?ContextInterface $context = null): void
+        {
+            \assert(is_array($carrier));
+            $carrier['x-caller-trace'] = 'registered';
+        }
+
+        /** @param mixed $carrier */
+        public function extract($carrier, ?PropagationGetterInterface $getter = null, ?ContextInterface $context = null): ContextInterface
+        {
+            return $context ?? Context::getRoot();
+        }
+
+        public function fields(): array
+        {
+            return ['x-caller-trace'];
+        }
+    };
+    $scope = Configurator::create()->withPropagator($propagator)->activate();
+    try {
+        $headers = ['Authorization' => 'Bearer token'];
+        TraceContextUtil::injectTraceContext($headers);
+
+        expect($headers['x-caller-trace'] ?? null)->toBe('registered');
+        expect($headers['Authorization'])->toBe('Bearer token');
+    } finally {
+        $scope->detach();
+    }
 });

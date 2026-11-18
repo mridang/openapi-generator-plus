@@ -905,6 +905,7 @@ impl {{classname}} {
 {{/hasFormParams}}
 
         let params = InvokeApiParams {
+            operation: "{{classname}}.{{operationId}}",
             method: "{{httpMethod}}",
             path: &path,
             query_params,

@@ -200,7 +200,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ReadmeSocksNoteNamesTheBuilderSetter()
+    public void BhvOptions044ReadmeSocksNoteNamesTheBuilderSetter()
     {
         var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
 
@@ -210,6 +210,20 @@ public class MetadataTest
             StringComparison.Ordinal
         );
         Assert.DoesNotContain("`TransportOptions.Proxy(...)`", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvSerializationobject227ModelExternalDocsDescriptionIsDocumentedVerbatim()
+    {
+        var account = File.ReadAllText(
+            Path.Combine(ProjectRoot().FullName, "src", "PetstoreClient", "Models", "Account.cs")
+        );
+
+        Assert.Contains(
+            "<![CDATA[Account <docs> & \"notes\" it's here]]>",
+            account,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -318,7 +332,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void SkillsGuideNamesTheRootErrorAndItsNonApiSiblings()
+    public void BhvSkills001SkillsGuideNamesTheRootErrorAndItsNonApiSiblings()
     {
         var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
 
@@ -326,6 +340,19 @@ public class MetadataTest
         Assert.Contains("SerializationException", skills, StringComparison.Ordinal);
         Assert.Contains("OAuth2ServerException", skills, StringComparison.Ordinal);
         Assert.Contains("OAuth2TokenException", skills, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvSkills002SkillsGuideDocumentsTheRetriesInItsConfigurationSection()
+    {
+        var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
+
+        var start = skills.IndexOf("\n## Configuration\n", StringComparison.Ordinal);
+        Assert.True(start >= 0, "SKILLS.md has no Configuration section");
+        var end = skills.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
+        var section = end < 0 ? skills.Substring(start) : skills.Substring(start, end - start);
+
+        Assert.Contains("### Retries", section, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -352,7 +379,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ToStringRendersAdditionalPropertiesEntries()
+    public void BhvModels012ToStringRendersAdditionalPropertiesEntries()
     {
         var metadata = new Metadata
         {
@@ -381,5 +408,82 @@ public class MetadataTest
 
         Assert.Equal("{\"createdAt\":\"2024-01-15T10:30:00.000+00:00\",\"extra\":\"y\"}", json);
         Assert.Equal(2, metadata.AdditionalProperties!.Count);
+    }
+
+    [Fact]
+    public void BhvModels013NewModelAdditionalPropertiesStartEmptyNeverNull()
+    {
+        var metadata = new Metadata();
+
+        Assert.NotNull(metadata.AdditionalProperties);
+        Assert.Empty(metadata.AdditionalProperties);
+    }
+
+    [Fact]
+    public void BhvModels015ChangedCopyKeepsTheAdditionalProperties()
+    {
+        var original = _serializer.Deserialize<Metadata>("{\"k\":1}")!;
+
+        var copy = original with { CreatedAt = DateTimeOffset.UnixEpoch };
+
+        Assert.Equal(original.AdditionalProperties, copy.AdditionalProperties);
+        Assert.Contains("k", copy.AdditionalProperties.Keys);
+    }
+
+    [Fact]
+    public void BhvModels016ACopyClearsAnOptionalFieldOnlyWhenNullIsPassed()
+    {
+        var original = new Metadata { CreatedAt = DateTimeOffset.UnixEpoch };
+
+        var kept = original with { };
+        var cleared = original with { CreatedAt = null };
+
+        Assert.Equal(DateTimeOffset.UnixEpoch, kept.CreatedAt);
+        Assert.Null(cleared.CreatedAt);
+    }
+
+    [Fact]
+    public void BhvModels017ACopyCanSetOrClearAnOptionalFieldAndTheOriginalKeepsItsValue()
+    {
+        var original = new Metadata { CreatedAt = DateTimeOffset.UnixEpoch };
+        var later = DateTimeOffset.UnixEpoch.AddDays(1);
+
+        var set = original with { CreatedAt = later };
+        var cleared = original with { CreatedAt = null };
+
+        Assert.Equal(later, set.CreatedAt);
+        Assert.Null(cleared.CreatedAt);
+        Assert.Equal(DateTimeOffset.UnixEpoch, original.CreatedAt);
+    }
+
+    [Fact]
+    public void BhvModels022AModelWhoseSchemaAllowsUndeclaredPropertiesReportsIt()
+    {
+        Assert.NotNull(typeof(Metadata).GetProperty(nameof(Metadata.AdditionalProperties)));
+    }
+
+    [Fact]
+    public void BhvModels023KeysNamedLikeSdkMembersAreKeptAsAdditionalProperties()
+    {
+        var metadata = _serializer.Deserialize<Metadata>("{\"ToString\":1,\"GetHashCode\":2}")!;
+
+        Assert.Contains("ToString", metadata.AdditionalProperties.Keys);
+        Assert.Contains("GetHashCode", metadata.AdditionalProperties.Keys);
+    }
+
+    [Fact]
+    public void BhvSerialization052UndeclaredKeysAreKeptOnListElements()
+    {
+        var items = _serializer.Deserialize<List<Metadata>>("[{\"k\":1}]")!;
+
+        Assert.Contains("k", items[0].AdditionalProperties.Keys);
+    }
+
+    [Fact]
+    public void BhvSerialization053UndeclaredKeysAreWrittenBackWithTheirModel()
+    {
+        var metadata = _serializer.Deserialize<Metadata>("{\"k\":2}");
+
+        Assert.Contains("\"k\":2", _serializer.Serialize(metadata), StringComparison.Ordinal);
     }
 }

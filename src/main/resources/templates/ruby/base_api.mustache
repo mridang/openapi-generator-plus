@@ -150,7 +150,7 @@ module {{moduleName}}
         headers = {}
         headers['Accept'] = selected['Accept'] if selected['Accept']
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
-        headers.merge!(@config.default_headers)
+        merge_call_headers(headers, @config.default_headers)
         headers.merge!(header_params)
         merge_call_headers(headers, request_options.headers) if request_options&.headers
         request_headers = authenticated_headers(headers, effective_auth)
@@ -342,8 +342,8 @@ module {{moduleName}}
       def transport_call_options(request_options)
         timeout = request_options&.timeout
         max_retries = request_options&.max_retries
-        if timeout && (!timeout.is_a?(Numeric) || timeout <= 0)
-          raise ArgumentError, "Invalid timeout: must be a positive number of milliseconds (got #{timeout.inspect})"
+        if timeout && (!timeout.is_a?(Numeric) || timeout < 1)
+          raise ArgumentError, "Invalid timeout: must be at least one millisecond (got #{timeout.inspect})"
         end
 
         ::{{moduleName}}::TransportOptions.validate_max_retries!(max_retries) unless max_retries.nil?

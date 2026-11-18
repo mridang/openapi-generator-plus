@@ -67,17 +67,16 @@ describe("TransportOptions", () => {
     ).toBe(3);
   });
 
-  test.each([-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY])(
-    "bhv options 007 a negative maxRetries is rejected: %p",
-    (value) => {
+  test("bhv options 007 a negative maxRetries is rejected", () => {
+    for (const value of [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(() => TransportOptions.builder().maxRetries(value)).toThrow(
         `Invalid maxRetries: must be a non-negative integer (got ${value})`,
       );
       expect(
         () => new TransportOptions({ ...directOptions, maxRetries: value }),
       ).toThrow(TypeError);
-    },
-  );
+    }
+  });
 
   test("bhv options 041 userAgent defaults to non-empty string", () => {
     const opts = TransportOptions.builder().build();
@@ -146,6 +145,18 @@ describe("TransportOptions", () => {
     expect(() => TransportOptions.builder().timeout(0)).toThrow(TypeError);
   });
 
+  test("bhv options 008 a proxy URL error never carries the user-info", () => {
+    const proxy = "ftp://user:hunter2@proxy.example.com:21";
+    expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
+    let message = "";
+    try {
+      TransportOptions.builder().proxy(proxy);
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).not.toContain("hunter2");
+  });
+
   test("bhv options 024 invalid proxy URL throws error", () => {
     let caught: unknown;
     try {
@@ -157,13 +168,13 @@ describe("TransportOptions", () => {
     expect(caught).not.toBeInstanceOf(OpenAPIError);
   });
 
-  test("proxy URL with a non-http scheme throws TypeError", () => {
+  test("bhv options 051 a proxy URL with a scheme other than http or https throws TypeError", () => {
     expect(() => {
       TransportOptions.builder().proxy("ftp://proxy.example.com");
     }).toThrow(TypeError);
   });
 
-  test("constructing directly with a non-http proxy scheme throws TypeError", () => {
+  test("bhv options 046 constructing directly with a non-http proxy scheme is rejected with TypeError", () => {
     const construct = () =>
       new TransportOptions({
         ...directOptions,
@@ -175,6 +186,19 @@ describe("TransportOptions", () => {
     );
   });
 
+  test("bhv options 045 a negative maxRedirects is rejected at configuration", () => {
+    expect(() => TransportOptions.builder().maxRedirects(-1)).toThrow(
+      TypeError,
+    );
+    expect(
+      () => new TransportOptions({ ...directOptions, maxRedirects: -1 }),
+    ).toThrow("Invalid maxRedirects: must be a non-negative integer (got -1)");
+  });
+
+  test("bhv options 047 a negative timeout is rejected at configuration", () => {
+    expect(() => TransportOptions.builder().timeout(-1)).toThrow(TypeError);
+  });
+
   test("bhv options 013 constructing directly with an unparseable proxy URL throws TypeError", () => {
     const construct = () =>
       new TransportOptions({ ...directOptions, proxy: "not-a-valid-url" });
@@ -184,30 +208,30 @@ describe("TransportOptions", () => {
     );
   });
 
-  test.each([
-    ["an empty string", "", "Invalid proxy URL (unparseable): "],
-    [
-      "a scheme without a host",
-      "http://",
-      "Invalid proxy URL (unparseable): http://",
-    ],
-    [
-      "a socks scheme",
-      "socks5://proxy.example.com:1080",
-      "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
-    ],
-    [
-      "an ftp scheme",
-      "ftp://proxy.example.com:21",
-      "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
-    ],
-  ])(
-    "bhv options 031 proxy %s is rejected with TypeError and the exact message",
-    (_label, proxy, message) => {
+  test("bhv options 031 proxy URL that is empty, has no host or has a bad scheme is rejected with TypeError and the exact message", () => {
+    const rows: Array<[string, string, string]> = [
+      ["an empty string", "", "Invalid proxy URL (unparseable): "],
+      [
+        "a scheme without a host",
+        "http://",
+        "Invalid proxy URL (unparseable): http://",
+      ],
+      [
+        "a socks scheme",
+        "socks5://proxy.example.com:1080",
+        "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
+      ],
+      [
+        "an ftp scheme",
+        "ftp://proxy.example.com:21",
+        "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+      ],
+    ];
+    for (const [, proxy, message] of rows) {
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
-    },
-  );
+    }
+  });
 
   test("bhv options 011 a proxy URL with no host is rejected", () => {
     expect(() => TransportOptions.builder().proxy("http://")).toThrow(
@@ -265,7 +289,7 @@ describe("TransportOptions", () => {
     ).toBe("HTTP://proxy.example.com:8080");
   });
 
-  test("constructing directly with a valid or absent proxy succeeds", () => {
+  test("bhv options 067 constructing directly with a valid or absent proxy succeeds", () => {
     expect(
       new TransportOptions({ ...directOptions, proxy: "http://proxy:8080" })
         .proxy,
@@ -278,6 +302,34 @@ describe("TransportOptions", () => {
   test("bhv options 030 null proxy URL is accepted", () => {
     const opts = TransportOptions.builder().proxy(null).build();
     expect(opts.proxy).toBeNull();
+  });
+
+  test("bhv options 060 the static builder entry point carries the values set on it and the defaults of a direct build", () => {
+    const built = TransportOptions.builder().timeout(5000).build();
+    const pkg = JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf-8"),
+    ) as {
+      name: string;
+      version: string;
+    };
+    const direct = new TransportOptions({
+      ...directOptions,
+      timeout: 5000,
+      userAgent: `${pkg.name}/${pkg.version} (node)`,
+    });
+    expect(built.timeout).toBe(5000);
+    expect(built.verifySsl).toBe(direct.verifySsl);
+    expect(built.maxRetries).toBe(direct.maxRetries);
+    expect(built.toString()).toBe(direct.toString());
+  });
+
+  test("bhv options 061 a user agent set on transport options is kept as given, and none leaves it unset", () => {
+    expect(
+      TransportOptions.builder().userAgent("my-agent/2.0").build().userAgent,
+    ).toBe("my-agent/2.0");
+    expect(
+      TransportOptions.builder().userAgent(null).build().userAgent,
+    ).toBeNull();
   });
 
   test("bhv options 015 builder methods return the same builder instance", () => {
@@ -391,13 +443,13 @@ describe("TransportOptions", () => {
       "X-Trace": "visible",
     };
 
-    test.each([
-      ["toString", (o: TransportOptions) => o.toString()],
-      ["JSON", (o: TransportOptions) => JSON.stringify(o)],
-      ["inspect", (o: TransportOptions) => util.inspect(o)],
-    ])(
-      "bhv options 023 %s masks the proxy password and sensitive default headers",
-      (_name, render) => {
+    test("bhv options 023 inspect masks the proxy password and sensitive default headers", () => {
+      const renders: Array<[string, (o: TransportOptions) => string]> = [
+        ["toString", (o: TransportOptions) => o.toString()],
+        ["JSON", (o: TransportOptions) => JSON.stringify(o)],
+        ["inspect", (o: TransportOptions) => util.inspect(o)],
+      ];
+      for (const [, render] of renders) {
         const opts = new TransportOptions({
           ...directOptions,
           proxy: "http://user:hunter2@proxy.example.com:8080",
@@ -410,10 +462,10 @@ describe("TransportOptions", () => {
         expect(text).toContain("proxy.example.com");
         expect(text).toContain("visible");
         expect(text).toContain("***");
-      },
-    );
+      }
+    });
 
-    test("a proxy without a password is printed unchanged", () => {
+    test("bhv options 066 a proxy without a password is printed unchanged", () => {
       const opts = new TransportOptions({
         ...directOptions,
         proxy: "http://proxy.example.com:8080",
@@ -422,10 +474,24 @@ describe("TransportOptions", () => {
     });
   });
 
+  test("bhv options 063 a built options object cannot have its fields changed", () => {
+    const opts = TransportOptions.builder().timeout(5000).build();
+    expect(() => {
+      (opts as { timeout: number | null }).timeout = 1;
+    }).toThrow(TypeError);
+    expect(opts.timeout).toBe(5000);
+  });
+
   describe("custom fetch", () => {
     const customFetch = (async () => new Response("{}")) as typeof fetch;
 
-    test("fetch and fetchOptions default to null", () => {
+    test("bhv redirects 045 a fetchOptions redirect of follow is refused, because the SDK manages redirects itself", () => {
+      expect(() =>
+        TransportOptions.builder().fetchOptions({ redirect: "follow" }).build(),
+      ).toThrow(TypeError);
+    });
+
+    test("bhv options 059 fetch and fetchOptions default to null", () => {
       const opts = TransportOptions.builder().build();
       expect(opts.fetch).toBeNull();
       expect(opts.fetchOptions).toBeNull();
@@ -440,24 +506,50 @@ describe("TransportOptions", () => {
       expect(opts.fetchOptions).toEqual({ keepalive: true });
     });
 
-    test.each([
-      [
-        "a proxy",
-        TransportOptions.builder().proxy("http://proxy.example.com:8080"),
-      ],
-      [
-        "a custom CA certificate",
-        TransportOptions.builder().caCertPath("/etc/ca.pem"),
-      ],
-      [
-        "disabled TLS verification",
-        TransportOptions.builder().verifySsl(false),
-      ],
-    ])("a custom fetch combined with %s fails fast", (_name, builder) => {
-      expect(() => builder.fetch(customFetch).build()).toThrow(TypeError);
+    test("bhv options 058 a supplied fetch is kept as the same instance on the built options", () => {
+      expect(TransportOptions.builder().fetch(customFetch).build().fetch).toBe(
+        customFetch,
+      );
     });
 
-    test("the printable form never includes the fetch function or option values", () => {
+    test("bhv lifecycle 024 a custom fetch combined with a proxy, a custom CA or disabled TLS verification fails fast", () => {
+      const combinations: Array<
+        [string, ReturnType<typeof TransportOptions.builder>]
+      > = [
+        [
+          "a proxy",
+          TransportOptions.builder().proxy("http://proxy.example.com:8080"),
+        ],
+        [
+          "a custom CA certificate",
+          TransportOptions.builder().caCertPath("/etc/ca.pem"),
+        ],
+        [
+          "disabled TLS verification",
+          TransportOptions.builder().verifySsl(false),
+        ],
+      ];
+      for (const [, builder] of combinations) {
+        expect(() => builder.fetch(customFetch).build()).toThrow(TypeError);
+      }
+    });
+
+    test("bhv transport 078 a custom fetch is refused at construction when a proxy is also configured", () => {
+      expect(() =>
+        TransportOptions.builder()
+          .fetch(customFetch)
+          .proxy("http://127.0.0.1:3128")
+          .build(),
+      ).toThrow(TypeError);
+    });
+
+    test("bhv options 064 the printable form shows the configured maximum number of retries", () => {
+      expect(
+        TransportOptions.builder().maxRetries(5).build().toString(),
+      ).toContain('"maxRetries":5');
+    });
+
+    test("bhv options 065 the printable form never includes the fetch function or option values", () => {
       const opts = TransportOptions.builder()
         .fetch(customFetch)
         .fetchOptions({ credentials: "secret-mode" })

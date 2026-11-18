@@ -10,7 +10,7 @@ describe 'README' do
     File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), 'README.md'))
   end
 
-  it 'names the real proxy setter in the SOCKS section' do
+  it 'bhv_options_044 names the builder setter that rejects a SOCKS proxy' do
     _(readme).must_include '`TransportOptions.builder.proxy(url)` accepts only `http://` and `https://` URLs.'
     _(readme).wont_include 'TransportOptions.proxy()'
   end

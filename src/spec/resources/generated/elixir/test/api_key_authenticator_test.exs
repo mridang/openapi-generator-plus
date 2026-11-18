@@ -22,7 +22,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert cookies["session"] == "abc123"
     end
 
-    test "a nil key is read once from the environment and a passed key wins" do
+    test "bhv authapikey 021 a nil key is read once from the environment and a passed key wins" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
       System.put_env(name, "from-env")
       on_exit(fn -> System.delete_env(name) end)
@@ -39,7 +39,18 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.auth_headers(explicit)["X-Api-Key"] == "abc123"
     end
 
-    test "an empty or absent environment variable fails when the authenticator is built" do
+    test "bhv serializationobject 187 an explicit key wins over the environment" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
+      System.put_env(name, "env-key")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth =
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "explicit-key", :header)
+
+      assert ApiKeyAuthenticator.auth_headers(auth)["X-Api-Key"] == "explicit-key"
+    end
+
+    test "bhv authscheme 012 an empty environment variable for the api key scheme credential is treated as unset and fails naming the variable" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
       on_exit(fn -> System.delete_env(name) end)
 
@@ -59,7 +70,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
-    test "a zero-argument function supplies the key for every request in every location" do
+    test "bhv auth 005 a zero-argument function supplies the key for every request in every location" do
       {:ok, counter} = Agent.start_link(fn -> 0 end)
 
       provider = fn ->
@@ -77,7 +88,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.cookie_params(cookie)["session"] == "k4"
     end
 
-    test "a key the function returns is checked like a passed one" do
+    test "bhv auth 009 a key the function returns is checked like a passed one" do
       auth =
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", fn -> "" end, :header)
 
@@ -149,7 +160,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.query_params(query_auth) == %{"api_key" => "kéy"}
     end
 
-    test "rejects each invalid key with its own message" do
+    test "bhv auth 012 rejects each invalid key with its own message" do
       assert_raise ArgumentError,
                    "API key value for 'X-Api-Key' must not be empty",
                    fn ->
@@ -174,7 +185,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
                    end
     end
 
-    test "a key emits only at its own location" do
+    test "bhv authapikey 022 a key emits only at its own location" do
       for location <- [:header, :query, :cookie] do
         auth = ApiKeyAuthenticator.new("https://api.example.com", "k", "abc123", location)
 
@@ -216,19 +227,58 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.auth_headers(cookie) == %{}
     end
 
-    test "scheme authenticators validate eagerly and mask the key" do
+    test "bhv authapikey 019 every API-key wrapper rejects an empty key at construction" do
       for module <- [
             PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
             PetstoreClient.Auth.InternalApiKeyAuthenticator,
             PetstoreClient.Auth.ApiKeyQueryAuthenticator,
             PetstoreClient.Auth.SessionCookieAuthenticator
           ] do
-        assert_raise ArgumentError, fn -> module.new("https://api.example.com", "") end
+        assert_raise ArgumentError, ~r/must not be empty/, fn ->
+          module.new("https://api.example.com", "")
+        end
+      end
+    end
 
+    test "bhv authapikey 020 every API-key wrapper redacts the key in its inspect output" do
+      for module <- [
+            PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
+            PetstoreClient.Auth.InternalApiKeyAuthenticator,
+            PetstoreClient.Auth.ApiKeyQueryAuthenticator,
+            PetstoreClient.Auth.SessionCookieAuthenticator
+          ] do
         auth = module.new("https://api.example.com", "super-secret-key")
         refute inspect(auth) =~ "super-secret-key"
         assert inspect(auth) =~ ~s(api_key: "***")
       end
+    end
+
+    test "bhv authapikey 025 generated API key wrappers mask the key in their debug output" do
+      secret = Enum.join(["super", "secret", "key"], "-")
+
+      for module <- [
+            PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
+            PetstoreClient.Auth.InternalApiKeyAuthenticator,
+            PetstoreClient.Auth.ApiKeyQueryAuthenticator,
+            PetstoreClient.Auth.SessionCookieAuthenticator
+          ] do
+        auth = module.new("https://api.example.com", secret)
+        refute inspect(auth) =~ secret
+        assert inspect(auth) =~ ~s(api_key: "***")
+      end
+    end
+
+    test "bhv authapikey 018 rejects a CR in a header API key value at construction" do
+      assert_raise ArgumentError,
+                   "API key value for 'X-Api-Key' contains forbidden control characters (CR/LF/NUL)",
+                   fn ->
+                     ApiKeyAuthenticator.new(
+                       "https://api.example.com",
+                       "X-Api-Key",
+                       "abc\rdef",
+                       :header
+                     )
+                   end
     end
 
     test "scheme authenticators for Basic and Bearer delegate to the base authenticators" do
@@ -298,6 +348,12 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.query_params(auth) == %{"api_key" => "kéy"}
     end
 
+    test "bhv authapikey 023 a cookie key accepts a non-ASCII value" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "session", "kéy", :cookie)
+
+      assert ApiKeyAuthenticator.cookie_params(auth) == %{"session" => "kéy"}
+    end
+
     test "bhv authapikey 016 a valid query key builds an authenticator" do
       assert %ApiKeyAuthenticator{} =
                ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc123", :query)
@@ -331,6 +387,41 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
 
       refute inspect(auth) =~ "super-secret-key"
       assert inspect(auth) =~ ~s(api_key: "***")
+    end
+
+    test "bhv auth 006 an api key sent in a header is keyed by the header name the spec declares" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
+      assert Map.keys(ApiKeyAuthenticator.auth_headers(auth)) == ["X-Api-Key"]
+
+      header =
+        PetstoreClient.Auth.ApiKeyHeaderAuthenticator.new("https://api.example.com", "abc123")
+
+      assert Map.keys(ApiKeyAuthenticator.auth_headers(header)) == ["X-API-Key"]
+    end
+
+    test "bhv auth 016 every string form of an api key authenticator masks the key and names its own type" do
+      auth =
+        ApiKeyAuthenticator.new(
+          "https://api.example.com",
+          "X-Api-Key",
+          "super-secret-key",
+          :header
+        )
+
+      for form <- [inspect(auth), inspect(auth, pretty: true)] do
+        refute form =~ "super-secret-key"
+        assert form =~ "ApiKeyAuthenticator{"
+      end
+    end
+
+    test "bhv auth 023 an explicitly passed empty api key is refused and is not replaced by the environment value" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/must not be empty/, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "", :header)
+      end
     end
   end
 end

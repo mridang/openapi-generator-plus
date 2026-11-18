@@ -114,6 +114,677 @@ public sealed class SchemeAuthenticatorTest
         }
     }
 
+    [Fact]
+    public void BhvAuthbasic012AnEmptyVariableCountsAsUnset()
+    {
+        foreach (string variable in PetStoreBasicAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    PetStoreBasicAuthenticatorVariables,
+                    PetStoreBasicAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.PetStoreBasicAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in AdminBasicAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    AdminBasicAuthenticatorVariables,
+                    AdminBasicAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.AdminBasicAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in PetStoreBearerAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    PetStoreBearerAuthenticatorVariables,
+                    PetStoreBearerAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in ServiceTokenAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ServiceTokenAuthenticatorVariables,
+                    ServiceTokenAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ServiceTokenAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in ApiKeyHeaderAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ApiKeyHeaderAuthenticatorVariables,
+                    ApiKeyHeaderAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in InternalApiKeyAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    InternalApiKeyAuthenticatorVariables,
+                    InternalApiKeyAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.InternalApiKeyAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in ApiKeyQueryAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ApiKeyQueryAuthenticatorVariables,
+                    ApiKeyQueryAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ApiKeyQueryAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in SessionCookieAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    SessionCookieAuthenticatorVariables,
+                    SessionCookieAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.SessionCookieAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in MachineAuthClientCredentialsAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    MachineAuthClientCredentialsAuthenticatorVariables,
+                    MachineAuthClientCredentialsAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator(
+                            Host
+                        )
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in LegacyAuthPasswordAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    LegacyAuthPasswordAuthenticatorVariables,
+                    LegacyAuthPasswordAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in UserAuthAuthorizationCodeAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    UserAuthAuthorizationCodeAuthenticatorVariables,
+                    UserAuthAuthorizationCodeAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in BrowserAuthImplicitAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    BrowserAuthImplicitAuthenticatorVariables,
+                    BrowserAuthImplicitAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in SsoAuthAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(SsoAuthAuthenticatorVariables, SsoAuthAuthenticatorFields, variable, ""),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.OAuth.SsoAuthAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvAuthapikey021ApiKeyIsReadFromTheEnvironmentUnlessPassed()
+    {
+        WithEnvironment(
+            Complete(ApiKeyHeaderAuthenticatorVariables, ApiKeyHeaderAuthenticatorFields),
+            () =>
+            {
+                var fromEnvironment = new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(Host);
+                Assert.Contains(EnvValue("apiKey"), Carried(fromEnvironment));
+
+                var passed = new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(
+                    Host,
+                    ExplicitValue("apiKey")
+                );
+                Assert.Contains(ExplicitValue("apiKey"), Carried(passed));
+            }
+        );
+        WithEnvironment(
+            Complete(InternalApiKeyAuthenticatorVariables, InternalApiKeyAuthenticatorFields),
+            () =>
+            {
+                var fromEnvironment = new PetstoreClient.Auth.InternalApiKeyAuthenticator(Host);
+                Assert.Contains(EnvValue("apiKey"), Carried(fromEnvironment));
+
+                var passed = new PetstoreClient.Auth.InternalApiKeyAuthenticator(
+                    Host,
+                    ExplicitValue("apiKey")
+                );
+                Assert.Contains(ExplicitValue("apiKey"), Carried(passed));
+            }
+        );
+        WithEnvironment(
+            Complete(ApiKeyQueryAuthenticatorVariables, ApiKeyQueryAuthenticatorFields),
+            () =>
+            {
+                var fromEnvironment = new PetstoreClient.Auth.ApiKeyQueryAuthenticator(Host);
+                Assert.Contains(EnvValue("apiKey"), Carried(fromEnvironment));
+
+                var passed = new PetstoreClient.Auth.ApiKeyQueryAuthenticator(
+                    Host,
+                    ExplicitValue("apiKey")
+                );
+                Assert.Contains(ExplicitValue("apiKey"), Carried(passed));
+            }
+        );
+        WithEnvironment(
+            Complete(SessionCookieAuthenticatorVariables, SessionCookieAuthenticatorFields),
+            () =>
+            {
+                var fromEnvironment = new PetstoreClient.Auth.SessionCookieAuthenticator(Host);
+                Assert.Contains(EnvValue("apiKey"), Carried(fromEnvironment));
+
+                var passed = new PetstoreClient.Auth.SessionCookieAuthenticator(
+                    Host,
+                    ExplicitValue("apiKey")
+                );
+                Assert.Contains(ExplicitValue("apiKey"), Carried(passed));
+            }
+        );
+    }
+
+    [Fact]
+    public void BhvAuthapikey025SchemeWrappersValidateEagerlyAndMaskTheKey()
+    {
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(Host, "tok\r\nInjected: yes")
+            );
+            var masked = new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(
+                Host,
+                ExplicitValue("apiKey")
+            );
+            Assert.DoesNotContain(
+                ExplicitValue("apiKey"),
+                masked.ToString(),
+                StringComparison.Ordinal
+            );
+        }
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new PetstoreClient.Auth.InternalApiKeyAuthenticator(Host, "tok\r\nInjected: yes")
+            );
+            var masked = new PetstoreClient.Auth.InternalApiKeyAuthenticator(
+                Host,
+                ExplicitValue("apiKey")
+            );
+            Assert.DoesNotContain(
+                ExplicitValue("apiKey"),
+                masked.ToString(),
+                StringComparison.Ordinal
+            );
+        }
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new PetstoreClient.Auth.ApiKeyQueryAuthenticator(Host, "tok\r\nInjected: yes")
+            );
+            var masked = new PetstoreClient.Auth.ApiKeyQueryAuthenticator(
+                Host,
+                ExplicitValue("apiKey")
+            );
+            Assert.DoesNotContain(
+                ExplicitValue("apiKey"),
+                masked.ToString(),
+                StringComparison.Ordinal
+            );
+        }
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new PetstoreClient.Auth.SessionCookieAuthenticator(Host, "tok\r\nInjected: yes")
+            );
+            var masked = new PetstoreClient.Auth.SessionCookieAuthenticator(
+                Host,
+                ExplicitValue("apiKey")
+            );
+            Assert.DoesNotContain(
+                ExplicitValue("apiKey"),
+                masked.ToString(),
+                StringComparison.Ordinal
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvAuthbearer019EmptyEnvironmentValueCountsAsUnsetAndFailsNamingTheVariable()
+    {
+        foreach (string variable in PetStoreBearerAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    PetStoreBearerAuthenticatorVariables,
+                    PetStoreBearerAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in ServiceTokenAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ServiceTokenAuthenticatorVariables,
+                    ServiceTokenAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ServiceTokenAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvAuthbearer025EnvironmentVariableIsReadOnceAtConstruction()
+    {
+        WithEnvironment(
+            Complete(PetStoreBearerAuthenticatorVariables, PetStoreBearerAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host);
+                foreach (string variable in PetStoreBearerAuthenticatorVariables)
+                {
+                    Environment.SetEnvironmentVariable(variable, "changed");
+                }
+                Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+            }
+        );
+        WithEnvironment(
+            Complete(ServiceTokenAuthenticatorVariables, ServiceTokenAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.ServiceTokenAuthenticator(Host);
+                foreach (string variable in ServiceTokenAuthenticatorVariables)
+                {
+                    Environment.SetEnvironmentVariable(variable, "changed");
+                }
+                Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+            }
+        );
+    }
+
+    [Fact]
+    public void BhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsVariable()
+    {
+        WithEnvironment(
+            Complete(PetStoreBasicAuthenticatorVariables, PetStoreBasicAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.PetStoreBasicAuthenticator(
+                    Host,
+                    username: ExplicitValue("username"),
+                    password: ExplicitValue("password")
+                );
+                Assert.Equal(
+                    BasicHeader(ExplicitValue("username"), ExplicitValue("password")),
+                    auth.GetAuthHeaders()["Authorization"]
+                );
+            }
+        );
+        WithEnvironment(
+            Complete(AdminBasicAuthenticatorVariables, AdminBasicAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.AdminBasicAuthenticator(
+                    Host,
+                    username: ExplicitValue("username"),
+                    password: ExplicitValue("password")
+                );
+                Assert.Equal(
+                    BasicHeader(ExplicitValue("username"), ExplicitValue("password")),
+                    auth.GetAuthHeaders()["Authorization"]
+                );
+            }
+        );
+        WithEnvironment(
+            Complete(PetStoreBearerAuthenticatorVariables, PetStoreBearerAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.PetStoreBearerAuthenticator(
+                    Host,
+                    token: ExplicitValue("token")
+                );
+                Assert.Equal(
+                    "Bearer " + ExplicitValue("token"),
+                    auth.GetAuthHeaders()["Authorization"]
+                );
+            }
+        );
+        WithEnvironment(
+            Complete(ServiceTokenAuthenticatorVariables, ServiceTokenAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.ServiceTokenAuthenticator(
+                    Host,
+                    token: ExplicitValue("token")
+                );
+                Assert.Equal(
+                    "Bearer " + ExplicitValue("token"),
+                    auth.GetAuthHeaders()["Authorization"]
+                );
+            }
+        );
+        WithEnvironment(
+            Complete(ApiKeyHeaderAuthenticatorVariables, ApiKeyHeaderAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(
+                    Host,
+                    apiKey: ExplicitValue("apiKey")
+                );
+                Assert.Contains(ExplicitValue("apiKey"), Carried(auth));
+            }
+        );
+        WithEnvironment(
+            Complete(InternalApiKeyAuthenticatorVariables, InternalApiKeyAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.InternalApiKeyAuthenticator(
+                    Host,
+                    apiKey: ExplicitValue("apiKey")
+                );
+                Assert.Contains(ExplicitValue("apiKey"), Carried(auth));
+            }
+        );
+        WithEnvironment(
+            Complete(ApiKeyQueryAuthenticatorVariables, ApiKeyQueryAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.ApiKeyQueryAuthenticator(
+                    Host,
+                    apiKey: ExplicitValue("apiKey")
+                );
+                Assert.Contains(ExplicitValue("apiKey"), Carried(auth));
+            }
+        );
+        WithEnvironment(
+            Complete(SessionCookieAuthenticatorVariables, SessionCookieAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.SessionCookieAuthenticator(
+                    Host,
+                    apiKey: ExplicitValue("apiKey")
+                );
+                Assert.Contains(ExplicitValue("apiKey"), Carried(auth));
+            }
+        );
+        WithEnvironment(
+            Complete(
+                MachineAuthClientCredentialsAuthenticatorVariables,
+                MachineAuthClientCredentialsAuthenticatorFields
+            ),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator(
+                    Host,
+                    clientId: ExplicitValue("clientId"),
+                    clientSecret: ExplicitValue("clientSecret")
+                );
+                Assert.Contains(
+                    "ClientId=" + ExplicitValue("clientId"),
+                    auth.ToString(),
+                    StringComparison.Ordinal
+                );
+            }
+        );
+        WithEnvironment(
+            Complete(
+                LegacyAuthPasswordAuthenticatorVariables,
+                LegacyAuthPasswordAuthenticatorFields
+            ),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator(
+                    Host,
+                    clientId: ExplicitValue("clientId"),
+                    clientSecret: ExplicitValue("clientSecret"),
+                    username: ExplicitValue("username"),
+                    password: ExplicitValue("password")
+                );
+                Assert.Contains(
+                    "ClientId=" + ExplicitValue("clientId"),
+                    auth.ToString(),
+                    StringComparison.Ordinal
+                );
+            }
+        );
+        WithEnvironment(
+            Complete(
+                UserAuthAuthorizationCodeAuthenticatorVariables,
+                UserAuthAuthorizationCodeAuthenticatorFields
+            ),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator(
+                    Host,
+                    clientId: ExplicitValue("clientId"),
+                    clientSecret: ExplicitValue("clientSecret"),
+                    redirectUri: ExplicitUri
+                );
+                Assert.Contains(
+                    "ClientId=" + ExplicitValue("clientId"),
+                    auth.ToString(),
+                    StringComparison.Ordinal
+                );
+            }
+        );
+        WithEnvironment(
+            Complete(
+                BrowserAuthImplicitAuthenticatorVariables,
+                BrowserAuthImplicitAuthenticatorFields
+            ),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator(
+                    Host,
+                    clientId: ExplicitValue("clientId")
+                );
+                Assert.Contains(
+                    "ClientId=" + ExplicitValue("clientId"),
+                    auth.ToString(),
+                    StringComparison.Ordinal
+                );
+            }
+        );
+        WithEnvironment(
+            Complete(SsoAuthAuthenticatorVariables, SsoAuthAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.OAuth.SsoAuthAuthenticator(
+                    Host,
+                    clientId: ExplicitValue("clientId"),
+                    clientSecret: ExplicitValue("clientSecret"),
+                    redirectUri: ExplicitUri
+                );
+                Assert.Contains(
+                    "ClientId=" + ExplicitValue("clientId"),
+                    auth.ToString(),
+                    StringComparison.Ordinal
+                );
+            }
+        );
+    }
+
+    [Fact]
+    public void BhvAuthscheme010AnEmptyBearerVariableIsUnsetAndIsNamed()
+    {
+        foreach (string variable in PetStoreBearerAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    PetStoreBearerAuthenticatorVariables,
+                    PetStoreBearerAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+        foreach (string variable in ServiceTokenAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ServiceTokenAuthenticatorVariables,
+                    ServiceTokenAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ServiceTokenAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
     private static readonly string[] PetStoreBasicAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME",
@@ -139,7 +810,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBasicAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthbasic013PetStoreBasicAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(PetStoreBasicAuthenticatorVariables, PetStoreBasicAuthenticatorFields),
@@ -159,7 +830,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBasicAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme003PetStoreBasicAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in PetStoreBasicAuthenticatorVariables)
         {
@@ -246,7 +917,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void AdminBasicAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthbasic013AdminBasicAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(AdminBasicAuthenticatorVariables, AdminBasicAuthenticatorFields),
@@ -266,7 +937,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void AdminBasicAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme004AdminBasicAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in AdminBasicAuthenticatorVariables)
         {
@@ -349,7 +1020,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBearerAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthbearer018PetStoreBearerAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(PetStoreBearerAuthenticatorVariables, PetStoreBearerAuthenticatorFields),
@@ -368,7 +1039,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBearerAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme011PetStoreBearerAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in PetStoreBearerAuthenticatorVariables)
         {
@@ -426,7 +1097,9 @@ public sealed class SchemeAuthenticatorTest
                 )
         );
 
-        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer provided-token", headers["Authorization"]);
     }
@@ -476,6 +1149,24 @@ public sealed class SchemeAuthenticatorTest
         Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BhvLifecycle025PetStoreBearerAuthenticatorReadsItsVariableOnceWhenBuilt()
+    {
+        WithEnvironment(
+            Complete(PetStoreBearerAuthenticatorVariables, PetStoreBearerAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.PetStoreBearerAuthenticator(Host);
+                Environment.SetEnvironmentVariable(
+                    PetStoreBearerAuthenticatorVariables[0],
+                    "changed-later"
+                );
+
+                Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+            }
+        );
+    }
+
     private static readonly string[] ServiceTokenAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN",
@@ -497,7 +1188,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ServiceTokenAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthbearer018ServiceTokenAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(ServiceTokenAuthenticatorVariables, ServiceTokenAuthenticatorFields),
@@ -516,7 +1207,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ServiceTokenAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme011ServiceTokenAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in ServiceTokenAuthenticatorVariables)
         {
@@ -574,7 +1265,9 @@ public sealed class SchemeAuthenticatorTest
                 )
         );
 
-        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer provided-token", headers["Authorization"]);
     }
@@ -620,6 +1313,24 @@ public sealed class SchemeAuthenticatorTest
         Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BhvLifecycle025ServiceTokenAuthenticatorReadsItsVariableOnceWhenBuilt()
+    {
+        WithEnvironment(
+            Complete(ServiceTokenAuthenticatorVariables, ServiceTokenAuthenticatorFields),
+            () =>
+            {
+                var auth = new PetstoreClient.Auth.ServiceTokenAuthenticator(Host);
+                Environment.SetEnvironmentVariable(
+                    ServiceTokenAuthenticatorVariables[0],
+                    "changed-later"
+                );
+
+                Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+            }
+        );
+    }
+
     private static readonly string[] ApiKeyHeaderAuthenticatorVariables =
     [
         "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
@@ -641,7 +1352,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ApiKeyHeaderAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvSerializationobject187ApiKeyHeaderAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(ApiKeyHeaderAuthenticatorVariables, ApiKeyHeaderAuthenticatorFields),
@@ -657,7 +1368,30 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme005ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnset()
+    {
+        foreach (string variable in ApiKeyHeaderAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ApiKeyHeaderAuthenticatorVariables,
+                    ApiKeyHeaderAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvAuthscheme012ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in ApiKeyHeaderAuthenticatorVariables)
         {
@@ -735,7 +1469,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void InternalApiKeyAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvSerializationobject187InternalApiKeyAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(InternalApiKeyAuthenticatorVariables, InternalApiKeyAuthenticatorFields),
@@ -751,7 +1485,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void InternalApiKeyAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme012InternalApiKeyAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in InternalApiKeyAuthenticatorVariables)
         {
@@ -829,7 +1563,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ApiKeyQueryAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvSerializationobject187ApiKeyQueryAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(ApiKeyQueryAuthenticatorVariables, ApiKeyQueryAuthenticatorFields),
@@ -845,7 +1579,30 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme006ApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnset()
+    {
+        foreach (string variable in ApiKeyQueryAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    ApiKeyQueryAuthenticatorVariables,
+                    ApiKeyQueryAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.ApiKeyQueryAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvAuthscheme012ApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in ApiKeyQueryAuthenticatorVariables)
         {
@@ -923,7 +1680,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SessionCookieAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvSerializationobject187SessionCookieAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(SessionCookieAuthenticatorVariables, SessionCookieAuthenticatorFields),
@@ -939,7 +1696,30 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme007SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnset()
+    {
+        foreach (string variable in SessionCookieAuthenticatorVariables)
+        {
+            WithEnvironment(
+                Complete(
+                    SessionCookieAuthenticatorVariables,
+                    SessionCookieAuthenticatorFields,
+                    variable,
+                    ""
+                ),
+                () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        new PetstoreClient.Auth.SessionCookieAuthenticator(Host)
+                    );
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public void BhvAuthscheme012SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in SessionCookieAuthenticatorVariables)
         {
@@ -1031,7 +1811,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void MachineAuthClientCredentialsAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002MachineAuthClientCredentialsAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -1055,7 +1835,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void MachineAuthClientCredentialsAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme013MachineAuthClientCredentialsAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in MachineAuthClientCredentialsAuthenticatorVariables)
         {
@@ -1115,7 +1895,7 @@ public sealed class SchemeAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string[] scopes = ["pets:read", "pets:write"];
         Assert.Equal(new Uri("https://auth.example.com/oauth/token"), client.LastUrl);
@@ -1166,7 +1946,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void LegacyAuthPasswordAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002LegacyAuthPasswordAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -1192,7 +1972,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void LegacyAuthPasswordAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme014LegacyAuthPasswordAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in LegacyAuthPasswordAuthenticatorVariables)
         {
@@ -1250,7 +2030,7 @@ public sealed class SchemeAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string[] scopes = ["read"];
         Assert.Equal(new Uri("https://auth.example.com/oauth/token"), client.LastUrl);
@@ -1301,7 +2081,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void UserAuthAuthorizationCodeAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002UserAuthAuthorizationCodeAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -1326,7 +2106,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void UserAuthAuthorizationCodeAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme015UserAuthAuthorizationCodeAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in UserAuthAuthorizationCodeAuthenticatorVariables)
         {
@@ -1419,7 +2199,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BrowserAuthImplicitAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002BrowserAuthImplicitAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(
@@ -1442,7 +2222,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BrowserAuthImplicitAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme016BrowserAuthImplicitAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in BrowserAuthImplicitAuthenticatorVariables)
         {
@@ -1537,7 +2317,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SsoAuthAuthenticatorPrefersTheArgumentsOverTheEnvironment()
+    public void BhvAuthscheme002SsoAuthAuthenticatorPrefersTheArgumentsOverTheEnvironment()
     {
         WithEnvironment(
             Complete(SsoAuthAuthenticatorVariables, SsoAuthAuthenticatorFields),
@@ -1559,7 +2339,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SsoAuthAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme008SsoAuthAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in SsoAuthAuthenticatorVariables)
         {

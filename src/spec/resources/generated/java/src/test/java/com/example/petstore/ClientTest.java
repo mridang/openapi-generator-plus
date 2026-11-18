@@ -17,7 +17,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.BearerAuthenticator;
+import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator;
 import com.example.petstore.errors.ApiException;
+import com.sun.net.httpserver.HttpServer;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ClientTest {
@@ -119,7 +125,35 @@ class ClientTest {
   }
 
   @Test
-  void customTransportWithoutCloseCanBeClosedTwice() {
+  void bhvLifecycle036ClosingTwiceRaisesNoErrorAndReleasesNothingFurther() {
+    Client client = new Client(authenticator);
+    org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+        () -> {
+          client.close();
+          client.close();
+        });
+  }
+
+  @Test
+  void bhvLifecycle039ClientWithAnEmptyTokenIsRefusedAndAValidTokenBuilds() {
+    assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", ""));
+    assertNotNull(Client.withToken("/api/v3", "valid-token"));
+  }
+
+  @Test
+  void bhvLifecycle040LeavingATryWithResourcesBlockClosesTheClient() {
+    Client client;
+    try (Client scoped = new Client(authenticator)) {
+      client = scoped;
+    }
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+  }
+
+  @Test
+  void bhvLifecycle038CustomTransportWithoutCloseCanBeClosedTwice() {
     // F1123: close is on the ApiClient contract with a no-op default, so a
     // transport that implements only the send method is still closable.
     ApiClient transport =
@@ -143,7 +177,7 @@ class ClientTest {
   }
 
   @Test
-  void bearerRejectsCrlfAndNonAscii() {
+  void bhvAuthBearer028BearerRejectsCrlfAndNonAscii() {
     // RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
     // newlines from .env / file reads, which would CRLF-inject the
     // Authorization header. Also reject non-ASCII to avoid silent
@@ -267,9 +301,65 @@ class ClientTest {
   }
 
   @Test
+  void bhvLifecycle030TheDefaultAuthenticatorSuppliesTheBaseUrl() throws Exception {
+    java.util.concurrent.atomic.AtomicReference<String> seenPath =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          seenPath.set(exchange.getRequestURI().getPath());
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      String host = "http://localhost:" + server.getAddress().getPort();
+      try (Client client = new Client(new BearerAuthenticator(host, "test-token"))) {
+        client.store.deleteOrder(1L);
+      }
+    } finally {
+      server.stop(0);
+    }
+    assertEquals("/store/order/1", seenPath.get());
+  }
+
+  @Test
   void bhvLifecycle006BearerRejectsCrLfAndNonAscii() {
     for (String token : new String[] {"abc\r\ndef", "töken"}) {
       assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator("/api/v3", token));
+    }
+  }
+
+  @Test
+  void bhvAuth025ACredentialThatSendsRequestsIsGivenTheClientsTransport() throws Exception {
+    // The credential has no transport of its own: the token request it sends must go
+    // through the transport the client was built with, which reaches this server.
+    HttpServer tokenServer = HttpServer.create(new InetSocketAddress(0), 0);
+    tokenServer.createContext(
+        "/token",
+        exchange -> {
+          byte[] body =
+              "{\"access_token\":\"from-transport\",\"expires_in\":3600}"
+                  .getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    tokenServer.start();
+    try {
+      String tokenUrl = "http://127.0.0.1:" + tokenServer.getAddress().getPort() + "/token";
+      OAuth2ClientCredentialsAuthenticator credential =
+          new OAuth2ClientCredentialsAuthenticator(
+              "/api/v3", "client-id", "client-secret", tokenUrl, List.of());
+      try (Client client = new Client(credential, TransportOptions.builder().build())) {
+        assertNotNull(client);
+        assertEquals("Bearer from-transport", credential.getAuthHeaders().get("Authorization"));
+      }
+    } finally {
+      tokenServer.stop(0);
     }
   }
 }

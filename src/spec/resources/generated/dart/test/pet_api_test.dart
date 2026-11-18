@@ -27,6 +27,23 @@ class _TestAuth implements Authenticator {
   Map<String, String> cookieParams() => {};
 }
 
+/// Answers with one fixed header, so a test can tell which scheme was used.
+class _FixedHeaderAuth implements Authenticator {
+  _FixedHeaderAuth(this.headerName, this.headerValue);
+  final String headerName;
+  final String headerValue;
+  @override
+  String host() => '';
+  @override
+  Map<String, String> authHeaders() => {headerName: headerValue};
+  @override
+  Future<Map<String, String>> authHeadersAsync() async => authHeaders();
+  @override
+  Map<String, String> queryParams() => {};
+  @override
+  Map<String, String> cookieParams() => {};
+}
+
 class _PerCallAuth implements Authenticator {
   @override
   String host() => '';
@@ -83,6 +100,77 @@ void main() {
       );
       expect(result, isNotNull);
     });
+
+    test(
+      'bhv operations 148 an operation uses the first scheme of its security requirement that the client holds',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {
+              'apiKeyHeader': _FixedHeaderAuth('X-API-Key', 'key-token'),
+            },
+          );
+
+          await api.addPet(
+            Pet(
+              name: 'Fido',
+              photoUrls: <String>{'http://example.com/fido.jpg'},
+            ),
+            null,
+          );
+
+          expect(received['x-api-key'], equals('key-token'));
+          expect(received.containsKey('authorization'), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 153 an operation with no chosen server is sent to the client base URL',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('Authorization', 'Bearer test-token')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          final result = await api.getExternalPetInfo(1, null, null);
+          expect(result.name, equals('Fido'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('bhv operations 025 addPetWithHttpInfo', () async {
       final api = _newPetApiForIntegration(
@@ -546,6 +634,60 @@ void main() {
      * local mock (the same idiom as the setPetAvatar raw-bytes test) and
      * assert both the exact body bytes and the Content-Type header. */
     test(
+      'bhv operations 147 uploadPetDocument sends the multipart parts in declaration order',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          final builder = BytesBuilder();
+          await for (final chunk in request) {
+            builder.add(chunk);
+          }
+          body = String.fromCharCodes(builder.takeBytes());
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType('application', 'json')
+            ..write('{}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.uploadPetDocument(
+            1,
+            UploadPetDocumentOptions(
+              file: Uint8List.fromList([0x66, 0x61, 0x6B, 0x65]),
+              notes: 'n',
+              isPrimary: true,
+              pageCount: 3,
+              swatch: Swatch.red,
+            ),
+          );
+
+          final positions = [
+            'name="file"',
+            'name="notes"',
+            'name="isPrimary"',
+            'name="pageCount"',
+            'name="swatch"',
+          ].map((part) => body.indexOf(part)).toList();
+          expect(positions.every((p) => p >= 0), isTrue, reason: body);
+          expect(
+            positions,
+            equals([...positions]..sort()),
+            reason: 'parts out of declaration order: $body',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv operations 092 uploadPetDocument streams raw bytes when octet-stream is selected',
       () async {
         List<int>? capturedBody;
@@ -797,7 +939,7 @@ void main() {
      * one: the convenience method throws the typed ApiException, never the
      * Dart TypeError from `null as Pet`. */
     test(
-      'bare JSON null body throws ApiException from a model operation',
+      'bhv operations 136 bare JSON null body throws ApiException from a model operation',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -1009,30 +1151,105 @@ void main() {
       },
     );
 
-    test('malformed 2xx JSON body propagates a deserialize error', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{ this is not valid json ::: }')
-          ..close();
-      });
+    test(
+      'bhv operations 127 a malformed 2xx body fails loud with a serialization error instead of returning the raw string',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await expectLater(
-          api.getPetById(1, null, null),
-          throwsA(isA<SerializationException>()),
-        );
-      } finally {
-        await server.close();
-      }
-    });
+          await expectLater(
+            api.getPetById(1, null, null),
+            throwsA(isA<SerializationException>()),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 138 an error response is thrown as the exception class specific to its status through the typed routes',
+      () async {
+        final cases = <int, Matcher>{
+          400: isA<BadRequestException>(),
+          404: isA<NotFoundException>(),
+          409: isA<ConflictException>(),
+          500: isA<InternalServerErrorException>(),
+        };
+        for (final entry in cases.entries) {
+          final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          server.listen((request) {
+            request.response
+              ..statusCode = entry.key
+              ..headers.contentType = ContentType.json
+              ..write('{"message":"refused"}')
+              ..close();
+          });
+
+          try {
+            final config = ConfigurationBuilder()
+                .baseUrl('http://localhost:${server.port}')
+                .build();
+            final api = PetApi(
+              apiClient: DefaultApiClient(
+                transportOptions: TransportOptions.builder()
+                    .maxRetries(0)
+                    .build(),
+              ),
+              config: config,
+            );
+
+            await expectLater(
+              api.getPetById(1, null, null),
+              throwsA(entry.value),
+              reason: 'status ${entry.key}',
+            );
+          } finally {
+            await server.close(force: true);
+          }
+        }
+      },
+    );
+
+    test(
+      'bhv operations 130 malformed 2xx JSON body propagates the deserialize error',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{ this is not valid json ::: }')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetById(1, null, null),
+            throwsA(isA<SerializationException>()),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* The credential configured for the scheme of the BASE operation method
      * (not just WithHttpInfo) is applied to the outgoing request. The default

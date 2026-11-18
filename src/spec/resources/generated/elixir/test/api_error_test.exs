@@ -41,7 +41,19 @@ defmodule PetstoreClient.ApiErrorTest do
     assert Exception.message(err) =~ "500"
   end
 
-  test "an empty message renders the default text, like a missing one" do
+  test "bhv errors 051 an empty error message falls back to the generic error line" do
+    default = "Error message: the server returns an error"
+
+    assert PetstoreClient.Errors.ApiError.message(
+             PetstoreClient.Errors.ApiError.exception(message: "")
+           ) == default
+
+    assert PetstoreClient.Errors.ApiError.message(
+             PetstoreClient.Errors.ApiError.exception(status_code: 500)
+           ) == default <> "\nHTTP status code: 500"
+  end
+
+  test "bhv errors 064 an empty message renders the default text, like a missing one" do
     default = "Error message: the server returns an error"
 
     assert PetstoreClient.Errors.ApiError.message(
@@ -87,7 +99,7 @@ defmodule PetstoreClient.ApiErrorTest do
     assert PetstoreClient.Errors.ApiError.message(bare) == "boom"
   end
 
-  test "the message cuts a long response body at 1 KiB and counts the bytes left out" do
+  test "bhv errors 065 the message cuts a long response body at 1 KiB and counts the bytes left out" do
     body = String.duplicate("a", 3_000)
 
     err =
@@ -199,6 +211,49 @@ defmodule PetstoreClient.ApiErrorTest do
              :not_an_error
   end
 
+  test "bhv errors 075 a cut body never splits a multi-byte character" do
+    # 1023 ASCII bytes and then a two-byte character: the 1 KiB cut lands on its
+    # first byte, which renders as a replacement character, so the message stays
+    # valid UTF-8 and counts the five bytes left out.
+    body = String.duplicate("x", 1_023) <> "é" <> "tail"
+
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "boom",
+        status_code: 500,
+        response_body: body
+      )
+
+    message = PetstoreClient.Errors.ApiError.message(err)
+
+    assert String.valid?(message)
+
+    assert message ==
+             "boom\nHTTP status code: 500\nResponse body: " <>
+               String.duplicate("x", 1_023) <> "\uFFFD... (5 more bytes)"
+  end
+
+  test "bhv errors 079 attaching request details keeps the first complete request and ignores later or incomplete attachments" do
+    error = PetstoreClient.Errors.ApiError.exception(message: "boom")
+
+    first =
+      PetstoreClient.Errors.ApiError.with_request(
+        error,
+        :get,
+        "https://api.example.com/items?key=1"
+      )
+
+    assert first.request_method == "GET"
+    assert first.request_path == "/items"
+
+    assert PetstoreClient.Errors.ApiError.with_request(first, :post, "/other") == first
+
+    incomplete = %{error | request_method: "PUT"}
+
+    assert PetstoreClient.Errors.ApiError.with_request(incomplete, :delete, "/later") ==
+             incomplete
+  end
+
   test "bhv errors 002 every error that specialises ApiError carries the request" do
     modules = [
       PetstoreClient.Errors.ApiError,
@@ -302,7 +357,33 @@ defmodule PetstoreClient.ApiErrorTest do
   end
 
   describe "OAuth2ServerError message" do
-    test "names the raw body when the response is not an OAuth2 error object" do
+    test "bhv errors 046 the message has three forms: raw body, code, and code with description" do
+      raw =
+        PetstoreClient.Errors.OAuth2ServerError.exception(
+          status_code: 502,
+          raw_body: "<html>bad gateway</html>"
+        )
+
+      code =
+        PetstoreClient.Errors.OAuth2ServerError.exception(status_code: 400, code: "invalid_grant")
+
+      described =
+        PetstoreClient.Errors.OAuth2ServerError.exception(
+          status_code: 400,
+          code: "invalid_grant",
+          description: "refresh token expired"
+        )
+
+      assert Exception.message(raw) ==
+               "Token request failed with status 502: <html>bad gateway</html>"
+
+      assert Exception.message(code) == "Token request failed with status 400: invalid_grant"
+
+      assert Exception.message(described) ==
+               "Token request failed with status 400: invalid_grant -- refresh token expired"
+    end
+
+    test "bhv authoauthtwotokenmgr 047 an OAuth2 server error without an error code names the status and the raw body" do
       err =
         PetstoreClient.Errors.OAuth2ServerError.exception(
           status_code: 502,
@@ -312,14 +393,14 @@ defmodule PetstoreClient.ApiErrorTest do
       assert Exception.message(err) == "Token request failed with status 502: Bad Gateway"
     end
 
-    test "names the error code" do
+    test "bhv errors 049 names the error code" do
       err =
         PetstoreClient.Errors.OAuth2ServerError.exception(status_code: 400, code: "invalid_grant")
 
       assert Exception.message(err) == "Token request failed with status 400: invalid_grant"
     end
 
-    test "names the error code and description" do
+    test "bhv authoauthtwotokenmgr 042 names the error code and description" do
       err =
         PetstoreClient.Errors.OAuth2ServerError.exception(
           status_code: 400,
@@ -484,12 +565,46 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.OpenAPIError.open_api_error?(serialization_error)
     end
 
+    test "bhv errors 045 the OAuth2 errors are not ApiError and the SDK error root recognises them" do
+      token = %PetstoreClient.Errors.OAuth2TokenError{message: "missing access_token"}
+
+      server = %PetstoreClient.Errors.OAuth2ServerError{
+        status_code: 400,
+        message: "invalid_grant"
+      }
+
+      refute PetstoreClient.Errors.ApiError.api_error?(token)
+      refute PetstoreClient.Errors.ApiError.api_error?(server)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(token)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(server)
+    end
+
+    test "bhv errors 047 a typed server error is an ApiError and an SDK error" do
+      err = PetstoreClient.Errors.ApiError.from_response(500, %{}, "boom")
+
+      assert %PetstoreClient.Errors.InternalServerError{} = err
+      assert PetstoreClient.Errors.ApiError.api_error?(err)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
+    end
+
     test "bhv errors 018 every SDK exception module is listed in exceptions/0" do
       modules = PetstoreClient.Errors.OpenAPIError.exceptions()
 
       assert PetstoreClient.Errors.ApiError in modules
       assert PetstoreClient.Errors.BadRequestError in modules
       assert PetstoreClient.Errors.SerializationError in modules
+    end
+
+    test "bhv errors 044 every error lives under the Errors namespace and the package root lists the whole tree" do
+      errors = PetstoreClient.errors()
+
+      assert PetstoreClient.Errors.ApiError in errors
+      refute PetstoreClient.Errors.OpenAPIError in errors
+
+      for error <- errors do
+        assert Code.ensure_loaded?(error)
+        assert ["PetstoreClient", "Errors", _name] = Module.split(error)
+      end
     end
 
     test "a rescued SDK error is recognised via exceptions/0" do
@@ -585,6 +700,22 @@ defmodule PetstoreClient.ApiErrorTest do
       refute PetstoreClient.Errors.ApiError.api_error?(%ArgumentError{message: "unrelated"})
     end
 
+    test "bhv errors 080 a typed HTTP error and its kind view are caught by the SDK root error and keep their status code" do
+      typed = PetstoreClient.Errors.ApiError.from_response(404, %{}, "gone")
+
+      caught =
+        try do
+          raise typed
+        rescue
+          error -> error
+        end
+
+      assert %PetstoreClient.Errors.NotFoundError{} = caught
+      assert caught.status_code == 404
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(caught)
+      assert PetstoreClient.Errors.ClientError.client_error?(caught)
+    end
+
     test "bhv errors 033 NotFoundError is a ClientError and an ApiError" do
       err = PetstoreClient.Errors.ApiError.from_response(404, %{}, nil)
 
@@ -593,7 +724,16 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.ApiError.api_error?(err)
     end
 
-    test "a 429 is a TooManyRequestsError and a ClientError" do
+    test "bhv errors 061 a bad request error is a client error, an API error and an OpenAPI error" do
+      err = PetstoreClient.Errors.ApiError.from_response(400, %{}, nil)
+
+      assert %PetstoreClient.Errors.BadRequestError{} = err
+      assert PetstoreClient.Errors.ClientError.client_error?(err)
+      assert PetstoreClient.Errors.ApiError.api_error?(err)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
+    end
+
+    test "bhv errors 066 a 429 is a TooManyRequestsError and a ClientError" do
       err = PetstoreClient.Errors.ApiError.from_response(429, %{"retry-after" => "3"}, nil)
 
       assert %PetstoreClient.Errors.TooManyRequestsError{status_code: 429} = err
@@ -649,6 +789,44 @@ defmodule PetstoreClient.ApiErrorTest do
       end
     end
 
+    test "bhv errors 050 response headers render as compact JSON with sorted keys and unescaped slashes" do
+      error =
+        PetstoreClient.Errors.ApiError.exception(
+          message: "boom",
+          response_headers: %{"x-zeta" => "2", "x-alpha" => "https://example.com/a/b"}
+        )
+
+      assert PetstoreClient.Errors.ApiError.message(error) =~
+               ~s(Response headers: {"x-alpha":"https://example.com/a/b","x-zeta":"2"})
+    end
+
+    test "bhv errors 053 each named error pins its own HTTP status code" do
+      assert PetstoreClient.Errors.NotFoundError.exception(%{status_code: 500}).status_code == 404
+
+      assert PetstoreClient.Errors.TooManyRequestsError.exception(%{status_code: 500}).status_code ==
+               429
+
+      assert PetstoreClient.Errors.InternalServerError.exception(%{status_code: 404}).status_code ==
+               500
+    end
+
+    test "bhv errors 055 status error constructors default the response context to null" do
+      error = PetstoreClient.Errors.NotFoundError.exception("gone")
+
+      assert error.response_headers == nil
+      assert error.response_body == nil
+      assert error.error_body == nil
+    end
+
+    test "bhv errors 056 a status at or above 600 yields the base error and not a server error" do
+      for status <- [600, 700] do
+        error = PetstoreClient.Errors.ApiError.from_response(status, nil, nil)
+
+        assert error.__struct__ == PetstoreClient.Errors.ApiError
+        refute PetstoreClient.Errors.ServerError.server_error?(error)
+      end
+    end
+
     test "bhv errors 020 network errors carry status 0" do
       assert PetstoreClient.Errors.NetworkError.exception(message: "refused").status_code == 0
 
@@ -668,5 +846,52 @@ defmodule PetstoreClient.ApiErrorTest do
       refute PetstoreClient.Errors.OpenAPIError.open_api_error?(:not_an_exception)
       refute PetstoreClient.Errors.OpenAPIError.open_api_error?(%{message: "plain map"})
     end
+  end
+
+  test "bhv skills 001 the skills guide names the root error and the error types that are siblings of ApiError" do
+    skills = File.read!("SKILLS.md")
+
+    assert skills =~ "root grouping"
+    assert skills =~ "`SerializationError` (a body could not be encoded or decoded)"
+    assert skills =~ "`OAuth2ServerError` (token endpoint answered 4xx or 5xx)"
+    assert skills =~ "`OAuth2TokenError` (token endpoint answered unusably)"
+  end
+
+  describe "errors without a response" do
+    test "bhv errors 074 an error that never received a response renders its text as the message alone" do
+      message =
+        PetstoreClient.Errors.ApiError.message(
+          PetstoreClient.Errors.ApiError.exception(status_code: 0, message: "connection reset")
+        )
+
+      assert message =~ "connection reset"
+      refute message =~ "HTTP status code"
+    end
+
+    test "bhv errors 084 an error built without an HTTP response reports a status code of zero" do
+      assert PetstoreClient.Errors.ApiError.exception(message: "boom").status_code == 0
+    end
+  end
+
+  test "bhv errors 072 a typed view of an error body that starts with a byte order mark decodes like the body without it" do
+    bom = <<0xEF, 0xBB, 0xBF>> <> ~s({"id":42,"name":"Dogs"})
+    with_bom = PetstoreClient.Errors.ApiError.from_response(404, %{}, bom)
+
+    without_bom =
+      PetstoreClient.Errors.ApiError.from_response(404, %{}, ~s({"id":42,"name":"Dogs"}))
+
+    typed = PetstoreClient.Errors.ApiError.typed_error_body(with_bom, "Category")
+
+    assert typed == PetstoreClient.Errors.ApiError.typed_error_body(without_bom, "Category")
+    assert typed.id == 42
+  end
+
+  test "bhv errors 073 an error body nested within the depth limit is kept as structured data" do
+    depth = 200
+    body = String.duplicate(~s({"a":), depth) <> "1" <> String.duplicate("}", depth)
+    err = PetstoreClient.Errors.ApiError.from_response(500, %{}, body)
+
+    assert %PetstoreClient.Errors.InternalServerError{} = err
+    assert Enum.reduce(1..depth, err.error_body, fn _, acc -> acc["a"] end) == 1
   end
 end

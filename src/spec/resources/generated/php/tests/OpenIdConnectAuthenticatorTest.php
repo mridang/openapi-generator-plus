@@ -287,6 +287,80 @@ test('bhv authoidc 010 fetches discovery document', function (): void {
         ->toBe('https://auth.example.com/.well-known/openid-configuration');
 });
 
+test('bhv authoidc 031 oidc refetches discovery once its Cache-Control max-age has elapsed', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'max-age=60']));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'max-age=60']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+    expect($client->capturedRequests)->toHaveCount(1);
+
+    /* The cache holds the document until its expiry; move the expiry into the past. */
+    $expiry = new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry');
+    $expiry->setValue($authenticator, time() - 1);
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('bhv authoidc 032 a discovered authorization endpoint that is not https is rejected', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'http://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(SerializationException::class, "'authorization_endpoint' must be an https URL");
+});
+
+test('bhv authoidc 033 a failed discovery request reports its method and path in the error', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(500, 'oops', ['Content-Type' => 'text/plain']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(function (\Exception $e): void {
+        expect($e)->toBeInstanceOf(ApiException::class);
+        /** @var ApiException $e */
+        expect($e->getRequestMethod())->toBe('GET');
+        expect($e->getRequestPath())->toBe('/.well-known/openid-configuration');
+    });
+});
+
 test('bhv authoidc 027 oidc throws when discovery returns non-2xx status', function (): void {
     $client = new MockTokenApiClient();
     // A non-2xx discovery response (e.g. a 500 HTML error page) must surface
@@ -492,7 +566,7 @@ test('secret constructor parameters are marked sensitive', function (): void {
     expect($sensitive)->toBe(['clientSecret']);
 });
 
-test('oidc refetches discovery once its Cache-Control max-age has elapsed', function (): void {
+test('bhv authoidc 030 a discovery document served with max-age=0 is fetched again on every use', function (): void {
     $client = new MockTokenApiClient();
     $discovery = (string) json_encode([
         'authorization_endpoint' => 'https://auth.example.com/authorize',
@@ -726,4 +800,63 @@ test('bhv authoidc 023 oidc debug output keeps the non secret fields and masks t
     expect($printR)->toContain('[clientId] => my-client-id');
     expect($printR)->toContain('[clientSecret] => ***');
     expect($printR)->toContain('[redirectUri] => https://app.example.com/callback');
+});
+
+test('bhv auth 011 a discovery response without a usable max-age is cached for the default lifetime', function (array $headers): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, $headers));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, $headers));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(1);
+})->with([
+    'no cache header' => [[]],
+    'a cache header without max-age' => [['Cache-Control' => 'no-cache']],
+    'an unparseable max-age' => [['Cache-Control' => 'max-age=soon']],
+]);
+
+test('bhv auth 029 after the cached discovery document expires, later calls use the endpoints of the fresh one', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Cache-Control' => 'max-age=60']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth2.example.com/authorize',
+        'token_endpoint' => 'https://auth2.example.com/token',
+    ]), ['Cache-Control' => 'max-age=60']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect($authenticator->buildAuthorizationUrl())->toStartWith('https://auth.example.com/authorize?');
+
+    $expiry = new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry');
+    $expiry->setValue($authenticator, time() - 1);
+
+    expect($authenticator->buildAuthorizationUrl())->toStartWith('https://auth2.example.com/authorize?');
+    expect($client->capturedRequests)->toHaveCount(2);
 });

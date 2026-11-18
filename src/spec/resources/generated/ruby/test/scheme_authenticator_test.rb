@@ -39,6 +39,26 @@ class SchemeRecordingClient
   end
 end
 
+# Answers each token request with a refresh token that expires at once, so
+# the second call of a wrapper goes down the refresh grant, and records the URL
+# of every request in order.
+class SchemeRefreshingClient
+  attr_reader :urls
+
+  def initialize
+    @urls = []
+  end
+
+  def send_request(_method, url, _headers, _body, **_kwargs)
+    @urls << url
+    Petstore::Client::ApiHttpResponse.new(
+      status_code: 200,
+      body: { 'access_token' => "tok_#{@urls.length}", 'refresh_token' => 'ref_tok', 'expires_in' => -1 }.to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
 describe 'scheme authenticators' do
   parallelize_me!
 
@@ -73,14 +93,29 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'every API-key wrapper validates eagerly and redacts the key' do
+  it 'bhv_authapikey_020 every API-key wrapper validates eagerly and redacts the key' do
     wrappers_of(Petstore::Client::Auth::ApiKeyAuthenticator).each do |klass|
       _(-> { klass.new('https://api.example.com', '') }).must_raise ArgumentError
       _(klass.new('https://api.example.com', 'wrapper-key').inspect).wont_include 'wrapper-key'
     end
   end
 
-  it 'the API-key wrappers emit every header name the spec declares' do
+  it 'bhv_authapikey_019 every API-key wrapper rejects an empty key at construction' do
+    wrappers_of(Petstore::Client::Auth::ApiKeyAuthenticator).each do |klass|
+      _(-> { klass.new('https://api.example.com', '') }).must_raise(ArgumentError, klass.name)
+    end
+  end
+
+  it 'bhv_authapikey_025 every API-key wrapper masks the key in its debug output' do
+    wrappers_of(Petstore::Client::Auth::ApiKeyAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'wrapper-key')
+      _(auth.inspect).wont_include 'wrapper-key', klass.name
+      _(auth.to_s).wont_include 'wrapper-key', klass.name
+      _(auth.inspect).must_include '***', klass.name
+    end
+  end
+
+  it 'bhv_auth_006 the API-key wrappers emit every header name the spec declares' do
     emitted = wrappers_of(Petstore::Client::Auth::ApiKeyAuthenticator).flat_map do |klass|
       klass.new('https://api.example.com', 'wrapper-key').auth_headers.keys
     end
@@ -101,6 +136,29 @@ describe 'scheme authenticators' do
       auth = klass.new('https://api.example.com', 'alice', 's3cret')
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Basic YWxpY2U6czNjcmV0' }, klass.name)
       _(auth.inspect).wont_include 's3cret'
+    end
+  end
+
+  it 'bhv_authbearer_023 every Bearer wrapper emits a Bearer header and is its own class' do
+    wrappers_of(Petstore::Client::Auth::BearerAuthenticator).each do |klass|
+      _(klass).wont_equal Petstore::Client::Auth::BearerAuthenticator
+      _(klass.new('https://api.example.com', 'wrapper-token').auth_headers).must_equal({ 'Authorization' => 'Bearer wrapper-token' }, klass.name)
+    end
+  end
+
+  it 'bhv_authbasic_019 every Basic wrapper emits the same Basic header as the base authenticator' do
+    expected = Petstore::Client::Auth::BasicAuthenticator.new('https://api.example.com', 'alice', 's3cret').auth_headers
+    wrappers_of(Petstore::Client::Auth::BasicAuthenticator).each do |klass|
+      _(klass.new('https://api.example.com', 'alice', 's3cret').auth_headers).must_equal(expected, klass.name)
+    end
+  end
+
+  it 'bhv_authbasic_020 every Basic wrapper prints its own name with the password masked' do
+    wrappers_of(Petstore::Client::Auth::BasicAuthenticator).each do |klass|
+      inspected = klass.new('https://api.example.com', 'alice', 's3cret').inspect
+      _(inspected).must_include klass.name
+      _(inspected).must_include 'password="***"'
+      _(inspected).wont_include 's3cret'
     end
   end
 
@@ -147,7 +205,7 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'fails when a credential is missing, whatever the other schemes have set' do
+  it 'bhv_auth_004 fails when a credential is missing, whatever the other schemes have set' do
     environment_schemes.each do |name, _base, credentials|
       credentials.each_value do |missing|
         env = every_variable.reject { |variable| variable == missing }.to_h { |variable| [variable, "value-#{variable}"] }
@@ -156,7 +214,42 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'counts an empty variable as unset' do
+  # An empty variable is unset: the wrapper refuses to build and the error
+  # names the variable it was missing.
+  def assert_empty_variable_fails_naming_it(name)
+    credentials = environment_schemes.find { |scheme, _base, _credentials| scheme == name }.last
+    credentials.each_value do |empty|
+      env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+      error = _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError
+      _(error.message).must_include empty
+    end
+  end
+
+  it 'bhv_authscheme_011 an empty service token variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('ServiceTokenAuthenticator')
+  end
+
+  it 'bhv_authscheme_012 an empty api key variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('InternalApiKeyAuthenticator')
+  end
+
+  it 'bhv_authscheme_013 an empty client credentials variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('MachineAuthClientCredentialsAuthenticator')
+  end
+
+  it 'bhv_authscheme_014 an empty password variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('LegacyAuthPasswordAuthenticator')
+  end
+
+  it 'bhv_authscheme_015 an empty authorization code variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('UserAuthAuthorizationCodeAuthenticator')
+  end
+
+  it 'bhv_authscheme_016 an empty implicit variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('BrowserAuthImplicitAuthenticator')
+  end
+
+  it 'bhv_auth_003 counts an empty variable as unset' do
     environment_schemes.each do |name, _base, credentials|
       credentials.each_value do |empty|
         env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
@@ -165,7 +258,49 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'prefers the value given to the constructor to the variable' do
+  def assert_empty_variable_is_unset_and_named
+    environment_schemes.each do |name, _base, credentials|
+      credentials.each_value do |empty|
+        env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+        error = _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError, "#{name} #{empty}"
+        _(error.message).must_include empty, name
+      end
+    end
+  end
+
+  it 'bhv_authscheme_004 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_005 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_006 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_007 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_008 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_010 an empty bearer variable is treated as unset and fails naming it' do
+    environment_schemes.each do |name, base, credentials|
+      next unless base == 'BearerAuthenticator'
+
+      credentials.each_value do |empty|
+        env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+        error = _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise(ArgumentError, name)
+        _(error.message).must_include empty, name
+      end
+    end
+  end
+
+  it 'bhv_authscheme_009 prefers the value given to the constructor to the variable' do
     environment_schemes.each do |name, base, credentials|
       env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
       klass = scheme_class(name)
@@ -182,7 +317,7 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'reads the environment once, when the wrapper is built' do
+  it 'bhv_lifecycle_025 reads the environment once, when the wrapper is built' do
     environment_schemes.each do |name, base, credentials|
       next unless base == 'BearerAuthenticator'
 
@@ -258,6 +393,18 @@ describe 'scheme authenticators' do
       auth.auth_headers
       _(client.url).must_match(%r{\Ahttps://}, klass.name)
       _(client.body).must_match(/scope=\S+/, klass.name)
+    end
+  end
+
+  it 'bhv_authoauthtwopassword_022 a password wrapper sends the first grant to its token URL and the refresh grant to its refresh URL' do
+    wrappers_of(Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator).each do |klass|
+      client = SchemeRefreshingClient.new
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret', 'wrapper_user', 'wrapper_pass')
+      auth.api_client = client
+      auth.auth_headers
+      auth.auth_headers
+      expected = [auth.instance_variable_get(:@token_url), auth.instance_variable_get(:@refresh_url)]
+      _(client.urls).must_equal(expected, klass.name)
     end
   end
 

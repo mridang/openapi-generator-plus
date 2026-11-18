@@ -17,11 +17,15 @@ class ProjectNotFound {
 
   /// Creates a [ProjectNotFound] from a JSON map.
   factory ProjectNotFound.fromJson(Map<String, dynamic> json) {
-    return ProjectNotFound(
-      code: readInt32OrNull(json['code']),
+    try {
+      return ProjectNotFound(
+        code: readInt32OrNull(json['code']),
 
-      message: json['message'] as String?,
-    );
+        message: json['message'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for ProjectNotFound: $e', e);
+    }
   }
 
   /// Converts this [ProjectNotFound] to a JSON map.

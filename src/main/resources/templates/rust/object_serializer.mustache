@@ -801,6 +801,7 @@ pub fn to_query_value<T: Serialize + 'static>(value: &T, collection_format: &str
                 .iter()
                 .map(|item| match item {
                     serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Null => String::new(),
                     other => other.to_string(),
                 })
                 .collect();
@@ -828,6 +829,7 @@ pub fn to_header_value<T: Serialize + 'static>(value: &T) -> String {
                 .iter()
                 .map(|item| match item {
                     serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Null => String::new(),
                     other => other.to_string(),
                 })
                 .collect();
@@ -866,7 +868,10 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
  * reach the module from the external integration-test crate. */
 #[cfg(test)]
 mod tests {
-    use super::{self as object_serializer, QueryValue, SerializationError};
+    use super::{
+        self as object_serializer, deserialize, object_query_pairs, serialize, to_header_value,
+        to_query_value, QueryValue, SerializationError,
+    };
 
     fn sample_object() -> std::collections::HashMap<String, serde_json::Value> {
         let mut map: std::collections::HashMap<String, serde_json::Value> =
@@ -914,7 +919,7 @@ mod tests {
     }
 
     #[test]
-    fn test_object_valued_parameters_pipe_delimited_and_nested_values() {
+    fn test_bhv_serialization_016_object_valued_parameters_pipe_delimited_and_nested_values() {
         let mut map = sample_object();
 
         assert_eq!(
@@ -945,7 +950,7 @@ mod tests {
      * caller (and the other SDKs' tests) can tell a request that could not be
      * written from a response that could not be read. */
     #[test]
-    fn test_serialize_failure_messages_start_with_the_canonical_prefix() {
+    fn test_bhv_serializationobject_200_a_serialize_failure_carries_the_canonical_prefix_and_the_detail() {
         let non_finite = object_serializer::serialize(&f64::NAN).expect_err("NaN is refused");
         assert_eq!(
             "failed to serialize object to JSON: non-finite float (NaN or Infinity) is not permitted by RFC 8259",
@@ -982,7 +987,7 @@ mod tests {
     /* F1090: additional properties are written in ascending key order, so a body
      * with several extras has the same bytes in every process. */
     #[test]
-    fn test_serialize_extras_writes_the_keys_in_ascending_order() {
+    fn test_bhv_serialization_012_serialize_extras_writes_the_keys_in_ascending_order() {
         use serde::Serialize;
         struct Extras(std::collections::HashMap<String, i32>);
         impl Serialize for Extras {
@@ -1076,7 +1081,7 @@ mod tests {
      * A-Z a-z 0-9 - . _ ~ literal, so the bytes match the other eleven SDKs
      * and the value passes the RFC 6265 cookie-octet check. */
     #[test]
-    fn test_content_cookie_value_bytes_are_the_unreserved_set() {
+    fn test_bhv_serializationparam_118_a_content_cookie_value_is_encoded_to_the_shared_percent_encoded_bytes() {
         let value = serde_json::json!({"k": "a b~*\u{e9}"});
         let json = object_serializer::serialize(&value).expect("serializes");
         let cookie = urlencoding::encode(&json).into_owned();
@@ -1086,6 +1091,71 @@ mod tests {
             o == 0x21 || (0x23..=0x2B).contains(&o) || (0x2D..=0x3A).contains(&o)
                 || (0x3C..=0x5B).contains(&o) || (0x5D..=0x7E).contains(&o)
         }));
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_108_a_nested_object_leaf_in_a_styled_parameter_is_rejected() {
+        let value = serde_json::json!({"breed": "lab", "nested": {"inner": 1}});
+        let err = object_query_pairs(&value, "form", true)
+            .expect_err("a nested leaf must be rejected");
+        assert_eq!(
+            "object-valued parameter property 'nested' must be a scalar, not a nested value",
+            err.message()
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_110_a_date_value_is_written_as_yyyy_mm_dd() {
+        let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        match to_query_value(&date, "") {
+            QueryValue::Single(s) => assert_eq!(s, "2024-01-15"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_115_a_csv_query_array_keeps_an_empty_slot_for_a_null_element() {
+        let items: Vec<Option<i32>> = vec![Some(1), None, Some(3)];
+        match to_query_value(&items, "csv") {
+            QueryValue::Single(s) => assert_eq!(s, "1,,3"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_array_header_value_keeps_an_empty_slot_for_a_null_element() {
+        let items: Vec<Option<i32>> = vec![Some(1), None, Some(3)];
+        assert_eq!(to_header_value(&items), "1,,3");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_117_a_set_without_explode_joins_its_elements_with_commas() {
+        let set: std::collections::BTreeSet<String> =
+            ["red".to_string(), "blue".to_string()].into_iter().collect();
+        match to_query_value(&set, "") {
+            QueryValue::Single(s) => assert_eq!(s, "blue,red"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_120_an_array_of_date_values_writes_each_element_as_yyyy_mm_dd() {
+        let dates = vec![
+            chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+        ];
+        match to_query_value(&dates, "") {
+            QueryValue::Single(s) => assert_eq!(s, "2024-01-15,2024-02-01"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_230_a_time_value_survives_a_serialize_and_deserialize_round_trip() {
+        let time = chrono::NaiveTime::from_hms_opt(10, 30, 0).unwrap();
+        let text = serialize(&time).expect("serializes");
+        let back: Option<chrono::NaiveTime> = deserialize(text.as_bytes()).expect("parses");
+        assert_eq!(back, Some(time));
     }
 {{#generateTests}}
     /* Model-typed cases below are fixture-spec specific and are emitted only
@@ -1132,6 +1202,16 @@ mod tests {
         let wide: Option<i64> = object_serializer::deserialize(b"9007199254740993")
             .expect("an int64 above 2^53 must deserialize");
         assert_eq!(Some(9007199254740993), wide);
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_191_an_int64_above_the_double_range_keeps_every_digit_when_decoded() {
+        let wide: Option<i64> = object_serializer::deserialize(b"9007199254740993")
+            .expect("an int64 above the double range must deserialize");
+        assert_eq!(Some(9007199254740993), wide);
+        let max: Option<i64> = object_serializer::deserialize(b"9223372036854775807")
+            .expect("i64::MAX must deserialize");
+        assert_eq!(Some(i64::MAX), max);
     }
 
     #[test]
@@ -1244,20 +1324,90 @@ mod tests {
     /* -- skip_serializing_if = "Option::is_none" on all optional model fields -- */
 
     #[test]
-    fn test_optional_none_fields_skipped_on_serialize() {
-        /* Category has an optional `name` field. When None, the field must be
-         * omitted from the JSON wire form -- not written as "name":null. */
-        let cat = Category::default();
+    fn test_bhv_serializationobject_202_a_null_field_is_omitted_while_non_null_fields_are_kept() {
+        /* Category has an optional `name` and an optional `id`. A None `name` is
+         * left out of the wire form, and the `id` that is set is kept. */
+        let cat = crate::models::Category { id: Some(3), ..Default::default() };
         let json = object_serializer::serialize(&cat).expect("serialize must succeed");
-        /* The exact shape depends on Category's required fields, but `name`
-         * must not appear when it is None. */
-        if !json.contains("\"name\"") || json.contains("\"name\":null") {
-            /* pass -- either omitted entirely or never present */
-        } else {
-            /* If name shows up at all, it must be a real value, not null. */
-            assert!(!json.contains("\"name\":null"),
-                "optional None fields must be skipped, got: {}", json);
+        assert_eq!(r#"{"id":3}"#, json);
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_210_a_header_list_of_strings_is_joined_with_commas() {
+        let items = vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
+        assert_eq!("alpha,beta,gamma", to_header_value(&items));
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_211_an_int64_is_stringified_to_its_decimal_digits() {
+        let value: i64 = 1 << 40;
+        assert_eq!("1099511627776", object_serializer::stringify(&value));
+        assert_eq!("-1", object_serializer::stringify(&-1_i64));
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_219_a_time_value_keeps_its_milliseconds_when_written() {
+        let time = chrono::NaiveTime::from_hms_milli_opt(12, 34, 56, 789).unwrap();
+        assert_eq!(r#""12:34:56.789""#, object_serializer::serialize(&time).expect("serializes"));
+    }
+
+    #[test]
+    fn test_bhv_unions_033_an_unknown_missing_or_empty_discriminator_fails_with_the_serialization_error() {
+        /* The discriminated oneOf wrappers dispatch on `foodType`; this internally
+         * tagged enum has the same three failure shapes, decoded through the SDK's
+         * deserializer that returns the SerializationError. */
+        #[derive(serde::Deserialize, Debug)]
+        #[serde(tag = "foodType")]
+        enum Food {
+            #[serde(rename = "dry")]
+            Dry {
+                #[serde(rename = "weightKg")]
+                weight_kg: f64,
+            },
+            #[serde(rename = "wet")]
+            Wet {
+                #[serde(rename = "volumeMl")]
+                volume_ml: i32,
+            },
         }
+        for body in [
+            r#"{"foodType":"raw","weightKg":2.5}"#,
+            r#"{"weightKg":2.5}"#,
+            r#"{"foodType":"","weightKg":2.5}"#,
+        ] {
+            let err = deserialize::<Food>(body.as_bytes()).expect_err("a bad discriminator must fail");
+            assert!(
+                err.message().starts_with("failed to deserialize JSON: "),
+                "{}",
+                err.message()
+            );
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_104_the_content_cookie_encoding_keeps_only_the_unreserved_set_literal() {
+        /* Every ASCII byte: the unreserved set A-Z a-z 0-9 - . _ ~ stays literal and
+         * every other byte is written as %XX, the encoding a content cookie uses. */
+        for byte in 0u8..=0x7f {
+            let text = (byte as char).to_string();
+            let encoded = urlencoding::encode(&text).into_owned();
+            let unreserved = (byte as char).is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~');
+            if unreserved {
+                assert_eq!(text, encoded, "byte {:#04x} must stay literal", byte);
+            } else {
+                assert_eq!(format!("%{:02X}", byte), encoded, "byte {:#04x} must be percent-encoded", byte);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_224_a_content_cookie_is_the_serializer_json_percent_encoded() {
+        let value = serde_json::json!({"q": "x/y?z=1&w"});
+        let json = object_serializer::serialize(&value).expect("serializes");
+        assert_eq!(
+            "%7B%22q%22%3A%22x%2Fy%3Fz%3D1%26w%22%7D",
+            urlencoding::encode(&json).into_owned()
+        );
     }
 
     /* -- Unknown fields tolerated on deserialize (no deny_unknown_fields) -- */
@@ -1642,6 +1792,13 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationobject_190_a_long_is_stringified_to_its_exact_decimal_digits() {
+        assert_eq!(object_serializer::stringify(&9007199254740993_i64), "9007199254740993");
+        assert_eq!(object_serializer::stringify(&i64::MAX), "9223372036854775807");
+        assert_eq!(object_serializer::stringify(&i64::MIN), "-9223372036854775808");
+    }
+
+    #[test]
     fn test_bhv_serializationobject_039_stringify_int() {
         let result = object_serializer::stringify(&42.to_string());
         assert_eq!(result, "42");
@@ -1697,6 +1854,13 @@ mod tests {
         let json_value = serde_json::json!({"key": "日本"});
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
         assert!(serialized.contains("日本"), "should contain literal CJK chars: {serialized}");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_186_request_json_escapes_only_quote_backslash_and_controls() {
+        let value = serde_json::json!("\"\\\u{1}\u{7f}/");
+        let serialized = object_serializer::serialize(&value).expect("serialize failed");
+        assert_eq!("\"\\\"\\\\\\u0001\u{7f}/\"", serialized);
     }
 
     #[test]
@@ -1946,7 +2110,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_duplicate_key_still_rejects_trailing_content() {
+    fn test_bhv_serialization_023_deserialize_duplicate_key_still_rejects_trailing_content() {
         let payload = br#"{"id":1,"id":2} trailing"#;
         let result: Result<Option<Category>, _> = object_serializer::deserialize(payload);
         assert!(result.is_err(), "trailing content must still be rejected");
@@ -2236,6 +2400,14 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationobject_182_unknown_enum_value_on_deserialize_is_a_serialization_error() {
+        let err: crate::errors::SerializationError =
+            object_serializer::deserialize::<crate::models::Separator>(br#""banana""#)
+                .expect_err("an enum value outside the schema must be refused");
+        assert!(!err.to_string().is_empty());
+    }
+
+    #[test]
     fn test_bhv_serializationobject_180_wrong_primitive_type_is_a_serialization_error() {
         assert!(
             object_serializer::deserialize::<crate::models::Order>(br#"{"quantity":"five"}"#)
@@ -2248,5 +2420,218 @@ mod tests {
     fn test_bhv_serializationobject_181_zero_duration_stringifies_as_0s() {
         assert_eq!(object_serializer::stringify(&chrono::Duration::zero()), "0s");
     }
+    #[test]
+    fn test_bhv_serialization_013_an_array_in_an_unstyled_header_is_written_as_its_items() {
+        let items = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(to_header_value(&items), "a,b");
+        assert_eq!(object_serializer::stringify(&items), "[\"a\",\"b\"]");
+    }
+
+    #[test]
+    fn test_bhv_serialization_022_a_top_level_json_scalar_decodes_to_its_own_type() {
+        let number: Option<i32> = deserialize(b"42").expect("a number decodes");
+        assert_eq!(number, Some(42));
+        let text: Option<String> = deserialize(br#""hi""#).expect("a string decodes");
+        assert_eq!(text, Some("hi".to_string()));
+        let flag: Option<bool> = deserialize(b"true").expect("a boolean decodes");
+        assert_eq!(flag, Some(true));
+    }
+
+    #[test]
+    fn test_bhv_serialization_024_brackets_inside_strings_do_not_count_toward_the_depth_limit() {
+        let inside = format!(r#"{{"a":"{}"}}"#, "[".repeat(1500));
+        let accepted: Result<Option<serde_json::Value>, _> = deserialize(inside.as_bytes());
+        assert!(accepted.is_ok(), "brackets inside a string must not count as nesting");
+        let deep = format!("{}{}", "[".repeat(1001), "]".repeat(1001));
+        let refused: Result<Option<serde_json::Value>, _> = deserialize(deep.as_bytes());
+        assert!(refused.is_err(), "a payload nested past the limit must be refused");
+    }
+
+    #[test]
+    fn test_bhv_serialization_027_an_empty_json_array_decodes_to_an_empty_collection_not_absent() {
+        let empty: Option<Vec<i32>> = deserialize(b"[]").expect("an empty array decodes");
+        assert_eq!(empty, Some(Vec::new()));
+        let absent: Option<Vec<i32>> = deserialize(b"null").expect("null decodes");
+        assert_eq!(absent, None);
+    }
+
+    #[test]
+    fn test_bhv_serialization_028_a_json_value_of_the_wrong_kind_is_refused() {
+        assert!(deserialize::<crate::models::Category>(b"[]").is_err());
+        assert!(deserialize::<Vec<i32>>(b"{}").is_err());
+        assert!(deserialize::<std::collections::HashMap<String, i32>>(b"[]").is_err());
+    }
+
+    #[test]
+    fn test_bhv_serialization_029_a_quoted_number_or_a_string_for_a_scalar_or_enum_is_refused() {
+        assert!(deserialize::<i32>(br#""5""#).is_err(), "a quoted number is not an integer");
+        assert!(deserialize::<String>(b"5").is_err(), "a number is not a string");
+        assert!(deserialize::<crate::models::Color>(b"5").is_err(), "a number is not an enum value");
+    }
+
+    #[test]
+    fn test_bhv_serialization_031_a_whole_number_at_the_integer_range_limits_decodes_exactly() {
+        assert_eq!(deserialize::<i32>(b"2147483647").expect("i32 max"), Some(i32::MAX));
+        assert_eq!(deserialize::<i64>(b"9223372036854775807").expect("i64 max"), Some(i64::MAX));
+        assert_eq!(deserialize::<i64>(b"-9223372036854775808").expect("i64 min"), Some(i64::MIN));
+    }
+
+    #[test]
+    fn test_bhv_serialization_032_an_integer_field_refuses_a_fraction_or_an_exponent() {
+        assert!(deserialize::<i32>(b"1.0").is_err(), "a whole value with a fraction is refused");
+        assert!(deserialize::<i32>(b"1e2").is_err(), "an exponent is refused");
+    }
+
+    #[test]
+    fn test_bhv_serialization_033_each_leaf_of_an_integer_map_or_nested_array_must_be_a_plain_integer() {
+        assert!(deserialize::<std::collections::HashMap<String, i32>>(br#"{"a":1.5}"#).is_err());
+        assert!(deserialize::<Vec<Vec<i32>>>(b"[[1,2.0]]").is_err());
+        assert!(deserialize::<Vec<Vec<i32>>>(b"[[1,2]]").is_ok());
+    }
+
+    #[test]
+    fn test_bhv_serialization_034_a_floating_point_field_decodes_finite_numbers_exactly() {
+        assert_eq!(deserialize::<f64>(b"0.1").expect("fraction"), Some(0.1));
+        assert_eq!(deserialize::<f64>(b"-2.5e3").expect("exponent"), Some(-2500.0));
+        assert_eq!(deserialize::<f64>(b"7").expect("whole"), Some(7.0));
+    }
+
+    #[test]
+    fn test_bhv_serialization_035_the_nan_and_infinity_literals_are_refused_on_decode() {
+        assert!(deserialize::<f64>(b"NaN").is_err());
+        assert!(deserialize::<f64>(b"Infinity").is_err());
+        assert!(deserialize::<f64>(b"-Infinity").is_err());
+    }
+
+    #[test]
+    fn test_bhv_serialization_036_a_whole_floating_point_value_is_written_with_a_decimal_point() {
+        assert_eq!(serialize(&1.0_f64).expect("serializes"), "1.0");
+        assert_eq!(serialize(&-3.0_f64).expect("serializes"), "-3.0");
+    }
+
+    #[test]
+    fn test_bhv_serialization_041_a_time_string_parses_into_its_hour_minute_and_second_fields() {
+        use chrono::Timelike;
+        let time: Option<chrono::NaiveTime> =
+            deserialize(br#""12:34:56""#).expect("a time string decodes");
+        let time = time.expect("a present time");
+        assert_eq!((time.hour(), time.minute(), time.second()), (12, 34, 56));
+    }
+
+    #[test]
+    fn test_bhv_serialization_043_a_time_of_day_is_written_as_hours_minutes_and_seconds() {
+        let time = chrono::NaiveTime::from_hms_opt(9, 5, 7).expect("a valid time");
+        assert_eq!(object_serializer::format_time(&time), "09:05:07");
+    }
+
+    #[test]
+    fn test_bhv_serialization_045_a_malformed_time_string_is_refused_with_a_serialization_error() {
+        assert!(deserialize::<chrono::NaiveTime>(br#""25:61:00""#).is_err());
+        assert!(deserialize::<chrono::NaiveTime>(br#""not a time""#).is_err());
+    }
+
+    #[test]
+    fn test_bhv_serialization_048_a_duration_outside_a_model_is_written_as_protobuf_seconds() {
+        assert_eq!(to_header_value(&chrono::Duration::seconds(5400)), "5400s");
+        assert_eq!(object_serializer::stringify(&chrono::Duration::seconds(45)), "45s");
+    }
+
+    #[test]
+    fn test_bhv_serialization_049_a_uri_value_must_be_absolute() {
+        assert!(object_serializer::absolute_uri::is_absolute("https://example.com/path"));
+        assert!(!object_serializer::absolute_uri::is_absolute("/relative/path"));
+        assert!(!object_serializer::absolute_uri::is_absolute(""));
+        assert!(!object_serializer::absolute_uri::is_absolute("not a uri"));
+    }
+
+    #[test]
+    fn test_bhv_serialization_061_slash_angle_brackets_ampersand_and_non_ascii_are_written_literally() {
+        let text = "a/b<&\u{e9}>".to_string();
+        assert_eq!(serialize(&text).expect("serializes"), "\"a/b<&\u{e9}>\"");
+    }
+
+    #[test]
+    fn test_bhv_serialization_065_a_null_in_an_array_of_plain_or_timestamp_values_stays_in_its_position() {
+        let plain: Option<Vec<Option<i32>>> =
+            deserialize(b"[1,null,3]").expect("a nullable array decodes");
+        assert_eq!(plain, Some(vec![Some(1), None, Some(3)]));
+        let stamps: Option<Vec<Option<crate::date_time::DateTime>>> = deserialize(
+            br#"[null,"2024-01-02T03:04:05.000+00:00"]"#,
+        )
+        .expect("a timestamp array with a null decodes");
+        let stamps = stamps.expect("a present array");
+        assert_eq!(stamps.len(), 2);
+        assert!(stamps[0].is_none());
+        assert!(stamps[1].is_some());
+    }
+
+    #[test]
+    fn test_bhv_serialization_009_a_value_that_cannot_be_serialized_raises_the_serialization_error() {
+        assert!(serialize(&f64::NAN).is_err(), "NaN has no JSON form");
+        assert!(serialize(&f64::INFINITY).is_err(), "infinity has no JSON form");
+    }
+
+    #[test]
+    fn test_bhv_serialization_015_an_object_parameter_keeps_the_separators_of_its_declared_style() {
+        let map = sample_object();
+        let exploded = object_query_pairs(&map, "form", true)
+            .expect("an object of scalars serializes")
+            .expect("form with explode expands the object");
+        assert!(exploded.contains(&("breed".to_string(), "lab".to_string())), "{:?}", exploded);
+        assert!(exploded.contains(&("min_age".to_string(), "3".to_string())), "{:?}", exploded);
+        assert_eq!(object_query_pairs(&map, "form", false).expect("serializes"), None);
+        let joined = object_serializer::stringify_param(&map, "form", false).expect("serializes");
+        assert!(joined.contains("breed,lab") && joined.contains("min_age,3"), "{}", joined);
+    }
+
+    #[test]
+    fn test_bhv_serialization_017_an_object_built_from_a_model_is_written_in_declaration_order() {
+        let category = crate::models::Category { id: Some(1), name: Some("dogs".to_string()) };
+        let pairs = object_query_pairs(&category, "form", true)
+            .expect("a model serializes")
+            .expect("form with explode expands the model");
+        assert_eq!(
+            pairs,
+            vec![("id".to_string(), "1".to_string()), ("name".to_string(), "dogs".to_string())]
+        );
+        let simple = object_serializer::stringify_param(&category, "simple", false).expect("a model serializes");
+        assert_eq!(simple, "id,1,name,dogs");
+    }
+
+    #[test]
+    fn test_bhv_serialization_018_a_nested_value_inside_an_object_parameter_is_refused() {
+        let mut map = sample_object();
+        map.insert("nested".to_string(), serde_json::json!({"a": 1}));
+        assert!(object_query_pairs(&map, "form", true).is_err());
+        assert!(object_serializer::stringify_param(&map, "form", false).is_err());
+    }
+
+    #[test]
+    fn test_bhv_serialization_019_an_unset_entry_in_a_parameter_map_is_left_out() {
+        let pairs = object_query_pairs(&sample_object(), "form", true)
+            .expect("serializes")
+            .expect("expanded");
+        assert!(pairs.iter().all(|(key, _)| key != "skipped"), "a null entry must be omitted: {:?}", pairs);
+        assert_eq!(pairs.len(), 2);
+    }
+
+    #[test]
+    fn test_bhv_serialization_026_a_json_object_decodes_to_a_map_and_an_empty_object_to_an_empty_map() {
+        let mut expected = std::collections::HashMap::new();
+        expected.insert("a".to_string(), 1);
+        let filled: Option<std::collections::HashMap<String, i32>> =
+            deserialize(br#"{"a":1}"#).expect("an object decodes");
+        assert_eq!(filled, Some(expected));
+        let empty: Option<std::collections::HashMap<String, i32>> =
+            deserialize(b"{}").expect("an empty object decodes");
+        assert_eq!(empty, Some(std::collections::HashMap::new()));
+    }
+
+    #[test]
+    fn test_bhv_serialization_042_a_date_or_time_string_is_passed_through_exactly_as_given() {
+        assert_eq!(object_serializer::to_path_value(&"2024-01-15".to_string()), "2024-01-15");
+        assert_eq!(object_serializer::to_path_value(&"12:34:56".to_string()), "12:34:56");
+    }
+
 {{/generateTests}}
 }

@@ -4,13 +4,28 @@ declare(strict_types=1);
 
 use {{invokerPackage}}\ApiResult;
 
+test('bhv results 006 the headers of a result are a copy taken when it is built and cannot be modified', function (): void {
+    $source = ['X-Request-Id' => 'abc'];
+    $result = new ApiResult(statusCode: 200, data: null, rawBody: '', headers: $source);
+
+    $source['X-Request-Id'] = 'changed';
+
+    expect($result->headers)->toBe(['X-Request-Id' => 'abc']);
+    expect(function () use ($result): void {
+        $headers = (new \ReflectionProperty(ApiResult::class, 'headers'))->getValue($result);
+        \assert(is_array($headers));
+        $headers['X-Injected'] = 'x';
+        (new \ReflectionProperty(ApiResult::class, 'headers'))->setValue($result, $headers);
+    })->toThrow(\Error::class);
+});
+
 test('bhv results 003 exposes status code', function (): void {
     $result = new ApiResult(statusCode: 200, data: null, rawBody: '', headers: []);
 
     expect($result->statusCode)->toBe(200);
 });
 
-test('exposes deserialized data', function (): void {
+test('bhv results 004 exposes deserialized data', function (): void {
     $data = ['id' => 1, 'name' => 'example'];
     $result = new ApiResult(statusCode: 200, data: $data, rawBody: '', headers: []);
 
@@ -23,7 +38,7 @@ test('bhv results 001 data may be null', function (): void {
     expect($result->data)->toBeNull();
 });
 
-test('exposes raw body', function (): void {
+test('bhv results 005 exposes raw body', function (): void {
     $result = new ApiResult(statusCode: 200, data: null, rawBody: '{"id":1}', headers: []);
 
     expect($result->rawBody)->toBe('{"id":1}');

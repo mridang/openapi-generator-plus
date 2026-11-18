@@ -45,6 +45,15 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvErrors047NameIsTheTypeNameApiException()
+    {
+        var ex = new ApiException(500, "boom");
+
+        Assert.Equal("ApiException", ex.GetType().Name);
+        Assert.IsAssignableFrom<Exception>(ex);
+    }
+
+    [Fact]
     public void BhvErrors019IsAnExceptionWithStatusInItsStringForm()
     {
         // Message stays the detail message the exception was constructed with;
@@ -66,7 +75,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void RendersTheHeadersAsCompactSortedJsonWithSlashesUnescaped()
+    public void BhvErrors050RendersTheHeadersAsCompactSortedJsonWithSlashesUnescaped()
     {
         var ex = new ApiException(
             302,
@@ -190,7 +199,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseKeepsAModeratelyNestedBody()
+    public void BhvErrors073FromResponseKeepsAModeratelyNestedBody()
     {
         string nested = new string('[', 100) + new string(']', 100);
 
@@ -240,7 +249,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void ToStringOmitsTheStatusWhenNoResponseArrived()
+    public void BhvErrors074ToStringOmitsTheStatusWhenNoResponseArrived()
     {
         var ex = new ApiException(0, "connection refused", null, null);
 
@@ -248,7 +257,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void ToStringFallsBackToTheGenericMessageWhenTheMessageIsEmpty()
+    public void BhvErrors051ToStringFallsBackToTheGenericMessageWhenTheMessageIsEmpty()
     {
         var ex = new ApiException(502, "", null, null);
 
@@ -256,6 +265,14 @@ public class ApiExceptionTest
             "Error message: the server returns an error\nHTTP status code: 502",
             ex.ToString()
         );
+    }
+
+    [Fact]
+    public void BhvErrors064AnEmptyMessageRendersTheDefaultTextLikeAMissingOne()
+    {
+        var ex = new ApiException(0, "", null, null);
+
+        Assert.Equal("Error message: the server returns an error", ex.ToString());
     }
 
     [Fact]
@@ -271,7 +288,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyToleratesALeadingByteOrderMark()
+    public void BhvErrors072GetTypedErrorBodyToleratesALeadingByteOrderMark()
     {
         var ex = ApiException.FromResponse(
             400,
@@ -320,7 +337,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void TypedClientErrorWalksTheFullChain()
+    public void BhvErrors052TypedClientErrorWalksTheFullChain()
     {
         // BadRequest → ClientException → ApiException → OpenAPIException.
         var ex = new BadRequestException("bad request");
@@ -445,7 +462,7 @@ public class ApiExceptionTest
     [InlineData(typeof(SerializationException))]
     [InlineData(typeof(OAuth2ServerException))]
     [InlineData(typeof(OAuth2TokenException))]
-    public void EveryErrorTypeLivesInTheErrorsNamespaceUnderTheRoot(Type error)
+    public void BhvErrors044EveryErrorTypeLivesInTheErrorsNamespaceUnderTheRoot(Type error)
     {
         Assert.Equal("PetstoreClient.Errors", error.Namespace);
         Assert.False(error.IsNested);
@@ -453,7 +470,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void NamedErrorWithInnerExceptionKeepsItsStatus()
+    public void BhvErrors053NamedErrorWithInnerExceptionKeepsItsStatus()
     {
         // The (message, inner) constructor must pin the leaf's status like
         // every other constructor, instead of leaving StatusCode at 0.
@@ -487,6 +504,20 @@ public class ApiExceptionTest
             Assert.Equal("boom", error.Message);
             Assert.Same(inner, error.InnerException);
         }
+    }
+
+    [Fact]
+    public void BhvErrors065CutsALongBodyAtOneKibAndCountsTheBytesLeftOut()
+    {
+        var ex = new ApiException(502, "bad gateway", null, new string('a', 3000));
+
+        Assert.Equal(
+            "bad gateway\nHTTP status code: 502\nResponse body: "
+                + new string('a', 1024)
+                + "... (1976 more bytes)",
+            ex.ToString()
+        );
+        Assert.Equal(new string('a', 3000), ex.ResponseBody);
     }
 
     [Fact]
@@ -597,6 +628,88 @@ public class ApiExceptionTest
         var ex = ApiException.FromResponse(status, new Dictionary<string, string>(), null);
 
         Assert.Equal(expected, ex.GetType());
+    }
+
+    [Fact]
+    public void BhvErrors058A400ResponseMapsToTheBadRequestError()
+    {
+        var ex = ApiException.FromResponse(400, new Dictionary<string, string>(), null);
+
+        Assert.IsType<BadRequestException>(ex);
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors059A403ResponseMapsToTheForbiddenError()
+    {
+        var ex = ApiException.FromResponse(403, new Dictionary<string, string>(), null);
+
+        Assert.IsType<ForbiddenException>(ex);
+        Assert.Equal(403, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors060A404ResponseMapsToTheNotFoundError()
+    {
+        var ex = ApiException.FromResponse(404, new Dictionary<string, string>(), null);
+
+        Assert.IsType<NotFoundException>(ex);
+        Assert.Equal(404, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors061ABadRequestErrorIsAClientErrorAnApiErrorAndTheRootError()
+    {
+        ApiException ex = ApiException.FromResponse(400, new Dictionary<string, string>(), null);
+
+        Assert.IsAssignableFrom<ClientException>(ex);
+        Assert.IsAssignableFrom<ApiException>(ex);
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
+    }
+
+    [Fact]
+    public void BhvErrors066A429ResponseBecomesATooManyRequestsErrorThatIsAClientError()
+    {
+        ApiException ex = ApiException.FromResponse(429, new Dictionary<string, string>(), null);
+
+        Assert.IsType<TooManyRequestsException>(ex);
+        Assert.IsAssignableFrom<ClientException>(ex);
+    }
+
+    [Fact]
+    public void BhvErrors067A409ResponseBecomesAConflictError()
+    {
+        var ex = ApiException.FromResponse(409, new Dictionary<string, string>(), null);
+
+        Assert.IsType<ConflictException>(ex);
+        Assert.Equal(409, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors068A422ResponseBecomesAnUnprocessableEntityError()
+    {
+        var ex = ApiException.FromResponse(422, new Dictionary<string, string>(), null);
+
+        Assert.IsType<UnprocessableEntityException>(ex);
+        Assert.Equal(422, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors069A500ResponseBecomesAnInternalServerError()
+    {
+        var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null);
+
+        Assert.IsType<InternalServerErrorException>(ex);
+        Assert.Equal(500, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors070AnUnlistedServerStatusBecomesAServerError()
+    {
+        var ex = ApiException.FromResponse(507, new Dictionary<string, string>(), null);
+
+        Assert.IsType<ServerException>(ex);
+        Assert.Equal(507, ex.StatusCode);
     }
 
     [Fact]
@@ -752,6 +865,26 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull()
+    {
+        var ex = new NotFoundException("missing");
+
+        Assert.Equal(404, ex.StatusCode);
+        Assert.Null(ex.ResponseHeaders);
+        Assert.Null(ex.ResponseBody);
+        Assert.Null(ex.ErrorBody);
+    }
+
+    [Fact]
+    public void BhvErrors056AStatusAtOrAbove600YieldsTheBaseErrorNotAServerError()
+    {
+        var ex = ApiException.FromResponse(600, null, null);
+
+        Assert.Equal(typeof(ApiException), ex.GetType());
+        Assert.IsNotType<ServerException>(ex);
+    }
+
+    [Fact]
     public void UnusableResponseFactoryIsNotPartOfThePublicSurface()
     {
         var factory = typeof(ApiException).GetMethod(
@@ -760,5 +893,79 @@ public class ApiExceptionTest
         );
 
         Assert.Null(factory);
+    }
+
+    [Fact]
+    public void BhvErrors075CutNeverSplitsASurrogatePair()
+    {
+        // The emoji is two UTF-16 units and the 1 KiB cut falls between them.
+        string body = new string('a', 1023) + "\U0001F600" + "bbbb";
+
+        var ex = new ApiException(502, "bad gateway", null, body);
+
+        Assert.Equal(
+            "bad gateway\nHTTP status code: 502\nResponse body: "
+                + new string('a', 1023)
+                + "... (8 more bytes)",
+            ex.ToString()
+        );
+    }
+
+    [Fact]
+    public void BhvErrors076ForeignErrorsAreNotSdkErrorsEvenWhenWrapped()
+    {
+        var foreign = new InvalidOperationException("boom");
+        var wrapped = new InvalidOperationException("outer", foreign);
+
+        Assert.IsNotAssignableFrom<ApiException>(foreign);
+        Assert.IsNotAssignableFrom<OpenAPIException>(foreign);
+        Assert.IsNotAssignableFrom<ApiException>(wrapped);
+        Assert.IsNotAssignableFrom<OpenAPIException>(wrapped);
+    }
+
+    [Fact]
+    public void BhvErrors079RecordRequestKeepsTheFirstCompleteRecord()
+    {
+        var ex = new ApiException(500, "boom");
+
+        ex.RecordRequest("", "/incomplete");
+        ex.RecordRequest("GET", "/first?token=1");
+        ex.RecordRequest("POST", "/second");
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/first", ex.RequestPath);
+    }
+
+    [Fact]
+    public void BhvErrors080TypedHttpErrorIsCaughtByTheRootTypeAndKeepsItsStatus()
+    {
+        Exception? caught = null;
+        try
+        {
+            throw new NotFoundException("missing");
+        }
+        catch (OpenAPIException ex)
+        {
+            caught = ex;
+        }
+
+        var kind = Assert.IsAssignableFrom<ClientException>(caught);
+        Assert.Equal(404, kind.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors084ErrorBuiltWithoutAResponseReportsStatusZero()
+    {
+        Assert.Equal(0, new ApiException("boom").StatusCode);
+        Assert.Equal(0, new ApiException().StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors049OAuth2ServerErrorNamesTheStatusAndTheErrorCode()
+    {
+        Assert.Equal(
+            "Token request failed with status 400: invalid_grant",
+            new OAuth2ServerException(400, "invalid_grant", null, null, "{}").Message
+        );
     }
 }

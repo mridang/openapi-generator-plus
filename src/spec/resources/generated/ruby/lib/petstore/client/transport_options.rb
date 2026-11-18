@@ -91,6 +91,7 @@ module Petstore::Client
                    follow_redirects:, max_redirects:, user_agent:,
                    default_headers:, inject_request_id:, max_retries: 2, connection: nil)
       self.class.validate_proxy!(proxy)
+      self.class.validate_max_redirects!(max_redirects)
       self.class.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
       @verify_ssl = verify_ssl
       @ca_cert_path = ca_cert_path
@@ -142,6 +143,17 @@ module Petstore::Client
       val
     end
 
+    # Reject a negative redirect limit; +nil+ keeps the client default.
+    # @api private
+    # @param val [Integer, nil] maximum redirect hops, or +nil+ for the client default
+    # @return [Integer, nil] +val+
+    # @raise [ArgumentError] if +val+ is negative
+    def self.validate_max_redirects!(val)
+      raise ArgumentError, "Invalid maxRedirects: must not be negative (got #{val})" if val.is_a?(Numeric) && val.negative?
+
+      val
+    end
+
     # +text+ with the userinfo of every URL in it replaced by +***@+, so an
     # error message never carries a proxy user name or password (D79).
     # @api private
@@ -166,6 +178,8 @@ module Petstore::Client
 
       raise ArgumentError, 'connection must be a Faraday::Connection' unless connection.respond_to?(:run_request)
 
+      raise ArgumentError, 'A custom connection must not follow redirects itself: the SDK follows them' if follows_redirects?(connection)
+
       conflicts = [] # : Array[String]
       conflicts << 'proxy' if proxy
       conflicts << 'ca_cert_path' if ca_cert_path
@@ -175,6 +189,17 @@ module Petstore::Client
       raise ArgumentError,
             "A custom connection conflicts with the SDK's own #{conflicts.join(', ')} setting; " \
             'configure it on the connection instead'
+    end
+
+    # Whether +connection+ carries a Faraday middleware that follows redirects
+    # on its own, which would bypass the SDK's redirect policy.
+    # @api private
+    # @param connection [Faraday::Connection] the supplied connection
+    # @return [Boolean]
+    def self.follows_redirects?(connection)
+      return false unless connection.respond_to?(:builder)
+
+      connection.builder.handlers.any? { |handler| handler.klass.to_s.include?('FollowRedirects') }
     end
 
     # Header names whose values never appear in a string representation:
@@ -286,10 +311,10 @@ module Petstore::Client
       end
 
       # Set the end-to-end request timeout in milliseconds.
-      # @param val [Integer, nil] timeout in milliseconds, or +nil+ for no timeout
+      # @param val [Numeric, nil] timeout in milliseconds, or +nil+ for no timeout
       # @return [self]
       def timeout(val)
-        raise ArgumentError, "Invalid timeout: must be a positive number of milliseconds (got #{val})" if val && (!val.is_a?(Numeric) || val <= 0)
+        raise ArgumentError, "Invalid timeout: must be at least one millisecond (got #{val})" if val && (!val.is_a?(Numeric) || val < 1)
 
         @timeout = val
         self
@@ -307,7 +332,7 @@ module Petstore::Client
       # @param val [Integer, nil] maximum redirect hops, or +nil+ for client default
       # @return [self]
       def max_redirects(val)
-        @max_redirects = val
+        @max_redirects = TransportOptions.validate_max_redirects!(val)
         self
       end
 

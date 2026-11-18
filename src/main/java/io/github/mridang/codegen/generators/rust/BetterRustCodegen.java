@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -204,6 +205,22 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** One entry per per-scheme authenticator, for the generated environment-variable tests. */
     private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
+    /* Base classes whose catalogue-id test has been emitted once (see the per-scheme entries). */
+    private final java.util.Set<String> bhvIdsClaimed = new java.util.HashSet<>();
+    /* Catalogue id of the empty-variable test, keyed by the scheme module it belongs to. */
+    private static final Map<String, String> EMPTY_VARIABLE_BHV_IDS =
+            Map.ofEntries(
+                    Map.entry("admin_basic_authenticator", "authscheme_004"),
+                    Map.entry("api_key_header_authenticator", "authscheme_005"),
+                    Map.entry("api_key_query_authenticator", "authscheme_006"),
+                    Map.entry("session_cookie_authenticator", "authscheme_007"),
+                    Map.entry("sso_auth_authenticator", "authscheme_008"),
+                    Map.entry("service_token_authenticator", "authscheme_011"),
+                    Map.entry("internal_api_key_authenticator", "authscheme_012"),
+                    Map.entry("machine_auth_client_credentials_authenticator", "authscheme_013"),
+                    Map.entry("legacy_auth_password_authenticator", "authscheme_014"),
+                    Map.entry("user_auth_authorization_code_authenticator", "authscheme_015"),
+                    Map.entry("browser_auth_implicit_authenticator", "authscheme_016"));
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
@@ -1183,11 +1200,48 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                             .findFirst()
                                             .orElse(""));
                     op.vendorExtensions.put("op", opDecorators);
+                    reorderAuthMethodsToSpecOrder(op);
                 }
             }
             sanitizeServerEnumNames(operations.get("serverTypeDefs"));
         }
         return result;
+    }
+
+    /**
+     * Core lists {@code authMethods} in the order the components declare them. The first scheme
+     * an operation names that the client holds supplies its credential (F857), so the list is
+     * put in the operation's own security order, which the shared generator records in
+     * {@code securitySchemeOrder}. Schemes that are not in that order keep their place at the
+     * end.
+     */
+    @SuppressWarnings("unchecked")
+    private static void reorderAuthMethodsToSpecOrder(final CodegenOperation op) {
+        if (op.authMethods == null || op.vendorExtensions == null) {
+            return;
+        }
+        final Object decorator = op.vendorExtensions.get("op");
+        if (!(decorator instanceof Map)) {
+            return;
+        }
+        final Object order = ((Map<String, Object>) decorator).get("securitySchemeOrder");
+        if (!(order instanceof List)) {
+            return;
+        }
+        final List<String> names = new ArrayList<>();
+        for (final Object entry : (List<Object>) order) {
+            names.add(String.valueOf(((Map<String, Object>) entry).get("schemeId")));
+        }
+        final int unlisted = names.size();
+        op.authMethods =
+                op.authMethods.stream()
+                        .sorted(
+                                Comparator.comparingInt(
+                                        am ->
+                                                names.contains(am.name)
+                                                        ? names.indexOf(am.name)
+                                                        : unlisted))
+                        .collect(Collectors.toList());
     }
 
     /**
@@ -1578,6 +1632,17 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         entry.put("envParams", envParams);
         entry.put("firstEnvName", envParams.isEmpty() ? "" : envParams.get(0).get("envName"));
         entry.put("isBearer", bearer);
+        /* The id-tagged explicit-wins and env-read-once tests carry a catalogue id, which must
+         * appear exactly once per language, so only the first scheme of each base class gets them. */
+        final String baseClassName = spec.baseClass();
+        entry.put("isBasic", "BasicAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("basic"));
+        entry.put("isApiKey", "ApiKeyAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("apikey"));
+        entry.put("bearerIdOnce", bearer && bhvIdsClaimed.add("bearer"));
+        /* The explicit-wins test (authscheme 009) carries its catalogue id in one module only. */
+        entry.put("explicitWinsOnce", bhvIdsClaimed.add("explicit_wins"));
+        final String emptyVariableBhv = EMPTY_VARIABLE_BHV_IDS.get(stem);
+        entry.put("emptyVariableBhv", emptyVariableBhv != null);
+        entry.put("emptyVariableToken", emptyVariableBhv == null ? "" : emptyVariableBhv);
         entry.put("firstParam", envParams.isEmpty() ? "" : envParams.get(0).get("name"));
         final List<String> explicitArgs = new ArrayList<>();
         final List<String> bareArgs = new ArrayList<>();

@@ -90,6 +90,42 @@ function newHeaderCapturingStoreApi(): array
     return [new StoreApi(apiClient: $client, config: $config), $captured];
 }
 
+test('bhv operations 148 an operation that inherits the root security uses the first scheme the client holds', function (): void {
+    /** @var \ArrayObject<string, mixed> $captured */
+    $captured = new \ArrayObject(['headers' => []]);
+    $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
+        /** @param \ArrayObject<string, mixed> $captured */
+        public function __construct(private readonly \ArrayObject $captured)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \{{invokerPackage}}\ApiHttpResponse
+        {
+            $this->captured['headers'] = $headers;
+
+            return new \{{invokerPackage}}\ApiHttpResponse(200, '{"id":1}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $api = new StoreApi(
+        apiClient: $client,
+        config: Configuration::builder()->baseUrl('http://localhost:9999')->build(),
+        schemeAuthenticators: [
+            'petStoreBasic' => new \{{invokerPackage}}\Auth\BasicAuthenticator('http://localhost:9999', 'admin', 'password'),
+            'petStoreBearer' => new \{{invokerPackage}}\Auth\BearerAuthenticator('http://localhost:9999', 'scheme-token'),
+        ],
+    );
+
+    $api->getOrderById(1);
+
+    $headers = $captured['headers'];
+    \assert(is_array($headers));
+    expect($headers['Authorization'] ?? null)->toStartWith('Basic ');
+});
+
 test('bhv operations 096 an operation without parameters or security takes per call headers', function (): void {
     [$api, $captured] = newHeaderCapturingStoreApi();
 
@@ -175,6 +211,36 @@ test('bhv operations 119 place order with http info', function (): void {
     expect($result->statusCode)->toBeGreaterThanOrEqual(200);
     expect($result->statusCode)->toBeLessThan(300);
     expect($result->data)->toBeInstanceOf(Order::class);
+});
+
+test('bhv operations 126 place order without an argument sends no body', function (): void {
+    /** @var \ArrayObject<string, mixed> $captured */
+    $captured = new \ArrayObject(['body' => 'unset', 'headers' => []]);
+
+    $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
+        /** @param \ArrayObject<string, mixed> $captured */
+        public function __construct(private readonly \ArrayObject $captured)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \{{invokerPackage}}\ApiHttpResponse
+        {
+            $this->captured['body'] = $body;
+            $this->captured['headers'] = $headers;
+
+            return new \{{invokerPackage}}\ApiHttpResponse(200, '{"id":1}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $api = new StoreApi(apiClient: $client, config: Configuration::builder()->baseUrl('http://localhost:9999')->build());
+
+    $api->placeOrder();
+
+    expect($captured['body'])->toBeNull();
+    expect($captured['headers'])->not->toHaveKey('Content-Type');
 });
 
 test('bhv operations 117 place order', function (): void {
@@ -297,6 +363,25 @@ test('bhv operations 120 an operation with several 2xx responses decodes the bod
     'the 201 body is a ReservationReceipt' => [201, ReservationReceipt::class],
 ]);
 
+test('bhv operations 129 reserve stock decodes a 200 body as the existing reservation', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{"reservationId":31,"quantity":4}');
+
+    $union = $api->reserveStock();
+
+    expect($union->isReservation())->toBeTrue();
+    expect($union->isReservationReceipt())->toBeFalse();
+    expect($union->asReservation()?->reservationId)->toBe(31);
+    expect($union->asReservation()?->quantity)->toBe(4);
+    expect($union->asReservationReceipt())->toBeNull();
+});
+
+test('bhv unions 036 the status code selects the declared schema, so a 201 body of the 200 shape is refused', function (): void {
+    $api = newStoreApiForMock(201, 'application/json', '{"reservationId":31,"quantity":4}');
+
+    expect(fn () => $api->reserveStock())
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
 test('a multi 2xx result has a typed factory, test and accessor per variant', function (): void {
     $reservation = new Reservation(reservationId: 7, quantity: 2);
     $union = ReserveStockResponse::fromReservation($reservation);
@@ -305,6 +390,24 @@ test('a multi 2xx result has a typed factory, test and accessor per variant', fu
     expect($union->isReservationReceipt())->toBeFalse();
     expect($union->asReservation())->toBe($reservation);
     expect($union->asReservationReceipt())->toBeNull();
+});
+
+test('bhv operations 128 an unserializable content query parameter raises and sends no request', function (): void {
+    $client = new \{{invokerPackage}}\Test\CapturingApiClient();
+    $api = new StoreApi(apiClient: $client, config: Configuration::builder()->baseUrl('http://localhost')->build());
+    $photo = new \{{invokerPackage}}\Models\PhotoMetadata(
+        location: new \{{invokerPackage}}\Models\PhotoMetadataLocation(lat: \NAN),
+    );
+
+    expect(fn () => $api->searchStore(new \{{invokerPackage}}\Api\Options\SearchStoreOptions(q: $photo)))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv operations 130 a malformed 2xx json body propagates the deserialization error', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '[1,2');
+
+    expect(fn () => $api->getOrderById(1))->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 test('bhv operations 100 delete order not found', function (): void {
@@ -383,17 +486,6 @@ test('bhv operations 121 content json header param is the object serializer outp
     }
 
     expect($captured->headers['X-Filter'] ?? null)->toBe('{"k":"a/b<"}');
-});
-
-test('content json query param that cannot be serialized sends no request', function (): void {
-    [$api, $captured] = newCapturingStoreApi();
-
-    expect(fn (): mixed => $api->searchStore(new \{{invokerPackage}}\Api\Options\SearchStoreOptions(
-        q: new \{{invokerPackage}}\Models\PhotoMetadata(
-            location: new \{{invokerPackage}}\Models\PhotoMetadataLocation(lat: NAN),
-        ),
-    )))->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
-    expect($captured->url)->toBe('');
 });
 
 test('bhv operations 122 named enum path, query and header params travel as their wire values', function (): void {
@@ -548,4 +640,22 @@ test('bhv operations 112 get stock item decodes the integer backed enum and the 
     expect($item->availability)->toBe(\{{invokerPackage}}\Models\Availability::ON_HOLD);
     expect($item->matrix?->toArray()[0]->toArray())->toBe([1, 2]);
     expect($item->matrix?->toArray()[1]->toArray())->toBe([3]);
+});
+
+test('bhv operations 154 a response body is checked only against the schema of its own status code', function (int $status, string $body): void {
+    $api = newStoreApiForMock($status, 'application/json', $body);
+
+    expect(fn () => $api->reserveStock())->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+})->with([
+    'a 201 body that only fits the 200 schema' => [201, '{"reservationId":31,"quantity":4}'],
+    'a 201 body that fits neither schema' => [201, '{"unrelated":true}'],
+]);
+
+test('bhv auth 021 a request with no client or operation credential is sent without an authorization header and is not refused', function (): void {
+    $client = new \{{invokerPackage}}\Test\CapturingApiClient();
+    $api = new StoreApi(apiClient: $client, config: Configuration::builder()->baseUrl('http://localhost')->build());
+
+    $api->deleteOrder(1);
+
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
 });

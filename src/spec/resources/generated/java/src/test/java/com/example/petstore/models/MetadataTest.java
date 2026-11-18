@@ -10,6 +10,10 @@ package com.example.petstore.models;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ObjectSerializer;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -113,7 +117,7 @@ class MetadataTest {
   }
 
   @Test
-  void testBuilderMethodsAreNotJsonProperties() {
+  void bhvModels023BuilderMethodsAreNotJsonProperties() {
     Metadata metadata =
         Objects.requireNonNull(
             serializer.deserialize(
@@ -160,7 +164,7 @@ class MetadataTest {
   }
 
   @Test
-  void testToStringDumpsTheAdditionalProperties() {
+  void bhvModels012ToStringDumpsTheAdditionalProperties() {
     Metadata metadata = Metadata.builder().putAdditionalProperty("customField", "hello").build();
 
     assertThat(metadata.toString())
@@ -168,7 +172,7 @@ class MetadataTest {
   }
 
   @Test
-  void testModelFieldsAreFinal() throws NoSuchFieldException {
+  void bhvModels014ModelFieldsAreFinal() throws NoSuchFieldException {
     assertThat(
             java.lang.reflect.Modifier.isFinal(Metadata.class.getField("createdAt").getModifiers()))
         .isTrue();
@@ -264,6 +268,20 @@ class MetadataTest {
   }
 
   @Test
+  void bhvSerializationObject227ModelExternalDocsDescriptionIsWrittenVerbatim() throws IOException {
+    java.util.List<Path> found;
+    try (java.util.stream.Stream<Path> walk = Files.walk(Path.of("src/main"))) {
+      found =
+          walk.filter(f -> f.getFileName().toString().equals("Account.java"))
+              .collect(java.util.stream.Collectors.toList());
+    }
+    assertThat(found).hasSize(1);
+    String source = Files.readString(found.get(0));
+    assertThat(source).contains("\"notes\" it's here");
+    assertThat(source).doesNotContainPattern("&(lt|gt|quot|#)");
+  }
+
+  @Test
   void bhvModels002TestPomManifestDeclaresNonEmptyDescription() throws IOException {
     Path pom = Path.of("pom.xml");
     assertThat(Files.exists(pom)).as("pom.xml must exist at the project root").isTrue();
@@ -321,5 +339,60 @@ class MetadataTest {
         .as("a no-example property must not document a literal null example")
         .doesNotContain("Example: {@code null}")
         .doesNotContain("Example: null");
+  }
+
+  @Test
+  void bhvModels013NewModelHasAnEmptyAdditionalPropertiesCollection() {
+    assertTrue(
+        com.example.petstore.models.Metadata.builder().build().getAdditionalProperties().isEmpty());
+  }
+
+  @Test
+  void bhvModels015ChangedCopyKeepsTheAdditionalPropertiesOfTheOriginal() {
+    com.example.petstore.models.Metadata original =
+        com.example.petstore.models.Metadata.builder().putAdditionalProperty("k", "v").build();
+    com.example.petstore.models.Metadata changed =
+        original.toBuilder()
+            .createdAt(java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z"))
+            .build();
+    assertEquals("v", changed.getAdditionalProperties().get("k"));
+  }
+
+  @Test
+  void bhvModels016CopyClearsAnOptionalFieldOnlyWhenNullIsPassed() {
+    java.time.OffsetDateTime when = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
+    com.example.petstore.models.Metadata set =
+        com.example.petstore.models.Metadata.builder().createdAt(when).build();
+    assertEquals(when, set.toBuilder().build().createdAt);
+    assertNull(set.toBuilder().createdAt(null).build().createdAt);
+  }
+
+  @Test
+  void bhvModels017CopyCanSetAFieldAndTheOriginalKeepsItsValue() {
+    com.example.petstore.models.Category original =
+        com.example.petstore.models.Category.builder().name("x").build();
+    com.example.petstore.models.Category changed = original.toBuilder().name("y").build();
+    assertEquals("y", changed.name);
+    assertEquals("x", original.name);
+  }
+
+  @Test
+  void bhvModels020EqualModelsCompareEqualAndHashAlike() {
+    com.example.petstore.models.Category first =
+        com.example.petstore.models.Category.builder().id(1L).build();
+    com.example.petstore.models.Category second =
+        com.example.petstore.models.Category.builder().id(1L).build();
+    assertEquals(first, second);
+    assertEquals(first.hashCode(), second.hashCode());
+  }
+
+  @Test
+  void bhvModels021IntegerEnumMemberCarriesItsDeclaredNumber() {
+    assertEquals(3, com.example.petstore.models.Priority.NUMBER_3.getValue());
+  }
+
+  @Test
+  void bhvModels022ModelThatAllowsUndeclaredPropertiesReportsIt() {
+    assertNotNull(com.example.petstore.models.Metadata.builder().build().getAdditionalProperties());
   }
 }

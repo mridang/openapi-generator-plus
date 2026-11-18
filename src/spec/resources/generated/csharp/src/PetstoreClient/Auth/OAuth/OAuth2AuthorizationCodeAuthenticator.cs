@@ -158,9 +158,7 @@ public class OAuth2AuthorizationCodeAuthenticator
          * base64url) is kept for ExchangeCodeAsync. */
         string verifier = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
         _pkceVerifier = verifier;
-        parameters["code_challenge"] = Base64UrlEncode(
-            SHA256.HashData(Encoding.ASCII.GetBytes(verifier))
-        );
+        parameters["code_challenge"] = S256Challenge(verifier);
         parameters["code_challenge_method"] = "S256";
 
         string query = string.Join(
@@ -182,6 +180,15 @@ public class OAuth2AuthorizationCodeAuthenticator
     private static string Base64UrlEncode(byte[] bytes)
     {
         return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    /// <summary>
+    /// The RFC 7636 section 4.2 S256 code challenge for a verifier: the base64url
+    /// encoded SHA-256 digest of its ASCII bytes, with no padding.
+    /// </summary>
+    internal static string S256Challenge(string verifier)
+    {
+        return Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
     }
 
     /// <summary>
@@ -243,7 +250,7 @@ public class OAuth2AuthorizationCodeAuthenticator
     /// OAuth2 authenticators require asynchronous token exchange. The
     /// synchronous path is not safe (it deadlocks under non-default
     /// <see cref="System.Threading.SynchronizationContext"/>); callers
-    /// must use <see cref="GetAuthHeadersAsync"/> instead.
+    /// must use <see cref="GetAuthHeadersAsync(CancellationToken)"/> instead.
     /// </remarks>
     public override Dictionary<string, string> GetAuthHeaders()
     {
@@ -254,7 +261,9 @@ public class OAuth2AuthorizationCodeAuthenticator
     }
 
     /// <inheritdoc/>
-    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync(
+        CancellationToken cancellationToken
+    )
     {
         if (!_tokenExchanged)
         {
@@ -271,7 +280,7 @@ public class OAuth2AuthorizationCodeAuthenticator
             ["client_secret"] = _clientSecret,
         };
         string token = await _tokenManager
-            .GetAccessTokenAsync(_refreshUrl, parameters)
+            .GetAccessTokenAsync(_refreshUrl, parameters, null, null, cancellationToken)
             .ConfigureAwait(false);
         return new() { ["Authorization"] = "Bearer " + token };
     }

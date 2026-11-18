@@ -46,13 +46,17 @@ class Truck extends Vehicle {
     if (json['plate'] == null) {
       throw SerializationException("Missing required field 'plate' for Truck");
     }
-    return Truck(
-      vehicleType: json['vehicleType'] as String,
+    try {
+      return Truck(
+        vehicleType: json['vehicleType'] as String,
 
-      plate: json['plate'] as String,
+        plate: json['plate'] as String,
 
-      payloadKg: readInt32OrNull(json['payloadKg']),
-    );
+        payloadKg: readInt32OrNull(json['payloadKg']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Truck: $e', e);
+    }
   }
 
   /// Converts this [Truck] to a JSON map.

@@ -129,13 +129,44 @@ class TestTransportOptions:
             TransportOptions(timeout=value)
         assert str(direct.value) == message
 
+    def test_bhv_options_045_a_negative_max_redirects_is_rejected_at_configuration(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().max_redirects(-1)
+        assert str(exc_info.value) == (
+            "Invalid max_redirects: must be an integer of at least 0 (got -1)"
+        )
+        with pytest.raises(ValueError):
+            TransportOptions(max_redirects=-1)
+        assert TransportOptions.builder().max_redirects(0).build().max_redirects == 0
+
+    def test_bhv_options_047_a_negative_timeout_is_rejected_at_configuration(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError):
+            TransportOptions.builder().timeout(-1)
+        with pytest.raises(ValueError):
+            TransportOptions(timeout=-1)
+
+    def test_bhv_options_051_a_proxy_url_with_a_scheme_other_than_http_or_https_is_rejected(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().proxy("socks5://proxy.example.com:1080")
+        assert str(exc_info.value) == (
+            "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080"
+        )
+
     def test_bhv_options_024_invalid_proxy_url_throws_exception(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             TransportOptions.builder().proxy("not-a-url").build()
         assert type(exc_info.value) is ValueError
         assert not isinstance(exc_info.value, OpenAPIException)
 
-    def test_constructing_directly_with_a_non_http_proxy_scheme_raises(self) -> None:
+    def test_bhv_options_046_constructing_directly_with_a_non_http_proxy_scheme_raises(
+        self,
+    ) -> None:
         with pytest.raises(ValueError) as exc_info:
             TransportOptions(proxy="ftp://proxy.example.com:21")
         assert str(exc_info.value) == (
@@ -156,7 +187,9 @@ class TestTransportOptions:
         with pytest.raises(ValueError):
             dataclasses.replace(valid, proxy="socks5://proxy.example.com:1080")
 
-    def test_constructing_directly_with_a_valid_proxy_is_accepted(self) -> None:
+    def test_bhv_options_067_constructing_directly_with_a_valid_proxy_is_accepted(
+        self,
+    ) -> None:
         assert TransportOptions(proxy="https://proxy.example.com:3128").proxy == (
             "https://proxy.example.com:3128"
         )
@@ -165,6 +198,12 @@ class TestTransportOptions:
     def test_bhv_options_030_null_proxy_url_is_accepted(self) -> None:
         opts = TransportOptions.builder().proxy(None).build()
         assert opts.proxy is None
+
+    def test_bhv_options_052_a_proxy_url_carrying_credentials_is_accepted(self) -> None:
+        proxy = "http://proxy-user:" + "not-a-real-secret" + "@proxy.example.com:3128"
+
+        assert TransportOptions(proxy=proxy).proxy == proxy
+        assert TransportOptions.builder().proxy(proxy).build().proxy == proxy
 
     def test_bhv_options_015_builder_methods_return_same_instance(self) -> None:
         builder = TransportOptions.builder()
@@ -365,7 +404,7 @@ class TestProxyUrlValidation:
 
 
 class TestTransportOptionsRepr:
-    def test_repr_masks_the_proxy_password(self) -> None:
+    def test_bhv_options_065_repr_masks_the_proxy_password(self) -> None:
         opts = (
             TransportOptions.builder()
             .proxy("http://user:s3cret@proxy.example.com:3128")
@@ -376,7 +415,7 @@ class TestTransportOptionsRepr:
         assert "s3cret" not in str(opts)
         assert "proxy='http://user:***@proxy.example.com:3128'" in repr(opts)
 
-    def test_repr_keeps_a_proxy_without_userinfo(self) -> None:
+    def test_bhv_options_066_repr_keeps_a_proxy_without_userinfo(self) -> None:
         opts = TransportOptions.builder().proxy("http://proxy.example.com:3128").build()
 
         assert "proxy='http://proxy.example.com:3128'" in repr(opts)
@@ -404,3 +443,39 @@ class TestTransportOptionsRepr:
         opts = TransportOptions.builder().default_header("Accept", "text/plain").build()
 
         assert "'Accept': 'text/plain'" in repr(opts)
+
+
+class TestTransportOptionsBehaviours:
+    def test_bhv_options_060_the_builder_defaults_match_a_direct_build(self) -> None:
+        assert TransportOptions.builder().build() == TransportOptions()
+
+    def test_bhv_options_061_a_user_agent_is_kept_as_given_and_none_leaves_it_unset(
+        self,
+    ) -> None:
+        assert (
+            TransportOptions.builder().user_agent("MyApp/1.0").build().user_agent
+            == "MyApp/1.0"
+        )
+        assert TransportOptions.builder().user_agent(None).build().user_agent is None
+
+    def test_bhv_options_062_an_options_object_reports_the_values_it_was_built_with(
+        self,
+    ) -> None:
+        opts = TransportOptions.builder().timeout(5000).build()
+
+        assert opts.timeout == 5000
+        assert opts.proxy is None
+        assert opts.ca_cert_path is None
+
+    def test_bhv_options_064_the_printable_form_shows_the_configured_retries(
+        self,
+    ) -> None:
+        opts = TransportOptions.builder().max_retries(3).build()
+
+        assert "max_retries=3" in repr(opts)
+
+    def test_bhv_transport_080_a_proxy_the_client_cannot_apply_fails_construction(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError):
+            TransportOptions.builder().proxy("socks5://127.0.0.1:1080").build()

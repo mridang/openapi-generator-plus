@@ -115,6 +115,13 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject199 subseconds are preserved in a serialized datetime")
+        fun subsecondsPreservedInSerializedDatetime() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45.123+00:00")
+            assertEquals("2024-01-01T12:30:45.123+00:00", serializer.stringify(dt))
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject044 date-only serializes as ISO 8601 date without time component")
         fun dateOnlySerializesAsDate() {
             val date = java.time.LocalDate.parse("2024-01-01")
@@ -174,6 +181,13 @@ class ObjectSerializerTest {
             val result = serializer.serialize("a\tb")
             assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: $result")
         }
+
+        @Test
+        @DisplayName("bhvSerializationobject186 request JSON escapes only the quote, the backslash and controls")
+        fun requestJsonEscapesOnlyTheQuoteTheBackslashAndControls() {
+            val result = serializer.serialize(mapOf("k" to "q\"b\\\n"))
+            assertEquals("{\"k\":\"q\\\"b\\\\\\n\"}", result)
+        }
     }
 
     @Nested
@@ -206,7 +220,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName(
-            "bhvSerializationobject172 unknown enum value " +
+            "bhvSerializationobject182 unknown enum value " +
                 "throws SerializationException",
         )
         fun unknownEnumValueThrowsSerializationException() {
@@ -214,6 +228,32 @@ class ObjectSerializerTest {
                 serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}")
             }
             assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject193 an unknown integer enum value is rejected on decode")
+        fun unknownIntegerEnumValueIsRejectedOnDecode() {
+            assertThrowsExactly(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.StockItem>("{\"priority\":99}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject172 unknown enum value raises SerializationError")
+        fun unknownEnumValueRaisesSerializationError() {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>("{\"status\":\"banana\"}")
+            }
+            assertInstanceOf({{errorPrefix}}Exception::class.java, ex)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject192 an unknown enum string fails at decode and names the value")
+        fun unknownEnumStringFailsAtDecodeNamingTheValue() {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>("{\"status\":\"banana\"}")
+            }
+            assertTrue(ex.message.orEmpty().contains("banana"), "the message must name the value, got ${ex.message}")
         }
 
         @Test
@@ -300,7 +340,51 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("emits non-null schema defaults on the wire (cross-SDK parity)")
+        @DisplayName("bhvSerializationobject188 an all-null model serializes to an empty JSON object")
+        fun allNullPropertiesSerializeToAnEmptyObject() {
+            val category = {{modelPackage}}.Category(id = null, name = null)
+            assertEquals("{}", serializer.serialize(category))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject202 a null field is omitted on serialize while non-null fields are kept")
+        fun nullFieldIsOmittedWhileNonNullFieldsAreKept() {
+            val json = serializer.serialize({{modelPackage}}.Category(id = null, name = "Dogs"))
+            assertFalse(json.contains("\"id\""), json)
+            assertTrue(json.contains("\"name\":\"Dogs\""), json)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization011 model keys are written in declaration order, never sorted")
+        fun modelKeysAreWrittenInDeclarationOrder() {
+            val category = {{modelPackage}}.Category(name = "x", id = 1L)
+            assertEquals("{\"id\":1,\"name\":\"x\"}", serializer.serialize(category))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization049 a format uri value must be absolute, and a relative string is refused")
+        fun uriFormatRequiresAnAbsoluteUri() {
+            assertEquals(
+                "https://example.com/a",
+                serializer.deserialize<io.ktor.http.Url>("\"https://example.com/a\"")?.toString(),
+            )
+            assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                serializer.deserialize<io.ktor.http.Url>("\"relative/path\"")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization051 a strict model exposes no separate public method for its unknown-key check")
+        fun strictModelExposesNoUnknownKeyMethod() {
+            val unknownKeyMethods =
+                {{modelPackage}}.StrictTag::class.java.methods.count {
+                    it.name.lowercase(java.util.Locale.ROOT).contains("unknown")
+                }
+            assertEquals(0, unknownKeyMethods)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization020 emits non-null schema defaults on the wire (cross-SDK parity)")
         fun emitsSchemaDefaultsOnTheWire() {
             // A default-constructed model carries its schema defaults as kotlinx
             // constructor defaults (retries=3, mode=medium, label="untitled").
@@ -325,6 +409,12 @@ class ObjectSerializerTest {
             assertTrue(json.contains("\"photoUrls\":[\"http://example.com/fido.png\"]"), "got: $json")
             assertFalse(json.contains("\"tags\""), "unset tags must not be sent, got: $json")
             assertFalse(json.contains("\"location\""), "unset location must not be sent, got: $json")
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject218 a required nullable property that has a value is written as given")
+        fun requiredNullablePropertyWithAValueIsWrittenAsGiven() {
+            assertEquals("{\"note\":\"x\"}", serializer.serialize({{modelPackage}}.RequiredNullable(note = "x")))
         }
 
         @Test
@@ -396,7 +486,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a bare byte array is written as its base64 string")
+        @DisplayName("bhvSerialization063 a bare byte array is written as its base64 string")
         fun bareByteArrayIsWrittenAsBase64() {
             val json = serializer.serialize(byteArrayOf(1, 2, 3, 4))
             assertEquals("\"AQIDBA==\"", json)
@@ -407,6 +497,16 @@ class ObjectSerializerTest {
         fun listOfByteArraysIsWrittenAsBase64() {
             val json = serializer.serialize(listOf(byteArrayOf(1, 2, 3, 4)))
             assertEquals("[\"AQIDBA==\"]", json)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject222 serializing an array of byte values encodes each element to base64 in the wire array")
+        fun byteArrayScanElementsEncodeToBase64InTheWireArray() {
+            val json =
+                serializer.serialize(
+                    {{modelPackage}}.PetPassport(scans = listOf(byteArrayOf(1, 2, 3), byteArrayOf(-1, 0, -128))),
+                )
+            assertTrue(json.contains("\"scans\":[\"AQID\",\"/wCA\"]"), "got: $json")
         }
 
         @Test
@@ -427,6 +527,37 @@ class ObjectSerializerTest {
     inner class DeserializeTests {
 
         @Test
+        @DisplayName("bhvSerializationobject229 deserializing a map of models returns a model instance for each value")
+        fun deserializingAMapOfModelsReturnsAModelForEachValue() {
+            val decoded = serializer.deserialize<Map<String, {{modelPackage}}.Category>>(
+                "{\"dogs\":{\"id\":1,\"name\":\"Dogs\"},\"cats\":{\"id\":2,\"name\":\"Cats\"}}"
+            )
+            assertEquals(setOf("dogs", "cats"), decoded?.keys)
+            assertEquals(1L, decoded?.get("dogs")?.id)
+            assertEquals("Cats", decoded?.get("cats")?.name)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject231 deserializing a payload that omits optional fields leaves them unset")
+        fun deserializingAPayloadThatOmitsOptionalFieldsLeavesThemUnset() {
+            val decoded = serializer.deserialize<{{modelPackage}}.Account>("{\"username\":\"u\"}")
+            assertNotNull(decoded)
+            assertNull(decoded!!.id)
+            assertNull(decoded.password)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject189 mutually recursive models decode from nested JSON")
+        fun mutuallyRecursiveModelsDecodeFromNestedJson() {
+            val json = "{\"name\":\"Eng\",\"lead\":{\"name\":\"Ada\",\"department\":{\"name\":\"Core\"}}}"
+            val department = serializer.deserialize<{{modelPackage}}.Department>(json)
+            assertEquals("Eng", department?.name)
+            assertEquals("Ada", department?.lead?.name)
+            assertEquals("Core", department?.lead?.department?.name)
+            assertNull(department?.lead?.department?.lead)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject136 returns null for empty string")
         fun returnsNullForEmptyString() {
             val result: String? = serializer.deserialize("")
@@ -440,6 +571,13 @@ class ObjectSerializerTest {
             assertNotNull(decoded)
             assertNull(decoded!!.id)
             assertNull(decoded.name)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject196 an explicit value on the wire replaces the declared default")
+        fun explicitWireValueReplacesTheDeclaredDefault() {
+            val item = serializer.deserialize<{{modelPackage}}.StockItem>("{\"priority\":1,\"availability\":\"Sold\"}")
+            assertEquals({{modelPackage}}.Availability.SOLD, item!!.availability)
         }
 
         @Test
@@ -508,7 +646,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("an explicit empty optional array decodes to an empty list")
+        @DisplayName("bhvSerialization027 an explicit empty optional array decodes to an empty list")
         fun explicitEmptyOptionalArrayDecodesToEmptyList() {
             val pet = serializer.deserialize<{{modelPackage}}.Pet>(
                 "{\"name\":\"fido\",\"photoUrls\":[],\"tags\":[]}")
@@ -517,7 +655,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("free-form Any preserves a JSON null nested in an object as a real null")
+        @DisplayName("bhvSerialization054 free-form Any preserves a JSON null nested in an object as a real null")
         fun freeFormAnyNestedObjectNullStaysNull() {
             // Regression: a JSON null nested inside a free-form @Contextual Any
             // value was coerced to the literal string "null", indistinguishable
@@ -543,6 +681,15 @@ class ObjectSerializerTest {
             assertEquals(1L, list[0])
             assertNull(list[1], "null array element must decode to a real Kotlin null, not \"null\"")
             assertEquals(2L, list[2])
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject205 an extra key survives a full deserialize then serialize round-trip")
+        fun extraKeySurvivesAFullRoundTrip() {
+            val meta = serializer.deserialize<{{modelPackage}}.Metadata>("{\"region\":\"emea\"}")
+            val back = serializer.deserialize<{{modelPackage}}.Metadata>(serializer.serialize(meta))
+            assertNotNull(back)
+            assertEquals("emea", back!!.additionalProperties["region"])
         }
 
         @Test
@@ -935,7 +1082,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("int64 keeps every digit above 2^53 and rejects fractions")
+        @DisplayName("bhvSerializationobject191 int64 keeps every digit above 2^53 and rejects fractions")
         fun int64KeepsPrecisionAndRejectsFractions() {
             val big = serializer.deserialize<{{modelPackage}}.Order>("{\"id\":9007199254740993}")
             assertEquals(9007199254740993L, big!!.id)
@@ -962,6 +1109,15 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("stringify")
     inner class StringifyTests {
+
+        @Test
+        @DisplayName("bhvSerializationobject230 a time value survives a stringify and parse round trip")
+        fun timeValueSurvivesAStringifyAndParseRoundTrip() {
+            val original = java.time.LocalTime.of(11, 22, 33)
+            val text = serializer.stringify(original)
+            assertEquals("11:22:33", text)
+            assertEquals(original, java.time.LocalTime.parse(text))
+        }
 
         @Test
         @DisplayName("bhvSerializationobject110 null returns empty string")
@@ -1014,6 +1170,19 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject211 an int64 is stringified to its decimal digits")
+        fun int64IsStringifiedToItsDecimalDigits() {
+            assertEquals("9999999999", serializer.stringify(9999999999L))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject212 a sub-0.0001s or negative duration is written without scientific notation")
+        fun subTenThousandthAndNegativeDurationsHaveNoScientificNotation() {
+            assertEquals("0.000050s", serializer.stringify(java.time.Duration.ofNanos(50_000)))
+            assertEquals("-0.000050s", serializer.stringify(java.time.Duration.ofNanos(-50_000)))
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject159 stringify returns a string unchanged, quotes and backslashes included")
         fun stringStringifiesUnchanged() {
             assertEquals("a \"quoted\" \\ value", serializer.stringify("a \"quoted\" \\ value"))
@@ -1060,7 +1229,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("long returns string representation")
+        @DisplayName("bhvSerializationobject190 a long is stringified to its exact decimal digits")
         fun longReturnsString() {
             assertEquals("9007199254740993", serializer.stringify(9007199254740993L))
         }
@@ -1218,6 +1387,12 @@ class ObjectSerializerTest {
         @DisplayName("bhvSerializationobject131 returns empty string for null")
         fun returnsEmptyStringForNull() {
             assertEquals("", serializer.toHeaderValue(null))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject210 a header value for a list of strings is joined with commas")
+        fun listOfStringsIsJoinedWithCommas() {
+            assertEquals("a,b,c", serializer.toHeaderValue(listOf("a", "b", "c")))
         }
 
         @Test
@@ -1430,6 +1605,16 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject219 a time value keeps its milliseconds when it is written")
+        fun timeValueKeepsItsMillisecondsWhenWritten() {
+            val json =
+                serializer.serialize(
+                    {{modelPackage}}.EdgeCases(cutoff = java.time.LocalTime.of(9, 0, 0, 250_000_000)),
+                )
+            assertEquals("{\"cutoff\":\"09:00:00.250\"}", json)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject163 EdgeCases.cutoff (format time) encodes as partial-time and decodes back")
         fun timePropertyRoundTrips() {
             val json =
@@ -1441,6 +1626,14 @@ class ObjectSerializerTest {
             assertEquals("{\"cutoff\":\"10:30:00\"}", whole)
             val decoded = serializer.deserialize<{{modelPackage}}.EdgeCases>(json)
             assertEquals(java.time.LocalTime.of(10, 30, 0, 123_000_000), decoded!!.cutoff)
+        }
+
+        @Test
+        @DisplayName("bhvModels021 each member of an integer-backed enum carries its declared number as its value")
+        fun bhvModels021EachIntegerEnumMemberCarriesItsDeclaredNumber() {
+            for (member in {{modelPackage}}.Priority.entries) {
+                assertEquals(member.name.removePrefix("NUMBER_").toInt(), member.value, member.name)
+            }
         }
 
         @Test
@@ -1653,7 +1846,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("hostile Availability members map to their exact JSON-quoted wire strings")
+        @DisplayName("bhvSerializationobject208 hostile Availability members map to their exact JSON-quoted wire strings")
         fun hostileAvailabilityMembersRoundTrip() {
             // D46/F1144: an apostrophe, a backslash, a dollar sign and an interpolation opener.
             for (wire in listOf("o'clock", "a\\b", "\$eq", "#" + "{x}")) {
@@ -1668,6 +1861,33 @@ class ObjectSerializerTest {
                 assertNotNull(decoded)
                 assertEquals(member, decoded!!.availability)
             }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject194 a hyphenated enum wire value is serialized exactly as declared")
+        fun hyphenatedEnumWireValueSerializesAsDeclared() {
+            val json =
+                serializer.serialize(
+                    {{modelPackage}}.StockItem(
+                        priority = {{modelPackage}}.Priority.NUMBER_1,
+                        availability = {{modelPackage}}.Availability.ON_HOLD,
+                    ),
+                )
+            assertTrue(json.contains("\"availability\":\"on-hold\""), "got: $json")
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject209 a model copy replaces the given fields and leaves the original unchanged")
+        fun modelCopyReplacesGivenFieldsAndLeavesOriginal() {
+            val original =
+                {{modelPackage}}.StockItem(
+                    priority = {{modelPackage}}.Priority.NUMBER_1,
+                    availability = {{modelPackage}}.Availability.SOLD,
+                )
+            val copy = original.copy(availability = {{modelPackage}}.Availability.ON_HOLD)
+            assertEquals({{modelPackage}}.Availability.ON_HOLD, copy.availability)
+            assertEquals({{modelPackage}}.Priority.NUMBER_1, copy.priority)
+            assertEquals({{modelPackage}}.Availability.SOLD, original.availability)
         }
 
         @Test
@@ -1768,6 +1988,17 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject207 a non-standard base64 value is rejected on decode")
+        fun nonStandardBase64IsRejectedOnDecode() {
+            // Unpadded, half-padded, URL-safe and whitespace-broken values are not RFC 4648 standard base64.
+            for (text in listOf("dGVzdA", "dGVzdA=", "dGVz-A==", "dGVz dA==")) {
+                assertThrowsExactly(SerializationException::class.java) {
+                    serializer.deserialize<{{modelPackage}}.PetPassport>("{\"thumbnail\":\"$text\"}")
+                }
+            }
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject079 format:byte fields round-trip through base64 (scalar and array)")
         fun byteFieldsRoundTripThroughBase64() {
             // PetPassport carries both a scalar byte field (thumbnail) and an
@@ -1794,6 +2025,20 @@ class ObjectSerializerTest {
             assertEquals(2, decoded.scans!!.size)
             assertArrayEquals(scanA, decoded.scans!![0])
             assertArrayEquals(scanB, decoded.scans!![1])
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject221 deserializing an array of base64 strings decodes each element to raw bytes")
+        fun base64ScanArrayDecodesEachElementToRawBytes() {
+            val rawA = "scan-a".toByteArray(Charsets.UTF_8)
+            val rawB = byteArrayOf(0, -1, 127)
+            val encoder = java.util.Base64.getEncoder()
+            val json = "{\"scans\":[\"${encoder.encodeToString(rawA)}\",\"${encoder.encodeToString(rawB)}\"]}"
+            val passport = serializer.deserialize<{{modelPackage}}.PetPassport>(json)
+            assertNotNull(passport)
+            assertEquals(2, passport!!.scans!!.size)
+            assertArrayEquals(rawA, passport.scans!![0])
+            assertArrayEquals(rawB, passport.scans!![1])
         }
 
         @Test
@@ -1879,7 +2124,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("additionalProperties are captured on a model nested as a property, list element and map value")
+        @DisplayName("bhvSerialization052 additionalProperties are captured on a model nested as a property, list element and map value")
         fun nestedAdditionalPropertiesAreCaptured() {
             val decoded = serializer.deserialize<MetadataHolder>(
                 "{\"label\":\"x\",\"meta\":{\"region\":\"emea\"}," +
@@ -1902,7 +2147,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("additionalProperties of a nested model are re-emitted on serialize")
+        @DisplayName("bhvSerialization053 additionalProperties of a nested model are re-emitted on serialize")
         fun nestedAdditionalPropertiesAreSerialized() {
             val meta = {{modelPackage}}.Metadata().apply { additionalProperties["region"] = "emea" }
             val element = {{modelPackage}}.Metadata().apply { additionalProperties["tier"] = "gold" }
@@ -1958,7 +2203,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("format:duration past the ~292-year Long-nanosecond limit re-serializes instead of overflowing")
+        @DisplayName("bhvSerialization047 format:duration past the ~292-year Long-nanosecond limit re-serializes instead of overflowing")
         fun durationBeyondNanoRangeRoundTrips() {
             // Regression for M3: the old encoder derived seconds from
             // Duration.toNanos(), which throws ArithmeticException once the
@@ -2028,6 +2273,20 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject223 a protobuf duration at the bound of plus or minus 315576000000 seconds is accepted and one past it is rejected")
+        fun protobufDurationAcceptsTheBoundAndRejectsOnePastIt() {
+            val atBound = serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"315576000000s\"}")
+            assertEquals(java.time.Duration.ofSeconds(315_576_000_000L), atBound!!.retryAfter)
+            val negAtBound = serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"-315576000000s\"}")
+            assertEquals(java.time.Duration.ofSeconds(-315_576_000_000L), negAtBound!!.retryAfter)
+            for (text in listOf("315576000001s", "-315576000001s", "315576000000.000000001s")) {
+                assertThrowsExactly(SerializationException::class.java) {
+                    serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"$text\"}")
+                }
+            }
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject113 parses a negative protobuf-JSON duration of whole seconds")
         fun negativeWholeSecondProtobufDurationParses() {
             val edge = serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"-90s\"}")
@@ -2046,6 +2305,15 @@ class ObjectSerializerTest {
                 }
                 assertTrue(ex is {{errorPrefix}}Exception, "must extend the SDK root, was: $ex")
             }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject184 an ISO-8601 duration string is rejected")
+        fun iso8601DurationStringIsRejected() {
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"retryAfter\":\"PT1H\"}")
+            }
+            assertTrue(ex is {{errorPrefix}}Exception, "must extend the SDK root, was: $ex")
         }
     }
 
@@ -2207,7 +2475,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("pets decoded from 1.5 and 1.50 are equal")
+        @DisplayName("bhvModels018 pets decoded from 1.5 and 1.50 are equal")
         fun decodedScalesAreEqual() {
             val a = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"f\",\"photoUrls\":[],\"weightKg\":1.5}")
             val b = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"f\",\"photoUrls\":[],\"weightKg\":1.50}")
@@ -2216,7 +2484,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("different values and null versus set are unequal")
+        @DisplayName("bhvModels019 different values and null versus set are unequal")
         fun differentValuesAreUnequal() {
             assertNotEquals(petOf(java.math.BigDecimal("1.5")), petOf(java.math.BigDecimal("1.6")))
             assertNotEquals(petOf(java.math.BigDecimal("1.5")), petOf(null))
@@ -2313,7 +2581,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a differing map KEY makes them unequal")
+        @DisplayName("bhvSerializationobject206 a differing map KEY makes them unequal")
         fun differingMapKeyCompareUnequal() {
             val left = vaultOf()
             val right = vaultOf(labels = mapOf("second" to byteArrayOf(7, 8)))
@@ -2345,6 +2613,15 @@ class ObjectSerializerTest {
             }
         }
 
+        @Test
+        @DisplayName("bhvSerializationobject200 a serialize failure carries the canonical prefix and names the detail")
+        fun serializeFailureCarriesTheCanonicalPrefixAndDetail() {
+            val ex = assertThrowsExactly(SerializationException::class.java) { serializer.serialize(Double.NaN) }
+            val prefix = "Failed to serialize object to JSON: "
+            assertTrue(ex.message!!.startsWith(prefix), "got: ${ex.message}")
+            assertTrue(ex.message!!.length > prefix.length, "no detail after the prefix: ${ex.message}")
+        }
+
         // A bare JSON null body decoded to a model type returns null.
         @Test
         @DisplayName("bhvSerializationobject067 a literal null body deserializes to null")
@@ -2365,7 +2642,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a byte field accepts only padded standard-alphabet base64 without whitespace")
+        @DisplayName("bhvSerializationobject185 a byte field accepts only padded standard-alphabet base64 without whitespace")
         fun byteFieldDecodeIsStrictBase64() {
             for (bad in listOf("dGVzdA", "dGVz dA==", "dGVz\\ndA==", "-_8=", "!!!!")) {
                 assertThrowsExactly(SerializationException::class.java, {
@@ -2476,4 +2753,309 @@ class ObjectSerializerTest {
             assertTrue(parsed.message!!.startsWith("Failed to deserialize JSON: "), parsed.message)
         }
     }
+
+    @Nested
+    @DisplayName("wire contract behaviours")
+    inner class WireContractBehaviours {
+
+        @Test
+        @DisplayName("bhvSerialization001 the text form of an enum member is exactly its declared wire value")
+        fun enumTextFormIsTheDeclaredWireValue() {
+            assertEquals("pending", {{modelPackage}}.Pet.StatusEnum.PENDING.value)
+            assertEquals("available", {{modelPackage}}.Pet.StatusEnum.AVAILABLE.value)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization002 an enum member held by a model is written as its exact wire string")
+        fun enumMemberHeldByModelIsWrittenAsWireString() {
+            val pet = {{modelPackage}}.Pet(name = "dog", photoUrls = emptySet(), status = {{modelPackage}}.Pet.StatusEnum.PENDING)
+            assertTrue(serializer.serialize(pet).contains("\"status\":\"pending\""), serializer.serialize(pet))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization003 a declared wire value decodes to the member carrying exactly that value")
+        fun declaredWireValueDecodesToItsMember() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"dog\",\"photoUrls\":[],\"status\":\"sold\"}")
+            assertEquals({{modelPackage}}.Pet.StatusEnum.SOLD, pet!!.status)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization004 an enum refuses a wire value outside its declared members")
+        fun enumRefusesAValueOutsideItsMembers() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"dog\",\"photoUrls\":[],\"status\":\"lost\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization021 equal content compares equal and hashes alike, and different content is distinct")
+        fun equalContentComparesEqualAndDistinctContentDoesNot() {
+            val a = {{modelPackage}}.Pet(name = "dog", photoUrls = emptySet(), status = {{modelPackage}}.Pet.StatusEnum.SOLD)
+            val b = {{modelPackage}}.Pet(name = "dog", photoUrls = emptySet(), status = {{modelPackage}}.Pet.StatusEnum.SOLD)
+            assertEquals(a, b)
+            assertEquals(a.hashCode(), b.hashCode())
+            assertNotEquals(a, {{modelPackage}}.Pet(name = "cat", photoUrls = emptySet(), status = {{modelPackage}}.Pet.StatusEnum.SOLD))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization022 a top-level JSON scalar decodes to a value of that scalar's own type")
+        fun topLevelScalarDecodesToItsOwnType() {
+            assertEquals("text", serializer.deserialize<String>("\"text\""))
+            assertEquals(7, serializer.deserialize<Int>("7"))
+            assertEquals(true, serializer.deserialize<Boolean>("true"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization023 a payload that is not well-formed JSON fails with the SDK serialization error")
+        fun malformedJsonFailsWithTheSdkError() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<Map<String, Int>>("{\"a\":1")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<Map<String, Int>>("{\"a\":1} trailing")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization024 brackets inside a JSON string do not count toward the depth limit")
+        fun bracketsInsideStringsDoNotCountTowardDepth() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"[[[[[[[[\",\"photoUrls\":[]}")
+            assertEquals("[[[[[[[[", pet!!.name)
+        }
+
+        @Test
+        @DisplayName("a payload nested past the depth limit is refused with the serialization error")
+        fun payloadNestedPastTheLimitIsRefused() {
+            val deep = "[".repeat(5000) + "]".repeat(5000)
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<Map<String, Int>>("{\"a\":$deep}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization025 typed leaves nested in a model decode to their own typed values")
+        fun typedLeavesNestedInAModelDecodeToTypedValues() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>(
+                "{\"name\":\"dog\",\"photoUrls\":[],\"status\":\"sold\",\"tags\":[{\"id\":3,\"name\":\"tag\"}]}",
+            )
+            assertEquals({{modelPackage}}.Pet.StatusEnum.SOLD, pet!!.status)
+            assertEquals("tag", pet.tags!![0].name)
+            assertEquals(3L, pet.tags!![0].id)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization026 a JSON object decodes to a map of its typed values, and an empty object to an empty map")
+        fun jsonObjectDecodesToAMapOfTypedValues() {
+            assertEquals(mapOf("a" to "b"), serializer.deserialize<Map<String, String>>("{\"a\":\"b\"}"))
+            assertEquals(emptyMap<String, String>(), serializer.deserialize<Map<String, String>>("{}"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization028 a JSON value of the wrong kind for a model, list or map is refused")
+        fun wrongKindForModelListOrMapIsRefused() {
+            assertThrows(SerializationException::class.java) { serializer.deserialize<{{modelPackage}}.Pet>("[]") }
+            assertThrows(SerializationException::class.java) { serializer.deserialize<List<Int>>("{}") }
+            assertThrows(SerializationException::class.java) { serializer.deserialize<Map<String, Int>>("[]") }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization029 a JSON value of the wrong kind for a scalar or enum field is refused")
+        fun wrongKindForScalarOrEnumIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"dog\",\"photoUrls\":[],\"status\":3}")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>("{\"quantity\":\"3\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization030 a date-time field accepts only a string, so a number, boolean or array is refused")
+        fun dateTimeFieldAcceptsOnlyAString() {
+            for (value in listOf("1700000000", "true", "[]")) {
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<{{modelPackage}}.Order>("{\"shipDate\":$value}")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization031 a whole number at the 32-bit and 64-bit limits decodes exactly")
+        fun wholeNumbersAtTheLimitsDecodeExactly() {
+            assertEquals(Int.MIN_VALUE, serializer.deserialize<{{modelPackage}}.Order>("{\"quantity\":-2147483648}")!!.quantity)
+            assertEquals(Long.MIN_VALUE, serializer.deserialize<{{modelPackage}}.Order>("{\"id\":-9223372036854775808}")!!.id)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization032 an integer field refuses a number written with a fraction or exponent even when whole")
+        fun integerRefusesFractionOrExponent() {
+            for (value in listOf("2.0", "1e2")) {
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<{{modelPackage}}.Order>("{\"quantity\":$value}")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization033 each leaf of an integer array must be a plain integer in range")
+        fun integerArrayLeavesMustBePlainIntegersInRange() {
+            for (body in listOf("[[1.0]]", "[[3000000000]]", "[[true]]")) {
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<List<List<Int>>>(body)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization034 a floating-point field decodes a finite number to its exact numeric value")
+        fun floatingPointDecodesFiniteNumbersExactly() {
+            assertEquals(0.1, serializer.deserialize<Double>("0.1"))
+            assertEquals(-3.0, serializer.deserialize<Double>("-3"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization035 the non-standard NaN and Infinity literals are refused when decoded")
+        fun nanAndInfinityLiteralsAreRefused() {
+            for (body in listOf("NaN", "Infinity", "-Infinity")) {
+                assertThrows(SerializationException::class.java) { serializer.deserialize<Double>(body) }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization036 a whole-number floating-point value is written with a decimal point")
+        fun wholeFloatingPointIsWrittenWithDecimalPoint() {
+            assertEquals("1.0", serializer.serialize(1.0))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization037 a decimal number is written with every significant digit")
+        fun decimalIsWrittenWithEverySignificantDigit() {
+            assertEquals(
+                "12345678901234567.890123",
+                serializer.serialize(java.math.BigDecimal("12345678901234567.890123")),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization038 a date-time with digits finer than a millisecond is truncated, never rounded up")
+        fun subMillisecondDateTimeIsTruncated() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45.123999+00:00")
+            assertEquals("2024-01-01T12:30:45.123+00:00", serializer.stringify(dt))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization039 a date-time is read from any RFC 3339 spelling to the same instant")
+        fun rfc3339SpellingsDecodeToTheSameInstant() {
+            val z = serializer.deserialize<OffsetDateTime>("\"2024-01-01T12:30:45Z\"")
+            val offset = serializer.deserialize<OffsetDateTime>("\"2024-01-01T12:30:45+00:00\"")
+            val fraction = serializer.deserialize<OffsetDateTime>("\"2024-01-01T12:30:45.000Z\"")
+            assertEquals(z!!.toInstant(), offset!!.toInstant())
+            assertEquals(z.toInstant(), fraction!!.toInstant())
+        }
+
+        @Test
+        @DisplayName("bhvSerialization041 a time string in hours, minutes and seconds parses to a time with those fields")
+        fun timeStringParsesToItsFields() {
+            assertEquals(java.time.LocalTime.of(11, 22, 33), serializer.deserialize<java.time.LocalTime>("\"11:22:33\""))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization042 a date-only string is passed through exactly as given")
+        fun dateOnlyStringIsPassedThroughExactly() {
+            assertEquals(LocalDate.of(2024, 2, 29), serializer.deserialize<LocalDate>("\"2024-02-29\""))
+            assertEquals("2024-02-29", serializer.stringify(LocalDate.of(2024, 2, 29)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization043 a time of day is written as hours, minutes and seconds")
+        fun timeOfDayIsWrittenAsHoursMinutesSeconds() {
+            assertEquals("09:05:07", serializer.stringify(java.time.LocalTime.of(9, 5, 7)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization045 a malformed time or duration string is refused rather than decoded to a wrong value")
+        fun malformedTimeOrDurationIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<java.time.LocalTime>("\"25:00:00\"")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<java.time.Duration>("\"ten seconds\"")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization046 a duration's fractional seconds use the shortest group of three, six or nine digits")
+        fun durationFractionUsesShortestGroup() {
+            assertEquals("1.500s", serializer.stringify(java.time.Duration.ofMillis(1500)))
+            assertEquals("1.500000001s", serializer.stringify(java.time.Duration.ofNanos(1500000001)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization048 a duration written on its own is its protobuf-JSON seconds string")
+        fun durationWrittenOnItsOwnIsSecondsString() {
+            assertEquals("90s", serializer.stringify(java.time.Duration.ofSeconds(90)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization050 a property whose name begins with a digit reads and writes under its exact wire name")
+        fun digitLeadingPropertyUsesItsWireName() {
+            val model = serializer.deserialize<DigitLeadingName>("{\"2fa\":\"code\"}")
+            assertEquals("code", model!!.twoFa)
+            assertEquals("{\"2fa\":\"code\"}", serializer.serialize(model))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization061 slash, angle brackets, ampersand and non-ASCII text are written literally")
+        fun slashAngleAmpersandAndNonAsciiAreLiteral() {
+            assertEquals("{\"k\":\"a/<b>&é\"}", serializer.serialize(mapOf("k" to "a/<b>&é")))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization064 a collection of unique values is written as a JSON array of its members")
+        fun uniqueCollectionIsWrittenAsArray() {
+            assertEquals("[\"a\",\"b\"]", serializer.serialize(linkedSetOf("a", "b")))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization065 a null inside an array or map of plain or timestamp values is kept as null")
+        fun nullInsideContainersIsKeptAsNull() {
+            assertEquals(listOf("a", null), serializer.deserialize<List<String?>>("[\"a\",null]"))
+            assertEquals(mapOf("a" to null), serializer.deserialize<Map<String, OffsetDateTime?>>("{\"a\":null}"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization066 a null is refused for a property that is not declared nullable")
+        fun nullIsRefusedForANonNullableProperty() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":null,\"photoUrls\":[]}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization009 a value that cannot be serialized raises the serialization error before any output")
+        fun unserializableValueRaisesBeforeAnyOutput() {
+            assertThrows(SerializationException::class.java) {
+                serializer.serialize(mapOf("a" to 1, "b" to Double.NaN))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization012 keys of maps are written in ascending order so equal data writes identical output")
+        fun mapKeysAreWrittenInAscendingOrder() {
+            assertEquals("{\"a\":1,\"b\":2,\"c\":3}", serializer.serialize(linkedMapOf("c" to 3, "a" to 1, "b" to 2)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization062 a base64 string for a byte-typed value decodes to the raw bytes it encodes")
+        fun base64StringDecodesToRawBytes() {
+            assertArrayEquals(byteArrayOf(1, 2, 3), serializer.deserialize<ByteArray>("\"AQID\""))
+        }
+    }
 }
+
+// File-scoped fixture: a property whose wire name begins with a digit.
+@Serializable
+private data class DigitLeadingName(
+    @SerialName("2fa")
+    val twoFa: String? = null,
+)

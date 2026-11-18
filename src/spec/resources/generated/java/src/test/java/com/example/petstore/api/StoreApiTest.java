@@ -495,7 +495,19 @@ class StoreApiTest {
   }
 
   @Test
-  void testReserveStockRejectsABodyThatDoesNotMatchTheSchemaOfItsStatus() throws Exception {
+  void bhvUnions036StatusCodeNotBodyShapeSelectsTheVariant() throws Exception {
+    String receipt = "{\"receiptCode\":\"rcpt-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+
+    assertThatThrownBy(() -> newStoreApiForMock(200, "application/json", receipt).reserveStock())
+        .isInstanceOf(com.example.petstore.errors.SerializationException.class);
+    com.example.petstore.models.ReserveStockResponse created =
+        newStoreApiForMock(201, "application/json", receipt).reserveStock();
+    assertThat(created.asReservationReceipt()).isPresent();
+  }
+
+  @Test
+  void bhvOperations154ReserveStockRejectsABodyThatDoesNotMatchTheSchemaOfItsStatus()
+      throws Exception {
     StoreApi mockApi =
         newStoreApiForMock(201, "application/json", "{\"reservationId\":1,\"quantity\":2}");
 
@@ -504,7 +516,7 @@ class StoreApiTest {
   }
 
   @Test
-  void testPlaceOrderWithoutAnArgumentSendsNoBody() throws Exception {
+  void bhvOperations126PlaceOrderWithoutAnArgumentSendsNoBody() throws Exception {
     Object[] capturedBody = new Object[] {"unset"};
     ApiClient recording =
         (method, url, headers, body) -> {
@@ -519,5 +531,76 @@ class StoreApiTest {
     assertThat(placed.id).isEqualTo(1L);
     assertThat(capturedBody[0]).isNull();
     assertThat(mockedApi.placeOrderWithHttpInfo().statusCode()).isEqualTo(200);
+  }
+
+  @Test
+  void bhvOperations127MalformedSuccessBodyFailsLoudWithASerializationError() throws Exception {
+    StoreApi mockApi = newStoreApiForMock(200, "application/json", "plain words, not json");
+
+    assertThatThrownBy(() -> mockApi.getOrderById(1L))
+        .isExactlyInstanceOf(com.example.petstore.errors.SerializationException.class);
+  }
+
+  @Test
+  void bhvOperations128UnserializableContentQueryRaisesAndSendsNoRequest() throws Exception {
+    int[] requests = new int[1];
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          requests[0]++;
+          return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    com.example.petstore.models.PhotoMetadata metadata =
+        com.example.petstore.models.PhotoMetadata.builder()
+            .location(
+                com.example.petstore.models.PhotoMetadataLocation.builder().lat(Double.NaN).build())
+            .build();
+
+    assertThatThrownBy(
+            () ->
+                mockedApi.searchStore(
+                    new com.example.petstore.api.options.SearchStoreOptions().q(metadata)))
+        .isExactlyInstanceOf(com.example.petstore.errors.SerializationException.class);
+    assertThat(requests[0]).isZero();
+  }
+
+  @Test
+  void bhvOperations129ReserveStockDecodesA200AsTheExistingReservation() throws Exception {
+    com.example.petstore.models.ReserveStockResponse existing =
+        newStoreApiForMock(200, "application/json", "{\"reservationId\":31,\"quantity\":4}")
+            .reserveStock();
+
+    assertThat(existing.asReservation())
+        .hasValueSatisfying(reservation -> assertThat(reservation.reservationId).isEqualTo(31L));
+    assertThat(existing.asReservationReceipt()).isEmpty();
+  }
+
+  @Test
+  void bhvOperations136BareJsonNullBodyThrowsAnApiErrorNamingTheOperation() throws Exception {
+    StoreApi mockApi = newStoreApiForMock(200, "application/json", "null");
+
+    assertThatThrownBy(() -> mockApi.getOrderById(1L))
+        .isInstanceOf(com.example.petstore.errors.ApiException.class)
+        .hasMessageContaining("Expected a response body for getOrderById but received none");
+  }
+
+  @Test
+  void bhvOperations139NonZeroTimeQueryKeepsItsFractionalSeconds() throws Exception {
+    String[] capturedUrl = new String[1];
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.searchStore(
+        new com.example.petstore.api.options.SearchStoreOptions()
+            .at(java.time.LocalTime.of(10, 30, 0, 123_000_000)));
+
+    String url = java.net.URLDecoder.decode(capturedUrl[0], StandardCharsets.UTF_8);
+    assertThat(url).contains("at=10:30:00.123");
   }
 }

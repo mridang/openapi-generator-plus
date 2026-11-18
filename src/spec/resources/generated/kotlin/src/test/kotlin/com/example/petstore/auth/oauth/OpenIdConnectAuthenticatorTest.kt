@@ -9,12 +9,14 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.auth.CredentialEnvironment
 import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.OpenAPIException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
 
@@ -135,7 +137,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun aFailedDiscoveryReportsItsRequest() {
+    fun bhvAuthoidc033AFailedDiscoveryReportsItsRequest() {
         val client = FakeApiClient()
         client.enqueue("down", statusCode = 503)
         val auth = createAuthenticator()
@@ -322,6 +324,28 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun bhvAuthscheme008SsoAuthTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name ->
+            when (name) {
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID" -> ""
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET" -> "secret"
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI" -> "https://app.example.com/callback"
+                else -> null
+            }
+        }
+        try {
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    SsoAuthAuthenticator("https://api.example.com")
+                }
+            assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID"), ex.message)
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
     fun bhvAuthoidc014GetHostReturnsConfiguredHost() {
         val auth = createAuthenticator()
 
@@ -439,7 +463,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun throwsWhenDiscoveredEndpointIsNotHttps() {
+    fun bhvAuthoidc032ThrowsWhenDiscoveredEndpointIsNotHttps() {
         // F859: the token endpoint receives the client secret and the code.
         val client = FakeApiClient()
         client.enqueue(
@@ -467,7 +491,7 @@ class OpenIdConnectAuthenticatorTest {
         """{"issuer":"https://auth.example.com","authorization_endpoint":"$authorizeUrl","token_endpoint":"https://auth.example.com/token"}"""
 
     @Test
-    fun discoveryIsFetchedAgainOnceItsMaxAgeHasElapsed() {
+    fun bhvAuthoidc031DiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize-v1"), headers = mapOf("cache-control" to "public, max-age=0"))
         client.enqueue(discovery("https://auth.example.com/authorize-v2"))
@@ -555,7 +579,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun unparseableMaxAgeFallsBackToTheOneDayDefault() {
+    fun bhvAuth011UnparseableMaxAgeFallsBackToTheOneDayDefault() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=soon"))
 
@@ -625,7 +649,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun rediscoveredEndpointsAreUsedWithTheSameSession() {
+    fun bhvAuth029RediscoveredEndpointsAreUsedWithTheSameSession() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize-v1"), headers = mapOf("Cache-Control" to "max-age=0"))
         client.enqueue("""{"access_token":"t1","refresh_token":"r1","expires_in":3600}""")
@@ -666,7 +690,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun concurrentCallsOnAColdAuthenticatorShareOneDiscovery() {
+    fun bhvAuthoidc029ConcurrentCallsOnAColdAuthenticatorShareOneDiscovery() {
         val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
         var gets = 0
         val client =
@@ -696,5 +720,18 @@ class OpenIdConnectAuthenticatorTest {
 
         assertEquals(1, gets)
         assertEquals(5, urls.size)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoidc030 a discovery document served with max-age=0 is fetched again on every use")
+    fun discoveryWithMaxAgeZeroIsFetchedOnEveryUse() {
+        val client = FakeApiClient()
+        repeat(3) {
+            client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("cache-control" to "max-age=0"))
+        }
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        repeat(3) { runBlocking { auth.buildAuthorizationUrl() } }
+        assertEquals(3, client.getCount)
     }
 }

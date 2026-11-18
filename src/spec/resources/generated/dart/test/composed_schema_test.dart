@@ -102,11 +102,14 @@ void main() {
       expect(restored['foodType'], equals('dry'));
     });
 
-    test('DryFood fills the discriminator default when its key is absent', () {
-      final food = DryFood.fromJson(<String, dynamic>{'weightKg': 2.5});
+    test(
+      'bhv unions 030 DryFood fills the discriminator default when its key is absent',
+      () {
+        final food = DryFood.fromJson(<String, dynamic>{'weightKg': 2.5});
 
-      expect(food.foodType, equals('dry'));
-    });
+        expect(food.foodType, equals('dry'));
+      },
+    );
 
     test('DryFood rejects an explicit null discriminator', () {
       expect(
@@ -117,6 +120,54 @@ void main() {
         throwsA(isA<SerializationException>()),
       );
     });
+
+    test('bhv unions 029 oneOf wrappers have value equality', () {
+      final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
+      final a = PetFood.fromJson(json);
+      final b = PetFood.fromJson(json);
+
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test(
+      'bhv unions 033 an unknown, missing or empty discriminator fails with SerializationException',
+      () {
+        for (final json in <Map<String, dynamic>>[
+          {'foodType': 'raw', 'calories': 300},
+          {'calories': 300},
+          {'foodType': '', 'weightKg': 2.5},
+        ]) {
+          expect(
+            () => PetFood.fromJson(json),
+            throwsA(isA<SerializationException>()),
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv unions 034 a oneOf wrapper typed accessor returns the held variant and null for the other',
+      () {
+        final dry = PetFood.dryFood(DryFood(weightKg: 2.5));
+
+        expect(dry.asDryFood, isNotNull);
+        expect(dry.asWetFood, isNull);
+      },
+    );
+
+    test(
+      'bhv unions 035 a discriminator value not listed in the mapping fails to deserialize',
+      () {
+        expect(
+          () => PetFood.fromJson(<String, dynamic>{
+            'foodType': 'raw',
+            'calories': 300,
+          }),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
 
     test(
       'bhv unions 001 PetFood constructor wraps a variant that serializes with its discriminator',
@@ -140,7 +191,7 @@ void main() {
     });
 
     test(
-      'PetFood typed constructors, is and as accessors name the variant',
+      'bhv unions 032 PetFood typed constructors, is and as accessors name the variant',
       () {
         final dry = PetFood.dryFood(DryFood(weightKg: 2.5));
         final wet = PetFood.wetFood(WetFood(volumeMl: 400));
@@ -644,6 +695,102 @@ void main() {
         );
 
         expect(a, isNot(equals(b)));
+      },
+    );
+
+    test(
+      'bhv unions 037 a union wrapper built from a variant holds that exact value and returns it unchanged',
+      () {
+        final dry = DryFood(weightKg: 2);
+        final food = PetFood.dryFood(dry);
+
+        expect(food.actualInstance, same(dry));
+      },
+    );
+
+    test(
+      'bhv unions 038 a union body that cannot be decoded raises the serialization error',
+      () {
+        expect(
+          () => PetFood.fromJson({'foodType': 'fish'}),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => PetFood.fromJson({'FoodType': 'dry', 'weightKg': 2}),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => PetFood.fromJson({'foodType': 7}),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv unions 039 building a union wrapper from any value never validates or throws',
+      () {
+        expect(() => PetFood(null), returnsNormally);
+        expect(() => PetFood('not a food'), returnsNormally);
+        expect(() => PetFood.dryFood(DryFood(weightKg: 1)), returnsNormally);
+      },
+    );
+
+    test(
+      'bhv unions 040 a union wrapper typed accessor returns the variant it holds and nothing for the others',
+      () {
+        final dry = DryFood(weightKg: 2);
+        final food = PetFood.dryFood(dry);
+
+        expect(food.isDryFood, isTrue);
+        expect(food.asDryFood, same(dry));
+        expect(food.isWetFood, isFalse);
+        expect(food.asWetFood, isNull);
+      },
+    );
+
+    test(
+      'bhv unions 041 a oneOf without a discriminator decodes each JSON shape to the variant that describes it',
+      () {
+        final byString = SetPetAvatarThumbnailRequest.fromJson(
+          base64Encode(<int>[104, 105]),
+        );
+        expect(byString.actualInstance, isA<Uint8List>());
+        expect(
+          byString.actualInstance,
+          equals(Uint8List.fromList(<int>[104, 105])),
+        );
+
+        final byArray = SetPetAvatarThumbnailRequest.fromJson(<String>[
+          base64Encode(<int>[104, 105]),
+        ]);
+        expect(byArray.actualInstance, isA<List<Object?>>());
+        expect(byArray.actualInstance, isNot(isA<Uint8List>()));
+        expect(
+          (byArray.actualInstance as List<Object?>).single,
+          isA<Uint8List>(),
+        );
+      },
+    );
+
+    test(
+      'bhv unions 042 a union wrapper built with a null variant holds no instance',
+      () {
+        const food = PetFood(null);
+
+        expect(food.actualInstance, isNull);
+        expect(food.isDryFood, isFalse);
+        expect(food.isWetFood, isFalse);
+        expect(food.asDryFood, isNull);
+        expect(food.asWetFood, isNull);
+      },
+    );
+
+    test(
+      'bhv unions 043 a discriminator value already set on a subtype is written as given, not replaced by the default',
+      () {
+        final dry = DryFood(foodType: 'custom', weightKg: 1);
+
+        expect(dry.toJson()['foodType'], equals('custom'));
       },
     );
   });

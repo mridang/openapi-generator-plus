@@ -73,7 +73,7 @@ fn test_bhv_authapikey_009_query_accepts_non_ascii() {
 /// a header key. Every rejection is `ConfigurationError::InvalidArgument`,
 /// never a panic.
 #[test]
-fn test_invalid_keys_are_invalid_arguments() {
+fn test_bhv_auth_009_invalid_keys_are_invalid_arguments() {
     for (key, location, expected) in [
         ("", ApiKeyLocation::Header, "must not be empty"),
         ("", ApiKeyLocation::Query, "must not be empty"),
@@ -135,7 +135,7 @@ key_param_name: \"k-name\", api_key: \"***\", location: "
 }
 
 #[test]
-fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
+fn test_bhv_authapikey_020_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
     let auth =
         ApiKeyHeaderAuthenticator::new("https://api.example.com", Some("wrapper-key")).unwrap();
     let debug = format!("{:?}", auth);
@@ -185,7 +185,7 @@ async fn test_bhv_authapikey_007_scheme_wrappers_emit_the_key_at_the_declared_na
 
 /// A wrapper validates its key as eagerly as the authenticator it wraps.
 #[test]
-fn test_scheme_wrappers_reject_an_empty_key() {
+fn test_bhv_authapikey_019_scheme_wrappers_reject_an_empty_key() {
     let host = "https://api.example.com";
     for result in [
         ApiKeyHeaderAuthenticator::new(host, Some("")).map(|_| ()),
@@ -207,7 +207,7 @@ fn test_scheme_wrappers_reject_an_empty_key() {
 
 /// Every wrapper prints its own name around the redacted inner authenticator.
 #[test]
-fn test_scheme_wrappers_mask_the_key_and_keep_the_declared_name() {
+fn test_bhv_authapikey_025_scheme_wrappers_mask_the_key_and_keep_the_declared_name() {
     let host = "https://api.example.com";
     assert_eq!(
         "ApiKeyHeaderAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"X-API-Key\", api_key: \"***\", location: Header })",
@@ -225,6 +225,69 @@ fn test_scheme_wrappers_mask_the_key_and_keep_the_declared_name() {
         "SessionCookieAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"SESSION_ID\", api_key: \"***\", location: Cookie })",
         format!("{:?}", SessionCookieAuthenticator::new(host, Some("secret-4")).unwrap())
     );
+}
+
+/// A key is emitted only at the location it was declared for, and nowhere else.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authapikey_022_a_key_is_emitted_only_at_its_own_location() {
+    let host = "https://api.example.com";
+
+    let header =
+        ApiKeyAuthenticator::new(host, "X-API-Key", "abc123", ApiKeyLocation::Header).unwrap();
+    assert_eq!(
+        header.auth_headers().await.get("X-API-Key"),
+        Some(&"abc123".to_string())
+    );
+    assert!(header.query_params().is_empty());
+    assert!(header.cookie_params().is_empty());
+
+    let query = ApiKeyAuthenticator::new(host, "api_key", "abc123", ApiKeyLocation::Query).unwrap();
+    assert_eq!(
+        query.query_params().get("api_key"),
+        Some(&"abc123".to_string())
+    );
+    assert!(query.auth_headers().await.is_empty());
+    assert!(query.cookie_params().is_empty());
+
+    let cookie =
+        ApiKeyAuthenticator::new(host, "SESSION_ID", "abc123", ApiKeyLocation::Cookie).unwrap();
+    assert_eq!(
+        cookie.cookie_params().get("SESSION_ID"),
+        Some(&"abc123".to_string())
+    );
+    assert!(cookie.auth_headers().await.is_empty());
+    assert!(cookie.query_params().is_empty());
+}
+
+/// A cookie key is not restricted to printable ASCII, so a non-ASCII value is accepted.
+#[test]
+fn test_bhv_authapikey_023_a_cookie_key_accepts_a_non_ascii_value() {
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "SESSION_ID",
+        "clé-ünïcødé",
+        ApiKeyLocation::Cookie,
+    )
+    .unwrap();
+    assert_eq!(
+        auth.cookie_params().get("SESSION_ID"),
+        Some(&"clé-ünïcødé".to_string())
+    );
+}
+
+/// The key does not appear in the default debug output, neither compact nor pretty.
+#[test]
+fn test_bhv_authapikey_026_does_not_leak_its_key_in_the_default_debug_output() {
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "s3cret-key",
+        ApiKeyLocation::Header,
+    )
+    .unwrap();
+    for text in [format!("{:?}", auth), format!("{:#?}", auth)] {
+        assert!(!text.contains("s3cret-key"), "{}", text);
+    }
 }
 
 /// Only ASCII whitespace counts as blank: a Unicode space is a valid key.
@@ -283,6 +346,14 @@ fn test_bhv_authapikey_008_header_location_rejects_a_non_ascii_key() {
 }
 
 #[test]
+fn test_bhv_authapikey_018_header_location_rejects_crlf_in_the_key_at_construction() {
+    assert!(
+        refusal_reason("abc\r\nInjected: yes", ApiKeyLocation::Header)
+            .contains("control characters")
+    );
+}
+
+#[test]
 fn test_bhv_authapikey_011_rejects_a_key_of_only_a_vertical_tab() {
     assert!(refusal_reason("\x0b", ApiKeyLocation::Header).contains("must not be empty"));
 }
@@ -306,4 +377,39 @@ fn test_bhv_authapikey_015_valid_query_key_is_exposed_in_query_params() {
 #[test]
 fn test_bhv_authapikey_017_whitespace_only_key_throws_at_construction() {
     assert!(refusal_reason("   ", ApiKeyLocation::Cookie).contains("must not be empty"));
+}
+
+/// A key sent in a header is emitted under the header name the spec declares, and under no other name.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_006_an_api_key_header_is_sent_under_the_declared_name() {
+    let auth = ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-Declared-Key",
+        "abc123",
+        ApiKeyLocation::Header,
+    )
+    .unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("X-Declared-Key").map(|s| s.as_str()),
+        Some("abc123")
+    );
+    assert!(!headers.contains_key("X-API-Key"));
+}
+
+/// A refused key is never echoed back: the error's debug form does not show the key text.
+#[test]
+fn test_bhv_auth_018_a_refused_key_is_never_echoed_in_its_error() {
+    match ApiKeyAuthenticator::new(
+        "https://api.example.com",
+        "X-API-Key",
+        "abc\r\nSECRETKEYVALUE",
+        ApiKeyLocation::Header,
+    ) {
+        Err(err) => {
+            let text = format!("{:?}", err);
+            assert!(!text.contains("SECRETKEYVALUE"), "{}", text);
+        }
+        Ok(_) => panic!("a key with CR/LF must be refused"),
+    }
 }

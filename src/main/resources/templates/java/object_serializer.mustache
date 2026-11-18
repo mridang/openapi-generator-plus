@@ -253,6 +253,10 @@ public final class ObjectSerializer {
         if (value instanceof Map<?, ?> map) {
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 Object field = entry.getValue();
+                if (field == null) {
+                    /* An unset entry is left out, never written as an empty value. */
+                    continue;
+                }
                 if (field instanceof Map<?, ?> || field instanceof java.util.Collection<?>) {
                     throw new SerializationException("Parameter field '" + entry.getKey()
                             + "' is a nested value; only flat objects can be encoded");
@@ -361,6 +365,10 @@ public final class ObjectSerializer {
             nanos = Integer.parseInt(padded);
         }
         Duration duration = Duration.ofSeconds(secs, nanos);
+        /* google.protobuf.Duration is bounded to +/-315576000000 seconds. */
+        if (duration.compareTo(Duration.ofDays(3652500)) > 0) {
+            throw new SerializationException("Invalid protobuf duration: " + text);
+        }
         return negative ? duration.negated() : duration;
     }
 
@@ -478,6 +486,11 @@ public final class ObjectSerializer {
                    Without this, Jackson raises InvalidDefinitionException for a
                    bean with no discoverable properties. */
                 .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                /* Map keys and additional properties are written in ascending key order, so
+                   equal data always produces identical output (a HashMap has no fixed order). */
+                .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+                /* Trailing content after the JSON document is a malformed payload, not ignored. */
+                .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
                 .enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 /* Strict scalar typing: a quoted number ("42") for an int field

@@ -49,7 +49,7 @@ class TestMetadataTypedAdditionalProperties:
         assert metadata is not None
         assert hasattr(metadata, "additional_properties")
 
-    def test_wire_key_named_additional_properties_with_dict_value_preserved(
+    def test_bhv_models_023_wire_key_named_additional_properties_with_dict_value_preserved(
         self,
     ) -> None:
         # M11 — a real wire property literally named `additional_properties`
@@ -314,13 +314,37 @@ class TestReadmeAndSkillsText:
             assert "cancels every request" not in text
             assert "cookie-octet" in text
 
-    def test_readme_socks_note_names_the_builder_setter(self) -> None:
+    def test_bhv_options_044_readme_socks_note_names_the_builder_setter(self) -> None:
         readme = self._read("README.md")
         assert (
             "`TransportOptions.builder().proxy()` accepts only `http://` and `https://` URLs."
             in readme
         )
         assert "`TransportOptions.proxy()`" not in readme
+
+    def test_bhv_skills_001_the_error_handling_section_names_the_root_and_the_api_error_siblings(
+        self,
+    ) -> None:
+        section = (
+            self._read("SKILLS.md")
+            .split("## Error Handling", 1)[1]
+            .split("\n## ", 1)[0]
+        )
+        assert "- `OpenAPIException` (root)" in section
+        assert "  - `SerializationException`" in section
+        assert "  - `OAuth2ServerException`" in section
+        assert "  - `OAuth2TokenException`" in section
+        assert "  - `ApiException`" in section
+
+    def test_bhv_skills_002_the_configuration_section_documents_the_retries(
+        self,
+    ) -> None:
+        section = (
+            self._read("SKILLS.md").split("## Configuration", 1)[1].split("\n## ", 1)[0]
+        )
+        assert "### Automatic retries" in section
+        assert "max_retries(0)" in section
+        assert "`Retry-After`" in section
 
     def test_skills_call_the_authenticator_an_abstract_base_class(self) -> None:
         skills = self._read("SKILLS.md")
@@ -348,7 +372,7 @@ class TestReadmeAndSkillsText:
 
 
 class TestOptionsImmutability:
-    def test_options_are_frozen(self) -> None:
+    def test_bhv_options_063_options_are_frozen(self) -> None:
         # Per-operation Options classes are frozen dataclasses so a caller
         # cannot mutate an Options instance after constructing it.
         from petstore_client.api.options.find_pets_by_status_options import (
@@ -370,7 +394,7 @@ class TestOptionsPerCallSettings:
 
         return FindPetsByStatusOptions
 
-    def test_the_per_call_settings_default_to_the_clients(self) -> None:
+    def test_bhv_options_055_the_per_call_settings_default_to_the_clients(self) -> None:
         options = self._options()()
 
         assert options.timeout is None
@@ -378,7 +402,7 @@ class TestOptionsPerCallSettings:
         assert options.max_retries is None
 
     @pytest.mark.parametrize("timeout", [0, -5, True, "10"])
-    def test_a_timeout_below_one_millisecond_or_not_a_number_is_rejected(
+    def test_bhv_options_057_a_timeout_below_one_millisecond_or_not_a_number_is_rejected(
         self, timeout: Any
     ) -> None:
         with pytest.raises(ValueError, match="timeout"):
@@ -750,7 +774,7 @@ class TestEveryOperationTakesOptions:
     @pytest.mark.parametrize(
         "module,api,operation,options_name,call_settings_only", OPERATIONS
     )
-    def test_the_operation_has_an_options_argument(
+    def test_bhv_options_054_the_operation_has_an_options_argument(
         self,
         module: str,
         api: str,
@@ -833,6 +857,25 @@ class TestMetadataEquality:
 
         assert self._decode(raw) == self._decode(raw)
 
+    def test_bhv_models_012_to_string_dumps_the_fields_and_the_additional_properties_map(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        metadata = Metadata(additional_properties={"customField": "hello"})
+
+        assert "created_at=None" in repr(metadata)
+        assert "additional_properties={'customField': 'hello'}" in repr(metadata)
+
+    def test_bhv_models_018_models_whose_decimal_fields_differ_only_in_trailing_zeros_compare_equal(
+        self,
+    ) -> None:
+        from decimal import Decimal
+
+        from petstore_client.models.defaults import Defaults
+
+        assert Defaults(ratio=Decimal("1.5")) == Defaults(ratio=Decimal("1.50"))
+
     def test_instances_differing_only_in_additional_properties_are_not_equal(
         self,
     ) -> None:
@@ -847,3 +890,103 @@ class TestMetadataEquality:
         extra = self._decode('{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}')
 
         assert bare != extra
+
+
+class TestMetadataBehaviours:
+    def test_bhv_models_013_a_newly_built_model_has_an_empty_additional_properties_collection(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        assert Metadata().additional_properties == {}
+
+    def test_bhv_models_015_a_changed_copy_keeps_the_additional_properties(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        original = ObjectSerializer().deserialize('{"origin":"a","extra":1}', Metadata)
+        assert original is not None
+        changed = original.model_copy(update={"origin": "b"})
+
+        assert changed.additional_properties == original.additional_properties
+        assert changed.additional_properties != {}
+
+    def test_bhv_models_016_a_copy_clears_an_optional_field_only_when_none_is_passed(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        original = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z"}', Metadata
+        )
+        assert original is not None
+        kept = original.model_copy()
+        cleared = original.model_copy(update={"created_at": None})
+
+        assert kept.created_at == original.created_at
+        assert cleared.created_at is None
+
+    def test_bhv_models_017_a_copy_can_set_or_clear_an_optional_field_and_the_original_keeps_its_value(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        original = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z"}', Metadata
+        )
+        assert original is not None
+        cleared = original.model_copy(update={"created_at": None})
+        filled = Metadata().model_copy(update={"created_at": original.created_at})
+
+        assert cleared.created_at is None
+        assert original.created_at is not None
+        assert filled.created_at == original.created_at
+
+    def test_bhv_models_021_each_member_of_an_integer_backed_enum_carries_its_declared_number(
+        self,
+    ) -> None:
+        from petstore_client.models.priority import Priority
+
+        assert [member.value for member in Priority] == [1, 2, 3]
+        assert Priority.NUMBER_3.value == 3
+
+    def test_bhv_models_022_a_model_whose_schema_allows_undeclared_properties_reports_it(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+        from petstore_client.models.category import Category
+
+        assert "additional_properties" in Metadata.model_fields
+        assert "additional_properties" not in Category.model_fields
+
+    def test_bhv_models_019_two_models_with_a_different_field_value_compare_unequal(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        first = ObjectSerializer().deserialize('{"origin":"a"}', Metadata)
+        second = ObjectSerializer().deserialize('{"origin":"b"}', Metadata)
+
+        assert first != second
+
+    def test_bhv_models_020_models_with_the_same_fields_compare_equal_and_hash_alike(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        first = ObjectSerializer().deserialize('{"origin":"a"}', Metadata)
+        second = ObjectSerializer().deserialize('{"origin":"a"}', Metadata)
+
+        assert first == second
+        assert hash(first) == hash(second)
+
+    def test_bhv_options_056_a_per_call_timeout_of_zero_is_refused_before_any_request(
+        self,
+    ) -> None:
+        from petstore_client.api.options.find_pets_by_status_options import (
+            FindPetsByStatusOptions,
+        )
+
+        with pytest.raises(ValueError, match="timeout"):
+            FindPetsByStatusOptions(timeout=0)

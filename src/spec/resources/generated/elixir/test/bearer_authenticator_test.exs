@@ -55,6 +55,12 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       end
     end
 
+    test "bhv authbearer 028 a bearer token containing CRLF is rejected at construction" do
+      assert_raise ArgumentError, ~r/printable ASCII/, fn ->
+        BearerAuthenticator.new("https://api.example.com", "abc\r\ndef")
+      end
+    end
+
     test "bhv authbearer 016 a token of Unicode spaces is not blank: the printable ASCII rule rejects it" do
       error =
         assert_raise ArgumentError, fn ->
@@ -88,6 +94,27 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
 
       explicit = BearerAuthenticator.new("https://api.example.com", "xyz")
       assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer xyz"
+    end
+
+    test "bhv authbearer 018 an explicit token wins over the environment" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "env-token")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", "explicit-token")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer explicit-token"
+    end
+
+    test "bhv authscheme 011 an empty environment variable for the service token scheme credential is treated as unset and fails naming the variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      message = "Missing the credential 'token': pass it, or set the environment variable #{name}"
+
+      System.put_env(name, "")
+
+      assert_raise ArgumentError, message, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
     end
 
     test "bhv lifecycle 013 an empty or absent environment variable fails when no token is passed" do
@@ -177,12 +204,107 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       end
     end
 
+    test "bhv authbearer 019 an empty environment variable counts as unset and fails construction naming it" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/#{name}/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv authbearer 022 a non-ASCII token is rejected at construction with the exact message" do
+      error =
+        assert_raise ArgumentError, fn ->
+          BearerAuthenticator.new("https://api.example.com", "ñoño")
+        end
+
+      assert error.message ==
+               "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+    end
+
+    test "bhv authbearer 025 the environment variable is read once, at construction" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "first")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+      System.put_env(name, "second")
+
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer first"
+    end
+
     test "bhv authbearer 011 default inspect/1 redacts the token but keeps the host" do
       auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
 
       refute inspect(auth) =~ "super-secret-token"
       assert inspect(auth) =~ "api.example.com"
       assert inspect(auth) =~ ~s(token: "***")
+    end
+
+    test "bhv auth 003 an empty environment variable counts as no value, so the passed token is used and none fails" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      auth = BearerAuthenticator.new("https://api.example.com", "explicit-token")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer explicit-token"
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'token': pass it, or set the environment variable #{name}",
+                   fn -> BearerAuthenticator.new("https://api.example.com", nil) end
+    end
+
+    test "bhv auth 007 a generic bearer authenticator built without a token reads only its own variable and fails" do
+      own = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      other = "SWAGGER_PETSTORE_OPEN_API_3_0_UNRELATED_AUTH007"
+      System.delete_env(own)
+      System.put_env(other, "not-a-token")
+      on_exit(fn -> System.delete_env(other) end)
+
+      assert_raise ArgumentError, ~r/Missing the credential 'token'/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv auth 018 a rejected secret never appears in the error message or the formatted stack trace" do
+      secret = "abc\r\nsecret-token-018"
+
+      try do
+        BearerAuthenticator.new("https://api.example.com", secret)
+      rescue
+        error in ArgumentError ->
+          refute Exception.message(error) =~ "secret-token-018"
+          refute Exception.format(:error, error, __STACKTRACE__) =~ "secret-token-018"
+      else
+        _ -> flunk("a token with a CR/LF must be rejected at construction")
+      end
+    end
+
+    test "bhv auth 022 an explicit argument is used before the environment variable and a function in its place is called" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "from-env")
+
+      explicit = BearerAuthenticator.new("https://api.example.com", "explicit")
+      assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer explicit"
+
+      from_env = BearerAuthenticator.new("https://api.example.com", nil)
+      assert BearerAuthenticator.auth_headers(from_env)["Authorization"] == "Bearer from-env"
+
+      provider = BearerAuthenticator.new("https://api.example.com", fn -> "from-provider" end)
+      assert BearerAuthenticator.auth_headers(provider)["Authorization"] == "Bearer from-provider"
+    end
+
+    test "bhv config 025 an empty token environment value is treated as unset so construction fails naming the variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'token': pass it, or set the environment variable #{name}",
+                   fn -> BearerAuthenticator.new("https://api.example.com", nil) end
     end
   end
 end

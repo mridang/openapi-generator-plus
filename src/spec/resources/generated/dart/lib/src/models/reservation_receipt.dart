@@ -42,11 +42,18 @@ class ReservationReceipt {
         "Missing required field 'expiresAt' for ReservationReceipt",
       );
     }
-    return ReservationReceipt(
-      receiptCode: json['receiptCode'] as String,
+    try {
+      return ReservationReceipt(
+        receiptCode: json['receiptCode'] as String,
 
-      expiresAt: parseDateTime(json['expiresAt'] as String),
-    );
+        expiresAt: parseDateTime(json['expiresAt'] as String),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException(
+        'Invalid value for ReservationReceipt: $e',
+        e,
+      );
+    }
   }
 
   /// Converts this [ReservationReceipt] to a JSON map.

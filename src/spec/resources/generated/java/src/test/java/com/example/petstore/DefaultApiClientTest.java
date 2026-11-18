@@ -100,8 +100,8 @@ class DefaultApiClientTest {
     }
 
     @Test
-    @DisplayName("verifySsl=false accepts hostname mismatch (curl -k semantics)")
-    void verifySslFalseAcceptsHostnameMismatch() throws Exception {
+    @DisplayName("bhvTransport062 verifySsl=false accepts hostname mismatch (curl -k semantics)")
+    void bhvTransport062VerifySslFalseAcceptsHostnameMismatch() throws Exception {
       /* Reach the mock server by its IP address, which the certificate
        * does not name, so the host name check would fail if it ran. */
       java.net.URI httpsBase = java.net.URI.create(ChasmContainer.getHttpsBaseUrl());
@@ -161,6 +161,21 @@ class DefaultApiClientTest {
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("\"method\""));
+    }
+
+    @Test
+    @DisplayName("bhvTransport063 a proxy that requires credentials answers 407 when none are sent")
+    void bhvTransport063ProxyThatRequiresCredentialsAnswers407WhenNoneAreSent()
+        throws ApiException {
+      String chasmUrl = ChasmContainer.getInternalHttpUrl();
+
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().proxy(SquidContainer.getAuthProxyUrl()).build());
+      ApiHttpResponse response =
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+
+      assertEquals(407, response.statusCode());
     }
   }
 
@@ -319,6 +334,37 @@ class DefaultApiClientTest {
               com.example.petstore.errors.NetworkTimeoutException.class,
               () -> client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null));
       assertEquals(0, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvTransport060 cancelling an in-flight call aborts the request without reporting a"
+            + " timeout")
+    void bhvTransport060CancellingAnInFlightCallAbortsTheRequest() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(20000).build());
+      java.util.concurrent.atomic.AtomicReference<Throwable> failure =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      Thread caller =
+          new Thread(
+              () -> {
+                try {
+                  client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null);
+                } catch (Throwable thrown) {
+                  failure.set(thrown);
+                }
+              });
+      caller.start();
+      Thread.sleep(500);
+      caller.interrupt();
+      caller.join(5000);
+
+      assertFalse(caller.isAlive(), "the cancelled call must return promptly");
+      assertInstanceOf(java.util.concurrent.CancellationException.class, failure.get());
+      assertFalse(
+          failure.get() instanceof com.example.petstore.errors.NetworkTimeoutException,
+          "a cancellation must not be reported as a timeout");
     }
 
     @Test
@@ -950,8 +996,8 @@ class DefaultApiClientTest {
      * equal and credentials survive the hop.
      */
     @Test
-    @DisplayName("redirect_to_explicit_default_port_preserves_authorization")
-    void redirectToExplicitDefaultPortPreservesAuthorization() throws Exception {
+    @DisplayName("bhvRedirects037 redirect_to_explicit_default_port_preserves_authorization")
+    void bhvRedirects037RedirectToExplicitDefaultPortPreservesAuthorization() throws Exception {
       java.lang.reflect.Method method =
           DefaultApiClient.class.getDeclaredMethod("effectivePort", java.net.URI.class);
       method.setAccessible(true);

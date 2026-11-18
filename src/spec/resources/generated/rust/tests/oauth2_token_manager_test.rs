@@ -1042,6 +1042,59 @@ async fn test_bhv_authoauthtwotokenmgr_040_unusable_token_response_bodies_use_th
     }
 }
 
+/* D07: a non-JSON 2xx token body is refused with the canonical message, and the
+ * body (here a form-encoded token) is never echoed into the error. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwotokenmgr_041_a_non_json_2xx_token_body_is_not_echoed_into_the_error()
+{
+    let secret = ["gho", "SECRET123"].join("_");
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(&format!("access_token={}&token_type=bearer", secret), 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a non-JSON token response must error");
+
+    let token_err = err
+        .downcast_ref::<OAuth2TokenError>()
+        .unwrap_or_else(|| panic!("expected OAuth2TokenError, got: {err}"));
+    assert_eq!("Token response is not valid JSON", token_err.message());
+    assert!(
+        !err.to_string().contains(&secret),
+        "the token body leaked into: {err}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwotokenmgr_047_a_server_error_without_an_error_code_names_the_status_and_raw_body(
+) {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("<html>bad gateway</html>", 502);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a 502 without an OAuth2 error object must fail");
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .expect("expected OAuth2ServerError");
+    assert_eq!(None, server_err.code());
+    assert_eq!(
+        "Token request failed with status 502: <html>bad gateway</html>",
+        err.to_string()
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_bhv_authoauthtwotokenmgr_032_token_endpoint_error_response_parsed_to_typed_error() {
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
@@ -1347,7 +1400,7 @@ async fn test_bhv_authoauthtwotokenmgr_020_non_string_refresh_token_is_ignored()
 /// The token body keeps `-._~` literal, writes a space as `+` and
 /// percent-encodes everything else, including `*`, `!`, `'`, `(` and `)`.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_body_percent_encodes_everything_but_the_unreserved_set() {
+async fn test_bhv_auth_017_token_body_writes_a_space_as_plus_and_encodes_reserved_punctuation() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"t1","expires_in":3600}"#, 200);
     let manager = OAuth2TokenManager::new();
@@ -1570,4 +1623,379 @@ async fn test_invalidate_then_get_uses_the_refresh_grant_first() {
         "{:?}",
         requests
     );
+}
+
+/* D07: a token server error names the status, then the code and the description when present. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwotokenmgr_042_a_server_error_names_the_status_code_and_description() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"error":"invalid_client","error_description":"unknown client"}"#,
+        401,
+    );
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a 401 token response must fail");
+
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .unwrap_or_else(|| panic!("expected OAuth2ServerError, got: {}", err));
+    assert_eq!(
+        "Token request failed with status 401: invalid_client -- unknown client",
+        server_err.to_string()
+    );
+}
+
+/// The token request body is written in the shared key order on every run.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwotokenmgr_043_token_body_uses_the_fixed_parameter_order() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let mut params = HashMap::new();
+    params.insert("scope".to_string(), "read write".to_string());
+    params.insert("client_secret".to_string(), "my-client-secret".to_string());
+    params.insert("client_id".to_string(), "my-client-id".to_string());
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("the token request succeeds");
+
+    assert_eq!(
+        "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+        client.requests()[0].1
+    );
+}
+
+/* D07: a padded decimal expires_in is a lifetime, so the token is cached. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwotokenmgr_045_a_padded_decimal_expires_in_is_cached() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"pad-tok","expires_in":" 3600.5\n"}"#,
+        200,
+    );
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let first = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("first");
+    let second = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("second");
+
+    assert_eq!("pad-tok", first);
+    assert_eq!("pad-tok", second);
+    assert_eq!(1, client.requests().len());
+}
+
+/* D07: a string expires_in outside the plain decimal grammar is not a lifetime,
+ * so the token is stale and the next call fetches again. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwotokenmgr_046_a_string_expires_in_outside_the_decimal_grammar_is_stale(
+) {
+    for raw in ["0x1000", "1e3", "NaN"] {
+        let client = Arc::new(FakeApiClient::new());
+        let first_body = ["{\"access_token\":\"first\",\"expires_in\":\"", raw, "\"}"].concat();
+        client.enqueue(&first_body, 200);
+        client.enqueue(r#"{"access_token":"second","expires_in":3600}"#, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client.clone());
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let first = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect("first");
+        let second = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect("second");
+
+        assert_eq!("first", first, "expires_in {raw:?}");
+        assert_eq!("second", second, "expires_in {raw:?}");
+        assert_eq!(2, client.requests().len(), "expires_in {raw:?}");
+    }
+}
+
+/// A refresh and the fallback grant that both fail give the caller the fallback grant's error, with its status.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_026_a_refresh_and_fallback_that_both_fail_return_the_fallback_error() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#,
+        200,
+    );
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    client.enqueue(
+        r#"{"error":"invalid_client","error_description":"unknown client"}"#,
+        401,
+    );
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .unwrap();
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("the fallback grant is rejected too");
+
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .unwrap_or_else(|| panic!("expected OAuth2ServerError, got: {}", err));
+    assert!(
+        server_err.to_string().contains("status 401"),
+        "{}",
+        server_err
+    );
+    assert_eq!(3, client.requests().len());
+}
+
+/// Answers its first request with a token that is stale at once, then never answers, and records
+/// through `dropped` whether a stalled request was dropped.
+struct AnswerOnceThenStall {
+    sends: Arc<Mutex<usize>>,
+    dropped: Arc<std::sync::atomic::AtomicBool>,
+}
+
+struct StallDropFlag(Arc<std::sync::atomic::AtomicBool>);
+
+impl Drop for StallDropFlag {
+    fn drop(&mut self) {
+        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl ApiClient for AnswerOnceThenStall {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&RequestBody>,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, BoxError>> + Send + '_>> {
+        let sent = {
+            let mut sends = self.sends.lock().unwrap();
+            *sends += 1;
+            *sends
+        };
+        let flag = StallDropFlag(self.dropped.clone());
+        Box::pin(async move {
+            let _flag = flag;
+            if sent == 1 {
+                return Ok(ApiHttpResponse::new(
+                    200,
+                    r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#.to_string(),
+                    HashMap::new(),
+                ));
+            }
+            let never: Result<ApiHttpResponse, BoxError> = std::future::pending().await;
+            never
+        })
+    }
+}
+
+/// A refresh cancelled while it waits for the token endpoint is dropped, and the fallback grant never runs.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_027_a_cancelled_refresh_does_not_run_the_fallback_grant() {
+    let dropped = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let sends = Arc::new(Mutex::new(0usize));
+    let client = Arc::new(AnswerOnceThenStall {
+        sends: sends.clone(),
+        dropped: dropped.clone(),
+    });
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let params = authorization_code_params();
+
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .unwrap();
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_millis(100),
+        manager.get_access_token("https://auth.example.com/token", &params),
+    )
+    .await;
+
+    assert!(
+        outcome.is_err(),
+        "the refresh is still waiting for the token endpoint"
+    );
+    assert!(
+        dropped.load(std::sync::atomic::Ordering::SeqCst),
+        "the refresh request must be dropped"
+    );
+    assert_eq!(
+        2,
+        *sends.lock().unwrap(),
+        "no fallback grant may be sent after the cancellation"
+    );
+}
+
+/// Answers each request with a head capture: the token request is sent without the transport's default headers.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_010_token_request_leaves_the_transport_default_headers_out() {
+    use std::io::Read;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("a local address");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if let Some(Ok(mut stream)) = listener.incoming().next() {
+            let mut buf = [0u8; 4096];
+            let n_read = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n_read]).to_string());
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    let transport = petstore::TransportOptionsBuilder::new()
+        .default_header("X-Default", "kept")
+        .build()
+        .expect("valid transport options");
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(Arc::new(petstore::DefaultApiClient::new(Some(transport))));
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    // The capture answers with an empty body, so the token request fails; only the head matters.
+    let _ = manager
+        .get_access_token(&format!("http://{}/token", addr), &params)
+        .await;
+
+    let head = rx
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("a captured request");
+    let has_default = head
+        .lines()
+        .any(|line| line.to_lowercase().starts_with("x-default:"));
+    assert!(
+        !has_default,
+        "the token request carried a default header: {}",
+        head
+    );
+}
+
+/// Setting the token from several tasks while other tasks read it never exposes a value that
+/// was not set: every read returns the seed or one of the tokens that were written.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_030_concurrent_set_and_read_never_observes_an_unset_token() {
+    let manager = Arc::new(OAuth2TokenManager::new());
+    manager.set_access_token("seed").await;
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let mut writers = Vec::new();
+    for writer in 0..3 {
+        let manager = manager.clone();
+        writers.push(tokio::spawn(async move {
+            for i in 0..200 {
+                manager.set_access_token(&format!("tok-{writer}-{i}")).await;
+            }
+        }));
+    }
+    let mut readers = Vec::new();
+    for _ in 0..3 {
+        let manager = manager.clone();
+        let params = params.clone();
+        readers.push(tokio::spawn(async move {
+            let mut seen: Vec<String> = Vec::new();
+            for _ in 0..200 {
+                seen.push(
+                    manager
+                        .get_access_token("https://auth.example.com/token", &params)
+                        .await
+                        .expect("a read must succeed"),
+                );
+            }
+            seen
+        }));
+    }
+
+    for writer in writers {
+        writer.await.expect("writer should not panic");
+    }
+    for reader in readers {
+        for token in reader.await.expect("reader should not panic") {
+            assert!(
+                token == "seed" || token.starts_with("tok-"),
+                "a read observed a value that was never set: {token}"
+            );
+        }
+    }
+}
+
+/// A token endpoint error keeps a valid error code when its optional description or URI is not a
+/// string, dropping only that field.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_errors_082_a_malformed_optional_field_is_dropped_and_the_code_kept() {
+    let cases = [
+        (
+            r#"{"error":"invalid_grant","error_description":42,"error_uri":["x"]}"#,
+            Some("invalid_grant"),
+            None,
+            None,
+        ),
+        (
+            r#"{"error":"invalid_grant","error_description":"Expired","error_uri":false}"#,
+            Some("invalid_grant"),
+            Some("Expired"),
+            None,
+        ),
+    ];
+    for (body, code, description, uri) in cases {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(body, 400);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let err = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect_err("an error status must fail");
+        let server_error = err
+            .downcast_ref::<OAuth2ServerError>()
+            .expect("an OAuth2ServerError");
+        assert_eq!(code, server_error.code(), "{body}");
+        assert_eq!(description, server_error.description(), "{body}");
+        assert_eq!(uri, server_error.uri(), "{body}");
+    }
+
+    /* A non-string error value is not taken as an error code. */
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":7,"error_description":"Expired"}"#, 400);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("an error status must fail");
+    let server_error = err
+        .downcast_ref::<OAuth2ServerError>()
+        .expect("an OAuth2ServerError");
+    assert_eq!(None, server_error.code());
 }

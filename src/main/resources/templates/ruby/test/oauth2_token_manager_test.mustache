@@ -295,7 +295,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     end
   end
 
-  it 'a 2xx token response that is a JSON array raises OAuth2TokenError saying it is not an object' do
+  it 'bhv_authoauthtwotokenmgr_041 a 2xx token response that is a JSON array raises OAuth2TokenError saying it is not an object' do
     client = FakeTokenClient.new([{ status: 200, body: '["access_token"]' }])
     manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
@@ -329,7 +329,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(err.cause).must_be_nil
   end
 
-  it 'does not send the transport default headers to the token endpoint' do
+  it 'bhv_auth_010 does not send the transport default headers to the token endpoint' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/token') do |env|
@@ -371,6 +371,29 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(error.code).must_equal 'invalid_grant'
     _(error.description).must_equal 'refresh token expired'
     _(error.uri).must_equal 'https://docs.example.com/errors/invalid_grant'
+  end
+
+  it 'bhv_authoauthtwotokenmgr_042 a token error without a description names the status and the code only' do
+    client = FakeTokenClient.new([{ status: 400, body: { 'error' => 'invalid_grant' } }])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    error = assert_raises({{moduleName}}::Errors::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+    _(error.message).must_equal 'Token request failed with status 400: invalid_grant'
+  end
+
+  it 'bhv_authoauthtwotokenmgr_043 serialises the token request parameters in the order given' do
+    client = FakeTokenClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    manager.get_access_token('https://auth.example.com/token', {
+      'grant_type' => 'client_credentials', 'client_id' => 'my_client_id',
+      'client_secret' => 'my_client_secret', 'scope' => 'read write'
+    })
+    _(client.last_body).must_equal 'grant_type=client_credentials&client_id=my_client_id&client_secret=my_client_secret&scope=read+write'
   end
 
   it 'bhv_authoauthtwotokenmgr_007 applies one margin capped at half the lifetime' do
@@ -485,7 +508,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
   end
 
   ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
-    it "expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
+    it "bhv_authoauthtwotokenmgr_046 expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
       client = FakeTokenClient.new([
         { status: 200, body: { 'access_token' => 'first', 'expires_in' => raw } },
         { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
@@ -516,7 +539,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     end
   end
 
-  it 'expires_in as a padded decimal string with a fraction is accepted' do
+  it 'bhv_authoauthtwotokenmgr_045 expires_in as a padded decimal string with a fraction is accepted' do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
     ])
@@ -778,5 +801,51 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
     _(err.message).must_equal 'Unsupported token_type in token response'
+  end
+
+  it 'bhv_auth_030 token state read from several threads at once never shows a value that was not set' do
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    values = %w[tok_0 tok_1 tok_2 tok_3]
+    manager.access_token = values.first
+    observed = Queue.new
+
+    writers = values.map { |value| Thread.new { 200.times { manager.access_token = value } } }
+    readers = Array.new(4) do
+      Thread.new do
+        200.times { observed << manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' }) }
+      end
+    end
+    (writers + readers).each(&:join)
+
+    seen = []
+    seen << observed.pop until observed.empty?
+    _(seen.length).must_equal 800
+    _(seen.reject { |token| values.include?(token) }).must_be_empty
+  end
+
+  it 'bhv_errors_082 keeps a valid error code when its description and uri are not strings' do
+    client = FakeTokenClient.new([
+      { status: 400, body: { 'error' => 'invalid_grant', 'error_description' => 42, 'error_uri' => ['https://x'] } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    error = assert_raises({{moduleName}}::Errors::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/token', {})
+    end
+    _(error.code).must_equal 'invalid_grant'
+    _(error.description).must_be_nil
+    _(error.uri).must_be_nil
+  end
+
+  it 'a non-string error value is not taken as an error code' do
+    client = FakeTokenClient.new([{ status: 400, body: { 'error' => 7 } }])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    error = assert_raises({{moduleName}}::Errors::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/token', {})
+    end
+    _(error.code).must_be_nil
   end
 end

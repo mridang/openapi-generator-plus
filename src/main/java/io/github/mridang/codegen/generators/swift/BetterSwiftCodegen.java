@@ -963,6 +963,29 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
      */
     private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
 
+    /**
+     * The behaviour token of the empty-variable failure test, one per scheme class: the catalogue
+     * ids authscheme003 to authscheme016. A scheme the table does not name keeps an unnumbered
+     * test name. Each scheme gets exactly one such test, so no two tests share a name.
+     */
+    private static final java.util.Map<String, String> EMPTY_VARIABLE_BHV =
+            java.util.Map.ofEntries(
+                    java.util.Map.entry("PetStoreBasicAuthenticator", "BhvAuthscheme003"),
+                    java.util.Map.entry("AdminBasicAuthenticator", "BhvAuthscheme004"),
+                    java.util.Map.entry("ApiKeyHeaderAuthenticator", "BhvAuthscheme005"),
+                    java.util.Map.entry("ApiKeyQueryAuthenticator", "BhvAuthscheme006"),
+                    java.util.Map.entry("SessionCookieAuthenticator", "BhvAuthscheme007"),
+                    java.util.Map.entry("SsoAuthAuthenticator", "BhvAuthscheme008"),
+                    java.util.Map.entry("PetStoreBearerAuthenticator", "BhvAuthscheme010"),
+                    java.util.Map.entry("ServiceTokenAuthenticator", "BhvAuthscheme011"),
+                    java.util.Map.entry("InternalApiKeyAuthenticator", "BhvAuthscheme012"),
+                    java.util.Map.entry(
+                            "MachineAuthClientCredentialsAuthenticator", "BhvAuthscheme013"),
+                    java.util.Map.entry("LegacyAuthPasswordAuthenticator", "BhvAuthscheme014"),
+                    java.util.Map.entry(
+                            "UserAuthAuthorizationCodeAuthenticator", "BhvAuthscheme015"),
+                    java.util.Map.entry("BrowserAuthImplicitAuthenticator", "BhvAuthscheme016"));
+
     /** {@inheritDoc} */
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
@@ -1004,7 +1027,19 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         entry.put("className", className);
         entry.put("baseClass", spec.baseClass());
         entry.put("isBearerScheme", "BearerAuthenticator".equals(spec.baseClass()));
+        /* Only the first bearer-kind scheme carries the bearer catalogue id, so the id stays unique. */
+        entry.put("isFirstBearerScheme", "BearerAuthenticator".equals(spec.baseClass())
+                && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBearerScheme"))));
         entry.put("isBasicScheme", "BasicAuthenticator".equals(spec.baseClass()));
+        final boolean apiKey = "ApiKeyAuthenticator".equals(spec.baseClass());
+        entry.put("isApiKeyScheme", apiKey);
+        /* One catalogue id per behaviour: the id-carrying tests name only the first scheme of
+         * their kind, and the empty-variable failure carries the id of the scheme it is named for. */
+        entry.put("isFirstApiKeyScheme", apiKey && perSchemeAuthEntries.stream()
+                .noneMatch(e -> Boolean.TRUE.equals(e.get("isApiKeyScheme"))));
+        entry.put("isFirstBearerScheme", "BearerAuthenticator".equals(spec.baseClass())
+                && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBearerScheme"))));
+        entry.put("emptyVariableBhv", EMPTY_VARIABLE_BHV.getOrDefault(className, ""));
         entry.put("envVars", ctx.get("envVars"));
         perSchemeAuthEntries.add(entry);
         additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);

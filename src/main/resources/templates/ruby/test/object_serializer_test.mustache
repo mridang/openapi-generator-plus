@@ -56,6 +56,59 @@ module {{moduleName}}
         attribute :ttl, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
       end
     end
+
+    # Stub models for the schema-default, nullable and strict surface tests.
+    # Mirror the shape the real model template emits.
+    unless const_defined?(:TestDefaultsModel)
+      class TestDefaultsModel < Dry::Struct
+        ATTRIBUTE_MAP = { retries: 'retries', mode: 'mode' }.freeze
+        JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+        OPENAPI_TYPES = { retries: 'Integer', mode: 'String' }.freeze
+        OPENAPI_FORMATS = {}.freeze
+
+        transform_keys do |key|
+          JSON_KEY_MAP[key.to_s] || key.to_sym
+        end
+
+        attribute :retries, ::{{moduleName}}::Types::Any.optional.meta(omittable: true).default(3)
+        attribute :mode, ::{{moduleName}}::Types::Any.optional.meta(omittable: true).default('medium')
+      end
+    end
+
+    unless const_defined?(:TestNullableModel)
+      class TestNullableModel < Dry::Struct
+        ATTRIBUTE_MAP = { kept: 'kept', dropped: 'dropped' }.freeze
+        JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+        OPENAPI_TYPES = { kept: 'String', dropped: 'String' }.freeze
+        OPENAPI_FORMATS = {}.freeze
+        # Required and nullable: a nil value is written as an explicit null.
+        REQUIRED_NULLABLE = { kept: true }.freeze
+
+        transform_keys do |key|
+          JSON_KEY_MAP[key.to_s] || key.to_sym
+        end
+
+        attribute :kept, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
+        attribute :dropped, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
+      end
+    end
+
+    unless const_defined?(:TestStrictModel)
+      class TestStrictModel < Dry::Struct
+        ATTRIBUTE_MAP = { id: 'id' }.freeze
+        JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+        OPENAPI_TYPES = { id: 'Integer' }.freeze
+        OPENAPI_FORMATS = {}.freeze
+        # unevaluatedProperties:false: the deserialize path rejects undeclared keys.
+        UNEVALUATED_PROPERTIES_FALSE = true
+
+        transform_keys do |key|
+          JSON_KEY_MAP[key.to_s] || key.to_sym
+        end
+
+        attribute :id, ::{{moduleName}}::Types::Any.optional.meta(omittable: true)
+      end
+    end
   end
 end
 
@@ -84,7 +137,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(result).must_include('-08:00')
     end
 
-    it 'subseconds are preserved in serialized datetime' do
+    it 'bhv_serializationobject_199 subseconds are preserved in serialized datetime' do
       t = Time.parse('2024-01-01T12:30:45.123+00:00')
       result = {{moduleName}}::ObjectSerializer.stringify(t)
       _(result).must_include('.123')
@@ -177,6 +230,16 @@ describe {{moduleName}}::ObjectSerializer do
     end
   end
 
+  it 'bhv_serializationobject_229 deserializes a map of models into a model instance for each value' do
+    result = {{moduleName}}::ObjectSerializer.deserialize(
+      '{"dogs":{"id":1,"name":"Dogs"},"cats":{"id":2,"name":"Cats"}}', 'Hash<String, Category>'
+    )
+    _(result.keys.sort).must_equal(%w[cats dogs])
+    _(result['dogs']).must_be_instance_of({{moduleName}}::Models::Category)
+    _(result['dogs'].id).must_equal(1)
+    _(result['cats'].name).must_equal('Cats')
+  end
+
   describe 'null model elements in containers' do
     it 'bhv_serializationobject_121 rejects a null element in an array of models' do
       _ { {{moduleName}}::ObjectSerializer.deserialize('[null,{"name":"a","photoUrls":[]}]', 'Array<Pet>') }
@@ -195,7 +258,7 @@ describe {{moduleName}}::ObjectSerializer do
         .must_raise({{moduleName}}::Errors::SerializationError)
     end
 
-    it 'keeps a null element in an array of strings' do
+    it 'bhv_serialization_065 keeps a null element in an array of strings' do
       _({{moduleName}}::ObjectSerializer.deserialize('[null,"a"]', 'Array<String>')).must_equal([nil, 'a'])
     end
   end
@@ -311,6 +374,10 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::ObjectSerializer.stringify(nil)).must_equal('')
     end
 
+    it 'bhv_serializationobject_211 writes an int64 as its exact decimal digits' do
+      _({{moduleName}}::ObjectSerializer.stringify(9_007_199_254_740_993)).must_equal('9007199254740993')
+    end
+
     it 'bhv_serializationobject_028 returns "true" for boolean true' do
       _({{moduleName}}::ObjectSerializer.stringify(true)).must_equal('true')
     end
@@ -321,6 +388,10 @@ describe {{moduleName}}::ObjectSerializer do
 
     it 'bhv_serializationobject_091 returns string representation of integer' do
       _({{moduleName}}::ObjectSerializer.stringify(42)).must_equal('42')
+    end
+
+    it 'bhv_serializationobject_190 stringifies a long to its exact decimal digits' do
+      _({{moduleName}}::ObjectSerializer.stringify(9_007_199_254_740_993)).must_equal('9007199254740993')
     end
 
     it 'bhv_serializationobject_157 returns ISO 8601 string for Time' do
@@ -450,6 +521,10 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::ObjectSerializer.to_header_value(42)).must_equal('42')
     end
 
+    it 'bhv_serializationobject_210 joins a list of strings with commas' do
+      _({{moduleName}}::ObjectSerializer.to_header_value(['alpha', 'beta gamma'])).must_equal('alpha,beta gamma')
+    end
+
     it 'bhv_serializationobject_096 joins array with comma' do
       _({{moduleName}}::ObjectSerializer.to_header_value(%w[a b c])).must_equal('a,b,c')
     end
@@ -505,6 +580,11 @@ describe {{moduleName}}::ObjectSerializer do
       _(json).must_equal('null')
     end
 
+    it 'bhv_serializationobject_188 an empty object serializes to an empty JSON object' do
+      category = {{moduleName}}::Models::Category.new(id: nil, name: nil)
+      _({{moduleName}}::ObjectSerializer.serialize(category)).must_equal('{}')
+    end
+
     it 'bhv_serializationobject_088 includes fields explicitly set to default values' do
       category = {{moduleName}}::Models::Category.new(id: 0, name: '')
       json = {{moduleName}}::ObjectSerializer.serialize(category)
@@ -523,6 +603,14 @@ describe {{moduleName}}::ObjectSerializer do
     it 'bhv_serializationobject_045 serializes a Time in the canonical date-time form' do
       json = {{moduleName}}::ObjectSerializer.serialize(Time.new(2024, 1, 1, 12, 30, 45, '+00:00'))
       _(JSON.parse(json)).must_equal('2024-01-01T12:30:45.000+00:00')
+    end
+
+    it 'bhv_serializationobject_209 returns a copy with the given fields replaced and leaves the original unchanged' do
+      original = {{moduleName}}::Models::Category.new(id: 1, name: 'Alpha')
+      changed = original.with(name: 'Beta')
+      _(changed.name).must_equal('Beta')
+      _(changed.id).must_equal(1)
+      _(original.name).must_equal('Alpha')
     end
 
     it 'bhv_serializationobject_165 serializes a Date in calendar form' do
@@ -551,7 +639,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(category.name).must_equal('Dogs')
     end
 
-    it 'raises SerializationError for a string body where an object model is expected' do
+    it 'bhv_serialization_028 raises SerializationError for a string body where an object model is expected' do
       err = _(proc {
         {{moduleName}}::ObjectSerializer.deserialize('"oops"', 'Pet')
       }).must_raise({{moduleName}}::Errors::SerializationError)
@@ -636,7 +724,7 @@ describe {{moduleName}}::ObjectSerializer do
 
     # Department and Employee reference each other: both directions decode to
     # typed models and write back unchanged.
-    it 'decodes and writes mutually recursive Department and Employee models' do
+    it 'bhv_serializationobject_189 decodes and writes mutually recursive Department and Employee models' do
       json = '{"name":"Eng","lead":{"name":"Ann","department":{"name":"Eng"}}}'
       department = {{moduleName}}::ObjectSerializer.deserialize(json, 'Department')
       _(department.lead).must_be_kind_of({{moduleName}}::Models::Employee)
@@ -694,7 +782,7 @@ describe {{moduleName}}::ObjectSerializer do
 
     # Spec prose in a model's externalDocs reaches the comment as written:
     # no HTML entity and no literal escape.
-    it 'documents the Account externalDocs description verbatim' do
+    it 'bhv_serializationobject_227 documents the Account externalDocs description verbatim' do
       path = String(Object.const_source_location({{moduleName}}::Models::Account.name)&.first)
       _(File.read(path)).must_include(%q(# @see https://example.com/docs/account Account <docs> & "notes" it's here))
     end
@@ -788,7 +876,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(pet.photo_urls.to_a).must_equal(['http://example.com/p.jpg'])
     end
 
-    it 'leaves optional fields untouched when omitted' do
+    it 'bhv_serializationobject_231 leaves optional fields untouched when omitted' do
       # Only the required fields are supplied; optional `id`/`status` stay nil.
       json = '{"name":"doggie","photoUrls":["http://example.com/p.jpg"]}'
       pet = {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
@@ -819,6 +907,15 @@ describe {{moduleName}}::ObjectSerializer do
       _(data['outer']).must_include 'c'
     end
 
+    it 'bhv_serializationobject_202 omits a null field on serialize while the non-null fields are kept' do
+      item = {{moduleName}}::Models::StockItem.new(priority: 1, availability: nil)
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(item))).must_equal('priority' => 1)
+    end
+
+    it 'bhv_serializationobject_183 handles null' do
+      _({{moduleName}}::ObjectSerializer.deserialize(nil, 'Pet')).must_be_nil
+    end
+
     it 'keeps nil array elements (only hashes filter)' do
       json = {{moduleName}}::ObjectSerializer.serialize([1, nil, 3])
       _(JSON.parse(json)).must_equal [1, nil, 3]
@@ -839,7 +936,13 @@ describe {{moduleName}}::ObjectSerializer do
       end
     end
 
-    it 'returns value when deserializing valid enum value' do
+    it 'bhv_serializationobject_192 fails loudly at decode for an unknown enum string' do
+      assert_raises({{moduleName}}::Errors::SerializationError) do
+        {{moduleName}}::ObjectSerializer.deserialize('"banana"', 'TestStatusEnumDeserialize')
+      end
+    end
+
+    it 'bhv_serialization_003 returns value when deserializing valid enum value' do
       result = {{moduleName}}::ObjectSerializer.deserialize('"approved"', 'TestStatusEnumDeserialize')
       _(result).must_equal 'approved'
     end
@@ -849,7 +952,7 @@ describe {{moduleName}}::ObjectSerializer do
     # Types::String.enum. An unknown wire value must surface the SDK
     # (de)serialization error rather than silently coercing to a default or
     # an "unknown" sentinel.
-    it 'raises SerializationError when an inline model enum has an unknown value' do
+    it 'bhv_serializationobject_182 raises SerializationError for an unknown inline enum value on deserialize' do
       json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
       _(proc {
         {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
@@ -913,7 +1016,7 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::Models::TestStatusEnumValidate.validate!('approved')).must_equal 'approved'
     end
 
-    it 'validate! raises ArgumentError for value not in VALUES' do
+    it 'bhv_serialization_004 validate! raises ArgumentError for value not in VALUES' do
       assert_raises(ArgumentError) do
         {{moduleName}}::Models::TestStatusEnumValidate.validate!('shipped')
       end
@@ -955,7 +1058,14 @@ describe {{moduleName}}::ObjectSerializer do
       end
     end
 
-    it 'deserialize raises on NaN literal' do
+    it 'bhv_serializationobject_200 a serialize failure starts with the canonical prefix and names the detail' do
+      error = _ { {{moduleName}}::ObjectSerializer.serialize({ 'val' => Float::NAN }) }
+        .must_raise({{moduleName}}::Errors::SerializationError)
+      _(error.message).must_match(/\AFailed to serialize object to JSON: /)
+      _(error.message).must_include('NaN')
+    end
+
+    it 'bhv_serialization_035 deserialize raises on NaN literal' do
       assert_raises({{moduleName}}::Errors::SerializationError) do
         {{moduleName}}::ObjectSerializer.deserialize('{"val": NaN}', 'Object')
       end
@@ -968,7 +1078,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(error.message).must_include('Expected a finite number')
     end
 
-    it 'deserialize keeps the largest finite double' do
+    it 'bhv_serialization_034 deserialize keeps the largest finite double' do
       location = {{moduleName}}::ObjectSerializer.deserialize('{"lat":1.7976931348623157e308}', 'PhotoMetadataLocation')
 
       _(location.lat).must_equal(Float::MAX)
@@ -984,7 +1094,7 @@ describe {{moduleName}}::ObjectSerializer do
   # ── format: byte (Buffer/bytes surface, 2.1) ──
 
   describe 'format: byte base64 transcoding' do
-    it 'decodes base64 wire value into binary-encoded String on deserialize' do
+    it 'bhv_serialization_062 decodes base64 wire value into binary-encoded String on deserialize' do
       raw = "hello\x00\xFFworld".dup.force_encoding(Encoding::BINARY)
       encoded = Base64.strict_encode64(raw)
       json = %({"blob":"#{encoded}","note":"x"})
@@ -994,7 +1104,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(result.note).must_equal('x')
     end
 
-    it 'encodes binary String back to base64 on serialize' do
+    it 'bhv_serialization_063 encodes binary String back to base64 on serialize' do
       raw = "\x00\x01\x02\xFF".dup.force_encoding(Encoding::BINARY)
       model = {{moduleName}}::Models::TestFormatModel.new(blob: raw, note: 'y')
       json = {{moduleName}}::ObjectSerializer.serialize(model)
@@ -1009,6 +1119,17 @@ describe {{moduleName}}::ObjectSerializer do
       json = {{moduleName}}::ObjectSerializer.serialize(model)
       restored = {{moduleName}}::ObjectSerializer.deserialize(json, 'TestFormatModel')
       _(restored.blob).must_equal(raw)
+    end
+
+    it 'bhv_serializationobject_185 accepts canonical padded standard base64 for a byte field' do
+      result = {{moduleName}}::ObjectSerializer.deserialize('{"blob":"dGVzdA==","note":"x"}', 'TestFormatModel')
+      _(result.blob).must_equal('test'.b)
+    end
+
+    it 'bhv_serializationobject_207 rejects a non-standard base64 value on decode' do
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('{"blob":"-_8="}', 'TestFormatModel')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
     end
 
     it 'bhv_serializationobject_094 raises SerializationError on invalid base64 input' do
@@ -1137,6 +1258,11 @@ describe {{moduleName}}::ObjectSerializer do
         .must_raise({{moduleName}}::Errors::SerializationError)
     end
 
+    it 'bhv_serializationobject_218 writes a value of a required nullable property as given' do
+      model = {{moduleName}}::Models::RequiredNullable.new(note: 'n')
+      _({{moduleName}}::ObjectSerializer.serialize(model)).must_equal('{"note":"n"}')
+    end
+
     it 'bhv_serializationobject_125 writes a nil value as an explicit null' do
       model = {{moduleName}}::Models::RequiredNullable.new(note: nil)
       _({{moduleName}}::ObjectSerializer.serialize(model)).must_equal('{"note":null}')
@@ -1146,7 +1272,7 @@ describe {{moduleName}}::ObjectSerializer do
   # ── fixture round trips (model bodies the format tables above do not reach) ──
 
   describe 'EdgeCases model body' do
-    it 'decodes and writes a format: time property, keeping the milliseconds' do
+    it 'bhv_serializationobject_219 decodes and writes a format: time property, keeping the milliseconds' do
       edge = {{moduleName}}::ObjectSerializer.deserialize('{"cutoff":"10:30:00.123"}', 'EdgeCases')
       _(edge.cutoff).must_be_kind_of(Tod::TimeOfDay)
       _(edge.cutoff.hour).must_equal(10)
@@ -1154,7 +1280,7 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::ObjectSerializer.serialize(edge)).must_equal('{"cutoff":"10:30:00.123"}')
     end
 
-    it 'cuts a finer fraction of a format: time property to the millisecond' do
+    it 'bhv_serialization_038 cuts a finer fraction of a format: time property to the millisecond' do
       edge = {{moduleName}}::ObjectSerializer.deserialize('{"cutoff":"10:30:00.123456789"}', 'EdgeCases')
       _({{moduleName}}::ObjectSerializer.serialize(edge)).must_equal('{"cutoff":"10:30:00.123"}')
     end
@@ -1174,7 +1300,7 @@ describe {{moduleName}}::ObjectSerializer do
     end
 
     # D88: the protobuf duration range is +-315 576 000 000 s.
-    it 'accepts a duration at the protobuf bound and rejects one past it' do
+    it 'bhv_serializationobject_223 accepts a duration at the protobuf bound and rejects one past it' do
       ok = {{moduleName}}::ObjectSerializer.deserialize('{"retryAfter":"315576000000s"}', 'EdgeCases')
       _(ok.retry_after).must_be_kind_of(ISO8601::Duration)
       ['315576000001s', '-315576000001s', '315576000000.000000001s'].each do |text|
@@ -1257,6 +1383,10 @@ describe {{moduleName}}::ObjectSerializer do
       _(base).wont_equal(decode.call('{"seal":"AQID","shards":["AQID"],"labels":{"a":"BAUG"}}'))
     end
 
+    it 'bhv_serializationobject_206 tells vaults whose map keys differ apart' do
+      _(decode.call('{"labels":{"a":"AQID"}}')).wont_equal(decode.call('{"labels":{"b":"AQID"}}'))
+    end
+
     it 'bhv_serializationobject_009 does not confuse a list of byte arrays with a map of them' do
       as_list = decode.call('{"shards":["AQID"]}')
       as_map = decode.call('{"labels":{"0":"AQID"}}')
@@ -1275,6 +1405,15 @@ describe {{moduleName}}::ObjectSerializer do
       _(written['note']).must_equal('x')
       _(written['owner']).must_equal('ann')
     end
+
+    it 'bhv_serializationobject_205 an extra key survives a full deserialize then serialize round trip' do
+      json = '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}'
+      wire = {{moduleName}}::ObjectSerializer.serialize({{moduleName}}::ObjectSerializer.deserialize(json, 'Metadata'))
+      _(JSON.parse(wire)['region']).must_equal('eu')
+      _(JSON.parse(wire)).wont_include('additional_properties')
+      again = {{moduleName}}::ObjectSerializer.deserialize(wire, 'Metadata')
+      _(again.additional_properties).must_equal('region' => 'eu')
+    end
   end
 
   # D46: Availability members that are special inside a string literal keep
@@ -1292,6 +1431,13 @@ describe {{moduleName}}::ObjectSerializer do
   end
 
   describe 'Availability members, every one' do
+    it 'bhv_serializationobject_208 writes each member back as the exact wire string it was read from' do
+      {{moduleName}}::Models::Availability::VALUES.each do |value|
+        member = {{moduleName}}::ObjectSerializer.deserialize(JSON.generate(value), 'Availability')
+        _({{moduleName}}::ObjectSerializer.serialize(member)).must_equal(JSON.generate(value))
+      end
+    end
+
     it 'bhv_serializationobject_076 round-trips every Availability member, hostile ones included' do
       {{moduleName}}::Models::Availability::VALUES.each do |value|
         json = JSON.generate({ 'priority' => 1, 'availability' => value })
@@ -1319,12 +1465,12 @@ describe {{moduleName}}::ObjectSerializer do
       _(json).must_equal("{\"note\":\"a\u2028b\u2029c\u007Fd\"}")
     end
 
-    it 'writes slash, angle brackets, ampersand and non-ASCII literally' do
+    it 'bhv_serialization_061 writes slash, angle brackets, ampersand and non-ASCII literally' do
       json = {{moduleName}}::ObjectSerializer.serialize({ 'note' => "/<>&\u00E9" })
       _(json).must_equal("{\"note\":\"/<>&\u00E9\"}")
     end
 
-    it 'escapes the quote, the backslash and controls below U+0020' do
+    it 'bhv_serializationobject_186 escapes the quote, the backslash and controls below U+0020' do
       json = {{moduleName}}::ObjectSerializer.serialize({ 'note' => "\"\\\u0001" })
       _(json).must_equal('{"note":"\\"\\\\\\u0001"}')
     end
@@ -1355,7 +1501,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(JSON.parse(json)['opens_at']).must_equal('09:00:00')
     end
 
-    it 'convert_to_type parses HH:MM:SS into a Tod::TimeOfDay' do
+    it 'bhv_serialization_041 convert_to_type parses HH:MM:SS into a Tod::TimeOfDay' do
       result = {{moduleName}}::ObjectSerializer.convert_to_type('13:45:30', 'Tod::TimeOfDay')
       _(result).must_be_kind_of(Tod::TimeOfDay)
       _(result.hour).must_equal(13)
@@ -1374,14 +1520,14 @@ describe {{moduleName}}::ObjectSerializer do
       _(result).must_equal(original)
     end
 
-    it 'round-trip time yields equivalent value' do
+    it 'bhv_serializationobject_230 round-trip time yields equivalent value' do
       original = Tod::TimeOfDay.new(7, 30, 15)
       serialized = {{moduleName}}::ObjectSerializer.stringify(original)
       parsed = {{moduleName}}::ObjectSerializer.convert_to_type(serialized, 'Tod::TimeOfDay')
       _(parsed).must_equal(original)
     end
 
-    it 'convert_to_type raises on malformed time string' do
+    it 'bhv_serialization_045 convert_to_type raises on malformed time string' do
       assert_raises(ArgumentError) do
         {{moduleName}}::ObjectSerializer.convert_to_type('not-a-time', 'Tod::TimeOfDay')
       end
@@ -1424,7 +1570,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(JSON.parse(json)['ttl']).must_equal('3600s')
     end
 
-    it 'stringify emits fractional seconds trimmed to nanos precision' do
+    it 'bhv_serialization_046 stringify emits fractional seconds trimmed to nanos precision' do
       d = ISO8601::Duration.new('PT3600.000000001S')
       _({{moduleName}}::ObjectSerializer.stringify(d)).must_equal('3600.000000001s')
     end
@@ -1468,7 +1614,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(result.to_seconds).must_be_close_to(3600.000000001, 1e-9)
     end
 
-    it 'convert_to_type parses sub-0.0001s durations without scientific notation' do
+    it 'bhv_serializationobject_212 convert_to_type parses sub-0.0001s durations without scientific notation' do
       # Regression: building the ISO-8601 literal from a Float interpolated
       # the seconds field as scientific notation for magnitudes below 0.0001
       # (0.00001 -> "1.0e-05"), which the iso8601 gem's decimal-only grammar
@@ -1498,7 +1644,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(parsed.to_seconds).must_equal(original.to_seconds)
     end
 
-    it 'convert_to_type raises on malformed duration string' do
+    it 'bhv_serializationobject_184 rejects an ISO-8601 duration string' do
       assert_raises({{moduleName}}::Errors::SerializationError) do
         {{moduleName}}::ObjectSerializer.convert_to_type('PT1H', 'ISO8601::Duration')
       end
@@ -1622,7 +1768,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(result).must_be_kind_of(Integer)
     end
 
-    it 'rejects an unknown integer enum value on deserialize' do
+    it 'bhv_serializationobject_193 rejects an unknown integer enum value on deserialize' do
       _(proc {
         {{moduleName}}::ObjectSerializer.deserialize('99', 'Priority')
       }).must_raise({{moduleName}}::Errors::SerializationError)
@@ -1657,9 +1803,13 @@ describe {{moduleName}}::ObjectSerializer do
         .must_equal({{moduleName}}::Models::Availability::ON_HOLD)
     end
 
-    it 'serializes a member with its original wire casing' do
+    it 'bhv_serialization_002 serializes a member with its original wire casing' do
       json = {{moduleName}}::ObjectSerializer.serialize({{moduleName}}::Models::Availability::AVAILABLE)
       _(JSON.parse(json)).must_equal('Available')
+    end
+
+    it 'bhv_serializationobject_194 writes a hyphenated enum member with its wire value exactly as declared' do
+      _({{moduleName}}::ObjectSerializer.serialize({{moduleName}}::Models::Availability::ON_HOLD)).must_equal('"on-hold"')
     end
 
     it 'bhv_serializationobject_059 rejects an unknown string enum value on deserialize' do
@@ -1683,6 +1833,12 @@ describe {{moduleName}}::ObjectSerializer do
       }).must_raise({{moduleName}}::Errors::SerializationError)
     end
 
+    it 'bhv_serializationobject_196 an explicit value on the wire replaces the declared default' do
+      item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1,"availability":"Sold"}', 'StockItem')
+      _(item.availability).must_equal({{moduleName}}::Models::Availability::SOLD)
+      _(item.availability).wont_equal({{moduleName}}::Models::Availability::ON_HOLD)
+    end
+
     it 'accepts a known referenced-enum field value' do
       item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1,"availability":"Sold"}', 'StockItem')
       _(item.availability).must_equal({{moduleName}}::Models::Availability::SOLD)
@@ -1703,11 +1859,6 @@ describe {{moduleName}}::ObjectSerializer do
     it 'decodes to the default when the wire leaves the field out' do
       item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1}', 'StockItem')
       _(item.availability).must_equal({{moduleName}}::Models::Availability::ON_HOLD)
-    end
-
-    it 'keeps a value that is given' do
-      item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1,"availability":"Sold"}', 'StockItem')
-      _(item.availability).must_equal({{moduleName}}::Models::Availability::SOLD)
     end
   end
 
@@ -1758,7 +1909,7 @@ describe {{moduleName}}::ObjectSerializer do
   # The scalar byte case (TestFormatModel.blob / top-level ByteArray) is
   # covered above; this guards the per-item array transform.
   describe 'format: byte array items round-trip through base64' do
-    it 'base64-decodes every scan item into raw bytes on deserialize' do
+    it 'bhv_serializationobject_221 base64-decodes every scan item into raw bytes on deserialize' do
       raw_a = "scan-a\x00".dup.force_encoding(Encoding::BINARY)
       raw_b = "scan-b\xFF".dup.force_encoding(Encoding::BINARY)
       json = %({"scans":["#{Base64.strict_encode64(raw_a)}","#{Base64.strict_encode64(raw_b)}"]})
@@ -1768,7 +1919,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(passport.scans.first.encoding).must_equal(Encoding::BINARY)
     end
 
-    it 're-encodes every scan item to base64 on serialize' do
+    it 'bhv_serializationobject_222 re-encodes every scan item to base64 on serialize' do
       raw_a = "\x01\x02".dup.force_encoding(Encoding::BINARY)
       raw_b = "\xFE\xFF".dup.force_encoding(Encoding::BINARY)
       model = {{moduleName}}::Models::PetPassport.new(scans: [raw_a, raw_b])
@@ -1845,18 +1996,266 @@ describe {{moduleName}}::ObjectSerializer do
       _(err.message).must_equal('Failed to deserialize JSON: Expected Integer, got Float: 1.5')
     end
 
-    it 'refuses a quoted number for an int64 property' do
+    it 'bhv_serialization_029 refuses a quoted number for an int64 property' do
       err = assert_raises({{moduleName}}::Errors::SerializationError) do
         {{moduleName}}::ObjectSerializer.deserialize('{"id":"7"}', '{{moduleName}}::Models::Order')
       end
       _(err.message).must_equal('Failed to deserialize JSON: Expected Integer, got String: "7"')
     end
 
-    it 'keeps an int64 above 2**53 exact through decode and encode' do
+    it 'bhv_serializationobject_191 keeps an int64 above 2**53 exact through decode and encode' do
       order = {{moduleName}}::ObjectSerializer.deserialize('{"id":9007199254740993}', '{{moduleName}}::Models::Order')
 
       _(order.id).must_equal(9_007_199_254_740_993)
       _({{moduleName}}::ObjectSerializer.serialize(order)).must_include('"id":9007199254740993')
     end
+  end
+end
+
+describe {{moduleName}}::ObjectSerializer, 'wire contract for scalars, containers and models' do
+  parallelize_me!
+
+  it 'bhv_serialization_001 the text form of an enum member is exactly its declared wire value' do
+    _({{moduleName}}::Models::Availability::ON_HOLD.to_s).must_equal('on-hold')
+  end
+
+  it 'bhv_serialization_009 a value that cannot be serialized raises the serialization error' do
+    cycle = []
+    cycle << cycle
+
+    _(proc {
+      {{moduleName}}::ObjectSerializer.serialize(cycle)
+    }).must_raise({{moduleName}}::Errors::SerializationError)
+  end
+
+  it 'bhv_serialization_012 keys of maps are written in ascending order so equal data writes identical output' do
+    first = {{moduleName}}::ObjectSerializer.serialize({ 'b' => 1, 'a' => 2, 'c' => 3 })
+    _(first).must_equal('{"a":2,"b":1,"c":3}')
+    _(first).must_equal({{moduleName}}::ObjectSerializer.serialize({ 'c' => 3, 'a' => 2, 'b' => 1 }))
+  end
+
+  it 'bhv_serialization_011 model keys are written in the declaration order, never sorted' do
+    json = {{moduleName}}::ObjectSerializer.serialize(
+      {{moduleName}}::Models::TestFormatModel.new(note: 'n', blob: 'b')
+    )
+
+    _(json.index('"blob"')).must_be :<, json.index('"note"')
+  end
+
+  it 'bhv_serialization_013 a set or array header value is written as its items' do
+    _({{moduleName}}::ObjectSerializer.to_header_value(%w[a b])).must_equal('a,b')
+  end
+
+  it 'bhv_serialization_019 an unset optional property is left out of the serialized output' do
+    json = {{moduleName}}::ObjectSerializer.serialize({{moduleName}}::Models::TestFormatModel.new(note: 'x'))
+
+    _(JSON.parse(json).key?('blob')).must_equal(false)
+  end
+
+  it 'bhv_serialization_021 models with equal content compare equal and hash alike' do
+    first = {{moduleName}}::Models::TestFormatModel.new(note: 'x')
+    same = {{moduleName}}::Models::TestFormatModel.new(note: 'x')
+    other = {{moduleName}}::Models::TestFormatModel.new(note: 'y')
+
+    _(first).must_equal(same)
+    _(first.hash).must_equal(same.hash)
+    _(first).wont_equal(other)
+  end
+
+  it 'bhv_serialization_022 a top-level JSON scalar decodes to a value of its own type' do
+    _({{moduleName}}::ObjectSerializer.deserialize('42', 'Integer')).must_equal(42)
+    _({{moduleName}}::ObjectSerializer.deserialize('"x"', 'String')).must_equal('x')
+    _({{moduleName}}::ObjectSerializer.deserialize('true', 'Boolean')).must_equal(true)
+  end
+
+  it 'bhv_serialization_023 a payload with content after the document is refused with the serialization error' do
+    _(proc {
+      {{moduleName}}::ObjectSerializer.deserialize('{"a":1} trailing', 'Object')
+    }).must_raise({{moduleName}}::Errors::SerializationError)
+  end
+
+  it 'bhv_serialization_024 brackets inside JSON strings never count toward the depth limit' do
+    nested = '[' * 2000
+    json = %({"a":"#{nested}"})
+
+    _({{moduleName}}::ObjectSerializer.deserialize(json, 'Object')).must_equal(a: nested)
+  end
+
+  it 'a payload nested past the depth limit is refused with the serialization error' do
+    deep = ('[' * 1001) + (']' * 1001)
+
+    _(proc {
+      {{moduleName}}::ObjectSerializer.deserialize(deep, 'Object')
+    }).must_raise({{moduleName}}::Errors::SerializationError)
+  end
+
+  it 'bhv_serialization_025 typed leaves nested in arrays and maps decode to their own typed values' do
+    items = {{moduleName}}::ObjectSerializer.deserialize('[{"note":"x"}]', 'Array<TestFormatModel>')
+    by_key = {{moduleName}}::ObjectSerializer.deserialize('{"a":"on-hold"}', 'Hash<String, Availability>')
+
+    _(items.first).must_be_kind_of({{moduleName}}::Models::TestFormatModel)
+    _(items.first.note).must_equal('x')
+    _(by_key).must_equal('a' => 'on-hold')
+  end
+
+  it 'bhv_serialization_026 a JSON object decodes to a map of its keys and typed values' do
+    _({{moduleName}}::ObjectSerializer.deserialize('{"b":2,"a":1}', 'Hash<String, Integer>')).must_equal('a' => 1, 'b' => 2)
+    _({{moduleName}}::ObjectSerializer.deserialize('{}', 'Hash<String, Integer>')).must_equal({})
+  end
+
+  it 'bhv_serialization_027 an empty JSON array decodes to an empty collection, distinct from an absent value' do
+    _({{moduleName}}::ObjectSerializer.deserialize('[]', 'Array<Integer>')).must_equal([])
+    _({{moduleName}}::ObjectSerializer.deserialize('null', 'Array<Integer>')).must_be_nil
+  end
+
+  it 'bhv_serialization_030 a date-time field refuses a number, a boolean or an array' do
+    %w[5 true [1]].each do |payload|
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(payload, 'Time')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+    end
+  end
+
+  it 'bhv_serialization_031 a whole number at the largest 32-bit and 64-bit values decodes exactly' do
+    _({{moduleName}}::ObjectSerializer.deserialize('2147483647', 'Integer')).must_equal(2_147_483_647)
+    _({{moduleName}}::ObjectSerializer.deserialize('9223372036854775807', 'Integer')).must_equal(9_223_372_036_854_775_807)
+  end
+
+  it 'bhv_serialization_032 an integer field refuses a number written with a fraction or an exponent' do
+    _(proc { {{moduleName}}::ObjectSerializer.deserialize('1.0', 'Integer') }).must_raise({{moduleName}}::Errors::SerializationError)
+    _(proc { {{moduleName}}::ObjectSerializer.deserialize('1e2', 'Integer') }).must_raise({{moduleName}}::Errors::SerializationError)
+  end
+
+  it 'bhv_serialization_033 each leaf of an integer map or nested integer array must be a plain integer' do
+    _(proc {
+      {{moduleName}}::ObjectSerializer.deserialize('{"a":1,"b":1.5}', 'Hash<String, Integer>')
+    }).must_raise({{moduleName}}::Errors::SerializationError)
+    _(proc {
+      {{moduleName}}::ObjectSerializer.deserialize('[[1,2],[3,"x"]]', 'Array<Array<Integer>>')
+    }).must_raise({{moduleName}}::Errors::SerializationError)
+  end
+
+  it 'bhv_serialization_036 a whole-number floating-point value is written with a decimal point' do
+    _({{moduleName}}::ObjectSerializer.serialize(1.0)).must_equal('1.0')
+  end
+
+  it 'bhv_serialization_039 date-times in different RFC 3339 spellings read to the same instant' do
+    zulu = {{moduleName}}::ObjectSerializer.deserialize('"2024-01-02T03:04:05.123456Z"', 'Time')
+    offset = {{moduleName}}::ObjectSerializer.deserialize('"2024-01-02T04:04:05.123456+01:00"', 'Time')
+
+    _(offset).must_equal(zulu)
+  end
+
+  it 'bhv_serialization_043 a time of day is written as hours, minutes and seconds' do
+    _({{moduleName}}::ObjectSerializer.serialize(Tod::TimeOfDay.new(9, 5, 3))).must_equal('"09:05:03"')
+  end
+
+  it 'bhv_serialization_049 a URI-format value must be absolute' do
+    _({{moduleName}}::ObjectSerializer.apply_format_on_deserialize('https://example.com/a', 'uri')).must_equal('https://example.com/a')
+    _(proc {
+      {{moduleName}}::ObjectSerializer.apply_format_on_deserialize('relative/path', 'uri')
+    }).must_raise({{moduleName}}::Errors::SerializationError)
+  end
+
+  it 'bhv_serialization_052 undeclared keys are kept on every element of a list read from the wire' do
+    items = {{moduleName}}::ObjectSerializer.deserialize('[{"customField":"a"}]', 'Array<Metadata>')
+
+    _(items.first.additional_properties).must_equal('customField' => 'a')
+  end
+
+  it 'bhv_serialization_053 undeclared keys held by a model are written back when it is serialized' do
+    metadata = {{moduleName}}::Models::Metadata.new(additional_properties: { 'customField' => 'a' })
+    data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(metadata))
+
+    _(data['customField']).must_equal('a')
+  end
+
+  it 'bhv_serialization_054 a free-form value keeps its JSON type' do
+    _({{moduleName}}::ObjectSerializer.deserialize('{"a":"x","b":null}', 'Object')).must_equal(a: 'x', b: nil)
+  end
+
+  it 'bhv_serialization_042 a date-only value is written as the same calendar date it was read as' do
+    date = {{moduleName}}::ObjectSerializer.deserialize('"2024-02-29"', 'Date')
+
+    _({{moduleName}}::ObjectSerializer.serialize(date)).must_equal('"2024-02-29"')
+  end
+
+  it 'bhv_serialization_064 a collection of unique values is written as a JSON array of its members' do
+    _({{moduleName}}::ObjectSerializer.serialize(Set.new(%w[b a]))).must_equal('["a","b"]')
+  end
+end
+
+describe {{moduleName}}::ObjectSerializer, 'schema defaults, nullable values, duration bounds and wire names' do
+  parallelize_me!
+
+  it 'bhv_serialization_020 writes a field the caller leaves unset with its schema default' do
+    model = {{moduleName}}::Models::TestDefaultsModel.new({})
+
+    _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(model))).must_equal('retries' => 3, 'mode' => 'medium')
+  end
+
+  it 'keeps the value the caller sets in place of the schema default' do
+    model = {{moduleName}}::Models::TestDefaultsModel.new(retries: 5)
+
+    _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(model))['retries']).must_equal 5
+  end
+
+  it 'bhv_serialization_066 writes a nil value only for the property that declares it nullable' do
+    model = {{moduleName}}::Models::TestNullableModel.new(kept: nil, dropped: nil)
+
+    _({{moduleName}}::ObjectSerializer.serialize(model)).must_equal('{"kept":null}')
+  end
+
+  it 'decodes a present value for a nullable property as given' do
+    model = {{moduleName}}::ObjectSerializer.deserialize('{"kept":"v","dropped":"w"}', 'TestNullableModel')
+
+    _([model.kept, model.dropped]).must_equal(%w[v w])
+  end
+
+  it 'bhv_serialization_047 formats a duration too large for a 64-bit nanosecond count without overflow' do
+    d = ISO8601::Duration.new('PT315576000000S')
+
+    _({{moduleName}}::ObjectSerializer.stringify(d)).must_equal('315576000000s')
+  end
+
+  it 'round-trips a duration too large for a 64-bit nanosecond count' do
+    edge = {{moduleName}}::ObjectSerializer.deserialize('{"retryAfter":"315576000000s"}', 'EdgeCases')
+
+    _(edge.retry_after.to_seconds).must_equal(315_576_000_000)
+    _({{moduleName}}::ObjectSerializer.serialize(edge)).must_equal('{"retryAfter":"315576000000s"}')
+  end
+
+  it 'refuses an out-of-range duration string' do
+    _(proc {
+      {{moduleName}}::ObjectSerializer.deserialize('{"retryAfter":"315576000001s"}', 'EdgeCases')
+    }).must_raise({{moduleName}}::Errors::SerializationError)
+  end
+
+  it 'bhv_serialization_048 writes a duration held as a header value as its protobuf-JSON seconds' do
+    _({{moduleName}}::ObjectSerializer.to_header_value(ISO8601::Duration.new('PT1H'))).must_equal('3600s')
+  end
+
+  it 'writes a duration on its own as a protobuf-JSON seconds string' do
+    _({{moduleName}}::ObjectSerializer.serialize(ISO8601::Duration.new('PT5M'))).must_equal('"300s"')
+  end
+
+  it 'bhv_serialization_050 reads and writes a property whose name begins with a digit under its wire name' do
+    edge = {{moduleName}}::ObjectSerializer.deserialize('{"2fa":true}', 'EdgeCases')
+
+    _(edge.n2fa).must_equal(true)
+    _({{moduleName}}::ObjectSerializer.serialize(edge)).must_include('"2fa":true')
+  end
+
+  it 'bhv_serialization_051 a strict model exposes no separate public method for its unknown-key check' do
+    members = {{moduleName}}::Models::TestStrictModel.public_instance_methods(false) +
+              {{moduleName}}::Models::TestStrictModel.singleton_methods(false)
+
+    _(members.grep(/unknown|undeclared|strict/i)).must_be_empty
+  end
+
+  it 'deserialize refuses an undeclared key for a strict model through the one entry point' do
+    _(proc {
+      {{moduleName}}::ObjectSerializer.deserialize('{"id":1,"extra":2}', 'TestStrictModel')
+    }).must_raise({{moduleName}}::Errors::SerializationError)
   end
 end

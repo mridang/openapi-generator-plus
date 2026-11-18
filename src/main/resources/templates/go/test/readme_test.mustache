@@ -18,7 +18,7 @@ func readSourceFile(t *testing.T, path string) string {
 	return string(data)
 }
 
-func TestReadme_SocksNoteNamesTheGoProxySetter(t *testing.T) {
+func TestBhvOptions044_Readme_SocksNoteNamesTheGoProxySetter(t *testing.T) {
 	t.Parallel()
 	readme := readSourceFile(t, "../README.md")
 	if !strings.Contains(readme, "`TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.") {

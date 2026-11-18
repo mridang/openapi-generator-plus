@@ -9,6 +9,7 @@ import Foundation
 import TestcontainersCore
 
 nonisolated(unsafe) var proxyUrl: String = ""
+nonisolated(unsafe) var proxyAuthHostPort: String = ""
 nonisolated(unsafe) var chasmUrl: String = ""
 nonisolated(unsafe) var chasmHttpUrl: String = ""
 nonisolated(unsafe) var chasmHttpsUrl: String = ""
@@ -83,6 +84,7 @@ private func _setUpContainers() async throws {
   if let sharedChasm = environment["CHASM_HTTP_URL"], let sharedProxy = environment["PROXY_URL"] {
     caCertPath = fixturesPath.appendingPathComponent("certs/ca.pem").path
     proxyUrl = sharedProxy
+    proxyAuthHostPort = environment["PROXY_AUTH_HOST_PORT"] ?? ""
     chasmUrl = sharedChasm
     chasmHttpUrl = sharedChasm
     chasmHttpsUrl = environment["CHASM_HTTPS_URL"] ?? ""
@@ -101,7 +103,7 @@ private func _setUpContainers() async throws {
   let squidConfPath = fixturesPath.appendingPathComponent("proxy/squid.conf")
 
   let squid = DockerContainer("ubuntu/squid:6.10-24.10_beta")
-    .withExposedPorts([3128])
+    .withExposedPorts([3128, 3129])
     .withCopyIntoContainer(
       .path(squidConfPath),
       "/etc/squid/squid.conf"
@@ -124,6 +126,8 @@ private func _setUpContainers() async throws {
   let squidHost = try await squid.containerHostIp()
   let squidPort = try await squid.exposedPort(3128)
   proxyUrl = "http://\(squidHost):\(squidPort)"
+  let squidAuthPort = try await squid.exposedPort(3129)
+  proxyAuthHostPort = "\(squidHost):\(squidAuthPort)"
 
   let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
   let chasmCertPath = fixturesPath.appendingPathComponent("certs/server.pem")

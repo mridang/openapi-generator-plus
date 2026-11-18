@@ -349,7 +349,9 @@ internal class ObjectSerializer(
             obj::class.java.getMethod("getActualInstance").invoke(obj)
         } catch (_: NoSuchMethodException) { obj }
         if (unwrapped == null) return "null"
-        if (unwrapped is Map<*, *> || unwrapped is List<*> || unwrapped is ByteArray) {
+        // A decimal is written as its exact digits, never through a Double.
+        if (unwrapped is BigDecimal) return unwrapped.toPlainString()
+        if (unwrapped is Map<*, *> || unwrapped is Collection<*> || unwrapped is ByteArray) {
             // Maps/lists round-trip through JsonElement. A bare byte array goes out as
             // its base64 string, as a format: byte property does. A free-form value the
             // caller deliberately set to null is preserved here (only object
@@ -517,7 +519,12 @@ internal class ObjectSerializer(
     fun toWireMap(value: Any?): Map<String, String>? {
         if (value == null) return null
         if (value is Map<*, *>) {
-            return value.entries.associate { (key, field) -> key.toString() to stringify(field) }
+            return value.entries.filter { it.value != null }.associate { (key, field) ->
+                if (field is Map<*, *> || field is Collection<*>) {
+                    throw SerializationException("Parameter field '$key' is a nested value; only flat objects can be encoded")
+                }
+                key.toString() to stringify(field)
+            }
         }
         if (value is Collection<*> || isLeafValue(value)) return null
         val model = unwrapInstance(value)
@@ -528,7 +535,7 @@ internal class ObjectSerializer(
             when (field) {
                 is JsonNull -> Unit
                 is JsonPrimitive -> result[key] = field.content
-                else -> throw IllegalArgumentException("Parameter field '$key' is a nested value; only flat objects can be encoded")
+                else -> throw SerializationException("Parameter field '$key' is a nested value; only flat objects can be encoded")
             }
         }
         return result
@@ -632,7 +639,19 @@ internal class ObjectSerializer(
         val depth = jsonMaxDepth(stripped)
         if (depth > MAX_JSON_DEPTH) throw SerializationException("JSON nesting depth $depth exceeds limit $MAX_JSON_DEPTH")
         val decoded = try {
-            val target = json.serializersModule.serializer<T>()
+            // A format: byte scalar arrives as a base64 string; the built-in ByteArray
+            // serializer would expect a JSON int-array instead.
+            // A registered contextual serializer wins over the type's own companion serializer:
+            // io.ktor.http.Url has one that accepts relative references, which format: uri refuses.
+            @Suppress("UNCHECKED_CAST")
+            val target = (
+                if (T::class == ByteArray::class) {
+                    Base64ByteArraySerializer
+                } else {
+                    json.serializersModule.getContextual(T::class as kotlin.reflect.KClass<Any>)
+                        ?: json.serializersModule.serializer<T>()
+                }
+            ) as KSerializer<T>
             val tree = json.parseToJsonElement(stripped)
             validateScalarLeaves(tree, target.descriptor)
             rejectUnevaluatedKeys(tree, target.descriptor)
@@ -1147,6 +1166,12 @@ internal class ObjectSerializer(
                 ?: throw SerializationException(
                     "Duration '$value' is out of range")
             val nanos = if (fracStr.isEmpty()) 0L else fracStr.padEnd(9, '0').toLong()
+            // google.protobuf.Duration spans +-315576000000 seconds; one nanosecond past that is refused.
+            val protobufMaxSeconds = 315_576_000_000L
+            if (secs > protobufMaxSeconds || (secs == protobufMaxSeconds && nanos > 0L)) {
+                throw SerializationException(
+                    "Duration '$value' is out of range")
+            }
             return Duration.ofSeconds(sign * secs, sign * nanos)
         }
 
@@ -1197,8 +1222,14 @@ internal class ObjectSerializer(
             is String -> JsonPrimitive(value)
             is ByteArray -> JsonPrimitive(Base64.getEncoder().encodeToString(value))
             is Duration -> JsonPrimitive(formatDuration(value))
-            is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJsonElementStatic(v) })
-            is List<*> -> JsonArray(value.map { toJsonElementStatic(it) })
+            // Keys are written in ascending order so equal maps always produce identical bytes.
+            is Map<*, *> ->
+                JsonObject(
+                    value.entries
+                        .sortedBy { it.key.toString() }
+                        .associate { (k, v) -> k.toString() to toJsonElementStatic(v) },
+                )
+            is Collection<*> -> JsonArray(value.map { toJsonElementStatic(it) })
             else -> JsonPrimitive(value.toString())
         }
 

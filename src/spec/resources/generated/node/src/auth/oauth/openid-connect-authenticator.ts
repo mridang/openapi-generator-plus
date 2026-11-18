@@ -156,6 +156,10 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         response.statusCode,
         response.headers,
         response.body,
+        {
+          method: "GET",
+          path: new URL(this.openIdConnectUrl).pathname,
+        },
       );
     }
     let parsed: unknown;

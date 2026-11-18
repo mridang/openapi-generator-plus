@@ -64,6 +64,15 @@ test('bhv headers 004 should not set accept header when accepts empty', function
     expect($headers)->not->toHaveKey('Accept');
 });
 
+test('bhv headers 027 returns empty string for empty accept array', function (): void {
+    $headers = $this->headerSelector->selectHeaders(
+        [],
+        'application/json',
+        false
+    );
+    expect($headers)->not->toHaveKey('Accept');
+});
+
 test('bhv headers 025 should set content type header when not multipart', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['application/json'],
@@ -147,7 +156,7 @@ test('bhv headers 003 should not reorder json types ahead of others', function (
     expect($headers['Accept'])->toEqual('text/html, application/vnd.api+json, application/json');
 });
 
-test('should not add quality weights', function (): void {
+test('bhv headers 032 should not add quality weights', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['text/html', 'application/json'],
         'application/json',
@@ -191,4 +200,10 @@ test('bhv headers 008 should drop whitespace-only entries', function (): void {
         false
     );
     expect($headers['Accept'])->toEqual('application/json');
+});
+
+test('bhv headers 029 the accept header is empty when every entry is blank', function (): void {
+    $method = new \ReflectionMethod($this->headerSelector, 'selectAcceptHeader');
+
+    expect($method->invoke($this->headerSelector, ['', '   ']))->toBe('');
 });

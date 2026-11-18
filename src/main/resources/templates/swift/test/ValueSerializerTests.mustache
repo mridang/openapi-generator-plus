@@ -320,7 +320,7 @@ import Testing
 
     // MARK: - SerializeStyled: form
 
-    @Test func testSerializeStyledFormScalar() {
+    @Test func testBhvSerializationparam105SerializeStyledFormScalar() {
         let result = ValueSerializer.serializeStyled("color", value: "blue", location: "query", schemaType: "string", collectionFormat: "", style: "form", explode: true)
         #expect(result as? String == "blue")
     }
@@ -377,7 +377,7 @@ import Testing
 
     // MARK: - SerializeDeepObject
 
-    @Test func testSerializeDeepObject() {
+    @Test func testBhvSerializationparam111SerializeDeepObject() {
         let result = ValueSerializer.serializeDeepObject("filter", value: [
             "status": "active",
             "type": "dog"
@@ -465,7 +465,7 @@ import Testing
         #expect(pairs.map { $0.value } == ["lab", "3"])
     }
 
-    @Test func testNestedObjectFieldIsASerializationError() throws {
+    @Test func testBhvSerializationparam108NestedObjectFieldIsASerializationError() throws {
         let value = Nested(name: "n", inner: Criteria(breed: "lab"))
         #expect(throws: SerializationError.self) {
             _ = try ValueSerializer.serializeDeepObjectValue("criteriaDeep", value: value)
@@ -484,9 +484,31 @@ import Testing
 
     // MARK: - Fallback
 
-    @Test func testSerializeStyledUnknownStyleFallback() {
+    @Test func testBhvSerializationparam109SerializeStyledUnknownStyleFallback() {
         let result = ValueSerializer.serializeStyled("id", value: "5", location: "query", schemaType: "string", collectionFormat: "", style: "unknownStyle", explode: false)
         #expect(result as? String == "5")
+    }
+
+    /* A null element keeps its empty slot in a non-exploded form array, so 1,,3 keeps each value in its position. */
+    @Test func testBhvSerializationparam115FormArrayKeepsAnEmptySlotForANullElement() {
+        let ids: [Any?] = [1, nil, 3]
+        let result = ValueSerializer.serializeStyled("ids", value: ids, location: "query", schemaType: "array", collectionFormat: "", style: "form", explode: false)
+        #expect(result as? String == "1,,3")
+    }
+
+    /* A set in form style without explode joins its elements with commas, as an array does. */
+    @Test func testBhvSerializationparam117SetJoinsLikeAnArrayInFormStyle() {
+        let colors: Set<String> = ["red", "green"]
+        let result = ValueSerializer.serializeStyled("color", value: colors, location: "query", schemaType: "array", collectionFormat: "", style: "form", explode: false)
+        let parts = (result as? String)?.split(separator: ",").map(String.init) ?? []
+        #expect(parts.count == 2)
+        #expect(Set(parts) == ["red", "green"])
+    }
+
+    /* The RFC 3986 unreserved tilde is never percent-encoded in a path value. */
+    @Test func testBhvSerializationparam119TildeIsKeptLiteralInAPathValue() {
+        let result = ValueSerializer.serializeValue("a~b", location: "path", schemaType: "string", collectionFormat: "")
+        #expect(result as? String == "a~b")
     }
 
     @Test func testBhvSerializationparam035SerializeStyledEmptyStyle() {
@@ -680,14 +702,14 @@ import Testing
     /* A cookie value keeps only the RFC 3986 unreserved characters literal, so
        a JSON text never carries a quote, comma, semicolon or space into the
        Cookie header. */
-    @Test func testEncodeCookieValueEscapesJsonPunctuation() {
+    @Test func testBhvSerializationparam118EncodeCookieValueEscapesJsonPunctuation() {
         #expect(
             ValueSerializer.encodeCookieValue("{\"a\": \"b;c,d\"}")
                 == "%7B%22a%22%3A%20%22b%3Bc%2Cd%22%7D")
         #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b._~9")
     }
 
-    @Test func testEncodeCookieValueMatchesTheSharedBytes() {
+    @Test func testBhvSerializationparam104EncodeCookieValueKeepsOnlyTheUnreservedSetLiteral() {
         #expect(
             ValueSerializer.encodeCookieValue("{\"k\":\"a b~*\u{00E9}\"}")
                 == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D")
@@ -712,5 +734,59 @@ import Testing
 
     @Test func testBhvSerializationparam081SemicolonIsPreservedInPathSegment() {
         #expect(ValueSerializer.encodePathSegment("a;b") == "a;b")
+    }
+
+    // MARK: - Behaviour catalogue: path, header, style and object parameters
+
+    @Test func testBhvSerialization005PathSegmentKeepsOnlyUnreservedAndSubDelimitersLiteral() {
+        #expect(ValueSerializer.encodePathSegment("a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r") == "a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r")
+        #expect(ValueSerializer.encodePathSegment("a/b?c#d%e") == "a%2Fb%3Fc%23d%25e")
+    }
+
+    @Test func testBhvSerialization013UnstyledAndSimpleHeaderArrayIsItsItems() {
+        let unstyled = ValueSerializer.serializeStyled("ids", value: ["1", "2"], location: "header", schemaType: "array", collectionFormat: "", style: "", explode: false)
+        #expect(unstyled as? String == "1,2")
+        let simple = ValueSerializer.serializeStyled("ids", value: ["1", "2"], location: "header", schemaType: "array", collectionFormat: "", style: "simple", explode: false)
+        #expect(simple as? String == "1,2")
+    }
+
+    @Test func testBhvSerialization015ObjectValuedPathParameterUsesItsStyleSeparators() {
+        let criteria = Criteria(breed: "lab", minAge: 3, active: true, note: nil)
+        let simple = ValueSerializer.serializeStyled("c", value: criteria, location: "path", schemaType: "object", collectionFormat: "", style: "simple", explode: false)
+        #expect(simple as? String == "active,true,breed,lab,min_age,3")
+        let exploded = ValueSerializer.serializeStyled("c", value: criteria, location: "path", schemaType: "object", collectionFormat: "", style: "simple", explode: true)
+        #expect(exploded as? String == "active=true,breed=lab,min_age=3")
+        let label = ValueSerializer.serializeStyled("c", value: criteria, location: "path", schemaType: "object", collectionFormat: "", style: "label", explode: true)
+        #expect(label as? String == ".active=true.breed=lab.min_age=3")
+        let matrix = ValueSerializer.serializeStyled("c", value: criteria, location: "path", schemaType: "object", collectionFormat: "", style: "matrix", explode: false)
+        #expect(matrix as? String == ";c=active,true,breed,lab,min_age,3")
+    }
+
+    @Test func testBhvSerialization016ObjectInDelimitedStyleAlternatesNamesAndValues() {
+        let criteria = Criteria(breed: "lab", minAge: 3, active: true, note: nil)
+        let piped = ValueSerializer.serializeStyled("c", value: criteria, location: "header", schemaType: "object", collectionFormat: "", style: "pipeDelimited", explode: false)
+        #expect(piped as? String == "active|true|breed|lab|min_age|3")
+        let spaced = ValueSerializer.serializeStyled("c", value: criteria, location: "header", schemaType: "object", collectionFormat: "", style: "spaceDelimited", explode: false)
+        #expect(spaced as? String == "active true breed lab min_age 3")
+    }
+
+    @Test func testBhvSerialization018NestedObjectInAnObjectParameterIsRefused() throws {
+        let nested = Nested(name: "outer", inner: Criteria(breed: "lab", minAge: 3, active: true, note: nil))
+        let result = ValueSerializer.serializeStyled("n", value: nested, location: "query", schemaType: "object", collectionFormat: "", style: "form", explode: true)
+        let parameter = try #require(result as? ValueSerializer.ObjectParameter)
+        #expect(parameter.failure != nil)
+        #expect(parameter.fields.isEmpty)
+    }
+    // MARK: - Behaviour catalogue: encoding of a content-typed parameter
+
+    /* A content-typed parameter is encoded once, and the cookie encoder does not encode it again. */
+    @Test func testBhvSerialization044DateTimeForADateParameterIsWrittenAsItsCalendarDate() {
+        let result = ValueSerializer.serializeValue("2024-05-06T23:30:00-05:00", location: "query", schemaType: "date", collectionFormat: "")
+        #expect(result as? String == "2024-05-06")
+    }
+
+    @Test func testBhvSerialization008ContentTypedParameterIsEncodedOnlyOnce() {
+        #expect(ValueSerializer.encodeCookieValue("{\"a\":1}") == "%7B%22a%22%3A1%7D")
+        #expect(ValueSerializer.encodeCookieValue("%7B") == "%257B")
     }
 }

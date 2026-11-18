@@ -67,7 +67,7 @@ class TestServerConfiguration:
 
         assert config.get_url() == 'https://api.example.com'
 
-    def test_variables_cannot_be_changed_through_the_dict_they_were_built_from(self) -> None:
+    def test_bhv_servers_025_variables_cannot_be_changed_through_the_dict_they_were_built_from(self) -> None:
         declared = {'env': ServerVariable(default_value='prod')}
         config = ServerConfiguration(url_template='https://{env}.example.com', variables=declared)
 
@@ -95,7 +95,7 @@ class TestGeneratedServers:
 
             assert server.get_url() == server.url_template.format(**defaults)
 
-    def test_generated_server_variables_are_read_only_and_their_enums_immutable(self) -> None:
+    def test_bhv_servers_028_generated_server_variables_are_read_only_and_their_enums_immutable(self) -> None:
         for server in ALL:
             with pytest.raises(TypeError):
                 server.variables['injected'] = ServerVariable(default_value='x')  # type: ignore[index]
@@ -180,7 +180,7 @@ class TestServerVariableResolution:
 
         assert config.get_url() == "https://{version}.api.example.com/v2"
 
-    def test_a_value_with_replacement_patterns_is_substituted_literally(self) -> None:
+    def test_bhv_servers_023_a_value_with_replacement_patterns_is_substituted_literally(self) -> None:
         config = ServerConfiguration(
             url_template="https://{env}.api.example.com",
             variables={"env": ServerVariable(default_value="a\\1b$&")},
@@ -211,7 +211,7 @@ class TestHostileGlobalServer:
         assert tenant.description == 'Tenant\'s "id"'
         assert tuple(tenant.enum_values) == ("o'neil", 'a&b')
 
-    def test_the_url_is_resolved_with_the_raw_characters(self) -> None:
+    def test_bhv_servers_021_the_url_is_resolved_with_the_raw_characters(self) -> None:
         server = ALL[2]
 
         assert server.get_url() == "https://o'neil.example.com/api"

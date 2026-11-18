@@ -674,24 +674,27 @@ void main() {
       },
     );
 
-    test('a JSON array token response is not a JSON object', () async {
-      final client = _FakeApiClient();
-      client.enqueue('[1]');
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-      await expectLater(
-        () => manager.getAccessToken('https://auth.example.com/token', {
-          'grant_type': 'client_credentials',
-        }),
-        throwsA(
-          isA<OAuth2TokenException>().having(
-            (e) => e.message,
-            'message',
-            'Token response is not a JSON object',
+    test(
+      'bhv authoauthtwotokenmgr 041 a JSON array token response is not a JSON object',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('[1]');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+        await expectLater(
+          () => manager.getAccessToken('https://auth.example.com/token', {
+            'grant_type': 'client_credentials',
+          }),
+          throwsA(
+            isA<OAuth2TokenException>().having(
+              (e) => e.message,
+              'message',
+              'Token response is not a JSON object',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwotokenmgr 001 a 2xx token response that is not JSON throws OAuth2TokenException',
@@ -756,6 +759,109 @@ void main() {
     );
 
     test(
+      'bhv authoauthtwotokenmgr 042 a token error response names the status, the code and the description',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"error":"invalid_grant","error_description":"refresh token expired"}',
+          statusCode: 400,
+        );
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await expectLater(
+          manager.getAccessToken('https://auth.example.com/token', {
+            'grant_type': 'client_credentials',
+          }),
+          throwsA(
+            isA<OAuth2ServerException>().having(
+              (e) => e.message,
+              'message',
+              equals(
+                'Token request failed with status 400: invalid_grant -- refresh token expired',
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv authoauthtwotokenmgr 043 the token request body is serialised in the fixed shared key order',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await manager.getAccessToken('https://auth.example.com/token', {
+          'zeta': 'z',
+          'scope': 's',
+          'redirect_uri': 'r',
+          'client_secret': 'cs',
+          'client_id': 'ci',
+          'password': 'p',
+          'username': 'u',
+          'refresh_token': 'rt',
+          'code': 'c',
+          'alpha': 'a',
+          'grant_type': 'g',
+        });
+
+        expect(
+          client.lastBody,
+          equals(
+            'grant_type=g&code=c&refresh_token=rt&username=u&password=p&client_id=ci&client_secret=cs&redirect_uri=r&scope=s&alpha=a&zeta=z',
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv authoauthtwotokenmgr 045 a padded decimal expires_in with a fraction is accepted so the token is cached',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"pad1","expires_in":" 3600.5\\n"}');
+        client.enqueue('{"access_token":"pad2","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
+
+        expect(await manager.getAccessToken(tokenUrl, params), equals('pad1'));
+        expect(await manager.getAccessToken(tokenUrl, params), equals('pad1'));
+        expect(client.requestCount, equals(1));
+      },
+    );
+
+    test(
+      'bhv authoauthtwotokenmgr 046 a string expires_in outside the decimal grammar leaves the token stale',
+      () async {
+        for (final raw in <String>['-5', 'NaN', '1_000', '3600d']) {
+          final client = _FakeApiClient();
+          client.enqueue('{"access_token":"first","expires_in":"$raw"}');
+          client.enqueue('{"access_token":"second","expires_in":3600}');
+          final manager = OAuth2TokenManager();
+          manager.setApiClient(client);
+          final params = {'grant_type': 'client_credentials'};
+          const tokenUrl = 'https://auth.example.com/token';
+
+          expect(
+            await manager.getAccessToken(tokenUrl, params),
+            equals('first'),
+            reason: raw,
+          );
+          expect(
+            await manager.getAccessToken(tokenUrl, params),
+            equals('second'),
+            reason: raw,
+          );
+          expect(client.requestCount, equals(2), reason: raw);
+        }
+      },
+    );
+
+    test(
       'bhv authoauthtwotokenmgr 035 the token request is a form post accepting json',
       () async {
         final client = _FakeApiClient();
@@ -795,18 +901,21 @@ void main() {
       },
     );
 
-    test('token POST leaves the transport default headers off', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok","expires_in":3600}');
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+    test(
+      'bhv auth 010 token POST leaves the transport default headers off',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      await manager.getAccessToken('https://auth.example.com/token', {
-        'grant_type': 'client_credentials',
-      });
+        await manager.getAccessToken('https://auth.example.com/token', {
+          'grant_type': 'client_credentials',
+        });
 
-      expect(client.lastNoDefaultHeaders, isTrue);
-    });
+        expect(client.lastNoDefaultHeaders, isTrue);
+      },
+    );
 
     test(
       'bhv authoauthtwotokenmgr 019 invalidateAccessToken triggers a single refetch under concurrency',
@@ -858,13 +967,22 @@ void main() {
       expect(err.message, equals('boom'));
     });
 
-    test('OAuth2ServerException is a OpenAPIException (branded root)', () {
-      final err = OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
+    test(
+      'bhv errors 045 OAuth2ServerException is a OpenAPIException (branded root)',
+      () {
+        final err = OAuth2ServerException(
+          400,
+          'invalid_grant',
+          null,
+          null,
+          '{}',
+        );
 
-      expect(err, isA<OAuth2ServerException>());
-      expect(err, isA<OpenAPIException>());
-      expect(err, isA<Exception>());
-    });
+        expect(err, isA<OAuth2ServerException>());
+        expect(err, isA<OpenAPIException>());
+        expect(err, isA<Exception>());
+      },
+    );
   });
 
   group('OAuth2TokenManager refresh grant', () {
@@ -924,6 +1042,31 @@ void main() {
           startsWith('grant_type=refresh_token&refresh_token=ref1'),
         );
         expect(client.bodies[2], equals(client.bodies[0]));
+      },
+    );
+
+    test(
+      'bhv auth 026 a refresh that fails and a failed fallback grant raise the fallback error with its status',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+        client.enqueue('{"error":"invalid_client"}', statusCode: 401);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await manager.getAccessToken(tokenUrl, original);
+
+        await expectLater(
+          () => manager.getAccessToken(tokenUrl, original),
+          throwsA(
+            isA<OAuth2ServerException>()
+                .having((e) => e.statusCode, 'statusCode', 401)
+                .having((e) => e.code, 'code', 'invalid_client'),
+          ),
+        );
       },
     );
 
@@ -1119,38 +1262,58 @@ void main() {
   });
 
   group('OAuth2ServerException message', () {
-    test('without an error code it carries the raw body', () {
-      final err = OAuth2ServerException(502, null, null, null, 'Bad Gateway');
+    test(
+      'bhv errors 046 the message has three forms: a raw body, a code, and a code with a description',
+      () {
+        expect(
+          OAuth2ServerException(
+            502,
+            null,
+            null,
+            null,
+            '<html>bad gateway</html>',
+          ).message,
+          equals(
+            'Token request failed with status 502: <html>bad gateway</html>',
+          ),
+        );
+        expect(
+          OAuth2ServerException(400, 'invalid_grant', null, null, '{}').message,
+          equals('Token request failed with status 400: invalid_grant'),
+        );
+        expect(
+          OAuth2ServerException(
+            400,
+            'invalid_grant',
+            'refresh token expired',
+            null,
+            '{}',
+          ).message,
+          equals(
+            'Token request failed with status 400: invalid_grant -- refresh token expired',
+          ),
+        );
+      },
+    );
 
-      expect(
-        err.message,
-        equals('Token request failed with status 502: Bad Gateway'),
-      );
-    });
+    test(
+      'bhv authoauthtwotokenmgr 047 without an error code it carries the raw body',
+      () {
+        final err = OAuth2ServerException(502, null, null, null, 'Bad Gateway');
 
-    test('with an error code it names the code', () {
+        expect(
+          err.message,
+          equals('Token request failed with status 502: Bad Gateway'),
+        );
+      },
+    );
+
+    test('bhv errors 049 with an error code it names the code', () {
       final err = OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
 
       expect(
         err.message,
         equals('Token request failed with status 400: invalid_grant'),
-      );
-    });
-
-    test('with an error code and description it joins them with two dashes', () {
-      final err = OAuth2ServerException(
-        400,
-        'invalid_grant',
-        'refresh token expired',
-        null,
-        '{}',
-      );
-
-      expect(
-        err.message,
-        equals(
-          'Token request failed with status 400: invalid_grant -- refresh token expired',
-        ),
       );
     });
   });

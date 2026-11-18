@@ -94,6 +94,89 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BhvLifecycle036ClosingTheClientTwiceRaisesNoErrorAndTheSecondCloseReleasesNothing()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new Client(_authenticator, transport);
+
+        client.Dispose();
+        var second = Record.Exception(() => client.Dispose());
+
+        Assert.Null(second);
+        Assert.False(handler.Disposed);
+    }
+
+    [Fact]
+    public void BhvLifecycle039AnEmptyTokenIsRefusedAtConstructionAndAValidTokenBuilds()
+    {
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+            {
+                Assert.Throws<ArgumentException>(() => Client.FromEnvironment(token: ""));
+
+                using var built = Client.FromEnvironment(token: "valid-token");
+                Assert.NotNull(built);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvLifecycle040LeavingAUsingBlockClosesTheClientAndItsTransport()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new Client(_authenticator, transport);
+
+        using (client) { }
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.Store.GetOrderByIdAsync(1)
+        );
+        Assert.Equal("ApiClient has been closed and can no longer send requests", ex.Message);
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
+    public void BhvLifecycle026ANullAuthenticatorIsRefusedAtConstruction()
+    {
+        Assert.Throws<ArgumentNullException>(() => new Client((IAuthenticator)null!));
+    }
+
+    [Fact]
+    public async Task BhvLifecycle030TheDefaultAuthenticatorSuppliesTheBaseUrl()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        using var client = new Client(
+            new BearerAuthenticator("http://authenticator.invalid", "tok"),
+            transport
+        );
+
+        _ = await client.Store.GetOrderByIdAsync(1);
+
+        Assert.Equal("authenticator.invalid", handler.RequestUri?.Host);
+    }
+
+    [Fact]
+    public async Task BhvLifecycle035AClosedClientFailsWithTheClosedErrorAndNeverReachesTheTransport()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new Client(_authenticator, transport);
+        client.Dispose();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.Store.GetOrderByIdAsync(1)
+        );
+
+        Assert.Equal("ApiClient has been closed and can no longer send requests", ex.Message);
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
     public void BhvLifecycle015TheSchemeConstructorTakesOneOptionalCredentialPerSchemeNamedAfterIt()
     {
         var constructor = typeof(Client)
@@ -153,6 +236,55 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public async Task BhvOperations148AnOperationUsesTheFirstSchemeOfItsListThatTheClientHolds()
+    {
+        /* addPet lists apiKeyHeader before petStoreBearer. A client holding both
+           must send the api key and no bearer token. The stub answers 500 so the
+           call ends with an error after the request is recorded; the response
+           body is not what this test checks. */
+        using var handler = new SchemeRecordingHandler();
+        var transport = TransportOptions
+            .Builder()
+            .HttpMessageHandler(handler)
+            .MaxRetries(0)
+            .Build();
+        using var client = new Client(
+            "http://localhost",
+            petStoreBearer: new PetStoreBearerAuthenticator("http://localhost", "bearer-token"),
+            apiKeyHeader: new ApiKeyHeaderAuthenticator("http://localhost", "key-token"),
+            transportOptions: transport
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(() =>
+            client.Pet.AddPetAsync(new PetstoreClient.Models.Pet { Name = "Fido", PhotoUrls = [] })
+        );
+
+        Assert.Equal("key-token", handler.ApiKey);
+        Assert.Null(handler.Authorization);
+    }
+
+    private sealed class SchemeRecordingHandler : HttpMessageHandler
+    {
+        public string? ApiKey { get; private set; }
+
+        public string? Authorization { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            ApiKey = request.Headers.TryGetValues("X-API-Key", out var keys)
+                ? keys.FirstOrDefault()
+                : null;
+            Authorization = request.Headers.Authorization?.ToString();
+            return Task.FromResult(
+                new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
+            );
+        }
+    }
+
+    [Fact]
     public async Task BhvLifecycle016AClientWithNoCredentialSendsNoAuthenticationHeader()
     {
         using var handler = new RecordingHandler();
@@ -172,6 +304,8 @@ public sealed class ClientTest : IDisposable
 
         public string? Authorization { get; private set; }
 
+        public Uri? RequestUri { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
@@ -179,6 +313,7 @@ public sealed class ClientTest : IDisposable
         {
             Requests++;
             Authorization = request.Headers.Authorization?.ToString();
+            RequestUri = request.RequestUri;
             return Task.FromResult(
                 new HttpResponseMessage(System.Net.HttpStatusCode.OK)
                 {
@@ -196,6 +331,102 @@ public sealed class ClientTest : IDisposable
             Disposed = true;
             base.Dispose(disposing);
         }
+    }
+
+    private sealed class TransportProbeAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
+    {
+        public IApiClient? Injected { get; private set; }
+
+        public override string GetHost() => "http://localhost";
+
+        public override Dictionary<string, string> GetAuthHeaders() => [];
+
+        public void SetApiClient(IApiClient apiClient) => Injected = apiClient;
+    }
+
+    [Fact]
+    public void BhvAuth004FromEnvironmentWithNoArgumentNoVariableAndNoProviderIsRefused()
+    {
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuth022EnvironmentTokenIsUsedBeforeTheProvider()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () =>
+                client = Client.FromEnvironment(
+                    tokenProvider: _ => Task.FromResult("provided-token"),
+                    transportOptions: transport
+                )
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer env-token", handler.Authorization);
+    }
+
+    [Fact]
+    public void BhvAuth023AnExplicitEmptyTokenIsRefusedAndNotReplacedByTheEnvironment()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () =>
+            {
+                Assert.Throws<ArgumentException>(() => Client.FromEnvironment(token: ""));
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuth024HostComesFromTheEnvironmentWhileTheTokenIsPassed()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+                client = Client.FromEnvironment(
+                    token: "explicit-token",
+                    transportOptions: transport
+                )
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer explicit-token", handler.Authorization);
+        Assert.Equal("localhost", handler.RequestUri?.Host);
+    }
+
+    [Fact]
+    public void BhvAuth025AnHttpAwareCredentialIsGivenTheClientTransportWhenTheClientIsBuilt()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var probe = new TransportProbeAuthenticator();
+        using var client = new Client(probe, transport);
+
+        Assert.NotNull(probe.Injected);
     }
 
     private const string HostVariable = "SWAGGER_PETSTORE_OPEN_API_3_0_HOST";
@@ -238,7 +469,26 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task FromEnvironmentPrefersTheExplicitOptionsOverTheEnvironment()
+    public async Task BhvLifecycle032AnArgumentTokenWinsOverTheEnvironmentToken()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () => client = Client.FromEnvironment(token: "arg-token", transportOptions: transport)
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer arg-token", handler.Authorization);
+    }
+
+    [Fact]
+    public async Task BhvLifecycle028FromEnvironmentPrefersTheExplicitOptionsOverTheEnvironment()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -262,7 +512,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task FromEnvironmentCallsTheTokenProviderBeforeEveryRequest()
+    public async Task BhvAuth005FromEnvironmentCallsTheTokenProviderBeforeEveryRequest()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -281,7 +531,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void FromEnvironmentTreatsAnEmptyVariableAsUnset()
+    public void BhvAuth003FromEnvironmentTreatsAnEmptyVariableAsUnset()
     {
         WithEnvironment(
             "http://localhost",
@@ -290,6 +540,26 @@ public sealed class ClientTest : IDisposable
             {
                 var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
                 Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+            }
+        );
+    }
+
+    [Theory]
+    [InlineData("http://localhost", "", TokenVariable)]
+    [InlineData("", "env-token", HostVariable)]
+    public void BhvConfig025AnEmptyEnvironmentValueCountsAsUnsetAndConstructionNamesTheVariable(
+        string host,
+        string token,
+        string missingVariable
+    )
+    {
+        WithEnvironment(
+            host,
+            token,
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains(missingVariable, ex.Message, StringComparison.Ordinal);
             }
         );
     }
@@ -424,7 +694,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiKeyWrappersRejectAnEmptyKeyAtConstruction()
+    public void BhvAuthapikey019ApiKeyWrappersRejectAnEmptyKeyAtConstruction()
     {
         Assert.Throws<ArgumentException>(() => new ApiKeyHeaderAuthenticator(Host, ""));
         Assert.Throws<ArgumentException>(() => new InternalApiKeyAuthenticator(Host, ""));
@@ -433,7 +703,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiKeyWrappersMaskTheKeyInTheirRepr()
+    public void BhvAuthapikey020ApiKeyWrappersMaskTheKeyInTheirRepr()
     {
         Assert.DoesNotContain(
             "secret-key",
@@ -463,7 +733,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void BearerWrappersSendTheTokenAsABearerCredential()
+    public void BhvAuthbearer023BearerWrappersSendTheTokenAsABearerCredential()
     {
         Assert.Equal(
             Pair("Authorization", "Bearer xyz"),
@@ -478,7 +748,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void BasicWrappersSendTheCredentialsAsABasicCredential()
+    public void BhvAuthbasic019BasicWrappersSendTheCredentialsAsABasicCredential()
     {
         Assert.Equal(
             Pair("Authorization", "Basic YWxpY2U6czNjcmV0"),
@@ -507,8 +777,8 @@ public sealed class ClientTest : IDisposable
         var auth = new LegacyAuthPasswordAuthenticator(Host, "cid", "csecret", "alice", "s3cret");
         auth.SetApiClient(transport);
 
-        await auth.GetAuthHeadersAsync();
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, transport.Requests.Count);
         Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
@@ -547,7 +817,7 @@ public sealed class ClientTest : IDisposable
 
         string authorizeUrl = auth.BuildAuthorizationUrl().OriginalString;
         await auth.ExchangeCodeAsync("code");
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.StartsWith(
             "https://auth.example.com/authorize?",
@@ -570,7 +840,7 @@ public sealed class ClientTest : IDisposable
         var auth = new MachineAuthClientCredentialsAuthenticator(Host, "cid", "csecret");
         auth.SetApiClient(transport);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
         Assert.Contains(

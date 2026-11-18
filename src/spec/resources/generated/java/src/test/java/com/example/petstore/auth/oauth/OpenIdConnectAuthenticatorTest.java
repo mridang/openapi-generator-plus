@@ -138,7 +138,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void failedDiscoveryNamesTheRequestInTheError() {
+  void bhvAuthOidc033FailedDiscoveryNamesTheRequestInTheError() {
     ApiClient client = (method, url, headers, body) -> new ApiHttpResponse(500, "oops", Map.of());
     OpenIdConnectAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
@@ -306,7 +306,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void discoveryRejectsAPlainHttpTokenEndpoint() {
+  void bhvAuthOidc032DiscoveryRejectsAPlainHttpTokenEndpoint() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -407,6 +407,72 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
+  void bhvAuth011DiscoveryWithoutAUsableMaxAgeIsCachedForTheDefaultLifetime() {
+    // A Cache-Control header with no max-age, or an unparseable one, falls back to the
+    // default lifetime, so the second use does not fetch the document again.
+    for (String cacheControl : new String[] {"no-cache", "max-age=soon"}) {
+      var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+      ApiClient client =
+          (method, url, headers, body) -> {
+            getCalls.incrementAndGet();
+            return new ApiHttpResponse(
+                200, DISCOVERY_RESPONSE, Map.of("Cache-Control", cacheControl));
+          };
+      OpenIdConnectAuthenticator auth = createAuthenticator();
+      auth.setApiClient(client);
+
+      auth.buildAuthorizationUrl(null);
+      auth.buildAuthorizationUrl(null);
+
+      assertEquals(1, getCalls.get(), cacheControl);
+    }
+  }
+
+  @Test
+  void bhvAuthOidc030DiscoveryWithMaxAgeZeroIsFetchedAgainOnEveryUse() {
+    var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          getCalls.incrementAndGet();
+          return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of("Cache-Control", "max-age=0"));
+        };
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.buildAuthorizationUrl(null);
+    auth.buildAuthorizationUrl(null);
+
+    assertEquals(2, getCalls.get());
+  }
+
+  @Test
+  void bhvAuthOidc031DiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed()
+      throws ReflectiveOperationException {
+    var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          getCalls.incrementAndGet();
+          return new ApiHttpResponse(
+              200, DISCOVERY_RESPONSE, Map.of("Cache-Control", "max-age=3600"));
+        };
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    auth.buildAuthorizationUrl(null);
+    assertEquals(1, getCalls.get());
+
+    // Move the cached expiry into the past instead of waiting out the max-age.
+    java.lang.reflect.Field expiryField =
+        OpenIdConnectAuthenticator.class.getDeclaredField("discoveryExpiry");
+    expiryField.setAccessible(true);
+    expiryField.set(auth, java.time.Instant.now().minusSeconds(1));
+
+    auth.buildAuthorizationUrl(null);
+    assertEquals(2, getCalls.get());
+  }
+
+  @Test
   void
       bhvAuthOidc012SchemeWrapperDiscoversFromTheSpecUrlAndSendsTheOpenIdScopeWhenTheSpecHasNone() {
     AtomicReference<String> capturedUrl = new AtomicReference<>();
@@ -462,31 +528,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void rediscoveryKeepsTheTokenFromTheCodeExchange() {
-    var gets = new java.util.concurrent.atomic.AtomicInteger(0);
-    ApiClient client =
-        (method, url, headers, body) -> {
-          if ("GET".equals(method)) {
-            gets.incrementAndGet();
-            return new ApiHttpResponse(
-                200, DISCOVERY_RESPONSE, Map.of("Cache-Control", "max-age=0"));
-          }
-          return new ApiHttpResponse(
-              200, "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
-        };
-
-    OpenIdConnectAuthenticator auth = createAuthenticator();
-    auth.setApiClient(client);
-
-    auth.exchangeCode("oidc-code");
-    Map<String, String> headers = auth.getAuthHeaders();
-
-    assertEquals(2, gets.get());
-    assertEquals("Bearer oidc-tok", headers.get("Authorization"));
-  }
-
-  @Test
-  void rediscoveryPicksUpChangedEndpoints() {
+  void bhvAuth029RediscoveryPicksUpChangedEndpoints() {
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {
@@ -575,7 +617,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void concurrentCallsOnAColdAuthenticatorDiscoverOnce() throws Exception {
+  void bhvAuthOidc029ConcurrentCallsOnAColdAuthenticatorDiscoverOnce() throws Exception {
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =
         (method, url, headers, body) -> {

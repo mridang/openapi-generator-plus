@@ -44,7 +44,7 @@ class ServerVariableTest {
     }
 
     @Test
-    @DisplayName("value equality holds for identical variables")
+    @DisplayName("bhvServers027 value equality holds for identical variables")
     fun valueEquality() {
         val a = ServerVariable("v3", null, listOf("v2", "v3"))
         val b = ServerVariable("v3", null, listOf("v2", "v3"))
@@ -62,5 +62,21 @@ class ServerVariableTest {
                 mapOf("version" to ServerVariable("v3", null, listOf("v2", "v3"))),
             )
         assertEquals("https://example.com/v3", server.getUrl())
+    }
+
+    @Test
+    @DisplayName("bhvServers018 enumValues are exposed for validation")
+    fun enumValuesAreExposedForValidation() {
+        val variable = ServerVariable("prod", "deployment environment", listOf("prod", "staging"))
+        assertEquals(listOf("prod", "staging"), variable.enumValues)
+        assertTrue(variable.enumValues.contains("prod"))
+        assertTrue(variable.enumValues.contains("staging"))
+    }
+
+    @Test
+    @DisplayName("bhvServers019 enum does not contain a value outside the allowed set")
+    fun enumDoesNotContainAValueOutsideTheAllowedSet() {
+        val variable = ServerVariable("prod", null, listOf("prod", "staging"))
+        assertFalse(variable.enumValues.contains("dev"))
     }
 }

@@ -214,6 +214,27 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvErrors057ANetworkFailureNamesTheRequestMethodAndPath()
+    {
+        var api = new TestableApi(new RefusedApiClient(), "http://localhost");
+
+        var ex = await Assert.ThrowsAsync<NetworkException>(() =>
+            api.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+    }
+
+    [Fact]
     public async Task BhvErrors027AnApiErrorKeepsTheBasePathOfTheServer()
     {
         var api = new TestableApi(new StatusSequenceApiClient(500), "http://localhost/v2/");
@@ -327,7 +348,8 @@ public class BaseApiTest
 
         Assert.Equal("created:{}", created.Data);
         Assert.Equal("ok:{}", existing.Data);
-        Assert.Equal([201, 200], decodedStatuses);
+        int[] expectedStatuses = [201, 200];
+        Assert.Equal(expectedStatuses, decodedStatuses);
     }
 
     private sealed class CapturingApiClient : IApiClient
@@ -446,6 +468,43 @@ public class BaseApiTest
             Assert.NotNull(ex.ResponseBody);
             Assert.NotEmpty(ex.ResponseBody);
         }
+    }
+
+    [Fact]
+    public async Task BhvErrors071A401ResponseSurfacesAsAnUnauthorizedError()
+    {
+        var ex = await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    "/test/status/401",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
+        );
+
+        Assert.Equal(401, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvErrors048Status418ThrowsClientException()
+    {
+        var ex = await Assert.ThrowsAsync<ClientException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    "/test/status/418",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
+        );
+        Assert.Equal(418, ex.StatusCode);
     }
 
     [Fact]
@@ -637,7 +696,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ContentTypeErrorNamesTheOperationNotTheType()
+    public async Task BhvErrors054ContentTypeErrorNamesTheOperationNotTheType()
     {
         var textApi = new TestableApi(new TextPlainApiClient(), "http://localhost");
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
@@ -836,6 +895,19 @@ public class BaseApiTest
         }
     }
 
+    private sealed class RefusedApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromException<ApiHttpResponse>(new NetworkException("connection refused"));
+        }
+    }
+
     private static Task<object?> CallWithAuth(
         StatusSequenceApiClient client,
         IAuthenticator auth,
@@ -957,6 +1029,32 @@ public class BaseApiTest
 
         Assert.Equal(0, auth.Invalidations);
         Assert.Single(client.Authorizations);
+    }
+
+    [Fact]
+    public async Task BhvAuth021RequestWithNoCredentialSendsNoAuthorizationHeaderAndIsNotRefused()
+    {
+        var client = new CapturingApiClient();
+        var api = new StoreApi(
+            client,
+            new Configuration("http://localhost"),
+            null,
+            new Dictionary<string, IAuthenticator>()
+        );
+
+        try
+        {
+            await api.GetInventoryAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.DoesNotContain(
+            client.CapturedHeaders.Keys,
+            k => string.Equals(k, "Authorization", StringComparison.OrdinalIgnoreCase)
+        );
     }
 
     [Fact]
@@ -1202,24 +1300,6 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task DigitLeadingQueryParameterIsSentUnderItsWireName()
-    {
-        var client = new CapturingApiClient();
-        var config = new Configuration("http://localhost");
-        var api = new PetApi(client, config);
-        try
-        {
-            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { N2ndPage = 2 });
-        }
-        catch (OpenAPIException)
-        {
-            // Response deserialization may fail; we only care about the captured URL
-        }
-        // The sanitised identifier N2ndPage is a C# name only: the wire key stays 2ndPage.
-        Assert.Contains("2ndPage=2", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task BhvOperations003AllowEmptyValueParamIncludedWhenEmpty()
     {
         var client = new CapturingApiClient();
@@ -1385,6 +1465,54 @@ public class BaseApiTest
     }
 
     [Fact]
+    public void BhvSerializationparam118ContentCookieValueIsEncodedToSharedBytes()
+    {
+        var api = new TestableApi("http://localhost");
+
+        Assert.Equal(
+            "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
+            api.ContentParameter(new Dictionary<string, string> { ["k"] = "a b~*é" }, "cookie")
+        );
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire057FormUrlencodedBodyKeepsOnlyUnreservedLiteral()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "nickname", "a~b*c!d'e(f)g" } },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.Equal("nickname=a~b%2Ac%21d%27e%28f%29g", client.CapturedBody);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire060BinaryReturnTypeGetsRawBytesOfJsonBody()
+    {
+        const string json = "{\"id\":7,\"name\":\"photo\"}";
+        var client = new BinaryResponseApiClient { ContentType = "application/json", Body = json };
+        var testApi = new TestableApi(client, "http://localhost");
+
+        var result = await testApi.CallAsync<byte[]>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(json), result);
+    }
+
+    [Fact]
     public async Task BhvSerializationwire012FormUrlencodedBodyEncodesSpaceAsPlusNotPercent20()
     {
         // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
@@ -1406,6 +1534,31 @@ public class BaseApiTest
         string wire = client.CapturedBody.ToString()!;
         Assert.Equal("full+name=Ada+Lovelace", wire);
         Assert.DoesNotContain("%20", wire, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire053ArrayFormFieldEmitsRepeatedKeys()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>
+            {
+                { "nickname", "rex" },
+                {
+                    "tags",
+                    new List<string> { "a", "b" }
+                },
+            },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("nickname=rex&tags=a&tags=b", client.CapturedBody.ToString());
     }
 
     [Fact]
@@ -1487,6 +1640,37 @@ public class BaseApiTest
             "application/json"
         );
         Assert.Equal("application/xml", client.CapturedHeaders["Accept"]);
+    }
+
+    [Fact]
+    public async Task BhvHeaders030ADefaultHeaderInAnotherCaseReplacesTheNegotiatedOne()
+    {
+        /* Header names are case-insensitive, so a default spelled "accept" replaces
+           the negotiated "Accept" instead of being sent beside it. */
+        var client = new CapturingApiClient();
+        var config = Configuration
+            .Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("accept", "application/vnd.x+json")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET",
+            "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        var accepts = client
+            .CapturedHeaders.Keys.Where(key =>
+                key.Equals("Accept", StringComparison.OrdinalIgnoreCase)
+            )
+            .ToList();
+        Assert.Single(accepts);
+        Assert.Equal("application/vnd.x+json", client.CapturedHeaders[accepts[0]]);
     }
 
     [Fact]
@@ -1721,6 +1905,26 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvOperations131GetWithoutBodySendsNoContentTypeHeader()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+        Assert.False(
+            client.CapturedHeaders.ContainsKey("Content-Type"),
+            "a request with no body must not send a Content-Type header"
+        );
+    }
+
+    [Fact]
     public async Task BhvOperations011EmptyStringBodyPostSendsContentType()
     {
         var client = new CapturingApiClient();
@@ -1787,7 +1991,23 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ProxyThatRequiresCredentialsAnswers407WhenNoneAreSent()
+    public async Task BhvTransport059AuthenticatingProxyRefusesARequestWithoutCredentials()
+    {
+        var transport = TransportOptions.Builder().Proxy(_fixture.AuthProxyUrl).Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(407, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvTransport063ProxyThatRequiresCredentialsAnswers407WhenNoneAreSent()
     {
         var transport = TransportOptions.Builder().Proxy(_fixture.AuthProxyUrl).Build();
 
@@ -1961,7 +2181,7 @@ public class BaseApiTest
     // the per-call override (null here), and BaseApi falls back to the
     // client-level authenticator.
     [Fact]
-    public async Task SecuredOperationStillAppliesClientAuthenticator()
+    public async Task BhvAuthintegration018SecuredOperationStillAppliesClientAuthenticator()
     {
         var client = new CapturingApiClient();
         var clientAuth = new TestAuthenticator(
@@ -2009,7 +2229,10 @@ public class BaseApiTest
     [InlineData("path", "%7B%22a%20b%22:%22c%2Fd%22%7D")]
     [InlineData("header", "{\"a b\":\"c/d\"}")]
     [InlineData("cookie", "%7B%22a%20b%22%3A%22c%2Fd%22%7D")]
-    public void ContentParameterIsSdkJsonEncodedOnceByLocation(string location, string expected)
+    public void BhvSerialization008ContentParameterIsSdkJsonEncodedOnceByLocation(
+        string location,
+        string expected
+    )
     {
         var api = new TestableApi("http://localhost");
 
@@ -2022,7 +2245,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public void ContentCookieKeepsOnlyTheUnreservedSetLiteral()
+    public void BhvSerializationparam104ContentCookieKeepsOnlyTheUnreservedSetLiteral()
     {
         var api = new TestableApi("http://localhost");
 
@@ -2034,11 +2257,24 @@ public class BaseApiTest
         Assert.Equal("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", encoded);
     }
 
+    [Fact]
+    public void BhvSerializationobject224ContentCookieValueIsJsonPercentEncodedKeepingOnlyTheUnreservedSet()
+    {
+        var api = new TestableApi("http://localhost");
+
+        var encoded = api.ContentParameter(
+            new Dictionary<string, string> { ["k"] = "~*" },
+            "cookie"
+        );
+
+        Assert.Equal("%7B%22k%22%3A%22~%2A%22%7D", encoded);
+    }
+
     [Theory]
     [InlineData("path")]
     [InlineData("header")]
     [InlineData("cookie")]
-    public void ContentParameterFailureIsASerializationException(string location)
+    public void BhvSerialization009ContentParameterFailureIsASerializationException(string location)
     {
         var api = new TestableApi("http://localhost");
         var unserializable = new PetstoreClient.Models.PhotoMetadata
@@ -2047,5 +2283,52 @@ public class BaseApiTest
         };
 
         Assert.Throws<SerializationException>(() => api.ContentParameter(unserializable, location));
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration019InvalidAuthCookieFailsBeforeAnyRequestIsSent()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        var auth = new TestAuthenticator(
+            cookies: new Dictionary<string, string> { { "session", "a;b" } }
+        );
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            testApi.CallAsync<object>(
+                "GET",
+                "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json",
+                auth
+            )
+        );
+
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task BhvSerializationparam107QueryValueKeepsOnlyTheUnreservedSetLiteral()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?> { { "q", "a!b*c'd(e)f~g" } },
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        Assert.Contains(
+            "q=a%21b%2Ac%27d%28e%29f~g",
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
     }
 }

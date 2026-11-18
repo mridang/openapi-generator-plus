@@ -176,6 +176,18 @@ fn test_bhv_models_005_metadata_equality_includes_additional_properties() {
 }
 
 #[test]
+fn test_bhv_models_012_debug_dump_shows_the_fields_and_the_additional_properties() {
+    let metadata: Metadata =
+        serde_json::from_str(r#"{"extra":"shown"}"#).expect("failed to deserialize Metadata");
+
+    let dump = format!("{:?}", metadata);
+
+    assert!(dump.contains("additional_properties"), "{}", dump);
+    assert!(dump.contains("extra"), "{}", dump);
+    assert!(dump.contains("shown"), "{}", dump);
+}
+
+#[test]
 fn test_pet_location_free_form_json_round_trips() {
     /* FIX 3: Pet.location is Option<Vec<JsonValue>> (free-form JSON array). The
      * inner free-form JSON must round-trip losslessly through the public
@@ -285,7 +297,7 @@ fn test_metadata_date_time_without_an_offset_is_rejected() {
 // every language's native date-time type supports, so the exact canonical
 // string is asserted.
 #[test]
-fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
+fn test_bhv_serializationobject_199_subseconds_are_preserved_in_a_serialized_date_time() {
     use petstore::date_time::DateTime;
 
     // The canonical instant with millisecond precision.
@@ -454,5 +466,164 @@ fn test_bhv_models_006_file_header_prints_the_info_description_without_escaped_q
         !header.iter().any(|line| line.contains("\\\"")),
         "{:?}",
         header
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_227_a_model_external_docs_description_is_documented_verbatim_without_entities(
+) {
+    let source = include_str!("../src/models/account.rs");
+    assert!(
+        source.contains(
+            "/// See <https://example.com/docs/account> Account \\<docs\\> & \"notes\" it's here"
+        ),
+        "the externalDocs description must reach the model doc comment as written"
+    );
+    for entity in ["&lt;", "&gt;", "&amp;", "&quot;", "&#39;"] {
+        assert!(
+            !source.contains(entity),
+            "an HTML entity {} leaked into the model docs",
+            entity
+        );
+    }
+}
+
+#[test]
+fn test_bhv_serializationobject_205_an_extra_key_survives_a_deserialize_then_serialize_round_trip()
+{
+    use petstore::models::Metadata;
+
+    let body = r#"{"owner":"u","extra_key":"kept"}"#;
+    let metadata: Metadata = serde_json::from_str(body).expect("deserialize Metadata");
+    let json = serde_json::to_string(&metadata).expect("serialize Metadata");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse the output");
+    assert_eq!(parsed["extra_key"], "kept", "{}", json);
+    assert_eq!(parsed["owner"], "u", "{}", json);
+}
+
+#[test]
+fn test_bhv_models_013_a_newly_built_model_starts_with_no_additional_properties() {
+    let fresh = Metadata::new();
+    assert!(
+        fresh.additional_properties.is_empty(),
+        "additional properties must start empty"
+    );
+}
+
+#[test]
+fn test_bhv_models_015_a_changed_copy_keeps_the_additional_properties_of_the_original() {
+    let base: Metadata = serde_json::from_str(r#"{"extra":"kept"}"#).expect("decodes");
+    let stamp =
+        chrono::DateTime::parse_from_rfc3339("2024-01-02T03:04:05Z").expect("a valid instant");
+    let changed = base
+        .clone()
+        .with_created_at(petstore::date_time::DateTime::new(stamp));
+    assert_eq!(
+        changed
+            .additional_properties
+            .get("extra")
+            .and_then(|v| v.as_str()),
+        Some("kept")
+    );
+}
+
+#[test]
+fn test_bhv_models_017_a_copy_can_set_or_clear_an_optional_field_and_the_original_keeps_its_value()
+{
+    use petstore::models::Defaults;
+    let original = Defaults::new();
+    let set = original.clone().with_label("changed".to_string());
+    assert_eq!(set.label.as_deref(), Some("changed"));
+    let cleared = Defaults {
+        label: None,
+        ..original.clone()
+    };
+    assert_eq!(cleared.label, None);
+    assert_eq!(
+        original.label.as_deref(),
+        Some("untitled"),
+        "the original must keep its label"
+    );
+}
+
+#[test]
+fn test_bhv_models_018_models_whose_decimal_fields_differ_only_in_trailing_zeros_compare_equal() {
+    use petstore::models::Defaults;
+    let plain = Defaults::new();
+    let padded = Defaults {
+        ratio: Some("1.500".parse().expect("a number")),
+        ..Defaults::new()
+    };
+    assert_eq!(plain, padded);
+}
+
+#[test]
+fn test_bhv_models_019_two_models_with_a_different_value_in_any_field_compare_unequal() {
+    use petstore::models::Defaults;
+    let base = Defaults::new();
+    let other = Defaults::new().with_retries(4);
+    assert_ne!(base, other);
+}
+
+#[test]
+fn test_bhv_models_020_models_with_the_same_field_values_compare_equal() {
+    use petstore::models::Defaults;
+    assert_eq!(Defaults::new(), Defaults::new());
+    assert_eq!(Metadata::new(), Metadata::new());
+}
+
+#[test]
+fn test_bhv_models_021_each_member_of_an_integer_backed_enum_carries_its_declared_number() {
+    use petstore::models::Priority;
+    assert_eq!(Priority::Number1 as i32, 1);
+    assert_eq!(Priority::Number3 as i32, 3);
+    assert_eq!(
+        serde_json::to_string(&Priority::Number2).expect("serializes"),
+        "2"
+    );
+}
+
+#[test]
+fn test_bhv_models_022_a_model_whose_schema_allows_undeclared_properties_accepts_them() {
+    use petstore::models::StrictTag;
+    let open: Metadata =
+        serde_json::from_str(r#"{"undeclared":true}"#).expect("an open model accepts it");
+    assert_eq!(
+        open.additional_properties
+            .get("undeclared")
+            .and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert!(
+        serde_json::from_str::<StrictTag>(r#"{"undeclared":true}"#).is_err(),
+        "a strict model reports the unknown key instead"
+    );
+}
+
+#[test]
+fn test_bhv_models_023_undeclared_keys_named_like_sdk_methods_are_kept_as_additional_properties() {
+    let model: Metadata = serde_json::from_str(r#"{"new":1,"to_string":"x"}"#).expect("decodes");
+    assert_eq!(
+        model
+            .additional_properties
+            .get("new")
+            .and_then(|v| v.as_i64()),
+        Some(1)
+    );
+    assert_eq!(
+        model
+            .additional_properties
+            .get("to_string")
+            .and_then(|v| v.as_str()),
+        Some("x")
+    );
+}
+
+#[test]
+fn test_bhv_models_024_a_newly_built_model_leaves_its_optional_properties_unset() {
+    let fresh = Metadata::new();
+    assert!(
+        fresh.created_at.is_none(),
+        "an optional property starts unset"
     );
 }

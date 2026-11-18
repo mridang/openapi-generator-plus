@@ -38,6 +38,18 @@ public interface IAuthenticator
     }
 
     /// <summary>
+    /// Returns the authentication headers, asynchronously, for one call. The
+    /// call's <paramref name="cancellationToken"/> is handed to any request the
+    /// authenticator makes (an OAuth2 token request, a token provider), so a
+    /// cancelled call stops that request.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the work done to obtain the headers.</param>
+    Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken)
+    {
+        return GetAuthHeadersAsync();
+    }
+
+    /// <summary>
     /// Returns query parameters to include for authentication.
     /// </summary>
     Dictionary<string, string> GetQueryParams()
@@ -65,7 +77,7 @@ public interface IInvalidatableAuthenticator : IAuthenticator
 {
     /// <summary>
     /// Drops the cached access token so that the next call to
-    /// <see cref="IAuthenticator.GetAuthHeadersAsync"/> fetches a fresh one
+    /// <see cref="IAuthenticator.GetAuthHeadersAsync(CancellationToken)"/> fetches a fresh one
     /// (a refresh grant first when a refresh token is held, which is kept).
     /// </summary>
     void InvalidateAccessToken();

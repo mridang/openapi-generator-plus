@@ -50,7 +50,22 @@ class ApiResultTest {
   }
 
   @Test
-  void headersAreDefensivelyCopiedAndUnmodifiable() {
+  void bhvResults004ExposesTheDeserializedData() {
+    Map<String, Object> data = Map.of("id", 1, "name", "example");
+    ApiResult<Map<String, Object>> result = new ApiResult<>(200, data, "", Map.of());
+
+    assertEquals(data, result.data());
+  }
+
+  @Test
+  void bhvResults005ExposesTheRawResponseBody() {
+    ApiResult<String> result = new ApiResult<>(200, "payload", "{\"value\":\"payload\"}", Map.of());
+
+    assertEquals("{\"value\":\"payload\"}", result.rawBody());
+  }
+
+  @Test
+  void bhvResults006HeadersAreDefensivelyCopiedAndUnmodifiable() {
     // The compact constructor wraps the headers in an unmodifiable copy, so
     // mutation attempts on the exposed map throw.
     ApiResult<String> result = new ApiResult<>(200, "ok", "ok", Map.of("x-trace", "abc"));

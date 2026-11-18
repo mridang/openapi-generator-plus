@@ -16,7 +16,7 @@ class TestServerVariable:
         assert var.enum_values == ()
         assert var.description is None
 
-    def test_enum_values_are_exposed_for_validation(self) -> None:
+    def test_bhv_servers_018_enum_values_are_exposed_for_validation(self) -> None:
         # ServerConfiguration validates overrides against this set, so the
         # enum list must surface exactly the allowed values.
         var = ServerVariable(
@@ -29,14 +29,14 @@ class TestServerVariable:
         assert 'prod' in var.enum_values
         assert 'staging' in var.enum_values
 
-    def test_enum_does_not_contain_a_value_outside_the_allowed_set(self) -> None:
+    def test_bhv_servers_019_enum_does_not_contain_a_value_outside_the_allowed_set(self) -> None:
         # An out-of-set value (e.g. "dev") is absent from the enum, which is
         # what drives ServerConfiguration to reject it.
         var = ServerVariable(default_value='prod', enum_values=['prod', 'staging'])
 
         assert 'dev' not in var.enum_values
 
-    def test_enum_values_cannot_be_changed_through_the_list_they_were_built_from(self) -> None:
+    def test_bhv_servers_026_enum_values_cannot_be_changed_through_the_list_they_were_built_from(self) -> None:
         allowed = ['prod', 'staging']
         var = ServerVariable(default_value='prod', enum_values=allowed)
 
@@ -44,8 +44,16 @@ class TestServerVariable:
 
         assert var.enum_values == ('prod', 'staging')
 
-    def test_enum_values_are_an_immutable_tuple(self) -> None:
+    def test_bhv_servers_024_enum_values_are_an_immutable_tuple(self) -> None:
         var = ServerVariable(default_value='prod', enum_values=['prod', 'staging'])
 
         assert isinstance(var.enum_values, tuple)
         assert not hasattr(var.enum_values, 'append')
+
+
+class TestServerVariableEquality:
+    def test_bhv_servers_027_two_variables_built_alike_are_equal(self) -> None:
+        first = ServerVariable(default_value='1', enum_values=['1', '2'])
+        second = ServerVariable(default_value='1', enum_values=['1', '2'])
+
+        assert first == second

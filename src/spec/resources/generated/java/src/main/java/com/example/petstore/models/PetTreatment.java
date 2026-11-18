@@ -27,12 +27,14 @@ public class PetTreatment {
   private final java.util.List<Object> matchedInstances = new java.util.ArrayList<>();
 
   /**
-   * Wraps a single concrete variant of this union.
+   * Wraps a single concrete variant of this union; a {@code null} value wraps no instance.
    *
-   * @param value the concrete variant instance
+   * @param value the concrete variant instance, or {@code null} for none
    */
-  public PetTreatment(Object value) {
-    this.matchedInstances.add(value);
+  public PetTreatment(@Nullable Object value) {
+    if (value != null) {
+      this.matchedInstances.add(value);
+    }
   }
 
   /**

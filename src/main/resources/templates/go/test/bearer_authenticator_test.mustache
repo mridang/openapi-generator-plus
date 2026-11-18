@@ -167,7 +167,7 @@ func TestBhvAuthbearer013_BearerAuthenticator_ReprShowsTheNonSecretFields(t *tes
 // The service-token wrapper is a Bearer authenticator under its own name: it
 // emits the same header, refuses an empty token, and prints its own name with
 // the token masked.
-func TestBearerAuthenticator_ServiceTokenWrapperBehavesAsBearerUnderItsOwnName(t *testing.T) {
+func TestBhvAuthbearer023_BearerAuthenticator_ServiceTokenWrapperBehavesAsBearerUnderItsOwnName(t *testing.T) {
 	t.Parallel()
 	a, err := auth.NewServiceTokenAuthenticator("https://api.example.com", "xyz")
 	if err != nil {
@@ -231,6 +231,20 @@ func TestBhvAuthbearer012_BearerAuthenticator_RejectsCrLfAndNonAscii(t *testing.
 	}
 }
 
+// TestBhvAuthbearer028 pins that a token holding a carriage return and line feed is
+// rejected when the authenticator is built, so no request is ever sent with it.
+func TestBhvAuthbearer028_BearerAuthenticator_CrLfTokenIsRejectedAtConstruction(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewBearerAuthenticator("https://api.example.com", "tok\r\nX-Injected: yes")
+
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
+	}
+	if a != nil {
+		t.Error("expected a nil authenticator")
+	}
+}
+
 // The token provider is asked again for every request, not once at construction.
 func TestBhvAuthbearer014_BearerAuthenticator_TokenProviderIsCalledForEveryRequest(t *testing.T) {
 	t.Parallel()
@@ -264,5 +278,59 @@ func TestBhvAuthbearer017_BearerAuthenticator_WhitespaceOnlyTokenIsRejectedAtCon
 		if a != nil {
 			t.Errorf("token %q: expected a nil authenticator", token)
 		}
+	}
+}
+
+// A token outside printable ASCII is refused at construction with ErrInvalidBearerToken.
+func TestBhvAuthbearer022_BearerAuthenticator_RejectsANonAsciiTokenAtConstruction(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewBearerAuthenticator("https://api.example.com", "tök"+"én")
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
+	}
+	if a != nil {
+		t.Error("expected a nil authenticator")
+	}
+}
+
+// Line breaks alone are whitespace, so a token made only of them is refused at construction.
+func TestBhvAuthbearer027_BearerAuthenticator_RejectsALineBreakOnlyToken(t *testing.T) {
+	t.Parallel()
+	for _, token := range []string{"\n", "\r", "\n\n"} {
+		a, err := auth.NewBearerAuthenticator("https://api.example.com", token)
+		if !errors.Is(err, auth.ErrInvalidBearerToken) {
+			t.Errorf("token %q: expected ErrInvalidBearerToken, got %v", token, err)
+		}
+		if a != nil {
+			t.Errorf("token %q: expected a nil authenticator", token)
+		}
+	}
+}
+
+func TestBhvAuth022_BearerAuthenticator_ExplicitTokenAndProviderEachSupplyTheirOwnHeader(t *testing.T) {
+	t.Parallel()
+	explicit, err := auth.NewBearerAuthenticator("https://api.example.com", "explicit-token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := explicit.AuthHeaders()["Authorization"]; got != "Bearer explicit-token" {
+		t.Errorf("expected the explicit token, got %q", got)
+	}
+	viaProvider, err := auth.NewBearerAuthenticatorWithProvider("https://api.example.com", func(context.Context) (string, error) {
+		return "provider-token", nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := viaProvider.AuthHeaders()["Authorization"]; got != "Bearer provider-token" {
+		t.Errorf("expected the provider token when no explicit token is given, got %q", got)
+	}
+}
+
+func TestBhvAuth023_BearerAuthenticator_AnExplicitEmptyTokenIsRefused(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewBearerAuthenticator("https://api.example.com", "")
+	if err == nil {
+		t.Errorf("expected an explicit empty token to be refused, got %v", a)
 	}
 }

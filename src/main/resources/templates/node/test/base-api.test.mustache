@@ -157,6 +157,15 @@ describe('BaseApi', () => {
       expect((e as ApiError).responseBody).toBeTruthy();
     }
   });
+
+  test('bhv errors 071 a 401 response surfaces as an UnauthorizedError', async () => {
+    const error = await api()
+      .call('GET', '/test/status/401', {}, {}, null, ['application/json'], 'application/json', null)
+      .then(() => undefined, (e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(UnauthorizedError);
+    expect((error as ApiError).statusCode).toBe(401);
+  });
 });
 
 describe('BaseApi', () => {
@@ -259,7 +268,7 @@ describe('BaseApi config default Accept', () => {
     expect(client.capturedHeaders['Accept']).toBe('application/xml');
   });
 
-  test('a default header in another case replaces the negotiated one, never sits beside it', async () => {
+  test('bhv headers 030 a default header in another case replaces the negotiated one, never sits beside it', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({
       baseUrl: 'http://localhost',
@@ -387,6 +396,32 @@ describe('BaseApi', () => {
     expect(new URL(client.capturedUrl).searchParams.get('filter')).toBe('');
   });
 
+  test('bhv serialization 006 a query name or value with reserved or space characters cannot add a parameter', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('GET', '/test/echo', { 'a&b=c': 'x&admin=1 y' }, {}, null,
+      ['application/json'], 'application/json', null);
+    const params = new URL(client.capturedUrl).searchParams;
+    expect([...params.keys()]).toEqual(['a&b=c']);
+    expect(params.get('a&b=c')).toBe('x&admin=1 y');
+  });
+
+  test('bhv serialization 011 query parameters are written in the order the caller gives them', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('GET', '/test/echo', { zeta: '1', alpha: '2' }, {}, null,
+      ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toBe('http://localhost/test/echo?zeta=1&alpha=2');
+  });
+
+  test('bhv serialization 014 a query parameter left unset produces no query entry', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('GET', '/test/echo', { filter: undefined }, {}, null,
+      ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toBe('http://localhost/test/echo');
+  });
+
   test('bhv serializationwire 016 includes empty value param in query string when value is empty string', async () => {
     const result = await api().call('GET', '/test/echo', { filter: '' }, {}, null,
       ['application/json'], 'application/json', null);
@@ -423,7 +458,7 @@ describe('BaseApi', () => {
     expect(client.capturedUrl).not.toContain('limit=10.0');
   });
 
-  test('query keys and values escape ! * \' ( ) and keep ~ literal', async () => {
+  test('bhv serializationparam 107 query keys and values escape ! * \' ( ) and keep ~ literal', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
@@ -677,6 +712,30 @@ describe('BaseApi', () => {
     expect((result as { headers: Record<string, string> }).headers['authorization'])
       .toBe('Bearer secret-token-123');
   });
+
+  test('bhv authintegration 018 a configured client authenticator is applied to a secured operation', async () => {
+    const clientAuth = new BearerAuthenticator(chasmUrl, 'client-token-456');
+    const configured = new TestableApi(
+      new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+      new Configuration({ baseUrl: chasmUrl }),
+      clientAuth
+    );
+    const result = await configured.call('GET', '/test/echo', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as { headers: Record<string, string> });
+    expect((result as { headers: Record<string, string> }).headers['authorization'])
+      .toBe('Bearer client-token-456');
+  });
+
+  test('bhv authintegration 019 an invalid auth cookie fails the call before any request is sent', async () => {
+    const capturing = new CapturingApiClient();
+    const auth = new TestAuthenticator({}, {}, { session: 'a;b' });
+    const error = await new TestableApi(capturing, new Configuration({ baseUrl: 'https://api.example.com' }))
+      .call('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null, auth)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TypeError);
+    expect(capturing.capturedUrl).toBe('');
+  });
 });
 
 describe('BaseApi', () => {
@@ -698,7 +757,7 @@ describe('BaseApi', () => {
     expect(Object.keys(client.capturedHeaders).map((name) => name.toLowerCase())).not.toContain('content-type');
   });
 
-  test('a POST with a null body sends no body and no Content-Type', async () => {
+  test('bhv operations 131 a request with a null body sends no body and no Content-Type header', async () => {
     const client = new CapturingApiClient();
     const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
     await testApi.call('POST', '/test/echo', {}, {}, null,
@@ -738,7 +797,35 @@ describe('BaseApi', () => {
     expect(client.capturedBody).not.toContain('%20');
   });
 
-  test('form-urlencoded body keeps ~ literal and escapes * ! \' ( )', async () => {
+  test('bhv serialization 007 a literal plus sign is sent as %2B and non-ASCII text as UTF-8 bytes', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('POST', '/test/echo', {}, {}, { q: 'a+bé' },
+      ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect(client.capturedBody).toBe('q=a%2Bb%C3%A9');
+  });
+
+  test('bhv serialization 009 a value that cannot be serialized raises SerializationError before any request', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await expect(
+      testApi.call('POST', '/test/echo', {}, {}, { count: BigInt(1) },
+        ['application/json'], 'application/json', null),
+    ).rejects.toThrow(SerializationError);
+    expect(client.capturedUrl).toBe('');
+  });
+
+  test('bhv serialization 010 a body is sent with exactly the declared content type and no charset', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('POST', '/test/echo', {}, {}, 'hello',
+      ['application/json'], 'text/plain', null);
+    const contentType = Object.entries(client.capturedHeaders)
+      .find(([k]) => k.toLowerCase() === 'content-type')?.[1];
+    expect(contentType).toBe('text/plain');
+  });
+
+  test('bhv serializationwire 057 form-urlencoded body keeps ~ literal and escapes * ! \' ( )', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
@@ -762,18 +849,21 @@ describe('BaseApi', () => {
     expect(client.capturedBody).toBeNull();
   });
 
-  test.each([
-    ['a nested map', { location: { lat: 1.5 } }],
-    ['an array of objects', { location: [{ lat: 1.5 }] }],
-  ])('bhv serializationwire 014 form-urlencoded body rejects %s with SerializationError', async (_label, body) => {
-    const client = new CapturingApiClient();
-    const config = new Configuration({ baseUrl: 'http://localhost' });
-    const testApi = new TestableApi(client, config);
-    await expect(
-      testApi.call('POST', '/test/echo', {}, {}, body,
-        ['application/json'], 'application/x-www-form-urlencoded', null),
-    ).rejects.toThrow(new SerializationError('form-urlencoded field location must be a scalar or array of scalars'));
-    expect(client.capturedBody).toBeNull();
+  test('bhv serializationwire 014 form-urlencoded body rejects a nested object field with SerializationError', async () => {
+    const bodies: Array<[string, unknown]> = [
+      ['a nested map', { location: { lat: 1.5 } }],
+      ['an array of objects', { location: [{ lat: 1.5 }] }],
+    ];
+    for (const [, body] of bodies) {
+      const client = new CapturingApiClient();
+      const config = new Configuration({ baseUrl: 'http://localhost' });
+      const testApi = new TestableApi(client, config);
+      await expect(
+        testApi.call('POST', '/test/echo', {}, {}, body,
+          ['application/json'], 'application/x-www-form-urlencoded', null),
+      ).rejects.toThrow(new SerializationError('form-urlencoded field location must be a scalar or array of scalars'));
+      expect(client.capturedBody).toBeNull();
+    }
   });
 
   test('bhv serializationwire 011 a null optional form field is omitted', async () => {
@@ -958,6 +1048,19 @@ describe('BaseApi content-type deserialization guard', () => {
     );
   });
 
+  test('bhv errors 054 an unexpected content type error names the operation rather than the HTTP verb', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = 'hello';
+    client.responseHeaders = { 'content-type': 'text/plain' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const error = await testApi
+      .call('GET', '/test/echo', {}, {}, null, ['application/json'], 'application/json', (json) => json as { id: number }, undefined, 'model')
+      .catch((e: unknown) => e);
+    expect((error as Error).message).toContain('for TestableApi.testOperation:');
+    expect((error as Error).message).not.toContain('GET');
+  });
+
   test('bhv errors 205 a response body that cannot be decoded raises an error carrying the status, headers, raw body and request', async () => {
     const client = new CapturingApiClient();
     client.responseStatus = 203;
@@ -1055,6 +1158,19 @@ describe('BaseApi', () => {
 });
 
 describe('BaseApi', () => {
+  test('bhv serializationwire 060 a binary return type gets the raw bytes of a JSON body', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"id":7,"name":"photo"}';
+    client.responseHeaders = { 'content-type': 'application/json' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call('GET', '/test/echo', {}, {}, null,
+      ['image/jpeg', 'application/json'], 'application/json',
+      (json) => json, undefined, 'binary');
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect((result as Buffer).toString('utf-8')).toBe('{"id":7,"name":"photo"}');
+  });
+
   test('bhv serializationwire 018 an octet-stream response is carried as base64 and decodes to its bytes', async () => {
     const original = new Uint8Array([0xDE, 0xAD, 0xBE, 0xEF]);
     const client = new CapturingApiClient();
@@ -1228,7 +1344,7 @@ describe('BaseApi WithHTTPInfo variant', () => {
     expect(result.rawBody).toBe('{"id":7,"name":"WithInfoPet"}');
   });
 
-  test('the headers are a frozen copy of the response map', async () => {
+  test('bhv results 006 the headers are a frozen copy of the response map', async () => {
     const client = new CapturingApiClient();
     client.responseHeaders = { 'content-type': 'application/json', 'x-trace': 'one' };
     const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
@@ -1255,7 +1371,7 @@ describe('BaseApi scheme credentials', () => {
     expect(testApi.resolve(['bearer', 'apiKey'])).toBe(bearer);
   });
 
-  test('resolves nothing when the client holds none of the listed schemes', () => {
+  test('bhv auth 021 resolves nothing when the client holds none of the listed schemes', () => {
     const testApi = new TestableApi(undefined, undefined, null, { bearer });
 
     expect(testApi.resolve(['basic', 'apiKey'])).toBeUndefined();
@@ -1544,6 +1660,24 @@ describe('request cancellation against the slow endpoint', () => {
     expect(error).not.toBeInstanceOf(NetworkTimeoutError);
   }, 15000);
 
+  test('bhv auth 013 cancelling a call reports the cancellation without waiting for the token endpoint', async () => {
+    class StalledBearer extends BearerAuthenticator {
+      override getAuthHeadersAsync(): Promise<Record<string, string>> {
+        return new Promise<Record<string, string>>(() => undefined);
+      }
+    }
+    const controller = new AbortController();
+    const testApi = new TestableApi(
+      new DefaultApiClient(),
+      Configuration.defaultConfiguration(),
+      new StalledBearer('http://localhost', 'token-013')
+    );
+    const pending = slow(testApi, { signal: controller.signal });
+    setTimeout(() => controller.abort(), 100);
+    const error = await pending;
+    expect((error as Error).name).toBe('AbortError');
+  }, 15000);
+
   test('an already aborted per-call signal rejects without waiting', async () => {
     const testApi = new TestableApi(new DefaultApiClient(), Configuration.defaultConfiguration());
     const error = await slow(testApi, { signal: AbortSignal.abort() });
@@ -1640,6 +1774,13 @@ describe('BaseApi error request context', () => {
     expect(err.toString()).not.toContain('page=2');
   });
 
+  test('bhv errors 048 418 throws ClientError', async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 418;
+    const err = await fail(client, 'GET', '/items/7');
+    expect(err).toBeInstanceOf(ClientError);
+  });
+
   test('a relative base URL gives the path without the query string', async () => {
     const client = new RecordingApiClient();
     client.statusCode = 418;
@@ -1673,6 +1814,34 @@ describe('BaseApi per-call request options', () => {
     await send(client, { timeout: 250, maxRetries: 0 });
     expect(client.sendOptions?.timeout).toBe(250);
     expect(client.sendOptions?.maxRetries).toBe(0);
+  });
+
+  test('bhv options 053 per-call options take effect on that one call only', async () => {
+    const client = new RecordingApiClient();
+    await send(client, { timeout: 250, maxRetries: 0 });
+    expect(client.sendOptions?.timeout).toBe(250);
+    await send(client);
+    expect(client.sendOptions?.timeout).toBeUndefined();
+    expect(client.sendOptions?.maxRetries).toBeUndefined();
+  });
+
+  test('bhv options 055 a call without per-call options leaves the client default headers in force', async () => {
+    const client = new RecordingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost', defaultHeaders: { 'X-Region': 'default' } });
+    await send(client, undefined, config);
+    expect(client.headers['X-Region']).toBe('default');
+    expect(client.sendOptions?.timeout).toBeUndefined();
+  });
+
+  test('bhv options 056 a per-call timeout of zero or less, or a negative retry count, is refused before any request is sent', async () => {
+    const client = new RecordingApiClient();
+    await expect(send(client, { timeout: 0 })).rejects.toThrow(/Invalid timeout/);
+    await expect(send(client, { maxRetries: -1 })).rejects.toThrow(/Invalid maxRetries/);
+    expect(client.url).toBe('');
+  });
+
+  test('bhv options 057 a per-call timeout below one millisecond is refused', async () => {
+    await expect(send(new RecordingApiClient(), { timeout: 0.5 })).rejects.toThrow(/Invalid timeout/);
   });
 
   test('bhv transport 002 a null timeout reaches the transport as no timeout', async () => {

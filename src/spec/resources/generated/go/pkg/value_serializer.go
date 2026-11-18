@@ -168,42 +168,93 @@ func maybeAllowReserved(value any, allowReserved bool) any {
 //   - value: the map value to serialize
 //
 // Returns a map of expanded keys to serialized values, or an empty map if value is nil.
-func serializeDeepObject(paramName string, value any) map[string]string {
+// A nested object or array under any key is refused with a *SerializationError,
+// because deepObject expresses one level of properties only.
+func serializeDeepObject(paramName string, value any) (map[string]string, error) {
 	result := make(map[string]string)
 	if value == nil {
-		return result
+		return result, nil
+	}
+	if rv := reflect.ValueOf(value); rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return result, nil
+		}
+		value = rv.Elem().Interface()
 	}
 
+	nestedError := func(key string) error {
+		return newSerializationError(fmt.Sprintf("deepObject parameter %s[%s] holds a nested object or array", paramName, key), nil)
+	}
 	switch m := value.(type) {
 	case map[string]any:
 		for key, val := range m {
+			if isNestedValue(val) {
+				return nil, nestedError(key)
+			}
 			result[fmt.Sprintf("%s[%s]", paramName, key)] = stringify(val)
 		}
 	case map[string]string:
 		for key, val := range m {
 			result[fmt.Sprintf("%s[%s]", paramName, key)] = val
 		}
-	case *map[string]any:
-		if m != nil {
-			for key, val := range *m {
-				result[fmt.Sprintf("%s[%s]", paramName, key)] = stringify(val)
-			}
-		}
-	case *map[string]string:
-		if m != nil {
-			for key, val := range *m {
-				result[fmt.Sprintf("%s[%s]", paramName, key)] = val
-			}
-		}
 	default:
 		/* A model (or any other object): one entry per property. */
 		if pairs, ok := objectEntries(value); ok {
+			if key, found := nestedProperty(value); found {
+				return nil, nestedError(key)
+			}
 			for _, pair := range pairs {
 				result[fmt.Sprintf("%s[%s]", paramName, pair[0])] = pair[1]
 			}
 		}
 	}
-	return result
+	return result, nil
+}
+
+// isNestedValue reports whether a value is an object or an array, the shapes
+// deepObject cannot express. Date-times, durations, byte strings and scalars
+// are not nested.
+func isNestedValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return false
+		}
+		rv = rv.Elem()
+	}
+	switch rv.Kind() {
+	case reflect.Map:
+		return true
+	case reflect.Slice, reflect.Array:
+		return rv.Type().Elem().Kind() != reflect.Uint8
+	case reflect.Struct:
+		return !isTemporalScalar(rv)
+	default:
+		return false
+	}
+}
+
+// nestedProperty returns the wire name of the first property of a model whose
+// JSON value is an object or an array. objectEntries writes such a value as its
+// JSON text, so the check looks at the JSON kind rather than the text.
+func nestedProperty(value any) (string, bool) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "", false
+	}
+	var props map[string]json.RawMessage
+	if err := json.Unmarshal(data, &props); err != nil {
+		return "", false
+	}
+	for key, raw := range props {
+		if len(raw) > 0 && (raw[0] == '{' || raw[0] == '[') {
+			return key, true
+		}
+	}
+	return "", false
 }
 
 // queryPairs is an object-valued query parameter that explodes into one

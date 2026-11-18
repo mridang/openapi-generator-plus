@@ -436,7 +436,7 @@ class PetApiTest {
   }
 
   @Test
-  void testMalformedBodyOnBodyReturningOperationThrows() throws Exception {
+  void bhvOperations130MalformedBodyOnBodyReturningOperationThrows() throws Exception {
     // A 200 whose body is not valid JSON for the declared return type must
     // surface the deserialization failure loudly rather than handing back
     // the raw, un-parsed string. Truncated JSON ("{" never closes) forces
@@ -589,7 +589,7 @@ class PetApiTest {
   }
 
   @Test
-  void testAClientWithNoCredentialSendsNoAuthenticationHeader() throws Exception {
+  void bhvAuth021AClientWithNoCredentialSendsNoAuthenticationHeader() throws Exception {
     List<String> sent = new java.util.ArrayList<>();
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -795,7 +795,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetTagSendsQueryParametersInDeclarationOrder() throws Exception {
+  void bhvOperations155GetPetTagSendsQueryParametersInDeclarationOrder() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
@@ -852,7 +852,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetByNameMissingRequiredQueryParamThrows() throws Exception {
+  void bhvOperations125GetPetByNameMissingRequiredQueryParamThrows() throws Exception {
     // A required query param that is null at runtime must fail client-side
     // with a clear error before any request is made — parity with path/body
     // required-param validation. The options field is typed non-null, so to
@@ -878,7 +878,7 @@ class PetApiTest {
   /* Passing null for a required Options object is the violation under test;
    * NullAway forbids it by design, so it is suppressed on this one method. */
   @SuppressWarnings("NullAway")
-  void nullRequiredOptionsNamesTheFirstRequiredField() {
+  void bhvOperations132NullRequiredOptionsNamesTheFirstRequiredField() {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
@@ -996,7 +996,7 @@ class PetApiTest {
   }
 
   @Test
-  void setPetPreferencesFormBodyFollowsDeclarationOrder() throws Exception {
+  void bhvOperations156SetPetPreferencesFormBodyFollowsDeclarationOrder() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
@@ -1014,7 +1014,7 @@ class PetApiTest {
   }
 
   @Test
-  void uploadPetDocumentSendsPartsInDeclarationOrder() throws Exception {
+  void bhvOperations147UploadPetDocumentSendsPartsInDeclarationOrder() throws Exception {
     final byte[][] capturedBody = new byte[1][];
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -1081,6 +1081,20 @@ class PetApiTest {
     assertThat(wire).doesNotContain("note=");
     assertThat(wire).doesNotContain("tags=x,y");
     assertThat(wire).doesNotContain("tags%5B%5D");
+    assertThat(wire).doesNotContain("%20");
+  }
+
+  @Test
+  void bhvSerializationWire055FormSpaceEncodesAsPlus() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    petApi.setPetPreferences(1L, new SetPetPreferencesOptions("Good Boy").note("be kind"));
+
+    assertNotNull(capturing.capturedBody);
+    String wire = capturing.capturedBody.toString();
+    assertThat(wire).contains("nickname=Good+Boy", "note=be+kind");
     assertThat(wire).doesNotContain("%20");
   }
 
@@ -1813,7 +1827,8 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes() throws Exception {
+  void bhvOperations138GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes()
+      throws Exception {
     Object[][] table = {
       {400, com.example.petstore.errors.BadRequestException.class},
       {401, com.example.petstore.errors.UnauthorizedException.class},
@@ -1833,5 +1848,92 @@ class PetApiTest {
       Class<?> expected = (Class<?>) row[1];
       assertThatThrownBy(() -> routed.getPetById(1L)).isExactlyInstanceOf(expected);
     }
+  }
+
+  /** Records what an operation hands the transport: the per-call overrides and headers. */
+  private static final class PerCallRecording implements ApiClient {
+    final List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+    final List<Integer> sentTimeouts = new java.util.ArrayList<>();
+    final List<Integer> sentRetries = new java.util.ArrayList<>();
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @javax.annotation.Nullable Object body) {
+      return record(headers, null, null);
+    }
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @javax.annotation.Nullable Object body,
+        @javax.annotation.Nullable Integer timeoutMillis,
+        @javax.annotation.Nullable Integer maxRetries) {
+      return record(headers, timeoutMillis, maxRetries);
+    }
+
+    private ApiHttpResponse record(
+        Map<String, String> headers,
+        @javax.annotation.Nullable Integer timeoutMillis,
+        @javax.annotation.Nullable Integer maxRetries) {
+      sentHeaders.add(new HashMap<>(headers));
+      sentTimeouts.add(timeoutMillis);
+      sentRetries.add(maxRetries);
+      return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+    }
+  }
+
+  @Test
+  void bhvOptions054OperationAcceptsPerCallOptionsAlongsideItsArguments() throws Exception {
+    PerCallRecording recording = new PerCallRecording();
+    PetApi perCall =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    perCall.findPetsByStatus(
+        new FindPetsByStatusOptions()
+            .status("available")
+            .timeout(5000)
+            .maxRetries(1)
+            .headers(Map.of("X-Trace", "trace-1")));
+
+    assertThat(recording.sentTimeouts.get(0)).isEqualTo(5000);
+    assertThat(recording.sentRetries.get(0)).isEqualTo(1);
+    assertThat(recording.sentHeaders.get(0).get("X-Trace")).isEqualTo("trace-1");
+  }
+
+  @Test
+  void bhvOptions053PerCallOptionsTakeEffectOnThatCallOnly() throws Exception {
+    PerCallRecording recording = new PerCallRecording();
+    PetApi perCall =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    perCall.findPetsByStatus(
+        new FindPetsByStatusOptions()
+            .status("available")
+            .timeout(5000)
+            .maxRetries(1)
+            .headers(Map.of("X-Trace", "trace-1")));
+    perCall.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+
+    assertThat(recording.sentTimeouts.get(1)).isNull();
+    assertThat(recording.sentRetries.get(1)).isNull();
+    assertThat(recording.sentHeaders.get(1).get("X-Trace")).isNull();
+  }
+
+  @Test
+  void bhvOptions055CallWithoutPerCallOptionsLeavesTheClientSettingsInForce() throws Exception {
+    PerCallRecording recording = new PerCallRecording();
+    PetApi plain =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    plain.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+
+    assertThat(recording.sentTimeouts.get(0)).isNull();
+    assertThat(recording.sentRetries.get(0)).isNull();
+    assertThat(recording.sentHeaders.get(0).get("X-Trace")).isNull();
   }
 }

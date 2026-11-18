@@ -88,7 +88,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("the SDK serializer reports an unknown, missing or empty discriminator as SerializationException")
+        @DisplayName("bhvUnions033 the SDK serializer reports an unknown, missing or empty discriminator as SerializationException")
         fun testBadDiscriminatorsSurfaceAsSdkSerializationException() {
             val serializer = {{invokerPackage}}.ObjectSerializer()
             for (payload in listOf(
@@ -102,6 +102,59 @@ class ComposedSchemaTest {
                 assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
                 assertNotNull(ex.cause, "the library failure is kept as the cause: $payload")
             }
+        }
+
+        @Test
+        @DisplayName("bhvUnions030 a subtype whose discriminator key is absent is filled with the mapping default")
+        fun testAbsentDiscriminatorIsFilledWithItsDefault() {
+            val result = json.decodeFromString<DryFood>("""{"weightKg":2.5}""")
+
+            assertEquals("dry", result.foodType)
+        }
+
+        @Test
+        @DisplayName("bhvUnions032 a oneOf wrapper built from a variant holds that variant and serializes it with its discriminator")
+        fun testBuiltFromVariantSerializesWithItsDiscriminator() {
+            val food = PetFood.fromDryFood(DryFood(weightKg = 2.5))
+
+            assertTrue(food.isDryFood)
+            assertEquals(2.5, food.asDryFood()?.weightKg)
+            val encodingJson = Json { encodeDefaults = true }
+            assertEquals("""{"foodType":"dry","weightKg":2.5}""", encodingJson.encodeToString(food))
+        }
+
+        @Test
+        @DisplayName("bhvUnions035 a discriminator value not listed in the mapping fails to deserialize")
+        fun testUnlistedDiscriminatorFailsToDeserialize() {
+            val jsonString = """{"foodType":"freeze-dried","weightKg":1.5}"""
+
+            assertThrowsExactly(kotlinx.serialization.SerializationException::class.java) {
+                json.decodeFromString<PetFood>(jsonString)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvUnions038 a union body whose discriminator is not a string or differs in case raises the SDK serialization error")
+        fun undecodableUnionBodyRaisesTheSdkSerializationError() {
+            val serializer = {{invokerPackage}}.ObjectSerializer()
+            for (payload in listOf(
+                """{"foodType":1,"weightKg":2.5}""",
+                """{"foodType":["dry"],"weightKg":2.5}""",
+                """{"FoodType":"dry","weightKg":2.5}""",
+            )) {
+                val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                    serializer.deserialize<PetFood>(payload)
+                }
+                assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvUnions043 a discriminator value already set on a subtype is written as given, not replaced by its default")
+        fun presetDiscriminatorIsWrittenAsGiven() {
+            val jsonString = json.encodeToString(DryFood(foodType = "custom", weightKg = 1.0))
+            assertTrue(jsonString.contains("\"foodType\":\"custom\""), jsonString)
+            assertFalse(jsonString.contains("\"foodType\":\"dry\""), jsonString)
         }
 
         @Test
@@ -195,7 +248,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("constructs PetTreatment with surgery instance")
+        @DisplayName("bhvUnions037 constructs PetTreatment with surgery instance")
         fun testConstructWithSurgery() {
             val surgery = Surgery(procedureName = "Spay", durationMinutes = 45)
             val treatment = PetTreatment(actualInstance = surgery)
@@ -470,6 +523,15 @@ class ComposedSchemaTest {
         // on BOTH encode and decode -- this test pins that wire form.
 
         @Test
+        @DisplayName("bhvUnions041 an empty JSON array is the list variant and a base64 string is the byte variant")
+        fun eachVariantDecodesItsOwnShape() {
+            val list = json.decodeFromString<SetPetAvatarThumbnailRequest>("[]")
+            assertTrue(list.actualInstance is List<*>, list.actualInstance.toString())
+            val bytes = json.decodeFromString<SetPetAvatarThumbnailRequest>("\"AQID\"")
+            assertTrue(bytes.actualInstance is ByteArray, bytes.actualInstance.toString())
+        }
+
+        @Test
         @DisplayName("bhvUnions019 setPetAvatarThumbnail byte oneOf round-trips through base64")
         fun testScalarByteVariantRoundTripsThroughBase64() {
             val raw = byteArrayOf(0x01, 0x02, 0x03, 0x04)
@@ -534,15 +596,15 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("bhvUnions025 tries variants in declaration order: an empty array is the byte variant, not the list")
+        @DisplayName("bhvUnions025 an empty array is the list variant, since a byte variant is only ever a base64 string")
         fun testVariantsAreTriedInDeclarationOrder() {
             val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>("[]")
 
-            assertTrue(restored.actualInstance is ByteArray)
+            assertTrue(restored.actualInstance is List<*>)
         }
 
         @Test
-        @DisplayName("oneOf wrappers have value equality, comparing byte arrays by content")
+        @DisplayName("bhvUnions029 oneOf wrappers have value equality, comparing byte arrays by content")
         fun testOneOfValueEquality() {
             val first = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x01, 0x02))
             val second = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x01, 0x02))
@@ -577,7 +639,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("an as accessor returns the variant, or null for the other one")
+        @DisplayName("bhvUnions034 an as accessor returns the variant, or null for the other one")
         fun testAsAccessorsReturnTheVariantOrNull() {
             val receipt =
                 ReservationReceipt(receiptCode = "rcpt-77", expiresAt = java.time.OffsetDateTime.parse("2030-01-01T00:00:00Z"))
@@ -596,7 +658,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a union with no variant answers false and null to every accessor")
+        @DisplayName("bhvUnions042 a union with no variant answers false and null to every accessor")
         fun testEmptyUnionAnswersNothing() {
             val union = ReserveStockResponse()
 
@@ -647,6 +709,28 @@ class ComposedSchemaTest {
             assertNull(union.asMedication())
             assertFalse(union.isSurgery)
             assertNull(union.asSurgery())
+        }
+    }
+
+    @Nested
+    @DisplayName("union wrapper contract behaviours")
+    inner class UnionWrapperContractBehaviours {
+
+        @Test
+        @DisplayName("bhvUnions039 building a union wrapper from a value never validates it or throws")
+        fun wrapperBuildsFromAnyValueWithoutThrowing() {
+            assertNotNull(PetTreatment(actualInstance = null))
+            assertNotNull(PetTreatment(actualInstance = "not a treatment"))
+        }
+
+        @Test
+        @DisplayName("bhvUnions040 a typed accessor returns the variant it holds and nothing for the other variants")
+        fun typedAccessorReturnsOnlyTheHeldVariant() {
+            val reservation = Reservation(reservationId = 31L, quantity = 4)
+            val union = ReserveStockResponse.fromReservation(reservation)
+
+            assertSame(reservation, union.asReservation())
+            assertNull(union.asReservationReceipt())
         }
     }
 }

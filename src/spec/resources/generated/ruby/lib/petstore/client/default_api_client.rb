@@ -155,6 +155,8 @@ module Petstore::Client
     # @return [ApiHttpResponse] the HTTP response
     def send_request(method, url, headers, body, no_redirect: false, retry_headers: nil, no_default_headers: false,
                      timeout: nil, max_retries: nil)
+      validate_header_values!(headers)
+      validate_header_values!(@transport_options.default_headers) unless no_default_headers
       enter_request
       begin
         perform_request(method, url, headers, body, no_redirect, retry_headers, no_default_headers, timeout, max_retries)
@@ -445,7 +447,7 @@ module Petstore::Client
           raise unusable_response(response, "Too many redirects (exceeded #{max_redirects})") if hops >= max_redirects && redirect_status?(response.status) && !response.headers['location'].to_s.empty?
         end
       rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Faraday::SSLError => e
-        raise network_error_class(e).new(message: e.message)
+        raise network_error_class(e).new(message: redact_url_text(e.message))
       rescue URI::InvalidURIError => e
         raise ArgumentError, "Invalid request URL (#{e.message}): #{url}"
       end
@@ -498,8 +500,11 @@ module Petstore::Client
 
     # Whether a failed attempt may be tried again. A TLS failure is a setup
     # problem (an untrusted or mismatched certificate) that another try cannot
-    # fix.
+    # fix. A timeout has already spent the caller's time budget on the attempt,
+    # so it is reported at once, as in the other SDKs.
     def retryable_network_error?(error)
+      return false if error.is_a?(Errors::NetworkTimeoutError)
+
       !error.cause.is_a?(Faraday::SSLError)
     end
 
@@ -596,6 +601,29 @@ module Petstore::Client
       conn.builder.build_response(conn, request)
     end
 
+    # Refuses a header whose value holds a carriage return or line feed, before
+    # anything is sent, so a value cannot split the request. The message names
+    # the header and never echoes its value.
+    #
+    # @raise [ArgumentError] if a value contains CR or LF
+    def validate_header_values!(headers)
+      headers.each do |name, value|
+        next unless value.to_s.match?(/[\r\n]/)
+
+        raise ArgumentError, "Header #{name} value must not contain a carriage return or line feed"
+      end
+    end
+
+    # +text+ with every URL in it reduced to scheme, host, port and path: the
+    # userinfo, query string and fragment are dropped, so a failure message
+    # never carries credentials or query parameters from the request URL.
+    #
+    # @param text [String, nil] a message that may quote a URL
+    # @return [String]
+    def redact_url_text(text)
+      text.to_s.gsub(%r{([A-Za-z][A-Za-z0-9+.-]*://)(?:[^\s/?#@]*@)?([^\s?#]*)(?:\?[^\s#]*)?(?:#\S*)?}) { "#{Regexp.last_match(1)}#{Regexp.last_match(2)}" }
+    end
+
     # Whether +headers+ already holds +name+ under ASCII case-folding.
     def header?(headers, name)
       headers.keys.any? { |key| key.to_s.casecmp?(name) }
@@ -687,7 +715,7 @@ module Petstore::Client
     def detect_encoding(content_type)
       return Encoding::UTF_8 if content_type.nil?
 
-      match = content_type.match(/charset\s*=\s*"?([^";\s]+)"?/i)
+      match = content_type.match(/(?:\A|;)\s*charset\s*=\s*"?([^";\s]+)"?/i)
       return Encoding::UTF_8 if match.nil?
 
       charset = match[1].to_s
@@ -751,7 +779,7 @@ module Petstore::Client
         # when nil marks the proxy as set by hand, so Faraday never reads
         # http_proxy / https_proxy / no_proxy and the adapter opens a direct
         # connection.
-        f.proxy = @transport_options.proxy
+        f.proxy = proxy_settings(@transport_options.proxy)
         f.ssl.verify = @transport_options.verify_ssl
         if @transport_options.ca_cert_path
           f.ssl.ca_file = @transport_options.ca_cert_path
@@ -784,6 +812,24 @@ module Petstore::Client
         # bearer tokens. We follow redirects ourselves in send_request with
         # a same-origin check.
       end
+    end
+
+    # The proxy handed to Faraday. Faraday decodes the userinfo of a proxy URL
+    # with CGI.unescape, which turns a literal + into a space, so the user name
+    # and password are percent-decoded here (RFC 3986 only, keeping +) and
+    # passed to Faraday as explicit credentials.
+    #
+    # @param proxy [String, nil] the proxy URL from TransportOptions
+    # @return [String, Hash, nil] the proxy for Faraday
+    def proxy_settings(proxy)
+      return proxy if proxy.nil?
+
+      uri = URI.parse(proxy)
+      return proxy if uri.userinfo.nil?
+
+      raw_password = uri.password
+      password = raw_password.nil? ? nil : URI.decode_uri_component(raw_password)
+      { uri: uri, user: URI.decode_uri_component(uri.user.to_s), password: password }
     end
 
     # Return true for HTTP 3xx redirect status codes that carry a Location header.

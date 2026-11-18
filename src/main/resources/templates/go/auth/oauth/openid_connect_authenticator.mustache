@@ -4,6 +4,7 @@ package oauth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -241,7 +242,16 @@ func (a *OpenIdConnectAuthenticator) discover(ctx context.Context) (*OAuth2Autho
 	 * the typed *ApiError for its status rather than a misleading "invalid
 	 * JSON" parse failure downstream. */
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, errors_pkg.FromResponse(resp.StatusCode, resp.Headers, resp.Body)
+		failure := errors_pkg.FromResponse(resp.StatusCode, resp.Headers, resp.Body)
+		var apiErr *errors_pkg.ApiError
+		if errors.As(failure, &apiErr) {
+			discoveryPath := a.openIDConnectURL
+			if parsed, parseErr := url.Parse(discoveryPath); parseErr == nil {
+				discoveryPath = parsed.EscapedPath()
+			}
+			apiErr.AttachRequest("GET", discoveryPath)
+		}
+		return nil, failure
 	}
 
 	var discovery struct {

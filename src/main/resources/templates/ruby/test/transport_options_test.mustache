@@ -73,7 +73,7 @@ describe {{moduleName}}::TransportOptions do
     end
   end
 
-  it 'shows max_retries in inspect' do
+  it 'bhv_options_064 shows max_retries in inspect' do
     _({{moduleName}}::TransportOptions.builder.max_retries(4).build.inspect).must_include 'max_retries=4'
   end
 
@@ -119,12 +119,30 @@ describe {{moduleName}}::TransportOptions do
     _({{moduleName}}::TransportOptions.sensitive_header?('Accept')).must_equal false
   end
 
-  it 'bhv_options_033 rejects a non-positive timeout with the canonical message' do
+  it 'bhv_options_033 rejects a timeout below one millisecond with the canonical message' do
     assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-1) }
     err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-5) }
-    _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got -5)'
+    _(err.message).must_equal 'Invalid timeout: must be at least one millisecond (got -5)'
     err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(0) }
-    _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got 0)'
+    _(err.message).must_equal 'Invalid timeout: must be at least one millisecond (got 0)'
+    err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(0.5) }
+    _(err.message).must_equal 'Invalid timeout: must be at least one millisecond (got 0.5)'
+  end
+
+  it 'bhv_options_045 a negative maxRedirects is rejected at configuration' do
+    err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.max_redirects(-1) }
+    _(err.message).must_equal 'Invalid maxRedirects: must not be negative (got -1)'
+    _({{moduleName}}::TransportOptions.builder.max_redirects(0).build.max_redirects).must_equal 0
+  end
+
+  it 'bhv_options_047 a negative timeout is rejected at configuration' do
+    err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-1) }
+    _(err.message).must_equal 'Invalid timeout: must be at least one millisecond (got -1)'
+  end
+
+  it 'bhv_options_051 a proxy URL with a scheme other than http or https is rejected' do
+    err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.proxy('ftp://proxy.example.com') }
+    _(err.message).must_equal 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com'
   end
 
   # An invalid proxy URL is the caller's mistake, so it raises ArgumentError, never an SDK error.
@@ -155,7 +173,7 @@ describe {{moduleName}}::TransportOptions do
     _(error.message).must_match(/\AInvalid proxy URL \(.*\): http:\/\/\[::1:3128\z/m)
   end
 
-  it 'constructing directly with a non-http proxy scheme raises ArgumentError' do
+  it 'bhv_options_046 constructing directly with a non-http proxy scheme raises ArgumentError' do
     error = assert_raises(ArgumentError) do
       {{moduleName}}::TransportOptions.new(
         verify_ssl: true, ca_cert_path: nil, proxy: 'ftp://x', timeout: nil, follow_redirects: true,
@@ -313,7 +331,7 @@ describe {{moduleName}}::TransportOptions do
     _(opts.proxy).must_equal 'HTTPS://proxy.example.com:8443'
   end
 
-  it 'accepts proxy credentials in the URL' do
+  it 'bhv_options_052 accepts proxy credentials in the URL' do
     opts = {{moduleName}}::TransportOptions.builder.proxy('http://user:pass@proxy.example.com:8080').build
     _(opts.proxy).must_equal 'http://user:pass@proxy.example.com:8080'
   end
@@ -342,18 +360,33 @@ describe {{moduleName}}::TransportOptions do
       _({{moduleName}}::TransportOptions.builder.connection(conn).build.connection).must_be_same_as conn
     end
 
+    it 'bhv_options_059 a supplied connection is kept unchanged on the built options and is unset by default' do
+      conn = Faraday.new('http://localhost')
+      built = {{moduleName}}::TransportOptions.builder.connection(conn).build
+      _(built.connection).must_be_same_as conn
+      _({{moduleName}}::DefaultApiClient.new(built).send(:connection)).must_be_same_as conn
+      _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
+    end
+
     it 'defaults to no connection' do
       _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
     end
 
-    it 'rejects a connection combined with a proxy' do
+    it 'bhv_transport_078 rejects a connection combined with a proxy' do
       error = assert_raises(ArgumentError) do
         {{moduleName}}::TransportOptions.builder.connection(Faraday.new('http://localhost')).proxy('http://proxy:3128').build
       end
       _(error.message).must_include 'proxy'
     end
 
-    it 'rejects a connection combined with disabled TLS verification' do
+    it 'bhv_transport_080 rejects a proxy setting the client cannot apply instead of dropping it' do
+      error = assert_raises(ArgumentError) do
+        {{moduleName}}::TransportOptions.builder.proxy('socks5://proxy.example.com:1080').build
+      end
+      _(error.message).must_include 'scheme'
+    end
+
+    it 'bhv_transport_079 rejects a connection combined with disabled TLS verification' do
       error = assert_raises(ArgumentError) do
         {{moduleName}}::TransportOptions.builder.connection(Faraday.new('http://localhost')).verify_ssl(false).build
       end
@@ -367,9 +400,76 @@ describe {{moduleName}}::TransportOptions do
       _(error.message).must_include 'ca_cert_path'
     end
 
+    it 'bhv_lifecycle_024 a supplied connection conflicts with the sdk proxy and tls settings' do
+      conn = Faraday.new('http://localhost')
+      _(-> { {{moduleName}}::TransportOptions.builder.connection(conn).proxy('http://proxy:3128').build }).must_raise ArgumentError
+      _(-> { {{moduleName}}::TransportOptions.builder.connection(conn).verify_ssl(false).build }).must_raise ArgumentError
+      _(-> { {{moduleName}}::TransportOptions.builder.connection(conn).ca_cert_path('/tmp/ca.pem').build }).must_raise ArgumentError
+    end
+
+    it 'bhv_redirects_045 rejects a connection that follows redirects on its own' do
+      # A named stand-in for the redirect-following middleware: its class
+      # name is what the SDK checks, as the real gem's class name is.
+      namespace = Module.new
+      namespace.const_set(:FollowRedirects, Class.new(Faraday::Middleware))
+      conn = Faraday.new('http://localhost') { |f| f.use namespace::FollowRedirects }
+      error = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.connection(conn).build }
+      _(error.message).must_include 'follow redirects'
+    end
+
     it 'rejects an object that is not a connection' do
       error = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.connection(Object.new).build }
       _(error.message).must_include 'Faraday::Connection'
     end
+  end
+end
+
+describe {{moduleName}}::TransportOptions, 'builder entry point and printable form' do
+  parallelize_me!
+
+  it 'bhv_options_058 an injected connection is none unless supplied, and a supplied one is kept as the same instance' do
+    conn = Faraday.new('http://localhost')
+
+    _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
+    _({{moduleName}}::TransportOptions.builder.connection(conn).build.connection).must_be_same_as conn
+  end
+
+  it 'bhv_options_060 the builder entry point carries the values set on it' do
+    opts = {{moduleName}}::TransportOptions.builder.timeout(5_000).max_retries(4).build
+
+    _(opts.timeout).must_equal 5_000
+    _(opts.max_retries).must_equal 4
+  end
+
+  it 'bhv_options_061 a user agent set on the builder is kept as given' do
+    _({{moduleName}}::TransportOptions.builder.user_agent('acme-client/1.0').build.user_agent).must_equal 'acme-client/1.0'
+  end
+
+  it 'bhv_options_062 an options object reports the values it was built with and unset fields read back as nil' do
+    opts = {{moduleName}}::TransportOptions.builder.proxy('http://proxy.example.com:8080').build
+
+    _(opts.proxy).must_equal 'http://proxy.example.com:8080'
+    _(opts.ca_cert_path).must_be_nil
+    _(opts.connection).must_be_nil
+  end
+
+  it 'bhv_options_065 the printable form of transport options never shows a proxy password' do
+    opts = {{moduleName}}::TransportOptions.builder
+                                           .proxy('http://user:hunter2@proxy.example.com:8080')
+                                           .build
+
+    _(opts.inspect).wont_include 'hunter2'
+    _(opts.to_s).wont_include 'hunter2'
+  end
+
+  it 'bhv_options_066 the printable form shows a proxy URL with no credentials exactly as configured' do
+    opts = {{moduleName}}::TransportOptions.builder.proxy('http://proxy.example.com:8080').build
+
+    _(opts.inspect).must_include 'proxy="http://proxy.example.com:8080"'
+  end
+
+  it 'bhv_options_067 a valid proxy URL is kept and with no proxy the proxy is unset' do
+    _({{moduleName}}::TransportOptions.builder.proxy('http://proxy.example.com:8080').build.proxy).must_equal 'http://proxy.example.com:8080'
+    _({{moduleName}}::TransportOptions.builder.build.proxy).must_be_nil
   end
 end

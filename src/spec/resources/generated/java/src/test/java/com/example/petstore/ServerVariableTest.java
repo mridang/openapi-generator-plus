@@ -10,12 +10,22 @@ package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ServerVariableTest {
+  @Test
+  void bhvServers027TwoVariablesWithTheSameContentAreEqual() {
+    ServerVariable first = new ServerVariable("v1", "version", java.util.List.of("v1", "v2"));
+    ServerVariable second = new ServerVariable("v1", "version", java.util.List.of("v1", "v2"));
+    assertEquals(first, second);
+    assertEquals(first.hashCode(), second.hashCode());
+    org.junit.jupiter.api.Assertions.assertNotEquals(
+        first, new ServerVariable("v2", "version", java.util.List.of("v1", "v2")));
+  }
 
   @Test
   void bhvServers017ExposesDefaultValueWhenNoOverrideIsApplied() {
@@ -38,7 +48,7 @@ class ServerVariableTest {
   }
 
   @Test
-  void enumValuesAreExposedForValidation() {
+  void bhvServers018EnumValuesAreExposedForValidation() {
     // ServerConfiguration validates overrides against this set, so the
     // enum list must surface exactly the allowed values.
     ServerVariable var =
@@ -50,11 +60,21 @@ class ServerVariableTest {
   }
 
   @Test
-  void enumDoesNotContainAValueOutsideTheAllowedSet() {
+  void bhvServers019EnumDoesNotContainAValueOutsideTheAllowedSet() {
     // An out-of-set value (e.g. "dev") is absent from the enum, which is
     // what drives ServerConfiguration to reject it.
     ServerVariable var = new ServerVariable("prod", null, List.of("prod", "staging"));
 
     assertTrue(!var.getEnumValues().contains("dev"));
+  }
+
+  @Test
+  void bhvServers024EnumValuesCannotBeMutated() {
+    // The enum list is copied into an immutable list, so a caller cannot
+    // widen the set that ServerConfiguration validates overrides against.
+    ServerVariable var = new ServerVariable("prod", null, List.of("prod", "staging"));
+
+    assertThrows(UnsupportedOperationException.class, () -> var.getEnumValues().add("dev"));
+    assertEquals(List.of("prod", "staging"), var.getEnumValues());
   }
 }

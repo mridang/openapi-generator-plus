@@ -17,7 +17,11 @@ import { OAuth2TokenManager } from "../src/auth/oauth/oauth2-token-manager.js";
 import { OAuth2TokenError } from "../src/errors/oauth2-token-error.js";
 import * as dns from "node:dns/promises";
 import * as zlib from "node:zlib";
+import * as fs from "node:fs";
 import * as http from "node:http";
+import * as os from "node:os";
+import * as path from "node:path";
+import * as tls from "node:tls";
 
 describe("DefaultApiClient", () => {
   test("bhv transport 018 makes HTTPS request with verifySsl=false", async () => {
@@ -69,7 +73,7 @@ describe("DefaultApiClient", () => {
       ).rejects.toBeInstanceOf(NetworkError);
     });
 
-    test("verifySsl=false accepts hostname mismatch (curl -k semantics)", async () => {
+    test("bhv transport 062 verifySsl=false accepts a certificate that fails validation (curl -k semantics)", async () => {
       const transport = TransportOptions.builder().verifySsl(false).build();
 
       const client = new DefaultApiClient(transport);
@@ -83,6 +87,61 @@ describe("DefaultApiClient", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('"method"');
     });
+  });
+
+  test("bhv transport 065 a configured CA bundle replaces the system trust store instead of adding to it", async () => {
+    const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
+    /* A bundle holding only an unrelated system root: the chasm certificate is signed by a CA outside it, so it must be refused even though the system roots are not consulted. */
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-replace-"));
+    const bundle = path.join(dir, "only-root.pem");
+    fs.writeFileSync(bundle, tls.rootCertificates[0]!);
+
+    const transport = TransportOptions.builder()
+      .verifySsl(true)
+      .caCertPath(bundle)
+      .maxRetries(0)
+      .build();
+
+    const client = new DefaultApiClient(transport);
+    try {
+      await expect(
+        client.sendRequest("GET", `${chasmUrl}/test/echo`, {}, null),
+      ).rejects.toBeInstanceOf(NetworkError);
+    } finally {
+      await client.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("bhv transport 066 a CA bundle file trusts every certificate it contains", async () => {
+    const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
+    const caCertPath = process.env["CA_CERT_PATH"]!;
+    /* The chasm CA comes second, so a client that read only the first certificate of the bundle would refuse the chasm server. */
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-bundle-"));
+    const bundle = path.join(dir, "two-certs.pem");
+    fs.writeFileSync(
+      bundle,
+      `${tls.rootCertificates[0]!}\n${fs.readFileSync(caCertPath, "utf-8")}`,
+    );
+
+    const transport = TransportOptions.builder()
+      .verifySsl(true)
+      .caCertPath(bundle)
+      .build();
+
+    const client = new DefaultApiClient(transport);
+    try {
+      const response = await client.sendRequest(
+        "GET",
+        `${chasmUrl}/test/echo`,
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(200);
+    } finally {
+      await client.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("bhv transport 017 makes HTTPS request with custom CA cert", async () => {
@@ -118,7 +177,7 @@ describe("DefaultApiClient", () => {
    * Proxy-Authorization, so these two prove the credentials in the proxy
    * URL reach the proxy on the wire.
    */
-  test("authenticating proxy accepts the credentials from the proxy URL", async () => {
+  test("bhv options 052 authenticating proxy accepts the credentials from the proxy URL", async () => {
     const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
     const transport = TransportOptions.builder()
       .proxy(`http://user:pass@${process.env["PROXY_AUTH_HOST_PORT"]!}`)
@@ -136,7 +195,7 @@ describe("DefaultApiClient", () => {
     expect(response.body).toContain('"method"');
   });
 
-  test("authenticating proxy refuses a request without credentials", async () => {
+  test("bhv transport 059 authenticating proxy refuses a request without credentials", async () => {
     const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
     const transport = TransportOptions.builder()
       .proxy(`http://${process.env["PROXY_AUTH_HOST_PORT"]!}`)
@@ -476,17 +535,17 @@ describe("DefaultApiClient", () => {
     expect(response.statusCode).toBe(302);
   });
 
-  test.each([
-    ["no-location", '{"redirect":"no-location"}'],
-    ["malformed-location", '{"redirect":"malformed"}'],
-  ])(
-    "bhv redirects 010 a 302 with an unusable Location (%s) is returned untouched",
-    async (path, body) => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
-      const client = new DefaultApiClient(
-        TransportOptions.builder().followRedirects(true).build(),
-      );
+  test("bhv redirects 010 a 3xx whose Location is absent or unparseable comes back as the redirect response", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    const cases: Array<[string, string]> = [
+      ["no-location", '{"redirect":"no-location"}'],
+      ["malformed-location", '{"redirect":"malformed"}'],
+    ];
 
+    for (const [path, body] of cases) {
       const response = await client.sendRequest(
         "GET",
         `${chasmUrl}/test/redirect/${path}`,
@@ -496,8 +555,8 @@ describe("DefaultApiClient", () => {
 
       expect(response.statusCode).toBe(302);
       expect(JSON.parse(response.body as string)).toEqual(JSON.parse(body));
-    },
-  );
+    }
+  });
 
   test("bhv redirects 005 redirect 303 switches to GET and drops body", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;

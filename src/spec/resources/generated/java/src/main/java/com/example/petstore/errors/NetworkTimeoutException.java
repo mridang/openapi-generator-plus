@@ -8,6 +8,8 @@
 
 package com.example.petstore.errors;
 
+import javax.annotation.Nullable;
+
 /**
  * Exception for a request that timed out before an HTTP response arrived. The status code is always
  * 0 and the underlying transport exception is kept as the cause.
@@ -23,5 +25,21 @@ public class NetworkTimeoutException extends NetworkException {
    */
   public NetworkTimeoutException(String message, Throwable cause) {
     super(message, cause);
+  }
+
+  /**
+   * Creates a new exception that records the request that timed out.
+   *
+   * @param message the error message
+   * @param cause the underlying transport exception
+   * @param requestMethod the HTTP method of the request
+   * @param requestPath the path or URL of the request; a query string is stripped
+   */
+  public NetworkTimeoutException(
+      String message,
+      Throwable cause,
+      @Nullable String requestMethod,
+      @Nullable String requestPath) {
+    super(message, cause, requestMethod, requestPath);
   }
 }

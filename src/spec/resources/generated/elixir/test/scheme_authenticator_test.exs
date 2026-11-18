@@ -60,6 +60,8 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
   @basic_schemes for {module, [{"username", user_env}, {"password", pass_env}]} <- @schemes,
                      do: {module, user_env, pass_env}
 
+  @bearer_schemes for {module, [{"token", env}]} <- @schemes, do: {module, env}
+
   setup do
     names = for {_module, vars} <- @schemes, {_arg, env} <- vars, do: env
     saved = Map.new(names, fn name -> {name, System.get_env(name)} end)
@@ -76,6 +78,21 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
   end
 
   defp build(module, args), do: apply(module, :new, args)
+
+  # An empty variable counts as unset: building the authenticator fails and names each variable.
+  defp assert_empty_variables_are_named(module) do
+    {^module, vars} = List.keyfind!(@schemes, module, 0)
+
+    for {arg, env} <- vars do
+      Enum.each(vars, fn {other, other_env} -> System.put_env(other_env, "from-env-" <> other) end)
+
+      System.put_env(env, "")
+
+      assert_raise ArgumentError, ~r/'#{arg}'.*#{env}/, fn ->
+        build(module, [@host])
+      end
+    end
+  end
 
   # Records the URL a discovery request is sent to, and answers with a valid document.
   defmodule DiscoveryRecorder do
@@ -138,7 +155,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         end
       end
 
-      test "an argument that is passed wins over its environment variable" do
+      test "bhv authscheme 009 an argument that is passed wins over its environment variable" do
         Enum.each(@vars, fn {arg, env} -> System.put_env(env, "from-env-" <> arg) end)
         [{first, _env} | rest] = @vars
 
@@ -151,6 +168,15 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         end
       end
 
+      test "bhv authscheme 010 an empty environment variable is treated as unset and fails naming the variable" do
+        [{_arg, env} | _] = @vars
+        System.put_env(env, "")
+
+        error = assert_raise ArgumentError, fn -> build(@module, [@host]) end
+
+        assert Exception.message(error) =~ env
+      end
+
       test "bhv authscheme 002 explicit arguments need no environment" do
         args = Enum.map(@vars, fn {arg, _env} -> "explicit-" <> arg end)
 
@@ -161,7 +187,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         end
       end
 
-      test "the environment is read once, when the authenticator is built" do
+      test "bhv lifecycle 025 the environment is read once, when the authenticator is built" do
         Enum.each(@vars, fn {arg, env} -> System.put_env(env, "first-" <> arg) end)
 
         auth = build(@module, [@host])
@@ -186,7 +212,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         end
       end
 
-      test "an empty environment variable counts as unset" do
+      test "bhv authbasic 012 an empty environment variable counts as unset" do
         for {arg, env} <- @vars do
           Enum.each(@vars, fn {other, other_env} ->
             System.put_env(other_env, "from-env-" <> other)
@@ -202,7 +228,46 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
     end
   end
 
+  test "bhv authscheme 003 a scheme authenticator fails at construction naming the variable when its environment variable is empty" do
+    Enum.each(@schemes, fn {module, _vars} -> assert_empty_variables_are_named(module) end)
+  end
+
+  test "bhv authscheme 004 the AdminBasic scheme authenticator treats an empty environment variable as unset and names it" do
+    assert_empty_variables_are_named(PetstoreClient.Auth.AdminBasicAuthenticator)
+  end
+
+  test "bhv authscheme 005 the ApiKeyHeader scheme authenticator treats an empty environment variable as unset and names it" do
+    assert_empty_variables_are_named(PetstoreClient.Auth.ApiKeyHeaderAuthenticator)
+  end
+
+  test "bhv authscheme 006 the ApiKeyQuery scheme authenticator treats an empty environment variable as unset and names it" do
+    assert_empty_variables_are_named(PetstoreClient.Auth.ApiKeyQueryAuthenticator)
+  end
+
+  test "bhv authscheme 007 the SessionCookie scheme authenticator treats an empty environment variable as unset and names it" do
+    assert_empty_variables_are_named(PetstoreClient.Auth.SessionCookieAuthenticator)
+  end
+
+  test "bhv authscheme 008 the SsoAuth scheme authenticator treats an empty environment variable as unset and names it" do
+    assert_empty_variables_are_named(PetstoreClient.Auth.OAuth.SsoAuthAuthenticator)
+  end
+
   describe "generated basic scheme wrappers" do
+    test "bhv authbasic 019 generated basic scheme wrappers emit the same Basic header as the base authenticator" do
+      refute @basic_schemes == []
+
+      for {module, user_env, pass_env} <- @basic_schemes do
+        System.put_env(user_env, "from-env-user")
+        System.put_env(pass_env, "from-env-pass")
+
+        wrapper = apply(module, :new, [@host])
+        base = PetstoreClient.Auth.BasicAuthenticator.new(@host, "from-env-user", "from-env-pass")
+
+        assert PetstoreClient.Auth.BasicAuthenticator.auth_headers(wrapper) ==
+                 PetstoreClient.Auth.BasicAuthenticator.auth_headers(base)
+      end
+    end
+
     test "bhv authbasic 002 generated scheme wrapper emits a basic header and masks the password" do
       refute @basic_schemes == []
 
@@ -217,6 +282,21 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
                  expected
 
         refute inspect(auth) =~ "from-env-pass"
+      end
+    end
+  end
+
+  describe "generated bearer scheme wrappers" do
+    test "bhv authbearer 023 generated bearer scheme wrappers emit a Bearer header" do
+      refute @bearer_schemes == []
+
+      for {module, env} <- @bearer_schemes do
+        System.put_env(env, "from-env-token")
+
+        wrapper = apply(module, :new, [@host])
+
+        assert PetstoreClient.Auth.BearerAuthenticator.auth_headers(wrapper) ==
+                 %{"Authorization" => "Bearer from-env-token"}
       end
     end
   end

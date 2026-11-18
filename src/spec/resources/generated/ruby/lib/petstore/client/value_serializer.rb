@@ -301,7 +301,7 @@ module Petstore::Client
     # exploded), +spaceDelimited+ and +pipeDelimited+ flatten it with their
     # delimiter.
     def self.serialize_object(param_name, fields, location, style, explode)
-      pairs = fields.map { |key, field| [encode_item(key.to_s, location), encode_item(object_field_text(field), location)] }
+      pairs = fields.map { |key, field| [encode_item(key.to_s, location), encode_item(object_field_text(key, field), location)] }
       joined = pairs.map { |key, text| "#{key}=#{text}" }
       case style
       when 'matrix'
@@ -318,9 +318,16 @@ module Petstore::Client
       end
     end
 
-    # The text of one object property: an array is its items joined by commas.
-    def self.object_field_text(field)
-      field.is_a?(Array) ? field.map { |item| ObjectSerializer.stringify(item) }.join(',') : ObjectSerializer.stringify(field)
+    # The text of one object property. A property that is itself an object or
+    # an array has no single text form in an object-valued parameter, so it is
+    # refused rather than written as a comma list or the Ruby inspect text.
+    def self.object_field_text(key, field)
+      if field.is_a?(Hash) || field.is_a?(Array) || field.class.const_defined?(:ATTRIBUTE_MAP)
+        raise ::Petstore::Client::Errors::SerializationError.new(
+          "Property '#{key}' holds a nested object or array, which a parameter cannot carry", nil
+        )
+      end
+      ObjectSerializer.stringify(field)
     end
 
     # Serialize a deepObject-style query parameter.

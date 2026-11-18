@@ -183,11 +183,11 @@ describe Petstore::Client::HeaderSelector do
       _(@header_selector.send(:select_accept_header, nil)).must_be_nil
     end
 
-    it 'returns empty string when all entries are filtered out' do
+    it 'bhv_headers_029 returns empty string when all entries are filtered out' do
       _(@header_selector.send(:select_accept_header, ['', nil])).must_equal('')
     end
 
-    it 'returns empty string for empty array' do
+    it 'bhv_headers_027 returns empty string for empty accept array' do
       _(@header_selector.send(:select_accept_header, [])).must_equal('')
     end
 
@@ -195,18 +195,15 @@ describe Petstore::Client::HeaderSelector do
       _(@header_selector.send(:select_accept_header, ['application/json'])).must_equal('application/json')
     end
 
-    it 'returns single non-JSON accept as-is' do
-      _(@header_selector.send(:select_accept_header, ['text/html'])).must_equal('text/html')
-    end
-
     it 'bhv_headers_011 joins media types in declaration order with ", "' do
       result = @header_selector.send(:select_accept_header, %w[image/jpeg image/png application/json])
       _(result).must_equal('image/jpeg, image/png, application/json')
     end
 
-    it 'does not reorder or apply quality weights' do
+    it 'bhv_headers_032 lists media types without quality weights' do
       result = @header_selector.send(:select_accept_header, %w[text/html text/plain])
       _(result).must_equal('text/html, text/plain')
+      _(result).wont_include('q=')
     end
   end
 end

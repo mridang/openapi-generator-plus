@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -483,7 +484,7 @@ func TestBhvOperations093_PetApi_UploadPetDocumentRejectsUnknownContentType(t *t
 }
 
 // An invalid per-call option is reported before any request is built.
-func TestPetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.T) {
+func TestBhvOptions056_PetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
@@ -491,6 +492,10 @@ func TestPetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.T) {
 	err := api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithTimeout(0))
 	if !errors.Is(err, petstore.ErrInvalidTimeout) {
 		t.Errorf("expected ErrInvalidTimeout, got %v", err)
+	}
+	err = api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithMaxRetries(-1))
+	if !errors.Is(err, petstore.ErrInvalidMaxRetries) {
+		t.Errorf("expected ErrInvalidMaxRetries, got %v", err)
 	}
 }
 
@@ -1187,7 +1192,7 @@ func TestBhvOperations089_PetApi_UploadMultipartMock(t *testing.T) {
 // as JSON must carry a per-part Content-Type: application/json header, matching
 // the other 11 SDKs. AddPetPhotos sends a PhotoMetadata object as the "metadata"
 // part.
-func TestPetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
+func TestBhvSerialization060_PetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
 	t.Parallel()
 	var metadataPartContentType string
 	var sawMetadataPart bool
@@ -1442,6 +1447,26 @@ func TestPetApi_CallerSuppliedFileHandleIsNeverClosedByTheSdk(t *testing.T) {
 	})
 	if _, err := part.Stat(); err != nil {
 		t.Errorf("expected the multipart file handle to stay open, got %v", err)
+	}
+}
+
+// An empty required query parameter is refused before any request is sent.
+func TestBhvOperations125_PetApi_EmptyRequiredQueryParamIsRefusedBeforeAnyRequest(t *testing.T) {
+	t.Parallel()
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetByName(context.Background(), "rex", &options.GetPetByNameOptions{XCorrelationId: "c-1"})
+	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
+		t.Fatalf("expected ErrMissingRequiredParameter for the empty category, got %v", err)
+	}
+	if requests != 0 {
+		t.Errorf("expected no request to be sent, got %d", requests)
 	}
 }
 
@@ -1821,7 +1846,7 @@ func TestPetApi_AnOperationWithoutSecuritySendsNoCredential(t *testing.T) {
 
 // F857: the host of a credentials client resolves like every credential: the
 // argument, then the environment variable, then ErrMissingCredential.
-func TestPetApi_CredentialsClientNeedsAHost(t *testing.T) {
+func TestBhvLifecycle039_PetApi_CredentialsClientNeedsAHost(t *testing.T) {
 	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
 	client, err := petstore.NewClientWithCredentials("", petstore.Credentials{}, nil)
 	if !errors.Is(err, petstore.ErrMissingCredential) || client != nil {
@@ -2000,7 +2025,7 @@ func TestBhvOperations028_PetApi_CookieParamValidValuePasses(t *testing.T) {
 // A 200 response whose JSON body is malformed must surface the deserialize error
 // to the caller rather than silently returning the raw string / a zero-valued
 // model. GetPetById returns a *Pet; a truncated JSON body must propagate an error.
-func TestPetApi_Malformed2xxBodyFailsLoud(t *testing.T) {
+func TestBhvOperations127_PetApi_Malformed2xxBodyFailsLoud(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -2206,5 +2231,133 @@ func TestBhvOperations024_PetApi_AddPetTreatmentSendsTheChosenVariantAsTheBody(t
 	}
 	if sent["drugName"] != "Amoxicillin" || sent["dosage"] != "250mg" {
 		t.Errorf("expected the variant's fields at the top level, got %v", sent)
+	}
+}
+
+func TestBhvOperations130_PetApi_MalformedJSONSuccessBodyPropagatesTheDeserializeError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{ not json`))
+	}))
+	defer server.Close()
+
+	_, err := newPetApiForMock(t, server).GetPetById(context.Background(), int64(1), nil)
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected the deserialization error to propagate as *SerializationError, got %T: %v", err, err)
+	}
+}
+
+func TestBhvOperations138_PetApi_GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		status int
+		match  func(error) bool
+	}{
+		{400, func(err error) bool { var e *pkgerrors.BadRequestError; return errors.As(err, &e) }},
+		{401, func(err error) bool { var e *pkgerrors.UnauthorizedError; return errors.As(err, &e) }},
+		{403, func(err error) bool { var e *pkgerrors.ForbiddenError; return errors.As(err, &e) }},
+		{409, func(err error) bool { var e *pkgerrors.ConflictError; return errors.As(err, &e) }},
+		{418, func(err error) bool { var e *pkgerrors.ClientError; return errors.As(err, &e) }},
+		{422, func(err error) bool { var e *pkgerrors.UnprocessableEntityError; return errors.As(err, &e) }},
+		{502, func(err error) bool { var e *pkgerrors.ServerError; return errors.As(err, &e) }},
+	}
+	for _, tc := range cases {
+		config := petstore.NewConfigurationBuilder().
+			BaseURL(fmt.Sprintf("%s/test/status/%d", chasmURL, tc.status)).
+			Build()
+		api := petstore.NewPetApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil, petstore.Credentials{})
+		_, err := api.GetPetById(context.Background(), int64(1), nil)
+		if err == nil {
+			t.Fatalf("status %d: expected an error", tc.status)
+		}
+		if !tc.match(err) {
+			t.Errorf("status %d: unexpected error class %T: %v", tc.status, err, err)
+		}
+	}
+}
+
+func TestBhvOperations147_PetApi_UploadPetDocumentSendsThePartsInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	var names []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err == nil {
+			mr := multipart.NewReader(r.Body, params["boundary"])
+			for {
+				part, perr := mr.NextPart()
+				if perr != nil {
+					break
+				}
+				names = append(names, part.FormName())
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	notes := "n"
+	isPrimary := true
+	_, _ = newPetApiForMock(t, server).UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{
+		File:      newTempFile(t, "document-content"),
+		Notes:     &notes,
+		IsPrimary: &isPrimary,
+	})
+
+	if want := []string{"file", "notes", "isPrimary"}; strings.Join(names, ",") != strings.Join(want, ",") {
+		t.Errorf("expected the parts in declaration order %v, got %v", want, names)
+	}
+}
+
+func TestBhvOperations148_PetApi_AddPetUsesTheFirstHeldSchemeOfItsRequirement(t *testing.T) {
+	t.Parallel()
+	var gotKey, gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotKey, gotAuth = r.Header.Get("X-API-Key"), r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	client, err := petstore.NewClientWithCredentials(server.URL, petstore.Credentials{PetStoreBearer: bearer}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	pet := models.NewPet("OrderDog", models.Set[string]{"http://example.com/o.jpg"})
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if gotAuth != "Bearer bearer-token" || gotKey != "" {
+		t.Errorf("expected the held bearer scheme only, got authorization %q and key %q", gotAuth, gotKey)
+	}
+}
+
+func TestBhvOptions054_PetApi_OperationAcceptsPerCallOptionsAlongsideItsArguments(t *testing.T) {
+	t.Parallel()
+	api := newPetApiForIntegration(t)
+
+	result, err := api.GetPetById(context.Background(), int64(1), nil,
+		petstore.WithTimeout(5*time.Second),
+		petstore.WithHeaders(map[string]string{"X-Call-Option": "one"}))
+	if err != nil {
+		t.Fatalf("GetPetById with call options failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected a result when call options are given")
+	}
+}
+
+func TestBhvConfig025_PetApi_EmptyBaseUrlEnvironmentValueIsTreatedAsUnset(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+	client, err := petstore.NewClientWithCredentials("", petstore.Credentials{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL") || client != nil {
+		t.Errorf("expected construction to fail naming the missing variable, got %v %v", client, err)
 	}
 }

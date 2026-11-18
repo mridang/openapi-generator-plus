@@ -279,6 +279,23 @@ func TestBhvTracing004_TraceContextUtil_FormatsTraceFlagsCorrectly(t *testing.T)
 	}
 }
 
+// A propagator the caller registers is the one used, and headers already on the request are kept.
+func TestBhvMisc002_TraceContextUtil_CallerPropagatorIsUsedAndExistingHeadersAreKept(t *testing.T) {
+	SetTraceContextPropagator(func(_ context.Context, headers map[string]string) {
+		headers["traceparent"] = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+	})
+	t.Cleanup(func() { SetTraceContextPropagator(nil) })
+
+	headers := map[string]string{"X-Keep": "1"}
+	InjectTraceContext(context.Background(), headers)
+	if headers["X-Keep"] != "1" {
+		t.Errorf("expected the existing header kept, got %v", headers)
+	}
+	if headers["traceparent"] == "" {
+		t.Errorf("expected the caller's propagator to inject traceparent, got %v", headers)
+	}
+}
+
 func TestTraceContextUtil_PropagatorReadsTheSpanFromTheCallContext(t *testing.T) {
 	_, span, _ := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
 	defer span.End()

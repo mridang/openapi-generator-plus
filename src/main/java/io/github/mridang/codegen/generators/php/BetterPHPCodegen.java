@@ -70,9 +70,16 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     private static final String BINARY_BODY_TYPE =
             "\\SplFileObject|\\Psr\\Http\\Message\\StreamInterface|string";
 
-    /** The authenticators that read a credential from the environment when none is passed. */
+    /** The authenticators whose generated scheme class reads a credential from the environment when none is passed. */
     private static final Set<String> CREDENTIAL_FALLBACK_BASES =
-            Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator");
+            Set.of(
+                    "BasicAuthenticator",
+                    "BearerAuthenticator",
+                    "ApiKeyAuthenticator",
+                    "OAuth2ClientCredentialsAuthenticator",
+                    "OAuth2PasswordAuthenticator",
+                    "OAuth2AuthorizationCodeAuthenticator",
+                    "OAuth2ImplicitAuthenticator");
 
     protected String invokerPackage = "OpenAPI\\Client";
 
@@ -1217,7 +1224,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 spec, spec.schemeClass() + spec.oauthSuffix() + "Authenticator", credentialEnvVars);
         recordOAuthScheme(spec);
         ctx.put("constructorParams", constructorParams);
-        final List<String> superArgs = buildPhpSuperArgs(spec);
+        final List<String> superArgs = new ArrayList<>();
+        for (final String arg : buildPhpSuperArgs(spec)) {
+            superArgs.add(resolvedOAuthCredential(spec, arg));
+        }
         ctx.put("superArgs", superArgs);
         ctx.put("hasCustomConstructor", !isPassthroughConstructor(constructorParams, superArgs));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
@@ -1225,11 +1235,31 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /**
      * Whether the authenticator of this scheme reads the named constructor argument from the
-     * environment when it is left out: the credential of a basic, bearer or API key scheme.
+     * environment when it is left out: a credential the scheme takes, in a basic, bearer, API key
+     * or OAuth 2 scheme. The host is never read from the environment, and OpenID Connect reads
+     * none.
      */
     private static boolean readsEnvironment(SchemeAuthSpec spec, String name) {
         return CREDENTIAL_FALLBACK_BASES.contains(spec.baseClass())
-                && (SENSITIVE_PARAMS.contains(name) || "username".equals(name));
+                && !"host".equals(name)
+                && spec.paramNames().contains(name);
+    }
+
+    /**
+     * The argument a scheme class passes to an OAuth 2 base class for a credential it reads from
+     * the environment: the argument resolved by {@code credentialOrEnvironment}, so the explicit
+     * value wins and the variable is read once, when the authenticator is built. Any other
+     * argument is returned unchanged.
+     */
+    private static String resolvedOAuthCredential(SchemeAuthSpec spec, String arg) {
+        if (!spec.isOAuth() || !arg.startsWith("$")) {
+            return arg;
+        }
+        final String name = arg.substring(1);
+        if (!readsEnvironment(spec, name)) {
+            return arg;
+        }
+        return "static::credentialOrEnvironment($" + name + ", '" + name + "')";
     }
 
     /**
@@ -1287,16 +1317,19 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             case "BasicAuthenticator":
                 key = "basicScheme";
                 break;
-            default:
+            case "ApiKeyAuthenticator":
                 key = "apiKeyScheme";
                 break;
+            default:
+                return;
         }
         additionalProperties.putIfAbsent(key, first);
     }
 
     /**
      * Records the first scheme of each OAuth2 grant the tests can build ({@code
-     * oauthClientCredentialsScheme}, {@code oauthPasswordScheme}, {@code oauthAuthCodeScheme}):
+     * oauthClientCredentialsScheme}, {@code oauthPasswordScheme}, {@code oauthAuthCodeScheme},
+     * {@code oauthImplicitScheme}):
      * its generated class, the token and authorization URLs of the spec as PHP literals, and the
      * spec scopes, so the scheme wrapper tests can assert what the wrapper sends.
      */
@@ -1312,12 +1345,17 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             case "OAuth2AuthorizationCodeAuthenticator":
                 key = "oauthAuthCodeScheme";
                 break;
+            case "OAuth2ImplicitAuthenticator":
+                key = "oauthImplicitScheme";
+                break;
             default:
                 return;
         }
         final Map<String, Object> scheme = new HashMap<>();
         scheme.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
         scheme.put("tokenUrlLiteral", toPhpStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")));
+        scheme.put("refreshUrlLiteral", toPhpStringLiteral(java.util.Objects.toString(
+                spec.refreshUrl() != null ? spec.refreshUrl() : spec.tokenUrl(), "")));
         scheme.put("authorizationUrlLiteral",
                 toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")));
         scheme.put("scopesLiteral", formatPhpScopes(spec.scopes()));

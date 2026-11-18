@@ -8,6 +8,7 @@
 import {
   readEnvCredential,
   resolveCredential,
+  resolveOAuthCredential,
 } from "../src/auth/credentials.js";
 
 const TOKEN_VARIABLE = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
@@ -28,7 +29,7 @@ describe("credentials", () => {
     expect(readEnvCredential(TOKEN_VARIABLE)).toBe("from-env");
   });
 
-  it("treats an unset variable as absent", () => {
+  it("bhv auth 003 treats an unset variable as absent", () => {
     delete process.env[TOKEN_VARIABLE];
     expect(readEnvCredential(TOKEN_VARIABLE)).toBeUndefined();
   });
@@ -38,7 +39,7 @@ describe("credentials", () => {
     expect(readEnvCredential(TOKEN_VARIABLE)).toBeUndefined();
   });
 
-  it("an explicit value wins over the environment", () => {
+  it("bhv authscheme 009 an explicit value wins over the environment", () => {
     process.env[TOKEN_VARIABLE] = "from-env";
     expect(resolveCredential("explicit", TOKEN_VARIABLE, "Token")).toBe(
       "explicit",
@@ -52,7 +53,7 @@ describe("credentials", () => {
     );
   });
 
-  it("keeps an explicit empty string, so the caller sees the mistake", () => {
+  it("bhv auth 023 keeps an explicit empty string, so the caller sees the mistake", () => {
     process.env[TOKEN_VARIABLE] = "from-env";
     expect(resolveCredential("", TOKEN_VARIABLE, "Token")).toBe("");
   });
@@ -66,7 +67,42 @@ describe("credentials", () => {
     );
   });
 
-  it("reads the variable once, when the credential is resolved", () => {
+  it("refuses an OAuth2 credential from the environment that has a line break", () => {
+    process.env[TOKEN_VARIABLE] = "bad\r\nvalue";
+    expect(() =>
+      resolveOAuthCredential(undefined, TOKEN_VARIABLE, "OAuth2 client ID"),
+    ).toThrow(new TypeError("OAuth2 client ID must not contain CR, LF or NUL"));
+  });
+
+  it("accepts an OAuth2 credential from the environment without a line break", () => {
+    process.env[TOKEN_VARIABLE] = "from-env";
+    expect(
+      resolveOAuthCredential(undefined, TOKEN_VARIABLE, "OAuth2 client ID"),
+    ).toBe("from-env");
+  });
+
+  it("bhv auth 007 reads only the variable it is told to read", () => {
+    process.env[TOKEN_VARIABLE] = "from-env";
+    expect(() =>
+      resolveCredential(undefined, `${TOKEN_VARIABLE}_UNSET_SECOND`, "Token"),
+    ).toThrow(TypeError);
+  });
+
+  it("bhv auth 024 each field takes its own passed value or its own variable, independently", () => {
+    const second = `${TOKEN_VARIABLE}_SECOND`;
+    process.env[TOKEN_VARIABLE] = "env-first";
+    process.env[second] = "env-second";
+    try {
+      expect(resolveCredential("passed-first", TOKEN_VARIABLE, "First")).toBe(
+        "passed-first",
+      );
+      expect(resolveCredential(undefined, second, "Second")).toBe("env-second");
+    } finally {
+      delete process.env[second];
+    }
+  });
+
+  it("bhv authbearer 025 reads the variable once, when the credential is resolved", () => {
     process.env[TOKEN_VARIABLE] = "first";
     const resolved = resolveCredential(undefined, TOKEN_VARIABLE, "Token");
     process.env[TOKEN_VARIABLE] = "second";

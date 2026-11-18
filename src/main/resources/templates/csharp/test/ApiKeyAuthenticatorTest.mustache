@@ -130,7 +130,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void CrlfInHeaderKeyThrowsAtConstruction()
+    public void BhvAuthapikey018CrlfInHeaderKeyThrowsAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "abc\rdef", ApiKeyLocation.Header));
@@ -186,6 +186,15 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuth006ApiKeyHeaderIsSentUnderTheDeclaredHeaderName()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "X-Custom-Key", "abc123", ApiKeyLocation.Header);
+
+        Assert.Equal("abc123", auth.GetAuthHeaders()["X-Custom-Key"]);
+    }
+
+    [Fact]
     public void QueryKeyIsNotEmittedAsAHeaderOrCookie()
     {
         var auth = new ApiKeyAuthenticator(
@@ -196,7 +205,33 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void CookieAcceptsNonAscii()
+    public void BhvAuthapikey022KeyIsEmittedOnlyAtItsOwnLocation()
+    {
+        var header = new ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.Header);
+        var query = new ApiKeyAuthenticator("https://api.example.com", "api_key", "abc123", ApiKeyLocation.Query);
+        var cookie = new ApiKeyAuthenticator("https://api.example.com", "session", "abc123", ApiKeyLocation.Cookie);
+
+        Assert.Equal(new Dictionary<string, string> { ["X-API-Key"] = "abc123" }, header.GetAuthHeaders());
+        Assert.Empty(header.GetQueryParams());
+        Assert.Empty(header.GetCookieParams());
+        Assert.Equal(new Dictionary<string, string> { ["api_key"] = "abc123" }, query.GetQueryParams());
+        Assert.Empty(query.GetAuthHeaders());
+        Assert.Empty(query.GetCookieParams());
+        Assert.Equal(new Dictionary<string, string> { ["session"] = "abc123" }, cookie.GetCookieParams());
+        Assert.Empty(cookie.GetAuthHeaders());
+        Assert.Empty(cookie.GetQueryParams());
+    }
+
+    [Fact]
+    public void BhvAuthapikey026DefaultDebugOutputDoesNotLeakTheKey()
+    {
+        var auth = new ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.Header);
+
+        Assert.DoesNotContain("abc123", auth.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthapikey023CookieAcceptsNonAscii()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com", "session", "k\u00e9y", ApiKeyLocation.Cookie);

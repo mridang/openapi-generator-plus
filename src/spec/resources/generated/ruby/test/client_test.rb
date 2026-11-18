@@ -60,7 +60,7 @@ describe 'Client' do
       _(Petstore::Client::Petstore.with_token('/api/v3')).wont_be_nil
       ENV.delete(variable)
       error = _(-> { Petstore::Client::Petstore.with_token('/api/v3') }).must_raise ArgumentError
-      _(error.message).must_equal 'Bearer token must not be empty'
+      _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{variable}"
     ensure
       if saved.nil?
         ENV.delete(variable)
@@ -82,7 +82,7 @@ describe 'Client' do
 
     error = _(-> { Petstore::Client::Petstore.with_token('/api/v3') }).must_raise ArgumentError
 
-    _(error.message).must_equal 'Bearer token must not be empty'
+    _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{prefix}_TOKEN"
   end
 
   it 'bhv_lifecycle_006 BearerAuthenticator rejects CR/LF and non-ASCII' do
@@ -242,30 +242,24 @@ describe 'Client' do
     _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth]
   end
 
-  it 'is built from a scheme credential alone and takes its base URL from it' do
+  it 'bhv_lifecycle_030 the base URL comes from the authenticator first, then from the first scheme credential' do
     credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
-
-    client = Petstore::Client::Petstore.new(nil, nil, pet_store_basic: credential)
-
-    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
-  end
-
-  it 'takes its base URL from the authenticator before any scheme credential' do
     default = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')
-    credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
 
-    client = Petstore::Client::Petstore.new(default, nil, pet_store_basic: credential)
+    with_default = Petstore::Client::Petstore.new(default, nil, pet_store_basic: credential)
+    without_default = Petstore::Client::Petstore.new(nil, nil, pet_store_basic: credential)
 
-    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
+    _(api_groups_of(with_default).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
+    _(api_groups_of(without_default).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
   end
 
-  it 'is refused when it gets no credential at all' do
+  it 'bhv_lifecycle_026 is refused when it gets no credential at all' do
     error = _ { Petstore::Client::Petstore.new }.must_raise ArgumentError
 
     _(error.message).must_equal 'At least one credential is required'
   end
 
-  it 'hands the shared transport to every credential that needs HTTP' do
+  it 'bhv_auth_025 hands the shared transport to every credential that needs HTTP' do
     default = ClientTestHttpAwareCredential.new('http://127.0.0.1:2')
     credential = ClientTestHttpAwareCredential.new('http://127.0.0.1:1')
 
@@ -274,6 +268,45 @@ describe 'Client' do
     api_client = client.instance_variable_get(:@api_client)
     _(default.injected).must_be_same_as api_client
     _(credential.injected).must_be_same_as api_client
+  end
+
+  it 'bhv_lifecycle_028 an explicit host and token win over the environment' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = 'env-token'
+      client = Petstore::Client::Petstore.with_token('https://arg.example.com', 'arg-token')
+      api = client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi).first
+
+      _(api.config.base_url).must_equal 'https://arg.example.com'
+      _(api.instance_variable_get(:@authenticator).auth_headers['Authorization']).must_equal 'Bearer arg-token'
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
+  end
+
+  it 'bhv_lifecycle_032 a token passed to the client is preferred to the one in the environment' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = 'env-token'
+      client = Petstore::Client::Petstore.with_token('/api/v3', 'arg-token')
+      api = client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi).first
+
+      _(api.instance_variable_get(:@authenticator).auth_headers['Authorization']).must_equal 'Bearer arg-token'
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
   end
 
   it 'bhv_lifecycle_008 close makes the client reject further requests' do
@@ -288,6 +321,22 @@ describe 'Client' do
     _(error.message).must_include('closed')
   end
 
+  it 'bhv_lifecycle_035 a request after close fails with the closed error and never reaches the transport' do
+    reached = []
+    conn = Faraday.new
+    conn.define_singleton_method(:run_request) { |*_args, **_kwargs, &_block| reached << true }
+    transport = Petstore::Client::TransportOptions.builder.connection(conn).build
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    client = Petstore::Client::Petstore.new(authenticator, transport)
+    api_client = client.instance_variable_get(:@api_client)
+
+    client.close
+
+    error = _ { api_client.send_request(:get, 'http://localhost/ping', {}, nil) }.must_raise RuntimeError
+    _(error.message).must_equal 'ApiClient has been closed and can no longer send requests'
+    _(reached).must_be_empty
+  end
+
   it 'bhv_lifecycle_007 close leaves a supplied connection open' do
     conn = Faraday.new
     closed = [] # : Array[bool]
@@ -298,5 +347,29 @@ describe 'Client' do
     Petstore::Client::Petstore.new(authenticator, transport).close
 
     _(closed).must_be_empty
+  end
+
+  it 'bhv_config_025 an empty token variable is treated as unset and construction names it' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = ''
+      error = _(-> { Petstore::Client::Petstore.with_token('/api/v3') }).must_raise ArgumentError
+      _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{variable}"
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
+  end
+
+  it 'bhv_lifecycle_039 a client with no host or an empty token is refused at construction and a valid token builds one' do
+    _(-> { Petstore::Client::Petstore.with_token(nil, 'test-token') }).must_raise ArgumentError # steep:ignore ArgumentTypeMismatch
+    _(-> { Petstore::Client::Petstore.with_token('', 'test-token') }).must_raise ArgumentError
+    _(-> { Petstore::Client::Petstore.with_token('/api/v3', '') }).must_raise ArgumentError
+    _(Petstore::Client::Petstore.with_token('/api/v3', 'test-token')).wont_be_nil
   end
 end

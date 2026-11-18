@@ -43,7 +43,7 @@ defmodule PetstoreClient.ValueSerializer do
   @spec serialize(term(), atom(), String.t(), keyword()) :: String.t() | [String.t()] | nil
   def serialize(value, location, schema_type, opts \\ []) do
     collection_format = Keyword.get(opts, :collection_format)
-    value = set_to_list(value)
+    value = value |> set_to_list() |> date_only_value(schema_type)
 
     cond do
       is_nil(value) ->
@@ -72,6 +72,22 @@ defmodule PetstoreClient.ValueSerializer do
   # array parameter, element by element, in the set's iteration order.
   defp set_to_list(%MapSet{} = set), do: MapSet.to_list(set)
   defp set_to_list(value), do: value
+
+  # A `format: date` parameter writes only the calendar date of a date-time
+  # value, for a single value and for each element of an array alike. Any
+  # other schema type passes the value through unchanged.
+  defp date_only_value(value, schema_type)
+       when schema_type in ["Date", "Date.t()"] and is_list(value),
+       do: Enum.map(value, &calendar_date/1)
+
+  defp date_only_value(value, schema_type) when schema_type in ["Date", "Date.t()"],
+    do: calendar_date(value)
+
+  defp date_only_value(value, _schema_type), do: value
+
+  defp calendar_date(%DateTime{} = dt), do: DateTime.to_date(dt)
+  defp calendar_date(%NaiveDateTime{} = dt), do: NaiveDateTime.to_date(dt)
+  defp calendar_date(value), do: value
 
   # An object-valued parameter: a model struct or a map. The temporal structs
   # are scalars (they stringify to one value), so they are not objects.
@@ -123,6 +139,17 @@ defmodule PetstoreClient.ValueSerializer do
 
   # `k1,v1,k2,v2`: the flat form of a non-exploded object.
   defp flatten_object(pairs), do: Enum.flat_map(pairs, fn {key, value} -> [key, value] end)
+
+  # The wire pairs of an object-valued style parameter: path values are
+  # percent-encoded, every other location is written as it is.
+  defp object_style_pairs(value, location) do
+    value
+    |> object_pairs()
+    |> Enum.map(fn {key, val} -> {style_part(key, location), style_part(val, location)} end)
+  end
+
+  defp style_part(text, :path), do: encode_path_segment(text)
+  defp style_part(text, _location), do: text
 
   # Returns the wire-value string for `value` when `schema_type` resolves to a
   # generated enum module that maps the atom via `value/1`; otherwise nil so
@@ -295,7 +322,11 @@ defmodule PetstoreClient.ValueSerializer do
     # so a sanitized atom name (`:great_dane`) emits the wire value
     # ("GreatDane") rather than `to_string(atom)`. Scalars and arrays of enums
     # are both covered; non-enum values pass through untouched.
-    value = value |> set_to_list() |> resolve_enum_wire_values(schema_type)
+    value =
+      value
+      |> set_to_list()
+      |> resolve_enum_wire_values(schema_type)
+      |> date_only_value(schema_type)
 
     case style do
       "matrix" ->
@@ -367,6 +398,18 @@ defmodule PetstoreClient.ValueSerializer do
   defp serialize_matrix(_param_name, nil, :query, _explode), do: nil
   defp serialize_matrix(_param_name, nil, _location, _explode), do: ""
 
+  # matrix object: `;key=value;key=value` when exploded, otherwise
+  # `;name=key,value,key,value`.
+  defp serialize_matrix(param_name, value, location, explode) when is_object(value) do
+    pairs = object_style_pairs(value, location)
+
+    if explode do
+      Enum.map_join(pairs, "", fn {key, val} -> ";#{key}=#{val}" end)
+    else
+      ";#{param_name}=#{Enum.join(flatten_object(pairs), ",")}"
+    end
+  end
+
   defp serialize_matrix(param_name, value, :path, explode) when is_list(value) do
     if explode do
       Enum.map_join(value, "", fn v ->
@@ -408,6 +451,18 @@ defmodule PetstoreClient.ValueSerializer do
   defp serialize_label(nil, :query, _explode), do: nil
   defp serialize_label(nil, _location, _explode), do: ""
 
+  # label object: `.key=value.key=value` when exploded, otherwise
+  # `.key,value,key,value`.
+  defp serialize_label(value, location, explode) when is_object(value) do
+    pairs = object_style_pairs(value, location)
+
+    if explode do
+      "." <> Enum.map_join(pairs, ".", fn {key, val} -> "#{key}=#{val}" end)
+    else
+      "." <> Enum.join(flatten_object(pairs), ",")
+    end
+  end
+
   defp serialize_label(value, :path, explode) when is_list(value) do
     if explode do
       ".#{Enum.map_join(value, ".", fn v -> encode_path_segment(PetstoreClient.ObjectSerializer.stringify(v)) end)}"
@@ -436,6 +491,12 @@ defmodule PetstoreClient.ValueSerializer do
 
   defp serialize_delimited(nil, :query, _delimiter, _explode), do: nil
   defp serialize_delimited(nil, _location, _delimiter, _explode), do: ""
+
+  # A delimited object is its alternating keys and values joined by the
+  # delimiter, whatever explode says.
+  defp serialize_delimited(value, location, delimiter, _explode) when is_object(value) do
+    value |> object_style_pairs(location) |> flatten_object() |> Enum.join(delimiter)
+  end
 
   defp serialize_delimited(value, _location, _delimiter, true) when is_list(value) do
     Enum.map(value, &PetstoreClient.ObjectSerializer.stringify/1)

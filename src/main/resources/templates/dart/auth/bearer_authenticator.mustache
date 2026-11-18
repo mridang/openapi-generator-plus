@@ -11,10 +11,11 @@ bool _isAsciiBlank(String value) =>
 
 /// Authenticator for HTTP Bearer token authentication.
 ///
-/// The token comes from, in order: the explicit [token] argument or the
-/// [tokenProvider] callback (never both), then the environment variable named
-/// by [environmentVariable]. A token that is found nowhere fails the
-/// constructor, so a client is never built without its credential.
+/// The token comes from, in order: the explicit [token] argument, then the
+/// environment variable named by [environmentVariable], then the
+/// [tokenProvider] callback (never both of the first two arguments). A
+/// provider is used only when neither of the other two is set. A token that
+/// is found nowhere fails the constructor unless a provider is given.
 class BearerAuthenticator extends BaseAuthenticator {
   /// The environment variable read when neither [token] nor [tokenProvider] is
   /// given and no [environmentVariable] names another one.
@@ -65,17 +66,17 @@ class BearerAuthenticator extends BaseAuthenticator {
     if (token != null) {
       return token;
     }
+    final fromEnvironment = readEnvironmentVariable(environmentVariable, environment);
+    if (fromEnvironment != null) {
+      return fromEnvironment;
+    }
     if (tokenProvider != null) {
       return null;
     }
-    final fromEnvironment = readEnvironmentVariable(environmentVariable, environment);
-    if (fromEnvironment == null) {
-      throw ArgumentError(
-        'A bearer token is required: pass token or tokenProvider, or set the '
-        '$environmentVariable environment variable',
-      );
-    }
-    return fromEnvironment;
+    throw ArgumentError(
+      'A bearer token is required: pass token or tokenProvider, or set the '
+      '$environmentVariable environment variable',
+    );
   }
 
   static void _validate(String token) {
@@ -112,10 +113,11 @@ class BearerAuthenticator extends BaseAuthenticator {
 
   @override
   Map<String, String> authHeaders() {
-    final provider = _tokenProvider;
-    if (provider == null) {
-      return _header(_token!);
+    final fixed = _token;
+    if (fixed != null) {
+      return _header(fixed);
     }
+    final provider = _tokenProvider!;
     final provided = provider();
     if (provided is Future<String>) {
       throw StateError(
@@ -127,10 +129,11 @@ class BearerAuthenticator extends BaseAuthenticator {
 
   @override
   Future<Map<String, String>> authHeadersAsync() async {
-    final provider = _tokenProvider;
-    if (provider == null) {
-      return _header(_token!);
+    final fixed = _token;
+    if (fixed != null) {
+      return _header(fixed);
     }
+    final provider = _tokenProvider!;
     final provided = await provider();
     _validate(provided);
     return _header(provided);

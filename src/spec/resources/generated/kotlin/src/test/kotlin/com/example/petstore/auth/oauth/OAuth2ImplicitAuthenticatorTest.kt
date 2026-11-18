@@ -7,12 +7,36 @@
 
 package com.example.petstore.auth.oauth
 
+import com.example.petstore.auth.CredentialEnvironment
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class OAuth2ImplicitAuthenticatorTest {
+    @Test
+    @DisplayName("bhvMisc001 replacing the token while other callers read the headers never yields a token that was not set")
+    fun bhvMisc001ReplacingTheTokenIsRaceFree() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("tok-0")
+        val seen =
+            runBlocking {
+                kotlinx.coroutines.coroutineScope {
+                    (0 until 50)
+                        .map { i ->
+                            async(kotlinx.coroutines.Dispatchers.Default) {
+                                auth.setAccessToken("tok-$i")
+                                auth.getAuthHeaders()["Authorization"]
+                            }
+                        }.awaitAll()
+                }
+            }
+        val allowed = (0 until 50).map { "Bearer tok-$it" }.toSet()
+        assertTrue(seen.all { it in allowed }, seen.toString())
+    }
+
     private fun createAuthenticator(): OAuth2ImplicitAuthenticator =
         OAuth2ImplicitAuthenticator(
             host = "https://api.example.com",
@@ -136,7 +160,7 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
-    fun setAccessTokenRejectsControlAndNonAsciiCharacters() {
+    fun bhvAuthoauthtwoimplicit014SetAccessTokenRejectsControlAndNonAsciiCharacters() {
         // The token comes from a redirect fragment: CR/LF, other control
         // characters and non-ASCII are refused so they cannot reach the
         // Authorization header, and nothing is stored.
@@ -177,5 +201,31 @@ class OAuth2ImplicitAuthenticatorTest {
             "https://auth.example.com/authorize?response_type=token&client_id=cid&scope=read",
             auth.buildAuthorizationUrl(),
         )
+    }
+
+    @Test
+    @DisplayName(
+        "bhvAuthscheme016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable",
+    )
+    fun bhvAuthscheme016EmptyImplicitSchemeVariableIsUnsetAndNamed() {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> if (name == "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID") "" else null }
+        try {
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    BrowserAuthImplicitAuthenticator("https://api.example.com")
+                }
+            assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"), ex.message)
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoimplicit016 an implicit access token may contain a tab")
+    fun aTabIsAllowedInsideAnAccessToken() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("a\tb")
+        assertEquals("Bearer a\tb", runBlocking { auth.getAuthHeaders() }["Authorization"])
     }
 }

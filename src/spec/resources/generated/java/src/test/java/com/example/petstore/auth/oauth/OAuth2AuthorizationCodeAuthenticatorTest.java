@@ -175,7 +175,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void sendsTheRefreshGrantToTokenUrlWhenNoRefreshUrlIsConfigured() {
+  void bhvAuthOauthTwoPassword020SendsTheRefreshGrantToTokenUrlWhenNoRefreshUrlIsConfigured() {
     List<String> urls = new java.util.ArrayList<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -330,6 +330,16 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
+  void bhvAuthOauthTwoAuthCode030AuthHeadersBeforeTheExchangeNameTheExchangeCall() {
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    IllegalStateException caught =
+        assertThrowsExactly(IllegalStateException.class, () -> auth.getAuthHeaders());
+    String message = caught.getMessage();
+    assertNotNull(message);
+    assertTrue(message.startsWith("Must call exchangeCode()"), message);
+  }
+
+  @Test
   void bhvAuthOauthTwoAuthCode003AuthHeadersBeforeExchangeReturnsRecoverableError() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
@@ -408,7 +418,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void sendsTheCodeExchangeFieldsInTheCanonicalOrder() {
+  void bhvAuthOauthTwoAuthCode032SendsTheCodeExchangeFieldsInTheCanonicalOrder() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -509,6 +519,41 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
+  void bhvAuth014TheAuthorizationUrlSeparatesScopesWithPercent20NeverPlus() {
+    String url = createAuthenticator().buildAuthorizationUrl(null);
+
+    assertTrue(withoutPkce(url).endsWith("&scope=read%20write"), url);
+    assertFalse(url.contains("read+write"), url);
+  }
+
+  @Test
+  void bhvAuth019TheAuthorizationUrlListsItsParametersInOneFixedOrder() {
+    String url = createAuthenticator().buildAuthorizationUrl(null);
+
+    assertEquals(
+        "https://auth.example.com/authorize?response_type=code"
+            + "&client_id=my-client-id"
+            + "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            + "&scope=read%20write",
+        withoutPkce(url));
+  }
+
+  @Test
+  void bhvAuth028AFailedFirstExchangeRecordsNoSessionAndStaysUnexchanged() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    assertThrowsExactly(OAuth2ServerException.class, () -> auth.exchangeCode("bad"));
+
+    IllegalStateException unexchanged =
+        assertThrowsExactly(IllegalStateException.class, () -> auth.getAuthHeaders());
+    assertEquals("Must call exchangeCode() before making API requests", unexchanged.getMessage());
+  }
+
+  @Test
   void bhvAuthOauthTwoAuthCode013FailedExchangeKeepsThePreviousSession() {
     ApiClient client =
         (method, url, headers, body) -> {
@@ -545,7 +590,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void s256ChallengeMatchesTheRfc7636AppendixBVector() {
+  void bhvAuth008S256ChallengeMatchesTheRfc7636AppendixBVector() {
     assertEquals(
         "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
         OAuth2AuthorizationCodeAuthenticator.pkceChallenge(
@@ -638,6 +683,28 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
+  void bhvAuth020TheVerifierIsNeverSentOnARefreshOrAfterTheFirstExchange() {
+    java.util.List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    auth.buildAuthorizationUrl(null);
+    auth.exchangeCode("first");
+
+    auth.invalidateAccessToken();
+    auth.getAuthHeaders();
+
+    assertNotNull(field(bodies.get(0), "code_verifier"));
+    assertEquals("refresh_token", field(bodies.get(1), "grant_type"));
+    assertNull(field(bodies.get(1), "code_verifier"));
+  }
+
+  @Test
   void bhvAuthOauthTwoAuthCode016InvalidatingTheTokenKeepsTheRefreshTokenForTheNextRequest() {
     java.util.List<String> bodies = new java.util.ArrayList<>();
     ApiClient client =
@@ -661,5 +728,25 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     assertEquals("Bearer at2", auth.getAuthHeaders().get("Authorization"));
     assertEquals("refresh_token", field(bodies.get(1), "grant_type"));
     assertEquals("rt", field(bodies.get(1), "refresh_token"));
+  }
+
+  @Test
+  void bhvAuthScheme015AnEmptyClientSecretVariableIsUnsetAndNamesIt() {
+    Map<String, String> environment =
+        Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET", "");
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class,
+            () ->
+                new UserAuthAuthorizationCodeAuthenticator(
+                    "https://api.example.com",
+                    "my-client-id",
+                    null,
+                    "https://app.example.com/callback",
+                    environment));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage())
+            .contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET"),
+        ex.getMessage());
   }
 }

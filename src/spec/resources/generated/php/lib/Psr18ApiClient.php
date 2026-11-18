@@ -115,10 +115,10 @@ class Psr18ApiClient extends AbstractApiClient
              * wraps it); anything else is a failure with no HTTP response. */
             for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
                 if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
-                    throw new NetworkTimeoutException("API Request timed out: {$e->getMessage()}", $e);
+                    throw new NetworkTimeoutException("API Request timed out: " . $this->redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
                 }
             }
-            throw new NetworkException("API Request failed: {$e->getMessage()}", $e);
+            throw new NetworkException("API Request failed: " . $this->redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
         }
 
         $rawHeaders = [];
@@ -227,5 +227,17 @@ class Psr18ApiClient extends AbstractApiClient
         $out .= '--' . $boundary . '--' . $crlf;
 
         return ['multipart/form-data; boundary=' . $boundary, $out];
+    }
+
+    /**
+     * Replace the request URL, as the PSR-18 client quotes it inside its message,
+     * with the same URL minus its query string and fragment, so a secret carried
+     * in the query never reaches an error message.
+     */
+    private function redactUrlQuery(string $message, string $url): string
+    {
+        $withoutQuery = explode('?', explode('#', $url, 2)[0], 2)[0];
+
+        return str_replace($url, $withoutQuery, $message);
     }
 }

@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
+use PetstoreClient\Errors\SerializationException;
+
 /**
  * Serializes parameter values for HTTP requests based on their location and format.
  *
@@ -274,6 +276,11 @@ final class ValueSerializer
          * `'blue'` indistinguishable from the array `['blue']`, which must
          * serialize differently (e.g. form+explode: 'blue' vs ['blue']). */
         $isList = is_array($value);
+        if ($isList) {
+            foreach ($value as $key => $item) {
+                self::assertScalarLeaf($paramName, $item, (string) $key);
+            }
+        }
 
         /* Per RFC 6570 / OAS 3.0: in `path` parameters each item must be
          * percent-encoded BEFORE being joined with the structural separator
@@ -364,6 +371,7 @@ final class ValueSerializer
         $decoded = json_decode(ObjectSerializer::serialize($model), true);
         $map = [];
         foreach (is_array($decoded) ? $decoded : [] as $key => $item) {
+            self::assertScalarLeaf($paramName, $item, (string) $key);
             $map[(string) $key] = ObjectSerializer::stringify($item);
         }
         $encode = $location === 'path'
@@ -489,9 +497,33 @@ final class ValueSerializer
         }
 
         foreach ($value as $key => $val) {
+            /* A null entry is an unset value and is left out, as an unset model property is. */
+            if ($val === null) {
+                continue;
+            }
+            self::assertScalarLeaf($paramName, $val, (string) $key);
             $result[$paramName . '[' . $key . ']'] = ObjectSerializer::stringify($val);
         }
 
         return $result;
+    }
+
+    /**
+     * Refuses a nested object or map as a leaf of a styled or deepObject
+     * parameter. No OAS style writes one, so it would otherwise reach the wire
+     * as a JSON blob. A list, an enum, a date, a stringable or a collection
+     * is a scalar leaf and is written as before.
+     *
+     * @throws SerializationException when the leaf is a nested object or map
+     */
+    private static function assertScalarLeaf(string $paramName, mixed $leaf, string $key): void
+    {
+        $nested = (is_array($leaf) && !array_is_list($leaf))
+            || (is_object($leaf) && self::isObjectValue($leaf));
+        if ($nested) {
+            throw new SerializationException(
+                "Parameter '$paramName' has a nested value under '$key', which cannot be written in this style"
+            );
+        }
     }
 }

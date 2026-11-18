@@ -51,7 +51,16 @@ class BaseApi {
        config = config ?? Configuration.defaultConfiguration(),
        _headerSelector = HeaderSelector(),
        _authenticator = authenticator,
-       _schemes = schemeAuthenticators ?? const {};
+       _schemes = schemeAuthenticators ?? const {} {
+    /* A scheme credential that sends HTTP requests of its own (token exchange,
+       discovery) is given this API's transport as soon as the client is built,
+       so it never reaches a request without one. */
+    for (final credential in _schemes.values) {
+      if (credential is HttpAwareAuthenticator) {
+        credential.setApiClient(this.apiClient);
+      }
+    }
+  }
 
   /// The HTTP transport client used for sending requests.
   final ApiClient apiClient;
@@ -131,7 +140,7 @@ class BaseApi {
     int? maxRetries,
     Map<String, ErrorFactory>? errorSchemas,
   }) async {
-    if (timeout != null && timeout < 0) {
+    if (timeout != null && timeout < 1) {
       throw ArgumentError(
         'Invalid timeout: must be a positive number of milliseconds (got $timeout)',
       );
@@ -175,6 +184,15 @@ class BaseApi {
         effectiveAuth is HttpAwareAuthenticator) {
       effectiveAuth.setApiClient(apiClient);
     }
+    /* Admit the request now, before the first await, so a close() made right
+     * after the API method is called still lets the request finish, even while
+     * it waits for a token. */
+    final transport = apiClient;
+    final admitting = transport is AdmittingApiClient ? transport : null;
+    final finish = admitting?.beginRequest();
+    /* Only the first attempt rides on that admission. A retry or a replay is
+     * a new send, so it is refused once the client has been closed. */
+    var first = true;
     /* One attempt: everything that depends on the credentials (query
      * parameters, headers, cookies) is built afresh, so a replay or a retry
      * is a new request that carries current authentication, never a copy of
@@ -201,19 +219,18 @@ class BaseApi {
         isMultipart,
       );
 
-      headers.addAll(config.defaultHeaders);
+      /* A default or operation header replaces a negotiated header of the same
+       * name whatever its case, so `accept` never sits beside `Accept`. */
+      _mergeHeaders(headers, config.defaultHeaders);
 
       if (headerParams != null) {
-        headers.addAll(headerParams);
+        _mergeHeaders(headers, headerParams);
       }
 
       if (callHeaders != null) {
         /* A per-call header replaces a default or operation header of the
          * same name whatever its case. */
-        callHeaders.forEach((name, value) {
-          headers.removeWhere((k, _) => k.toLowerCase() == name.toLowerCase());
-          headers[name] = value;
-        });
+        _mergeHeaders(headers, callHeaders);
       }
 
       if (effectiveAuth != null) {
@@ -270,7 +287,10 @@ class BaseApi {
         headers.remove('Content-Type');
       }
 
-      return apiClient.sendRequest(
+      final send = first && admitting != null
+          ? admitting.sendAdmittedRequest
+          : apiClient.sendRequest;
+      return send(
         method,
         requestUrl,
         headers,
@@ -289,84 +309,90 @@ class BaseApi {
     final clock = Stopwatch()..start();
     var retries = 0;
     var reauthenticated = false;
-    var first = true;
     final Object? credential = effectiveAuth;
     final invalidating = credential is AccessTokenInvalidating
         ? credential
         : null;
-    while (true) {
-      ApiHttpResponse? response;
-      ApiException? failure;
-      try {
-        final pending = sendOnce();
-        response = (first || budgetMs == null)
-            ? await pending
-            : await pending.timeout(
-                _budgetLeft(budgetMs, clock),
-                onTimeout: () {
-                  throw NetworkTimeoutException(
-                    message: 'Request timed out after $budgetMs ms',
-                  );
-                },
-              );
-      } on NetworkException catch (e) {
-        failure = e.withRequest(method, requestPath);
-      } on ApiException catch (e) {
-        throw e.withRequest(method, requestPath);
-      }
-      first = false;
-
-      if (response != null) {
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          return response;
+    try {
+      while (true) {
+        ApiHttpResponse? response;
+        ApiException? failure;
+        try {
+          final pending = sendOnce();
+          response = (first || budgetMs == null)
+              ? await pending
+              : await pending.timeout(
+                  _budgetLeft(budgetMs, clock),
+                  onTimeout: () {
+                    throw NetworkTimeoutException(
+                      message: 'Request timed out after $budgetMs ms',
+                    );
+                  },
+                );
+        } on NetworkException catch (e) {
+          failure = e.withRequest(method, requestPath);
+        } on ApiException catch (e) {
+          throw e.withRequest(method, requestPath);
         }
-        /* A revoked or rotated token keeps failing while it is cached. On a
-         * 401 from a request that carried a token this SDK fetched, drop the
-         * token, obtain a new one (a refresh grant first) and replay the
-         * request once. A second 401, or a failed re-authentication, is
-         * reported as the usual error. */
-        if (response.statusCode == 401 &&
-            !reauthenticated &&
-            replayable &&
-            invalidating != null) {
-          reauthenticated = true;
-          invalidating.invalidateAccessToken();
-          try {
-            await effectiveAuth!.authHeadersAsync();
-            continue;
-          } catch (_) {
-            /* Fall through to the 401. */
+        first = false;
+
+        if (response != null) {
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            return response;
           }
-        } else if (replayable &&
+          /* A revoked or rotated token keeps failing while it is cached. On a
+           * 401 from a request that carried a token this SDK fetched, drop the
+           * token, obtain a new one (a refresh grant first) and replay the
+           * request once. A second 401, or a failed re-authentication, is
+           * reported as the usual error. */
+          if (response.statusCode == 401 &&
+              !reauthenticated &&
+              replayable &&
+              invalidating != null) {
+            reauthenticated = true;
+            invalidating.invalidateAccessToken();
+            try {
+              await effectiveAuth!.authHeadersAsync();
+              continue;
+            } catch (_) {
+              /* Fall through to the 401. */
+            }
+          } else if (replayable &&
+              retries < maxRetriesLeft &&
+              _isRetryableStatus(response.statusCode)) {
+            final delay = _retryDelay(retries, response.headers);
+            if (_withinBudget(delay, budgetMs, clock)) {
+              retries++;
+              await sleepBeforeRetry(delay);
+              continue;
+            }
+          }
+          throw ApiException.fromResponse(
+            response.statusCode,
+            response.headers,
+            response.body,
+            requestMethod: method,
+            requestPath: requestPath,
+            errorSchemas: errorSchemas,
+          );
+        }
+
+        /* No response arrived: a network error. A timeout is not retried, since
+         * the budget that expired would be spent again on the same request. */
+        if (replayable &&
             retries < maxRetriesLeft &&
-            _isRetryableStatus(response.statusCode)) {
-          final delay = _retryDelay(retries, response.headers);
+            failure is! NetworkTimeoutException) {
+          final delay = _retryDelay(retries, const {});
           if (_withinBudget(delay, budgetMs, clock)) {
             retries++;
             await sleepBeforeRetry(delay);
             continue;
           }
         }
-        throw ApiException.fromResponse(
-          response.statusCode,
-          response.headers,
-          response.body,
-          requestMethod: method,
-          requestPath: requestPath,
-          errorSchemas: errorSchemas,
-        );
+        throw failure!;
       }
-
-      /* No response arrived: a network error. */
-      if (replayable && retries < maxRetriesLeft) {
-        final delay = _retryDelay(retries, const {});
-        if (_withinBudget(delay, budgetMs, clock)) {
-          retries++;
-          await sleepBeforeRetry(delay);
-          continue;
-        }
-      }
-      throw failure!;
+    } finally {
+      finish?.call();
     }
   }
 
@@ -379,6 +405,18 @@ class BaseApi {
   /// Waits for [delay] before a retry. Overridable so a test does not have to
   /// wait for real time.
   Future<void> sleepBeforeRetry(Duration delay) => Future<void>.delayed(delay);
+
+  /// Merges [extra] into [headers]: a header replaces one of the same name in
+  /// any letter case instead of being sent beside it.
+  static void _mergeHeaders(
+    Map<String, String> headers,
+    Map<String, String> extra,
+  ) {
+    extra.forEach((name, value) {
+      headers.removeWhere((k, _) => k.toLowerCase() == name.toLowerCase());
+      headers[name] = value;
+    });
+  }
 
   /// Whether a response with [status] is worth sending again: 408, 409, 429
   /// and every 5xx but 501 (not implemented, which no retry fixes).
@@ -715,6 +753,7 @@ class BaseApi {
     if (rawBody) {
       if (body is Uint8List) return body;
       if (body is List<int>) return Uint8List.fromList(body);
+      if (body is String) return Uint8List.fromList(utf8.encode(body));
     }
 
     if (contentType == 'multipart/form-data') {

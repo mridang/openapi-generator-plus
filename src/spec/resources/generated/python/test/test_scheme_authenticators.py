@@ -168,6 +168,20 @@ def _explicit(variables: List[Tuple[str, str]]) -> dict[str, str]:
     return {parameter: "explicit-" + parameter for parameter, _ in variables}
 
 
+def _assert_each_empty_variable_is_unset(
+    monkeypatch: pytest.MonkeyPatch,
+    module: str,
+    name: str,
+    variables: List[Tuple[str, str]],
+) -> None:
+    for _, empty in variables:
+        _set_all(monkeypatch, variables)
+        monkeypatch.setenv(empty, "")
+
+        with pytest.raises(ValueError, match=empty):
+            _scheme_class(module, name)(HOST)
+
+
 @pytest.mark.parametrize("module,name,variables,bearer,basic,api_key", SCHEMES)
 class TestSchemeAuthenticatorEnvironment:
     def test_it_builds_from_its_environment_variables_alone(
@@ -213,7 +227,7 @@ class TestSchemeAuthenticatorEnvironment:
         with pytest.raises(ValueError, match=variables[0][1]):
             _scheme_class(module, name)(HOST)
 
-    def test_an_empty_variable_counts_as_unset(
+    def test_bhv_authbasic_012_an_empty_variable_counts_as_unset(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -266,7 +280,7 @@ API_KEY_SCHEMES = [
 
 @pytest.mark.parametrize("module,name,variables", BEARER_SCHEMES)
 class TestBearerSchemeAuthenticator:
-    def test_an_explicit_token_wins_over_the_environment(
+    def test_bhv_authbearer_018_an_explicit_token_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -295,7 +309,59 @@ class TestBearerSchemeAuthenticator:
             == "Bearer from-environment"
         )
 
-    def test_the_environment_is_read_once_when_it_is_built(
+    def test_bhv_authscheme_010_an_empty_bearer_variable_is_unset_and_names_the_variable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], "")
+
+        with pytest.raises(ValueError, match=variables[0][1]):
+            _scheme_class(module, name)(HOST)
+
+    def test_bhv_authscheme_011_an_empty_bearer_credential_variable_is_unset_for_each_variable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+    def test_bhv_lifecycle_025_the_environment_is_read_once_when_it_is_built(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], "first")
+        authenticator = _scheme_class(module, name)(HOST)
+
+        monkeypatch.setenv(variables[0][1], "second")
+
+        assert authenticator.get_auth_headers()["Authorization"] == "Bearer first"
+
+    def test_bhv_authbearer_023_wrapper_emits_a_bearer_header_and_keeps_its_own_name(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], "xyz")
+        base = _scheme_class(
+            "petstore_client.auth.bearer_authenticator", "BearerAuthenticator"
+        )(HOST, "xyz")
+
+        auth = _scheme_class(module, name)(HOST)
+
+        assert auth.get_auth_headers() == base.get_auth_headers()
+        assert repr(auth).startswith(name + "(")
+
+    def test_bhv_authbearer_025_the_environment_variable_is_read_once_at_construction(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -322,7 +388,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()["Authorization"] == "Bearer live"
 
-    def test_a_token_provider_needs_no_environment_token(
+    def test_bhv_auth_022_a_token_provider_needs_no_environment_token(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -341,7 +407,7 @@ class TestBearerSchemeAuthenticator:
         with pytest.raises(ValueError, match="not both"):
             _scheme_class(module, name)(HOST, "explicit", token_provider=lambda: "live")
 
-    def test_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment(
+    def test_bhv_auth_023_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -356,7 +422,7 @@ class TestBearerSchemeAuthenticator:
 
 @pytest.mark.parametrize("module,name,variables", BASIC_SCHEMES)
 class TestBasicSchemeAuthenticator:
-    def test_an_explicit_credential_wins_over_the_environment(
+    def test_bhv_authbasic_013_an_explicit_credential_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -386,10 +452,26 @@ class TestBasicSchemeAuthenticator:
         assert authenticator.username == "value-" + variables[0][1]
         assert authenticator.password == "value-" + variables[1][1]
 
+    def test_bhv_authbasic_019_wrapper_emits_the_same_basic_header_as_the_base_authenticator(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _set_all(monkeypatch, variables)
+        base = _scheme_class(
+            "petstore_client.auth.basic_authenticator", "BasicAuthenticator"
+        )(HOST, "alice", "s3cret")
+
+        auth = _scheme_class(module, name)(HOST, "alice", "s3cret")
+
+        assert auth.get_auth_headers() == base.get_auth_headers()
+
 
 @pytest.mark.parametrize("module,name,variables", API_KEY_SCHEMES)
 class TestApiKeySchemeAuthenticator:
-    def test_an_explicit_key_wins_over_the_environment(
+    def test_bhv_serializationobject_187_an_explicit_key_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -414,3 +496,197 @@ class TestApiKeySchemeAuthenticator:
         authenticator = _scheme_class(module, name)(HOST)
 
         assert authenticator.api_key == "from-environment"
+
+    def test_bhv_authapikey_021_the_key_is_read_from_the_environment_when_none_is_passed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], "from-environment")
+
+        assert _scheme_class(module, name)(HOST).api_key == "from-environment"
+        assert _scheme_class(module, name)(HOST, "explicit").api_key == "explicit"
+
+    def test_bhv_authscheme_012_an_empty_api_key_variable_is_unset_for_each_variable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+# (module, class name, [(parameter, environment variable)]) for each OAuth flow wrapper, by flow
+FLOW_SCHEMES: List[Tuple[str, str, str, List[Tuple[str, str]]]] = [
+    (
+        "none",
+        "petstore_client.auth.pet_store_basic_authenticator",
+        "PetStoreBasicAuthenticator",
+        [
+            ("username", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME"),
+            ("password", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD"),
+        ],
+    ),
+    (
+        "none",
+        "petstore_client.auth.admin_basic_authenticator",
+        "AdminBasicAuthenticator",
+        [
+            ("username", "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME"),
+            ("password", "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD"),
+        ],
+    ),
+    (
+        "none",
+        "petstore_client.auth.pet_store_bearer_authenticator",
+        "PetStoreBearerAuthenticator",
+        [("token", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.service_token_authenticator",
+        "ServiceTokenAuthenticator",
+        [("token", "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.api_key_header_authenticator",
+        "ApiKeyHeaderAuthenticator",
+        [("api_key", "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.internal_api_key_authenticator",
+        "InternalApiKeyAuthenticator",
+        [("api_key", "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.api_key_query_authenticator",
+        "ApiKeyQueryAuthenticator",
+        [("api_key", "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.session_cookie_authenticator",
+        "SessionCookieAuthenticator",
+        [("api_key", "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY")],
+    ),
+    (
+        "client_credentials",
+        "petstore_client.auth.oauth.machine_auth_client_credentials_authenticator",
+        "MachineAuthClientCredentialsAuthenticator",
+        [
+            ("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID"),
+            (
+                "client_secret",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET",
+            ),
+        ],
+    ),
+    (
+        "password",
+        "petstore_client.auth.oauth.legacy_auth_password_authenticator",
+        "LegacyAuthPasswordAuthenticator",
+        [
+            ("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID"),
+            (
+                "client_secret",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET",
+            ),
+            ("username", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"),
+            ("password", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD"),
+        ],
+    ),
+    (
+        "authorization_code",
+        "petstore_client.auth.oauth.user_auth_authorization_code_authenticator",
+        "UserAuthAuthorizationCodeAuthenticator",
+        [
+            ("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"),
+            ("client_secret", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET"),
+            ("redirect_uri", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI"),
+        ],
+    ),
+    (
+        "implicit",
+        "petstore_client.auth.oauth.browser_auth_implicit_authenticator",
+        "BrowserAuthImplicitAuthenticator",
+        [("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.oauth.sso_auth_authenticator",
+        "SsoAuthAuthenticator",
+        [
+            ("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID"),
+            ("client_secret", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET"),
+            ("redirect_uri", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI"),
+        ],
+    ),
+]
+
+
+def _with_flow(flow: str) -> List[Tuple[str, str, List[Tuple[str, str]]]]:
+    return [
+        (module, name, variables)
+        for entry_flow, module, name, variables in FLOW_SCHEMES
+        if entry_flow == flow
+    ]
+
+
+CLIENT_CREDENTIALS_SCHEMES = _with_flow("client_credentials")
+PASSWORD_SCHEMES = _with_flow("password")
+AUTHORIZATION_CODE_SCHEMES = _with_flow("authorization_code")
+IMPLICIT_SCHEMES = _with_flow("implicit")
+
+
+@pytest.mark.parametrize("module,name,variables", CLIENT_CREDENTIALS_SCHEMES)
+class TestClientCredentialsSchemeEnvironment:
+    def test_bhv_authscheme_013_an_empty_client_credentials_variable_is_unset_and_names_it(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize("module,name,variables", PASSWORD_SCHEMES)
+class TestPasswordSchemeEnvironment:
+    def test_bhv_authscheme_014_an_empty_password_variable_is_unset_and_names_it(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize("module,name,variables", AUTHORIZATION_CODE_SCHEMES)
+class TestAuthorizationCodeSchemeEnvironment:
+    def test_bhv_authscheme_015_an_empty_authorization_code_variable_is_unset_and_names_it(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize("module,name,variables", IMPLICIT_SCHEMES)
+class TestImplicitSchemeEnvironment:
+    def test_bhv_authscheme_016_an_empty_implicit_variable_is_unset_and_names_it(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)

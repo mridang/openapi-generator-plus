@@ -487,6 +487,27 @@ describe {{moduleName}}::Api::PetApi do
       _(result).wont_be_nil
     end
 
+    it 'bhv_operations_147 sends the multipart parts in declaration order' do
+      api, server, thread, captured_body, _captured_content_type = capture_document_request
+      begin
+        api.upload_pet_document(
+          1,
+          {{moduleName}}::Api::Options::UploadPetDocumentOptions.new(
+            file: StringIO.new('doc-data'),
+            document_type: 'vaccination_record',
+            notes: 'Annual checkup'
+          )
+        )
+        body = captured_body.pop
+        offsets = %w[file documentType notes].map { |part| body.index("name=\"#{part}\"") }
+        _(offsets.compact.size).must_equal 3
+        _(offsets).must_equal offsets.sort
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # octet-stream-raw-body parity: uploadPetDocument declares TWO request
     # content-types — multipart/form-data AND application/octet-stream. When the
     # caller selects application/octet-stream the SDK must send the file's RAW
@@ -825,7 +846,7 @@ describe {{moduleName}}::Api::PetApi do
       _(server.url).must_equal('https://sandbox.example.com/api/v3')
     end
 
-    it 'rejects a value outside the enum' do
+    it 'bhv_servers_020 rejects a value outside the enum' do
       err = _(-> {
         {{moduleName}}::Api::GetStagingPetInfoServerStagingServer.new(environment: 'attacker.net/x#', version: 'v2')
       }).must_raise(ArgumentError)
@@ -878,7 +899,14 @@ describe {{moduleName}}::Api::PetApi do
   # not just the path param — previously only path/body were guarded so a nil
   # required query param sailed through to the wire.
   describe '#get_pet_by_name required-param validation' do
-    it 'raises ArgumentError when the required query param category is nil' do
+    it 'bhv_operations_132 a missing required options object names the first required field' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', nil)
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
+    it 'bhv_operations_125 raises ArgumentError naming the required query param category when it is nil' do
       # Deliberately breaks the signature, which types category as String.
       # @type var missing: untyped
       missing = nil
@@ -1008,6 +1036,20 @@ describe {{moduleName}}::Api::PetApi do
       end
     end
 
+    it 'bhv_operations_136 a bare JSON null body from a model operation throws an API error naming the operation' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', 'null')
+      begin
+        err = assert_raises({{moduleName}}::Errors::ApiError) do
+          api.get_pet_by_id(1)
+        end
+        _(err.status_code).must_equal 200
+        _(err.message).must_include 'Expected a response body for get_pet_by_id but received none'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # convenience-empty-body-handling: a body-returning operation that
     # receives an empty 200 body must raise a typed ApiError from the
     # unwrapped convenience method, never return a silent nil.
@@ -1025,12 +1067,32 @@ describe {{moduleName}}::Api::PetApi do
       end
     end
 
+    it 'bhv_operations_127 a malformed 2xx body fails loud with a serialization error instead of returning the raw string' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '{not valid json')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise {{moduleName}}::Errors::SerializationError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_138 throws the exception class specific to the status of an error response' do
+      api, server, thread = new_pet_api_for_mock(400, 'application/json', '{"message":"Bad request"}')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise {{moduleName}}::Errors::BadRequestError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # malformed-2xx-body-fails-loud (canonical 11): a 200 response whose body
     # is present but NOT valid JSON for the declared model must propagate the
     # deserialize failure, never return the raw string or a silent nil. The
     # SDK wraps the parse error as SerializationError; the convenience method
     # must let it surface so a corrupt-upstream bug is loud at the call site.
-    it 'raises when a 2xx body is malformed JSON for the declared model' do
+    it 'bhv_operations_130 raises when a 2xx body is malformed JSON for the declared model' do
       api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"id":1,"name":')
       begin
         _(-> { api.get_pet_by_id(1) }).must_raise {{moduleName}}::Errors::SerializationError
@@ -1412,7 +1474,7 @@ describe {{moduleName}}::Api::PetApi do
     # arguments only. The generated classes expose attr_reader members and
     # freeze themselves at the end of #initialize, so reading values works
     # but no writer (setter) is exposed and the instance is frozen.
-    it 'builds immutable Options from keyword arguments' do
+    it 'bhv_options_063 builds immutable Options from keyword arguments' do
       options = {{moduleName}}::Api::Options::FindPetsByStatusOptions.new(status: 'available')
 
       _(options.status).must_equal 'available'
@@ -1473,9 +1535,24 @@ describe {{moduleName}}::Api::PetApi do
       [api, server, thread, captured]
     end
 
+    it 'bhv_operations_156 sends the form fields in the order the specification declares them' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', tags: %w[a b], note: 'n'
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent.split('&').map { |pair| pair.split('=', 2).first }).must_equal(%w[nickname tags tags note])
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # Canonical behavior 1 — a repeated-key array (`tags=a&tags=b`), not a
     # comma-joined value or a bracketed `tags[]` form.
-    it 'expands an array form property to repeated keys' do
+    it 'bhv_serializationwire_053 expands an array form property to repeated keys' do
       api, server, thread, captured = capture_request_body
       begin
         options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
@@ -1547,7 +1624,7 @@ describe {{moduleName}}::Api::PetApi do
 
     # Canonical behavior 3 — a space inside a form value is encoded as '+',
     # never '%20' (WHATWG application/x-www-form-urlencoded rules).
-    it 'encodes a space in a form value as + not %20' do
+    it 'bhv_serializationwire_055 encodes a space in a form value as + not %20' do
       api, server, thread, captured = capture_request_body
       begin
         options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
@@ -1709,7 +1786,7 @@ describe {{moduleName}}::Api::PetApi do
       _(url).must_equal 'https://external-api.example.com/v1/pet/7/external'
     end
 
-    it 'sends the operation to the client base URL when no server is passed' do
+    it 'bhv_operations_153 sends the operation to the client base URL when no server is passed' do
       url = url_sent_to(nil) { |api, server| api.get_external_pet_info(7, server: server) }
       _(url).must_equal 'http://127.0.0.1:1/pet/7/external'
     end

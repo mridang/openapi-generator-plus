@@ -299,6 +299,24 @@ func TestBhvAuthoauthtwopassword017_OAuth2PasswordAuthenticator_SendsTheFirstGra
 	}
 }
 
+// Without a refreshUrl the refresh grant also goes to tokenUrl.
+func TestBhvAuthoauthtwopassword020_OAuth2PasswordAuthenticator_RefreshGrantGoesToTokenUrlWithoutRefreshUrl(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createPasswordAuthenticator()
+	authObj.SetApiClient(client)
+
+	authObj.AuthHeaders()
+	authObj.AuthHeaders()
+
+	if got := client.requests[1].url; got != "https://auth.example.com/token" {
+		t.Errorf("expected the refresh grant at tokenUrl, got %q", got)
+	}
+}
+
 // Without a refreshUrl the refresh grant falls back to tokenUrl.
 func TestBhvAuthoauthtwopassword006_OAuth2PasswordAuthenticator_RefreshFallsBackToTokenUrlWithoutRefreshUrl(t *testing.T) {
 	t.Parallel()
@@ -319,7 +337,7 @@ func TestBhvAuthoauthtwopassword006_OAuth2PasswordAuthenticator_RefreshFallsBack
 
 // The per-scheme wrapper sends its grants to the URLs its security scheme
 // declares: the first to the token URL, the refresh to the refresh URL.
-func TestOAuth2PasswordAuthenticator_LegacyAuthWrapper_RoutesGrantsToTheDeclaredUrls(t *testing.T) {
+func TestBhvAuthoauthtwopassword022_OAuth2PasswordAuthenticator_LegacyAuthWrapper_RoutesGrantsToTheDeclaredUrls(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -463,7 +481,7 @@ func newPasswordAuthenticatorWithRefreshURL() *oauth.OAuth2PasswordAuthenticator
 }
 
 // The password grant body is emitted in the shared key order.
-func TestOAuth2PasswordAuthenticator_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
+func TestBhvAuthoauthtwopassword021_OAuth2PasswordAuthenticator_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},

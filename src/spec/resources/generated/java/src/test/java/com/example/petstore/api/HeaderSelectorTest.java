@@ -10,6 +10,7 @@ package com.example.petstore.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -243,10 +244,29 @@ class HeaderSelectorTest {
     }
 
     @Test
+    @DisplayName("bhvHeaders029 the Accept header is omitted when every entry is blank")
+    void bhvHeaders029TheAcceptHeaderIsOmittedWhenEveryEntryIsBlank() {
+      Map<String, String> headers =
+          headerSelector.selectHeaders(new String[] {"", "   ", null}, "application/json", false);
+      assertFalse(headers.containsKey("Accept"));
+    }
+
+    @Test
     @DisplayName("bhvHeaders005 should not set Accept header when accepts null")
     void bhvHeaders005ShouldNotSetAcceptHeaderWhenAcceptsNull() {
       Map<String, String> headers = headerSelector.selectHeaders(null, "application/json", false);
       assertNull(headers.get("Accept"));
     }
+  }
+
+  @Test
+  void bhvHeaders032AcceptHeaderListsMediaTypesWithoutQualityWeights() {
+    String accept =
+        new HeaderSelector()
+            .selectHeaders(new String[] {"application/json", "text/plain"}, null, false)
+            .get("Accept");
+    assertNotNull(accept);
+    assertTrue(accept.contains("application/json"));
+    assertFalse(accept.contains("q="));
   }
 }

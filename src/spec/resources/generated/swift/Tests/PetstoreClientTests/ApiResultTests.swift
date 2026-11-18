@@ -12,19 +12,6 @@ import Testing
 
 @Suite final class ApiResultTests {
 
-  @Test func testStoresAllFields() {
-    let result = ApiResult<String>(
-      statusCode: 200,
-      data: "payload",
-      rawBody: "{\"value\":\"payload\"}",
-      headers: ["Content-Type": "application/json"]
-    )
-    #expect(result.statusCode == 200)
-    #expect(result.data == "payload")
-    #expect(result.rawBody == "{\"value\":\"payload\"}")
-    #expect(result.headers["Content-Type"] == "application/json")
-  }
-
   @Test func testBhvResults001DataMayBeNilForNoContent() {
     let result = ApiResult<String>(
       statusCode: 204,
@@ -55,6 +42,17 @@ import Testing
     #expect(result.headers == ["X-Trace": "abc"])
   }
 
+  @Test func testBhvResults004ExposesTheDeserializedData() {
+    let result = ApiResult<String>(
+      statusCode: 200, data: "payload", rawBody: "\"payload\"", headers: [:])
+    #expect(result.data == "payload")
+  }
+
+  @Test func testBhvResults005ExposesTheRawResponseBody() {
+    let result = ApiResult<String>(statusCode: 200, data: nil, rawBody: "{\"id\":1}", headers: [:])
+    #expect(result.rawBody == "{\"id\":1}")
+  }
+
   @Test func testBhvResults003ExposesStatusCodeDataRawBodyAndHeaders() {
     let result = ApiResult(
       statusCode: 201, data: "payload", rawBody: "\"payload\"", headers: ["X-A": "1"])
@@ -62,5 +60,15 @@ import Testing
     #expect(result.data == "payload")
     #expect(result.rawBody == "\"payload\"")
     #expect(result.headers == ["X-A": "1"])
+  }
+
+  // MARK: - Behaviour catalogue: result headers
+
+  /* The headers a result exposes are a copy taken when it is built, so later source changes do not show. */
+  @Test func testBhvResults006ResultHeadersAreAReadOnlyCopyAtBuildTime() {
+    var source = ["X-Trace": "1"]
+    let result = ApiResult<String>(statusCode: 200, data: nil, rawBody: "", headers: source)
+    source["X-Trace"] = "2"
+    #expect(result.headers["X-Trace"] == "1")
   }
 }

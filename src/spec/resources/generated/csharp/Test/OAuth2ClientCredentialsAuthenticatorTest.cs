@@ -46,6 +46,68 @@ public class OAuth2ClientCredentialsAuthenticatorTest
 
     private static readonly string[] Scopes = new[] { "read", "write" };
 
+    private sealed class HeaderRecordingHandler : HttpMessageHandler
+    {
+        public Dictionary<string, string> Headers { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            foreach (var header in request.Headers)
+            {
+                Headers[header.Key] = string.Join(",", header.Value);
+            }
+            return Task.FromResult(
+                new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        "{\"access_token\":\"tok1\",\"expires_in\":3600}",
+                        System.Text.Encoding.UTF8,
+                        "application/json"
+                    ),
+                }
+            );
+        }
+    }
+
+    [Fact]
+    public async Task BhvAuth010TheTokenRequestNeverCarriesTheTransportDefaultHeaders()
+    {
+        using var handler = new HeaderRecordingHandler();
+        var transport = TransportOptions
+            .Builder()
+            .DefaultHeader("Authorization", "Bearer api-only")
+            .DefaultHeader("X-Api-Key", "api-key")
+            .Build();
+        using var client = new DefaultApiClient(new HttpClient(handler), transport);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        _ = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(handler.Headers.ContainsKey("X-Api-Key"));
+        Assert.DoesNotContain(
+            handler.Headers.Values,
+            v => v.Contains("api-only", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuth017TokenBodyWritesAScopeSpaceAsPlus()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        _ = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("scope=read+write", client.LastBody!, StringComparison.Ordinal);
+        Assert.DoesNotContain("%20", client.LastBody!, StringComparison.Ordinal);
+    }
+
     private static OAuth2ClientCredentialsAuthenticator CreateAuthenticator()
     {
         return new OAuth2ClientCredentialsAuthenticator(
@@ -66,7 +128,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(client.LastBody);
         Assert.Contains(
@@ -84,12 +146,21 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
-        Assert.Equal("Bearer tok1", (await auth.GetAuthHeadersAsync())["Authorization"]);
-        Assert.Equal("Bearer tok1", (await auth.GetAuthHeadersAsync())["Authorization"]);
+        Assert.Equal(
+            "Bearer tok1",
+            (await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken))["Authorization"]
+        );
+        Assert.Equal(
+            "Bearer tok1",
+            (await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken))["Authorization"]
+        );
 
         auth.InvalidateAccessToken();
 
-        Assert.Equal("Bearer tok2", (await auth.GetAuthHeadersAsync())["Authorization"]);
+        Assert.Equal(
+            "Bearer tok2",
+            (await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken))["Authorization"]
+        );
     }
 
     [Fact]
@@ -101,7 +172,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("client_id=my-client-id", client.LastBody!, StringComparison.Ordinal);
         Assert.Contains(
@@ -120,7 +191,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("scope=read+write", client.LastBody!, StringComparison.Ordinal);
     }
@@ -134,7 +205,9 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer tok-abc", headers["Authorization"]);
     }
@@ -148,7 +221,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new Uri("https://auth.example.com/token"), client.LastUrl);
     }
@@ -166,7 +239,9 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await Assert.ThrowsAsync<OAuth2ServerException>(() => auth.GetAuthHeadersAsync());
+        await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -182,8 +257,12 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        Dictionary<string, string> headers1 = await auth.GetAuthHeadersAsync();
-        Dictionary<string, string> headers2 = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers1 = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
+        Dictionary<string, string> headers2 = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer cached-cc-token", headers1["Authorization"]);
         Assert.Equal("Bearer cached-cc-token", headers2["Authorization"]);
@@ -218,7 +297,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.True(client.LastHeaders.TryGetValue("Authorization", out var authHeader));
         Assert.NotNull(authHeader);
@@ -271,7 +350,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string body = client.LastBody!;
         Assert.Contains("client_id=id~%2A%21%27%28%29", body, StringComparison.Ordinal);
@@ -294,11 +373,28 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string decoded = System.Text.Encoding.UTF8.GetString(
             Convert.FromBase64String(client.LastHeaders["Authorization"].Substring("Basic ".Length))
         );
         Assert.Equal("id~%2A%21%27%28%29:sec~%2A%21%27%28%29", decoded);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoclientcred016TokenRequestBodyUsesTheFixedParameterOrder()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+            client.LastBody
+        );
     }
 }

@@ -192,7 +192,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void NegativeTimeoutThrowsException()
+    public void BhvOptions047NegativeTimeoutThrowsException()
     {
         Assert.Throws<ArgumentException>(() => TransportOptions.Builder().Timeout(-1));
     }
@@ -236,7 +236,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void RejectsANegativeMaxRedirectsAtConfiguration()
+    public void BhvOptions045RejectsANegativeMaxRedirectsAtConfiguration()
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().MaxRedirects(-1)
@@ -247,6 +247,15 @@ public class TransportOptionsTest
             StringComparison.Ordinal
         );
         Assert.Equal(0, TransportOptions.Builder().MaxRedirects(0).Build().MaxRedirects);
+    }
+
+    [Fact]
+    public void BhvOptions051ProxyUrlWithANonHttpSchemeIsRejected()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy("socks5://proxy.example.com:1080").Build()
+        );
+        Assert.Contains("must use http or https scheme", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -283,6 +292,17 @@ public class TransportOptionsTest
         );
         Assert.Contains(reason, ex.Message, StringComparison.Ordinal);
         Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex));
+    }
+
+    [Fact]
+    public void BhvOptions052ProxyUrlCarryingCredentialsIsAccepted()
+    {
+        string password = "pw-" + "marker";
+        string proxy = "http://user:" + password + "@proxy.example.com:8080";
+
+        var opts = TransportOptions.Builder().Proxy(proxy).Build();
+
+        Assert.Equal(proxy, opts.Proxy);
     }
 
     [Fact]
@@ -448,7 +468,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedHttpClientIsPreservedOnReadBack()
+    public void BhvOptions058SuppliedHttpClientIsPreservedOnReadBack()
     {
         using var client = new HttpClient();
         var opts = TransportOptions.Builder().HttpClient(client).Build();
@@ -457,7 +477,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedHandlerIsPreservedOnReadBack()
+    public void BhvOptions059SuppliedHandlerIsPreservedOnReadBack()
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         var opts = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -476,7 +496,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedClientConflictsWithProxy()
+    public void BhvTransport078SuppliedClientConflictsWithProxy()
     {
         using var client = new HttpClient();
         var ex = Assert.Throws<ArgumentException>(() =>
@@ -490,7 +510,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedClientConflictsWithTlsSettings()
+    public void BhvLifecycle024SuppliedClientConflictsWithTlsSettings()
     {
         using var client = new HttpClient();
         Assert.Throws<ArgumentException>(() =>
@@ -502,7 +522,19 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedHandlerConflictsWithProxyAndTlsSettings()
+    public void BhvTransport079DisablingVerificationOnASuppliedHandlerFailsAtBuild()
+    {
+        using var handler = new HttpClientHandler();
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpMessageHandler(handler).VerifySsl(false).Build()
+        );
+
+        Assert.Contains("VerifySsl", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvTransport080SuppliedHandlerConflictsWithProxyAndTlsSettings()
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         Assert.Throws<ArgumentException>(() =>
@@ -518,11 +550,90 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedStockHandlerThatFollowsRedirectsConflictsWithTheRedirectPolicy()
+    public void BhvRedirects045SuppliedStockHandlerThatFollowsRedirectsConflictsWithTheRedirectPolicy()
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = true };
         Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().HttpMessageHandler(handler).Build()
         );
+    }
+
+    [Fact]
+    public void BhvOptions060BuilderEntryPointCarriesTheValuesSetOnIt()
+    {
+        var built = TransportOptions.Builder().Timeout(5000).Build();
+
+        Assert.Equal(5000, built.Timeout);
+        Assert.True(built.VerifySsl);
+        Assert.True(built.FollowRedirects);
+    }
+
+    [Fact]
+    public void BhvOptions061UserAgentIsKeptAsGivenAndNoneLeavesItUnset()
+    {
+        Assert.Equal(
+            "my-agent/1",
+            TransportOptions.Builder().UserAgent("my-agent/1").Build().UserAgent
+        );
+        Assert.Null(TransportOptions.Builder().UserAgent(null).Build().UserAgent);
+    }
+
+    [Fact]
+    public void BhvOptions062UnsetFieldsReadBackAsAbsent()
+    {
+        var built = TransportOptions.Builder().Build();
+
+        Assert.Null(built.Proxy);
+        Assert.Null(built.CaCertPath);
+        Assert.Null(built.HttpClient);
+        Assert.Null(built.HttpMessageHandler);
+        Assert.Null(built.MaxRedirects);
+    }
+
+    [Fact]
+    public void BhvOptions064ToStringShowsTheConfiguredMaxRetries()
+    {
+        Assert.Contains(
+            "MaxRetries=5",
+            TransportOptions.Builder().MaxRetries(5).Build().ToString(),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void BhvOptions065ToStringNeverShowsAHookOrAProxyPassword()
+    {
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        string withHook = TransportOptions.Builder().HttpMessageHandler(handler).Build().ToString();
+        string withProxy = TransportOptions
+            .Builder()
+            .Proxy("http://user:proxy-secret@proxy.example.com:8080")
+            .Build()
+            .ToString();
+
+        Assert.DoesNotContain("HttpClientHandler", withHook, StringComparison.Ordinal);
+        Assert.DoesNotContain("proxy-secret", withProxy, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvOptions066ToStringShowsAProxyUrlWithoutCredentialsExactly()
+    {
+        string text = TransportOptions
+            .Builder()
+            .Proxy("http://proxy.example.com:8080")
+            .Build()
+            .ToString();
+
+        Assert.Contains("Proxy=http://proxy.example.com:8080, ", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvOptions067DirectBuildKeepsAValidProxyAndUnsetWithoutOne()
+    {
+        Assert.Equal(
+            "http://proxy.example.com:8080",
+            TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build().Proxy
+        );
+        Assert.Null(TransportOptions.Builder().Build().Proxy);
     }
 }

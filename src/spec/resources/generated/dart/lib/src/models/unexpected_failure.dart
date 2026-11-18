@@ -17,11 +17,18 @@ class UnexpectedFailure {
 
   /// Creates a [UnexpectedFailure] from a JSON map.
   factory UnexpectedFailure.fromJson(Map<String, dynamic> json) {
-    return UnexpectedFailure(
-      code: readInt32OrNull(json['code']),
+    try {
+      return UnexpectedFailure(
+        code: readInt32OrNull(json['code']),
 
-      message: json['message'] as String?,
-    );
+        message: json['message'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException(
+        'Invalid value for UnexpectedFailure: $e',
+        e,
+      );
+    }
   }
 
   /// Converts this [UnexpectedFailure] to a JSON map.

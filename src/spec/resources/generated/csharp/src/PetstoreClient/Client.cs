@@ -228,6 +228,17 @@ public sealed class Client : IDisposable
                 "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable"
             );
         }
+        /* Order: the explicit token is kept as given (an empty one is refused by the
+         * authenticator, never replaced by the environment), then the environment
+         * variable, then the token provider. */
+        string? resolvedToken = token ?? FirstSet(null, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN");
+        if (resolvedToken is not null)
+        {
+            return new Client(
+                new BearerAuthenticator(resolvedHost, resolvedToken),
+                transportOptions
+            );
+        }
         if (tokenProvider is not null)
         {
             return new Client(
@@ -235,14 +246,9 @@ public sealed class Client : IDisposable
                 transportOptions
             );
         }
-        string? resolvedToken = FirstSet(token, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN");
-        if (resolvedToken is null)
-        {
-            throw new InvalidOperationException(
-                "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
-            );
-        }
-        return new Client(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions);
+        throw new InvalidOperationException(
+            "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
+        );
     }
 
     private static string? FirstSet(string? explicitValue, string variable)

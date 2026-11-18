@@ -11,6 +11,23 @@ import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
 
 void main() {
+  test(
+    'bhv misc 002 a registered trace propagator is used to inject trace context and keeps headers already present',
+    () {
+      final previous = TraceContextUtil.propagator;
+      addTearDown(() => TraceContextUtil.propagator = previous);
+      TraceContextUtil.propagator = (headers) {
+        headers['traceparent'] = '00-abc-def-01';
+      };
+      final headers = <String, String>{'x-keep': 'yes'};
+
+      TraceContextUtil.injectTraceContext(headers);
+
+      expect(headers['traceparent'], equals('00-abc-def-01'));
+      expect(headers['x-keep'], equals('yes'));
+    },
+  );
+
   group('TraceContextUtil', () {
     tearDown(() {
       TraceContextUtil.propagator = null;

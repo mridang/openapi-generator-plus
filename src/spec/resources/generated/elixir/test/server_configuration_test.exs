@@ -23,16 +23,6 @@ defmodule PetstoreClient.ServerConfigurationTest do
       assert ServerConfiguration.url(config) == "https://prod.api.example.com/v2"
     end
 
-    test "overrides take precedence over default values" do
-      config = %ServerConfiguration{
-        url_template: "https://{env}.api.example.com",
-        variables: %{"env" => %ServerVariable{default_value: "prod"}}
-      }
-
-      assert ServerConfiguration.url(config, %{"env" => "staging"}) ==
-               "https://staging.api.example.com"
-    end
-
     test "bhv servers 003 accepts an override that is in the variable enum" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
@@ -58,6 +48,24 @@ defmodule PetstoreClient.ServerConfigurationTest do
       }
 
       assert ServerConfiguration.url(config) == "https://eu.prod.example.com"
+    end
+
+    test "bhv servers 019 an enum accepts only its listed values and rejects any other" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{
+          "env" => %ServerVariable{default_value: "prod", enum_values: ["prod", "staging"]}
+        }
+      }
+
+      for allowed <- ["prod", "staging"] do
+        assert ServerConfiguration.url(config, %{"env" => allowed}) ==
+                 "https://#{allowed}.api.example.com"
+      end
+
+      assert_raise ArgumentError, fn ->
+        ServerConfiguration.url(config, %{"env" => "dev"})
+      end
     end
 
     test "bhv servers 008 rejects an override outside the enum with ArgumentError" do
@@ -113,6 +121,15 @@ defmodule PetstoreClient.ServerConfigurationTest do
 
       assert ServerConfiguration.url(config, %{"env" => "{version}"}) ==
                "https://{version}.api.example.com/v2"
+    end
+
+    test "bhv servers 023 a server variable value containing replacement patterns is substituted literally" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "a\\1b$&"}}
+      }
+
+      assert ServerConfiguration.url(config) == "https://a\\1b$&.api.example.com"
     end
 
     test "bhv servers 007 leaves an unknown placeholder in the template untouched" do
@@ -179,6 +196,14 @@ defmodule PetstoreClient.ServerConfigurationTest do
   end
 
   describe "the hostile third global server" do
+    test "bhv servers 021 a server URL with special characters in its default and enum values resolves to the raw characters" do
+      server = PetstoreClient.Servers.server_2()
+      assert ServerConfiguration.url(server) == "https://o'neil.example.com/api"
+
+      assert ServerConfiguration.url(server, %{"tenant" => "a&b"}) ==
+               "https://a&b.example.com/api"
+    end
+
     test "bhv servers 013 the third global server keeps its hostile text unchanged" do
       config = PetstoreClient.Servers.server_2()
       tenant = config.variables["tenant"]
@@ -202,6 +227,37 @@ defmodule PetstoreClient.ServerConfigurationTest do
 
       assert File.read!("SKILLS.md") =~
                "returning a `ServerConfiguration`, plus a `PetstoreClient.Servers.all/0` list."
+    end
+  end
+
+  describe "copies and the generated server list" do
+    test "bhv servers 025 changing the variables map after building leaves the configuration unchanged" do
+      variables = %{"env" => %ServerVariable{default_value: "prod"}}
+
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: variables
+      }
+
+      _changed = Map.put(variables, "env", %ServerVariable{default_value: "dev"})
+
+      assert ServerConfiguration.url(config) == "https://prod.api.example.com"
+    end
+
+    test "bhv servers 026 changing the allowed values list after building leaves them unchanged" do
+      enum_values = ["prod", "staging"]
+      variable = %ServerVariable{default_value: "prod", enum_values: enum_values}
+
+      _changed = List.delete(enum_values, "staging")
+
+      assert variable.enum_values == ["prod", "staging"]
+    end
+
+    test "bhv servers 028 the generated server list cannot be changed after creation" do
+      servers = PetstoreClient.Servers.all()
+
+      assert Enum.all?(servers, &match?(%ServerConfiguration{}, &1))
+      assert PetstoreClient.Servers.all() == servers
     end
   end
 end

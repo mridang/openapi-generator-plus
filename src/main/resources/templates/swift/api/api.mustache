@@ -217,7 +217,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#pathParams}}
         path = path.replacingOccurrences(
             of: "{" + "{{baseName}}" + "}",
-            with: {{#vendorExtensions.swiftContent}}ValueSerializer.encodePathSegment(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}})
+            with: {{#vendorExtensions.swiftContent}}ValueSerializer.encodePathSegment(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}})
 {{/pathParams}}
 {{#servers.0}}
         if let server = server {
@@ -250,18 +250,18 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
         do {
             let val = options.{{paramName}}
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
         }
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
         }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}
@@ -284,7 +284,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}
 {{^vendorExtensions.param.queryContent}}
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
 {{/vendorExtensions.param.queryContent}}
 {{/vendorExtensions.param.queryDeepObject}}
         }
@@ -305,7 +305,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}
 {{^vendorExtensions.param.queryContent}}
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
 {{/vendorExtensions.param.queryContent}}
 {{/vendorExtensions.param.queryDeepObject}}
         }
@@ -327,7 +327,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}
 {{^vendorExtensions.param.queryContent}}
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
 {{/vendorExtensions.param.queryContent}}
 {{/vendorExtensions.param.queryDeepObject}}
         }
@@ -339,17 +339,17 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#headerParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-        headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+        headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
         }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/headerParams}}
@@ -366,7 +366,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-        let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+        let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
         if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
             throw ConfigurationError.invalidArgument(
                 "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
@@ -376,7 +376,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
                 throw ConfigurationError.invalidArgument(
                     "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
@@ -388,7 +388,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
                 throw ConfigurationError.invalidArgument(
                     "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
@@ -413,23 +413,23 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#formParams}}
 {{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
-        formBody["{{baseName}}"] = options.{{paramName}}
+        formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options {
-            formBody["{{baseName}}"] = options.{{paramName}}
+            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{^required}}
 {{#vendorExtensions.op.optionsParamRequired}}
         if let val = options.{{paramName}} {
-            formBody["{{baseName}}"] = val
+            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            formBody["{{baseName}}"] = val
+            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}

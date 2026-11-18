@@ -102,6 +102,7 @@ The generated project also configures ktlint, detekt, Kover and Dokka, and tests
 - `dependentRequired` and `dependentSchemas` are not enforced.
 - Webhooks and callbacks, XML bodies, Link Objects and `mutualTLS` security schemes are not generated.
 - Only `http://` and `https://` proxies are accepted; SOCKS is rejected.
+- `verifySsl(false)` does not skip the host name check on the Ktor CIO engine: a certificate whose host name does not match the address is still refused, because the engine checks it in its own TLS code and no trust manager can turn that off.
 - A header sent on several lines is joined with `, `.
 - The SDK writes no logs; install the Ktor `Logging` plugin on your own `HttpClient`.
 - No `LICENSE` file is generated.

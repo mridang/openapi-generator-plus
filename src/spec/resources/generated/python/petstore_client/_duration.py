@@ -17,6 +17,9 @@ from pydantic import BeforeValidator, PlainSerializer
 # google.protobuf.Duration with exactly this grammar. ``[0-9]`` rather than
 # ``\d``: Python's ``\d`` also matches non-ASCII digits such as Arabic-Indic.
 _DURATION_RE = re.compile(r"-?[0-9]+(\.[0-9]{1,9})?s")
+# google.protobuf.Duration spans +/-315576000000.999999999 seconds; a whole-second
+# count above this bound is outside the range a protobuf-JSON server accepts.
+_MAX_DURATION_SECONDS = 315576000000
 
 
 def _format_timedelta_protobuf(value: datetime.timedelta) -> str:
@@ -70,6 +73,10 @@ def _parse_timedelta_protobuf(value: datetime.timedelta | str) -> datetime.timed
     else:
         secs_str, frac_str = body, ""
     secs = int(secs_str)
+    if secs > _MAX_DURATION_SECONDS:
+        raise ValueError(
+            f"{value!r} is outside the protobuf-JSON duration range of +/-{_MAX_DURATION_SECONDS}s"
+        )
     nanos = int(frac_str.ljust(9, "0")) if frac_str else 0
     micros = nanos // 1000
     return sign * datetime.timedelta(seconds=secs, microseconds=micros)

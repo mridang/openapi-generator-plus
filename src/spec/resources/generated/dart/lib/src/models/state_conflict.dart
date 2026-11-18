@@ -17,11 +17,15 @@ class StateConflict {
 
   /// Creates a [StateConflict] from a JSON map.
   factory StateConflict.fromJson(Map<String, dynamic> json) {
-    return StateConflict(
-      code: readInt32OrNull(json['code']),
+    try {
+      return StateConflict(
+        code: readInt32OrNull(json['code']),
 
-      message: json['message'] as String?,
-    );
+        message: json['message'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for StateConflict: $e', e);
+    }
   }
 
   /// Converts this [StateConflict] to a JSON map.

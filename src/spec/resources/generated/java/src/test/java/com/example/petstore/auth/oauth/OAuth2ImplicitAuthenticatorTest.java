@@ -79,7 +79,7 @@ class OAuth2ImplicitAuthenticatorTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"abc\r\nInjected: yes", "abc\u0000def", "abc\u007Fdef", "tökén"})
-  void setAccessTokenRejectsAControlOrNonAsciiCharacter(String token) {
+  void bhvAuthOauthTwoImplicit014SetAccessTokenRejectsAControlOrNonAsciiCharacter(String token) {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
     IllegalArgumentException ex =
@@ -103,7 +103,7 @@ class OAuth2ImplicitAuthenticatorTest {
   }
 
   @Test
-  void setAccessTokenAcceptsTabAndPrintableAscii() {
+  void bhvAuthOauthTwoImplicit016SetAccessTokenAcceptsTabAndPrintableAscii() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
     auth.setAccessToken("a b\tc~");
 
@@ -191,9 +191,24 @@ class OAuth2ImplicitAuthenticatorTest {
   @Test
   @DisplayName(
       "the access token is volatile so a callback-thread write is visible to request threads")
-  void accessTokenFieldIsVolatile() throws NoSuchFieldException {
+  void bhvAuth030AccessTokenFieldIsVolatile() throws NoSuchFieldException {
     assertTrue(
         java.lang.reflect.Modifier.isVolatile(
             OAuth2ImplicitAuthenticator.class.getDeclaredField("accessToken").getModifiers()));
+  }
+
+  @Test
+  void bhvAuthScheme016AnEmptyClientIdVariableIsUnsetAndNamesIt() {
+    Map<String, String> environment =
+        Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID", "");
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class,
+            () ->
+                new BrowserAuthImplicitAuthenticator("https://api.example.com", null, environment));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage())
+            .contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"),
+        ex.getMessage());
   }
 }

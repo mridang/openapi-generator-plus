@@ -5,7 +5,7 @@ import json
 import re
 from typing import Any
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse, parse_qs
 
 from {{packageName}}.auth.oauth.oauth2_authorization_code_authenticator import OAuth2AuthorizationCodeAuthenticator
@@ -62,7 +62,13 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         # The token POST must never have been issued for an empty code.
         mock_client.send_request.assert_not_called()
 
-    def test_headers_before_the_exchange_name_the_canonical_call(self) -> None:
+    def test_bhv_auth_001_a_sync_header_call_before_the_exchange_raises_and_returns_no_headers(self) -> None:
+        auth = _create_authenticator()
+
+        with pytest.raises(RuntimeError):
+            auth.get_auth_headers()
+
+    def test_bhv_authoauthtwoauthcode_030_headers_before_the_exchange_name_the_canonical_call(self) -> None:
         auth = _create_authenticator()
         auth.set_api_client(MagicMock())
         with pytest.raises(
@@ -207,7 +213,7 @@ def _code_reply(**fields: object) -> ApiHttpResponse:
 
 
 class TestAuthorizationUrlEncoding:
-    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+    def test_bhv_auth_014_authorize_url_separates_scopes_with_percent_20(self) -> None:
         url = _create_authenticator().build_authorization_url()
 
         assert _without_pkce(url) == (
@@ -239,10 +245,43 @@ class TestAuthorizationUrlEncoding:
             "&scope=a%2Ab%20c%21d&state=s%20t~%281%29"
         )
 
+    def test_bhv_auth_019_the_authorization_url_lists_its_parameters_in_one_fixed_order(self) -> None:
+        url = _create_authenticator().build_authorization_url(state='xyz')
+
+        assert _without_pkce(url) == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=my_client_id"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=read%20write&state=xyz"
+        )
+
     def test_bhv_authoauthtwoauthcode_018_an_empty_state_is_omitted_from_the_authorization_url(self) -> None:
         url = _create_authenticator().build_authorization_url(state='')
 
         assert 'state' not in parse_qs(urlparse(url).query)
+
+    def test_bhv_authoauthtwoauthcode_032_code_exchange_body_uses_a_fixed_parameter_order(self) -> None:
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host="https://api.example.com",
+            client_id="id",
+            client_secret="sec",
+            authorization_url="https://auth.example.com/authorize",
+            token_url="https://auth.example.com/token",
+            redirect_uri="https://app.example.com/callback",
+            scopes=["read"],
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = _code_reply(
+            access_token="at", expires_in=3600
+        )
+        auth.set_api_client(mock_client)
+
+        auth.exchange_code("C")
+
+        assert mock_client.send_request.call_args[0][3] == (
+            "grant_type=authorization_code&code=C&client_id=id&client_secret=sec"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+        )
 
     def test_bhv_authoauthtwoauthcode_017_code_exchange_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
         self,
@@ -306,7 +345,7 @@ class TestAuthorizationCodeRefreshUrlRouting:
             "https://auth.example.com/oauth/refresh",
         ]
 
-    def test_refresh_falls_back_to_the_token_url_without_a_refresh_url(self) -> None:
+    def test_bhv_authoauthtwopassword_020_refresh_falls_back_to_the_token_url_without_a_refresh_url(self) -> None:
         assert self._urls_of_exchange_then_refresh(None) == [
             "https://auth.example.com/token",
             "https://auth.example.com/token",
@@ -507,7 +546,7 @@ class TestPkce:
 
         assert 'code_verifier' not in _form_of(mock_client.send_request.call_args)
 
-    def test_the_verifier_is_spent_by_a_successful_exchange(self) -> None:
+    def test_bhv_auth_020_the_verifier_is_spent_by_a_successful_exchange(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = _code_reply(
@@ -543,3 +582,13 @@ class TestInvalidateAccessToken:
         refresh = _form_of(mock_client.send_request.call_args_list[1])
         assert refresh['grant_type'] == ['refresh_token']
         assert refresh['refresh_token'] == ['r1']
+
+
+class TestPkceAppendixB:
+    def test_bhv_auth_008_the_s256_challenge_matches_the_rfc_7636_appendix_b_value(self) -> None:
+        authenticator = _create_authenticator()
+
+        with patch('secrets.token_urlsafe', return_value='dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'):
+            url = authenticator.build_authorization_url()
+
+        assert 'code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM' in url

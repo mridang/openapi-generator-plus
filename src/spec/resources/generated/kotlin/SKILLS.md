@@ -326,7 +326,7 @@ val client = Client(authenticator, transport)
 
 ### Custom HTTP client
 
-`TransportOptions.builder().httpClient(myKtorClient)` sends every request through your own Ktor `HttpClient`. The SDK never closes a client you supply. It cannot be combined with `proxy`, `caCertPath` or `verifySsl(false)`.
+`TransportOptions.builder().httpClient(myKtorClient)` sends every request through your own Ktor `HttpClient`, which must be built with `followRedirects = false` (`build()` refuses one that follows redirects). The SDK never closes a client you supply. It cannot be combined with `proxy`, `caCertPath` or `verifySsl(false)`.
 
 ### Retries
 

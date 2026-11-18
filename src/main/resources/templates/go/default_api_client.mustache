@@ -164,18 +164,21 @@ func hasHeader(headers map[string]string, name string) bool {
 	return false
 }
 
-// redactURL renders u with its query replaced by "***": an authenticator's
-// query-parameter API key is part of the query, and error messages reach logs
-// and error trackers. net/http redacts only a userinfo password.
+// redactURL renders u with its userinfo and fragment removed and its query
+// replaced by "***": an authenticator's query-parameter API key is part of the
+// query, and error messages reach logs and error trackers. net/http redacts only
+// a userinfo password.
 func redactURL(u *url.URL) string {
 	if u == nil {
 		return ""
 	}
-	if u.RawQuery == "" {
-		return u.String()
-	}
 	redacted := *u
-	redacted.RawQuery = "***"
+	redacted.User = nil
+	redacted.Fragment = ""
+	redacted.RawFragment = ""
+	if redacted.RawQuery != "" {
+		redacted.RawQuery = "***"
+	}
 	return redacted.String()
 }
 

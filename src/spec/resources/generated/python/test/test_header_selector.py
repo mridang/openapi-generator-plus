@@ -84,12 +84,12 @@ class TestSelectAcceptHeader:
     ) -> None:
         assert header_selector._select_accept_header(None) == ""
 
-    def test_should_return_empty_string_for_empty_list(
+    def test_bhv_headers_027_should_return_empty_string_for_empty_list(
         self, header_selector: Any
     ) -> None:
         assert header_selector._select_accept_header([]) == ""
 
-    def test_should_return_empty_string_when_all_entries_filtered_out(
+    def test_bhv_headers_029_should_return_empty_string_when_all_entries_filtered_out(
         self, header_selector: Any
     ) -> None:
         assert header_selector._select_accept_header(["", None]) == ""
@@ -136,7 +136,9 @@ class TestSelectAcceptHeader:
         result = header_selector._select_accept_header(["   ", "application/json"])
         assert result == "application/json"
 
-    def test_should_not_add_quality_weights(self, header_selector: Any) -> None:
+    def test_bhv_headers_032_should_not_add_quality_weights(
+        self, header_selector: Any
+    ) -> None:
         result = header_selector._select_accept_header(
             ["text/html", "text/plain", "application/json"]
         )

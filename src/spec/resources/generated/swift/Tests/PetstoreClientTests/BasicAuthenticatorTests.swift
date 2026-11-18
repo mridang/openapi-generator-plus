@@ -38,7 +38,7 @@ import Testing
 
   /* A password may contain ':' (only the user-id may not) and an empty
    * password is still a valid credential. */
-  @Test func testPasswordMayContainColonAndMayBeEmpty() async throws {
+  @Test func testBhvAuthbasic018PasswordMayContainColonAndMayBeEmpty() async throws {
     let withColon = try BasicAuthenticator(
       host: "https://api.example.com", username: "alice", password: "a:b")
     #expect(try await withColon.authHeaders()["Authorization"] == "Basic YWxpY2U6YTpi")
@@ -54,7 +54,7 @@ import Testing
     ("alice", "s3c\nret", "Basic auth password must not contain CR, LF, or NUL characters"),
     ("ali:ce", "s3cret", "Basic auth username must not contain ':' (RFC 7617 \u{A7}2)"),
   ])
-  func testRejectionMessagesNameTheOffendingField(
+  func testBhvErrors081RejectionMessagesNameTheOffendingField(
     username: String, password: String, message: String
   ) {
     #expect(throws: ConfigurationError.invalidArgument(message)) {
@@ -220,6 +220,24 @@ import Testing
     }
   }
 
+  /* An empty variable counts as unset: construction fails and the message names the missing credential by its variable. */
+  @Test func testBhvAuthbasic012PetStoreBasicAuthenticatorAnEmptyVariableCountsAsUnset() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try PetStoreBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "",
+        ])
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message.hasPrefix("Missing the credential '"))
+    #expect(message.contains("environment variable"))
+  }
+
   @Test
   func
     testBhvAuthbasic001AdminBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
@@ -262,6 +280,36 @@ import Testing
     }
   }
 
+  /* An empty variable counts as unset: construction fails and the message names the missing credential by its variable. */
+  @Test func testBhvAuthbasic012AdminBasicAuthenticatorAnEmptyVariableCountsAsUnset() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try AdminBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "",
+        ])
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message.hasPrefix("Missing the credential '"))
+    #expect(message.contains("environment variable"))
+  }
+
+  /* Each HTTP basic wrapper emits the same Basic header as the base authenticator it extends. */
+  @Test(arguments: ["AdminBasic", "PetStoreBasic"])
+  func testBhvAuthbasic019SchemeWrapperEmitsTheSameBasicHeaderAsTheBaseAuthenticator(scheme: String)
+    async throws
+  {
+    let base = try BasicAuthenticator(
+      host: "https://api.example.com", username: "alice", password: "s3cret")
+    let expected = try await base.authHeaders()
+    let wrapper = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
+    #expect(try await wrapper.authHeaders() == expected)
+  }
+
   private static func schemeWrapper(_ scheme: String, username: String, password: String) throws
     -> BasicAuthenticator
   {
@@ -274,11 +322,46 @@ import Testing
     }
   }
 
+  /* A basic authenticator masks the password in its debug output. */
+  @Test func testBhvAuthbasic020AuthenticatorMasksThePasswordInDebugOutput() throws {
+    let auth = try BasicAuthenticator(
+      host: "https://api.example.com", username: "alice", password: "debug-password-value")
+    #expect(!String(reflecting: auth).contains("debug-password-value"))
+  }
+
   @Test func testBhvAuthbasic010DescriptionShowsHostAndUsernameAndMasksPassword() throws {
     let auth = try BasicAuthenticator(
       host: "https://api.example.com", username: "alice", password: "masked-password-value")
     #expect(auth.description.contains("host: https://api.example.com"))
     #expect(auth.description.contains("username: alice"))
     #expect(!auth.description.contains("masked-password-value"))
+  }
+  // MARK: - Behaviour catalogue: credential resolution
+
+  /* A credential that is not passed is read from its own environment variable, and no other. */
+  @Test func testBhvAuth007GenericCredentialReadsOnlyItsOwnVariable() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try BaseAuthenticator.credential(
+        nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["OTHER_TOKEN": "x"])
+    }
+  }
+
+  /* The explicit argument is used before the environment variable. */
+  @Test func testBhvAuth022ExplicitArgumentBeatsTheEnvironmentVariable() throws {
+    let value = try BaseAuthenticator.credential(
+      "explicit", name: "token", variable: "EXAMPLE_TOKEN",
+      environment: ["EXAMPLE_TOKEN": "env-value"])
+    #expect(value == "explicit")
+  }
+
+  /* Each credential field takes its own environment variable, independently of the other fields. */
+  @Test func testBhvAuth024EachFieldReadsItsOwnEnvironmentVariable() throws {
+    let environment = ["EXAMPLE_USERNAME": "alice", "EXAMPLE_PASSWORD": "s3cret"]
+    let username = try BaseAuthenticator.credential(
+      nil, name: "username", variable: "EXAMPLE_USERNAME", environment: environment)
+    let password = try BaseAuthenticator.credential(
+      nil, name: "password", variable: "EXAMPLE_PASSWORD", environment: environment)
+    #expect(username == "alice")
+    #expect(password == "s3cret")
   }
 }

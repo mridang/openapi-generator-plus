@@ -1,4 +1,5 @@
 {{>api_info}}
+import asyncio
 import json
 import threading
 import time
@@ -6,14 +7,106 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from urllib3._collections import HTTPHeaderDict
 
 from {{packageName}}.auth.oauth.oauth2_token_manager import OAuth2TokenManager
+from {{packageName}}.default_api_client import DefaultApiClient
+from {{packageName}}.transport_options import TransportOptions
 from {{packageName}}.errors import OAuth2ServerException, OAuth2TokenException
 from {{packageName}}.api_http_response import ApiHttpResponse
 from {{packageName}}.errors import {{errorPrefix}}Exception
 
 
 class TestOAuth2TokenManager:
+
+    def test_bhv_authoauthtwotokenmgr_042_a_token_server_error_names_the_status_the_code_and_the_description(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=400,
+            body=json.dumps({
+                'error': 'invalid_grant',
+                'error_description': 'refresh token expired',
+            }),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2ServerException) as exc_info:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+        assert str(exc_info.value) == (
+            'Token request failed with status 400: invalid_grant -- refresh token expired'
+        )
+
+    def test_bhv_authoauthtwotokenmgr_043_token_body_keeps_the_fixed_parameter_order(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'access_token': 'a1'}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+        params = {
+            'grant_type': 'password',
+            'username': 'u',
+            'password': 'p',
+            'client_id': 'c',
+            'client_secret': 's',
+            'scope': 'a b',
+            'audience': 'x',
+            'resource': 'r',
+        }
+
+        manager.get_access_token('https://auth.example.com/token', params)
+
+        assert mock_client.send_request.call_args[0][3] == (
+            'grant_type=password&username=u&password=p&client_id=c&client_secret=s'
+            '&scope=a+b&audience=x&resource=r'
+        )
+
+    def test_bhv_authoauthtwotokenmgr_045_a_padded_decimal_expires_in_with_a_fraction_is_cached(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'access_token': 'pad-tok', 'expires_in': ' 3600.5\n'}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+        params = {'grant_type': 'client_credentials'}
+
+        manager.get_access_token('https://auth.example.com/token', params)
+        manager.get_access_token('https://auth.example.com/token', params)
+
+        assert mock_client.send_request.call_count == 1
+
+    @pytest.mark.parametrize('raw', ['0x1000', '1e4', '1_000_000', '3600d', '-5'])
+    def test_bhv_authoauthtwotokenmgr_046_a_string_expires_in_outside_the_decimal_grammar_leaves_the_token_stale(
+        self, raw: str,
+    ) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'first', 'expires_in': raw}),
+                headers={'content-type': 'application/json'},
+            ),
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'second', 'expires_in': 3600}),
+                headers={'content-type': 'application/json'},
+            ),
+        ]
+        manager.set_api_client(mock_client)
+        params = {'grant_type': 'client_credentials'}
+
+        assert manager.get_access_token('https://auth.example.com/token', params) == 'first'
+        assert manager.get_access_token('https://auth.example.com/token', params) == 'second'
 
     def test_bhv_authoauthtwotokenmgr_014_extracts_access_token_from_response(self) -> None:
         manager = OAuth2TokenManager()
@@ -531,6 +624,26 @@ class TestOAuth2TokenManager:
             )
         assert str(exc_info.value) == message
 
+    def test_bhv_authoauthtwotokenmgr_041_a_non_json_token_body_is_not_echoed_into_the_error_message(self) -> None:
+        # A form-encoded 2xx answer carries the token itself; the error must
+        # carry the canonical text alone, with no parser detail quoting it.
+        secret = 'gho_' + 'SECRET123'
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=f'access_token={secret}&token_type=bearer',
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2TokenException) as exc_info:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+        assert str(exc_info.value) == 'Token response is not valid JSON'
+
     def test_bhv_authoauthtwotokenmgr_038_a_token_type_other_than_bearer_is_refused_without_echoing_it(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
@@ -880,6 +993,176 @@ def _invalid_grant() -> ApiHttpResponse:
 _REFRESH_URL = "https://auth.example.com/refresh"
 
 
+class TestRefreshFailures:
+    def test_bhv_auth_026_when_the_refresh_and_the_fallback_grant_both_fail_the_fallback_error_is_raised(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'first', 'refresh_token': 'r1', 'expires_in': 0}),
+                headers={'content-type': 'application/json'},
+            ),
+            ApiHttpResponse(
+                status_code=400,
+                body=json.dumps({'error': 'invalid_grant'}),
+                headers={'content-type': 'application/json'},
+            ),
+            ApiHttpResponse(
+                status_code=401,
+                body=json.dumps({'error': 'invalid_client', 'error_description': 'bad secret'}),
+                headers={'content-type': 'application/json'},
+            ),
+        ]
+        manager.set_api_client(mock_client)
+        params = {'grant_type': 'client_credentials'}
+        manager.get_access_token('https://auth.example.com/token', params)
+
+        with pytest.raises(OAuth2ServerException) as exc_info:
+            manager.get_access_token('https://auth.example.com/token', params)
+
+        assert exc_info.value.status_code == 401
+        assert str(exc_info.value) == 'Token request failed with status 401: invalid_client -- bad secret'
+        assert mock_client.send_request.call_count == 3
+
+    def test_bhv_auth_027_a_cancelled_refresh_is_rethrown_without_running_the_fallback_grant(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'first', 'refresh_token': 'r1', 'expires_in': 0}),
+                headers={'content-type': 'application/json'},
+            ),
+            asyncio.CancelledError(),
+        ]
+        manager.set_api_client(mock_client)
+        params = {'grant_type': 'client_credentials'}
+        manager.get_access_token('https://auth.example.com/token', params)
+
+        with pytest.raises(asyncio.CancelledError):
+            manager.get_access_token('https://auth.example.com/token', params)
+
+        assert mock_client.send_request.call_count == 2
+
+
+class TestTokenRequestDetails:
+    def test_bhv_auth_010_the_token_request_never_carries_the_transport_default_headers(self) -> None:
+        class _Reply:
+            status = 200
+            headers = HTTPHeaderDict({'content-type': 'application/json'})
+
+            def read(self) -> bytes:
+                return b'{"access_token":"tok"}'
+
+            def release_conn(self) -> None:
+                return None
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.sent: dict[str, str] = {}
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.sent = dict(kwargs.get('headers') or {})
+                return _Reply()
+
+        pool = _Pool()
+        transport = DefaultApiClient(
+            TransportOptions.builder().default_header('X-Default', 'd').build(),
+            pool_manager=pool,
+        )
+        manager = OAuth2TokenManager()
+        manager.set_api_client(transport)
+
+        token = manager.get_access_token('https://auth.example.com/token', {'grant_type': 'client_credentials'})
+
+        assert token == 'tok'
+        assert 'X-Default' not in pool.sent
+        assert pool.sent['Accept'] == 'application/json'
+
+    def test_bhv_auth_017_a_form_token_body_writes_a_space_as_plus_and_encodes_other_reserved_punctuation(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'access_token': 'a1'}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        manager.get_access_token(
+            'https://auth.example.com/token',
+            {'grant_type': 'client_credentials', 'scope': "a b-c.d_e~f/g:h@i&j=k*!'()"},
+        )
+
+        assert mock_client.send_request.call_args[0][3] == (
+            'grant_type=client_credentials&scope=a+b-c.d_e~f%2Fg%3Ah%40i%26j%3Dk%2A%21%27%28%29'
+        )
+
+    @pytest.mark.parametrize(
+        ('body', 'code', 'description', 'uri'),
+        [
+            ({'error': 'invalid_grant', 'error_description': 5, 'error_uri': ['https://x']}, 'invalid_grant', None, None),
+            ({'error': 'invalid_grant', 'error_description': 'expired', 'error_uri': 7}, 'invalid_grant', 'expired', None),
+            ({'error': 7, 'error_description': 'expired'}, None, None, None),
+            ({'error': '', 'error_description': 'expired'}, None, None, None),
+        ],
+    )
+    def test_bhv_errors_082_a_malformed_optional_field_is_dropped_and_a_valid_code_is_kept(
+        self,
+        body: dict[str, Any],
+        code: str | None,
+        description: str | None,
+        uri: str | None,
+    ) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=400,
+            body=json.dumps(body),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2ServerException) as exc_info:
+            manager.get_access_token('https://auth.example.com/token', {'grant_type': 'client_credentials'})
+
+        assert exc_info.value.code == code
+        assert exc_info.value.description == description
+        assert exc_info.value.uri == uri
+
+
+class TestConcurrentTokenAccess:
+    def test_bhv_auth_030_setting_and_reading_the_token_from_several_threads_never_observes_an_unset_value(self) -> None:
+        manager = OAuth2TokenManager()
+        manager.set_access_token('initial')
+        params = {'grant_type': 'client_credentials'}
+        allowed = {'initial', 'replaced'}
+        observed: list[str] = []
+        errors: list[Exception] = []
+
+        def reader() -> None:
+            try:
+                for _ in range(300):
+                    observed.append(manager.get_access_token('https://auth.example.com/token', params))
+            except Exception as exc:
+                errors.append(exc)
+
+        def writer() -> None:
+            for i in range(300):
+                manager.set_access_token('replaced' if i % 2 else 'initial')
+
+        threads = [threading.Thread(target=reader) for _ in range(4)]
+        threads.append(threading.Thread(target=writer))
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert errors == []
+        assert set(observed) <= allowed
+
+
 class TestExchange:
     def test_bhv_authoauthtwotokenmgr_006_exchange_bypasses_a_cached_token_and_the_refresh_grant(self) -> None:
         manager, client = _manager_replying(
@@ -923,7 +1206,7 @@ class TestExchange:
         assert manager.exchanged is True
         assert client.send_request.call_count == 2
 
-    def test_a_failed_first_exchange_leaves_the_session_unexchanged(self) -> None:
+    def test_bhv_auth_028_a_failed_first_exchange_leaves_the_session_unexchanged(self) -> None:
         manager, _ = _manager_replying(_invalid_grant())
 
         with pytest.raises(OAuth2ServerException):

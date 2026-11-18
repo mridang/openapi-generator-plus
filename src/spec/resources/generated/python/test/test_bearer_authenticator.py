@@ -83,7 +83,7 @@ class TestBearerAuthenticator:
                 host="https://api.example.com", token="tok\r\nInjected: yes"
             )
 
-    def test_rejects_non_ascii(self) -> None:
+    def test_bhv_authbearer_022_rejects_non_ascii(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="ñoño")
 
@@ -181,7 +181,9 @@ class TestBearerTokenProvider:
 
         assert auth.get_auth_headers() == {"Authorization": "Bearer env-token"}
 
-    def test_a_token_and_a_provider_together_are_rejected(self) -> None:
+    def test_bhv_authbearer_026_a_token_and_a_provider_together_are_rejected(
+        self,
+    ) -> None:
         with pytest.raises(ValueError, match="not both"):
             BearerAuthenticator(
                 host="https://api.example.com",
@@ -189,10 +191,52 @@ class TestBearerTokenProvider:
                 token_provider=lambda: "abc",
             )
 
-    def test_the_provider_is_not_shown_in_the_repr(self) -> None:
+    def test_bhv_auth_016_the_provider_is_not_shown_in_the_repr(self) -> None:
         auth = BearerAuthenticator(
             host="https://api.example.com", token_provider=lambda: "secret-value"
         )
 
         assert "secret-value" not in repr(auth)
         assert "lambda" not in repr(auth)
+
+
+class TestBearerBehaviours:
+    def test_bhv_auth_004_built_with_no_token_or_provider_is_refused(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host="https://api.example.com")
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host="https://api.example.com", token_provider=None)
+
+    def test_bhv_auth_005_a_provided_token_is_read_again_for_each_request(self) -> None:
+        reads: list[str] = []
+
+        def provider() -> str:
+            reads.append("read")
+            return f"token-{len(reads)}"
+
+        auth = BearerAuthenticator(
+            host="https://api.example.com", token_provider=provider
+        )
+
+        assert auth.get_auth_headers()["Authorization"] == "Bearer token-1"
+        assert auth.get_auth_headers()["Authorization"] == "Bearer token-2"
+
+    def test_bhv_auth_009_a_token_with_a_line_break_or_nul_is_refused_when_built(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host="https://api.example.com", token="abc\r\ndef")
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host="https://api.example.com", token="abc\x00def")
+
+    def test_a_provided_token_with_a_line_break_is_refused_on_use(self) -> None:
+        auth = BearerAuthenticator(
+            host="https://api.example.com", token_provider=lambda: "abc\ndef"
+        )
+
+        with pytest.raises(ValueError):
+            auth.get_auth_headers()
+
+    def test_bhv_auth_012_a_blank_token_message_states_why_it_was_refused(self) -> None:
+        with pytest.raises(ValueError, match="must not be empty"):
+            BearerAuthenticator(host="https://api.example.com", token="   ")

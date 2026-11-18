@@ -310,7 +310,9 @@ module {{moduleName}}
           when Hash
             # @type var sanitized: Hash[untyped, untyped]
             sanitized = {}
-            object.each_with_object(sanitized) do |(key, value), hash|
+            # Keys are written in ascending order, so equal data always produces
+            # identical output; a model keeps its declaration order instead.
+            object.sort_by { |key, _value| key.to_s }.each_with_object(sanitized) do |(key, value), hash|
               next if value.nil?
 
               hash[key] = sanitize_for_serialization(value, visited)
@@ -357,7 +359,7 @@ module {{moduleName}}
                object.respond_to?(:additional_properties)
               extras = object.additional_properties
               if extras.is_a?(Hash)
-                extras.each do |json_key, value|
+                extras.sort_by { |json_key, _value| json_key.to_s }.each do |json_key, value|
                   # A declared property is authoritative: an extra under the
                   # same wire name is dropped, so no key is ever written twice.
                   next if value.nil? || hash.key?(json_key.to_s)

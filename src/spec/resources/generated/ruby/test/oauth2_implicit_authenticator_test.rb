@@ -88,6 +88,16 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(auth.to_s).must_include '***'
   end
 
+  it 'bhv_authoauthtwoimplicit_014 rejects a non-ASCII access token with the RFC 7230 message' do
+    err = assert_raises(ArgumentError) { auth.access_token = "t\u00F6ken" }
+    _(err.message).must_equal 'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+  end
+
+  it 'bhv_authoauthtwoimplicit_016 accepts an access token that contains a tab' do
+    auth.access_token = "abc\tdef"
+    _(auth.auth_headers['Authorization']).must_equal "Bearer abc\tdef"
+  end
+
   it 'bhv_authoauthtwoimplicit_001 keeps ~ literal and percent-encodes * ! \' ( ) in the authorize URL' do
     url = auth.build_authorization_url("state~*!'()")
     _(url).must_include 'state=state~%2A%21%27%28%29'
@@ -108,5 +118,18 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
       "#<#{auth.class.name} host=\"https://api.example.com\" client_id=\"my_client_id\" " \
       'authorization_url="https://auth.example.com/authorize" scopes=["read", "write"] access_token="***">'
     )
+  end
+
+  it 'bhv_misc_001 replacing the access token while other threads read the headers never yields a mixed token' do
+    first = "token-#{'a' * 40}"
+    second = "token-#{'b' * 40}"
+    auth.access_token = first
+    readers = Array.new(4) do
+      Thread.new { 200.times.map { auth.auth_headers['Authorization'] } }
+    end
+    writer = Thread.new { 500.times { |i| auth.access_token = i.even? ? second : first } }
+    writer.join
+    seen = readers.flat_map(&:value)
+    _(seen - ["Bearer #{first}", "Bearer #{second}"]).must_be_empty
   end
 end

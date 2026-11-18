@@ -36,13 +36,17 @@ class Account {
         "Missing required field 'username' for Account",
       );
     }
-    return Account(
-      id: readInt64OrNull(json['id']),
+    try {
+      return Account(
+        id: readInt64OrNull(json['id']),
 
-      username: json['username'] as String,
+        username: json['username'] as String,
 
-      password: json['password'] as String?,
-    );
+        password: json['password'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Account: $e', e);
+    }
   }
 
   /// Converts this [Account] to a JSON map.

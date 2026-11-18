@@ -67,7 +67,8 @@ public class OAuth2TokenManagerTest
 
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal("tok123", token);
@@ -84,7 +85,8 @@ public class OAuth2TokenManagerTest
 
         await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal("application/x-www-form-urlencoded", client.LastHeaders["Content-Type"]);
@@ -104,7 +106,8 @@ public class OAuth2TokenManagerTest
 
         await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "authorization_code" }
+            new Dictionary<string, string> { ["grant_type"] = "authorization_code" },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal("ref1", manager.RefreshToken);
@@ -122,8 +125,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("tok1", first);
         Assert.Equal("tok1", second);
@@ -144,9 +155,17 @@ public class OAuth2TokenManagerTest
         var tokenUrl = new Uri("https://auth.example.com/token");
 
         // First call fetches tok1, but it expires immediately (expires_in=0)
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         // Second call should refetch since token is expired
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("tok1", first);
         Assert.Equal("tok2", second);
@@ -161,7 +180,8 @@ public class OAuth2TokenManagerTest
         // No API client needed since token is set manually
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string>()
+            new Dictionary<string, string>(),
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal("manual-token", token);
@@ -180,9 +200,17 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         manager.InvalidateAccessToken();
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("tok1", first);
         Assert.Equal("tok2", second);
@@ -196,7 +224,8 @@ public class OAuth2TokenManagerTest
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
     }
@@ -219,7 +248,11 @@ public class OAuth2TokenManagerTest
         Task<string>[] tasks = new Task<string>[10];
         for (int i = 0; i < tasks.Length; i++)
         {
-            tasks[i] = manager.GetAccessTokenAsync(tokenUrl, parameters);
+            tasks[i] = manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
         }
 
         string[] tokens = await Task.WhenAll(tasks);
@@ -271,7 +304,8 @@ public class OAuth2TokenManagerTest
 
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal("short", token);
@@ -291,8 +325,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("long", first);
         Assert.Equal("long", second);
@@ -320,8 +362,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("edge1", first);
         Assert.Equal("edge1", second);
@@ -347,13 +397,56 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "authorization_code" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         Assert.Equal("old_refresh", manager.RefreshToken);
 
         // Second call: access token near-expiry, refresh fires with "old_refresh";
         // server replies with empty refresh_token which must not clobber the cache.
-        await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         Assert.Equal("old_refresh", manager.RefreshToken);
+    }
+
+    [Fact]
+    public async Task BhvAuth026WhenTheFallbackGrantAlsoFailsTheCallerGetsItsError()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("this is not json", statusCode: 200);
+        client.Enqueue("{\"error\":\"invalid_client\"}", statusCode: 401);
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = "cid",
+            ["client_secret"] = "secret",
+        };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        _ = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        OAuth2ServerException ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(401, ex.StatusCode);
     }
 
     [Fact]
@@ -384,12 +477,20 @@ public class OAuth2TokenManagerTest
         };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         Assert.Equal("tok1", first);
 
         // Second call: refresh fires (with ref1), the refresh body is malformed
         // and throws; the manager falls back to the original grant -> tok2.
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         Assert.Equal("tok2", second);
 
         // Exactly three network calls: initial grant + failed refresh + fallback.
@@ -411,8 +512,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("str-tok", first);
         Assert.Equal("str-tok", second);
@@ -432,8 +541,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("flt-tok", first);
         Assert.Equal("flt-tok", second);
@@ -458,8 +575,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("huge", first);
         Assert.Equal("huge", second);
@@ -485,8 +610,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("inf1", first);
         Assert.Equal("inf2", second);
@@ -507,8 +640,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("neg1", first);
         Assert.Equal("neg2", second);
@@ -529,8 +670,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("sixty", first);
         Assert.Equal("sixty", second);
@@ -550,8 +699,16 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("zero1", first);
         Assert.Equal("zero2", second);
@@ -578,8 +735,20 @@ public class OAuth2TokenManagerTest
         var tokenUrl = new Uri("https://auth.example.com/token");
         var refreshUrl = new Uri("https://auth.example.com/refresh");
 
-        await manager.GetAccessTokenAsync(tokenUrl, parameters, null, refreshUrl);
-        await manager.GetAccessTokenAsync(tokenUrl, parameters, null, refreshUrl);
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal(
             "grant_type=refresh_token&refresh_token=ref1&client_id=cid&client_secret=secret",
@@ -599,7 +768,8 @@ public class OAuth2TokenManagerTest
         var ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
         Assert.Equal(401, ex.StatusCode);
@@ -619,10 +789,33 @@ public class OAuth2TokenManagerTest
         var ex = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
         Assert.IsAssignableFrom<OpenAPIException>(ex);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwotokenmgr041NonJsonTokenBodyIsNotEchoedIntoTheError()
+    {
+        // A form-encoded 2xx answer carries the token itself; the error must not repeat it.
+        string secret = "gho_" + "SECRET123";
+        var client = new FakeApiClient();
+        client.Enqueue("access_token=" + secret + "&token_type=bearer");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal("Token response is not valid JSON", ex.Message);
+        Assert.Null(ex.InnerException);
     }
 
     [Theory]
@@ -647,7 +840,8 @@ public class OAuth2TokenManagerTest
         var ex = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
         Assert.Equal(expected, ex.Message);
@@ -667,7 +861,8 @@ public class OAuth2TokenManagerTest
 
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal("at", token);
@@ -690,7 +885,8 @@ public class OAuth2TokenManagerTest
         var ex = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
 
@@ -698,7 +894,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ConcurrentReadersNeverSeeATokenOtherThanOneThatWasSet()
+    public async Task BhvMisc001ConcurrentReadersNeverSeeATokenOtherThanOneThatWasSet()
     {
         // F909: the token and its expiry are published as one snapshot, so a
         // reader racing a writer sees one complete token or the other.
@@ -723,12 +919,192 @@ public class OAuth2TokenManagerTest
         var seen = new HashSet<string>();
         for (int i = 0; i < 2000; i++)
         {
-            _ = seen.Add(await manager.GetAccessTokenAsync(tokenUrl, parameters));
+            _ = seen.Add(
+                await manager.GetAccessTokenAsync(
+                    tokenUrl,
+                    parameters,
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            );
         }
         await stop.CancelAsync();
         await writer;
 
         Assert.All(seen, token => Assert.True(token is "alpha" or "beta"));
+    }
+
+    [Fact]
+    public async Task BhvAuth030ConcurrentSettersAndReadersOnlySeeAValueThatWasSet()
+    {
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(new FakeApiClient());
+        manager.SetAccessToken("alpha");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        string[] values = ["alpha", "beta", "gamma"];
+
+        using var stop = new CancellationTokenSource();
+        var writers = Enumerable
+            .Range(0, 3)
+            .Select(writer =>
+                Task.Run(
+                    () =>
+                    {
+                        for (int i = 0; !stop.IsCancellationRequested; i++)
+                        {
+                            manager.SetAccessToken(values[(i + writer) % values.Length]);
+                        }
+                    },
+                    TestContext.Current.CancellationToken
+                )
+            )
+            .ToList();
+
+        var seen = new HashSet<string>();
+        for (int i = 0; i < 2000; i++)
+        {
+            _ = seen.Add(
+                await manager.GetAccessTokenAsync(
+                    tokenUrl,
+                    parameters,
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            );
+        }
+        await stop.CancelAsync();
+        await Task.WhenAll(writers);
+
+        Assert.All(seen, token => Assert.Contains(token, values));
+    }
+
+    [Fact]
+    public async Task BhvAuth027CancelledRefreshIsRethrownWithoutRunningTheOriginalGrant()
+    {
+        // A cancelled refresh is the caller's cancellation, not a refresh
+        // failure: it must reach the caller and the original grant must not
+        // run as a fallback (which would be a third request).
+        var client = new CancelOnExhaustedApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        Assert.Equal(
+            "tok1",
+            await manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(2, client.CallCount);
+    }
+
+    private sealed class CancelOnExhaustedApiClient : IApiClient
+    {
+        private readonly Queue<ApiHttpResponse> _responses = new();
+
+        public int CallCount { get; private set; }
+
+        public void Enqueue(string body)
+        {
+            _responses.Enqueue(new ApiHttpResponse(200, body, new Dictionary<string, string>()));
+        }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            CallCount++;
+            if (_responses.Count == 0)
+            {
+                return Task.FromException<ApiHttpResponse>(
+                    new OperationCanceledException("cancelled")
+                );
+            }
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    [Fact]
+    public async Task BhvAuth013CancellingTheCallStopsTheTokenRequestWithoutWaitingForTheEndpoint()
+    {
+        // A token endpoint that never answers. The call's cancellation must reach the
+        // token POST and stop it, so the call reports the cancellation at once.
+        var client = new HangingApiClient();
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        Task<string> call = manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            null,
+            cts.Token
+        );
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            call.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken)
+        );
+        Assert.True(client.TokenRequestCancelled);
+    }
+
+    private sealed class HangingApiClient : IApiClient
+    {
+        public bool TokenRequestCancelled { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        ) =>
+            SendRequestAsync(method, url, headers, body, noRedirect: false, CancellationToken.None);
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect
+        ) => SendRequestAsync(method, url, headers, body, noRedirect, CancellationToken.None);
+
+        public async Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect,
+            CancellationToken cancellationToken
+        )
+        {
+            try
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                TokenRequestCancelled = true;
+                throw;
+            }
+            return new ApiHttpResponse(200, "{}", new Dictionary<string, string>());
+        }
     }
 
     [Fact]
@@ -745,7 +1121,8 @@ public class OAuth2TokenManagerTest
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
         Assert.Same(failure, ex);
@@ -765,7 +1142,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public void OAuth2ErrorsDeriveFromBrandedRoot()
+    public void BhvErrors045OAuth2ErrorsDeriveFromBrandedRoot()
     {
         var tokenError = new OAuth2TokenException("missing access_token");
         Assert.IsAssignableFrom<OpenAPIException>(tokenError);
@@ -790,7 +1167,8 @@ public class OAuth2TokenManagerTest
         await Assert.ThrowsAsync<OAuth2TokenException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
     }
@@ -811,7 +1189,8 @@ public class OAuth2TokenManagerTest
         var ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
         Assert.Equal(400, ex.StatusCode);
@@ -826,6 +1205,39 @@ public class OAuth2TokenManagerTest
         new() { ["grant_type"] = "client_credentials" };
 
     [Fact]
+    public async Task BhvErrors082MalformedOptionalFieldsAreDroppedAndAValidCodeIsKept()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"error\":\"invalid_grant\",\"error_description\":42,\"error_uri\":[\"x\"]}",
+            statusCode: 400
+        );
+        client.Enqueue("{\"error\":7,\"error_description\":\"ignored\"}", statusCode: 400);
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var malformed = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(
+                TokenUrl,
+                ClientCredentialsGrant(),
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal("invalid_grant", malformed.Code);
+        Assert.Null(malformed.Description);
+        Assert.Null(malformed.Uri);
+
+        var nonString = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(
+                TokenUrl,
+                ClientCredentialsGrant(),
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Null(nonString.Code);
+    }
+
+    [Fact]
     public async Task BhvAuthoauthtwotokenmgr039TokenWithoutExpiresInIsCachedIndefinitely()
     {
         var client = new FakeApiClient();
@@ -833,8 +1245,16 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        string first = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
-        string second = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+        string first = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("tok1", first);
         Assert.Equal("tok1", second);
@@ -853,9 +1273,21 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        string first = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
-        string second = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
-        string third = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+        string first = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string third = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("tok1", first);
         Assert.Equal("tok2", second);
@@ -871,7 +1303,11 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        string token = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+        string token = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("tok1", token);
         Assert.Null(manager.RefreshToken);
@@ -886,15 +1322,32 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
-        string second = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+        await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("tok2", second);
         Assert.Equal("ref1", manager.RefreshToken);
     }
 
     [Fact]
-    public void OAuth2ServerErrorMessageHasThreeForms()
+    public void BhvAuthoauthtwotokenmgr047WithoutAnErrorCodeTheMessageNamesTheStatusAndRawBody()
+    {
+        var ex = new OAuth2ServerException(502, null, null, null, "Bad Gateway");
+
+        Assert.Equal("Token request failed with status 502: Bad Gateway", ex.Message);
+        Assert.Equal("Bad Gateway", ex.RawBody);
+    }
+
+    [Fact]
+    public void BhvErrors046OAuth2ServerErrorMessageHasThreeForms()
     {
         Assert.Equal(
             "Token request failed with status 400: invalid_grant -- refresh token expired",
@@ -935,7 +1388,11 @@ public class OAuth2TokenManagerTest
         manager.SetApiClient(client);
 
         var ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
-            manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant())
+            manager.GetAccessTokenAsync(
+                TokenUrl,
+                ClientCredentialsGrant(),
+                cancellationToken: TestContext.Current.CancellationToken
+            )
         );
 
         Assert.Equal(expected, ex.Message);
@@ -956,7 +1413,8 @@ public class OAuth2TokenManagerTest
 
         await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.True(client.LastNoRedirect);
@@ -983,7 +1441,8 @@ public class OAuth2TokenManagerTest
         var ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
             manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
         Assert.Equal(statusCode, ex.StatusCode);
@@ -1003,7 +1462,11 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string first = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         Assert.Equal("tok1", first);
         Assert.Equal(1, client.CallCount);
 
@@ -1012,7 +1475,11 @@ public class OAuth2TokenManagerTest
         Task<string>[] tasks = new Task<string>[10];
         for (int i = 0; i < tasks.Length; i++)
         {
-            tasks[i] = manager.GetAccessTokenAsync(tokenUrl, parameters);
+            tasks[i] = manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
         }
         string[] tokens = await Task.WhenAll(tasks);
 
@@ -1066,8 +1533,20 @@ public class OAuth2TokenManagerTest
         var tokenUrl = new Uri("https://auth.example.com/token");
         var refreshUrl = new Uri("https://auth.example.com/refresh");
 
-        await manager.GetAccessTokenAsync(tokenUrl, parameters, null, refreshUrl);
-        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters, null, refreshUrl);
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("tok2", second);
         Assert.Equal(refreshUrl, client.LastUrl);
@@ -1089,7 +1568,8 @@ public class OAuth2TokenManagerTest
 
         await manager.GetAccessTokenAsync(
             tokenUrl,
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+            cancellationToken: TestContext.Current.CancellationToken
         );
         await Assert.ThrowsAsync<OAuth2ServerException>(() =>
             manager.GetAccessTokenAsync(
@@ -1098,7 +1578,8 @@ public class OAuth2TokenManagerTest
                 {
                     ["grant_type"] = "refresh_token",
                     ["refresh_token"] = "ref1",
-                }
+                },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
 
@@ -1119,11 +1600,21 @@ public class OAuth2TokenManagerTest
 
         await manager.ExchangeAsync(
             tokenUrl,
-            new Dictionary<string, string> { ["grant_type"] = "authorization_code", ["code"] = "a" }
+            new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = "a",
+            },
+            cancellationToken: TestContext.Current.CancellationToken
         );
         string second = await manager.ExchangeAsync(
             tokenUrl,
-            new Dictionary<string, string> { ["grant_type"] = "authorization_code", ["code"] = "b" }
+            new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = "b",
+            },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal("tok2", second);
@@ -1146,7 +1637,12 @@ public class OAuth2TokenManagerTest
 
         await manager.ExchangeAsync(
             tokenUrl,
-            new Dictionary<string, string> { ["grant_type"] = "authorization_code", ["code"] = "a" }
+            new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = "a",
+            },
+            cancellationToken: TestContext.Current.CancellationToken
         );
         await Assert.ThrowsAsync<OAuth2ServerException>(() =>
             manager.ExchangeAsync(
@@ -1155,16 +1651,146 @@ public class OAuth2TokenManagerTest
                 {
                     ["grant_type"] = "authorization_code",
                     ["code"] = "bad",
-                }
+                },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
         string cached = await manager.GetAccessTokenAsync(
             tokenUrl,
-            new Dictionary<string, string> { ["grant_type"] = "authorization_code" }
+            new Dictionary<string, string> { ["grant_type"] = "authorization_code" },
+            cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal("tok1", cached);
         Assert.Equal("ref1", manager.RefreshToken);
+        Assert.Equal(2, client.CallCount);
+    }
+
+    [Theory]
+    [InlineData(
+        "{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\"}",
+        "Token request failed with status 400: invalid_grant -- refresh token expired"
+    )]
+    [InlineData(
+        "{\"error\":\"invalid_grant\"}",
+        "Token request failed with status 400: invalid_grant"
+    )]
+    [InlineData("upstream exploded", "Token request failed with status 400: upstream exploded")]
+    public async Task BhvAuthoauthtwotokenmgr042TokenErrorMessageNamesTheStatusAndTheCodeAndDescription(
+        string body,
+        string expected
+    )
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(body, statusCode: 400);
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(expected, ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwotokenmgr043TokenRequestBodyUsesTheFixedKeyOrder()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        await manager.GetAccessTokenAsync(
+            new Uri("https://auth.example.com/token"),
+            new Dictionary<string, string>
+            {
+                ["zeta"] = "z",
+                ["scope"] = "s",
+                ["redirect_uri"] = "r",
+                ["client_secret"] = "cs",
+                ["client_id"] = "ci",
+                ["password"] = "p",
+                ["username"] = "u",
+                ["refresh_token"] = "rt",
+                ["code"] = "c",
+                ["alpha"] = "a",
+                ["grant_type"] = "password",
+            },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(
+            "grant_type=password&code=c&refresh_token=rt&username=u&password=p&client_id=ci&client_secret=cs&redirect_uri=r&scope=s&alpha=a&zeta=z",
+            client.LastBody
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwotokenmgr045PaddedDecimalExpiresInIsAcceptedAsALifetime()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"pad-tok\",\"expires_in\":\" 3600.5\\n\"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(1, client.CallCount);
+    }
+
+    [Theory]
+    [InlineData("1e3")]
+    [InlineData("0x10")]
+    [InlineData("3_600")]
+    [InlineData("5.")]
+    [InlineData("+5")]
+    [InlineData("-5")]
+    [InlineData("abc")]
+    [InlineData("")]
+    public async Task BhvAuthoauthtwotokenmgr046StringExpiresInOutsideThePlainDecimalGrammarLeavesTheTokenStale(
+        string expiresIn
+    )
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"odd1\",\"expires_in\":\"" + expiresIn + "\"}");
+        client.Enqueue("{\"access_token\":\"odd2\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        Assert.Equal(
+            "odd1",
+            await manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(
+            "odd2",
+            await manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
         Assert.Equal(2, client.CallCount);
     }
 }

@@ -221,6 +221,20 @@ def _has_header(headers: Dict[str, str], name: str) -> bool:
     return any(key.lower() == wanted for key in headers)
 
 
+def _pool_manager_follows_redirects(pool_manager: Any) -> bool:
+    """Whether a caller-supplied pool manager has redirect retries switched on.
+
+    urllib3 keeps the retry policy of a pool manager in its ``retries`` pool
+    keyword. A ``Retry`` whose ``redirect`` is ``False`` or ``0`` does not
+    follow redirects; any other ``Retry`` does.
+    """
+    pool_kwargs = getattr(pool_manager, 'connection_pool_kw', None)
+    if not isinstance(pool_kwargs, dict):
+        return False
+    retries = pool_kwargs.get('retries')
+    return isinstance(retries, urllib3.Retry) and retries.redirect not in (False, 0)
+
+
 def _redact_query(url: str) -> str:
     """Replace a URL's query string with ``***`` before it goes into a message.
 
@@ -282,20 +296,21 @@ def _supported_encodings() -> str:
     return ', '.join(encodings)
 
 
-_CHARSET_RE = re.compile(r'charset\s*=\s*"?([^";\s]+)"?', re.IGNORECASE)
-
-
 def _charset_from_content_type(content_type: str) -> Optional[str]:
     """Extract the charset parameter from a Content-Type header value.
 
-    Returns ``None`` when the header is empty or has no ``charset=`` parameter.
+    The parameter is matched by its whole name, ignoring letter case and the
+    spaces around it, so ``Charset = utf-8`` is the charset while ``xcharset=``
+    or ``foo.charset=`` is some other parameter. Returns ``None`` when the
+    header is empty or has no ``charset`` parameter.
     """
     if not content_type:
         return None
-    match = _CHARSET_RE.search(content_type)
-    if not match:
-        return None
-    return match.group(1).strip()
+    for parameter in content_type.split(';')[1:]:
+        name, separator, value = parameter.partition('=')
+        if separator and name.strip().lower() == 'charset':
+            return value.strip().strip('"').strip() or None
+    return None
 
 
 def _resolve_utf16_charset(charset: str, data: bytes) -> str:
@@ -458,6 +473,12 @@ class DefaultApiClient:
         self._owns_pool = pool_manager is None
 
         if pool_manager is not None:
+            if _pool_manager_follows_redirects(pool_manager):
+                raise ValueError(
+                    'A caller-supplied pool_manager follows redirects on its own, but the SDK '
+                    'manages redirects itself; set follow_redirects and max_redirects on '
+                    'TransportOptions and remove the redirect retries from the pool manager'
+                )
             conflicts = [
                 name
                 for name, in_use in (

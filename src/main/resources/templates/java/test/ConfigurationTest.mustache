@@ -163,7 +163,7 @@ class ConfigurationTest {
     }
 
     @Test
-    void defaultConfigurationUsesSpecBaseUrl() {
+    void bhvConfig019DefaultConfigurationReturnsTheSpecBaseUrl() {
         Configuration config = Configuration.defaultConfiguration();
 
         assertNotNull(config);
@@ -196,7 +196,7 @@ class ConfigurationTest {
     }
 
     @Test
-    void configurationDefaultHeadersAreUnmodifiable() {
+    void bhvConfig017ConfigurationDefaultHeadersAreUnmodifiable() {
         Configuration config = Configuration.builder()
                 .defaultHeader("X-Key", "value")
                 .build();
@@ -226,5 +226,64 @@ class ConfigurationTest {
         ServerConfiguration server = new ServerConfiguration(
                 "https://example.com", null, Map.of());
         assertSame(builder, builder.server(server));
+    }
+
+    @Test
+    void bhvConfig018BuiltAndDefaultConfigurationsUseTheSpecBaseUrl() {
+        assertEquals("{{{basePath}}}", Configuration.builder().build().getBaseUrl());
+        assertEquals("{{{basePath}}}", Configuration.defaultConfiguration().getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig020BuilderChainSetsBaseUrlAndHeadersInOneConfiguration() {
+        Configuration config = Configuration.builder()
+                .baseUrl("https://example.com/v2")
+                .defaultHeader("X-First", "one")
+                .defaultHeader("X-Second", "two")
+                .build();
+
+        assertEquals("https://example.com/v2", config.getBaseUrl());
+        assertEquals("one", config.getDefaultHeaders().get("X-First"));
+        assertEquals("two", config.getDefaultHeaders().get("X-Second"));
+    }
+
+    @Test
+    void bhvConfig021ServerUrlTemplateResolvesItsVariablesToTheirDefaults() {
+        ServerConfiguration server = new ServerConfiguration(
+                "https://{env}.example.com/api/{version}",
+                null,
+                Map.of(
+                        "env", new ServerVariable("api", null, List.of("api", "staging")),
+                        "version", new ServerVariable("v3", null, List.of("v2", "v3"))));
+
+        Configuration config = Configuration.builder().server(server).build();
+
+        assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig022MutatingTheReturnedDefaultHeadersDoesNotChangeTheConfiguration() {
+        Configuration config = Configuration.builder().defaultHeader("X-Key", "value").build();
+        Map<String, String> headers = config.getDefaultHeaders();
+
+        assertThrows(UnsupportedOperationException.class, () -> headers.put("X-New", "value"));
+        assertFalse(config.getDefaultHeaders().containsKey("X-New"));
+    }
+
+    @Test
+    void bhvConfig023EachDefaultConfigurationCallReturnsAFreshInstanceWithTheSameBaseUrl() {
+        Configuration first = Configuration.defaultConfiguration();
+        Configuration second = Configuration.defaultConfiguration();
+
+        assertNotSame(first, second);
+        assertEquals(first.getBaseUrl(), second.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig024ConfigurationHasNoSettableProcessWideDefault() {
+        boolean hasStaticSetter = java.util.Arrays.stream(Configuration.class.getMethods())
+                .anyMatch(m -> java.lang.reflect.Modifier.isStatic(m.getModifiers())
+                        && m.getName().startsWith("set"));
+        assertFalse(hasStaticSetter);
     }
 }

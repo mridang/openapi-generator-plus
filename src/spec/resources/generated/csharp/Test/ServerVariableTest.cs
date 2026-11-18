@@ -44,7 +44,33 @@ public class ServerVariableTest
     }
 
     [Fact]
-    public void RecordEqualityComparesByValue()
+    public void BhvServers018EnumValuesAreExposedForValidation()
+    {
+        var variable = new ServerVariable("v3", null, ["v2", "v3"]);
+
+        Assert.Contains("v2", variable.EnumValues);
+        Assert.Contains("v3", variable.EnumValues);
+    }
+
+    [Fact]
+    public void BhvServers019EnumDoesNotContainAValueOutsideTheAllowedSet()
+    {
+        var variable = new ServerVariable("v3", null, ["v2", "v3"]);
+
+        Assert.DoesNotContain("dev", variable.EnumValues);
+    }
+
+    [Fact]
+    public void BhvServers024EnumValuesCannotBeMutated()
+    {
+        var variable = new ServerVariable("v3", null, ["v2", "v3"]);
+
+        var values = Assert.IsAssignableFrom<IList<string>>(variable.EnumValues);
+        Assert.Throws<NotSupportedException>(() => values.Add("dev"));
+    }
+
+    [Fact]
+    public void BhvServers027RecordEqualityComparesByValue()
     {
         var first = new ServerVariable("v3", "API version", ["v2", "v3"]);
         var second = new ServerVariable("v3", "API version", ["v2", "v3"]);
@@ -57,7 +83,7 @@ public class ServerVariableTest
     }
 
     [Fact]
-    public void CopiesTheCallersEnumListAtConstruction()
+    public void BhvServers026CopiesTheCallersEnumListAtConstruction()
     {
         var allowed = new List<string> { "api", "staging" };
         var variable = new ServerVariable("api", null, allowed);

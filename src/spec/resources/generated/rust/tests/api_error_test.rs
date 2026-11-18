@@ -93,18 +93,41 @@ fn test_bhv_errors_024_api_error_display_renders_status_headers_and_body() {
     );
 }
 
-/* D17: the headers line is compact JSON with the keys sorted, not the map's
- * random iteration order. */
 #[test]
-fn test_api_error_display_sorts_the_response_headers() {
+fn test_bhv_errors_050_response_headers_render_as_compact_sorted_json_with_unescaped_slashes() {
     let mut headers = HashMap::new();
     headers.insert("x-b".to_string(), "2".to_string());
-    headers.insert("a-first".to_string(), "1".to_string());
-    headers.insert("x-c".to_string(), "3".to_string());
+    headers.insert("a-first".to_string(), "https://example.com/a/b".to_string());
     let err = ApiError::new(500, "boom".to_string(), Some(headers), None);
 
     assert_eq!(
-        "boom\nHTTP status code: 500\nResponse headers: {\"a-first\":\"1\",\"x-b\":\"2\",\"x-c\":\"3\"}",
+        "boom\nHTTP status code: 500\nResponse headers: {\"a-first\":\"https://example.com/a/b\",\"x-b\":\"2\"}",
+        err.to_string()
+    );
+}
+
+#[test]
+fn test_bhv_errors_055_status_error_context_defaults_to_none() {
+    let err = ApiError::new(404, "missing".to_string(), None, None);
+
+    assert!(err.response_headers().is_none());
+    assert!(err.response_body().is_none());
+}
+
+#[test]
+fn test_bhv_errors_056_status_600_is_a_plain_api_error_not_a_server_error() {
+    let err = ApiError::from_response(600, &HashMap::new(), "", None, None);
+
+    assert!(is_a::<ApiError>(&*err));
+    assert!(!is_a::<ServerError>(&*err));
+}
+
+#[test]
+fn test_bhv_errors_051_empty_message_falls_back_to_the_generic_line() {
+    let err = ApiError::new(500, String::new(), None, None);
+
+    assert_eq!(
+        "Error message: the server returns an error\nHTTP status code: 500",
         err.to_string()
     );
 }
@@ -185,10 +208,41 @@ fn test_bhv_errors_022_api_error_display_omits_empty_parts() {
     );
 }
 
+/// An empty message renders the default text, the same as a message that is
+/// not given at all.
+#[test]
+fn test_bhv_errors_064_an_empty_message_renders_the_default_text() {
+    let err = ApiError::new(500, String::new(), None, None);
+    assert_eq!(
+        "Error message: the server returns an error\nHTTP status code: 500",
+        err.to_string()
+    );
+}
+
+/// A response body longer than 1 KiB is cut in the error text, which counts the
+/// bytes left out; the full body stays on the error's accessor.
+#[test]
+fn test_bhv_errors_065_the_error_text_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out() {
+    let body = "a".repeat(3000);
+    let err = ApiError::new(502, "bad gateway".to_string(), None, Some(body.clone()));
+    assert_eq!(
+        format!(
+            "bad gateway\nHTTP status code: 502\nResponse body: {}... (1976 more bytes)",
+            "a".repeat(1024)
+        ),
+        err.to_string()
+    );
+    assert_eq!(
+        Some(body.as_str()),
+        err.response_body(),
+        "the full body stays on the error"
+    );
+}
+
 /// A token endpoint failure renders in one of three forms: the raw body when no
 /// OAuth error code was parsed, the code alone, or the code with its description.
 #[test]
-fn test_oauth2_server_error_message_has_three_forms() {
+fn test_bhv_errors_046_oauth2_server_error_message_has_three_forms() {
     let raw = OAuth2ServerError::new(503, None, None, None, "upstream down".to_string());
     assert_eq!(
         "Token request failed with status 503: upstream down",
@@ -217,6 +271,22 @@ fn test_oauth2_server_error_message_has_three_forms() {
     assert_eq!(
         "Token request failed with status 401: invalid_client -- unknown client",
         described.to_string()
+    );
+}
+
+/// A token server error names the status and the error code.
+#[test]
+fn test_bhv_errors_049_oauth2_server_error_names_the_status_and_the_code() {
+    let code = OAuth2ServerError::new(
+        400,
+        Some("invalid_grant".to_string()),
+        None,
+        None,
+        r#"{"error":"invalid_grant"}"#.to_string(),
+    );
+    assert_eq!(
+        "Token request failed with status 400: invalid_grant",
+        code.to_string()
     );
 }
 
@@ -381,7 +451,7 @@ fn nested_array(depth: usize) -> String {
 }
 
 #[test]
-fn test_api_error_body_nested_beyond_serde_default_limit_still_parses() {
+fn test_bhv_errors_073_api_error_body_nested_beyond_serde_default_limit_still_parses() {
     // serde_json stops at ~128 levels; the shared cap is 1000, as on the
     // success path.
     let err = ApiError::new(400, "bad".to_string(), None, Some(nested_array(500)));
@@ -492,34 +562,6 @@ fn test_bhv_errors_005_api_error_error_body_is_none_without_json() {
     assert!(not_json.error_body().is_none());
 }
 
-// immutability regression: ApiError's state is only reachable through the
-// constructor + accessors. The fields are private, so a caller can neither
-// forge an ApiError by struct literal nor mutate `status_code` after the fact.
-// This test pins the read-only accessor surface; the privacy itself is
-// enforced at compile time by the generated `struct` having no `pub` fields.
-#[test]
-fn test_api_error_fields_are_accessor_only() {
-    let mut headers = HashMap::new();
-    headers.insert("x-trace".to_string(), "abc".to_string());
-    let err = ApiError::new(
-        500,
-        "boom".to_string(),
-        Some(headers),
-        Some("body".to_string()),
-    );
-
-    /* Every piece of state is reachable only via an accessor method. */
-    assert_eq!(err.status_code(), 500);
-    assert_eq!(err.message(), "boom");
-    assert_eq!(err.response_body(), Some("body"));
-    assert_eq!(
-        err.response_headers()
-            .and_then(|h| h.get("x-trace"))
-            .map(String::as_str),
-        Some("abc"),
-    );
-}
-
 // -- Branded error hierarchy: OpenAPIError ---------------------------------
 //
 // Rust expresses the "every SDK-thrown error is a OpenAPIError" relationship
@@ -567,7 +609,7 @@ fn test_api_error_kind_is_open_api_error() {
 }
 
 #[test]
-fn test_client_error_is_open_api_error_and_chains_to_api_error() {
+fn test_bhv_errors_052_client_error_is_open_api_error_and_chains_to_api_error() {
     let err = client_chain(400, "bad request");
     let branded = assert_is_open_api_error(&err);
     // source() must walk down to the wrapped ApiError.
@@ -586,7 +628,7 @@ fn test_server_error_is_open_api_error_and_chains_to_api_error() {
 }
 
 #[test]
-fn test_bad_request_error_is_open_api_error_and_chains() {
+fn test_bhv_errors_061_bad_request_error_is_open_api_error_and_chains() {
     let err =
         BadRequestError::try_from(client_chain(400, "bad request")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
@@ -649,7 +691,7 @@ fn test_unprocessable_entity_error_is_open_api_error_and_chains() {
 }
 
 #[test]
-fn test_too_many_requests_error_is_open_api_error_and_chains() {
+fn test_bhv_errors_066_too_many_requests_error_is_open_api_error_and_chains() {
     let err =
         TooManyRequestsError::try_from(client_chain(429, "slow down")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
@@ -660,7 +702,7 @@ fn test_too_many_requests_error_is_open_api_error_and_chains() {
 }
 
 #[test]
-fn test_internal_server_error_is_open_api_error_and_chains() {
+fn test_bhv_errors_047_internal_server_error_is_open_api_error_and_chains() {
     let err = InternalServerError::try_from(server_chain(500, "boom")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     // source() -> ServerError -> ApiError(500).
@@ -674,7 +716,7 @@ fn test_internal_server_error_is_open_api_error_and_chains() {
 /// `ClientError` or `ServerError` that carries another status is refused and the
 /// wrapped error is handed back unchanged.
 #[test]
-fn test_named_errors_accept_only_their_own_status() {
+fn test_bhv_errors_053_named_errors_accept_only_their_own_status() {
     fn refuses<T: std::fmt::Debug>(name: &str, wrong_status: u16, attempt: Result<T, ClientError>) {
         let handed_back = attempt.expect_err(&format!("{name} must refuse status {wrong_status}"));
         assert_eq!(wrong_status, handed_back.api_error().status_code());
@@ -813,6 +855,28 @@ fn test_oauth2_token_and_server_errors_are_open_api_errors() {
     assert_eq!(server.status_code(), 400);
     assert_eq!(server.code(), Some("invalid_grant"));
     assert!(!assert_is_open_api_error(&server).to_string().is_empty());
+}
+
+#[test]
+fn test_bhv_errors_045_oauth2_errors_are_rooted_at_the_branded_base_not_api_error() {
+    let token = OAuth2TokenError::new("token response missing".to_string());
+    let server = OAuth2ServerError::new(
+        400,
+        Some("invalid_grant".to_string()),
+        None,
+        None,
+        "{}".to_string(),
+    );
+    assert_is_open_api_error(&token);
+    assert_is_open_api_error(&server);
+    assert!(
+        !is_a::<ApiError>(&token),
+        "a token error must not be an ApiError"
+    );
+    assert!(
+        !is_a::<ApiError>(&server),
+        "a token endpoint error must not be an ApiError"
+    );
 }
 
 /// Whether `err`, or any error in its `source()` chain, is a `T`: each error's
@@ -1053,7 +1117,7 @@ fn test_skills_error_handling_example_has_the_common_catch_arms() {
 /* F1084: the SKILLS.md error section documents the whole tree, not only the
  * ApiError branch. */
 #[test]
-fn test_skills_error_section_documents_the_full_error_tree() {
+fn test_bhv_skills_001_skills_error_section_documents_the_full_error_tree() {
     let skills = include_str!("../SKILLS.md");
     for name in [
         "`OpenAPIError` (root marker trait)",
@@ -1148,6 +1212,183 @@ fn test_boxed_error_kind_can_be_matched() {
         err.api_error_kind(),
         Some(ApiErrorKind::NotFound(_))
     ));
+}
+/// Every error type is declared in the errors module, and the crate root
+/// re-exports the same type under its name.
+#[test]
+fn test_bhv_errors_044_every_error_lives_in_errors_and_the_root_exports_it() {
+    use petstore::errors;
+    use std::any::TypeId;
+
+    assert_eq!(
+        TypeId::of::<errors::ApiError>(),
+        TypeId::of::<petstore::ApiError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::ConfigurationError>(),
+        TypeId::of::<petstore::ConfigurationError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::SerializationError>(),
+        TypeId::of::<petstore::SerializationError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::NetworkError>(),
+        TypeId::of::<petstore::NetworkError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::NetworkTimeoutError>(),
+        TypeId::of::<petstore::NetworkTimeoutError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::OAuth2ServerError>(),
+        TypeId::of::<petstore::OAuth2ServerError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::OAuth2TokenError>(),
+        TypeId::of::<petstore::OAuth2TokenError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::OAuth2AuthorizationCodeError>(),
+        TypeId::of::<petstore::OAuth2AuthorizationCodeError>()
+    );
+}
+
+/* The SKILLS.md Configuration section documents the retries: the setting, the
+ * Retry-After header and the disabling value. */
+#[test]
+fn test_bhv_skills_002_skills_configuration_documents_the_retries() {
+    let skills = include_str!("../SKILLS.md");
+    let configuration = skills
+        .split("\n## Configuration\n")
+        .nth(1)
+        .expect("SKILLS.md must have a Configuration section")
+        .split("\n## ")
+        .next()
+        .unwrap_or_default();
+    assert!(
+        configuration.contains("### Retries"),
+        "the Configuration section must document retries"
+    );
+    assert!(
+        configuration.contains("`max_retries`"),
+        "the retries must name the max_retries setting"
+    );
+    assert!(
+        configuration.contains("`Retry-After`"),
+        "the retries must name the Retry-After header"
+    );
+}
+
+#[test]
+fn test_bhv_errors_074_an_error_without_a_response_renders_its_message_alone() {
+    let err = ApiError::new(0, "connection refused".to_string(), None, None);
+    let shown = err.to_string();
+    assert!(shown.contains("connection refused"), "{}", shown);
+    assert!(
+        !shown.contains("status"),
+        "no status line without a response: {}",
+        shown
+    );
+}
+
+#[test]
+fn test_bhv_errors_076_an_error_the_sdk_did_not_raise_is_not_classified_as_one_of_its_own() {
+    use petstore::OpenAPIErrorExt;
+    let wrapped: Box<dyn std::error::Error + Send + Sync> = Box::new(std::io::Error::other("boom"));
+    assert!(
+        wrapped.api_error_kind().is_none(),
+        "a foreign error must not be classified"
+    );
+}
+
+#[test]
+fn test_bhv_errors_079_the_first_complete_request_is_kept_and_later_attachments_are_ignored() {
+    let first = ApiError::new(500, "boom".to_string(), None, None)
+        .with_request("GET", "/first")
+        .with_request("POST", "/second");
+    assert_eq!(first.request_method(), Some("GET"));
+    assert_eq!(first.request_path(), Some("/first"));
+    let incomplete = ApiError::new(500, "boom".to_string(), None, None)
+        .with_request("", "/ignored")
+        .with_request("PUT", "/kept");
+    assert_eq!(incomplete.request_method(), Some("PUT"));
+    assert_eq!(incomplete.request_path(), Some("/kept"));
+}
+
+#[test]
+fn test_bhv_errors_080_a_typed_http_error_is_caught_by_the_root_type_and_keeps_its_status() {
+    use petstore::OpenAPIErrorExt;
+    let err: Box<dyn std::error::Error + Send + Sync> =
+        Box::new(NotFoundError::try_from(client_chain(404, "gone")).expect("404"));
+    assert!(err.to_string().contains("404"), "{}", err);
+    match err.api_error_kind() {
+        Some(ApiErrorKind::NotFound(inner)) => assert_eq!(inner.status_code(), 404),
+        other => panic!("expected the NotFound kind, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_bhv_errors_083_a_ca_certificate_path_that_cannot_be_read_is_named_at_construction() {
+    let missing = "/definitely/not/here/ca.pem";
+    let built = petstore::TransportOptions::builder()
+        .ca_cert_path(missing)
+        .build();
+    let err = built.expect_err("a missing CA file must be refused");
+    assert!(
+        err.to_string().contains(missing),
+        "the error must name the file: {}",
+        err
+    );
+}
+
+#[test]
+fn test_bhv_errors_084_an_error_built_without_a_response_reports_status_zero_by_default() {
+    let err = ApiError::new(0, "no response".to_string(), None, None);
+    assert_eq!(err.status_code(), 0);
+}
+
+/// A typed view of an error body that starts with a byte order mark decodes the same as the same
+/// body without it.
+#[test]
+fn test_bhv_errors_072_a_typed_view_ignores_a_leading_byte_order_mark() {
+    let json = r#"{"code":7,"message":"nope"}"#;
+    let with_bom = ApiError::new(
+        400,
+        "bad request".to_string(),
+        None,
+        Some(format!("\u{feff}{json}")),
+    );
+    let without_bom = ApiError::new(400, "bad request".to_string(), None, Some(json.to_string()));
+
+    let typed = with_bom
+        .typed_error_body::<serde_json::Value>()
+        .expect("a body with a byte order mark must decode");
+    let plain = without_bom
+        .typed_error_body::<serde_json::Value>()
+        .expect("a body without a byte order mark must decode");
+
+    assert_eq!(plain, typed);
+    assert_eq!(
+        Some(serde_json::json!({"code": 7, "message": "nope"})),
+        typed
+    );
+}
+
+/// A rendered error body cut at its size limit never splits a multi-byte character: the cut moves
+/// back to the last whole character.
+#[test]
+fn test_bhv_errors_075_a_rendered_body_cut_at_the_limit_never_splits_a_multi_byte_character() {
+    /* The two-byte character starts at byte 1023, so the 1 KiB cut at byte 1024 falls inside it. */
+    let body = format!("{}\u{e9}b", "a".repeat(1023));
+    let err = ApiError::new(502, "bad gateway".to_string(), None, Some(body));
+    assert_eq!(
+        format!(
+            "bad gateway\nHTTP status code: 502\nResponse body: {}... (3 more bytes)",
+            "a".repeat(1023)
+        ),
+        err.to_string()
+    );
 }
 
 #[test]

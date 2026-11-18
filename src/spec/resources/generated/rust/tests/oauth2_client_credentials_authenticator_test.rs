@@ -152,7 +152,7 @@ async fn test_bhv_authoauthtwoclientcred_013_sends_scopes() {
 // The token body is written in the canonical key order on every run, whatever
 // the HashMap iteration order.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_token_body_uses_canonical_parameter_order() {
+async fn test_bhv_authoauthtwoclientcred_016_token_body_uses_canonical_parameter_order() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
 
@@ -223,7 +223,7 @@ async fn test_bhv_authoauthtwoclientcred_015_token_fetch_error_is_surfaced_not_s
 /// map (interface conformance), confirming both the error path and the
 /// collapse path exist.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_auth_headers_collapses_error_to_empty_map() {
+async fn test_bhv_auth_015_auth_headers_collapses_error_to_empty_map() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"error":"invalid_client"}"#, 401);
 
@@ -378,7 +378,7 @@ async fn test_bhv_authoauthtwoclientcred_009_scheme_wrapper_sends_the_scopes_dec
 }
 
 #[test]
-fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_secret() {
+fn test_bhv_auth_016_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_secret() {
     let auth = MachineAuthClientCredentialsAuthenticator::new(
         "https://api.example.com",
         Some("id"),
@@ -429,5 +429,118 @@ fn test_bhv_authoauthtwoclientcred_014_redacted_representation_shows_the_non_sec
 client_secret: \"***\", token_url: \"https://auth.example.com/token\", scopes: [\"read\", \"write\"], \
 client_auth_method: Body }",
         format!("{:?}", auth)
+    );
+}
+
+/// A header call whose token exchange fails returns the error and no headers.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_001_a_header_call_on_a_credential_that_needs_its_token_exchange_raises() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"invalid_client"}"#, 401);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.try_auth_headers().await;
+
+    assert!(
+        result.is_err(),
+        "a failed token exchange must not yield headers: {:?}",
+        result
+    );
+}
+
+/// Invalidating the token before any exchange has happened raises nothing and sends no request.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_002_invalidating_before_any_exchange_sends_no_request() {
+    let client = Arc::new(FakeApiClient::new());
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    assert!(auth.invalidate_access_token().await);
+    assert_eq!(None, client.last_url());
+}
+
+/// Never answers a request, and records through `dropped` whether the request future was dropped.
+struct StalledApiClient {
+    dropped: Arc<std::sync::atomic::AtomicBool>,
+}
+
+struct StalledRequestFlag(Arc<std::sync::atomic::AtomicBool>);
+
+impl Drop for StalledRequestFlag {
+    fn drop(&mut self) {
+        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl ApiClient for StalledApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&RequestBody>,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
+        let flag = StalledRequestFlag(self.dropped.clone());
+        Box::pin(async move {
+            let _flag = flag;
+            let never: Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> =
+                std::future::pending().await;
+            never
+        })
+    }
+}
+
+/// Cancelling a call drops the token request it started and returns without waiting for the endpoint.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_013_cancelling_a_call_stops_the_token_request() {
+    let dropped = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let mut auth = create_authenticator();
+    auth.set_api_client(Arc::new(StalledApiClient {
+        dropped: dropped.clone(),
+    }));
+
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_millis(100),
+        auth.try_auth_headers(),
+    )
+    .await;
+
+    assert!(
+        outcome.is_err(),
+        "the stalled call must be cancelled by the caller"
+    );
+    assert!(
+        dropped.load(std::sync::atomic::Ordering::SeqCst),
+        "the token request must be dropped"
+    );
+}
+
+/// A credential that needs HTTP is given the transport it is injected with and sends its token request through it.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_025_a_credential_that_needs_http_is_given_the_client_transport() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    let auth = create_authenticator();
+
+    Authenticator::inject_api_client(&auth, client.clone());
+    let headers = auth
+        .try_auth_headers()
+        .await
+        .expect("the token request goes through the injected transport");
+
+    assert_eq!(
+        Some(&"Bearer tok1".to_string()),
+        headers.get("Authorization")
+    );
+    assert_eq!(
+        Some("https://auth.example.com/token".to_string()),
+        client.last_url()
     );
 }

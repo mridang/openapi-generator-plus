@@ -59,7 +59,7 @@ describe("HeaderSelector", () => {
   });
 
   describe("selectAcceptHeader", () => {
-    test("returns empty string for empty accept array", () => {
+    test("bhv headers 027 returns empty string for empty accept array", () => {
       const select = (
         headerSelector as unknown as {
           selectAcceptHeader(accept: string[] | null): string;
@@ -151,6 +151,16 @@ describe("HeaderSelector", () => {
       expect(headers["Accept"]).toBe("application/json");
     });
 
+    test("bhv headers 032 the Accept header lists media types without quality weights", () => {
+      const headers = headerSelector.selectHeaders(
+        ["application/json", "text/plain"],
+        "application/json",
+        false,
+      );
+      expect(headers["Accept"]).toBe("application/json, text/plain");
+      expect(headers["Accept"]).not.toMatch(/;\s*q=/);
+    });
+
     test("bhv headers 018 returns single non-JSON accept as-is", () => {
       const headers = headerSelector.selectHeaders(
         ["text/html"],
@@ -212,6 +222,15 @@ describe("HeaderSelector", () => {
         false,
       );
       expect(headers["Accept"]).toBe("application/json");
+    });
+
+    test("bhv headers 029 an Accept list of only blank entries sends no Accept header and keeps Content-Type", () => {
+      const headers = headerSelector.selectHeaders(
+        ["", "   "],
+        "application/json",
+        false,
+      );
+      expect(headers).toEqual({ "Content-Type": "application/json" });
     });
 
     test("bhv headers 006 does not set Accept header when all entries are blank", () => {

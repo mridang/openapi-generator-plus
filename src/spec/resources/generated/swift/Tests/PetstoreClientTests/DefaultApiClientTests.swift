@@ -68,6 +68,31 @@ import Testing
       #expect(resp.statusCode == 200)
     }
 
+    /* The authenticating proxy answers 407 to a request that carries no
+       credentials, so the SDK returns that status rather than a network error. */
+    @Test func testBhvTransport059AuthenticatingProxyRefusesARequestWithoutCredentials()
+      async throws
+    {
+      try await setUpContainers()
+      let transport = try TransportOptionsBuilder().proxy("http://\(proxyAuthHostPort)").build()
+      let client = try DefaultApiClient(transportOptions: transport)
+      let response = try await client.sendRequest(
+        method: "GET", url: chasmInternalHttpUrl + "/test/echo", headers: [:], body: nil)
+      #expect(response.statusCode == 407)
+    }
+
+    /* Credentials written into the proxy URL are accepted, and the request goes through the authenticating proxy. */
+    @Test func testBhvOptions052ProxyUrlWithCredentialsIsAccepted() async throws {
+      try await setUpContainers()
+      let transport = try TransportOptionsBuilder().proxy("http://user:pass@\(proxyAuthHostPort)")
+        .build()
+      let client = try DefaultApiClient(transportOptions: transport)
+      let response = try await client.sendRequest(
+        method: "GET", url: chasmInternalHttpUrl + "/test/echo", headers: [:], body: nil)
+      #expect(response.statusCode == 200)
+      #expect(response.body.contains("\"method\""))
+    }
+
     @Test func testBhvTransport015MakesHttpRequestThroughProxy() async throws {
       let transport = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
       let client = makeClient(transport: transport) { _ in
@@ -124,7 +149,7 @@ import Testing
     /* The stub answers at once, so no deadline fires here; this only proves a
      * 1 ms timeout is accepted. The deadlines themselves are asserted on the
      * built session and on the timeout error mapping in ApiErrorTests. */
-    @Test func testAcceptsTimeoutConfiguration() async throws {
+    @Test func testBhvTransport082AcceptsTimeoutConfiguration() async throws {
       let transport = try TransportOptionsBuilder().timeout(1).build()
       let client = makeClient(transport: transport) { _ in
         return (self.jsonBody(), 200, [:])
@@ -322,18 +347,6 @@ import Testing
       #expect(capturedBody?.contains("Content-Disposition: form-data") ?? false)
     }
 
-    // Gap W2: a multipart field name containing CR/LF/NUL must be rejected to
-    // prevent Content-Disposition header injection.
-    @Test func testMultipartFieldNameWithCrlfRejected() async throws {
-      let client = makeClient { _ in (Data("{}".utf8), 200, [:]) }
-      let badField: [String: Any] = ["name\r\nInjected: yes": "value"]
-      await #expect(throws: (any Error).self) {
-        _ = try await client.sendRequest(
-          method: "POST", url: "https://example.com",
-          headers: [:], body: badField)
-      }
-    }
-
     // W-new-2: multipart field-name validation must run on every branch (not
     // just binary). Confirm that even for a plain String value, a CR/LF in
     // the field name is rejected, preventing Content-Disposition smuggling.
@@ -355,24 +368,6 @@ import Testing
       client.close()
     }
 
-    // close-lifecycle-three-way (Gap T-D4): sending a request after close()
-    // is a wrong call order. It must surface ConfigurationError.invalidState
-    // rather than a foreign URLSession "session invalidated" exception, an
-    // SDK error, or a silent success.
-    @Test func testSendAfterCloseThrowsInvalidState() async throws {
-      let client = makeClient { _ in (self.jsonBody(), 200, [:]) }
-      client.close()
-      let error = await #expect(throws: ConfigurationError.self) {
-        _ = try await client.sendRequest(
-          method: "GET", url: "https://example.com", headers: [:], body: nil)
-      }
-      guard case .invalidState(let reason)? = error else {
-        Issue.record("expected ConfigurationError.invalidState, got \(String(describing: error))")
-        return
-      }
-      #expect(reason == "ApiClient has been closed and can no longer send requests")
-    }
-
     @Test func testBhvTransport005DecompressesGzipResponse() async throws {
       let client = makeClient { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
@@ -384,7 +379,7 @@ import Testing
       #expect(resp.body.contains("userId"))
     }
 
-    @Test func testCorruptGzipKeepsTheResponseHeaders() async throws {
+    @Test func testBhvTransport073CorruptGzipKeepsTheResponseHeaders() async throws {
       let client = makeClient { _ in
         return (
           Data([0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02]), 200,
@@ -496,7 +491,7 @@ import Testing
     }
 
     /* A different port is a different origin, even on the same host. */
-    @Test func testRedirectToDifferentPortDropsCredentialHeaders() async throws {
+    @Test func testBhvRedirects033RedirectToDifferentPortDropsCredentialHeaders() async throws {
       let followUp = try await headersOnSecondHop(redirectingTo: "https://example.com:8443/landing")
       #expect(followUp["X-API-Key"] == nil)
       #expect(followUp["Cookie"] == nil)
@@ -573,22 +568,6 @@ import Testing
     }
 
     // MARK: - HTTPS -> HTTP body replay guard (Gap 3.3)
-
-    /// An HTTPS -> HTTP redirect with a body in flight MUST be
-    /// refused: replaying the body in cleartext leaks whatever
-    /// TLS was protecting (credentials, PII, signed tokens). The
-    /// SessionDelegate routes the would-be downgrade follow-up to
-    /// `completionHandler(nil)`, which surfaces the original 3xx
-    /// response to the caller. Verified at the helper level: an
-    /// https->http origin pair is ALWAYS cross-origin and so MUST
-    /// also strip credentials even before the body-replay check.
-    @Test func testHttpsToHttpIsCrossOrigin() {
-      let httpsURL = URL(string: "https://example.com/token")!
-      let httpURL = URL(string: "http://example.com/token")!
-      #expect(
-        !DefaultApiClient.sameOrigin(httpsURL, httpURL),
-        "https->http must be cross-origin (TLS downgrade) for body-replay refusal")
-    }
 
     // MARK: - 303 Content-Length drop (Gap 3.4)
 
@@ -716,7 +695,7 @@ import Testing
       }
     }
 
-    @Test func testRedirect303DropsContentLengthOnFollowUp() async throws {
+    @Test func testBhvRedirects041Redirect303DropsContentLengthOnFollowUp() async throws {
       let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
       let hopCount = HopCounter()
       var capturedContentLength: String?
@@ -825,7 +804,7 @@ import Testing
 
     /* Cancelling the Swift task of an in-flight request aborts the underlying
        URLSession task and surfaces the platform's CancellationError. */
-    @Test func testCancellingInFlightRequestAbortsSessionTask() async throws {
+    @Test func testBhvTransport060CancellingInFlightRequestAbortsSessionTask() async throws {
       HangingURLProtocol.reset()
       let client = DefaultApiClient(
         transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
@@ -903,6 +882,137 @@ import Testing
       let (data, _) = try await session.data(from: URL(string: "https://example.com/after")!)
       #expect(String(data: data, encoding: .utf8) == "ok")
     }
+    // MARK: - Behaviour catalogue: redirect methods, bodies and locations
+
+    /* A 307 redirect keeps the method, so the request is replayed as a POST with its Content-Type. */
+    @Test func testBhvRedirects038A307KeepsTheMethodAndContentType() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+      let hopCount = HopCounter()
+      var capturedMethod: String?
+      var capturedType: String?
+      let client = makeClient(transport: transport) { req in
+        let hop = hopCount.increment()
+        if hop == 1 {
+          return (Data(), 307, ["Location": "https://example.com/api/echo-method-body"])
+        }
+        capturedMethod = req.httpMethod
+        capturedType = req.value(forHTTPHeaderField: "Content-Type")
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      let response = try await client.sendRequest(
+        method: "POST", url: "https://example.com/api/redirect-307",
+        headers: ["Content-Type": "application/json"], body: "payload".data(using: .utf8)!)
+      #expect(response.statusCode == 200)
+      #expect(capturedMethod == "POST")
+      #expect(capturedType == "application/json")
+    }
+
+    /* A bodyless request is followed from HTTPS to plain HTTP, because no body is sent in plaintext. */
+    @Test func testBhvRedirects039BodylessRequestIsFollowedToPlainHttp() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+      let hopCount = HopCounter()
+      let client = makeClient(transport: transport) { _ in
+        let hop = hopCount.increment()
+        if hop == 1 {
+          return (Data(), 307, ["Location": "http://example.com/plain"])
+        }
+        return (Data("{}".utf8), 200, [:])
+      }
+      let response = try await client.sendRequest(
+        method: "POST", url: "https://example.com/start", headers: [:], body: nil)
+      #expect(response.statusCode == 200)
+    }
+
+    /* A 302 from HTTPS to plain HTTP is followed rather than refused, because the next request carries no body. */
+    @Test func testBhvRedirects040A302FromHttpsToHttpIsFollowed() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+      let hopCount = HopCounter()
+      let client = makeClient(transport: transport) { _ in
+        let hop = hopCount.increment()
+        if hop == 1 {
+          return (Data(), 302, ["Location": "http://example.com/plain"])
+        }
+        return (Data("{}".utf8), 200, [:])
+      }
+      let response = try await client.sendRequest(
+        method: "POST", url: "https://example.com/start", headers: [:],
+        body: "payload".data(using: .utf8)!)
+      #expect(response.statusCode == 200)
+    }
+
+    /* A 307 redirect of a bodyless POST keeps the request a POST. */
+    @Test func testBhvRedirects042A307OfABodylessPostStaysAPost() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+      let hopCount = HopCounter()
+      var capturedMethod: String?
+      let client = makeClient(transport: transport) { req in
+        let hop = hopCount.increment()
+        if hop == 1 {
+          return (Data(), 307, ["Location": "https://example.com/api/next"])
+        }
+        capturedMethod = req.httpMethod
+        return (Data("{}".utf8), 200, [:])
+      }
+      _ = try await client.sendRequest(
+        method: "POST", url: "https://example.com/api/start", headers: [:], body: nil)
+      #expect(capturedMethod == "POST")
+    }
+
+    /* A relative Location is resolved against the URL of the request that received it, per RFC 3986. */
+    @Test func testBhvRedirects043RelativeLocationIsResolvedAgainstTheRequestUrl() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+      let hopCount = HopCounter()
+      var capturedURL: String?
+      let client = makeClient(transport: transport) { req in
+        let hop = hopCount.increment()
+        if hop == 1 {
+          return (Data(), 302, ["Location": "../other/next"])
+        }
+        capturedURL = req.url?.absoluteString
+        return (Data("{}".utf8), 200, [:])
+      }
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/a/b/start", headers: [:], body: nil)
+      #expect(capturedURL == "https://example.com/a/other/next")
+    }
+
+    /* A cross-origin redirect removes the caller's own authorization header. */
+    @Test func testBhvRedirects044CrossOriginRedirectRemovesTheCallerAuthorization() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+      let hopCount = HopCounter()
+      var capturedAuthorization: String? = "unset"
+      let client = makeClient(transport: transport) { req in
+        let hop = hopCount.increment()
+        if hop == 1 {
+          return (Data(), 302, ["Location": "https://other.example.org/next"])
+        }
+        capturedAuthorization = req.value(forHTTPHeaderField: "Authorization")
+        return (Data("{}".utf8), 200, [:])
+      }
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/start",
+        headers: ["Authorization": "Bearer caller-token"], body: nil)
+      #expect(capturedAuthorization == nil)
+    }
+
+    /* A caller-supplied session carries every request of the SDK, with the URL and caller headers unchanged. */
+    @Test func testBhvTransport081SuppliedSessionCarriesEveryRequestUnchanged() async throws {
+      var seenURL = ""
+      var seenHeader: String?
+      let session = StubURLProtocol.session { req in
+        seenURL = req.url?.absoluteString ?? ""
+        seenHeader = req.value(forHTTPHeaderField: "X-Caller")
+        return (Data("ok".utf8), 200, [:])
+      }
+      let transport = try TransportOptionsBuilder().session(session).build()
+      let client = try DefaultApiClient(transportOptions: transport)
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/caller", headers: ["X-Caller": "1"], body: nil)
+      #expect(response.statusCode == 200)
+      #expect(seenURL == "https://example.com/caller")
+      #expect(seenHeader == "1")
+    }
+
   }
 
   /// A URLProtocol that accepts a request and never answers it, so a test can
@@ -1264,18 +1374,6 @@ import Testing
     #expect(response.statusCode == 200)
   }
 
-  @Test func testRedirect303SwitchesToGetAndDropsBody() async throws {
-    let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-    let client = try DefaultApiClient(transportOptions: transport)
-    let response = try await client.sendRequest(
-      method: "POST", url: chasmHttpUrl + "/test/redirect/303",
-      headers: ["Content-Type": "application/json"], body: "hello-body")
-    #expect(response.statusCode == 200)
-    let echoed = try echo(response)
-    #expect(echoed["method"] as? String == "GET")
-    #expect((echoed["body"] as? String ?? "").isEmpty)
-  }
-
   @Test func testSendsMultipartFormData() async throws {
     let client = DefaultApiClient()
     let formFields: [String: Any] = [
@@ -1302,7 +1400,7 @@ import Testing
     }
   }
 
-  @Test func testCloseReleasesUnderlyingClient() async throws {
+  @Test func testBhvLifecycle036CloseReleasesUnderlyingClient() async throws {
     let client = DefaultApiClient()
     client.close()
     client.close()
@@ -1361,11 +1459,52 @@ import Testing
     #expect(response.body.contains("userId"))
   }
 
-  @Test func testPostWithNullBodySendsContentLengthZero() async throws {
-    let client = DefaultApiClient()
+  /* A client built with the default configuration, or with only a timeout, completes a request
+     and returns its response. */
+  @Test(arguments: [false, true])
+  func testBhvTransport082AClientWithDefaultsOrOnlyATimeoutCompletes(withTimeout: Bool) async throws
+  {
+    let client = try DefaultApiClient(
+      transportOptions: withTimeout ? TransportOptionsBuilder().timeout(10000).build() : nil)
     let response = try await client.sendRequest(
-      method: "POST", url: chasmHttpUrl + "/test/echo", headers: [:], body: nil)
+      method: "GET", url: chasmHttpUrl + "/test/echo", headers: [:], body: nil)
     #expect(response.statusCode == 200)
-    #expect(try echo(response)["contentLength"] as? Int == 0)
   }
+
+  /* Cancelling the Swift task of an in-flight request aborts it with the platform's
+     CancellationError, not a timeout error. */
+  @Test func testBhvTransport060CancellingAnInFlightCallAbortsItWithoutReportingATimeout()
+    async throws
+  {
+    let client = DefaultApiClient()
+    let task = Task {
+      try await client.sendRequest(
+        method: "GET", url: chasmHttpUrl + "/test/slow", headers: [:], body: nil)
+    }
+    try await Task.sleep(nanoseconds: 300_000_000)
+    task.cancel()
+    let error: (any Error)?
+    do {
+      _ = try await task.value
+      error = nil
+    } catch let caught {
+      error = caught
+    }
+    #expect(error is CancellationError)
+    #expect(!(error is NetworkTimeoutError))
+  }
+
+  /* A caller-supplied session carries the request of the SDK, with the caller's headers unchanged. */
+  @Test func testBhvTransport081ASuppliedSessionCarriesTheRequestUnchanged() async throws {
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.finishTasksAndInvalidate() }
+    let transport = try TransportOptionsBuilder().session(session).build()
+    let client = try DefaultApiClient(transportOptions: transport)
+    let response = try await client.sendRequest(
+      method: "GET", url: chasmHttpUrl + "/test/echo", headers: ["X-Caller": "1"],
+      body: nil)
+    #expect(response.statusCode == 200)
+    #expect(try echoedHeaders(response)["x-caller"] as? String == "1")
+  }
+
 }

@@ -705,7 +705,7 @@ function newBodyCapturingPetApi(): array
     return [new PetApi(apiClient: $client, config: $config), $captured];
 }
 
-test('form array field serializes as repeated keys', function (): void {
+test('bhv serializationwire 053 form array field serializes as repeated keys', function (): void {
     // Canonical behavior #1: tags=[friendly, calm] must serialize to
     // tags=friendly&tags=calm — one repeated key per element.
     [$api, $captured] = newBodyCapturingPetApi();
@@ -737,7 +737,7 @@ test('bhv serializationwire 011 form optional null field is omitted', function (
     expect($captured->body)->not->toContain('tags');
 });
 
-test('form body encodes space as plus not percent twenty', function (): void {
+test('bhv serializationwire 055 form body encodes space as plus not percent twenty', function (): void {
     // Canonical behavior #3: a space inside a form-body value is encoded as
     // '+' (WHATWG application/x-www-form-urlencoded), never %20.
     [$api, $captured] = newBodyCapturingPetApi();
@@ -1051,6 +1051,42 @@ test('bhv operations 095 uploadPetDocument sends primitive fields as plain text 
     expect($sent)->not->toContain('application/json');
 });
 
+test('bhv operations 147 multipart parts are sent in declaration order', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+    file_put_contents($tmpFile, 'document-content');
+    $stub = new \{{invokerPackage}}\Test\StubPsr18Client(
+        (new \Nyholm\Psr7\Factory\Psr17Factory())->createResponse(200)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody((new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('{"code":200,"type":"ok","message":"saved"}'))
+    );
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $api = new PetApi(
+        apiClient: new \{{invokerPackage}}\Psr18ApiClient($stub, $factory, $factory),
+        config: Configuration::builder()->baseUrl('http://localhost:9999')->build()
+    );
+
+    $api->uploadPetDocument(1, new UploadPetDocumentOptions(
+        new \SplFileObject($tmpFile, 'r'),
+        notes: 'declared second',
+        isPrimary: true,
+        pageCount: 3,
+        takenAt: new \DateTime('2024-01-15T10:30:00Z'),
+        swatch: \{{invokerPackage}}\Models\Swatch::RED,
+    ));
+    unlink($tmpFile);
+
+    $sent = (string) $stub->requests[0]->getBody();
+    $offsets = [];
+    foreach (['file', 'notes', 'isPrimary', 'pageCount', 'takenAt', 'swatch'] as $name) {
+        $offset = strpos($sent, 'name="' . $name . '"');
+        expect($offset)->toBeInt();
+        $offsets[] = (int) $offset;
+    }
+    $sorted = $offsets;
+    sort($sorted);
+    expect($offsets)->toBe($sorted);
+});
+
 test('bhv operations 094 uploadPetDocument default selection still sends a multipart body', function (): void {
     // Guard against over-correction: with no selector (default
     // multipart/form-data) the form-style map must reach the transport
@@ -1156,7 +1192,7 @@ test('bhv operations 038 error handling server error', function (): void {
     expect(fn () => $api->getPetById(1))->toThrow(ServerException::class);
 });
 
-test('get pet by id picks the status specific error class', function (int $status, string $expectedClass): void {
+test('bhv operations 138 get pet by id picks the status specific error class', function (int $status, string $expectedClass): void {
     /* The typed mock routes answer getPetById with each status and a JSON
      * body, so the error is decoded through the real operation. */
     $config = Configuration::builder()
@@ -1193,6 +1229,15 @@ test('bhv operations 036 empty body for body returning op throws api exception',
     );
 });
 
+test('bhv operations 136 a bare json null body from a model operation throws an api exception naming the operation', function (): void {
+    $api = newPetApiForMock(200, 'application/json', 'null');
+
+    expect(fn (): mixed => $api->getPetById(1))->toThrow(
+        ApiException::class,
+        'Expected a response body for getPetById',
+    );
+});
+
 // -- Canonical #11: a malformed 2xx body fails loud --
 //
 // getPetById declares a typed (Pet) return. A 2xx response whose body is
@@ -1202,7 +1247,7 @@ test('bhv operations 036 empty body for body returning op throws api exception',
 // native serde failure in the SDK-owned SerializationException, which surfaces
 // here unswallowed.
 
-test('malformed 2xx body fails loud rather than returning the raw string', function (): void {
+test('bhv operations 127 malformed 2xx body fails loud rather than returning the raw string', function (): void {
     // Truncated JSON object — a valid-looking 2xx body that cannot decode.
     $api = newPetApiForMock(200, 'application/json', '{"id":1,"name":');
 
@@ -1361,7 +1406,7 @@ test('an operation takes no per call authenticator', function (): void {
     expect((new \ReflectionClass(AddPetOptions::class))->hasProperty('auth'))->toBeFalse();
 });
 
-test('per call headers are sent and win over a configured header of the same name', function (): void {
+test('bhv options 053 per call headers are sent and win over a configured header of the same name', function (): void {
     [$api, $captured] = newHeaderCapturingPetApi();
     $pet = new Pet(name: 'HeaderDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
 
@@ -1372,7 +1417,7 @@ test('per call headers are sent and win over a configured header of the same nam
     expect($captured->headers['X-Tenant'] ?? null)->toBe('t1');
 });
 
-test('a per call timeout and retry count must be valid', function (): void {
+test('bhv options 056 a per call timeout and retry count must be valid', function (): void {
     expect(fn () => new AddPetOptions(timeout: 0))
         ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
     expect(fn () => new AddPetOptions(maxRetries: -1))
@@ -1435,7 +1480,7 @@ test('bhv operations 086 unsecured operation options has no auth field', functio
     expect($unsecured->hasProperty('maxRetries'))->toBeTrue();
 });
 
-test('options class is immutable: construction works but property writes throw', function (): void {
+test('bhv options 063 options class is immutable: construction works but property writes throw', function (): void {
     /* The per-operation Options classes are immutable value objects: properties are
      * constructor-promoted public readonly, so a write after construction throws. */
     $opts = new AddPetOptions(timeout: 500);
@@ -1463,6 +1508,12 @@ test('bhv operations 049 get pet by name throws when required query param is emp
             \InvalidArgumentException::class,
             "Missing the required parameter 'category' when calling PetApi.getPetByName",
         );
+});
+
+test('bhv operations 132 an options object missing a required field names that field', function (): void {
+    /* Built by reflection: the static analyser would reject the call that omits a required argument. */
+    expect(fn (): object => (new \ReflectionClass(GetPetByNameOptions::class))->newInstanceArgs(['xCorrelationId' => 'abc']))
+        ->toThrow(\ArgumentCountError::class, 'Argument #1 ($category) not passed');
 });
 
 test('bhv operations 052 get pet by name throws when required path param is empty', function (): void {
@@ -1552,7 +1603,7 @@ test('bearer authenticator masks token in debug output', function (): void {
     expect($dump)->toContain('***');
 });
 
-test('api key authenticator masks key in debug output', function (): void {
+test('bhv authapikey 026 does not leak its key in default debug output', function (): void {
     $dump = dumpForRedaction(
         new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'super-secret-key', ApiKeyLocation::HEADER)
     );
@@ -1656,12 +1707,12 @@ test('bhv operations 083 staging server variants resolve every enum combination 
     'sandbox v3' => ['sandbox', 'v3'],
 ]);
 
-test('a staging server variable outside its enum cannot be constructed', function (): void {
+test('bhv servers 020 a per-operation server variable value outside its enum is rejected', function (): void {
     expect(fn () => \{{invokerPackage}}\Api\GetStagingPetInfoServerEnvironment::from('production'))
         ->toThrow(\ValueError::class);
 });
 
-test('a multi server operation uses the chosen server and the configured base url otherwise', function (): void {
+test('bhv operations 153 a multi server operation uses the chosen server and the configured base url otherwise', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {

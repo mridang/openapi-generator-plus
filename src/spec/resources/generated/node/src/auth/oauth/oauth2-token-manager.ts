@@ -104,7 +104,12 @@ export class OAuth2TokenManager {
             if (this.accessToken) {
               return this.accessToken;
             }
-          } catch {
+          } catch (error) {
+            /* A cancelled refresh is the caller's cancellation, not a revoked
+             * token: rethrow it and never run the original grant. */
+            if (OAuth2TokenManager.isCancellation(error)) {
+              throw error;
+            }
             /* Refresh failed (e.g. refresh token revoked or expired).
              * Fall back to re-running the original grant below. */
           }
@@ -340,6 +345,21 @@ export class OAuth2TokenManager {
         this.tokenExpiry = Date.now();
       }
     }
+  }
+
+  /**
+   * Whether an error is a cancellation (an AbortError), as opposed to a
+   * failed token request.
+   *
+   * @param error the error caught from a token request
+   * @returns true when the request was cancelled
+   */
+  private static isCancellation(error: unknown): boolean {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      (error as { name?: unknown }).name === "AbortError"
+    );
   }
 
   /**

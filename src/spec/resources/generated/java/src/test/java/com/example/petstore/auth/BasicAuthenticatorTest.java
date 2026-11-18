@@ -20,6 +20,12 @@ import org.junit.jupiter.api.Test;
 class BasicAuthenticatorTest {
 
   @Test
+  void bhvAuthBasic018PasswordMayContainAColon() {
+    BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com", "alice", "p:ss");
+    assertEquals("Basic YWxpY2U6cDpzcw==", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
   void bhvAuthBasic011ValidCredentialsProduceBasicHeader() {
     BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
     Map<String, String> headers = auth.getAuthHeaders();
@@ -83,5 +89,19 @@ class BasicAuthenticatorTest {
     String repr = new BasicAuthenticator("https://api.example.com", "alice", "s3cret").toString();
     assertEquals(
         "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", repr);
+  }
+
+  @Test
+  void bhvErrors081RefusedCredentialNamesWhetherTheUsernameOrThePasswordIsAtFault() {
+    IllegalArgumentException badUser =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    assertTrue(java.util.Objects.requireNonNull(badUser.getMessage()).contains("username"));
+    IllegalArgumentException badPassword =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new BasicAuthenticator("https://api.example.com", "alice", "s3\u0000cret"));
+    assertTrue(java.util.Objects.requireNonNull(badPassword.getMessage()).contains("password"));
   }
 }

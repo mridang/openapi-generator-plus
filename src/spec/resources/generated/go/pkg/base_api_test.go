@@ -90,6 +90,34 @@ func (c *acceptCapturingClient) SendRequestWithOptions(method, url string, heade
 
 func (c *acceptCapturingClient) Close() error { return nil }
 
+// A configured default Accept written in another letter case replaces the
+// negotiated one; the two spellings never both reach the wire.
+func TestBhvHeaders030_BaseApi_InvokeApi_ALowerCaseDefaultAcceptReplacesTheNegotiatedOne(t *testing.T) {
+	t.Parallel()
+	client := &acceptCapturingClient{}
+	config := NewConfigurationBuilder().BaseURL("http://localhost").DefaultHeader("accept", "application/xml").Build()
+	base := newBaseApi(client, config, nil)
+
+	_, err := base.invokeApi(invokeApiParams{
+		method:      "GET",
+		path:        "/items/1",
+		accepts:     []string{"application/json"},
+		contentType: "application/json",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got []string
+	for header, value := range client.headers {
+		if strings.EqualFold(header, "Accept") {
+			got = append(got, value)
+		}
+	}
+	if len(got) != 1 || got[0] != "application/xml" {
+		t.Errorf("expected the single Accept application/xml, got %v", got)
+	}
+}
+
 // Accept has three layers: the one negotiated from the operation's responses,
 // the client's default, and a header parameter the caller passes for the call.
 // The parameter beats both of the others, and the default beats the negotiated.
@@ -126,5 +154,27 @@ func TestBhvOperations004_BaseApi_InvokeApi_AnExplicitAcceptHeaderParameterBeats
 		if len(got) != 1 || got[0] != tc.want {
 			t.Errorf("%s: expected the single Accept %q, got %v", name, tc.want, got)
 		}
+	}
+}
+
+// A query value keeps the unreserved set literal and percent-encodes the other
+// sub-delims, so * ! ' ( ) never reach the wire unencoded.
+func TestBhvSerializationparam107_BaseApi_EncodeQueryValue_EncodesStarBangQuoteAndParensAndKeepsTheUnreservedSet(t *testing.T) {
+	t.Parallel()
+	got := encodeQueryValue("a~b*c!d'e(f)g h", false)
+	if want := "a~b%2Ac%21d%27e%28f%29g%20h"; got != want {
+		t.Errorf("encodeQueryValue = %q, want %q", got, want)
+	}
+}
+
+func TestBhvSerializationwire057_BaseApi_FormUrlencodedKeepsOnlyTheUnreservedSetLiteral(t *testing.T) {
+	t.Parallel()
+	body := map[string]any{"nickname": "a~b*c!d'e(f)g"}
+	wire, err := serializeBodyOrdered(body, "application/x-www-form-urlencoded", false, []string{"nickname"})
+	if err != nil {
+		t.Fatalf("serializeBodyOrdered returned error: %v", err)
+	}
+	if got, want := string(wire), "nickname=a~b%2Ac%21d%27e%28f%29g"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
 	}
 }

@@ -747,6 +747,31 @@ class TestPetApi:
         assert 'reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00' in body
         assert '%20' not in body
 
+    async def test_bhv_operations_156_set_pet_preferences_sends_the_form_fields_in_declaration_order(self) -> None:
+        from urllib.parse import parse_qsl
+
+        client = _RecordingApiClient()
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        await api.set_pet_preferences(1, SetPetPreferencesOptions(
+            nickname='rex',
+            tags=['a'],
+            note='n',
+            renewal_date=datetime.date(2024, 1, 15),
+            reminder=datetime.datetime(2024, 1, 15, 10, 30, tzinfo=datetime.timezone.utc),
+        ))
+        keys = [key for key, _ in parse_qsl(str(client.body))]
+
+        assert list(dict.fromkeys(keys)) == ['nickname', 'tags', 'note', 'renewalDate', 'reminder']
+
+    async def test_bhv_serializationwire_055_space_in_a_form_value_encodes_as_plus(self) -> None:
+        client = _RecordingApiClient()
+        api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+        await api.set_pet_preferences(1, SetPetPreferencesOptions(nickname='good boy', note='very fast'))
+        body = str(client.body)
+        assert 'nickname=good+boy' in body
+        assert 'note=very+fast' in body
+        assert '%20' not in body
+
     async def test_bhv_operations_061_get_external_pet_info_uses_per_operation_server(self, api_base_url: Any) -> None:
         # The operation's own server wins over the client's base URL: the
         # client points at a closed port, the per-operation server at the mock.
@@ -982,6 +1007,15 @@ class TestPetApiErrorHandling:
             match="Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
         ):
             await api.get_pet_by_name('Fido', GetPetByNameOptions(category='', x_correlation_id='r'))
+
+    async def test_bhv_operations_125_get_pet_by_name_raises_when_the_required_query_param_is_none(self) -> None:
+        api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
+        missing: Any = None
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
+        ):
+            await api.get_pet_by_name('Fido', GetPetByNameOptions(category=missing, x_correlation_id='r'))
 
     async def test_bhv_operations_034_download_binary_mock(self) -> None:
         api, server = _create_mock_server(200, 'application/octet-stream', 'FAKE_BINARY_DATA')

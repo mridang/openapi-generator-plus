@@ -20,17 +20,40 @@ class ServerVariable {
   /// specified.
   final String description;
 
-  /// Allowed values for this variable.
+  /// Allowed values for this variable, frozen so a caller cannot change them.
   ///
   /// An empty list means any value is accepted.
-  final List<String> enumValues;
+  List<String> get enumValues => List.unmodifiable(_enumValues);
+
+  final List<String> _enumValues;
 
   /// Create a new server variable.
   const ServerVariable({
     required this.defaultValue,
     this.description = '',
-    this.enumValues = const [],
-  });
+    List<String> enumValues = const [],
+  }) : _enumValues = enumValues;
+
+  /// Two variables are equal when their default, description and allowed
+  /// values are equal, in order.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ServerVariable) return false;
+    if (defaultValue != other.defaultValue ||
+        description != other.description ||
+        _enumValues.length != other._enumValues.length) {
+      return false;
+    }
+    for (var i = 0; i < _enumValues.length; i++) {
+      if (_enumValues[i] != other._enumValues[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(defaultValue, description, Object.hashAll(_enumValues));
 }
 
 /// Represents a single server entry from the OpenAPI specification.

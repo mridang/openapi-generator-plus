@@ -40,6 +40,17 @@ def _explicit(variables: List[Tuple[str, str]]) -> dict[str, str]:
     return {parameter: 'explicit-' + parameter for parameter, _ in variables}
 
 
+def _assert_each_empty_variable_is_unset(
+    monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+) -> None:
+    for _, empty in variables:
+        _set_all(monkeypatch, variables)
+        monkeypatch.setenv(empty, '')
+
+        with pytest.raises(ValueError, match=empty):
+            _scheme_class(module, name)(HOST)
+
+
 @pytest.mark.parametrize('module,name,variables,bearer,basic,api_key', SCHEMES)
 class TestSchemeAuthenticatorEnvironment:
 
@@ -68,7 +79,7 @@ class TestSchemeAuthenticatorEnvironment:
         with pytest.raises(ValueError, match=variables[0][1]):
             _scheme_class(module, name)(HOST)
 
-    def test_an_empty_variable_counts_as_unset(
+    def test_bhv_authbasic_012_an_empty_variable_counts_as_unset(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str,
         variables: List[Tuple[str, str]], bearer: bool, basic: bool, api_key: bool,
     ) -> None:
@@ -98,7 +109,7 @@ API_KEY_SCHEMES = [(module, name, variables) for module, name, variables, _, _, 
 @pytest.mark.parametrize('module,name,variables', BEARER_SCHEMES)
 class TestBearerSchemeAuthenticator:
 
-    def test_an_explicit_token_wins_over_the_environment(
+    def test_bhv_authbearer_018_an_explicit_token_wins_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
         monkeypatch.setenv(variables[0][1], 'from-environment')
@@ -116,7 +127,41 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()['Authorization'] == 'Bearer from-environment'
 
-    def test_the_environment_is_read_once_when_it_is_built(
+    def test_bhv_authscheme_010_an_empty_bearer_variable_is_unset_and_names_the_variable(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], '')
+
+        with pytest.raises(ValueError, match=variables[0][1]):
+            _scheme_class(module, name)(HOST)
+
+    def test_bhv_authscheme_011_an_empty_bearer_credential_variable_is_unset_for_each_variable(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+    def test_bhv_lifecycle_025_the_environment_is_read_once_when_it_is_built(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], 'first')
+        authenticator = _scheme_class(module, name)(HOST)
+
+        monkeypatch.setenv(variables[0][1], 'second')
+
+        assert authenticator.get_auth_headers()['Authorization'] == 'Bearer first'
+
+    def test_bhv_authbearer_023_wrapper_emits_a_bearer_header_and_keeps_its_own_name(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], 'xyz')
+        base = _scheme_class('{{packageName}}.auth.bearer_authenticator', 'BearerAuthenticator')(HOST, 'xyz')
+
+        auth = _scheme_class(module, name)(HOST)
+
+        assert auth.get_auth_headers() == base.get_auth_headers()
+        assert repr(auth).startswith(name + '(')
+
+    def test_bhv_authbearer_025_the_environment_variable_is_read_once_at_construction(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
         monkeypatch.setenv(variables[0][1], 'first')
@@ -135,7 +180,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()['Authorization'] == 'Bearer live'
 
-    def test_a_token_provider_needs_no_environment_token(
+    def test_bhv_auth_022_a_token_provider_needs_no_environment_token(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
         monkeypatch.delenv(variables[0][1], raising=False)
@@ -150,7 +195,7 @@ class TestBearerSchemeAuthenticator:
         with pytest.raises(ValueError, match='not both'):
             _scheme_class(module, name)(HOST, 'explicit', token_provider=lambda: 'live')
 
-    def test_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment(
+    def test_bhv_auth_023_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
         monkeypatch.setenv(variables[0][1], 'from-environment')
@@ -162,7 +207,7 @@ class TestBearerSchemeAuthenticator:
 @pytest.mark.parametrize('module,name,variables', BASIC_SCHEMES)
 class TestBasicSchemeAuthenticator:
 
-    def test_an_explicit_credential_wins_over_the_environment(
+    def test_bhv_authbasic_013_an_explicit_credential_wins_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
         _set_all(monkeypatch, variables)
@@ -183,10 +228,23 @@ class TestBasicSchemeAuthenticator:
         assert authenticator.password == 'value-' + variables[1][1]
 
 
+    def test_bhv_authbasic_019_wrapper_emits_the_same_basic_header_as_the_base_authenticator(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _set_all(monkeypatch, variables)
+        base = _scheme_class('{{packageName}}.auth.basic_authenticator', 'BasicAuthenticator')(
+            HOST, 'alice', 's3cret'
+        )
+
+        auth = _scheme_class(module, name)(HOST, 'alice', 's3cret')
+
+        assert auth.get_auth_headers() == base.get_auth_headers()
+
+
 @pytest.mark.parametrize('module,name,variables', API_KEY_SCHEMES)
 class TestApiKeySchemeAuthenticator:
 
-    def test_an_explicit_key_wins_over_the_environment(
+    def test_bhv_serializationobject_187_an_explicit_key_wins_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
         monkeypatch.setenv(variables[0][1], 'from-environment')
@@ -203,3 +261,78 @@ class TestApiKeySchemeAuthenticator:
         authenticator = _scheme_class(module, name)(HOST)
 
         assert authenticator.api_key == 'from-environment'
+
+
+    def test_bhv_authapikey_021_the_key_is_read_from_the_environment_when_none_is_passed(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], 'from-environment')
+
+        assert _scheme_class(module, name)(HOST).api_key == 'from-environment'
+        assert _scheme_class(module, name)(HOST, 'explicit').api_key == 'explicit'
+
+    def test_bhv_authscheme_012_an_empty_api_key_variable_is_unset_for_each_variable(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+# (module, class name, [(parameter, environment variable)]) for each OAuth flow wrapper, by flow
+FLOW_SCHEMES: List[Tuple[str, str, str, List[Tuple[str, str]]]] = [
+{{#perSchemeAuthEntries}}
+    (
+        '{{flow}}',
+        '{{module}}',
+        '{{className}}',
+        [{{#envParams}}('{{name}}', '{{envName}}'){{^-last}}, {{/-last}}{{/envParams}}],
+    ),
+{{/perSchemeAuthEntries}}
+]
+
+
+def _with_flow(flow: str) -> List[Tuple[str, str, List[Tuple[str, str]]]]:
+    return [(module, name, variables) for entry_flow, module, name, variables in FLOW_SCHEMES if entry_flow == flow]
+
+
+CLIENT_CREDENTIALS_SCHEMES = _with_flow('client_credentials')
+PASSWORD_SCHEMES = _with_flow('password')
+AUTHORIZATION_CODE_SCHEMES = _with_flow('authorization_code')
+IMPLICIT_SCHEMES = _with_flow('implicit')
+
+
+@pytest.mark.parametrize('module,name,variables', CLIENT_CREDENTIALS_SCHEMES)
+class TestClientCredentialsSchemeEnvironment:
+
+    def test_bhv_authscheme_013_an_empty_client_credentials_variable_is_unset_and_names_it(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize('module,name,variables', PASSWORD_SCHEMES)
+class TestPasswordSchemeEnvironment:
+
+    def test_bhv_authscheme_014_an_empty_password_variable_is_unset_and_names_it(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize('module,name,variables', AUTHORIZATION_CODE_SCHEMES)
+class TestAuthorizationCodeSchemeEnvironment:
+
+    def test_bhv_authscheme_015_an_empty_authorization_code_variable_is_unset_and_names_it(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize('module,name,variables', IMPLICIT_SCHEMES)
+class TestImplicitSchemeEnvironment:
+
+    def test_bhv_authscheme_016_an_empty_implicit_variable_is_unset_and_names_it(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)

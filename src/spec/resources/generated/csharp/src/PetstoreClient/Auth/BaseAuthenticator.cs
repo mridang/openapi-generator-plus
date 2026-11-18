@@ -23,6 +23,14 @@ public abstract class BaseAuthenticator : IAuthenticator
     /// <inheritdoc/>
     public virtual Task<Dictionary<string, string>> GetAuthHeadersAsync()
     {
+        return GetAuthHeadersAsync(CancellationToken.None);
+    }
+
+    /// <inheritdoc/>
+    public virtual Task<Dictionary<string, string>> GetAuthHeadersAsync(
+        CancellationToken cancellationToken
+    )
+    {
         return Task.FromResult(GetAuthHeaders());
     }
 

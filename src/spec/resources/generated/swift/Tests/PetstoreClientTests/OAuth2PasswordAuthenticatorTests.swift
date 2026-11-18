@@ -336,7 +336,7 @@ import Testing
   }
 
   /* The token body is emitted in the fixed cross-SDK parameter order. */
-  @Test func testPasswordGrantBodyUsesFixedParameterOrder() async throws {
+  @Test func testBhvAuthoauthtwopassword021PasswordGrantBodyUsesFixedParameterOrder() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -449,6 +449,26 @@ import Testing
   }
 
   // MARK: - Generated scheme wrapper
+
+  /* The scheme wrapper sends the first grant to the spec token URL and the refresh grant to the spec refresh URL. */
+  @Test func testBhvAuthoauthtwopassword022SchemeWrapperSendsGrantsToTheSpecUrls() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+    let auth = try LegacyAuthPasswordAuthenticator(
+      host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
+      username: "alice", password: "pw")
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
+
+    #expect(
+      client.urls == [
+        "https://auth.example.com/oauth/token", "https://auth.example.com/oauth/refresh",
+      ])
+  }
 
   /* The password securityScheme's wrapper carries the spec's token and
    * refresh URLs and scopes and masks both secrets. */

@@ -167,6 +167,42 @@ test('bhv authoauthtwoauthcode 015 includes refresh token on refresh', function 
     expect($headers['Authorization'])->toBe('Bearer access2');
 });
 
+test('bhv authoauthtwoauthcode 030 auth headers before the code exchange name the exchange call to make first', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient(makeOAuth2AuthCodeMockClient());
+
+    expect(fn () => $authenticator->getAuthHeaders())
+        ->toThrow(\LogicException::class, 'Must call exchangeCode() before making API requests');
+});
+
+test('bhv authoauthtwoauthcode 032 the code exchange body uses a fixed parameter order', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('C');
+
+    expect($client->capturedRequests[0]['body'] ?? '')->toBe(
+        'grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback'
+    );
+});
+
 test('bhv authoauthtwoauthcode 027 throws before exchange code called', function (): void {
     $client = makeOAuth2AuthCodeMockClient();
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
@@ -717,4 +753,127 @@ test('bhv authoauthtwoauthcode 020 scheme wrapper sends the spec scopes and urls
 
     expect($url)->toStartWith('https://auth.example.com/authorize' . '?');
     expect($url)->toContain('scope=' . rawurlencode(implode(' ', ['pets:read', 'pets:write'])));
+});
+
+test('bhv authscheme 015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/OAuth/*.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\OAuth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, OAuth2AuthorizationCodeAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+        \assert(is_array($constants));
+        $variables = array_values(array_map(static function (mixed $name): string {
+            \assert(is_string($name));
+
+            return $name;
+        }, $constants));
+        foreach ($variables as $empty) {
+            $saved = [];
+            foreach ($variables as $variable) {
+                $saved[$variable] = getenv($variable);
+                putenv($variable === $empty ? $variable . '=' : $variable . '=set-value');
+            }
+            try {
+                expect(fn () => (new \ReflectionClass($class))->newInstance('https://api.example.com'))
+                    ->toThrow(\InvalidArgumentException::class, $empty);
+            } finally {
+                foreach ($saved as $variable => $value) {
+                    putenv($value === false ? $variable : $variable . '=' . $value);
+                }
+            }
+        }
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+/**
+ * Builds the authenticator of the PKCE tests, with a known verifier in place of the random one.
+ */
+function makePkceAuthenticator(string $verifier): OAuth2AuthorizationCodeAuthenticator
+{
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+    (new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier'))
+        ->setValue($authenticator, $verifier);
+
+    return $authenticator;
+}
+
+/**
+ * The code challenge the authenticator sent for its current verifier (S256, RFC 7636 section 4.2).
+ */
+function pkceChallengeOf(OAuth2AuthorizationCodeAuthenticator $authenticator): string
+{
+    $verifier = (new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier'))
+        ->getValue($authenticator);
+    \assert(is_string($verifier));
+
+    return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+}
+
+test('bhv auth 008 the s256 challenge matches the rfc 7636 appendix b value', function (): void {
+    $authenticator = makePkceAuthenticator('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk');
+
+    $url = $authenticator->buildAuthorizationUrl('s');
+
+    expect($url)->toContain('code_challenge=' . pkceChallengeOf($authenticator));
+    expect(rtrim(strtr(base64_encode(hash('sha256', 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk', true)), '+/', '-_'), '='))
+        ->toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+});
+
+test('bhv auth 014 the authorization url encodes spaces between scopes as percent 20 and never as a plus', function (): void {
+    $url = makePkceAuthenticator('v')->buildAuthorizationUrl('s');
+
+    expect($url)->toContain('scope=read%20write');
+    expect($url)->not->toContain('+');
+});
+
+test('bhv auth 019 the authorization url lists its parameters in one fixed order and encoding', function (): void {
+    $authenticator = makePkceAuthenticator('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk');
+
+    $url = $authenticator->buildAuthorizationUrl('s');
+
+    expect($url)->toBe(
+        'https://auth.example.com/authorize?response_type=code&client_id=my-client-id'
+        . '&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s'
+        . '&code_challenge=' . pkceChallengeOf($authenticator) . '&code_challenge_method=S256'
+    );
+});
+
+test('bhv auth 020 the pkce verifier is sent with the first exchange and never with a refresh or a later exchange', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access2',
+        'refresh_token' => 'refresh2',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access3',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = makePkceAuthenticator('verifier-value');
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('first-code');
+    $authenticator->getAuthHeaders();
+    $authenticator->exchangeCode('second-code');
+
+    expect($client->capturedRequests[0]['body'] ?? '')->toContain('&code_verifier=verifier-value');
+    expect($client->capturedRequests[1]['body'] ?? '')->not->toContain('code_verifier');
+    expect($client->capturedRequests[2]['body'] ?? '')->not->toContain('code_verifier');
 });

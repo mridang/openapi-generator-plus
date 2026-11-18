@@ -32,6 +32,13 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("bhvOptions052 a proxy URL carrying credentials is accepted")
+        fun proxyUrlCarryingCredentialsIsAccepted() {
+            val proxy = "http://proxy-user:" + "not-a-real-secret" + "@proxy.example.com:3128"
+            assertEquals(proxy, TransportOptions.builder().proxy(proxy).build().proxy)
+        }
+
+        @Test
         @DisplayName("bhvOptions032 proxy defaults to null")
         fun proxyDefaultsToNull() {
             val opts = TransportOptions.builder().build()
@@ -228,7 +235,16 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a negative maxRedirects is rejected and zero is accepted")
+        @DisplayName("bhvOptions047 a negative timeout is rejected at configuration")
+        fun negativeTimeoutIsRejectedAtConfiguration() {
+            val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+                TransportOptions.builder().timeout(-1L)
+            }
+            assertEquals("Invalid timeout: must be a positive number of milliseconds (got -1)", ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvOptions045 a negative maxRedirects is rejected and zero is accepted")
         fun negativeMaxRedirectsIsRejected() {
             val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
                 TransportOptions.builder().maxRedirects(-1)
@@ -275,7 +291,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a proxy URL with a scheme other than http or https is rejected with its message")
+        @DisplayName("bhvOptions051 a proxy URL with a scheme other than http or https is rejected with its message")
         fun nonHttpProxySchemeIsRejected() {
             for (proxy in listOf("ftp://proxy:21", "socks5://proxy:1080")) {
                 val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
@@ -286,7 +302,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("the README names the builder proxy setter in its SOCKS section")
+        @DisplayName("bhvOptions044 the README names the builder proxy setter in its SOCKS section")
         fun readmeNamesTheBuilderProxySetter() {
             val readme = java.io.File("README.md").readText()
             assertTrue(
@@ -455,10 +471,10 @@ class TransportOptionsTest {
     inner class CustomHttpClient {
 
         @Test
-        @DisplayName("httpClient defaults to null and is kept when set")
+        @DisplayName("bhvOptions058 httpClient defaults to null and is kept when set")
         fun httpClientIsKept() {
             assertNull(TransportOptions.builder().build().httpClient)
-            val custom = HttpClient(MockEngine { respondOk() })
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
             try {
                 assertSame(custom, TransportOptions.builder().httpClient(custom).build().httpClient)
             } finally {
@@ -467,9 +483,22 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("httpClient conflicts with proxy, caCertPath and verifySsl=false")
-        fun httpClientConflictsWithSdkTransportSettings() {
+        @DisplayName("bhvRedirects045 a supplied httpClient that follows redirects is refused, because the SDK manages redirects itself")
+        fun httpClientThatFollowsRedirectsIsRefused() {
             val custom = HttpClient(MockEngine { respondOk() })
+            try {
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().httpClient(custom).build()
+                }
+            } finally {
+                custom.close()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvLifecycle024 a supplied httpClient conflicts with the SDK proxy, caCertPath and verifySsl=false settings")
+        fun httpClientConflictsWithSdkTransportSettings() {
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
             try {
                 val proxy = assertThrows(IllegalArgumentException::class.java) {
                     TransportOptions.builder().httpClient(custom).proxy("http://proxy.example.com:8080").build()
@@ -507,6 +536,73 @@ class TransportOptionsTest {
             assertTrue(text.contains("proxy=http://***@proxy.example.com:3128"), text)
             assertTrue(text.contains("Proxy-Authorization=***"), text)
             assertTrue(text.contains("X-Trace=visible"), text)
+        }
+    }
+
+    @Nested
+    @DisplayName("transport options contract behaviours")
+    inner class TransportOptionsContractBehaviours {
+
+        @Test
+        @DisplayName("bhvOptions059 a caller-supplied HTTP client is kept as the same instance on the built options")
+        fun suppliedHttpClientIsKeptAsTheSameInstance() {
+            assertNull(TransportOptions.builder().build().httpClient)
+            val client = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
+            assertSame(client, TransportOptions.builder().httpClient(client).build().httpClient)
+        }
+
+        @Test
+        @DisplayName("bhvOptions060 the static builder entry point carries the same defaults as the direct build")
+        fun builderEntryPointCarriesTheDefaults() {
+            val built = TransportOptions.builder().build()
+            assertTrue(built.verifySsl)
+            assertNull(built.proxy)
+            assertEquals("{{{artifactId}}}/{{{artifactVersion}}} (kotlin)", built.userAgent)
+        }
+
+        @Test
+        @DisplayName("bhvOptions061 a user agent set on the transport options is kept as given, and none leaves it unset")
+        fun userAgentIsKeptAsGivenOrUnset() {
+            assertEquals("MyApp/2.0", TransportOptions.builder().userAgent("MyApp/2.0").build().userAgent)
+            assertNull(TransportOptions.builder().userAgent(null).build().userAgent)
+        }
+
+        @Test
+        @DisplayName("bhvOptions063 a built transport options object cannot have its fields changed")
+        fun builtOptionsHaveOnlyFinalFields() {
+            val fields = TransportOptions::class.java.declaredFields.filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }
+            assertTrue(fields.isNotEmpty())
+            assertTrue(fields.all { java.lang.reflect.Modifier.isFinal(it.modifiers) }, fields.toString())
+        }
+
+        @Test
+        @DisplayName("bhvOptions064 the printable form of transport options shows the configured maximum number of retries")
+        fun printableFormShowsMaxRetries() {
+            assertTrue(TransportOptions.builder().maxRetries(3).build().toString().contains("maxRetries=3"))
+        }
+
+        @Test
+        @DisplayName("bhvOptions065 the printable form of transport options never shows a proxy password")
+        fun printableFormHidesProxyPassword() {
+            val text = TransportOptions.builder().proxy("http://svc:hunter2@proxy.example.com:3128").build().toString()
+            assertFalse(text.contains("hunter2"), text)
+        }
+
+        @Test
+        @DisplayName("bhvOptions066 the printable form shows a proxy URL with no credentials exactly as configured")
+        fun printableFormShowsPlainProxyUrl() {
+            val text = TransportOptions.builder().proxy("http://proxy.example.com:3128").build().toString()
+            assertTrue(text.contains("proxy=http://proxy.example.com:3128,"), text)
+        }
+
+        @Test
+        @DisplayName("bhvOptions067 building transport options with a valid proxy URL keeps it, and with no proxy it is unset")
+        fun validProxyIsKeptAndNoProxyIsUnset() {
+            assertEquals(
+                "http://proxy.example.com:3128",
+                TransportOptions.builder().proxy("http://proxy.example.com:3128").build().proxy,
+            )
+            assertNull(TransportOptions.builder().build().proxy)
         }
     }
 }

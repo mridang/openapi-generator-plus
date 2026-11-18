@@ -57,6 +57,13 @@ class MetadataTest {
     }
 
     @Test
+    fun bhvModels012ToStringDumpsTheFieldsAndTheAdditionalPropertiesMap() {
+        val metadata = Metadata()
+        metadata.additionalProperties["customField"] = "hello"
+        assertEquals("Metadata(createdAt=null, additionalProperties={customField=hello})", metadata.toString())
+    }
+
+    @Test
     @DisplayName("the additionalProperties bucket can be supplied at construction and copy() carries it")
     fun testAdditionalPropertiesConstructorParameterAndCopy() {
         val metadata = Metadata(additionalProperties = mutableMapOf<String, Any?>("k" to "v"))
@@ -86,18 +93,7 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("toString includes the additionalProperties bucket and its entries")
-    fun testToStringIncludesAdditionalProperties() {
-        val metadata = Metadata()
-        metadata.additionalProperties["x"] = 1
-
-        val text = metadata.toString()
-
-        assertTrue(text.contains("additionalProperties={x=1}"), text)
-    }
-
-    @Test
-    @DisplayName("default values are null")
+    @DisplayName("bhvModels024 default values are null")
     fun testDefaultValues() {
         val metadata = Metadata()
 
@@ -335,5 +331,151 @@ class MetadataTest {
                 .flatMap { file -> file.readLines().filter { entity.containsMatchIn(it) }.map { "${file.name}: ${it.trim()}" } }
                 .toList()
         assertEquals(emptyList<String>(), offenders)
+    }
+
+    @Test
+    @DisplayName("bhvSkills001 the skills guide names the root error and the error types that are siblings of the API error")
+    fun bhvSkills001ErrorHandlingNamesTheRootAndItsSiblings() {
+        val section =
+            java.io
+                .File("SKILLS.md")
+                .readText()
+                .substringAfter("## Error Handling", "")
+                .substringBefore("## Configuration")
+        assertTrue(section.contains("`OpenAPIException` (root)"), "the error section must name the root, got: $section")
+        assertTrue(section.contains("`SerializationException`"), "the error section must name SerializationException")
+        assertTrue(section.contains("`OAuth2ServerException`"), "the error section must name OAuth2ServerException")
+        assertTrue(section.contains("`OAuth2TokenException`"), "the error section must name OAuth2TokenException")
+    }
+
+    @Test
+    @DisplayName("bhvSkills002 the skills guide documents the retries in its configuration section")
+    fun bhvSkills002ConfigurationDocumentsTheRetries() {
+        val section =
+            java.io
+                .File("SKILLS.md")
+                .readText()
+                .substringAfter("## Configuration", "")
+                .substringBefore("## API Methods")
+        assertTrue(section.contains("### Retries"), "the configuration section must have a Retries subsection")
+        assertTrue(section.contains("maxRetries(n)"), "the Retries subsection must name the maxRetries option")
+        assertTrue(section.contains("`Retry-After`"), "the Retries subsection must name the Retry-After header")
+    }
+
+    @Test
+    @DisplayName("bhvSerializationobject227 a model externalDocs description is documented verbatim without HTML entities")
+    fun bhvSerializationobject227ModelExternalDocsIsDocumentedVerbatim() {
+        // Gradle runs tests with the project root as the working directory.
+        val source =
+            java.io
+                .File("src/main/kotlin")
+                .walk()
+                .first { it.name == "Account.kt" }
+                .readText()
+        assertTrue(source.contains("""<a href="https://example.com/docs/account">Account <docs> & "notes" it's here</a>"""), source)
+        assertFalse(source.contains("\u0026lt;"), source)
+        assertFalse(source.contains("\u0026amp;"), source)
+    }
+
+    @Test
+    @DisplayName("bhvModels013 a newly built model starts its additional properties as an empty collection, never null")
+    fun newModelStartsWithEmptyAdditionalProperties() {
+        val metadata = Metadata()
+        assertNotNull(metadata.additionalProperties)
+        assertTrue(metadata.additionalProperties.isEmpty())
+    }
+
+    @Test
+    @DisplayName("bhvModels014 a built model cannot have its properties reassigned")
+    fun builtModelHasOnlyFinalFields() {
+        val fields =
+            com.example.petstore.models.Pet::class.java.declaredFields.filter {
+                !java.lang.reflect.Modifier.isStatic(
+                    it.modifiers,
+                )
+            }
+        assertTrue(fields.isNotEmpty())
+        assertTrue(
+            fields.all {
+                java.lang.reflect.Modifier
+                    .isFinal(it.modifiers)
+            },
+            fields.toString(),
+        )
+    }
+
+    @Test
+    @DisplayName("bhvModels015 a changed copy of a model keeps the additional properties of the original")
+    fun copyKeepsAdditionalProperties() {
+        val original = Metadata(additionalProperties = mutableMapOf("k" to 1))
+        val changed = original.copy(createdAt = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z"))
+        assertEquals(mapOf("k" to 1), changed.additionalProperties)
+    }
+
+    @Test
+    @DisplayName("bhvModels016 a copy clears an optional field only when null is passed and keeps it when the argument is omitted")
+    fun copyClearsOnlyOnExplicitNull() {
+        val pet =
+            com.example.petstore.models.Pet(
+                name = "dog",
+                category =
+                    com.example.petstore.models
+                        .Category(name = "c"),
+                photoUrls = setOf(),
+            )
+        assertNull(pet.copy(category = null).category)
+        assertEquals(pet.category, pet.copy().category)
+    }
+
+    @Test
+    @DisplayName("bhvModels017 a copy can set or clear an optional field and the original keeps its value")
+    fun copyCanSetOrClearWithoutChangingTheOriginal() {
+        val pet =
+            com.example.petstore.models.Pet(
+                name = "dog",
+                category =
+                    com.example.petstore.models
+                        .Category(name = "c"),
+                photoUrls = setOf(),
+            )
+        assertEquals(
+            "new",
+            pet
+                .copy(
+                    category =
+                        com.example.petstore.models
+                            .Category(name = "new"),
+                ).category!!
+                .name,
+        )
+        assertEquals("c", pet.category!!.name)
+    }
+
+    @Test
+    @DisplayName("bhvModels020 models with the same field values compare equal and hash alike")
+    fun sameFieldValuesCompareEqualAndHashAlike() {
+        val a =
+            com.example.petstore.models
+                .Tag(id = 1L, name = "x")
+        val b =
+            com.example.petstore.models
+                .Tag(id = 1L, name = "x")
+        assertEquals(a, b)
+        assertEquals(a.hashCode(), b.hashCode())
+        assertEquals(1, setOf(a, b).size)
+    }
+
+    @Test
+    @DisplayName("bhvModels022 a generated model whose schema allows undeclared properties reports that it does")
+    fun modelReportsItsAdditionalPropertiesBucket() {
+        assertTrue(Metadata::class.java.declaredFields.any { it.name == "additionalProperties" })
+    }
+
+    @Test
+    @DisplayName("bhvModels023 undeclared keys named like SDK methods are kept as additional properties")
+    fun keysNamedLikeMethodsAreKeptAsAdditionalProperties() {
+        val metadata = ObjectSerializer().deserialize<Metadata>("{\"toString\":\"x\",\"hashCode\":1}")
+        assertEquals("x", metadata!!.additionalProperties["toString"])
+        assertEquals(1L, metadata.additionalProperties["hashCode"])
     }
 }

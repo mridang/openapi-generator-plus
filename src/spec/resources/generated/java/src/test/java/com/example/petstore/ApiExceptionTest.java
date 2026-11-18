@@ -17,6 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.BadRequestException;
+import com.example.petstore.errors.ConflictException;
+import com.example.petstore.errors.OAuth2ServerException;
 import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.SerializationException;
 import java.util.Map;
@@ -54,6 +57,60 @@ class ApiExceptionTest {
   }
 
   @Test
+  void bhvErrors072ErrorBodyWithAByteOrderMarkDecodesLikeTheSameBodyWithout() {
+    assertEquals(
+        ApiException.fromResponse(400, null, "{\"code\":7}").getErrorBody(),
+        ApiException.fromResponse(400, null, "﻿{\"code\":7}").getErrorBody());
+  }
+
+  @Test
+  void bhvErrors073ErrorBodyNestedWithinTheDepthLimitIsKeptAsStructuredData() {
+    String deep = "[".repeat(500) + "]".repeat(500);
+    ApiException ex = ApiException.fromResponse(400, null, deep);
+    assertNotNull(ex.getErrorBody());
+    assertEquals(deep, ex.getResponseBody());
+  }
+
+  @Test
+  void bhvErrors074ErrorWithoutAnHttpResponseRendersItsMessageAlone() {
+    assertEquals(
+        "connection reset", new ApiException(0, "connection reset", null, null).toString());
+  }
+
+  @Test
+  void bhvErrors075CutBodyNeverSplitsAMultiByteCharacter() {
+    String rendered = new ApiException(500, "boom", Map.of(), "x".repeat(1023) + "😀").toString();
+    assertEquals(
+        rendered,
+        new String(
+            rendered.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            java.nio.charset.StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void bhvErrors076ForeignErrorIsNotClassifiedAsAnSdkErrorEvenWhenWrapped() {
+    RuntimeException wrapped = new RuntimeException(new IllegalStateException("not ours"));
+    assertFalse(wrapped instanceof OpenAPIException);
+    assertFalse(wrapped.getCause() instanceof OpenAPIException);
+  }
+
+  @Test
+  void bhvErrors080TypedHttpErrorIsCaughtByTheRootTypeAndKeepsItsStatus() {
+    ApiException typed = ApiException.fromResponse(404, null, null);
+    OpenAPIException root = typed;
+    assertInstanceOf(com.example.petstore.errors.NotFoundException.class, root);
+    assertEquals(404, typed.getStatusCode());
+  }
+
+  @Test
+  void bhvErrors084ErrorBuiltWithoutAnHttpResponseReportsStatusZero() {
+    assertEquals(
+        0,
+        new com.example.petstore.errors.NetworkException("boom", new java.io.IOException("reset"))
+            .getStatusCode());
+  }
+
+  @Test
   void bhvErrors019IsAnUncheckedExceptionWithStatusInItsStringForm() {
     // Unified hierarchy: ApiException extends the branded root
     // OpenAPIException, which extends RuntimeException — so the whole SDK
@@ -75,7 +132,13 @@ class ApiExceptionTest {
   }
 
   @Test
-  void responseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
+  void bhvErrors049OAuth2ServerMessageNamesTheStatusAndTheErrorCode() {
+    OAuth2ServerException error = new OAuth2ServerException(400, "invalid_grant", null, null, "{}");
+    assertEquals("Token request failed with status 400: invalid_grant", error.getMessage());
+  }
+
+  @Test
+  void bhvErrors050ResponseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
     ApiException ex =
         new ApiException(
             502, "bad", new java.util.LinkedHashMap<>(Map.of("b", "x/y", "a", "1")), null);
@@ -192,7 +255,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void typedErrorsExtendApiExceptionSoBaseCatchWorks() {
+  void bhvErrors052TypedErrorsExtendApiExceptionSoBaseCatchWorks() {
     // #5: typed HTTP errors must extend the common ApiException base so a
     // single catch / assertThrows(ApiException) catches every concrete
     // subtype. The full chain for a 4xx leaf is:
@@ -216,7 +279,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void statusErrorConstructorsDefaultTheResponseContextToNull() {
+  void bhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull() {
     com.example.petstore.errors.BadRequestException badRequest =
         new com.example.petstore.errors.BadRequestException();
     assertEquals(400, badRequest.getStatusCode());
@@ -243,6 +306,16 @@ class ApiExceptionTest {
         new com.example.petstore.errors.ServerException(503, "down");
     assertEquals(503, server.getStatusCode());
     assertNull(server.getResponseHeaders());
+  }
+
+  @Test
+  void bhvErrors061BadRequestIsAClientErrorAnApiErrorAndAnOpenApiError() {
+    com.example.petstore.errors.BadRequestException badRequest =
+        new com.example.petstore.errors.BadRequestException("bad request", Map.of(), null, null);
+
+    assertInstanceOf(com.example.petstore.errors.ClientException.class, badRequest);
+    assertInstanceOf(ApiException.class, badRequest);
+    assertInstanceOf(OpenAPIException.class, badRequest);
   }
 
   @Test
@@ -598,6 +671,16 @@ class ApiExceptionTest {
     }
     assertEquals(400, errors[1].getStatusCode());
     assertEquals(503, errors[10].getStatusCode());
+
+    com.example.petstore.errors.NetworkException network =
+        new com.example.petstore.errors.NetworkException("refused", cause, "PUT", "/a?q=1");
+    com.example.petstore.errors.NetworkTimeoutException timeout =
+        new com.example.petstore.errors.NetworkTimeoutException(
+            "timed out", cause, "PUT", "/a?q=1");
+    assertEquals("PUT", network.getRequestMethod());
+    assertEquals("/a", network.getRequestPath());
+    assertEquals("PUT", timeout.getRequestMethod());
+    assertEquals("/a", timeout.getRequestPath());
   }
 
   @Test
@@ -617,14 +700,14 @@ class ApiExceptionTest {
   }
 
   @Test
-  void anEmptyMessageFallsBackToTheGenericLine() {
+  void bhvErrors051AnEmptyMessageFallsBackToTheGenericLine() {
     ApiException ex = new ApiException(0, "", null, null);
 
     assertEquals("Error message: the server returns an error", ex.toString());
   }
 
   @Test
-  void oauth2ServerExceptionMessageHasThreeForms() {
+  void bhvErrors046OAuth2ServerExceptionMessageHasThreeForms() {
     com.example.petstore.errors.OAuth2ServerException raw =
         new com.example.petstore.errors.OAuth2ServerException(
             502, null, null, null, "<html>bad gateway</html>");
@@ -650,6 +733,45 @@ class ApiExceptionTest {
     assertEquals(com.example.petstore.errors.ServerException.class, ex.getClass());
     assertEquals("<html>bad gateway</html>", ex.getResponseBody());
     assertNull(ex.getErrorBody());
+  }
+
+  @Test
+  void bhvErrors044EveryErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+    java.util.List<Class<? extends RuntimeException>> errors =
+        java.util.List.of(
+            OpenAPIException.class,
+            ApiException.class,
+            com.example.petstore.errors.ClientException.class,
+            com.example.petstore.errors.ServerException.class,
+            com.example.petstore.errors.BadRequestException.class,
+            com.example.petstore.errors.UnauthorizedException.class,
+            com.example.petstore.errors.ForbiddenException.class,
+            com.example.petstore.errors.NotFoundException.class,
+            com.example.petstore.errors.ConflictException.class,
+            com.example.petstore.errors.UnprocessableEntityException.class,
+            com.example.petstore.errors.TooManyRequestsException.class,
+            com.example.petstore.errors.PaymentRequiredException.class,
+            com.example.petstore.errors.MethodNotAllowedException.class,
+            com.example.petstore.errors.RequestTimeoutException.class,
+            com.example.petstore.errors.GoneException.class,
+            com.example.petstore.errors.PayloadTooLargeException.class,
+            com.example.petstore.errors.UnsupportedMediaTypeException.class,
+            com.example.petstore.errors.LockedException.class,
+            com.example.petstore.errors.NotImplementedException.class,
+            com.example.petstore.errors.BadGatewayException.class,
+            com.example.petstore.errors.ServiceUnavailableException.class,
+            com.example.petstore.errors.GatewayTimeoutException.class,
+            com.example.petstore.errors.InternalServerErrorException.class,
+            com.example.petstore.errors.NetworkException.class,
+            com.example.petstore.errors.NetworkTimeoutException.class,
+            SerializationException.class,
+            com.example.petstore.errors.OAuth2ServerException.class,
+            com.example.petstore.errors.OAuth2TokenException.class);
+    for (Class<? extends RuntimeException> error : errors) {
+      assertEquals("com.example.petstore.errors", error.getPackageName(), error.getName());
+      assertNull(error.getEnclosingClass(), error.getName());
+      assertTrue(OpenAPIException.class.isAssignableFrom(error), error.getName());
+    }
   }
 
   @Test
@@ -753,11 +875,48 @@ class ApiExceptionTest {
   }
 
   @Test
+  void bhvErrors064AnEmptyMessageRendersTheDefaultTextLikeAMissingOne() {
+    ApiException empty = new ApiException(0, "", null, null);
+    ApiException missing = new ApiException(0, null, null, null);
+
+    assertEquals("Error message: the server returns an error", empty.toString());
+    assertEquals("Error message: the server returns an error", missing.toString());
+    assertEquals(
+        "Error message: the server returns an error\nHTTP status code: 502",
+        new ApiException(502, "", null, null).toString());
+  }
+
+  @Test
+  void bhvErrors065CutsALongResponseBodyAtOneKibAndCountsTheBytesLeftOut() {
+    String longBody = "a".repeat(3000);
+    ApiException ex = new ApiException(502, "bad gateway", Map.of(), longBody);
+
+    assertEquals(
+        "bad gateway\nHTTP status code: 502\nResponse body: "
+            + "a".repeat(1024)
+            + "... (1976 more bytes)",
+        ex.toString());
+    assertEquals(longBody, ex.getResponseBody());
+  }
+
+  @Test
   void bhvErrors025SerializationExceptionIsAnOpenApiException() {
     assertInstanceOf(OpenAPIException.class, new SerializationException("bad"));
   }
 
   @Test
+  void bhvErrors045OAuth2ErrorsAreRootedAtTheBrandedBaseNotAtApiException() {
+    Object server =
+        new com.example.petstore.errors.OAuth2ServerException(
+            400, "invalid_grant", null, null, "{}");
+    Object token = new com.example.petstore.errors.OAuth2TokenException("no access_token");
+
+    assertInstanceOf(OpenAPIException.class, server);
+    assertInstanceOf(OpenAPIException.class, token);
+    assertFalse(server instanceof ApiException);
+    assertFalse(token instanceof ApiException);
+  }
+
   void serializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery() {
     SerializationException bare = new SerializationException("bad");
     assertEquals(0, bare.getStatusCode());
@@ -817,5 +976,17 @@ class ApiExceptionTest {
   void bhvErrors028GetTypedErrorBodyIsNullForANullBody() {
     ApiException ex = ApiException.fromResponse(400, null, null);
     assertNull(ex.getTypedErrorBody(Map.class));
+  }
+
+  @Test
+  void bhvErrors053EachNamedErrorPinsItsOwnStatusCode() {
+    assertEquals(400, new BadRequestException().getStatusCode());
+    assertEquals(409, new ConflictException().getStatusCode());
+  }
+
+  @Test
+  void bhvErrors056AStatusAtOrAbove600IsTheBaseErrorAndNotAServerError() {
+    ApiException ex = ApiException.fromResponse(600, Map.of(), null);
+    assertEquals(ApiException.class, ex.getClass());
   }
 }

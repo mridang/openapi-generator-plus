@@ -1041,7 +1041,11 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 		queryParams["status"] = maybeAllowReserved(serializeStyled("status", options.Status, "query", "string", "", "form", true), false)
 	}
 	if options != nil && options.Filter != nil {
-		for k, v := range serializeDeepObject("filter", options.Filter) {
+		deepParams, err := serializeDeepObject("filter", options.Filter)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range deepParams {
 			queryParams[k] = v
 		}
 	}
@@ -2440,7 +2444,11 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 		queryParams["criteriaCsv"] = maybeAllowReserved(serializeStyled("criteriaCsv", options.CriteriaCsv, "query", "PetCriteria", "", "form", false), false)
 	}
 	if options != nil && options.CriteriaDeep != nil {
-		for k, v := range serializeDeepObject("criteriaDeep", options.CriteriaDeep) {
+		deepParams, err := serializeDeepObject("criteriaDeep", options.CriteriaDeep)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range deepParams {
 			queryParams[k] = v
 		}
 	}

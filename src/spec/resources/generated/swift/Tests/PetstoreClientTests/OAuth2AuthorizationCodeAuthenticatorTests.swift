@@ -174,7 +174,9 @@ import Testing
     #expect(client.urls == ["https://auth.example.com/token", "https://auth.example.com/refresh"])
   }
 
-  @Test func testRefreshGrantFallsBackToTokenUrlWithoutRefreshUrl() async throws {
+  @Test func testBhvAuthoauthtwopassword020RefreshGrantFallsBackToTokenUrlWithoutRefreshUrl()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -217,6 +219,21 @@ import Testing
     await #expect(throws: OAuth2AuthorizationCodeError.codeNotExchanged) {
       _ = try await auth.authHeaders()
     }
+  }
+
+  @Test func testBhvAuthoauthtwoauthcode030AuthHeadersBeforeTheExchangeNameTheExchangeCall() async {
+    let auth = createAuthenticator()
+
+    var message = ""
+    do {
+      _ = try await auth.authHeadersOrThrow()
+      Issue.record("expected authHeadersOrThrow to throw before exchangeCode")
+    } catch {
+      message = error.localizedDescription
+    }
+    #expect(
+      message.contains("exchangeCode()"),
+      "the error must name the exchange call to make first, got: \(message)")
   }
 
   @Test func testBhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError() async
@@ -422,7 +439,7 @@ import Testing
   }
 
   /* The authorize URL parameters are emitted in the fixed cross-SDK order. */
-  @Test func testAuthorizationUrlUsesFixedParameterOrder() throws {
+  @Test func testBhvAuth019AuthorizationUrlUsesFixedParameterOrder() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL(state: "s")
@@ -437,7 +454,7 @@ import Testing
   }
 
   /* The code exchange body is emitted in the fixed cross-SDK order. */
-  @Test func testCodeExchangeBodyUsesFixedParameterOrder() async throws {
+  @Test func testBhvAuthoauthtwoauthcode032CodeExchangeBodyUsesFixedParameterOrder() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -468,7 +485,7 @@ import Testing
   }
 
   /* RFC 7636 appendix B: the S256 challenge of the specification's verifier. */
-  @Test func testS256ChallengeMatchesRfc7636AppendixB() {
+  @Test func testBhvAuth008S256ChallengeMatchesRfc7636AppendixB() {
     #expect(
       PKCE.challenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
         == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
@@ -624,6 +641,48 @@ import Testing
     #expect(client.urls.count == 2)
     #expect(headers["Authorization"] == "Bearer tok1")
     #expect(auth.tokenManager.refreshToken == "ref1")
+  }
+
+  /* The PKCE verifier goes with the first successful exchange and never with a later one; a failed attempt keeps it for the retry. */
+  @Test func testBhvAuth020VerifierIsSentWithTheFirstSuccessfulExchangeOnly() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+    _ = try auth.buildAuthorizationURL()
+
+    await #expect(throws: OAuth2ServerError.self) {
+      try await auth.exchangeCode("first")
+    }
+    try await auth.exchangeCode("second")
+    let verifiedBody = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    try await auth.exchangeCode("third")
+    let laterBody = String(data: client.lastBody!, encoding: .utf8) ?? ""
+
+    #expect(verifiedBody.split(separator: "&").contains { $0.hasPrefix("code_verifier=") })
+    #expect(!laterBody.contains("code_verifier"))
+  }
+
+  /* A failed first code exchange records no session, and the client still reports it as unexchanged. */
+  @Test func testBhvAuth028FailedFirstExchangeRecordsNoSession() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    await #expect(throws: OAuth2ServerError.self) {
+      try await auth.exchangeCode("bad")
+    }
+    #expect(auth.description.contains("tokenExchanged: false"))
+    #expect(auth.tokenManager.refreshToken == "")
+    await #expect(throws: OAuth2AuthorizationCodeError.self) {
+      _ = try await auth.authHeadersOrThrow()
+    }
   }
 
   // MARK: - Generated scheme wrapper

@@ -12,9 +12,12 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import javax.annotation.Nullable;
@@ -247,7 +250,7 @@ public class OAuth2TokenManager {
         }
 
         StringJoiner body = new StringJoiner("&");
-        for (Map.Entry<String, String> entry : params.entrySet()) {
+        for (Map.Entry<String, String> entry : orderedParams(params)) {
             body.add(formEncode(entry.getKey()) + "=" + formEncode(entry.getValue()));
         }
 
@@ -329,6 +332,28 @@ public class OAuth2TokenManager {
              * a form-encoded answer. */
             throw new OAuth2TokenException("Token response is not valid JSON");
         }
+    }
+
+    /**
+     * Token-request parameters go on the wire in one fixed order shared by every SDK; any key outside
+     * the list follows, sorted by key.
+     */
+    private static List<Map.Entry<String, String>> orderedParams(Map<String, String> params) {
+        List<String> order = List.of("grant_type", "code", "refresh_token", "username", "password",
+                "client_id", "client_secret", "redirect_uri", "scope");
+        List<Map.Entry<String, String>> known = new ArrayList<>();
+        List<Map.Entry<String, String>> rest = new ArrayList<>();
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            if (order.contains(entry.getKey())) {
+                known.add(entry);
+            } else {
+                rest.add(entry);
+            }
+        }
+        known.sort(Comparator.comparingInt((Map.Entry<String, String> e) -> order.indexOf(e.getKey())));
+        rest.sort(Map.Entry.comparingByKey());
+        known.addAll(rest);
+        return known;
     }
 
     /**

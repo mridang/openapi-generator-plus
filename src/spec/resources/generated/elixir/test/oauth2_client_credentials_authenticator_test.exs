@@ -45,7 +45,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
   end
 
   describe "OAuth2ClientCredentialsAuthenticator" do
-    test "nil client credentials are read from the environment and a missing one fails at construction" do
+    test "bhv auth 004 nil client credentials are read from the environment and a missing one fails at construction" do
       id = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID"
       secret = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET"
 
@@ -97,6 +97,31 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
 
     # The authenticator generated for the spec's client credentials scheme
     # carries the scopes the spec declares for that flow.
+    test "bhv authscheme 013 an empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable" do
+      id = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID"
+      secret = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET"
+
+      on_exit(fn ->
+        System.delete_env(id)
+        System.delete_env(secret)
+      end)
+
+      System.put_env(id, "env-client")
+      System.put_env(secret, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'client_secret': pass it, or set the environment variable #{secret}",
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+                       "https://api.example.com",
+                       nil,
+                       nil,
+                       "https://auth.example.com/token",
+                       []
+                     )
+                   end
+    end
+
     test "scheme authenticator keeps the declared scopes" do
       auth =
         PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.new(
@@ -186,7 +211,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert String.contains?(last_body, "client_secret=my-client-secret")
     end
 
-    test "token request body is in the fixed order" do
+    test "bhv authoauthtwoclientcred 016 token request body is in the fixed order" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -498,6 +523,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert shown =~ ~s(host: "https://api.example.com")
       assert shown =~ ~s(client_id: "my-client-id")
       assert shown =~ ~s(token_url: "https://auth.example.com/token")
+    end
+
+    test "bhv auth 001 a synchronous header call whose token step has no client raises and returns no headers" do
+      auth = create_authenticator()
+
+      assert_raise RuntimeError, ~r/ApiClient has not been injected/, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+      end
     end
   end
 end

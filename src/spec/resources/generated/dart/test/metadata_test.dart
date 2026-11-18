@@ -189,7 +189,21 @@ void main() {
 
   group('SKILLS.md', () {
     test(
-      'the error section names the root type and every branch of the tree',
+      'bhv skills 002 documents the retries in the configuration section',
+      () {
+        final skills = File(
+          '${Directory.current.path}/SKILLS.md',
+        ).readAsStringSync();
+        final start = skills.indexOf('## Configuration');
+        expect(start, greaterThanOrEqualTo(0));
+        final end = skills.indexOf('\n## ', start + 1);
+        final section = skills.substring(start, end < 0 ? skills.length : end);
+        expect(section, contains('### Retries'));
+      },
+    );
+
+    test(
+      'bhv skills 001 the error section names the root type and every branch of the tree',
       () {
         final skills = File(
           '${Directory.current.path}/SKILLS.md',
@@ -208,23 +222,26 @@ void main() {
   });
 
   group('README.md', () {
-    test('names the builder setter that rejects a SOCKS proxy', () {
-      final readme = File(
-        '${Directory.current.path}/README.md',
-      ).readAsStringSync();
-      expect(
-        readme,
-        contains(
-          '`TransportOptionsBuilder.proxy()` accepts only `http://` '
-          'and `https://` URLs.',
-        ),
-      );
-      expect(readme, isNot(contains('`TransportOptions.proxy()`')));
-      expect(
-        () => TransportOptionsBuilder().proxy('socks5://proxy:1080').build(),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'bhv options 044 names the builder setter that rejects a SOCKS proxy',
+      () {
+        final readme = File(
+          '${Directory.current.path}/README.md',
+        ).readAsStringSync();
+        expect(
+          readme,
+          contains(
+            '`TransportOptionsBuilder.proxy()` accepts only `http://` '
+            'and `https://` URLs.',
+          ),
+        );
+        expect(readme, isNot(contains('`TransportOptions.proxy()`')));
+        expect(
+          () => TransportOptionsBuilder().proxy('socks5://proxy:1080').build(),
+          throwsArgumentError,
+        );
+      },
+    );
   });
 
   group('file header', () {
@@ -465,20 +482,23 @@ void main() {
       },
     );
 
-    test('toString dumps the fields and the additionalProperties map', () {
-      final metadata = Metadata(
-        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
-        additionalProperties: const {
-          'tags': ['a', 'b'],
-        },
-      );
+    test(
+      'bhv models 012 toString dumps the fields and the additionalProperties map',
+      () {
+        final metadata = Metadata(
+          createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+          additionalProperties: const {
+            'tags': ['a', 'b'],
+          },
+        );
 
-      final text = metadata.toString();
+        final text = metadata.toString();
 
-      expect(text, startsWith('Metadata('));
-      expect(text, contains('createdAt: 2024-01-15 10:30:00.000Z'));
-      expect(text, contains('additionalProperties: {tags: [a, b]}'));
-      expect(text, isNot(contains("Instance of")));
-    });
+        expect(text, startsWith('Metadata('));
+        expect(text, contains('createdAt: 2024-01-15 10:30:00.000Z'));
+        expect(text, contains('additionalProperties: {tags: [a, b]}'));
+        expect(text, isNot(contains("Instance of")));
+      },
+    );
   });
 }

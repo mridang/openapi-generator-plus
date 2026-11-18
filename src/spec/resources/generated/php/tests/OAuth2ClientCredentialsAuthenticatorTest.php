@@ -276,6 +276,29 @@ test('bhv authoauthtwoclientcred 001 client credentials basic auth keeps only th
         ->toBe('id-._~%2A%21%27%28%29:sec-._~%2A%21%27%28%29');
 });
 
+test('bhv authoauthtwoclientcred 016 the client credentials token request body uses a fixed parameter order', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'cc-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        ['read', 'write']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests[0]['body'] ?? '')->toBe(
+        'grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write'
+    );
+});
+
 test('bhv authoauthtwoclientcred 006 client credentials token request body keeps only the unreserved characters literal', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
@@ -363,4 +386,38 @@ test('bhv authoauthtwoclientcred 009 scheme wrapper sends the spec scopes to the
     expect($client->capturedRequests)->toHaveCount(1);
     expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/oauth/token');
     expect($client->capturedRequests[0]['body'] ?? '')->toContain('scope=' . str_replace('%20', '+', rawurlencode(implode(' ', ['pets:read', 'pets:write']))));
+});
+
+test('bhv authscheme 013 an empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/OAuth/*.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\OAuth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, OAuth2ClientCredentialsAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+        \assert(is_array($constants));
+        $variables = array_values(array_map(static function (mixed $name): string {
+            \assert(is_string($name));
+
+            return $name;
+        }, $constants));
+        foreach ($variables as $empty) {
+            $saved = [];
+            foreach ($variables as $variable) {
+                $saved[$variable] = getenv($variable);
+                putenv($variable === $empty ? $variable . '=' : $variable . '=set-value');
+            }
+            try {
+                expect(fn () => (new \ReflectionClass($class))->newInstance('https://api.example.com'))
+                    ->toThrow(\InvalidArgumentException::class, $empty);
+            } finally {
+                foreach ($saved as $variable => $value) {
+                    putenv($value === false ? $variable : $variable . '=' . $value);
+                }
+            }
+        }
+    }
+    expect($wrappers)->toBeGreaterThan(0);
 });

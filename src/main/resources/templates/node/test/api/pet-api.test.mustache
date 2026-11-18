@@ -16,7 +16,7 @@ import { TransportOptions } from '../../src/transport-options{{importFileExtensi
 import { Servers } from '../../src/servers{{importFileExtension}}';
 import { Medication, Pet, PetCriteria, PetStatusEnum, PetTreatment, PhotoMetadata, SetPetAvatarThumbnailRequest, Swatch } from '../../src/models/index{{importFileExtension}}';
 import { ApiError } from '../../src/errors/api-error{{importFileExtension}}';
-import { InternalServerError, NotFoundError } from '../../src/errors/index{{importFileExtension}}';
+import { BadGatewayError, BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NotFoundError, UnauthorizedError, UnprocessableEntityError } from '../../src/errors/index{{importFileExtension}}';
 import { SerializationError } from '../../src/errors/serialization-error{{importFileExtension}}';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
@@ -299,7 +299,7 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
-  test('the per-call request options follow the server argument', async () => {
+  test('bhv options 054 the per-call request options follow the server argument', async () => {
     class MockServer extends GetExternalPetInfoServer {
       getUrl(): string {
         return baseUrl;
@@ -444,6 +444,28 @@ describe('PetApi', () => {
     }
   });
 
+  test.each([
+    [400, BadRequestError],
+    [401, UnauthorizedError],
+    [403, ForbiddenError],
+    [404, NotFoundError],
+    [409, ConflictError],
+    [418, ClientError],
+    [422, UnprocessableEntityError],
+    [500, InternalServerError],
+    [502, BadGatewayError],
+  ])('bhv operations 138 getPetById picks the status-specific error for status %i', async (status, expected) => {
+    const statusApi = new PetApi(
+      new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+      Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
+    );
+
+    const error = await statusApi.getPetById(1).catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(expected);
+    expect((error as ClientError).statusCode).toBe(status);
+  });
+
   test('bhv operations 034 download binary mock', async () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/octet-stream', 'FAKE_BINARY_DATA');
     try {
@@ -495,13 +517,25 @@ describe('PetApi', () => {
     }
   });
 
+  test('bhv operations 136 a bare JSON null body from a model operation throws an ApiError naming the operation', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', 'null');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+      await expect(mockApi.getPetById(1)).rejects.toThrow(
+        'Expected a response body for getPetById but received none',
+      );
+    } finally {
+      close();
+    }
+  });
+
   // Canonical #11 — a malformed 2xx response body must FAIL LOUD. The
   // convenience method routes the body through ObjectSerializer.parseJson and
   // the model deserializer; both throw, so the error propagates instead of the
   // raw string being returned. Two failure modes are exercised: syntactically
   // broken JSON (parse error) and well-formed JSON of the wrong shape (a Pet
   // payload missing the required `name`, which the deserializer rejects).
-  test('malformed JSON 2xx body propagates the deserialize error', async () => {
+  test('bhv operations 130 a malformed 2xx JSON body propagates the deserialization error', async () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '{ not json');
     try {
       // The error propagates instead of the raw string being returned.
@@ -511,7 +545,7 @@ describe('PetApi', () => {
     }
   });
 
-  test('well-formed-but-invalid 2xx body fails loud, not returned raw', async () => {
+  test('bhv operations 127 a malformed 2xx body fails loud with a serialization error, not returned raw', async () => {
     // 200 with valid JSON whose shape violates the Pet contract (required
     // `name` absent). The model deserializer must throw rather than hand back
     // a partial object or the raw dict.
@@ -581,7 +615,7 @@ describe('PetApi', () => {
   // multipart op's params) and reads each back, which compiles under tsc
   // precisely because readonly members are still assignable via object
   // literals; only post-construction mutation is rejected.
-  test('Options object literals are constructible and readable', () => {
+  test('bhv options 062 Options object literals are constructible and readable', () => {
     const uploadOptions: UploadPetDocumentOptions = {
       file: Buffer.from('doc'),
       documentType: 'invoice',
@@ -630,9 +664,20 @@ describe('PetApi form-urlencoded body serialization', () => {
     });
   }
 
+  test('bhv operations 156 setPetPreferences sends its form fields in the declared order', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { note: 'calm', nickname: 'Rex', tags: ['fast'] };
+      await api.setPetPreferences(1, options);
+      expect([...new URLSearchParams(getCapture().body).keys()]).toEqual(['nickname', 'tags', 'note']);
+    } finally {
+      close();
+    }
+  });
+
   // #1 — an array form field is emitted as repeated keys (tags=a&tags=b),
   // never a single comma-joined value (tags=a%2Cb).
-  test('#1 array form field emits repeated keys', async () => {
+  test('bhv serializationwire 053 an array form field emits repeated keys', async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = { nickname: 'Rex', tags: ['fast', 'loyal'] };
@@ -667,7 +712,7 @@ describe('PetApi form-urlencoded body serialization', () => {
 
   // #3 — spaces in a form-body value are encoded as '+', not %20, the
   // canonical application/x-www-form-urlencoded encoding.
-  test('#3 space in a form value encodes as plus', async () => {
+  test('bhv serializationwire 055 a space in a form value encodes as plus', async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = { nickname: 'good boy', note: 'very fast' };
@@ -926,6 +971,27 @@ describe('PetApi request content-type selector', () => {
     }
   });
 
+  test('bhv operations 147 multipart parts are sent in declaration order', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      // The options are handed over in the reverse of the declared order.
+      const options: UploadPetDocumentOptions = {
+        notes: 'n',
+        documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
+        file: Buffer.from([0x25, 0x50, 0x44, 0x46]),
+      };
+
+      await api.uploadPetDocument(1, options, 'multipart/form-data').catch(() => undefined);
+
+      const bodyText = getCapture().body.toString('latin1');
+      const positions = ['file', 'documentType', 'notes'].map((name) => bodyText.indexOf(`name="${name}"`));
+      expect(positions.every((position) => position >= 0)).toBe(true);
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    } finally {
+      close();
+    }
+  });
+
   test('bhv operations 072 setPetAvatar with the JSON selector sends the binary body verbatim', async () => {
     const { api, getCapture, close } = await captureRawBody();
     try {
@@ -953,9 +1019,8 @@ describe('PetApi request content-type selector', () => {
 });
 
 describe('PetApi operation servers', () => {
-  test.each(['a$&b', '{version}', 'unknown'])(
-    'a server variable value outside the declared enum is rejected: %s',
-    (value) => {
+  test('bhv servers 020 a server variable value outside the declared enum is rejected', () => {
+    for (const value of ['a$&b', '{version}', 'unknown']) {
       expect(
         () =>
           new GetStagingPetInfoServerStagingServer(
@@ -963,8 +1028,15 @@ describe('PetApi operation servers', () => {
             GetStagingPetInfoServerVersion.V2,
           ),
       ).toThrow(/Invalid value .* for server variable 'environment'/);
-    },
-  );
+    }
+  });
+
+  test('bhv servers 021 a server URL with special characters in its default and enum values resolves to the raw characters', () => {
+    const server = Servers.SERVER_2;
+
+    expect(server.getUrl()).toBe("https://o'neil.example.com/api");
+    expect(server.getUrl({ tenant: 'a&b' })).toBe('https://a&b.example.com/api');
+  });
 
   test('a declared server variable value is substituted into the URL', () => {
     const server = new GetStagingPetInfoServerStagingServer(
@@ -1073,27 +1145,35 @@ describe('PetApi against a recording client', () => {
     expect(recorded[0]!.url.startsWith('https://sandbox.example.com/api/v3/')).toBe(true);
   });
 
-  test.each([
-    [new GetMultiServerPetInfoServerPrimary(), 'https://primary.example.com/v1/'],
-    [new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.AP), 'https://ap.example.com/v1/'],
-  ])('bhv operations 085 the multi-server operation offers a fixed and a templated server: %j', async (server, prefix) => {
-    await recordingApi.getMultiServerPetInfo(1, server);
+  test('bhv operations 085 the multi-server operation offers a fixed and a templated server', async () => {
+    const rows: Array<[unknown, string]> = [
+      [new GetMultiServerPetInfoServerPrimary(), 'https://primary.example.com/v1/'],
+      [new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.AP), 'https://ap.example.com/v1/'],
+    ];
+    for (const [server, prefix] of rows) {
+      recorded.length = 0;
+      await recordingApi.getMultiServerPetInfo(1, server as Parameters<typeof recordingApi.getMultiServerPetInfo>[1]);
 
-    expect(recorded).toHaveLength(1);
-    expect(recorded[0]!.url.startsWith(prefix)).toBe(true);
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.url.startsWith(prefix)).toBe(true);
+    }
   });
 
-  test.each([
-    [GetMultiServerPetInfoServerChannel.A_B, 'https://eu.mirror.example.com/a&b/v1/pet/3/multi'],
-    [GetMultiServerPetInfoServerChannel.IT_S, "https://eu.mirror.example.com/it's/v1/pet/3/multi"],
-  ])('bhv operations 084 the mirror operation server resolves reserved characters raw for channel %s', async (channel, expected) => {
-    await recordingApi.getMultiServerPetInfo(
-      3,
-      new GetMultiServerPetInfoServerMirror(GetMultiServerPetInfoServerMirrorRegion.EU, channel),
-    );
+  test('bhv operations 084 the mirror operation server resolves reserved characters raw', async () => {
+    const rows: Array<[GetMultiServerPetInfoServerChannel, string]> = [
+      [GetMultiServerPetInfoServerChannel.A_B, 'https://eu.mirror.example.com/a&b/v1/pet/3/multi'],
+      [GetMultiServerPetInfoServerChannel.IT_S, "https://eu.mirror.example.com/it's/v1/pet/3/multi"],
+    ];
+    for (const [channel, expected] of rows) {
+      recorded.length = 0;
+      await recordingApi.getMultiServerPetInfo(
+        3,
+        new GetMultiServerPetInfoServerMirror(GetMultiServerPetInfoServerMirrorRegion.EU, channel),
+      );
 
-    expect(recorded).toHaveLength(1);
-    expect(recorded[0]!.url).toBe(expected);
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.url).toBe(expected);
+    }
   });
 
   test('bhv operations 051 getPetByName rejects a dot segment before dispatch', async () => {
@@ -1124,6 +1204,12 @@ describe('PetApi against a recording client', () => {
       expect(recorded[0]!.url).toContain(`/pet/byName/${name}?`);
     }
   );
+
+  test('bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire', async () => {
+    await recordingApi.getPetTag(5, 'sample', { revision: 'v1.0/beta:rc1@x,y;z=1' });
+
+    expect(recorded[0]!.url).toContain('revision=v1.0/beta:rc1@x,y;z=1');
+  });
 
   test('bhv operations 066 getPetTag percent-encodes # in an allowReserved value', async () => {
     await recordingApi.getPetTag(5, 'sample', { revision: 'v1.0/beta:rc1#frag' });
@@ -1197,6 +1283,33 @@ describe('PetApi against a recording client', () => {
     expect((error as Error).constructor).toBe(TypeError);
     expect((error as Error).message).toBe(
       "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv operations 125 a required query param that is null sends no request', async () => {
+    const error = await recordingApi
+      .getPetByName('x', { category: null, xCorrelationId: 'sample-correlation' } as never)
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'category' when calling PetApi.getPetByName",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv operations 132 a missing required options object or body names the first required field', async () => {
+    const optionsError = await recordingApi.getPetByName('x', undefined as never).catch((e: unknown) => e);
+    const bodyError = await recordingApi.addPet(undefined as never).catch((e: unknown) => e);
+
+    expect((optionsError as Error).constructor).toBe(TypeError);
+    expect((optionsError as Error).message).toBe(
+      "Missing the required parameter 'category' when calling PetApi.getPetByName",
+    );
+    expect((bodyError as Error).constructor).toBe(TypeError);
+    expect((bodyError as Error).message).toBe(
+      "Missing the required parameter 'pet' when calling PetApi.addPet",
     );
     expect(recorded).toHaveLength(0);
   });
@@ -1291,7 +1404,7 @@ describe('PetApi against a recording client', () => {
     expect(server.getUrl({ tenant: 'a&b' })).toBe('https://a&b.example.com/api');
   });
 
-  test('without a variant the client base URL is used', async () => {
+  test('bhv operations 153 an operation with no chosen server is sent to the client base URL', async () => {
     await recordingApi.getExternalPetInfo(1);
 
     expect(recorded[0]!.url.startsWith('https://client-base.example.com/')).toBe(true);
@@ -1309,7 +1422,7 @@ describe('PetApi against a recording client', () => {
     expect(new URL(recorded[0]!.url).pathname).toBe('/pet/1/summary/;asOf=2024-01-15');
   });
 
-  test('getPetSummary sends each format:date array item as YYYY-MM-DD', async () => {
+  test('bhv serializationparam 120 getPetSummary sends each format:date array item as YYYY-MM-DD', async () => {
     await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {
       session: 'abc',
       days: [new Date(Date.UTC(2024, 0, 15, 10, 30)), new Date(Date.UTC(2024, 1, 1, 23, 59))],

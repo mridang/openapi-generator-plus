@@ -76,6 +76,20 @@ void main() {
     );
 
     test(
+      'bhv authoauthtwoimplicit 016 an implicit access token may contain a tab',
+      () {
+        final auth = _createAuthenticator();
+
+        auth.setAccessToken('tab\tinside');
+
+        expect(
+          auth.authHeaders()['Authorization'],
+          equals('Bearer tab\tinside'),
+        );
+      },
+    );
+
+    test(
       'bhv authoauthtwoimplicit 007 getAuthHeaders returns Bearer after setAccessToken',
       () {
         final auth = _createAuthenticator();
@@ -157,24 +171,27 @@ void main() {
   });
 
   group('OAuth2ImplicitAuthenticator wire format', () {
-    test('rejects a non-ASCII access token with the RFC 7230 message', () {
-      final auth = _createAuthenticator();
+    test(
+      'bhv authoauthtwoimplicit 014 rejects a non-ASCII access token with the RFC 7230 message',
+      () {
+        final auth = _createAuthenticator();
 
-      expect(
-        () => auth.setAccessToken('tök'),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e.message,
-            'message',
-            equals(
-              'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)',
+        expect(
+          () => auth.setAccessToken('tök'),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              equals(
+                'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)',
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
-    test('rejects CR, LF and NUL in the access token', () {
+    test('bhv auth 009 rejects CR, LF and NUL in the access token', () {
       final auth = _createAuthenticator();
 
       for (final token in ['a\rb', 'a\nb', 'a\x00b']) {

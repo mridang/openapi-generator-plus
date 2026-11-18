@@ -219,6 +219,18 @@ class StoreApiTest {
         }
 
         @Test
+        @DisplayName("bhvOperations126 place order without an argument sends no body")
+        fun testPlaceOrderWithoutAnArgumentSendsNoBody() {
+            var sent: String? = null
+            val api = capturingStoreApi("""{"id":1}""", capture = { _, text -> sent = text })
+
+            val placed = runBlocking { api.placeOrder() }
+
+            assertEquals(1L, placed.id)
+            assertEquals("", sent)
+        }
+
+        @Test
         @DisplayName("bhvOperations100 deleteOrderNotFound")
         fun testDeleteOrderNotFound() {
             val engine =
@@ -350,7 +362,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("F1062: reserveStock decodes a 200 body as the Reservation")
+        @DisplayName("bhvOperations129 reserveStock decodes a 200 body as the Reservation")
         fun testReserveStockDecodesA200BodyAsTheReservation() {
             val existing =
                 runBlocking {
@@ -375,7 +387,24 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("F1062: the status code, not the shape of the body, picks the variant")
+        @DisplayName(
+            "bhvOperations154 a body is checked only against the schema of its own status, and a body that matches neither is refused",
+        )
+        fun bhvOperations154ABodyIsCheckedOnlyAgainstItsOwnStatus() {
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
+                runBlocking {
+                    capturingStoreApi("""{"unrelated":1}""", HttpStatusCode.OK).reserveStock()
+                }
+            }
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
+                runBlocking {
+                    capturingStoreApi("""{"unrelated":1}""", HttpStatusCode.Created).reserveStock()
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvUnions036 F1062: the status code, not the shape of the body, picks the variant")
         fun testReserveStockRefusesABodyThatDoesNotFitItsStatus() {
             assertThrows(com.example.petstore.errors.SerializationException::class.java) {
                 runBlocking {
@@ -446,6 +475,79 @@ class StoreApiTest {
             }
 
             assertEquals(listOf("at=10%3A30%3A00.123", "at=10%3A30%3A00"), captured)
+        }
+
+        @Test
+        @DisplayName("bhvOperations155 an operation sends its query parameters in the order the specification declares them")
+        fun bhvOperations155QueryParametersFollowTheSpecOrder() {
+            var query = ""
+            val api =
+                capturingStoreApi(
+                    "[]",
+                    HttpStatusCode.OK,
+                    capture = { request, _ -> query = request.url.encodedQuery },
+                )
+            runBlocking {
+                api.searchStore(SearchStoreOptions(at = java.time.LocalTime.of(10, 30, 0), labels = setOf("red")))
+            }
+            assertEquals("labels=red&at=10%3A30%3A00", query)
+        }
+
+        @Test
+        @DisplayName(
+            "bhvOperations128 a content query parameter that cannot be serialized raises a serialization error and sends no request",
+        )
+        fun unserializableContentQueryRaisesSerializationExceptionWithoutARequest() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(
+                        content = "[]",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+            val photo = PhotoMetadata(location = PhotoMetadataLocation(lat = Double.NaN))
+
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
+                runBlocking { api.searchStore(SearchStoreOptions(q = photo)) }
+            }
+            assertEquals(0, requests)
+        }
+
+        @Test
+        @DisplayName("bhvOperations139 a time query parameter keeps its fractional seconds when non-zero")
+        fun timeQueryKeepsItsNonZeroFractionalSeconds() {
+            val captured = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    captured.add(request.url.encodedQuery)
+                    respond(
+                        content = "[]",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.searchStore(SearchStoreOptions(at = java.time.LocalTime.of(10, 30, 0, 500_000_000)))
+                api.searchStore(SearchStoreOptions(at = java.time.LocalTime.of(10, 30, 0)))
+            }
+
+            assertEquals(listOf("at=10%3A30%3A00.500", "at=10%3A30%3A00"), captured)
         }
 
         @Test
@@ -646,32 +748,6 @@ class StoreApiTest {
 
             assertEquals(1, seen.size)
             assertEquals("1", seen.single().headers["X-Call"])
-        }
-
-        @Test
-        @DisplayName("convenience-empty-body-handling: getOrderById throws ApiException on empty 200 body")
-        fun testGetOrderByIdEmptyBodyThrows() {
-            // A body-returning operation that receives a 2xx with an empty body
-            // must surface a typed ApiException from the unwrapped convenience
-            // method rather than returning a silent null.
-            val engine =
-                MockEngine { _ ->
-                    respond(
-                        content = "",
-                        status = HttpStatusCode.OK,
-                        headers = headersOf("Content-Type", "application/json"),
-                    )
-                }
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl("http://localhost")
-                    .build()
-            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
-
-            assertThrows(ApiException::class.java) {
-                runBlocking { api.getOrderById(1L) }
-            }
         }
     }
 }

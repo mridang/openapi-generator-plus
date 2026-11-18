@@ -7,6 +7,7 @@
 #nullable enable
 
 using PetstoreClient;
+using PetstoreClient.Errors;
 using PetstoreClient.Models;
 using Xunit;
 
@@ -36,7 +37,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void EnumStringifySerializesWireValue()
+    public void BhvSerialization001EnumStringifySerializesWireValue()
     {
         Assert.Equal("red", ObjectSerializer.Stringify(TestHue.Red));
     }
@@ -55,6 +56,15 @@ public class ValueSerializerTest
         Assert.Equal(
             "blue,red",
             ValueSerializer.SerializeStyled("labels", two, "query", "array", null, "form", false)
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam105SerializeStyledFormScalar()
+    {
+        Assert.Equal(
+            "blue",
+            ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "form", true)
         );
     }
 
@@ -79,6 +89,15 @@ public class ValueSerializerTest
     }
 
     // -- path location --
+
+    [Fact]
+    public void BhvSerializationparam106PathWithNullStyleBehavesLikeSimple()
+    {
+        Assert.Equal(
+            "5",
+            ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false)
+        );
+    }
 
     [Fact]
     public void BhvSerializationparam062PathNullReturnsEmptyString()
@@ -251,7 +270,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void FormStyleArrayKeepsAnEmptySlotForANullElement()
+    public void BhvSerializationparam115FormStyleArrayKeepsAnEmptySlotForANullElement()
     {
         Assert.Equal(
             "1,,3",
@@ -265,6 +284,107 @@ public class ValueSerializerTest
                 false
             )
         );
+    }
+
+    [Fact]
+    public void BhvSerializationparam108NestedObjectLeafInStyledParameterIsSerializationError()
+    {
+        var nested = new Dictionary<string, object?>
+        {
+            ["a"] = new Dictionary<string, object?> { ["b"] = 1 },
+        };
+
+        Assert.Throws<SerializationException>(() =>
+            ValueSerializer.SerializeStyled(
+                "criteria",
+                nested,
+                "query",
+                "object",
+                null,
+                "form",
+                true
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam109UnknownStyleFallsBackToPlainValue()
+    {
+        Assert.Equal(
+            "5",
+            ValueSerializer.SerializeStyled("id", "5", "query", "string", "", "unknownStyle", false)
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam110DateValueIsWrittenAsYyyyMmDd()
+    {
+        Assert.Equal(
+            "2024-01-15",
+            ValueSerializer.Serialize(new DateOnly(2024, 1, 15), "query", "string")
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam111DeepObjectWritesEachPropertyAsNameKey()
+    {
+        var result = ValueSerializer.SerializeDeepObject(
+            "filter",
+            new Dictionary<string, object?> { { "color", "blue" } }
+        );
+
+        Assert.Single(result);
+        Assert.Equal("blue", result["filter[color]"]);
+    }
+
+    [Fact]
+    public void BhvSerializationparam117SetInFormStyleWithoutExplodeJoinsLikeAnArray()
+    {
+        Assert.Equal(
+            "blue,red",
+            ValueSerializer.SerializeStyled(
+                "labels",
+                new HashSet<object> { "blue", "red" },
+                "query",
+                "array",
+                null,
+                "form",
+                false
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam119TildeIsKeptLiteralInPathValue()
+    {
+        Assert.Equal(
+            "a~b",
+            ValueSerializer.SerializeStyled("id", "a~b", "path", "string", null, "simple", false)
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam120ArrayOfDatesWritesEachAsYyyyMmDd()
+    {
+        var dates = new List<object> { new DateOnly(2024, 1, 15), new DateOnly(2024, 2, 1) };
+
+        var result = ValueSerializer.SerializeStyled(
+            "dates",
+            dates,
+            "query",
+            "array",
+            null,
+            "form",
+            true
+        );
+
+        Assert.Equal(new List<string> { "2024-01-15", "2024-02-01" }, result);
+    }
+
+    [Fact]
+    public void BhvSerializationparam122AllowReservedKeepsReservedCharsLiteral()
+    {
+        Assert.Equal("a/b:c?d=e&f;g", ValueSerializer.EncodeQueryAllowingReserved("a/b:c?d=e&f;g"));
     }
 
     [Fact]
@@ -761,15 +881,6 @@ public class ValueSerializerTest
     // -- serializeStyled: null style falls back to location default --
 
     [Fact]
-    public void NullStyleFallsBackToLocationDefault()
-    {
-        Assert.Equal(
-            "5",
-            ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false)
-        );
-    }
-
-    [Fact]
     public void BhvSerializationparam035EmptyStyleFallsBackToLocationDefault()
     {
         Assert.Equal(
@@ -868,7 +979,9 @@ public class ValueSerializerTest
     [InlineData("-")]
     [InlineData(".")]
     [InlineData("_")]
-    public void PathSegmentKeepsEachSubDelimiterAndUnreservedCharacterLiteral(string character)
+    public void BhvSerialization005PathSegmentKeepsEachSubDelimiterAndUnreservedCharacterLiteral(
+        string character
+    )
     {
         string value = "a" + character + "b";
         Assert.Equal(value, ValueSerializer.Serialize(value, "path", "string"));
@@ -1285,6 +1398,74 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
                 TestHue.Green => "green",
                 _ => throw new System.Text.Json.JsonException(),
             }
+        );
+    }
+
+    [Fact]
+    public void BhvSerialization015MatrixAndLabelStylesExpandAnObjectPerTheExplodeFlag()
+    {
+        var category = new Category { Id = 3, Name = "lab" };
+        Assert.Equal(
+            ";id=3;name=lab",
+            ValueSerializer.SerializeStyled("c", category, "query", "object", null, "matrix", true)
+        );
+        Assert.Equal(
+            ";c=id,3,name,lab",
+            ValueSerializer.SerializeStyled("c", category, "query", "object", null, "matrix", false)
+        );
+        Assert.Equal(
+            ".id=3.name=lab",
+            ValueSerializer.SerializeStyled("c", category, "query", "object", null, "label", true)
+        );
+        Assert.Equal(
+            ".id,3,name,lab",
+            ValueSerializer.SerializeStyled("c", category, "query", "object", null, "label", false)
+        );
+    }
+
+    [Theory]
+    [InlineData("spaceDelimited", "id 3 name lab")]
+    [InlineData("pipeDelimited", "id|3|name|lab")]
+    public void BhvSerialization016ObjectInADelimitedStyleIsAlternatingKeysAndValues(
+        string style,
+        string expected
+    )
+    {
+        var category = new Category { Id = 3, Name = "lab" };
+        Assert.Equal(
+            expected,
+            ValueSerializer.SerializeStyled("c", category, "query", "object", null, style, false)
+        );
+    }
+
+    [Theory]
+    [InlineData("matrix")]
+    [InlineData("label")]
+    [InlineData("simple")]
+    public void BhvSerialization017ModelObjectParameterUsesWireNamesInDeclarationOrder(string style)
+    {
+        var category = new Category { Id = 3, Name = "lab" };
+        string text = Assert.IsType<string>(
+            ValueSerializer.SerializeStyled("c", category, "query", "object", null, style, false)
+        );
+        Assert.True(
+            text.IndexOf("id", StringComparison.Ordinal)
+                < text.IndexOf("name", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void BhvSerialization018ANestedObjectInsideAnObjectValuedParameterIsRefused()
+    {
+        var nested = new Dictionary<string, object?>
+        {
+            {
+                "outer",
+                new Dictionary<string, object?> { { "inner", "1" } }
+            },
+        };
+        Assert.Throws<SerializationException>(() =>
+            ValueSerializer.SerializeStyled("c", nested, "query", "object", null, "matrix", true)
         );
     }
 }

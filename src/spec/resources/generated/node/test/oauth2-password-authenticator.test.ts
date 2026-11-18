@@ -85,6 +85,43 @@ describe("OAuth2PasswordAuthenticator", () => {
     expect(params.get("grant_type")).toBe("password");
   });
 
+  test("bhv authoauthtwopassword 021 the password grant token request body uses a fixed parameter order", async () => {
+    await authenticator.getAuthHeadersAsync();
+    expect(mockClient.lastBody).toBe(
+      "grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+    );
+  });
+
+  test("bhv authoauthtwopassword 022 the first grant goes to the token URL and the refresh grant to the refresh URL", async () => {
+    const routed = new OAuth2PasswordAuthenticator(
+      "https://api.example.com",
+      "my-client-id",
+      "my-client-secret",
+      "https://auth.example.com/token",
+      "testuser",
+      "testpass",
+      ["read", "write"],
+      "https://auth.example.com/refresh",
+    );
+    const client = new MockApiClient();
+    client.queued = [
+      {
+        status: 200,
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
+      },
+      { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
+    ];
+    routed.setApiClient(client);
+
+    await routed.getAuthHeadersAsync();
+    await routed.getAuthHeadersAsync();
+
+    expect(client.calls.map((call) => call.url)).toEqual([
+      "https://auth.example.com/token",
+      "https://auth.example.com/refresh",
+    ]);
+  });
+
   test("bhv authoauthtwopassword 016 sends username and password", async () => {
     await authenticator.getAuthHeadersAsync();
 
@@ -164,17 +201,6 @@ describe("OAuth2PasswordAuthenticator", () => {
 
   test("bhv authoauthtwopassword 003 getHost returns configured host", () => {
     expect(authenticator.getHost()).toBe("https://api.example.com");
-  });
-
-  test("client secret and password are not leaked in default string representation", () => {
-    // client-secret-leak-in-default-repr: console.log / util.inspect /
-    // JSON.stringify must never expose the stored client secret or the
-    // resource-owner password.
-    expect(util.inspect(authenticator)).not.toContain("my-client-secret");
-    expect(util.inspect(authenticator)).not.toContain("testpass");
-    expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
-    expect(JSON.stringify(authenticator)).not.toContain("testpass");
-    expect(util.inspect(authenticator)).toContain("***");
   });
 
   it("bhv authoauthtwopassword 007 redacts secret", () => {
@@ -333,6 +359,30 @@ describe("OAuth2PasswordAuthenticator", () => {
       "https://auth.example.com/token",
     ]);
     expect(mockClient.calls[1]!.params.get("grant_type")).toBe("refresh_token");
+  });
+
+  test("bhv authoauthtwopassword 020 without a refreshUrl the refresh grant also goes to tokenUrl", async () => {
+    mockClient.queued = [
+      {
+        status: 200,
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
+      },
+      { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
+    ];
+
+    await authenticator.getAuthHeadersAsync();
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 120_000;
+    try {
+      await authenticator.getAuthHeadersAsync();
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect(mockClient.calls.map((call) => call.url)).toEqual([
+      "https://auth.example.com/token",
+      "https://auth.example.com/token",
+    ]);
   });
 
   describe("refresh grant client authentication", () => {

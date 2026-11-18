@@ -172,6 +172,13 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_headers_029_header_selector_accept_is_empty_when_every_entry_is_blank() {
+        let hs = HeaderSelector::new();
+
+        assert_eq!("", hs.select_accept_header(&["", "   "]));
+    }
+
+    #[test]
     fn test_bhv_headers_023_header_selector_select_headers_with_single_accept() {
         let hs = HeaderSelector::new();
 
@@ -209,6 +216,13 @@ mod tests {
         let headers = hs.select_headers(&[], "application/json", false);
 
         assert!(!headers.contains_key("Accept"));
+    }
+
+    #[test]
+    fn test_bhv_headers_027_select_accept_header_returns_empty_string_for_empty_accept() {
+        let hs = HeaderSelector::new();
+
+        assert_eq!("", hs.select_accept_header(&[]));
     }
 
     #[test]

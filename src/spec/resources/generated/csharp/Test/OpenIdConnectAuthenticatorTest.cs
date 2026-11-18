@@ -26,6 +26,17 @@ public class OpenIdConnectAuthenticatorTest
             );
         }
 
+        public void EnqueueWithCacheControl(string body, string cacheControl)
+        {
+            _responses.Enqueue(
+                new ApiHttpResponse(
+                    200,
+                    body,
+                    new Dictionary<string, string> { ["Cache-Control"] = cacheControl }
+                )
+            );
+        }
+
         public string? LastBody { get; private set; }
         public Uri? LastUrl { get; private set; }
         public string? LastMethod { get; private set; }
@@ -72,7 +83,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public void SyncAuthHeadersThrowsTheCanonicalAsyncExchangeError()
+    public void BhvAuth001SyncAuthHeadersThrowsTheCanonicalAsyncExchangeError()
     {
         OpenIdConnectAuthenticator auth = CreateAuthenticator();
 
@@ -188,7 +199,9 @@ public class OpenIdConnectAuthenticatorTest
         auth.SetApiClient(client);
 
         await auth.ExchangeCodeAsync("oidc-code");
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer oidc-tok", headers["Authorization"]);
     }
@@ -277,7 +290,7 @@ public class OpenIdConnectAuthenticatorTest
     [Theory]
     [InlineData("http://auth.example.com/token", "https://auth.example.com/authorize")]
     [InlineData("https://auth.example.com/token", "http://auth.example.com/authorize")]
-    public async Task RejectsADiscoveredEndpointThatIsNotHttps(
+    public async Task BhvAuthoidc032RejectsADiscoveredEndpointThatIsNotHttps(
         string tokenEndpoint,
         string authorizationEndpoint
     )
@@ -352,7 +365,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task DiscoveryFailureNamesTheRequestMethodAndPath()
+    public async Task BhvAuthoidc033DiscoveryFailureNamesTheRequestMethodAndPath()
     {
         var client = new FakeApiClient();
         client.Enqueue("down", statusCode: 503);
@@ -460,6 +473,28 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvAuth011DiscoveryWithoutMaxAgeIsCachedForTheDefaultLifetime()
+    {
+        var client = new CacheControlApiClient("public");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(1, client.GetRequestCount);
+
+        var unparseable = new CacheControlApiClient("max-age=soon");
+        var second = CreateAuthenticator();
+        second.SetApiClient(unparseable);
+
+        await second.BuildAuthorizationUrlAsync();
+        await second.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(1, unparseable.GetRequestCount);
+    }
+
+    [Fact]
     public async Task BhvAuthoidc011FetchesDiscoveryDocumentOnlyOnce()
     {
         var client = new CountingApiClient();
@@ -482,6 +517,36 @@ public class OpenIdConnectAuthenticatorTest
     /// ToString() must redact the client secret: the raw value must be absent
     /// and the masked placeholder present.
     /// </summary>
+    [Fact]
+    public async Task BhvAuthoidc029ConcurrentCallersOnAColdAuthenticatorShareOneDiscoveryRequest()
+    {
+        var client = new CountingApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}"
+        );
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var calls = new List<Task<Uri>>();
+        for (int i = 0; i < 5; i++)
+        {
+            calls.Add(Task.Run(() => auth.BuildAuthorizationUrlAsync()));
+        }
+        Uri[] urls = await Task.WhenAll(calls);
+
+        Assert.Equal(1, client.GetRequestCount);
+        foreach (Uri url in urls)
+        {
+            Assert.StartsWith(
+                "https://auth.example.com/authorize?",
+                url.OriginalString,
+                StringComparison.Ordinal
+            );
+        }
+    }
+
     [Fact]
     public void BhvAuthoidc019RedactsSecret()
     {
@@ -569,9 +634,11 @@ public class OpenIdConnectAuthenticatorTest
 
         await auth.ExchangeCodeAsync("the-code");
         await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ServerException>(() =>
-            auth.GetAuthHeadersAsync()
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
         );
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer at-1", headers["Authorization"]);
     }
@@ -612,7 +679,9 @@ public class OpenIdConnectAuthenticatorTest
         auth.SetApiClient(new ExchangingApiClient());
 
         await auth.ExchangeCodeAsync("the-code");
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer at-1", headers["Authorization"]);
     }
@@ -655,16 +724,37 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvAuth029RediscoveryAfterExpirySendsTheRefreshToEndpointsOfTheNewDocument()
+    {
+        /* max-age=0 expires the discovery document at once. The second discovery
+           names a new token endpoint, so the refresh made after it must go to that
+           endpoint and not to the one from the first document. */
+        var client = new RotatingDiscoveryApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("the-code");
+        auth.InvalidateAccessToken();
+        _ = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, client.Discoveries);
+        Assert.Equal(new Uri("https://auth.example.com/token2"), client.LastTokenUrl);
+    }
+
+    [Fact]
     public async Task BhvAuthoidc015InvalidatingTheAccessTokenRefreshesWithTheHeldRefreshToken()
     {
         var client = new RotatingDiscoveryApiClient();
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
         await auth.ExchangeCodeAsync("the-code");
-        Assert.Equal("Bearer at-1", (await auth.GetAuthHeadersAsync())["Authorization"]);
+        Assert.Equal(
+            "Bearer at-1",
+            (await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken))["Authorization"]
+        );
 
         auth.InvalidateAccessToken();
-        var headers = await auth.GetAuthHeadersAsync();
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Bearer at-2", headers["Authorization"]);
         Assert.Contains(
@@ -676,7 +766,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public void InvalidatingBeforeAnyDiscoveryIsHarmless()
+    public void BhvAuth002InvalidatingBeforeAnyDiscoveryIsHarmless()
     {
         CreateAuthenticator().InvalidateAccessToken();
     }
@@ -686,6 +776,7 @@ public class OpenIdConnectAuthenticatorTest
         private int _tokens;
         public int Discoveries { get; private set; }
         public string? LastTokenBody { get; private set; }
+        public Uri? LastTokenUrl { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
@@ -710,6 +801,7 @@ public class OpenIdConnectAuthenticatorTest
             }
 
             LastTokenBody = body?.ToString();
+            LastTokenUrl = url;
             _tokens++;
             return Task.FromResult(
                 new ApiHttpResponse(
@@ -843,5 +935,54 @@ public class OpenIdConnectAuthenticatorTest
             }
             return Task.FromResult(_responses.Dequeue());
         }
+    }
+
+    private static string Discovery(string authorizePath)
+    {
+        return "{\"authorization_endpoint\":\"https://auth.example.com/"
+            + authorizePath
+            + "\","
+            + "\"token_endpoint\":\"https://auth.example.com/token\"}";
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc030DiscoveryServedWithMaxAgeZeroIsFetchedAgainOnEveryUse()
+    {
+        var client = new FakeApiClient();
+        client.EnqueueWithCacheControl(Discovery("authorize-1"), "max-age=0");
+        client.EnqueueWithCacheControl(Discovery("authorize-2"), "max-age=0");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        Uri second = await auth.BuildAuthorizationUrlAsync();
+
+        Assert.StartsWith(
+            "https://auth.example.com/authorize-2?",
+            second.AbsoluteUri,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc031CachedDiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed()
+    {
+        var client = new FakeApiClient();
+        client.EnqueueWithCacheControl(Discovery("authorize-1"), "max-age=1");
+        client.EnqueueWithCacheControl(Discovery("authorize-2"), "max-age=1");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await Task.Delay(TimeSpan.FromMilliseconds(1100), TestContext.Current.CancellationToken);
+        Uri second = await auth.BuildAuthorizationUrlAsync();
+
+        Assert.StartsWith(
+            "https://auth.example.com/authorize-2?",
+            second.AbsoluteUri,
+            StringComparison.Ordinal
+        );
     }
 }

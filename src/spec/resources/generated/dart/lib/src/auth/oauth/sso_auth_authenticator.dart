@@ -12,12 +12,18 @@ class SsoAuthAuthenticator extends OpenIdConnectAuthenticator {
   /// Creates an authenticator for the `ssoAuth` security scheme.
   SsoAuthAuthenticator({
     required super.host,
-    required super.clientId,
-    required super.clientSecret,
-    required super.redirectUri,
+    super.clientId,
+    super.clientSecret,
+    super.redirectUri,
+    super.environment,
   }) : super(
          openIdConnectUrl:
              'https://auth.example.com/.well-known/openid-configuration',
          scopes: [],
+         clientIdVariable: 'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID',
+         clientSecretVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET',
+         redirectUriVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI',
        );
 }

@@ -97,7 +97,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsTheTokenRequestFieldsInTheCanonicalOrder() {
+  void bhvAuthOauthTwoClientCred016SendsTheTokenRequestFieldsInTheCanonicalOrder() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -450,5 +450,18 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     assertTrue(
         java.util.Objects.requireNonNull(empty.getMessage()).contains(CLIENT_SECRET_VARIABLE),
         empty.getMessage());
+  }
+
+  @Test
+  void bhvAuthScheme013AnEmptyClientIdVariableIsUnsetAndNamesIt() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new MachineAuthClientCredentialsAuthenticator(
+                    "https://api.example.com", null, "x", Map.of(CLIENT_ID_VARIABLE, "")));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage()).contains(CLIENT_ID_VARIABLE),
+        ex.getMessage());
   }
 }

@@ -4,6 +4,18 @@ defmodule {{moduleName}}.TraceContextUtilTest do
 
   require OpenTelemetry.Tracer, as: Tracer
 
+  # A propagator that writes a traceparent only for a carrier holding the marker
+  # header, so the tests of this module that inject without it see no change.
+  defmodule MarkedPropagator do
+    def inject(_context, carrier, set_fun, _options) do
+      if Map.has_key?(carrier, "x-marked") do
+        set_fun.("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", carrier)
+      else
+        carrier
+      end
+    end
+  end
+
   defp traceparent(span_ctx, flags) do
     "00-#{:otel_span.hex_trace_id(span_ctx)}-#{:otel_span.hex_span_id(span_ctx)}-#{flags}"
   end
@@ -71,6 +83,19 @@ defmodule {{moduleName}}.TraceContextUtilTest do
       assert result["Content-Type"] == "application/json"
       assert result["X-Request-ID"] == "abc-123"
     end
+  end
+
+  test "bhv misc 002 a registered trace propagator is used to inject trace context and keeps headers already present" do
+    previous = :opentelemetry.get_text_map_injector()
+    :opentelemetry.set_text_map_injector(MarkedPropagator)
+    on_exit(fn -> :opentelemetry.set_text_map_injector(previous) end)
+
+    headers =
+      {{moduleName}}.TraceContextUtil.inject_trace_context(%{"x-marked" => "1", "x-keep" => "yes"})
+
+    assert headers["traceparent"] == "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+    assert headers["x-keep"] == "yes"
+    assert headers["x-marked"] == "1"
   end
 
   describe "inject_trace_context/1 with an active OpenTelemetry span" do

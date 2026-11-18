@@ -30,7 +30,18 @@ describe("BasicAuthenticator", () => {
     });
   });
 
-  it("a scheme-specific subclass prints its own class name", () => {
+  it("bhv authbasic 018 a password may contain a colon", () => {
+    const auth = new BasicAuthenticator(
+      "https://api.example.com",
+      "alice",
+      "p:ss",
+    );
+    expect(auth.getAuthHeaders()).toEqual({
+      Authorization: "Basic YWxpY2U6cDpzcw==",
+    });
+  });
+
+  it("bhv authbasic 020 a scheme-specific subclass masks the password in its debug output", () => {
     class PetStoreBasicAuthenticator extends BasicAuthenticator {}
     const auth = new PetStoreBasicAuthenticator(
       "https://api.example.com",
@@ -40,6 +51,17 @@ describe("BasicAuthenticator", () => {
     expect(util.inspect(auth)).toBe(
       "PetStoreBasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
     );
+  });
+
+  it("bhv errors 081 a refused username names the username and a refused password names the password", () => {
+    expect(
+      () =>
+        new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"),
+    ).toThrow(/username/);
+    expect(
+      () =>
+        new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"),
+    ).toThrow(/password/);
   });
 
   it("bhv authbasic 009 rejects username with crlf at construction", () => {
@@ -140,7 +162,7 @@ describe("BasicAuthenticator", () => {
       });
     });
 
-    it("each explicit value wins over its own variable", () => {
+    it("bhv authbasic 013 each explicit value wins over its own variable", () => {
       process.env[userVariable] = "from-env";
       process.env[secretVariable] = "from-env";
       const auth = new BasicAuthenticator(

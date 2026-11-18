@@ -17,6 +17,13 @@ test('bhv servers 013 the third global server keeps its hostile text unchanged',
     expect($tenant->enumValues)->toBe(['o\'neil', 'a&b']);
 });
 
+test('bhv servers 021 the third global server resolves to the raw characters', function (): void {
+    $server = Servers::all()[2];
+
+    expect($server->getUrl())->toBe('https://o\'neil.example.com/api');
+    expect($server->getUrl(['tenant' => 'a&b']))->toBe('https://a&b.example.com/api');
+});
+
 test('bhv servers 011 plain url template resolves unchanged', function (): void {
     $server = new ServerConfiguration(urlTemplate: 'https://api.example.com');
 
@@ -156,7 +163,7 @@ test('bhv servers 005 a placeholder introduced by a substituted value is not exp
     expect($server->getUrl())->toBe('https://{version}.example.com/v2');
 });
 
-test('a value holding replacement patterns is substituted literally', function (): void {
+test('bhv servers 023 a server variable value containing replacement patterns is substituted literally', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
         variables: [
@@ -192,4 +199,28 @@ test('bhv servers 014 a variable without an enum accepts any override', function
     );
 
     expect($server->getUrl(['env' => 'anything-goes']))->toBe('https://anything-goes.api.example.com');
+});
+
+test('bhv servers 025 changing the variables map after building the configuration leaves it unchanged', function (): void {
+    $variables = ['env' => new ServerVariable(defaultValue: 'api')];
+    $server = new ServerConfiguration(urlTemplate: 'https://{env}.example.com', variables: $variables);
+
+    $variables['env'] = new ServerVariable(defaultValue: 'other');
+    $variables['extra'] = new ServerVariable(defaultValue: 'x');
+
+    expect(array_keys($server->variables))->toBe(['env']);
+    expect($server->getUrl())->toBe('https://api.example.com');
+});
+
+test('bhv servers 028 a generated server and its variables cannot be changed after creation', function (): void {
+    $server = Servers::all()[2];
+    expect(function () use ($server): void {
+        (new \ReflectionProperty(ServerConfiguration::class, 'urlTemplate'))->setValue($server, 'https://evil.example.com');
+    })->toThrow(\Error::class);
+    expect(function () use ($server): void {
+        $variables = (new \ReflectionProperty(ServerConfiguration::class, 'variables'))->getValue($server);
+        \assert(is_array($variables));
+        $variables['tenant'] = new ServerVariable(defaultValue: 'x');
+        (new \ReflectionProperty(ServerConfiguration::class, 'variables'))->setValue($server, $variables);
+    })->toThrow(\Error::class);
 });

@@ -243,22 +243,22 @@ public abstract class BaseApi
 
             foreach (KeyValuePair<string, string> header in Config.DefaultHeaders)
             {
-                built[header.Key] = header.Value;
+                SetHeaderIgnoringCase(built, header.Key, header.Value);
             }
 
             foreach (KeyValuePair<string, string> header in headerParams)
             {
-                built[header.Key] = header.Value;
+                SetHeaderIgnoringCase(built, header.Key, header.Value);
             }
 
             if (effectiveAuth is not null)
             {
                 Dictionary<string, string> authHeaders = await effectiveAuth
-                    .GetAuthHeadersAsync()
+                    .GetAuthHeadersAsync(cancellationToken)
                     .ConfigureAwait(false);
                 foreach (KeyValuePair<string, string> header in authHeaders)
                 {
-                    built[header.Key] = header.Value;
+                    SetHeaderIgnoringCase(built, header.Key, header.Value);
                 }
 
                 Dictionary<string, string> cookies = effectiveAuth.GetCookieParams();
@@ -429,13 +429,12 @@ public abstract class BaseApi
         }
 
         Uri requestUri = new(url);
-        ApiHttpResponse response = await ApiClient
-            .SendRequestAsync(
+        ApiHttpResponse response = await SendRecordingRequestAsync(
+                ApiClient,
                 method,
                 requestUri,
                 headers,
                 requestBody,
-                false,
                 BuildHeadersAsync,
                 timeout,
                 maxRetries,
@@ -469,13 +468,12 @@ public abstract class BaseApi
             if (replayHeaders is not null)
             {
                 headers = replayHeaders;
-                response = await ApiClient
-                    .SendRequestAsync(
+                response = await SendRecordingRequestAsync(
+                        ApiClient,
                         method,
                         requestUri,
                         headers,
                         requestBody,
-                        false,
                         BuildHeadersAsync,
                         timeout,
                         maxRetries,
@@ -516,6 +514,7 @@ public abstract class BaseApi
                     typeof(T) == typeof(byte[])
                     && responseContentType != null
                     && HeaderSelector.IsJsonMime(responseContentType)
+                    && response.Body.TrimStart().StartsWith('"')
                 )
                 {
                     /* A top-level `format: byte` response carried as application/json
@@ -586,6 +585,45 @@ public abstract class BaseApi
         }
 
         return new ApiResult<T>(response.StatusCode, data, response.Body, response.Headers);
+    }
+
+    /// <summary>
+    /// Sends one request through the transport. A transport failure is raised without the
+    /// request it came from, so the method and path that failed are recorded on it here.
+    /// </summary>
+    private static async Task<ApiHttpResponse> SendRecordingRequestAsync(
+        IApiClient apiClient,
+        string method,
+        Uri requestUri,
+        Dictionary<string, string> headers,
+        object? requestBody,
+        Func<Task<Dictionary<string, string>>> refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await apiClient
+                .SendRequestAsync(
+                    method,
+                    requestUri,
+                    headers,
+                    requestBody,
+                    false,
+                    refreshHeaders,
+                    timeout,
+                    maxRetries,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        catch (NetworkException ex)
+        {
+            ex.RecordRequest(method, requestUri.AbsolutePath);
+            throw;
+        }
     }
 
     /// <summary>
@@ -863,6 +901,27 @@ public abstract class BaseApi
         return allowReserved
             ? ValueSerializer.EncodeQueryAllowingReserved(value)
             : Uri.EscapeDataString(value);
+    }
+
+    /// <summary>
+    /// Sets a request header. Header names are case-insensitive (RFC 9110
+    /// section 5.1), so any existing header of the same name in another case is
+    /// replaced rather than sent beside the new one.
+    /// </summary>
+    private static void SetHeaderIgnoringCase(
+        Dictionary<string, string> headers,
+        string name,
+        string value
+    )
+    {
+        foreach (string existing in headers.Keys.ToList())
+        {
+            if (string.Equals(existing, name, StringComparison.OrdinalIgnoreCase))
+            {
+                _ = headers.Remove(existing);
+            }
+        }
+        headers[name] = value;
     }
 
     /// <summary>RFC 6265 cookie-name validation (RFC 7230 token).</summary>

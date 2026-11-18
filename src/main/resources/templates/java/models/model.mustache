@@ -420,12 +420,14 @@ public class {{classname}} {
   private final java.util.List<Object> matchedInstances = new java.util.ArrayList<>();
 
   /**
-   * Wraps a single concrete variant of this union.
+   * Wraps a single concrete variant of this union; a {@code null} value wraps no instance.
    *
-   * @param value the concrete variant instance
+   * @param value the concrete variant instance, or {@code null} for none
    */
-  public {{classname}}(Object value) {
-    this.matchedInstances.add(value);
+  public {{classname}}(@Nullable Object value) {
+    if (value != null) {
+      this.matchedInstances.add(value);
+    }
   }
 
   /**
@@ -684,6 +686,11 @@ public class {{classname}} {
 public abstract class {{classname}} {
 {{/vendorExtensions.x-allof-base}}
 {{^vendorExtensions.x-allof-base}}
+{{#parent}}
+{{^vendorExtensions.x-allof-child}}
+@com.fasterxml.jackson.annotation.JsonTypeInfo(use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NONE)
+{{/vendorExtensions.x-allof-child}}
+{{/parent}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = {{classname}}.Builder.class)
 {{#vendorExtensions.x-allof-child}}
 @com.fasterxml.jackson.annotation.JsonTypeInfo(
@@ -694,6 +701,12 @@ public abstract class {{classname}} {
     defaultImpl = {{classname}}.class)
 {{/vendorExtensions.x-allof-child}}
 public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
+{{#parent}}
+{{^vendorExtensions.x-allof-child}}
+  /* A subtype reads its own discriminator as an ordinary property, so an absent key falls back to the
+   * builder default (the mapping value) instead of failing as a missing type id. */
+{{/vendorExtensions.x-allof-child}}
+{{/parent}}
 {{/vendorExtensions.x-allof-base}}
 {{#vars}}
 {{#isEnum}}

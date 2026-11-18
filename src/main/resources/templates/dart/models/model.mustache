@@ -438,6 +438,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{/vendorExtensions.requiredNullable}}
 {{/required}}
 {{/vars}}
+    try {
     return {{classname}}(
 {{#vars}}
 {{#vendorExtensions.strictRequired}}
@@ -717,6 +718,9 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       additionalProperties: additionalProperties,
 {{/isAdditionalPropertiesTrue}}
     );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for {{classname}}: $e', e);
+    }
   }
 
   {{/vendorExtensions.dartAllOfBase}}

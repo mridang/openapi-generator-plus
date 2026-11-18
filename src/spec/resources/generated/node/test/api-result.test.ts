@@ -52,4 +52,26 @@ describe("ApiResult", () => {
       "content-type",
     ]);
   });
+
+  it("bhv results 004 exposes the deserialized data", () => {
+    const result: ApiResult<{ id: number }> = {
+      statusCode: 200,
+      data: { id: 7 },
+      rawBody: '{"id":7}',
+      headers: {},
+    };
+
+    expect(result.data).toEqual({ id: 7 });
+  });
+
+  it("bhv results 005 exposes the raw response body", () => {
+    const result: ApiResult<{ id: number }> = {
+      statusCode: 200,
+      data: { id: 7 },
+      rawBody: '{"id":7}',
+      headers: {},
+    };
+
+    expect(result.rawBody).toBe('{"id":7}');
+  });
 });

@@ -65,11 +65,25 @@ defmodule PetstoreClient.DefaultApiClient do
 
     %__MODULE__{
       transport_options: opts,
-      base_req: Req.new(merge_req_options(opts.req_options, request_options(opts))),
+      base_req: base_request(opts),
       proxy_auth_header: build_proxy_auth_header(opts.proxy),
       closed: :atomics.new(2, signed: false)
     }
   end
+
+  # Req adds a `user-agent` header of its own (`req/<version>`) through the
+  # put_user_agent request step, so that step is taken out of the pipeline when
+  # the user agent is nil. Mint still adds `mint/<version>` to a request that has
+  # no user-agent (Mint.HTTP1.add_default_headers/2, no option turns it off), so
+  # the wire carries Mint's value; the SDK's own default never reaches it. A
+  # User-Agent the caller sets still goes out as given.
+  defp base_request(%{user_agent: nil} = opts) do
+    req = Req.new(merge_req_options(opts.req_options, request_options(opts)))
+
+    %{req | request_steps: Keyword.delete(req.request_steps, :put_user_agent)}
+  end
+
+  defp base_request(opts), do: Req.new(merge_req_options(opts.req_options, request_options(opts)))
 
   # The caller's `req_options` (a custom adapter or plug) form the base; the
   # SDK's own settings are applied on top and win on a shared key. The
@@ -1224,7 +1238,7 @@ defmodule PetstoreClient.DefaultApiClient do
 
   defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}
 
-  defp prepare_body(body, headers) when is_map(body) do
+  defp prepare_body(body, headers) when is_map(body) and not is_struct(body) do
     boundary = generate_uuid()
     content_type = "multipart/form-data; boundary=#{boundary}"
     headers = Map.put(headers, "Content-Type", content_type)

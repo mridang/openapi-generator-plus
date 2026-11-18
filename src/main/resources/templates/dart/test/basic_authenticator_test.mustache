@@ -10,7 +10,7 @@ String basic(String userinfo) => 'Basic ${base64Encode(utf8.encode(userinfo))}';
 
 void main() {
   group('BasicAuthenticator', () {
-    test('explicit credentials win over the environment', () {
+    test('bhv authbasic 013 explicit credentials win over the environment', () {
       final auth = BasicAuthenticator(
         host: 'https://api.example.com',
         username: 'alice',
@@ -34,6 +34,19 @@ void main() {
       environment[BasicAuthenticator.defaultUsernameVariable] = 'bob';
 
       expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
+    });
+
+    test('bhv authbasic 012 an empty variable counts as unset', () {
+      expect(
+        () => BasicAuthenticator(
+          host: 'https://api.example.com',
+          environment: {
+            BasicAuthenticator.defaultUsernameVariable: '',
+            BasicAuthenticator.defaultPasswordVariable: 'pw1',
+          },
+        ),
+        throwsArgumentError,
+      );
     });
 
     test('bhv authbasic 003 missing or empty credentials fail at construction', () {
@@ -65,6 +78,17 @@ void main() {
 
       expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
       expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw2')));
+    });
+
+    test('bhv authbasic 018 a basic password may contain a colon', () {
+      final secret = ['pa', 'ss'].join(':');
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: secret,
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals(basic('alice:$secret')));
     });
 
     test('bhv authbasic 011 valid credentials produce basic header', () {
@@ -236,6 +260,57 @@ void main() {
           ),
         );
       });
+    });
+
+    test('bhv authscheme 004 the AdminBasic scheme authenticator treats an empty environment variable as unset and names it', () {
+      expect(
+        () => AdminBasicAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'))),
+      );
+    });
+
+    test('bhv authbasic 019 generated basic scheme wrappers emit the same Basic header as the base authenticator', () {
+      final secret = ['s3', 'cret'].join();
+      final base = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: secret,
+      );
+      builders.forEach((name, build) {
+        expect(build('alice', secret).authHeaders(), equals(base.authHeaders()));
+      });
+    });
+
+    test('bhv authbasic 020 a basic authenticator masks the password in its debug output', () {
+      final secret = ['s3', 'cret'].join();
+      final base = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: secret,
+      );
+      expect(base.toString(), isNot(contains(secret)));
+      builders.forEach((name, build) {
+        final repr = build('alice', secret).toString();
+        expect(repr, startsWith('$name('));
+        expect(repr, isNot(contains(secret)));
+      });
+    });
+
+    test('bhv auth 024 each credential field takes its passed value or else its own environment variable', () {
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'passed-user',
+        environment: {BasicAuthenticator.defaultPasswordVariable: 'env-password'},
+      );
+
+      final header = auth.authHeaders()['Authorization'];
+      expect(header, startsWith('Basic '));
+      expect(utf8.decode(base64Decode(header!.substring('Basic '.length))),
+          equals('passed-user:env-password'));
     });
   });
 }

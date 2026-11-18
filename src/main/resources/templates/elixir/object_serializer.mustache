@@ -561,7 +561,17 @@ defmodule {{moduleName}}.ObjectSerializer do
   end
 
   def sanitize_for_serialization(value) when is_atom(value), do: to_string(value)
-  def sanitize_for_serialization(value), do: to_string(value)
+
+  # A term with no string form (a tuple, a pid, a function) has no JSON form:
+  # raise the serialization error the callers already handle, before any request.
+  def sanitize_for_serialization(value) do
+    to_string(value)
+  rescue
+    Protocol.UndefinedError ->
+      reraise {{moduleName}}.Errors.SerializationError,
+              [message: "Failed to serialize object to JSON: #{inspect(value)} has no JSON form"],
+              __STACKTRACE__
+  end
 
   # format: byte - encode the native `binary()` bytes back to a
   # base64 string before they hit the JSON encoder. The struct's
@@ -780,6 +790,11 @@ defmodule {{moduleName}}.ObjectSerializer do
   # Time/Duration clauses below. A value that does not parse is a
   # SerializationError, like every other wire-shape failure; it is never
   # passed through as the raw string.
+  # A JSON array is a list, and to_string/1 reads a list of text as a string,
+  # so a date-time field refuses a list before that conversion.
+  def convert_to_type(data, type) when type in ["DateTime", "DateTime.t()"] and is_list(data),
+    do: raise_unparseable(data, "date-time")
+
   def convert_to_type(data, type) when type in ["DateTime", "DateTime.t()"] do
     case DateTime.from_iso8601(to_string(data)) do
       {:ok, dt, _offset} -> dt

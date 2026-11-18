@@ -56,6 +56,22 @@ class _CloseTrackingClient extends http.BaseClient {
   }
 }
 
+/* Answers every send with a redirect whose body is the given stream, so a test
+ * can see whether the SDK reads that body off before it refuses the hop. */
+class _RedirectBodyClient extends http.BaseClient {
+  _RedirectBodyClient(this._body);
+
+  final Stream<List<int>> _body;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
+      http.StreamedResponse(
+        _body,
+        307,
+        headers: {'location': 'http://example.com/insecure'},
+      );
+}
+
 void main() {
   group('DefaultApiClientUnit', () {
     test(
@@ -111,72 +127,75 @@ void main() {
       },
     );
 
-    test('redirects rewrite the method only as RFC 9110 15.4 allows', () async {
-      const rows = <(int, String, String)>[
-        (301, 'POST', 'GET'),
-        (301, 'PUT', 'PUT'),
-        (301, 'PATCH', 'PATCH'),
-        (301, 'DELETE', 'DELETE'),
-        (302, 'POST', 'GET'),
-        (302, 'PUT', 'PUT'),
-        (302, 'DELETE', 'DELETE'),
-        (303, 'POST', 'GET'),
-        (303, 'PUT', 'GET'),
-        (303, 'DELETE', 'GET'),
-        (303, 'HEAD', 'HEAD'),
-        (307, 'POST', 'POST'),
-        (307, 'PUT', 'PUT'),
-        (308, 'PATCH', 'PATCH'),
-        (308, 'DELETE', 'DELETE'),
-      ];
-      var landedMethod = '';
-      var landedBody = '';
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) async {
-        if (request.uri.path == '/start') {
-          await request.drain<void>();
+    test(
+      'bhv redirects 029 redirects rewrite the method only as RFC 9110 15.4 allows',
+      () async {
+        const rows = <(int, String, String)>[
+          (301, 'POST', 'GET'),
+          (301, 'PUT', 'PUT'),
+          (301, 'PATCH', 'PATCH'),
+          (301, 'DELETE', 'DELETE'),
+          (302, 'POST', 'GET'),
+          (302, 'PUT', 'PUT'),
+          (302, 'DELETE', 'DELETE'),
+          (303, 'POST', 'GET'),
+          (303, 'PUT', 'GET'),
+          (303, 'DELETE', 'GET'),
+          (303, 'HEAD', 'HEAD'),
+          (307, 'POST', 'POST'),
+          (307, 'PUT', 'PUT'),
+          (308, 'PATCH', 'PATCH'),
+          (308, 'DELETE', 'DELETE'),
+        ];
+        var landedMethod = '';
+        var landedBody = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          if (request.uri.path == '/start') {
+            await request.drain<void>();
+            request.response
+              ..statusCode = int.parse(request.uri.queryParameters['status']!)
+              ..headers.set('Location', '/landed')
+              ..close();
+            return;
+          }
+          landedMethod = request.method;
+          landedBody = await utf8.decoder.bind(request).join();
           request.response
-            ..statusCode = int.parse(request.uri.queryParameters['status']!)
-            ..headers.set('Location', '/landed')
+            ..statusCode = 200
             ..close();
-          return;
-        }
-        landedMethod = request.method;
-        landedBody = await utf8.decoder.bind(request).join();
-        request.response
-          ..statusCode = 200
-          ..close();
-      });
+        });
 
-      try {
-        final client = DefaultApiClient(
-          transportOptions: TransportOptionsBuilder()
-              .followRedirects(true)
-              .build(),
-        );
-        for (final row in rows) {
-          landedMethod = '';
-          landedBody = '';
-
-          await client.sendRequest(
-            row.$2,
-            'http://localhost:${server.port}/start?status=${row.$1}',
-            {'Content-Type': 'text/plain'},
-            Uint8List.fromList(utf8.encode('payload')),
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
           );
+          for (final row in rows) {
+            landedMethod = '';
+            landedBody = '';
 
-          expect(landedMethod, equals(row.$3), reason: '${row.$1} ${row.$2}');
-          final keepsBody = row.$3 != 'GET' && row.$3 != 'HEAD';
-          expect(
-            landedBody,
-            equals(keepsBody ? 'payload' : ''),
-            reason: '${row.$1} ${row.$2} body',
-          );
+            await client.sendRequest(
+              row.$2,
+              'http://localhost:${server.port}/start?status=${row.$1}',
+              {'Content-Type': 'text/plain'},
+              Uint8List.fromList(utf8.encode('payload')),
+            );
+
+            expect(landedMethod, equals(row.$3), reason: '${row.$1} ${row.$2}');
+            final keepsBody = row.$3 != 'GET' && row.$3 != 'HEAD';
+            expect(
+              landedBody,
+              equals(keepsBody ? 'payload' : ''),
+              reason: '${row.$1} ${row.$2} body',
+            );
+          }
+        } finally {
+          await server.close(force: true);
         }
-      } finally {
-        await server.close(force: true);
-      }
-    });
+      },
+    );
 
     test(
       'bhv transport 026 a lower-case caller user-agent and x-request-id suppress injection',
@@ -1558,15 +1577,18 @@ void main() {
       },
     );
 
-    test('throws ArgumentError for a header value with CR/LF', () async {
-      final client = DefaultApiClient();
-      await expectLater(
-        client.sendRequest('GET', 'http://127.0.0.1:1/x', {
-          'X-Bad': 'a\r\nInjected: yes',
-        }, null),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+    test(
+      'bhv headers 031 throws ArgumentError for a header value with CR/LF',
+      () async {
+        final client = DefaultApiClient();
+        await expectLater(
+          client.sendRequest('GET', 'http://127.0.0.1:1/x', {
+            'X-Bad': 'a\r\nInjected: yes',
+          }, null),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test(
       'the header-value ArgumentError never carries the secret value',
@@ -1652,6 +1674,41 @@ void main() {
           );
           expect(resp.statusCode, equals(200));
           expect(resp.body, equals('héllo'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv serializationwire 054 decodes a little-endian BOM utf-16 body as little-endian',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        // UTF-16LE with a little-endian byte-order mark for the string "Log".
+        final payload = <int>[
+          0xFF, 0xFE, // BOM (little-endian)
+          0x4C, 0x00, // L
+          0x6F, 0x00, // o
+          0x67, 0x00, // g
+        ];
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.set('Content-Type', 'text/plain; charset=utf-16')
+            ..add(payload)
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/utf16-le',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(200));
+          expect(resp.body, equals('Log'));
         } finally {
           await server.close();
         }
@@ -2306,17 +2363,23 @@ void main() {
       },
     );
 
-    test('a connect-timeout message is classified as a timeout', () {
-      // The wording dart:io uses when HttpClient.connectionTimeout expires.
-      expect(
-        AbstractApiClient.isTimeoutMessage(
-          'HTTP connection timed out after 0:00:00.200000, '
-          'host: 192.0.2.1, port: 80',
-        ),
-        isTrue,
-      );
-      expect(AbstractApiClient.isTimeoutMessage('Connection refused'), isFalse);
-    });
+    test(
+      'bhv transport 072 a connect-timeout message is classified as a timeout',
+      () {
+        // The wording dart:io uses when HttpClient.connectionTimeout expires.
+        expect(
+          AbstractApiClient.isTimeoutMessage(
+            'HTTP connection timed out after 0:00:00.200000, '
+            'host: 192.0.2.1, port: 80',
+          ),
+          isTrue,
+        );
+        expect(
+          AbstractApiClient.isTimeoutMessage('Connection refused'),
+          isFalse,
+        );
+      },
+    );
 
     test('bhv transport 044 joins multi-value response headers', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -2400,7 +2463,25 @@ void main() {
     );
 
     test(
-      'a custom CA replaces the system trust store instead of adding to it',
+      'bhv transport 064 the intermediate response of a refused redirect is released',
+      () async {
+        var bodyRead = false;
+        final body = StreamController<List<int>>(
+          onListen: () => bodyRead = true,
+        );
+        final client = _OwnedTransportClient(_RedirectBodyClient(body.stream));
+        final call = client.sendRequest('POST', 'https://example.com/secure', {
+          'Content-Type': 'application/json',
+        }, '{"secret":"value"}');
+        await body.sink.close();
+
+        await expectLater(call, throwsA(isA<ApiException>()));
+        expect(bodyRead, isTrue);
+      },
+    );
+
+    test(
+      'bhv transport 065 a configured CA bundle replaces the system trust store instead of adding to it',
       () {
         final source = File(
           '${Directory.current.path}/lib/src/default_api_client_io.dart',
@@ -2485,6 +2566,16 @@ void main() {
     );
 
     test(
+      'bhv serializationwire 061 a multipart filename with an embedded quote is backslash-escaped',
+      () {
+        expect(
+          buildFilenameDirective('a"b.txt'),
+          equals('filename="a\\"b.txt"'),
+        );
+      },
+    );
+
+    test(
       'bhv serializationwire 043 rejects multipart filename containing CRLF',
       () {
         expect(
@@ -2511,6 +2602,49 @@ void main() {
           () => validateMultipartFilename('a\x00b.pdf'),
           throwsA(isA<ArgumentError>()),
         );
+      },
+    );
+
+    test(
+      'bhv serialization 056 quotes and backslashes in multipart field and file names are escaped',
+      () {
+        expect(escapeMultipartFieldName('a"b\\c'), equals('a\\"b\\\\c'));
+        expect(
+          buildFilenameDirective('x"y\\z.txt'),
+          equals('filename="x\\"y\\\\z.txt"'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 057 a multipart field name containing a NUL byte or a line break is refused before any request is sent',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          requests++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          for (final name in ['fi\r\nle', 'fi\x00le']) {
+            await expectLater(
+              client.sendRequest(
+                'POST',
+                'http://127.0.0.1:${server.port}/upload',
+                {},
+                {name: 'x'},
+              ),
+              throwsA(isA<ArgumentError>()),
+            );
+          }
+          expect(requests, equals(0));
+        } finally {
+          await server.close();
+        }
       },
     );
 
@@ -2644,6 +2778,35 @@ void main() {
             {},
             {
               'blob': Uint8List.fromList([0x00, 0x01, 0x02]),
+            },
+          );
+          expect(body, contains('content-type: application/octet-stream'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv serializationwire 056 a binary field with an unknown extension falls back to octet-stream',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {
+              'blob.unknownext': Uint8List.fromList([0x00, 0x01, 0x02]),
             },
           );
           expect(body, contains('content-type: application/octet-stream'));
@@ -2808,7 +2971,7 @@ void main() {
     });
 
     test(
-      'multipart JSON part declares application/json without a charset',
+      'bhv serialization 060 a model sent as a multipart part declares application/json without a charset',
       () async {
         String body = '';
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3331,11 +3494,198 @@ void main() {
     }
   });
 
+  group('Redirect origin and status rules', () {
+    /* A forward proxy answers the first hop with a 302 to [to] and records
+     * the Authorization header the second hop carries, if any. */
+    Future<Map<String, String?>> secondHop(
+      String from,
+      String to,
+      Map<String, String> headers,
+    ) async {
+      final second = <String, String?>{};
+      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      proxy.listen((request) {
+        if (request.uri.path == '/x') {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', to)
+            ..close();
+          return;
+        }
+        second['authorization'] = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .proxy('http://127.0.0.1:${proxy.port}')
+            .followRedirects(true)
+            .build();
+        final resp = await DefaultApiClient(
+          transportOptions: transport,
+        ).sendRequest('GET', from, headers, null);
+        expect(resp.statusCode, equals(200));
+      } finally {
+        await proxy.close();
+      }
+      return second;
+    }
+
+    test(
+      'bhv redirects 030 an explicit default port is the same origin as the implicit one',
+      () async {
+        final second = await secondHop(
+          'http://a.test/x',
+          'http://a.test:80/y',
+          {'Authorization': 'Bearer caller-secret'},
+        );
+
+        expect(second['authorization'], equals('Bearer caller-secret'));
+      },
+    );
+
+    test(
+      'bhv redirects 031 a 3xx without a Location header is returned unchanged when the budget is zero',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 302
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .maxRedirects(0)
+                .build(),
+          );
+          final resp = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/start',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(302));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv redirects 033 a redirect to a different port is a different origin and drops the credentials',
+      () async {
+        final second = await secondHop(
+          'http://a.test/x',
+          'http://a.test:8080/y',
+          {'Authorization': 'Bearer caller-secret'},
+        );
+
+        expect(second['authorization'], isNull);
+      },
+    );
+
+    test(
+      'bhv redirects 034 origin comparison separates a different host or port',
+      () async {
+        for (final to in ['http://b.test/y', 'http://a.test:8080/y']) {
+          final second = await secondHop('http://a.test/x', to, {
+            'Authorization': 'Bearer caller-secret',
+          });
+
+          expect(second['authorization'], isNull, reason: to);
+        }
+      },
+    );
+
+    test(
+      'bhv redirects 036 a 303 redirect turns every method except HEAD into GET',
+      () async {
+        final landed = <String>[];
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          if (request.uri.path == '/start') {
+            request.response
+              ..statusCode = 303
+              ..headers.set('Location', '/landed')
+              ..close();
+            return;
+          }
+          landed.add(request.method);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
+          );
+          for (final method in ['POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']) {
+            await client.sendRequest(
+              method,
+              'http://localhost:${server.port}/start',
+              {},
+              null,
+            );
+          }
+          expect(landed, equals(['GET', 'GET', 'GET', 'GET', 'HEAD']));
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+  });
+
+  group('Redirect to an explicit default port', () {
+    test(
+      'bhv redirects 037 a redirect to the explicit default port of the same origin keeps Authorization',
+      () async {
+        final second = <String, String?>{};
+        final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        proxy.listen((request) {
+          if (request.uri.path == '/start') {
+            request.response
+              ..statusCode = 302
+              ..headers.set('Location', 'http://origin.test:80/landed')
+              ..close();
+            return;
+          }
+          second['authorization'] = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .proxy('http://127.0.0.1:${proxy.port}')
+              .followRedirects(true)
+              .build();
+          final resp = await DefaultApiClient(transportOptions: transport)
+              .sendRequest('GET', 'http://origin.test/start', {
+                'Authorization': 'Bearer caller-secret',
+              }, null);
+          expect(resp.statusCode, equals(200));
+          expect(second['authorization'], equals('Bearer caller-secret'));
+        } finally {
+          await proxy.close();
+        }
+      },
+    );
+  });
+
   group('Proxy credentials across redirects', () {
     /* The stub is the forward proxy: it sees every hop as an absolute-URI
      * request, so a cross-origin redirect needs no second host. */
     test(
-      'keep the proxy Proxy-Authorization and drop the caller Authorization',
+      'bhv redirects 044 keep the proxy Proxy-Authorization and drop the caller Authorization',
       () async {
         final second = <String, String?>{};
         final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3403,6 +3753,27 @@ void main() {
 
   group('Response cookies', () {
     test(
+      'bhv lifecycle 035 a request issued after close fails with the one closed-client error and never reaches the transport',
+      () async {
+        var calls = 0;
+        final client = _OwnedTransportClient(
+          MockClient((_) async {
+            calls++;
+            return http.Response('', 200);
+          }),
+        );
+
+        client.close();
+
+        await expectLater(
+          client.sendRequest('GET', 'https://example.com', {}, null),
+          throwsA(isA<StateError>()),
+        );
+        expect(calls, equals(0));
+      },
+    );
+
+    test(
       'bhv retries 015 a Set-Cookie answer is never replayed as a Cookie on the next request',
       () async {
         final seen = <String?>[];
@@ -3424,6 +3795,374 @@ void main() {
         } finally {
           await server.close();
         }
+      },
+    );
+
+    test(
+      'bhv transport 073 a response claiming a compression encoding with a corrupt stream raises the SDK error, not the raw bytes',
+      () async {
+        final mock = MockClient(
+          (request) async => http.Response.bytes(
+            utf8.encode('not gzip data'),
+            200,
+            headers: {'content-encoding': 'gzip'},
+          ),
+        );
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        await expectLater(
+          client.sendRequest('GET', 'http://example.com/data', {}, null),
+          throwsA(isA<OpenAPIException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv transport 074 a response compressed with a codec the client cannot decode raises an error, never the encoded body',
+      () async {
+        final mock = MockClient(
+          (request) async => http.Response.bytes(
+            utf8.encode('still encoded'),
+            200,
+            headers: {'content-encoding': 'br'},
+          ),
+        );
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        await expectLater(
+          client.sendRequest('GET', 'http://example.com/data', {}, null),
+          throwsA(isA<OpenAPIException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv transport 076 percent-escapes in the proxy user information are decoded and a literal plus sign stays a plus',
+      () {
+        final header = AbstractApiClient.buildProxyAuthHeader(
+          Uri.parse('http://us%40er:p%2Bass@proxy.test:3128'),
+        );
+
+        expect(
+          header,
+          equals('Basic ${base64Encode(utf8.encode('us@er:p+ass'))}'),
+        );
+      },
+    );
+
+    test(
+      'bhv transport 081 a caller-supplied HTTP client receives every request with its URL and headers unchanged',
+      () async {
+        http.BaseRequest? seen;
+        final custom = MockClient((request) async {
+          seen = request;
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(custom)
+              .build(),
+        );
+
+        await client.sendRequest('GET', 'http://example.com/a/b?x=1', {
+          'X-Caller': 'yes',
+        }, null);
+
+        expect(seen?.url.toString(), equals('http://example.com/a/b?x=1'));
+        expect(seen?.headers['X-Caller'], equals('yes'));
+      },
+    );
+
+    test(
+      'bhv transport 082 a client built with only a timeout completes a request and returns its response',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..write('ok')
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().timeout(5000).build(),
+          );
+          final response = await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/ok',
+            {},
+            null,
+          );
+
+          expect(response.statusCode, equals(200));
+          expect(response.body, equals('ok'));
+          client.close();
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv transport 077 a CA certificate path that names a directory fails when the client is built and names that path',
+      () {
+        final dir = Directory.systemTemp.createTempSync('ca-dir');
+        addTearDown(() => dir.deleteSync(recursive: true));
+
+        expect(
+          () => DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .caCertPath(dir.path)
+                .build(),
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => '${e.message}',
+              'message',
+              contains(dir.path),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv transport 079 turning off certificate verification is honoured when the client is built',
+      () {
+        final opts = TransportOptionsBuilder().verifySsl(false).build();
+
+        expect(opts.verifySsl, isFalse);
+        expect(() => DefaultApiClient(transportOptions: opts), returnsNormally);
+      },
+    );
+
+    test(
+      'bhv errors 078 a network failure message never shows the query string of the request URL',
+      () async {
+        final client = DefaultApiClient();
+        Object? failure;
+        try {
+          await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:1/items?token=secretvalue',
+            {},
+            null,
+          );
+        } on NetworkException catch (e) {
+          failure = e;
+        }
+
+        expect(failure, isA<NetworkException>());
+        expect('$failure', isNot(contains('secretvalue')));
+      },
+    );
+
+    test(
+      'bhv redirects 038 a 307 redirect that keeps the method sends the original body and its Content-Type to the new location',
+      () async {
+        final calls = <http.BaseRequest>[];
+        final mock = MockClient((request) async {
+          calls.add(request);
+          if (calls.length == 1) {
+            return http.Response(
+              '',
+              307,
+              headers: {'location': 'http://example.com/next'},
+            );
+          }
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        await client.sendRequest('POST', 'http://example.com/start', {
+          'content-type': 'application/json',
+        }, utf8.encode('{"a":1}'));
+
+        expect(calls, hasLength(2));
+        expect(calls[1].method, equals('POST'));
+        expect((calls[1] as http.Request).body, equals('{"a":1}'));
+        expect(
+          calls[1].headers['content-type'],
+          startsWith('application/json'),
+        );
+      },
+    );
+
+    test(
+      'bhv redirects 039 a bodyless request is followed across a redirect from HTTPS to plain HTTP that keeps its method',
+      () async {
+        final calls = <http.BaseRequest>[];
+        final mock = MockClient((request) async {
+          calls.add(request);
+          if (calls.length == 1) {
+            return http.Response(
+              '',
+              307,
+              headers: {'location': 'http://example.com/plain'},
+            );
+          }
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        final response = await client.sendRequest(
+          'GET',
+          'https://example.com/secure',
+          {},
+          null,
+        );
+
+        expect(response.body, equals('ok'));
+        expect(calls[1].method, equals('GET'));
+      },
+    );
+
+    test(
+      'bhv redirects 040 a 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused',
+      () async {
+        for (final status in [301, 302, 303]) {
+          final calls = <http.BaseRequest>[];
+          final mock = MockClient((request) async {
+            calls.add(request);
+            if (calls.length == 1) {
+              return http.Response(
+                '',
+                status,
+                headers: {'location': 'http://example.com/plain'},
+              );
+            }
+            return http.Response('ok', 200);
+          });
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .httpClient(mock)
+                .build(),
+          );
+
+          final response = await client.sendRequest(
+            'GET',
+            'https://example.com/secure',
+            {},
+            null,
+          );
+
+          expect(response.body, equals('ok'), reason: 'status $status');
+        }
+      },
+    );
+
+    test(
+      'bhv redirects 041 a redirect that turns a POST into a GET sends the follow-up with no Content-Length or Content-Type',
+      () async {
+        final calls = <http.BaseRequest>[];
+        final mock = MockClient((request) async {
+          calls.add(request);
+          if (calls.length == 1) {
+            return http.Response(
+              '',
+              302,
+              headers: {'location': 'http://example.com/next'},
+            );
+          }
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        await client.sendRequest('POST', 'http://example.com/start', {
+          'content-type': 'application/json',
+        }, utf8.encode('{"a":1}'));
+
+        expect(calls[1].method, equals('GET'));
+        expect(calls[1].headers.containsKey('content-length'), isFalse);
+        expect(calls[1].headers.containsKey('content-type'), isFalse);
+      },
+    );
+
+    test(
+      'bhv redirects 042 a 307 redirect of a bodyless POST keeps the request a POST and sends Content-Length zero',
+      () async {
+        final calls = <http.BaseRequest>[];
+        final mock = MockClient((request) async {
+          calls.add(request);
+          if (calls.length == 1) {
+            return http.Response(
+              '',
+              307,
+              headers: {'location': 'http://example.com/next'},
+            );
+          }
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        await client.sendRequest('POST', 'http://example.com/start', {}, null);
+
+        expect(calls[1].method, equals('POST'));
+        expect(calls[1].headers['content-length'], equals('0'));
+      },
+    );
+
+    test(
+      'bhv redirects 043 a relative Location is resolved against the URL of the request that received the redirect',
+      () async {
+        final calls = <http.BaseRequest>[];
+        final mock = MockClient((request) async {
+          calls.add(request);
+          if (calls.length == 1) {
+            return http.Response('', 302, headers: {'location': '../next'});
+          }
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        await client.sendRequest(
+          'GET',
+          'http://example.com/a/b/start',
+          {},
+          null,
+        );
+
+        expect(calls[1].url.toString(), equals('http://example.com/a/next'));
+      },
+    );
+
+    test(
+      'bhv serialization 055 the charset named in a response content type is honoured, matched by parameter name ignoring letter case',
+      () async {
+        final mock = MockClient(
+          (_) async => http.Response.bytes(
+            [0xE9],
+            200,
+            headers: {'content-type': 'text/plain; CHARSET=windows-1252'},
+          ),
+        );
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        final response = await client.sendRequest(
+          'GET',
+          'http://example.com/text',
+          {},
+          null,
+        );
+
+        expect(response.body, equals('é'));
       },
     );
   });

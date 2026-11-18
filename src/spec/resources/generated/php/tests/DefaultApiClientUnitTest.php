@@ -157,6 +157,87 @@ test('bhv transport 044 joins multi value response headers', function (): void {
     expect($response->headers['x-custom-value'])->toContain('val2');
 });
 
+test('bhv options 061 a user agent set to none sends no User-Agent header and a given one is kept', function (): void {
+    $captured = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$captured): MockResponse {
+            $captured = [];
+            foreach ($options['normalized_headers'] ?? [] as $values) {
+                [$name, $value] = explode(': ', $values[0], 2);
+                $captured[strtolower($name)] = $value;
+            }
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+    $kept = TransportOptions::builder()->userAgent('MyApp/2.0')->build();
+    $unset = TransportOptions::builder()->userAgent(null)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $unset);
+    $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+    expect($kept->userAgent)->toBe('MyApp/2.0');
+    expect($unset->userAgent)->toBeNull();
+    expect($captured)->not->toHaveKey('user-agent');
+});
+
+test('bhv options 055 a call without per call options keeps the transport timeout, retry limit and headers', function (): void {
+    $seen = [];
+    $responses = [
+        new MockResponse('', ['http_code' => 503]),
+        new MockResponse('{}', ['http_code' => 200]),
+    ];
+    $factory = function (string $method, string $url, array $options) use (&$seen, &$responses): MockResponse {
+        $headers = [];
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            $headers[strtolower($name)] = $value;
+        }
+        $seen[] = ['headers' => $headers, 'duration' => $options['max_duration'] ?? null];
+        $next = array_shift($responses);
+        \assert($next instanceof MockResponse);
+
+        return $next;
+    };
+    $transport = TransportOptions::builder()->timeout(5000)->maxRetries(1)->defaultHeader('X-Client', 'kept')->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/items', fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($seen)->toHaveCount(2);
+    expect($seen[0]['headers']['x-client'] ?? null)->toBe('kept');
+    expect($seen[1]['headers']['x-client'] ?? null)->toBe('kept');
+    expect((float) $seen[0]['duration'])->toBeGreaterThan(0.0);
+    expect((float) $seen[0]['duration'])->toBeLessThanOrEqual(5.0);
+});
+
+test('bhv retries 044 every retry carries a request id that differs from the attempts before it', function (): void {
+    $ids = [];
+    $responses = [
+        new MockResponse('', ['http_code' => 503]),
+        new MockResponse('', ['http_code' => 503]),
+        new MockResponse('{}', ['http_code' => 200]),
+    ];
+    $factory = function (string $method, string $url, array $options) use (&$ids, &$responses): MockResponse {
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            if ($name === 'X-Request-ID') {
+                $ids[] = $value;
+            }
+        }
+        $next = array_shift($responses);
+        \assert($next instanceof MockResponse);
+
+        return $next;
+    };
+    $transport = TransportOptions::builder()->injectRequestId(true)->maxRetries(2)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendWithRetries('GET', 'http://example.com/retry', fn (): array => [], null);
+
+    expect($ids)->toHaveCount(3);
+    expect(array_unique($ids))->toHaveCount(3);
+});
+
 test('bhv transport 041 injects custom user agent', function (): void {
     $capturedHeaders = [];
     $mockClient = new MockHttpClient(
@@ -399,6 +480,22 @@ test('bhv serializationwire 031 decodes bom-less utf-16 body as big endian', fun
     expect(mb_convert_encoding($body, 'UTF-8', 'UTF-16LE'))->not->toBe('Tag');
 });
 
+test('bhv serializationwire 054 decodes a little endian bom utf 16 body as little endian', function (): void {
+    // "Tag" encoded as UTF-16 little-endian behind a little-endian byte-order mark: the BOM
+    // selects the byte order and is not part of the text.
+    $body = "\xFF\xFE" . "T\x00a\x00g\x00";
+    $mockResponse = new MockResponse($body, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'text/plain; charset=utf-16'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/utf16le', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('Tag');
+});
+
 test('bhv serializationwire 030 decodes a big endian bom utf 16 body as big endian', function (): void {
     // "Tag" encoded as UTF-16 big-endian behind a big-endian byte-order mark: the BOM selects
     // the byte order and is not part of the text.
@@ -502,7 +599,7 @@ test('multipart file part carries no content transfer encoding', function (): vo
     }
 });
 
-test('multipart psr7 stream part is sent as a file part with its bytes', function (): void {
+test('bhv serialization 059 multipart psr7 stream part is sent as a file part with its bytes', function (): void {
     $capturedBody = '';
     $mockClient = new MockHttpClient(
         function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
@@ -553,7 +650,7 @@ test('bhv serializationwire 038 multipart pdf file gets application pdf content 
     }
 });
 
-test('multipart resource falls back to octet stream', function (): void {
+test('bhv serialization 058 multipart resource falls back to octet stream', function (): void {
     $stream = fopen('php://temp', 'w+');
     expect($stream)->toBeResource();
     fwrite($stream, "\x00\xFF\x42 raw bytes");
@@ -609,7 +706,7 @@ test('bhv serializationwire 049 multipart raw bytes part reuses field name as fi
     expect($capturedBody)->toContain('Content-Type: application/octet-stream');
 });
 
-test('multipart leaves a caller supplied stream open', function (): void {
+test('bhv transport 061 multipart leaves a caller supplied stream open', function (): void {
     $stream = fopen('php://temp', 'w+');
     expect($stream)->toBeResource();
     fwrite($stream, 'raw bytes');
@@ -717,7 +814,7 @@ test('multipart text parts carry only a content disposition like the psr18 clien
     expect($capturedBody)->not->toContain('Content-Type');
 });
 
-test('decodes iso 8859 1 error body to utf 8', function (): void {
+test('bhv serialization 055 decodes iso 8859 1 error body to utf 8', function (): void {
     $body = "\xE9rreur"; // ISO-8859-1 'érreur'
     $mockResponse = new MockResponse($body, [
         'http_code' => 500,
@@ -750,6 +847,31 @@ test('bhv serializationwire 044 multipart filename non ascii emits rfc 5987', fu
     expect($directive)->toContain("filename*=UTF-8''");
     expect($directive)->toContain('%E6%97%A5%E6%9C%AC');
     expect($directive)->toStartWith('filename="');
+});
+
+test('bhv serializationwire 061 a multipart filename with an embedded quote is backslash escaped', function (): void {
+    expect(DefaultApiClient::buildFilenameDirective('a"b.txt'))->toBe('filename="a\\"b.txt"');
+});
+
+test('bhv serialization 056 a multipart file name escapes its quote and backslash', function (): void {
+    expect(DefaultApiClient::buildFilenameDirective('a"b\\c.txt'))->toBe('filename="a\\"b\\\\c.txt"');
+});
+
+test('bhv serialization 060 a model sent as a multipart part declares the application json media type', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest('POST', 'http://example.com/upload', [], [
+        'model' => new MultipartModelPart(isEnabled: true),
+    ]);
+
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"model\"\r\nContent-Type: application/json\r\n");
 });
 
 test('bhv serializationwire 041 multipart filename ascii only omits filename star', function (): void {
@@ -913,6 +1035,63 @@ test('bhv redirects 025 cross origin redirect strips credential looking and defa
     expect($seen['x-trace'] ?? null)->toBe('keep-me');
 });
 
+test('bhv redirects 037 a redirect to the explicit default port of the same origin keeps the authorization header', function (): void {
+    /* https://api.example.com and https://api.example.com:443 name the same origin, so the credential
+     * must not be stripped as if the hop were cross origin. */
+    $credential = 'Bearer ' . 'tok' . 'en-037';
+    $seen = [];
+    $hop = 0;
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$seen, &$hop): MockResponse {
+        $hop++;
+        if ($hop === 1) {
+            return new MockResponse('', [
+                'http_code' => 302,
+                'response_headers' => ['Location' => 'https://api.example.com:443/final'],
+            ]);
+        }
+        /** @var array<int, string> $lines */
+        $lines = $options['headers'] ?? [];
+        foreach ($lines as $line) {
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $seen[strtolower(trim($parts[0]))] = trim($parts[1]);
+            }
+        }
+        return new MockResponse('ok', ['http_code' => 200]);
+    });
+    $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->followRedirects(true)->build());
+
+    $client->sendRequest('GET', 'https://api.example.com/start', ['Authorization' => $credential], null);
+
+    expect($seen['authorization'] ?? null)->toBe($credential);
+});
+
+test('bhv transport 064 the intermediate response of a refused redirect is released', function (): void {
+    /* The probe flips its flag when the 3xx response object is destroyed, so the test observes the release itself. */
+    /** @var \ArrayObject<string, mixed> $probe */
+    $probe = new \ArrayObject(['released' => false]);
+    $mock = new MockHttpClient(fn(): MockResponse => new class ('', ['http_code' => 302, 'response_headers' => ['Location' => 'ftp://example.com/next']], $probe) extends MockResponse {
+        /**
+         * @param array<string, mixed> $info
+         * @param \ArrayObject<string, mixed> $probe
+         */
+        public function __construct(string $body, array $info, private \ArrayObject $probe)
+        {
+            parent::__construct($body, $info);
+        }
+
+        public function __destruct()
+        {
+            $this->probe['released'] = true;
+        }
+    });
+    $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->followRedirects(true)->build());
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/start', [], null))
+        ->toThrow(\PetstoreClient\Errors\ApiException::class);
+    expect($probe['released'])->toBeTrue();
+});
+
 test('bhv redirects 012 cross origin redirect strips authorization and cookie', function (): void {
     /* The classic credential carriers (Authorization, Cookie,
      * Proxy-Authorization) are ALWAYS stripped on a cross-origin hop,
@@ -987,7 +1166,7 @@ test('bhv redirects 014 no redirect false still follows redirects', function ():
     expect($response->statusCode)->toBe(200);
 });
 
-test('resolves a relative Location per RFC 3986', function (string $location, string $expected): void {
+test('bhv redirects 043 resolves a relative Location per RFC 3986', function (string $location, string $expected): void {
     $urls = [];
     $mockClient = new MockHttpClient(
         function (string $method, string $url) use (&$urls, $location): MockResponse {
@@ -1059,7 +1238,7 @@ test('bhv retries 020 https to http downgrade refuses body replay on 308', funct
         });
 });
 
-test('https to http downgrade on get without body still follows', function (): void {
+test('bhv redirects 039 https to http downgrade on get without body still follows', function (): void {
     /* The downgrade guard only fires for body-bearing replays. A plain
      * GET (no body) is allowed to follow a 307/308 downgrade since
      * there's no body to leak. */
@@ -1076,7 +1255,7 @@ test('https to http downgrade on get without body still follows', function (): v
     expect($response->statusCode)->toBe(200);
 });
 
-test('https to https with body still follows on 307', function (): void {
+test('bhv redirects 038 https to https with body still follows on 307', function (): void {
     /* Same-scheme HTTPS redirects must still replay the body; the guard
      * only applies to the downgrade direction. */
     $hop = new MockResponse('', [
@@ -1103,7 +1282,7 @@ test('https to https with body still follows on 307', function (): void {
 // refuses body-replay on every redirect status). Co-located with the existing
 // 307/308 body-replay tests above (their working MockHttpClient harness).
 
-test('N1: 302 https to http downgrade with body proceeds as get', function (): void {
+test('bhv redirects 040 N1: 302 https to http downgrade with body proceeds as get', function (): void {
     /* A 302 from an HTTPS origin to an HTTP URL while carrying a POST body
      * must NOT throw — 301/302 force the follow-up to GET and drop the body,
      * so there is no plaintext body to leak. The request proceeds. */
@@ -1118,21 +1297,6 @@ test('N1: 302 https to http downgrade with body proceeds as get', function (): v
     $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'sensitive=payload');
 
     expect($response->statusCode)->toBe(200);
-});
-
-test('N1: 307 https to http downgrade with body throws', function (): void {
-    /* The same downgrade on a 307 (which preserves method + body) must be
-     * refused with an SDK-typed ApiException — the body would otherwise be
-     * replayed in plaintext over HTTP. */
-    $downgrade = new MockResponse('', [
-        'http_code' => 307,
-        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
-    ]);
-    $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
-
-    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(ApiException::class);
 });
 
 test('N1: 308 https to http downgrade with body throws', function (): void {
@@ -1209,7 +1373,7 @@ test('bhv redirects 010 a 3xx whose Location is absent or unparseable comes back
     'malformed location' => [['Location' => 'http://[bad']],
 ]);
 
-test('a token request does not carry the transport default headers', function (): void {
+test('bhv auth 010 a token request does not carry the transport default headers', function (): void {
     $seen = [];
     $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
         $seen = $options['headers'];
@@ -1347,7 +1511,7 @@ test('bhv errors 040 malformed request URL raises invalid argument exception', f
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('an unreadable caCertPath names the path and the cause', function (): void {
+test('bhv errors 083 an unreadable caCertPath names the path and the cause', function (): void {
     $transport = TransportOptions::builder()->caCertPath('/nonexistent/ca.pem')->build();
 
     expect(fn (): mixed => new DefaultApiClient($transport))
@@ -1364,7 +1528,7 @@ test('bhv transport 048 non-existent caCertPath throws even when verifySsl is fa
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('a configured caCertPath replaces the system trust directory instead of adding to it', function (): void {
+test('bhv transport 065 a configured caCertPath replaces the system trust directory instead of adding to it', function (): void {
     $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
     assert($key !== false);
     $csr = openssl_csr_new(['commonName' => 'only-ca'], $key);
@@ -1697,6 +1861,25 @@ test('bhv redirects 024 a redirect keeps credentials only when the target is the
     'scheme upgrade changes the port' => ['http://api.example.com/start', 'https://api.example.com/final', false],
 ]);
 
+test('bhv transport 074 a response compressed with a codec whose library is missing raises an error', function (string $encoding, string $library): void {
+    if (function_exists($library)) {
+        test()->markTestSkipped("$library is installed, so the $encoding body is decoded instead");
+    }
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('encoded-bytes', [
+        'http_code' => 200,
+        'response_headers' => ['Content-Encoding' => $encoding],
+    ])));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/codec', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(ApiException::class);
+            expect($e->getCode())->toBe(200);
+        });
+})->with([
+    'br without ext-brotli' => ['br', 'brotli_uncompress'],
+    'zstd without ext-zstd' => ['zstd', 'zstd_uncompress'],
+]);
+
 test('bhv transport 035 decompresses a zlib wrapped deflate response body', function (): void {
     $payload = '{"ok":true}';
     $deflated = gzcompress($payload);
@@ -1882,7 +2065,7 @@ test('bhv serializationwire 048 multipart primitive parts are plain text and onl
     expect(substr_count($capturedBody, 'Content-Type:'))->toBe(1);
 });
 
-test('keeps an allowReserved query value byte for byte', function (): void {
+test('bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire', function (): void {
     $capturedUrl = '';
     $mockClient = new MockHttpClient(
         function (string $method, string $url) use (&$capturedUrl): MockResponse {
@@ -2044,7 +2227,7 @@ test('the backoff doubles from 0.5 s up to 8 s', function (): void {
     expect($client->pauses)->toBe([0.5, 1.0, 2.0, 4.0, 8.0, 8.0]);
 });
 
-test('the backoff is shortened by up to 25 percent of jitter', function (): void {
+test('bhv retries 041 the backoff is shortened by up to 25 percent of jitter', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $client = retryTestClient([500], TransportOptions::builder()->maxRetries(1)->build(), $log);
@@ -2053,6 +2236,31 @@ test('the backoff is shortened by up to 25 percent of jitter', function (): void
     $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
 
     expect($client->pauses)->toBe([0.375]);
+});
+
+test('bhv retries 030 the retry backoff jitter takes at most a quarter off the delay', function (float $jitter, float $expected): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([500], TransportOptions::builder()->maxRetries(1)->build(), $log);
+    $client->jitterValue = $jitter;
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($client->pauses)->toBe([$expected]);
+})->with([
+    'no jitter keeps the whole half second' => [0.0, 0.5],
+    'full jitter takes exactly a quarter off' => [1.0, 0.375],
+]);
+
+test('bhv retries 027 backoff doubles from half a second to eight seconds with quarter jitter', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([500], TransportOptions::builder()->maxRetries(6)->timeout(null)->build(), $log);
+    $client->jitterValue = 1.0;
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($client->pauses)->toBe([0.375, 0.75, 1.5, 3.0, 6.0, 6.0]);
 });
 
 test('bhv retries 023 Retry-After in seconds replaces the backoff and is capped at 60 s', function (
@@ -2074,6 +2282,18 @@ test('bhv retries 023 Retry-After in seconds replaces the backoff and is capped 
     'above the cap' => ['600', 60.0],
 ]);
 
+test('bhv retries 026 waits for a Retry-After given in seconds', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $options = TransportOptions::builder()->maxRetries(1)->timeout(null)->build();
+    $client = retryTestClient([[429, ['Retry-After' => '1']], 200], $options, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/limited', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($client->pauses)->toBe([1.0]);
+});
+
 test('bhv retries 022 Retry-After as an HTTP date is honoured', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
@@ -2087,7 +2307,7 @@ test('bhv retries 022 Retry-After as an HTTP date is honoured', function (): voi
     expect($client->pauses[0])->toBeGreaterThan(25.0)->toBeLessThanOrEqual(30.0);
 });
 
-test('an unreadable Retry-After falls back to the backoff', function (): void {
+test('bhv retries 029 falls back to the backoff when Retry-After is not understood', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $client = retryTestClient([[503, ['Retry-After' => 'soon']], 200], null, $log);
@@ -2122,7 +2342,7 @@ test('bhv retries 013 a network error before a response is retried', function ()
     expect(count($log))->toBe(2);
 });
 
-test('a network error that persists is raised after the last attempt', function (): void {
+test('bhv retries 033 the last network error is raised once the retries are spent', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
@@ -2131,6 +2351,17 @@ test('a network error that persists is raised after the last attempt', function 
     expect(fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/down', static fn (): array => [], null))
         ->toThrow(\PetstoreClient\Errors\NetworkException::class);
     expect(count($log))->toBe(3);
+});
+
+test('bhv retries 042 a timeout is not retried', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $timeout = new \Symfony\Component\HttpClient\Exception\TimeoutException('Idle timeout reached');
+    $client = retryTestClient([$timeout, 200], null, $log);
+
+    expect(fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/slow', static fn (): array => [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkTimeoutException::class);
+    expect(count($log))->toBe(1);
 });
 
 test('bhv retries 006 a multipart body is never replayed', function (): void {
@@ -2144,30 +2375,69 @@ test('bhv retries 006 a multipart body is never replayed', function (): void {
     expect(count($log))->toBe(1);
 });
 
-test('a string body is replayed on every attempt', function (): void {
-    /** @var \ArrayObject<int, string> $log */
-    $log = new \ArrayObject();
-    $client = retryTestClient([503, 200], null, $log);
+test('bhv retries 034 a string body is sent again unchanged on every retry', function (): void {
+    /** @var list<string> $bodies */
+    $bodies = [];
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$bodies): MockResponse {
+        $bodies[] = collectDefaultApiClientRequestBody($options['body'] ?? '');
+
+        return new MockResponse('{}', ['http_code' => count($bodies) < 2 ? 503 : 200]);
+    });
+    $client = new StubbedDefaultApiClient($mock);
 
     $response = $client->sendWithRetries('POST', 'http://example.com/items', static fn (): array => [], '{"a":1}');
 
     expect($response->statusCode)->toBe(200);
-    expect(count($log))->toBe(2);
+    expect($bodies)->toBe(['{"a":1}', '{"a":1}']);
 });
 
-test('every attempt builds its headers anew', function (): void {
+test('bhv retries 039 every retry is a fresh request that carries the same authentication headers again', function (): void {
+    /** @var list<string> $authorization */
+    $authorization = [];
+    $built = 0;
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$authorization): MockResponse {
+        $authorization[] = $options['normalized_headers']['authorization'][0] ?? 'missing';
+
+        return new MockResponse('{}', ['http_code' => count($authorization) < 3 ? 503 : 200]);
+    });
+    $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->maxRetries(2)->build());
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static function () use (&$built): array {
+        $built++;
+
+        return ['Authorization' => 'Bearer abc'];
+    }, null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($built)->toBe(3);
+    expect($authorization)->toBe(['Authorization: Bearer abc', 'Authorization: Bearer abc', 'Authorization: Bearer abc']);
+});
+
+test('bhv retries 038 a 503 is sent again until it succeeds', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $client = retryTestClient([503, 503, 200], null, $log);
-    $built = 0;
 
-    $client->sendWithRetries('GET', 'http://example.com/flaky', static function () use (&$built): array {
-        $built++;
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
 
-        return ['Authorization' => 'Bearer t' . $built];
-    }, null);
+    expect($response->statusCode)->toBe(200);
+    expect(count($log))->toBe(3);
+    expect($client->pauses)->toHaveCount(2);
+});
 
-    expect($built)->toBe(3);
+test('bhv retries 032 a stream body is never retried', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503, 200], null, $log);
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    fwrite($stream, 'payload');
+    rewind($stream);
+
+    $response = $client->sendWithRetries('POST', 'http://example.com/upload', static fn (): array => [], $stream);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(1);
 });
 
 test('bhv retries 003 a multipart body is not retried after a 503', function (): void {
@@ -2283,6 +2553,221 @@ test('bhv redirects 001 a 302 from https to http with a body proceeds as a GET w
     expect($seen[1][0])->toBe('GET');
 });
 
+test('bhv redirects 031 a 3xx without a Location is returned unchanged when max redirects is zero', function (): void {
+    $bare = new MockResponse('', ['http_code' => 302]);
+    $transport = TransportOptions::builder()->followRedirects(true)->maxRedirects(0)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$bare]), $transport);
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(302);
+});
+
+test('bhv redirects 041 a redirect that turns a POST into a GET sends no Content-Length or Content-Type', function (int $status): void {
+    $seen = [];
+    $redirect = new MockResponse('', [
+        'http_code' => $status,
+        'response_headers' => ['Location' => 'https://api.example.com/landing'],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $factory = function (string $method, string $url, array $options) use (&$seen, $redirect, $final): MockResponse {
+        $headers = [];
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            $headers[strtolower($name)] = $value;
+        }
+        $seen[] = ['method' => $method, 'headers' => $headers];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('POST', 'https://api.example.com/start', ['Content-Type' => 'application/json'], '{"a":1}');
+
+    expect($seen[1]['method'])->toBe('GET');
+    expect($seen[1]['headers'])->not->toHaveKey('content-type');
+    expect($seen[1]['headers'])->not->toHaveKey('content-length');
+})->with([301, 302, 303]);
+
+test('bhv redirects 042 a 307 redirect of a bodyless POST keeps the request a POST and sends a zero Content-Length', function (): void {
+    $seen = [];
+    $redirect = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'https://api.example.com/next'],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $factory = function (string $method, string $url, array $options) use (&$seen, $redirect, $final): MockResponse {
+        $headers = [];
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            $headers[strtolower($name)] = $value;
+        }
+        $seen[] = ['method' => $method, 'headers' => $headers];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('POST', 'https://api.example.com/start', [], null);
+
+    expect($seen[1]['method'])->toBe('POST');
+    expect($seen[1]['headers']['content-length'] ?? null)->toBe('0');
+});
+
+test('bhv redirects 044 a cross origin redirect drops the caller authorization and token headers', function (): void {
+    $seen = [];
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'https://other.example.com/final'],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $factory = function (string $method, string $url, array $options) use (&$seen, $redirect, $final): MockResponse {
+        $headers = [];
+        foreach ($options['normalized_headers'] ?? [] as $values) {
+            [$name, $value] = explode(': ', $values[0], 2);
+            $headers[strtolower($name)] = $value;
+        }
+        $seen[] = ['method' => $method, 'headers' => $headers];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', [
+        'Authorization' => 'Bearer caller-secret',
+        'X-Api-Token' => 'caller-token',
+        'X-Trace' => 'keep-me',
+    ], null);
+
+    expect($seen[1]['headers'])->not->toHaveKey('authorization');
+    expect($seen[1]['headers'])->not->toHaveKey('x-api-token');
+    expect($seen[1]['headers']['x-trace'] ?? null)->toBe('keep-me');
+});
+
+test('bhv redirects 036 a 303 turns every method except head into get', function (string $method): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 303,
+        'response_headers' => ['Location' => 'https://api.example.com/landing'],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $seen = [];
+    $factory = function (string $method, string $url) use (&$seen, $redirect, $final): MockResponse {
+        $seen[] = [$method, $url];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest($method, 'https://api.example.com/start', [], 'payload');
+
+    expect($seen[1][0])->toBe('GET');
+})->with(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+test('a 303 keeps head as head', function (): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 303,
+        'response_headers' => ['Location' => 'https://api.example.com/landing'],
+    ]);
+    $final = new MockResponse('', ['http_code' => 200]);
+    $seen = [];
+    $factory = function (string $method, string $url) use (&$seen, $redirect, $final): MockResponse {
+        $seen[] = [$method, $url];
+        return count($seen) === 1 ? $redirect : $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('HEAD', 'https://api.example.com/start', [], null);
+
+    expect($seen[1][0])->toBe('HEAD');
+});
+
+test('bhv redirects 030 an explicit default port is the same origin as the implicit one', function (string $start, string $location): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => $location],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $capturedHeaders = [];
+    $calls = 0;
+    $factory = function (string $method, string $url, array $options) use (&$capturedHeaders, &$calls, $redirect, $final): MockResponse {
+        $calls++;
+        if ($calls === 1) {
+            return $redirect;
+        }
+        $capturedHeaders = $options['normalized_headers'] ?? [];
+
+        return $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('GET', $start, ['Authorization' => 'Bearer secret'], null);
+
+    expect($capturedHeaders)->toHaveKey('authorization');
+})->with([
+    'https implicit port to explicit 443' => ['https://example.com/start', 'https://example.com:443/dest'],
+    'https explicit 443 to implicit port' => ['https://example.com:443/start', 'https://example.com/dest'],
+    'http implicit port to explicit 80' => ['http://example.com/start', 'http://example.com:80/dest'],
+]);
+
+test('bhv redirects 033 a redirect to a different port is a different origin and drops the credentials', function (string $start, string $location): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => $location],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $capturedHeaders = [];
+    $calls = 0;
+    $factory = function (string $method, string $url, array $options) use (&$capturedHeaders, &$calls, $redirect, $final): MockResponse {
+        $calls++;
+        if ($calls === 1) {
+            return $redirect;
+        }
+        $capturedHeaders = $options['normalized_headers'] ?? [];
+
+        return $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('GET', $start, ['Authorization' => 'Bearer secret'], null);
+
+    expect($capturedHeaders)->not->toHaveKey('authorization');
+})->with([
+    'https to a different explicit port' => ['https://example.com/start', 'https://example.com:8443/dest'],
+    'https to explicit port 80' => ['https://example.com/start', 'https://example.com:80/dest'],
+]);
+
+test('bhv redirects 034 origin comparison separates a different scheme, host or port', function (string $start, string $location): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => $location],
+    ]);
+    $final = new MockResponse('{}', ['http_code' => 200]);
+    $capturedHeaders = [];
+    $calls = 0;
+    $factory = function (string $method, string $url, array $options) use (&$capturedHeaders, &$calls, $redirect, $final): MockResponse {
+        $calls++;
+        if ($calls === 1) {
+            return $redirect;
+        }
+        $capturedHeaders = $options['normalized_headers'] ?? [];
+
+        return $final;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('GET', $start, ['Authorization' => 'Bearer secret'], null);
+
+    expect($capturedHeaders)->not->toHaveKey('authorization');
+})->with([
+    'different scheme' => ['https://example.com/start', 'http://example.com/dest'],
+    'different host' => ['https://example.com/start', 'https://other.example.com/dest'],
+    'different port' => ['https://example.com/start', 'https://example.com:8443/dest'],
+]);
+
 test('bhv redirects 022 a 308 comes back verbatim when no redirect is requested', function (): void {
     $redirect = new MockResponse('', [
         'http_code' => 308,
@@ -2390,6 +2875,13 @@ test('bhv serializationwire 040 a multipart file without an extension defaults t
     expect($guess->invoke($client, null, 'blob'))->toBe('application/octet-stream');
 });
 
+test('bhv serializationwire 056 a multipart file with an unknown extension falls back to octet stream', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+    $guess = new \ReflectionMethod(DefaultApiClient::class, 'guessMimeType');
+
+    expect($guess->invoke($client, null, 'blob.xyzzy'))->toBe('application/octet-stream');
+});
+
 test('bhv serializationwire 050 a multipart filename containing a NUL byte is rejected', function (): void {
     expect(fn () => DefaultApiClient::validateMultipartFilename("a\x00b.pdf"))
         ->toThrow(\InvalidArgumentException::class);
@@ -2402,3 +2894,176 @@ test('bhv lifecycle 008 a closed client rejects further requests', function (): 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
         ->toThrow(\LogicException::class);
 });
+
+test('bhv errors 057 a network failure error carries the request method and the path without its query', function (): void {
+    $refused = static function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($refused));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/items?token=secret', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\PetstoreClient\Errors\NetworkException $e) {
+        expect($e->getRequestMethod())->toBe('GET');
+        expect($e->getRequestPath())->toBe('/items');
+    }
+});
+
+test('bhv errors 078 a network failure message never shows the query string of the request url', function (): void {
+    $refused = static function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TransportException(
+            'Could not resolve host for http://example.com/items?token=secret-value'
+        );
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($refused));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/items?token=secret-value', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\PetstoreClient\Errors\NetworkException $e) {
+        expect($e->getMessage())->not->toContain('secret-value');
+        expect($e->getMessage())->toContain('http://example.com/items');
+    }
+});
+
+test('bhv transport 067 a successful response with no body is returned as a success with an empty body', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('', ['http_code' => 204])));
+
+    $response = $client->sendRequest('DELETE', 'http://example.com/item', [], null);
+
+    expect($response->statusCode)->toBe(204);
+    expect($response->body)->toBe('');
+});
+
+test('bhv transport 070 a per call timeout caps the request deadline at that call timeout', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = $options;
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->timeout(60000)->build());
+
+    $client->sendWithRetries('GET', 'http://example.com/a', static fn (): array => [], null, timeoutMs: 5000);
+
+    expect((float) $seen[0]['timeout'])->toBeLessThanOrEqual(5.0);
+    expect((float) $seen[0]['max_duration'])->toBeLessThanOrEqual(5.0);
+});
+
+test('bhv transport 071 a single configured timeout is passed to every timed phase of the request', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = $options;
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->timeout(1000)->build());
+
+    $client->sendWithRetries('GET', 'http://example.com/a', static fn (): array => [], null);
+
+    /* The budget is one end-to-end deadline, so each phase gets what is left of the one
+     * second after the request started: just under 1.0, never more. */
+    expect((float) $seen[0]['timeout'])->toBeGreaterThan(0.9)->toBeLessThanOrEqual(1.0);
+    expect((float) $seen[0]['max_duration'])->toBeGreaterThan(0.0);
+});
+
+test('bhv transport 072 a deadline that expires while connecting raises the timeout error and a refused connection does not', function (): void {
+    $timedOut = new StubbedDefaultApiClient(new MockHttpClient(function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TimeoutException('Connection timed out');
+    }));
+    try {
+        $timedOut->sendRequest('GET', 'http://example.com/connect', [], null);
+        test()->fail('Expected NetworkTimeoutException');
+    } catch (\PetstoreClient\Errors\NetworkTimeoutException $e) {
+        expect($e)->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
+    }
+
+    $refused = new StubbedDefaultApiClient(new MockHttpClient(function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+    }));
+    try {
+        $refused->sendRequest('GET', 'http://example.com/connect', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\PetstoreClient\Errors\NetworkException $e) {
+        expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\NetworkTimeoutException::class);
+    }
+});
+
+test('bhv transport 073 a compressed response whose stream is cut short raises the api error, not the raw bytes', function (): void {
+    $truncated = substr((string) gzencode('{"ok":true}'), 0, 8);
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse($truncated, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Encoding' => 'gzip'],
+    ])));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/echo', [], null);
+        test()->fail('Expected ApiException');
+    } catch (ApiException $e) {
+        expect($e::class)->toBe(ApiException::class);
+        expect($e->getCode())->toBe(200);
+    }
+});
+
+test('bhv transport 075 a zstd body with no declared decoded size is decoded completely', function (): void {
+    expect(function_exists('zstd_compress'))->toBeTrue();
+    $payload = str_repeat("\x00", 4 * 1024 * 1024);
+    $compressed = (string) zstd_compress($payload);
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse($compressed, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Encoding' => 'zstd'],
+    ])));
+
+    $response = $client->sendRequest('GET', 'http://example.com/zstd', [], null);
+
+    expect(strlen($response->body))->toBe(strlen($payload));
+});
+
+test('bhv transport 077 a ca certificate path that names a directory or holds no certificate fails at construction naming the path', function (): void {
+    $directory = sys_get_temp_dir();
+    expect(fn (): mixed => new DefaultApiClient(TransportOptions::builder()->caCertPath($directory)->build()))
+        ->toThrow(\InvalidArgumentException::class, $directory);
+
+    $empty = (string) tempnam(sys_get_temp_dir(), 'ca');
+    try {
+        expect(fn (): mixed => new DefaultApiClient(TransportOptions::builder()->caCertPath($empty)->build()))
+            ->toThrow(\InvalidArgumentException::class, $empty);
+    } finally {
+        unlink($empty);
+    }
+});
+
+test('bhv transport 082 a request made with default configuration completes and returns its response', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('ok', ['http_code' => 200])));
+
+    $response = $client->sendRequest('GET', 'http://example.com/default', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('ok');
+});
+
+test('bhv serialization 057 a multipart name holding a line break is refused before any request is sent', function (): void {
+    expect(fn () => DefaultApiClient::validateMultipartFilename("a\nb.pdf"))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => DefaultApiClient::validateMultipartFilename("a\rb.pdf"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 036 closing a client a second time raises no error and releases nothing further', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+
+    $client->close();
+    $client->close();
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
+        ->toThrow(\LogicException::class);
+});
+
+test('bhv headers 031 a header value with a carriage return or line feed is refused before the request is sent', function (string $value): void {
+    $client = new DefaultApiClient();
+
+    expect(fn () => $client->sendRequest('GET', 'http://example.com/echo', ['X-Bad' => $value], null))
+        ->toThrow(\InvalidArgumentException::class, 'X-Bad');
+})->with([
+    'a line feed' => ["a\nInjected: yes"],
+    'a carriage return and line feed' => ["a\r\nInjected: yes"],
+]);

@@ -8,8 +8,10 @@ import (
 	"fmt"
 	neturl "net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"{{packageName}}/pkg/auth"
 	"{{packageName}}/pkg/auth/oauth"
@@ -456,6 +458,128 @@ func TestBhvAuthoidc005_OpenIdConnectAuthenticator_DiscoveryRefusesClearTextEndp
 	}
 }
 
+// max-age=0 makes the discovery document stale at once, so every use fetches it again.
+func TestBhvAuthoidc030_OpenIdConnectAuthenticator_DiscoveryWithMaxAgeZeroIsFetchedOnEveryUse(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=0"),
+		oidcDiscoveryResponse("max-age=0"),
+		oidcDiscoveryResponse("max-age=0"),
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	for i := 0; i < 3; i++ {
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			t.Fatalf("unexpected error on use %d: %v", i+1, err)
+		}
+	}
+	if got := client.requestCount(); got != 3 {
+		t.Errorf("expected 3 discovery requests, got %d", got)
+	}
+}
+
+// Once a one-second max-age has elapsed the document is fetched again. The
+// authenticator is polled until the second request is seen, bounded by a deadline.
+func TestBhvAuthoidc031_OpenIdConnectAuthenticator_DiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=1"),
+		oidcDiscoveryResponse("max-age=1"),
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+		t.Fatalf("unexpected error on the first use: %v", err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for client.requestCount() < 2 && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			t.Fatalf("unexpected error while waiting for the max-age: %v", err)
+		}
+	}
+	if got := client.requestCount(); got != 2 {
+		t.Errorf("expected the document to be fetched again after max-age, got %d requests", got)
+	}
+}
+
+// Once the cached discovery document has expired, the endpoints come from the newly
+// fetched document.
+func TestBhvAuth029_OpenIdConnectAuthenticator_EndpointsComeFromTheNewlyFetchedDocument(t *testing.T) {
+	t.Parallel()
+	moved := fakeResponse{
+		body:       `{"authorization_endpoint":"https://moved.example.com/authorize","token_endpoint":"https://moved.example.com/token"}`,
+		statusCode: 200,
+		headers:    map[string]string{"cache-control": "max-age=1"},
+	}
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=1"),
+		moved,
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	first, err := authObj.BuildAuthorizationURL("")
+	if err != nil {
+		t.Fatalf("unexpected error on the first use: %v", err)
+	}
+	if !strings.Contains(first, "auth.example.com/authorize") {
+		t.Fatalf("expected the first document's endpoint, got %q", first)
+	}
+	latest := first
+	deadline := time.Now().Add(10 * time.Second)
+	for client.requestCount() < 2 && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+		latest, err = authObj.BuildAuthorizationURL("")
+		if err != nil {
+			t.Fatalf("unexpected error while waiting for the max-age: %v", err)
+		}
+	}
+	if !strings.Contains(latest, "moved.example.com/authorize") {
+		t.Errorf("expected the newly fetched document's endpoint after expiry, got %q", latest)
+	}
+}
+
+// A discovered authorization endpoint on plain http, not loopback, is refused.
+func TestBhvAuthoidc032_OpenIdConnectAuthenticator_DiscoveredEndpointThatIsNotHttpsIsRejected(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `{"authorization_endpoint":"http://idp.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if !strings.Contains(err.Error(), "oidc discovery authorization_endpoint must use https") {
+		t.Errorf("unexpected message %v", err)
+	}
+}
+
+// A failed discovery request reports the method and the path it was sent to.
+func TestBhvAuthoidc033_OpenIdConnectAuthenticator_FailedDiscoveryNamesTheRequestMethodAndPath(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `down`, statusCode: 500},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError, got %T: %v", err, err)
+	}
+	if got, want := apiErr.RequestMethod(), "GET"; got != want {
+		t.Errorf("expected request method %q, got %q", want, got)
+	}
+	if got, want := apiErr.RequestPath(), "/.well-known/openid-configuration"; got != want {
+		t.Errorf("expected request path %q, got %q", want, got)
+	}
+}
+
 // oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
 // surface as a status error, not a misleading JSON-parse failure.
 func TestBhvAuthoidc027_OpenIdConnectAuthenticator_ThrowsWhenDiscoveryReturnsNon2xxStatus(t *testing.T) {
@@ -538,6 +662,66 @@ func TestBhvAuthoidc011_OpenIdConnectAuthenticator_FetchesDiscoveryDocumentOnlyO
 	// The cached discovery document must be reused on the second call.
 	if got := atomic.LoadInt32(&client.getCount); got != 1 {
 		t.Errorf("expected discovery to be fetched once, got %d GET requests", got)
+	}
+}
+
+// gatedOIDCClient holds every discovery request until its gate is opened and counts
+// the GET requests; entered is closed when the first one arrives.
+type gatedOIDCClient struct {
+	entered  chan struct{}
+	gate     chan struct{}
+	getCount int32
+}
+
+func (c *gatedOIDCClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *gatedOIDCClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	_ = opts
+	if method == "GET" && atomic.AddInt32(&c.getCount, 1) == 1 {
+		close(c.entered)
+	}
+	<-c.gate
+	return &auth.ApiHttpResponse{
+		StatusCode: 200,
+		Body:       `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`,
+		Headers:    map[string]string{},
+	}, nil
+}
+
+// Callers that arrive while a cold authenticator is still fetching its discovery
+// document wait for that one fetch, so the document is requested once.
+func TestBhvAuthoidc029_OpenIdConnectAuthenticator_ConcurrentCallersOnAColdAuthenticatorShareOneDiscovery(t *testing.T) {
+	t.Parallel()
+	client := &gatedOIDCClient{entered: make(chan struct{}), gate: make(chan struct{})}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	errs := make(chan error, 5)
+	var wg sync.WaitGroup
+	call := func() {
+		defer wg.Done()
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			errs <- err
+		}
+	}
+	wg.Add(1)
+	go call()
+	<-client.entered
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go call()
+	}
+	close(client.gate)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if got := atomic.LoadInt32(&client.getCount); got != 1 {
+		t.Errorf("expected one discovery request for concurrent callers, got %d", got)
 	}
 }
 
@@ -762,5 +946,24 @@ func TestBhvAuthoidc015_OpenIdConnectAuthenticator_InvalidateAccessTokenKeepsThe
 	}
 	if body := client.requests[2].body; !strings.Contains(body, "grant_type=refresh_token") || !strings.Contains(body, "refresh_token=ref1") {
 		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
+	}
+}
+
+// The discovery document is cached for the default lifetime when its response has no max-age, so a second use does not fetch it again.
+func TestBhvAuth011_OpenIdConnectAuthenticator_DiscoveryWithoutMaxAgeIsCachedForTheDefaultLifetime(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	for i := 0; i < 2; i++ {
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			t.Fatalf("unexpected error on call %d: %v", i+1, err)
+		}
+	}
+	if got := atomic.LoadInt32(&client.getCount); got != 1 {
+		t.Errorf("expected one discovery fetch within the default lifetime, got %d", got)
 	}
 }

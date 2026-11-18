@@ -67,7 +67,7 @@ func TestBhvAuthoauthtwoimplicit004_OAuth2ImplicitAuthenticator_BuildsAuthorizat
 // SetAccessToken runs on a callback goroutine while requests read the token on
 // others. Run under the race detector (make test), this fails when the token is
 // an unguarded field.
-func TestOAuth2ImplicitAuthenticator_SetAccessTokenIsSafeAgainstConcurrentRequests(t *testing.T) {
+func TestBhvMisc001_OAuth2ImplicitAuthenticator_SetAccessTokenIsSafeAgainstConcurrentRequests(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
@@ -151,6 +151,30 @@ func TestBhvAuthoauthtwoimplicit012_OAuth2ImplicitAuthenticator_ThrowsWhenAccess
 	}
 	if got := auth.AuthHeaders(); len(got) != 0 {
 		t.Errorf("expected AuthHeaders to be empty before SetAccessToken, got %v", got)
+	}
+}
+
+// A non-ASCII access token is refused with the RFC 7230 message.
+// An access token may contain a horizontal tab (RFC 7230 §3.2.6 allows it in a
+// field value), and the Bearer header carries it unchanged.
+func TestBhvAuthoauthtwoimplicit016_OAuth2ImplicitAuthenticator_SetAccessTokenAcceptsATab(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	if err := auth.SetAccessToken("tok\tvalue"); err != nil {
+		t.Fatalf("expected a token with a tab to be accepted, got %v", err)
+	}
+	if got, want := auth.AuthHeaders()["Authorization"], "Bearer tok\tvalue"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBhvAuthoauthtwoimplicit014_OAuth2ImplicitAuthenticator_SetAccessTokenRejectsNonAsciiWithTheRfc7230Message(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	if err := auth.SetAccessToken("caf\u00e9"); !errors.Is(err, oauth.ErrInvalidAccessToken) {
+		t.Fatalf("expected ErrInvalidAccessToken, got %v", err)
+	} else if want := "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"; err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
 	}
 }
 
@@ -261,7 +285,7 @@ func TestBhvAuthoauthtwoimplicit011_OAuth2ImplicitAuthenticator_ReprShowsTheNonS
 }
 
 // The authorize URL carries its parameters in the one order every SDK shares.
-func TestOAuth2ImplicitAuthenticator_AuthorizeUrlUsesTheSharedParameterOrder(t *testing.T) {
+func TestBhvAuth019_OAuth2ImplicitAuthenticator_AuthorizeUrlUsesTheSharedParameterOrder(t *testing.T) {
 	t.Parallel()
 	url := createImplicitAuthenticator().BuildAuthorizationURL("s")
 

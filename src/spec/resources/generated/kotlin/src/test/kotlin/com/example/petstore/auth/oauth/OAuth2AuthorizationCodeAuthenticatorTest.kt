@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.auth.CredentialEnvironment
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -76,7 +77,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     private fun verifierSentIn(body: String?): String? = Regex("code_verifier=([^&]+)").find(body.orEmpty())?.groupValues?.get(1)
 
     @Test
-    fun pkceChallengeIsTheS256OfTheVerifier() {
+    fun bhvAuth008PkceChallengeIsTheS256OfTheVerifier() {
         // RFC 7636 appendix B test vector.
         assertEquals(
             "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
@@ -513,5 +514,91 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         assertEquals("https://auth.example.com/oauth/token", client.lastUrl)
         runBlocking { auth.getAuthHeaders() }
         assertEquals("https://auth.example.com/oauth/refresh", client.lastUrl)
+    }
+
+    @Test
+    @DisplayName(
+        "bhvAuthscheme015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable",
+    )
+    fun bhvAuthscheme015EmptyAuthorizationCodeSchemeVariableIsUnsetAndNamed() {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name ->
+            when (name) {
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID" -> ""
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET" -> "secret"
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI" -> "https://app.example.com/callback"
+                else -> null
+            }
+        }
+        try {
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    UserAuthAuthorizationCodeAuthenticator("https://api.example.com")
+                }
+            assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"), ex.message)
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth014 the authorization URL encodes the spaces between scopes as percent 20, never as a plus sign")
+    fun bhvAuth014ScopeSpacesAreEncodedAsPercent20() {
+        val url = createAuthenticator().buildAuthorizationUrl()
+        assertTrue(url.contains("scope=read%20write"), url)
+        assertFalse(url.contains("+"), url)
+    }
+
+    @Test
+    @DisplayName("bhvAuth020 the PKCE verifier is sent with the first code exchange and never with a refresh")
+    fun bhvAuth020TheVerifierIsNeverSentWithARefresh() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertNotNull(verifierSentIn(client.lastBody), client.lastBody)
+        runBlocking { auth.getAuthHeaders() }
+        assertNull(verifierSentIn(client.lastBody), client.lastBody)
+    }
+
+    @Test
+    @DisplayName("bhvAuth028 a failed first code exchange records no session and the client still reports it unexchanged")
+    fun bhvAuth028AFailedFirstExchangeRecordsNoSession() {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        assertThrows(com.example.petstore.errors.OAuth2ServerException::class.java) {
+            runBlocking { auth.exchangeCode("bad-code") }
+        }
+        val ex = assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Must call exchangeCode() before making API requests", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoauthcode030 auth headers before the code exchange fail naming the exchange call to make first")
+    fun authHeadersBeforeTheExchangeNameTheExchangeCall() {
+        val auth = createAuthenticator()
+        auth.setApiClient(FakeApiClient())
+        val ex = assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Must call exchangeCode() before making API requests", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoauthcode032 the authorization code exchange body uses a fixed parameter order")
+    fun codeExchangeBodyUsesAFixedParameterOrder() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"at","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        runBlocking { auth.exchangeCode("C") }
+        assertEquals(
+            "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret" +
+                "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+            client.lastBody,
+        )
     }
 }

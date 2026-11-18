@@ -42,7 +42,19 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert Exception.message(err) =~ "500"
   end
 
-  test "an empty message renders the default text, like a missing one" do
+  test "bhv errors 051 an empty error message falls back to the generic error line" do
+    default = "Error message: the server returns an error"
+
+    assert {{moduleName}}.Errors.ApiError.message(
+             {{moduleName}}.Errors.ApiError.exception(message: "")
+           ) == default
+
+    assert {{moduleName}}.Errors.ApiError.message(
+             {{moduleName}}.Errors.ApiError.exception(status_code: 500)
+           ) == default <> "\nHTTP status code: 500"
+  end
+
+  test "bhv errors 064 an empty message renders the default text, like a missing one" do
     default = "Error message: the server returns an error"
 
     assert {{moduleName}}.Errors.ApiError.message(
@@ -87,7 +99,7 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert {{moduleName}}.Errors.ApiError.message(bare) == "boom"
   end
 
-  test "the message cuts a long response body at 1 KiB and counts the bytes left out" do
+  test "bhv errors 065 the message cuts a long response body at 1 KiB and counts the bytes left out" do
     body = String.duplicate("a", 3_000)
 
     err =
@@ -184,6 +196,35 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert {{moduleName}}.Errors.ApiError.with_request(err, :get, "https://api.example.com").request_path == "/"
     assert {{moduleName}}.Errors.ApiError.with_request(from_url, :delete, "/other") == from_url
     assert {{moduleName}}.Errors.ApiError.with_request(:not_an_error, :get, "/items") == :not_an_error
+  end
+
+  test "bhv errors 075 a cut body never splits a multi-byte character" do
+    # 1023 ASCII bytes and then a two-byte character: the 1 KiB cut lands on its
+    # first byte, which renders as a replacement character, so the message stays
+    # valid UTF-8 and counts the five bytes left out.
+    body = String.duplicate("x", 1_023) <> "é" <> "tail"
+
+    err = {{moduleName}}.Errors.ApiError.exception(message: "boom", status_code: 500, response_body: body)
+    message = {{moduleName}}.Errors.ApiError.message(err)
+
+    assert String.valid?(message)
+
+    assert message ==
+             "boom\nHTTP status code: 500\nResponse body: " <>
+               String.duplicate("x", 1_023) <> "\uFFFD... (5 more bytes)"
+  end
+
+  test "bhv errors 079 attaching request details keeps the first complete request and ignores later or incomplete attachments" do
+    error = {{moduleName}}.Errors.ApiError.exception(message: "boom")
+
+    first = {{moduleName}}.Errors.ApiError.with_request(error, :get, "https://api.example.com/items?key=1")
+    assert first.request_method == "GET"
+    assert first.request_path == "/items"
+
+    assert {{moduleName}}.Errors.ApiError.with_request(first, :post, "/other") == first
+
+    incomplete = %{error | request_method: "PUT"}
+    assert {{moduleName}}.Errors.ApiError.with_request(incomplete, :delete, "/later") == incomplete
   end
 
   test "bhv errors 002 every error that specialises ApiError carries the request" do
@@ -284,19 +325,36 @@ defmodule {{moduleName}}.ApiErrorTest do
   end
 
   describe "OAuth2ServerError message" do
-    test "names the raw body when the response is not an OAuth2 error object" do
+    test "bhv errors 046 the message has three forms: raw body, code, and code with description" do
+      raw = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 502, raw_body: "<html>bad gateway</html>")
+      code = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 400, code: "invalid_grant")
+
+      described =
+        {{moduleName}}.Errors.OAuth2ServerError.exception(
+          status_code: 400,
+          code: "invalid_grant",
+          description: "refresh token expired"
+        )
+
+      assert Exception.message(raw) == "Token request failed with status 502: <html>bad gateway</html>"
+      assert Exception.message(code) == "Token request failed with status 400: invalid_grant"
+      assert Exception.message(described) ==
+               "Token request failed with status 400: invalid_grant -- refresh token expired"
+    end
+
+    test "bhv authoauthtwotokenmgr 047 an OAuth2 server error without an error code names the status and the raw body" do
       err = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 502, raw_body: "Bad Gateway")
 
       assert Exception.message(err) == "Token request failed with status 502: Bad Gateway"
     end
 
-    test "names the error code" do
+    test "bhv errors 049 names the error code" do
       err = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 400, code: "invalid_grant")
 
       assert Exception.message(err) == "Token request failed with status 400: invalid_grant"
     end
 
-    test "names the error code and description" do
+    test "bhv authoauthtwotokenmgr 042 names the error code and description" do
       err =
         {{moduleName}}.Errors.OAuth2ServerError.exception(
           status_code: 400,
@@ -441,12 +499,42 @@ defmodule {{moduleName}}.ApiErrorTest do
       assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(serialization_error)
     end
 
+    test "bhv errors 045 the OAuth2 errors are not ApiError and the SDK error root recognises them" do
+      token = %{{moduleName}}.Errors.OAuth2TokenError{message: "missing access_token"}
+      server = %{{moduleName}}.Errors.OAuth2ServerError{status_code: 400, message: "invalid_grant"}
+
+      refute {{moduleName}}.Errors.ApiError.api_error?(token)
+      refute {{moduleName}}.Errors.ApiError.api_error?(server)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(token)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(server)
+    end
+
+    test "bhv errors 047 a typed server error is an ApiError and an SDK error" do
+      err = {{moduleName}}.Errors.ApiError.from_response(500, %{}, "boom")
+
+      assert %{{moduleName}}.Errors.InternalServerError{} = err
+      assert {{moduleName}}.Errors.ApiError.api_error?(err)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+    end
+
     test "bhv errors 018 every SDK exception module is listed in exceptions/0" do
       modules = {{moduleName}}.Errors.{{errorPrefix}}Error.exceptions()
 
       assert {{moduleName}}.Errors.ApiError in modules
       assert {{moduleName}}.Errors.BadRequestError in modules
       assert {{moduleName}}.Errors.SerializationError in modules
+    end
+
+    test "bhv errors 044 every error lives under the Errors namespace and the package root lists the whole tree" do
+      errors = {{moduleName}}.errors()
+
+      assert {{moduleName}}.Errors.ApiError in errors
+      refute {{moduleName}}.Errors.{{errorPrefix}}Error in errors
+
+      for error <- errors do
+        assert Code.ensure_loaded?(error)
+        assert ["{{moduleName}}", "Errors", _name] = Module.split(error)
+      end
     end
 
     test "a rescued SDK error is recognised via exceptions/0" do
@@ -535,6 +623,22 @@ defmodule {{moduleName}}.ApiErrorTest do
       refute {{moduleName}}.Errors.ApiError.api_error?(%ArgumentError{message: "unrelated"})
     end
 
+    test "bhv errors 080 a typed HTTP error and its kind view are caught by the SDK root error and keep their status code" do
+      typed = {{moduleName}}.Errors.ApiError.from_response(404, %{}, "gone")
+
+      caught =
+        try do
+          raise typed
+        rescue
+          error -> error
+        end
+
+      assert %{{moduleName}}.Errors.NotFoundError{} = caught
+      assert caught.status_code == 404
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(caught)
+      assert {{moduleName}}.Errors.ClientError.client_error?(caught)
+    end
+
     test "bhv errors 033 NotFoundError is a ClientError and an ApiError" do
       err = {{moduleName}}.Errors.ApiError.from_response(404, %{}, nil)
 
@@ -543,7 +647,16 @@ defmodule {{moduleName}}.ApiErrorTest do
       assert {{moduleName}}.Errors.ApiError.api_error?(err)
     end
 
-    test "a 429 is a TooManyRequestsError and a ClientError" do
+    test "bhv errors 061 a bad request error is a client error, an API error and an OpenAPI error" do
+      err = {{moduleName}}.Errors.ApiError.from_response(400, %{}, nil)
+
+      assert %{{moduleName}}.Errors.BadRequestError{} = err
+      assert {{moduleName}}.Errors.ClientError.client_error?(err)
+      assert {{moduleName}}.Errors.ApiError.api_error?(err)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+    end
+
+    test "bhv errors 066 a 429 is a TooManyRequestsError and a ClientError" do
       err = {{moduleName}}.Errors.ApiError.from_response(429, %{"retry-after" => "3"}, nil)
 
       assert %{{moduleName}}.Errors.TooManyRequestsError{status_code: 429} = err
@@ -599,6 +712,44 @@ defmodule {{moduleName}}.ApiErrorTest do
       end
     end
 
+    test "bhv errors 050 response headers render as compact JSON with sorted keys and unescaped slashes" do
+      error =
+        {{moduleName}}.Errors.ApiError.exception(
+          message: "boom",
+          response_headers: %{"x-zeta" => "2", "x-alpha" => "https://example.com/a/b"}
+        )
+
+      assert {{moduleName}}.Errors.ApiError.message(error) =~
+               ~s(Response headers: {"x-alpha":"https://example.com/a/b","x-zeta":"2"})
+    end
+
+    test "bhv errors 053 each named error pins its own HTTP status code" do
+      assert {{moduleName}}.Errors.NotFoundError.exception(%{status_code: 500}).status_code == 404
+
+      assert {{moduleName}}.Errors.TooManyRequestsError.exception(%{status_code: 500}).status_code ==
+               429
+
+      assert {{moduleName}}.Errors.InternalServerError.exception(%{status_code: 404}).status_code ==
+               500
+    end
+
+    test "bhv errors 055 status error constructors default the response context to null" do
+      error = {{moduleName}}.Errors.NotFoundError.exception("gone")
+
+      assert error.response_headers == nil
+      assert error.response_body == nil
+      assert error.error_body == nil
+    end
+
+    test "bhv errors 056 a status at or above 600 yields the base error and not a server error" do
+      for status <- [600, 700] do
+        error = {{moduleName}}.Errors.ApiError.from_response(status, nil, nil)
+
+        assert error.__struct__ == {{moduleName}}.Errors.ApiError
+        refute {{moduleName}}.Errors.ServerError.server_error?(error)
+      end
+    end
+
     test "bhv errors 020 network errors carry status 0" do
       assert {{moduleName}}.Errors.NetworkError.exception(message: "refused").status_code == 0
       assert {{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out").status_code == 0
@@ -611,5 +762,51 @@ defmodule {{moduleName}}.ApiErrorTest do
       refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%{message: "plain map"})
     end
   end
+  test "bhv skills 001 the skills guide names the root error and the error types that are siblings of ApiError" do
+    skills = File.read!("SKILLS.md")
+
+    assert skills =~ "root grouping"
+    assert skills =~ "`SerializationError` (a body could not be encoded or decoded)"
+    assert skills =~ "`OAuth2ServerError` (token endpoint answered 4xx or 5xx)"
+    assert skills =~ "`OAuth2TokenError` (token endpoint answered unusably)"
+  end
+
+
+  describe "errors without a response" do
+    test "bhv errors 074 an error that never received a response renders its text as the message alone" do
+      message =
+        {{moduleName}}.Errors.ApiError.message(
+          {{moduleName}}.Errors.ApiError.exception(status_code: 0, message: "connection reset")
+        )
+
+      assert message =~ "connection reset"
+      refute message =~ "HTTP status code"
+    end
+
+    test "bhv errors 084 an error built without an HTTP response reports a status code of zero" do
+      assert {{moduleName}}.Errors.ApiError.exception(message: "boom").status_code == 0
+    end
+  end
+
+  test "bhv errors 072 a typed view of an error body that starts with a byte order mark decodes like the body without it" do
+    bom = <<0xEF, 0xBB, 0xBF>> <> ~s({"id":42,"name":"Dogs"})
+    with_bom = {{moduleName}}.Errors.ApiError.from_response(404, %{}, bom)
+    without_bom = {{moduleName}}.Errors.ApiError.from_response(404, %{}, ~s({"id":42,"name":"Dogs"}))
+
+    typed = {{moduleName}}.Errors.ApiError.typed_error_body(with_bom, "Category")
+
+    assert typed == {{moduleName}}.Errors.ApiError.typed_error_body(without_bom, "Category")
+    assert typed.id == 42
+  end
+
+  test "bhv errors 073 an error body nested within the depth limit is kept as structured data" do
+    depth = 200
+    body = String.duplicate(~s({"a":), depth) <> "1" <> String.duplicate("}", depth)
+    err = {{moduleName}}.Errors.ApiError.from_response(500, %{}, body)
+
+    assert %{{moduleName}}.Errors.InternalServerError{} = err
+    assert Enum.reduce(1..depth, err.error_body, fn _, acc -> acc["a"] end) == 1
+  end
+
 end
 {{/generateTests}}

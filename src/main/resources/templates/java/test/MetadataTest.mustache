@@ -2,6 +2,11 @@
 
 package {{modelPackage}};
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -99,7 +104,7 @@ class MetadataTest {
     }
 
     @Test
-    void testBuilderMethodsAreNotJsonProperties() {
+    void bhvModels023BuilderMethodsAreNotJsonProperties() {
         {{! The builder names its extra-property methods after JSON keys a payload may carry; with }}
         {{! the empty with-prefix they would otherwise read as properties and swallow the key. }}
         Metadata metadata =
@@ -149,7 +154,7 @@ class MetadataTest {
     }
 
     @Test
-    void testToStringDumpsTheAdditionalProperties() {
+    void bhvModels012ToStringDumpsTheAdditionalProperties() {
         Metadata metadata = Metadata.builder().putAdditionalProperty("customField", "hello").build();
 
         assertThat(metadata.toString())
@@ -157,7 +162,7 @@ class MetadataTest {
     }
 
     @Test
-    void testModelFieldsAreFinal() throws NoSuchFieldException {
+    void bhvModels014ModelFieldsAreFinal() throws NoSuchFieldException {
         assertThat(java.lang.reflect.Modifier.isFinal(Metadata.class.getField("createdAt").getModifiers()))
                 .isTrue();
     }
@@ -253,6 +258,19 @@ class MetadataTest {
     }
 
     @Test
+    void bhvSerializationObject227ModelExternalDocsDescriptionIsWrittenVerbatim() throws IOException {
+        java.util.List<Path> found;
+        try (java.util.stream.Stream<Path> walk = Files.walk(Path.of("src/main"))) {
+            found = walk.filter(f -> f.getFileName().toString().equals("Account.java"))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        assertThat(found).hasSize(1);
+        String source = Files.readString(found.get(0));
+        assertThat(source).contains("\"notes\" it's here");
+        assertThat(source).doesNotContainPattern("&(lt|gt|quot|#)");
+    }
+
+    @Test
     void bhvModels002TestPomManifestDeclaresNonEmptyDescription() throws IOException {
         {{! manifest-description-missing: the published Maven POM must carry a }}
         {{! non-empty <description> (wired from the spec's appDescription, with }}
@@ -331,5 +349,52 @@ class MetadataTest {
                 .as("a no-example property must not document a literal null example")
                 .doesNotContain("Example: {@code null}")
                 .doesNotContain("Example: null");
+    }
+
+    @Test
+    void bhvModels013NewModelHasAnEmptyAdditionalPropertiesCollection() {
+        assertTrue({{modelPackage}}.Metadata.builder().build().getAdditionalProperties().isEmpty());
+    }
+
+    @Test
+    void bhvModels015ChangedCopyKeepsTheAdditionalPropertiesOfTheOriginal() {
+        {{modelPackage}}.Metadata original = {{modelPackage}}.Metadata.builder().putAdditionalProperty("k", "v").build();
+        {{modelPackage}}.Metadata changed = original.toBuilder()
+                .createdAt(java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z")).build();
+        assertEquals("v", changed.getAdditionalProperties().get("k"));
+    }
+
+    @Test
+    void bhvModels016CopyClearsAnOptionalFieldOnlyWhenNullIsPassed() {
+        java.time.OffsetDateTime when = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
+        {{modelPackage}}.Metadata set = {{modelPackage}}.Metadata.builder().createdAt(when).build();
+        assertEquals(when, set.toBuilder().build().createdAt);
+        assertNull(set.toBuilder().createdAt(null).build().createdAt);
+    }
+
+    @Test
+    void bhvModels017CopyCanSetAFieldAndTheOriginalKeepsItsValue() {
+        {{modelPackage}}.Category original = {{modelPackage}}.Category.builder().name("x").build();
+        {{modelPackage}}.Category changed = original.toBuilder().name("y").build();
+        assertEquals("y", changed.name);
+        assertEquals("x", original.name);
+    }
+
+    @Test
+    void bhvModels020EqualModelsCompareEqualAndHashAlike() {
+        {{modelPackage}}.Category first = {{modelPackage}}.Category.builder().id(1L).build();
+        {{modelPackage}}.Category second = {{modelPackage}}.Category.builder().id(1L).build();
+        assertEquals(first, second);
+        assertEquals(first.hashCode(), second.hashCode());
+    }
+
+    @Test
+    void bhvModels021IntegerEnumMemberCarriesItsDeclaredNumber() {
+        assertEquals(3, {{modelPackage}}.Priority.NUMBER_3.getValue());
+    }
+
+    @Test
+    void bhvModels022ModelThatAllowsUndeclaredPropertiesReportsIt() {
+        assertNotNull({{modelPackage}}.Metadata.builder().build().getAdditionalProperties());
     }
 }

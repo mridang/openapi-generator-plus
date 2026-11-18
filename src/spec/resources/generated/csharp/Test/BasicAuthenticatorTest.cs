@@ -114,10 +114,33 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void PasswordMayContainAColon()
+    public void BhvAuthbasic020MasksThePasswordInDebugOutput()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        string repr = auth.ToString();
+        Assert.DoesNotContain("s3cret", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthbasic018PasswordMayContainAColon()
     {
         var auth = new BasicAuthenticator("https://api.example.com", "alice", "p:ss");
 
         Assert.Equal("Basic YWxpY2U6cDpzcw==", auth.GetAuthHeaders()["Authorization"]);
+    }
+
+    [Fact]
+    public void BhvErrors081RefusalNamesTheUsernameOrThePasswordAtFault()
+    {
+        var user = Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "bad:user", "s3cret")
+        );
+        Assert.Contains("username", user.Message, StringComparison.Ordinal);
+
+        var pass = Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", "bad\npass")
+        );
+        Assert.Contains("password", pass.Message, StringComparison.Ordinal);
     }
 }

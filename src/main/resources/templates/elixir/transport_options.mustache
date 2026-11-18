@@ -95,15 +95,17 @@ defmodule {{moduleName}}.TransportOptions do
             max_retries: 2,
             req_options: []
 
-  # The proxy URL may carry `user:pass@` credentials and the default headers
-  # may carry credentials too, so the Inspect representation masks both as
+  # The proxy URL may carry `user:pass@` credentials, the default headers may
+  # carry credentials too, and req_options carry caller hooks (an adapter, a
+  # plug, an auth tuple), so the Inspect representation masks all three as
   # `***` (the struct itself keeps the real values).
   defimpl Inspect do
     def inspect(options, opts) do
       masked = %{
         options
         | proxy: {{moduleName}}.TransportOptions.redact_proxy(options.proxy),
-          default_headers: {{moduleName}}.TransportOptions.redact_headers(options.default_headers)
+          default_headers: {{moduleName}}.TransportOptions.redact_headers(options.default_headers),
+          req_options: {{moduleName}}.TransportOptions.redact_req_options(options.req_options)
       }
 
       Inspect.Any.inspect(masked, opts)
@@ -134,6 +136,16 @@ defmodule {{moduleName}}.TransportOptions do
   end
 
   def redact_headers(headers), do: headers
+
+  @doc false
+  # Each req_options key stays visible so the printed form shows what was set;
+  # every value is a caller hook and is masked.
+  @spec redact_req_options(term()) :: term()
+  def redact_req_options(req_options) when is_list(req_options) do
+    Enum.map(req_options, fn {key, _value} -> {key, "***"} end)
+  end
+
+  def redact_req_options(req_options), do: req_options
 
   defp sensitive_header?(name) do
     lowered = name |> to_string() |> String.downcase()
@@ -167,13 +179,13 @@ defmodule {{moduleName}}.TransportOptions do
     * `:default_headers` - Transport-level default headers.
     * `:inject_request_id` - Whether to auto-inject an X-Request-ID header.
     * `:max_retries` - How many times a failed call is retried (`2` by default, `0` for none).
-    * `:req_options` - Extra `Req.new/1` options (a custom `:adapter` or `:plug`); the SDK's own settings win.
+    * `:req_options` - Extra `Req.new/1` options (a custom `:adapter` or `:plug`); the SDK's own settings win. Redirect following is the SDK's job, so `redirect: true` is refused.
 
   ## Raises
 
     `ArgumentError` if `:max_retries` is not a non-negative integer, if the proxy URL is not a valid URL with an http or https scheme and a host,
-    if `:timeout` is zero or negative, if `:req_options` is not a keyword list, or if it carries
-    `:connect_options` or `:finch` while `proxy`, `ca_cert_path` or `verify_ssl: false` is set.
+    if `:timeout` is zero or negative, if `:req_options` is not a keyword list, if it carries `redirect: true`
+    (the SDK manages redirects itself), or if it carries `:connect_options` or `:finch` while `proxy`, `ca_cert_path` or `verify_ssl: false` is set.
 
   """
   @spec new(keyword()) :: t()
@@ -188,6 +200,11 @@ defmodule {{moduleName}}.TransportOptions do
     if is_integer(result.timeout) and result.timeout <= 0 do
       raise ArgumentError,
             "Invalid timeout: must be a positive number of milliseconds (got #{result.timeout})"
+    end
+
+    unless is_nil(result.max_redirects) or (is_integer(result.max_redirects) and result.max_redirects >= 0) do
+      raise ArgumentError,
+            "Invalid max_redirects: must be a non-negative integer (got #{inspect(result.max_redirects)})"
     end
 
     if result.proxy do
@@ -218,6 +235,12 @@ defmodule {{moduleName}}.TransportOptions do
   defp validate_req_options!(%__MODULE__{req_options: req_options} = result) do
     unless Keyword.keyword?(req_options) do
       raise ArgumentError, "Invalid req_options (must be a keyword list): #{inspect(req_options)}"
+    end
+
+    if Keyword.get(req_options, :redirect) == true do
+      raise ArgumentError,
+            "req_options :redirect conflicts with the SDK's own redirect handling; " <>
+              "the SDK follows redirects itself (see follow_redirects and max_redirects)"
     end
 
     own_pool_settings? = result.proxy != nil or result.ca_cert_path != nil or result.verify_ssl == false

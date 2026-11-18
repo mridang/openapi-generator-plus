@@ -49,7 +49,7 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void keyIsEmittedOnlyAtItsOwnLocation() {
+  void bhvAuthApiKey022KeyIsEmittedOnlyAtItsOwnLocation() {
     ApiKeyAuthenticator header =
         new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.HEADER);
     ApiKeyAuthenticator query =
@@ -154,7 +154,25 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void nulOnlyKeyReportsControlCharacters() {
+  void bhvAuth006ApiKeyIsSentUnderTheDeclaredHeaderName() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-KEY", "key-value", ApiKeyLocation.HEADER);
+    assertEquals("key-value", auth.getAuthHeaders().get("X-API-KEY"));
+  }
+
+  @Test
+  void bhvAuth016ApiKeyStringFormMasksTheKeyAndNamesItsType() {
+    String printed =
+        new ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-KEY", "s3cr3t-key", ApiKeyLocation.HEADER)
+            .toString();
+    assertTrue(printed.contains("ApiKeyAuthenticator"));
+    assertFalse(printed.contains("s3cr3t-key"));
+  }
+
+  @Test
+  void bhvAuth009NulOnlyKeyReportsControlCharacters() {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class,
@@ -189,7 +207,7 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void crlfInHeaderKeyThrowsAtConstruction() {
+  void bhvAuthApiKey018CrlfInHeaderKeyThrowsAtConstruction() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -232,6 +250,23 @@ class ApiKeyAuthenticatorTest {
         () ->
             new ApiKeyAuthenticator(
                 "https://api.example.com", "api_key", "\013", ApiKeyLocation.QUERY));
+  }
+
+  @Test
+  void bhvAuthApiKey023CookieKeyAcceptsANonAsciiValue() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "session", "café", ApiKeyLocation.COOKIE);
+    assertEquals(Map.of("session", "café"), auth.getCookieParams());
+    assertEquals(Map.of(), auth.getAuthHeaders());
+  }
+
+  @Test
+  void bhvAuthApiKey026DefaultDebugOutputDoesNotLeakTheKey() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER);
+    assertFalse(auth.toString().contains("abc123"));
   }
 
   @Test

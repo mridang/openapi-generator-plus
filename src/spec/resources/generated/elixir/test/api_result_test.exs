@@ -18,6 +18,18 @@ defmodule PetstoreClient.ApiResultTest do
       assert result.headers == %{"content-type" => "application/json"}
     end
 
+    test "bhv results 004 exposes the deserialized data" do
+      result = %ApiResult{status_code: 200, data: %{"id" => 1}}
+
+      assert result.data == %{"id" => 1}
+    end
+
+    test "bhv results 005 exposes the raw response body" do
+      result = %ApiResult{status_code: 200, raw_body: ~s({"id":1})}
+
+      assert result.raw_body == ~s({"id":1})
+    end
+
     test "bhv results 002 exposes the response headers" do
       result = %ApiResult{status_code: 200, headers: %{"content-type" => "application/json"}}
 
@@ -37,6 +49,17 @@ defmodule PetstoreClient.ApiResultTest do
       result = %ApiResult{status_code: 200}
 
       assert result.headers == %{}
+    end
+  end
+
+  describe "headers" do
+    test "bhv results 006 the headers of a result are a copy taken when it is built" do
+      source = %{"x-request-id" => "1"}
+      result = %ApiResult{status_code: 200, headers: source}
+
+      _changed = Map.put(source, "x-request-id", "2")
+
+      assert result.headers == %{"x-request-id" => "1"}
     end
   end
 end

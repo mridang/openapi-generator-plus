@@ -67,6 +67,29 @@ abstract class BaseAuthenticator implements Authenticator
             . (count($names) === 1 ? ' environment variable' : ' environment variables');
     }
 
+    /**
+     * The credential an OAuth 2 scheme authenticator passes to its base class: the value passed
+     * (an empty one is kept, so the base class refuses it), else the environment variable of the
+     * field, read once, when the authenticator is built. Called from a generated scheme class, so
+     * the variable is the scheme's own.
+     *
+     * @throws \InvalidArgumentException when the credential is neither passed nor in the environment
+     */
+    protected static function credentialOrEnvironment(?string $passed, string $field): string
+    {
+        if ($passed !== null) {
+            return $passed;
+        }
+        $value = static::environmentCredential($field);
+        if ($value === null) {
+            throw new \InvalidArgumentException(
+                "Missing the credential '{$field}': pass it" . static::environmentHint($field)
+            );
+        }
+
+        return $value;
+    }
+
     abstract public function getHost(): string;
 
     abstract public function getAuthHeaders(): array;

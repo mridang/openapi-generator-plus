@@ -313,6 +313,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         refreshHeaders: (@Sendable () async throws -> [String: String])?,
         timeout: Int? = nil, maxRetries callRetries: Int? = nil, sendDefaultHeaders: Bool = true
     ) async throws -> ApiHttpResponse {
+        /* A line break in a header value would start a header line of its own. */
+        for (name, value) in headers where value.unicodeScalars.contains(where: { $0 == "\r" || $0 == "\n" }) {
+            throw ConfigurationError.invalidArgument(
+                "Header '\(name)' must not contain a carriage return or line feed")
+        }
         /* One logical request, retries included, counts as one in flight: a
            retry or a refreshed token after close() still finishes. */
         guard lifecycle.enter() else {
@@ -469,6 +474,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             request.httpBody = try DefaultApiClient.buildMultipartBody(ordered: formParts, boundary: boundary)
         } else if let data = body as? Data {
             request.httpBody = data
+        } else if let text = body as? String {
+            /* A text body is sent as its UTF-8 bytes, the same on every attempt. */
+            request.httpBody = Data(text.utf8)
         } else {
             for name in merged.keys where name.caseInsensitiveCompare("Content-Type") == .orderedSame {
                 merged.removeValue(forKey: name)
@@ -829,18 +837,27 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// The lowercased, unquoted `charset=` value of a Content-Type header, or
     /// nil when there is none.
     static func charsetLabel(_ contentType: String?) -> String? {
-        guard let contentType = contentType,
-              let range = contentType.range(of: "charset=", options: .caseInsensitive) else {
+        guard let contentType = contentType else {
             return nil
         }
-        let after = contentType[range.upperBound...]
-        let raw = after.split(separator: ";").first.map(String.init) ?? ""
-        var charset = raw.trimmingCharacters(in: .whitespaces)
-        /* Strip surrounding quotes if present (charset values may be quoted). */
-        if charset.hasPrefix("\"") && charset.hasSuffix("\"") && charset.count >= 2 {
-            charset = String(charset.dropFirst().dropLast())
+        /* Only a parameter NAMED charset counts: a parameter whose name merely
+           ends in charset (xcharset=) is not the charset. The first element is
+           the media type, so it is skipped. */
+        for parameter in contentType.split(separator: ";").dropFirst() {
+            let pair = parameter.split(separator: "=", maxSplits: 1)
+            guard pair.count == 2,
+                  String(pair[0]).trimmingCharacters(in: .whitespaces).lowercased() == "charset"
+            else {
+                continue
+            }
+            var charset = String(pair[1]).trimmingCharacters(in: .whitespaces)
+            /* Strip surrounding quotes if present (charset values may be quoted). */
+            if charset.hasPrefix("\"") && charset.hasSuffix("\"") && charset.count >= 2 {
+                charset = String(charset.dropFirst().dropLast())
+            }
+            return charset.lowercased()
         }
-        return charset.lowercased()
+        return nil
     }
 
     /// Parses the `charset=` parameter from a Content-Type header and

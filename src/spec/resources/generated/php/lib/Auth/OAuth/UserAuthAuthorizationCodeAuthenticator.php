@@ -18,19 +18,25 @@ namespace PetstoreClient\Auth\OAuth;
  */
 final class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator
 {
+    protected const array ENV_VARS = [
+        'clientId' => 'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID',
+        'clientSecret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET',
+        'redirectUri' => 'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI',
+    ];
+
     public function __construct(
         string $host,
-        string $clientId,
-        #[\SensitiveParameter] string $clientSecret,
-        string $redirectUri
+        ?string $clientId = null,
+        #[\SensitiveParameter] ?string $clientSecret = null,
+        ?string $redirectUri = null
     ) {
         parent::__construct(
             $host,
-            $clientId,
-            $clientSecret,
+            self::credentialOrEnvironment($clientId, 'clientId'),
+            self::credentialOrEnvironment($clientSecret, 'clientSecret'),
             'https://auth.example.com/authorize',
             'https://auth.example.com/oauth/token',
-            $redirectUri,
+            self::credentialOrEnvironment($redirectUri, 'redirectUri'),
             ['pets:read', 'pets:write'],
             'https://auth.example.com/oauth/refresh'
         );

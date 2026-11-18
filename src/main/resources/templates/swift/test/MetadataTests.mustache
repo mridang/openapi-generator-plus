@@ -26,6 +26,14 @@ import Testing
         #expect(!header.contains { $0.contains("\\\"") })
     }
 
+    /* A model's externalDocs description is printed verbatim: the quotes, angle brackets and ampersand stay as written, with no HTML entities. */
+    @Test func testBhvSerializationobject227ModelExternalDocsDescriptionIsVerbatim() throws {
+        let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/{{packageName}}/Models/Account.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        #expect(source.contains("/// See https://example.com/docs/account Account <docs> & \"notes\" it's here"))
+    }
+
     @Test func testDeserializeFromJSON() throws {
         // Use ObjectSerializer.deserialize which has the correct ISO-8601 date strategy
         let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
@@ -63,6 +71,16 @@ import Testing
     @Test func testBhvModels009AdditionalPropertiesHoldStringValues() {
         let metadata = Metadata(additionalProperties: ["extra": AnyCodable("x")])
         #expect(metadata.additionalProperties["extra"]?.value as? String == "x")
+    }
+
+    /* The description dumps the declared fields and the additionalProperties map. */
+    @Test func testBhvModels012ToStringDumpsTheFieldsAndAdditionalProperties() {
+        let metadata = Metadata(additionalProperties: ["customField": AnyCodable("hello")])
+        let dump = String(describing: metadata)
+        #expect(dump.contains("createdAt: nil"))
+        #expect(dump.contains("additionalProperties"))
+        #expect(dump.contains("customField"))
+        #expect(dump.contains("hello"))
     }
 
     /* Two instances that differ only in the additionalProperties bucket are
@@ -128,18 +146,7 @@ import Testing
 
     // MARK: - Immutable models
 
-    /* A model is immutable: copy replaces the properties it is given and keeps the rest. */
-    @Test func testCopyReplacesOnlyTheGivenProperties() {
-        let original = Order(id: 1, quantity: 7, status: .approved)
-        let changed = original.copy(quantity: 9)
-
-        #expect(changed.quantity == 9)
-        #expect(changed.id == 1)
-        #expect(changed.status == .approved)
-        #expect(original.quantity == 7)
-    }
-
-    @Test func testCopyClearsAnOptionalPropertyOnlyWithSomeNil() {
+    @Test func testBhvModels016CopyClearsAnOptionalPropertyOnlyWithSomeNil() {
         let original = Order(id: 1, quantity: 7)
 
         #expect(original.copy(quantity: nil).quantity == 7)
@@ -155,7 +162,7 @@ import Testing
         #expect(original.quantity == 4)
     }
 
-    @Test func testCopyOfAModelWithAdditionalPropertiesKeepsThem() {
+    @Test func testBhvModels015CopyOfAModelWithAdditionalPropertiesKeepsThem() {
         let when = Date(timeIntervalSince1970: 1705315800)
         let original = Metadata(createdAt: when, additionalProperties: ["extra": AnyCodable("x")])
 
@@ -176,13 +183,13 @@ import Testing
     }
 
     /* An enum prints its wire value, not the case name. */
-    @Test func testEnumDescriptionIsTheWireValue() {
+    @Test func testBhvSerialization001EnumDescriptionIsTheWireValue() {
         #expect("\(OrderStatusEnum.approved)" == "approved")
         #expect("\(Priority.number2)" == "2")
         #expect(String(describing: Priority.number3) == "3")
     }
 
-    @Test func testIntegerEnumMembersAreLowerCamelCase() {
+    @Test func testBhvModels021IntegerEnumMembersAreLowerCamelCase() {
         #expect(Priority.allCases.map { "\($0)" } == ["1", "2", "3"])
         #expect(Priority.number1.rawValue == 1)
     }
@@ -237,7 +244,93 @@ import Testing
         #expect(!text.contains("has no options struct yet"))
     }
 
+    // MARK: - SKILLS.md
+
+    private func skillsGuide() throws -> String {
+        let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("SKILLS.md")
+        return try String(contentsOf: file, encoding: .utf8)
+    }
+
+    @Test func testBhvSkills001ErrorHandlingNamesTheRootAndTheSiblingsOfApiError() throws {
+        let text = try skillsGuide()
+        #expect(text.contains("- `{{errorPrefix}}Error` (root)"))
+        #expect(text.contains("  - `SerializationError`"))
+        #expect(text.contains("  - `OAuth2ServerError`"))
+        #expect(text.contains("  - `OAuth2TokenError`"))
+    }
+
+    @Test func testBhvSkills002ConfigurationDocumentsTheRetries() throws {
+        let text = try skillsGuide()
+        let configuration = try #require(text.range(of: "## Configuration"))
+        let retries = try #require(text.range(of: "### Retries"))
+        #expect(configuration.lowerBound < retries.lowerBound)
+        #expect(text.contains("`0` disables"))
+    }
+
     @Test func testReadmeListsTheLicenseInThePackageSection() throws {
         #expect(try readme().contains("- License: {{licenseId}}"))
+    }
+
+    // MARK: - Behaviour catalogue: model construction, copies and additional properties
+
+    /* A newly built model's additional properties start as an empty collection. */
+    @Test func testBhvModels013AdditionalPropertiesStartEmpty() {
+        #expect(Metadata(createdAt: nil).additionalProperties.isEmpty)
+    }
+
+    /* A copy can set an optional field, and clearing it leaves the original as it was. */
+    @Test func testBhvModels017CopySetsOrClearsAnOptionalFieldAndKeepsTheOriginal() {
+        let original = Order(id: 1, quantity: 7)
+        #expect(original.copy(quantity: 9).quantity == 9)
+        #expect(original.copy(quantity: .some(nil)).quantity == nil)
+        #expect(original.quantity == 7)
+    }
+
+    /* Two models with a different value in any field compare unequal. */
+    @Test func testBhvModels019ModelsDifferingInAnyFieldCompareUnequal() {
+        #expect(Order(id: 1) != Order(id: 2))
+        #expect(Order(id: 1, quantity: 7) != Order(id: 1, quantity: 8))
+    }
+
+    /* A generated model whose schema allows undeclared properties exposes them. */
+    @Test func testBhvModels022ModelWithAdditionalPropertiesReportsThem() {
+        let model = Metadata(createdAt: nil, additionalProperties: ["extra": AnyCodable("x")])
+        #expect(model.additionalProperties["extra"] != nil)
+    }
+
+    /* Undeclared keys named like the SDK's own methods are kept as additional properties. */
+    @Test func testBhvModels023UndeclaredKeysNamedLikeMethodsAreKeptAsAdditionalProperties() throws {
+        let json = "{\"copy\":1,\"description\":\"x\"}"
+        let model = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Metadata.self))
+        #expect(model.additionalProperties.keys.sorted() == ["copy", "description"])
+    }
+
+    /* A newly built model leaves its optional properties unset. */
+    @Test func testBhvModels024NewModelLeavesOptionalPropertiesUnset() {
+        let order = Order()
+        #expect(order.id == nil)
+        #expect(order.quantity == nil)
+        #expect(order.petId == nil)
+    }
+    // MARK: - Behaviour catalogue: enum members
+
+    /* A model's enum member is written as its exact declared wire string, casing included. */
+    @Test func testBhvSerialization002EnumMemberIsWrittenAsItsWireString() throws {
+        let order = Order(status: OrderStatusEnum(rawValue: "approved"))
+        #expect(try ObjectSerializer.serialize(order).contains("\"status\":\"approved\""))
+    }
+
+    /* A wire value an enum declares decodes to the member carrying exactly that value. */
+    @Test func testBhvSerialization003WireValueDecodesToItsMember() throws {
+        let order = try #require(try ObjectSerializer.deserialize("{\"status\":\"approved\"}", as: Order.self))
+        #expect(order.status == OrderStatusEnum(rawValue: "approved"))
+    }
+
+    /* A generated enum lists its declared members and refuses any value outside them. */
+    @Test func testBhvSerialization004EnumListsItsMembersAndRefusesOthers() {
+        #expect(OrderStatusEnum.allCases.map { $0.rawValue }.contains("placed"))
+        #expect(OrderStatusEnum.allCases.map { $0.rawValue }.contains("approved"))
+        #expect(OrderStatusEnum(rawValue: "not-a-status") == nil)
     }
 }

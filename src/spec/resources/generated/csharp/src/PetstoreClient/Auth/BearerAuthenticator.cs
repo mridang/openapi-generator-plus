@@ -83,19 +83,23 @@ public class BearerAuthenticator : BaseAuthenticator
         {
             /* The callback is asynchronous; run it off the caller's
              * synchronization context so waiting for it cannot deadlock. */
-            return Task.Run(() => GetAuthHeadersAsync()).GetAwaiter().GetResult();
+            return Task.Run(() => GetAuthHeadersAsync(CancellationToken.None))
+                .GetAwaiter()
+                .GetResult();
         }
         return HeadersFor(_token);
     }
 
     /// <inheritdoc/>
-    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync(
+        CancellationToken cancellationToken
+    )
     {
         if (_tokenProvider is null)
         {
             return HeadersFor(_token);
         }
-        string token = await _tokenProvider(CancellationToken.None).ConfigureAwait(false);
+        string token = await _tokenProvider(cancellationToken).ConfigureAwait(false);
         ValidateToken(token, nameof(token));
         return HeadersFor(token);
     }

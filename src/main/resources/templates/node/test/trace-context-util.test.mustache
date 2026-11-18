@@ -103,6 +103,30 @@ describe('TraceContextUtil', () => {
     expect(headers['X-Request-ID']).toBe('abc-123');
   });
 
+  test('bhv misc 002 a trace propagator the caller registers is the one used, and headers already present are kept', () => {
+    const custom = {
+      inject(_context: unknown, carrier: Record<string, string>): void {
+        carrier['x-caller-trace'] = 'registered';
+      },
+      extract: (context: unknown): unknown => context,
+      fields: (): string[] => ['x-caller-trace'],
+    };
+    /* setGlobalPropagator does not replace a propagator already registered, so clear it first. */
+    propagation.disable();
+    propagation.setGlobalPropagator(custom as unknown as Parameters<typeof propagation.setGlobalPropagator>[0]);
+    try {
+      const headers: Record<string, string> = { Authorization: 'Bearer token' };
+
+      injectTraceContext(headers);
+
+      expect(headers['x-caller-trace']).toBe('registered');
+      expect(headers['Authorization']).toBe('Bearer token');
+    } finally {
+      propagation.disable();
+      propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+    }
+  });
+
   test('bhv tracing 006 injects traceparent when a span is active', async () => {
     const { tracer, exporter } = sdkTracer();
     const headers: Record<string, string> = {};

@@ -126,7 +126,7 @@ Where: `configuration.mustache`, `transport_options.mustache`.
 Test: `configuration_test`, `transport_options_test`.
 
 ### Timeouts, redirects, proxy validation (S16, D76, D77, D73, D79)
-Rule: `timeout` is one end-to-end monotonic budget across redirect hops (each hop gets the remaining time, none left raises `NetworkTimeoutError`); a non-positive timeout raises `ArgumentError` in `Builder#timeout`; proxy URL validation happens in `build`, not in the setter; `caCertPath` is validated even with `verify_ssl` false; error text is `Invalid proxy URL: <url>` with credentials redacted; a caller-supplied stream or file is never closed.
+Rule: `timeout` is one end-to-end monotonic budget across redirect hops (each hop gets the remaining time, none left raises `NetworkTimeoutError`); a timeout below one millisecond (milliseconds are the unit) raises `ArgumentError` in `Builder#timeout` and per call; proxy URL validation happens in `build`, not in the setter; `caCertPath` is validated even with `verify_ssl` false; error text is `Invalid proxy URL: <url>` with credentials redacted; a caller-supplied stream or file is never closed.
 Why: one grammar and one budget in all twelve.
 Where: `default_api_client.mustache`, `transport_options.mustache`.
 Test: `default_api_client_unit_test`, `transport_options_test`.

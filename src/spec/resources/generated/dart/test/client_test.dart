@@ -287,6 +287,35 @@ void main() {
     );
 
     test(
+      'bhv lifecycle 030 the base URL comes from the default authenticator first, then from the first scheme credential',
+      () {
+        final scheme = BearerAuthenticator(
+          host: 'https://scheme.example.com',
+          token: 'tok',
+        );
+        final fallback = BearerAuthenticator(
+          host: 'https://default.example.com',
+          token: 'tok',
+        );
+
+        final withDefault = Client(
+          authenticator: fallback,
+          petStoreBasic: scheme,
+        );
+        final schemeOnly = Client(petStoreBasic: scheme);
+
+        expect(
+          withDefault.pet.config.baseUrl,
+          equals('https://default.example.com'),
+        );
+        expect(
+          schemeOnly.pet.config.baseUrl,
+          equals('https://scheme.example.com'),
+        );
+      },
+    );
+
+    test(
       'bhv lifecycle 015 takes one optional keyword credential per security scheme, named after it',
       () {
         expect(() => Client(), throwsArgumentError);
@@ -318,5 +347,82 @@ void main() {
       expect(client.problems, isNotNull);
       expect(client.store, isNotNull);
     });
+
+    test(
+      'bhv lifecycle 036 closing a client a second time raises no error and releases nothing further',
+      () {
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'tok',
+        );
+
+        client.close();
+        expect(() => client.close(), returnsNormally);
+      },
+    );
+
+    test(
+      'bhv lifecycle 037 closing a client while a request is in flight lets that request finish',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final client = Client.withToken(
+            host: 'http://localhost:${server.port}',
+            accessToken: 'tok',
+          );
+          final pending = client.pet.getPetTag(1, 'favorite', null);
+          client.close();
+
+          final pet = await pending;
+          expect(pet.name, equals('Fido'));
+          expect(() => client.close(), returnsNormally);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv lifecycle 038 a caller-supplied transport is valid and closing the client repeatedly succeeds',
+      () {
+        final custom = MockClient((_) async => http.Response('', 200));
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'tok',
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(custom)
+              .build(),
+        );
+
+        client.close();
+        expect(() => client.close(), returnsNormally);
+      },
+    );
+
+    test(
+      'bhv lifecycle 039 building a client with an empty token is refused at construction and a valid token builds one',
+      () {
+        expect(
+          () => Client.withToken(
+            host: 'https://api.example.com',
+            accessToken: '',
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          Client.withToken(host: 'https://api.example.com', accessToken: 'tok'),
+          isA<Client>(),
+        );
+      },
+    );
   });
 }

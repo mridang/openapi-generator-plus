@@ -184,6 +184,19 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
+        public void BhvHeaders032AcceptHeaderListsMediaTypesWithoutQualityWeights()
+        {
+            var headers = HeaderSelector.SelectHeaders(
+                ["application/json", "application/xml"],
+                "application/json",
+                false
+            );
+
+            Assert.Equal("application/json, application/xml", headers["Accept"]);
+            Assert.DoesNotContain("q=", headers["Accept"], StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void BhvHeaders003ShouldNotReorderOrPrioritizeJson()
         {
             var headers = HeaderSelector.SelectHeaders(
@@ -241,7 +254,7 @@ public static class HeaderSelectorTest
     public class SelectAcceptHeaderTests
     {
         [Fact]
-        public void ShouldReturnEmptyStringWhenAcceptsEmpty()
+        public void BhvHeaders027ShouldReturnEmptyStringWhenAcceptsEmpty()
         {
             Assert.Equal(string.Empty, HeaderSelector.SelectAcceptHeader(Array.Empty<string>()));
         }
@@ -253,7 +266,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldReturnEmptyStringWhenAllEntriesBlank()
+        public void BhvHeaders029ShouldReturnEmptyStringWhenAllEntriesBlank()
         {
             Assert.Equal(string.Empty, HeaderSelector.SelectAcceptHeader(["", "   "]));
         }

@@ -17,11 +17,15 @@ class ModelError {
 
   /// Creates a [ModelError] from a JSON map.
   factory ModelError.fromJson(Map<String, dynamic> json) {
-    return ModelError(
-      code: readInt32OrNull(json['code']),
+    try {
+      return ModelError(
+        code: readInt32OrNull(json['code']),
 
-      message: json['message'] as String?,
-    );
+        message: json['message'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for ModelError: $e', e);
+    }
   }
 
   /// Converts this [ModelError] to a JSON map.

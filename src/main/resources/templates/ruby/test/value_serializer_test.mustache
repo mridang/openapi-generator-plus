@@ -119,6 +119,11 @@ describe {{moduleName}}::ValueSerializer do
       end
     end
 
+    it 'bhv_serializationparam_115 a csv query array keeps an empty slot for a null element by default' do
+      result = {{moduleName}}::ValueSerializer.serialize([1, nil, 3], :query, 'array')
+      _(result).must_equal('1,,3')
+    end
+
     it 'bhv_serializationparam_011 array keeps an empty slot for a null element with multi' do
       result = {{moduleName}}::ValueSerializer.serialize(['1', nil, '3'], :query, 'array', collection_format: :multi)
       _(result).must_equal(['1', '', '3'])
@@ -320,7 +325,12 @@ describe {{moduleName}}::ValueSerializer do
         _(result).must_be_nil
       end
 
-      it 'a Set with explode false joins its elements like an array' do
+      it 'bhv_serializationparam_105 a form scalar serializes as the plain value' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'blue', :query, 'string', nil, 'form', true)
+        _(result).must_equal('blue')
+      end
+
+      it 'bhv_serializationparam_117 a Set with explode false joins its elements like an array' do
         result = {{moduleName}}::ValueSerializer.serialize_styled(
           'color', Set['red', 'blue'], :query, 'array', nil, 'form', false
         )
@@ -361,8 +371,13 @@ describe {{moduleName}}::ValueSerializer do
       end
     end
 
+    it 'bhv_serializationparam_109 an unknown parameter style falls back to plain value serialization' do
+      result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :query, 'String', nil, 'unknownStyle', false)
+      _(result).must_equal('5')
+    end
+
     describe 'null style falls back to location default' do
-      it 'path with null style behaves like simple' do
+      it 'bhv_serializationparam_106 path with null style behaves like simple' do
         result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
         _(result).must_equal('5')
       end
@@ -381,12 +396,17 @@ describe {{moduleName}}::ValueSerializer do
       _(result['filter[size]']).must_equal('large')
     end
 
+    it 'bhv_serializationparam_111 writes each property of a deepObject parameter as name[key]' do
+      result = {{moduleName}}::ValueSerializer.serialize_deep_object('filter', { 'status' => 'active', 'type' => 'dog' })
+      _(result).must_equal({ 'filter[status]' => 'active', 'filter[type]' => 'dog' })
+    end
+
     it 'bhv_serializationparam_061 null returns empty hash' do
       result = {{moduleName}}::ValueSerializer.serialize_deep_object('filter', nil)
       _(result).must_equal({})
     end
 
-    it 'a model is expanded under its wire names, unset fields omitted' do
+    it 'bhv_serialization_017 a model is expanded under its wire names, unset fields omitted' do
       model = Class.new
       model.const_set(:ATTRIBUTE_MAP, { min_size: 'minSize', label: 'label', unset: 'unset' }.freeze)
       model.define_method(:min_size) { 3 }
@@ -432,7 +452,7 @@ describe {{moduleName}}::ValueSerializer do
       _({{moduleName}}::ValueSerializer.serialize('a+b', :path, 'string')).must_equal('a+b')
     end
 
-    it 'tilde preserved (RFC 3986 unreserved)' do
+    it 'bhv_serializationparam_119 tilde preserved (RFC 3986 unreserved)' do
       # '~' is an RFC 3986 unreserved character and must never be
       # percent-encoded. URI.encode_www_form_component emits %7E; the
       # canonical encoding (Java, Kotlin, Node, C#, etc.) keeps a literal '~'.
@@ -548,16 +568,31 @@ describe {{moduleName}}::ValueSerializer do
   end
 
   describe 'content cookie encoding' do
-    it 'keeps only the unreserved set literal and encodes the rest as UTF-8' do
+    it 'bhv_serializationobject_224 percent-encodes the serialized JSON of a content cookie keeping only the unreserved set' do
+      encoded = {{moduleName}}::ValueSerializer.encode_content_cookie({{moduleName}}::ObjectSerializer.serialize({ 'k' => 'a' }))
+      _(encoded).must_equal('%7B%22k%22%3A%22a%22%7D')
+    end
+
+    it 'bhv_serializationparam_104 keeps only the unreserved set literal and encodes the rest as UTF-8' do
       encoded = {{moduleName}}::ValueSerializer.encode_content_cookie('{"k":"a b~*é"}')
 
       _(encoded).must_equal('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D')
       _(encoded).must_match(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
     end
 
+    it 'bhv_serializationparam_118 encodes a content cookie value to the shared percent encoded bytes' do
+      encoded = {{moduleName}}::ValueSerializer.encode_content_cookie('{"k":"a b~*é"}')
+      _(encoded).must_equal('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D')
+    end
+
     it 'bhv_serializationparam_081 encodes the sub-delimiters and the asterisk' do
       _({{moduleName}}::ValueSerializer.encode_content_cookie("!'()*")).must_equal('%21%27%28%29%2A')
     end
+  end
+
+  it 'bhv_serialization_005 a path value keeps unreserved and sub-delimiter characters literal and encodes the rest' do
+    _({{moduleName}}::ValueSerializer.serialize('Az09-._~!$&\'()*+,;=:@', :path, 'string')).must_equal('Az09-._~!$&\'()*+,;=:@')
+    _({{moduleName}}::ValueSerializer.serialize('/?#[]%', :path, 'string')).must_equal('%2F%3F%23%5B%5D%25')
   end
 
   # allowReserved query encoding: a query parameter with allowReserved: true
@@ -616,19 +651,19 @@ describe {{moduleName}}::ValueSerializer do
   describe 'format:date parameter given a date-time' do
     require 'date'
 
-    it 'writes a DateTime as YYYY-MM-DD' do
+    it 'bhv_serialization_044 writes a DateTime as YYYY-MM-DD' do
       value = DateTime.new(2024, 1, 15, 23, 59, 30)
       result = {{moduleName}}::ValueSerializer.serialize_styled('born_on', value, :query, 'Date', nil, 'form', true)
       _(result).must_equal('2024-01-15')
     end
 
-    it 'writes a Time as YYYY-MM-DD' do
+    it 'bhv_serializationparam_110 writes a Time as YYYY-MM-DD' do
       value = Time.new(2024, 1, 15, 23, 59, 30, '+00:00')
       result = {{moduleName}}::ValueSerializer.serialize_styled('born_on', value, :path, 'Date', nil, 'simple', false)
       _(result).must_equal('2024-01-15')
     end
 
-    it 'writes every element of an array of date-times as YYYY-MM-DD' do
+    it 'bhv_serializationparam_120 writes every element of an array of date-times as YYYY-MM-DD' do
       values = [DateTime.new(2024, 1, 15, 1, 2, 3), Date.new(2024, 2, 1)]
       result = {{moduleName}}::ValueSerializer.serialize_styled('days', values, :path, 'Array<Date>', nil, 'simple', false)
       _(result).must_equal('2024-01-15,2024-02-01')
@@ -682,7 +717,7 @@ describe {{moduleName}}::ValueSerializer do
       ['label', false] => '.breed,lab,min_age,3',
       ['label', true] => '.breed=lab.min_age=3'
     }.each do |(style, explode), expected|
-      it "renders an object in a path by #{style} explode=#{explode}" do
+      it "bhv_serialization_015 renders an object in a path by #{style} explode=#{explode}" do
         result = {{moduleName}}::ValueSerializer.serialize_styled(
           'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode # steep:ignore ArgumentTypeMismatch
         )
@@ -690,7 +725,20 @@ describe {{moduleName}}::ValueSerializer do
       end
     end
 
-    it 'flattens an object in a query by spaceDelimited and pipeDelimited style' do
+    it 'bhv_serializationparam_108 rejects a nested object leaf in a styled parameter' do
+      nested = { 'inner' => { 'deeper' => 1 } }
+      _ { {{moduleName}}::ValueSerializer.serialize_styled('criteria', nested, :query, 'Criteria', nil, 'form', true) }
+        .must_raise({{moduleName}}::Errors::SerializationError)
+    end
+
+    it 'bhv_serialization_018 refuses a nested object or array inside an object-valued parameter' do
+      _ { {{moduleName}}::ValueSerializer.serialize_styled('p', { 'a' => { 'b' => 1 } }, :query, 'object', nil, 'form', false) }
+        .must_raise({{moduleName}}::Errors::SerializationError)
+      _ { {{moduleName}}::ValueSerializer.serialize_styled('p', { 'a' => [1, 2] }, :query, 'object', nil, 'form', false) }
+        .must_raise({{moduleName}}::Errors::SerializationError)
+    end
+
+    it 'bhv_serialization_016 flattens an object in a query by spaceDelimited and pipeDelimited style' do
       fields = { 'breed' => 'lab', 'min_age' => 3 }
       space = {{moduleName}}::ValueSerializer.serialize_styled('c', fields, :query, 'Criteria', nil, 'spaceDelimited', false)
       pipe = {{moduleName}}::ValueSerializer.serialize_styled('c', fields, :query, 'Criteria', nil, 'pipeDelimited', false)

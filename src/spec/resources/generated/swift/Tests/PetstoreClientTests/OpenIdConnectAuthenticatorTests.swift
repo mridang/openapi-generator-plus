@@ -63,6 +63,7 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     var lastHeaders: [String: String] = [:]
     var lastBody: Data? = nil
     var getCount: Int = 0
+    var delayNanoseconds: UInt64 = 0
 
     /// Satisfies the ApiClient requirement that carries no request options.
     func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
@@ -81,6 +82,9 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
       lastBody = body as? Data
       if method == "GET" {
         getCount += 1
+      }
+      if delayNanoseconds > 0 {
+        try await Task.sleep(nanoseconds: delayNanoseconds)
       }
       return try responses.removeFirst().get()
     }
@@ -371,6 +375,30 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     }
   }
 
+  /* The delay keeps the first discovery in flight while the other callers arrive. */
+  @Test func testBhvAuthoidc029ConcurrentCallersOnAColdAuthenticatorShareOneDiscovery() async throws
+  {
+    let client = MockApiClient()
+    client.delayNanoseconds = 100_000_000
+    client.responses = Array(repeating: .success(makeResponse(body: Self.discoveryJSON)), count: 8)
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await withThrowingTaskGroup(of: String.self) { group in
+      for _ in 0..<8 {
+        group.addTask { try await auth.buildAuthorizationURL() }
+      }
+      var built = 0
+      for try await url in group {
+        #expect(url.hasPrefix("https://auth.example.com/authorize"))
+        built += 1
+      }
+      #expect(built == 8)
+    }
+    #expect(client.getCount == 1)
+  }
+
   @Test func testBhvAuthoidc011FetchesDiscoveryDocumentOnlyOnce() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
@@ -407,6 +435,122 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     let headers = try await auth.authHeaders()
 
     #expect(headers["Authorization"] == "Bearer at-1")
+  }
+
+  /* A discovery response whose Cache-Control has no usable max-age is cached for the default lifetime. */
+  @Test(arguments: ["no-cache", "max-age=soon"])
+  func testBhvAuth011UnusableCacheControlFallsBackToTheDefaultLifetime(cacheControl: String)
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(
+      .success(
+        ApiHttpResponse(
+          statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": cacheControl])))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.buildAuthorizationURL()
+    _ = try await auth.buildAuthorizationURL()
+
+    #expect(client.getCount == 1)
+  }
+
+  /* After the cached discovery document expires, later calls use the endpoints of the newly fetched document. */
+  @Test func testBhvAuth029LaterCallsUseTheEndpointsOfTheRediscoveredDocument() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      .success(
+        ApiHttpResponse(
+          statusCode: 200, body: discoveryWith(token: "https://auth.example.com/token-old"),
+          headers: ["Cache-Control": "max-age=1"])))
+    client.responses.append(
+      .success(
+        ApiHttpResponse(
+          statusCode: 200, body: discoveryWith(token: "https://auth.example.com/token-new"),
+          headers: ["Cache-Control": "max-age=1"])))
+
+    client.responses.append(
+      .success(
+        makeResponse(
+          body: "{\"access_token\":\"at-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}")))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.buildAuthorizationURL()
+    try await Task.sleep(nanoseconds: 1_100_000_000)
+    _ = try await auth.buildAuthorizationURL()
+    try await auth.exchangeCode("the-code")
+
+    #expect(client.getCount == 2)
+    #expect(client.lastURL == "https://auth.example.com/token-new")
+  }
+
+  @Test func testBhvAuthoidc030MaxAgeZeroFetchesDiscoveryAgainOnEveryUse() async throws {
+    let client = MockApiClient()
+    for _ in 0..<3 {
+      client.responses.append(
+        .success(
+          ApiHttpResponse(
+            statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": "max-age=0"])))
+    }
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.buildAuthorizationURL()
+    _ = try await auth.buildAuthorizationURL()
+    _ = try await auth.buildAuthorizationURL()
+
+    #expect(client.getCount == 3)
+  }
+
+  @Test func testBhvAuthoidc031CachedDiscoveryIsFetchedAgainOnceMaxAgeHasElapsed() async throws {
+    let client = MockApiClient()
+    for _ in 0..<2 {
+      client.responses.append(
+        .success(
+          ApiHttpResponse(
+            statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": "max-age=1"])))
+    }
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.buildAuthorizationURL()
+    _ = try await auth.buildAuthorizationURL()
+    #expect(client.getCount == 1, "a document within its max-age is served from the cache")
+
+    try await Task.sleep(nanoseconds: 1_100_000_000)
+    _ = try await auth.buildAuthorizationURL()
+
+    #expect(client.getCount == 2)
+  }
+
+  @Test func testBhvAuthoidc032DiscoveredEndpointThatIsNotHttpsIsRejected() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      .success(makeResponse(body: discoveryWith(token: "http://auth.example.com/token"))))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let error = await #expect(throws: SerializationError.self) {
+      _ = try await auth.buildAuthorizationURL()
+    }
+    #expect(error?.message.contains("'token_endpoint' must be an https URL") == true)
+  }
+
+  @Test func testBhvAuthoidc033FailedDiscoveryRequestNamesTheMethodAndPathInTheError() async {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: "missing", statusCode: 404)))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let error = await #expect(throws: NotFoundError.self) {
+      _ = try await auth.buildAuthorizationURL()
+    }
+    #expect(error?.requestMethod == "GET")
+    #expect(error?.requestPath == "/.well-known/openid-configuration")
   }
 
   /* The discovery document is cached for the Cache-Control max-age the

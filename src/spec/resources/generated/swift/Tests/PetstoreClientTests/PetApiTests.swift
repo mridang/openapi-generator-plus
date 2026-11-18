@@ -133,7 +133,7 @@ final class PetApiTests {
 
   /* A request that exceeds the configured timeout is a NetworkTimeoutError,
      which is a NetworkError with status 0. */
-  @Test func testTimeoutThrowsNetworkTimeoutError() async throws {
+  @Test func testBhvTransport072TimeoutThrowsNetworkTimeoutError() async throws {
     let transport = try TransportOptionsBuilder().timeout(1000).build()
     let client = try DefaultApiClient(transportOptions: transport)
     let error = await #expect(throws: NetworkTimeoutError.self) {
@@ -693,7 +693,7 @@ final class PetApiTests {
   }
 
   /* Without a server of its own the call uses the configured base URL. */
-  @Test func testOperationWithoutServerUsesTheBaseUrl() async throws {
+  @Test func testBhvOperations153OperationWithoutServerUsesTheBaseUrl() async throws {
     #expect(
       try await operationServerUrl { try await $0.getStagingPetInfo(petId: 4) }
         == "https://example.com/pet/4/staging")
@@ -849,6 +849,76 @@ final class PetApiTests {
       caught?.message.contains("Expected a response body for getPetById but received none") == true)
   }
 
+  /* A malformed 2xx body fails loud with a serialization error, never as the raw string. */
+  @Test func testBhvOperations127MalformedSuccessBodyFailsLoudWithASerializationError() async throws
+  {
+    let mockApi = petApiForMock(statusCode: 200, body: "{not valid json")
+    await #expect(throws: SerializationError.self) {
+      _ = try await mockApi.getPetById(petId: 1)
+    }
+  }
+
+  /* A bare JSON null body from a model operation is an ApiError that names the operation. */
+  @Test func testBhvOperations136BareNullBodyThrowsApiErrorNamingTheOperation() async throws {
+    let mockApi = petApiForMock(statusCode: 200, body: "null")
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await mockApi.getPetById(petId: 1)
+    }
+    #expect(error?.message.contains("getPetById") == true)
+  }
+
+  /* An error status is thrown as the class for that status, through the typed routes. */
+  @Test func testBhvOperations138ErrorStatusIsThrownAsItsStatusSpecificClass() async throws {
+    let mockApi = petApiForMock(statusCode: 404, body: "{\"message\":\"Item not found\"}")
+    let error = await #expect(throws: NotFoundError.self) {
+      _ = try await mockApi.getPetById(petId: 1)
+    }
+    #expect(error?.statusCode == 404)
+  }
+
+  /* The options struct's required fields are checked in declaration order, so the first missing one is named. */
+  @Test func testBhvOperations132MissingRequiredOptionsFieldNamesTheFirstOne() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(
+        name: "item", options: GetPetByNameOptions(category: "", xCorrelationId: ""))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message == "Missing the required parameter 'category' when calling PetApi.getPetByName")
+    #expect(
+      mockClient.lastURL.isEmpty, "transport must not be called when a required field is missing")
+  }
+
+  /* Multipart parts go on the wire in the order the operation declares them. */
+  @Test func testBhvOperations147MultipartPartsAreSentInDeclarationOrder() async throws {
+    let client = MockApiClient()
+    client.responseStatusCode = 200
+    client.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: client, config: config)
+    let takenAt = ISO8601DateFormatter().date(from: "2024-01-15T10:30:00Z")!
+
+    _ = try await api.uploadPetDocument(
+      petId: 1,
+      options: UploadPetDocumentOptions(
+        file: Data("doc".utf8), isPrimary: true, pageCount: 3, takenAt: takenAt, swatch: .red)
+    )
+
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    let names = ["name=\"isPrimary\"", "name=\"pageCount\"", "name=\"takenAt\"", "name=\"swatch\""]
+    let positions = try names.map { try #require(body.range(of: $0)).lowerBound }
+    #expect(zip(positions, positions.dropFirst()).allSatisfy { $0 < $1 })
+  }
+
   /* F857: addPet accepts apiKeyHeader first and petStoreBearer second, so
      when the client holds both, the api key is the credential and the bearer
      one is not sent; a credential held only for a scheme the operation does
@@ -916,7 +986,7 @@ final class PetApiTests {
   // encoded as repeated keys (tags=a&tags=b), never bracketed ("[a, b]") or
   // comma-joined. Decodes the captured request body and asserts both tag
   // values appear as separate `tags=` pairs.
-  @Test func testFormArrayEncodedAsRepeatedKeys() async throws {
+  @Test func testBhvSerializationwire053FormArrayEncodedAsRepeatedKeys() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
@@ -958,7 +1028,7 @@ final class PetApiTests {
 
   // form-space-encoding-plus: a space in an x-www-form-urlencoded value must be
   // encoded as `+`, not `%20`, per the WHATWG form-encoding standard.
-  @Test func testFormSpaceEncodedAsPlus() async throws {
+  @Test func testBhvSerializationwire055FormSpaceEncodedAsPlus() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
@@ -976,6 +1046,29 @@ final class PetApiTests {
   }
 
   /* A date-time form field is sent in the canonical stringify form. */
+  /* An operation sends its form-encoded body fields in the order the specification declares them. */
+  @Test func testBhvOperations156SetPetPreferencesFormBodyFollowsDeclarationOrder() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.setPetPreferences(
+      petId: 1,
+      options: SetPetPreferencesOptions(
+        nickname: "a", tags: ["x"], note: "n", renewalDate: "2024-01-15",
+        reminder: ISO8601DateFormatter().date(from: "2024-01-15T10:30:00Z")))
+
+    let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+    var keys: [String] = []
+    for pair in body.split(separator: "&") {
+      let key = String(pair.split(separator: "=", maxSplits: 1).first ?? "")
+      if !keys.contains(key) { keys.append(key) }
+    }
+    #expect(keys == ["nickname", "tags", "note", "renewalDate", "reminder"])
+  }
+
   @Test func testBhvOperations075SetPetPreferencesEncodesDateTimeFieldCanonically() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
@@ -1044,6 +1137,30 @@ final class PetApiTests {
     #expect(
       message == "Missing the required parameter 'bornOn' when calling PetApi.findPetsBornOn",
       "expected the canonical required-parameter message, got: \(message)")
+    #expect(
+      mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
+  }
+
+  // required-query-validation: a required query param with no value (an empty
+  // string, the swift stand-in for nil) fails before dispatch, and the message
+  // names the parameter.
+  @Test func testBhvOperations125RequiredQueryParamCategoryMissingThrows() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(
+        name: "item-1", options: GetPetByNameOptions(category: "", xCorrelationId: "c-1"))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message == "Missing the required parameter 'category' when calling PetApi.getPetByName")
     #expect(
       mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
   }
@@ -1284,7 +1401,7 @@ final class PetApiTests {
   }
 
   /* A 200 with no body comes back with an empty body, not an error. */
-  @Test func testEmptyBodyResponseIsReturnedAsIs() async throws {
+  @Test func testBhvTransport067EmptyBodyResponseIsReturnedAsIs() async throws {
     let client = DefaultApiClient()
     let response = try await client.sendRequest(
       method: "GET", url: "\(chasmHttpUrl)/test/empty", headers: [:], body: nil)
@@ -1319,7 +1436,7 @@ final class PetApiTests {
   // MARK: - Redirects through the mock server
 
   /* A 3xx without a Location header is returned as the response. */
-  @Test func testRedirectWithoutLocationIsReturnedAsIs() async throws {
+  @Test func testBhvRedirects031RedirectWithoutLocationIsReturnedAsIs() async throws {
     let client = DefaultApiClient()
     let response = try await client.sendRequest(
       method: "GET", url: "\(chasmHttpUrl)/test/redirect/no-location", headers: [:], body: nil)
@@ -1457,7 +1574,7 @@ final class PetApiTests {
   // remain readable after construction. A param-bearing Options round-trips
   // its parameters. This pins the immutable shape: the properties are readable
   // but cannot be reassigned after construction.
-  @Test func testOptionsConstructedAndReadBack() async throws {
+  @Test func testBhvOptions062OptionsConstructedAndReadBack() async throws {
     let paramOpts = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S"])
     #expect(paramOpts.colors == ["blue", "black"])
     #expect(paramOpts.sizes == ["S"])

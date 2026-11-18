@@ -40,27 +40,31 @@ class PetPassport {
 
   /// Creates a [PetPassport] from a JSON map.
   factory PetPassport.fromJson(Map<String, dynamic> json) {
-    return PetPassport(
-      pet: json['pet'] != null
-          ? Pet.fromJson(json['pet'] as Map<String, dynamic>)
-          : null,
-      thumbnail: json['thumbnail'] != null
-          ? decodeBase64(json['thumbnail'] as String)
-          : null,
-      scans: json['scans'] != null
-          ? deserializeArray(
-              json['scans'] as List,
-              (e) => decodeBase64(e as String),
-            )
-          : null,
-      issuedAt: json['issuedAt'] != null
-          ? parseDateTime(json['issuedAt'] as String)
-          : null,
+    try {
+      return PetPassport(
+        pet: json['pet'] != null
+            ? Pet.fromJson(json['pet'] as Map<String, dynamic>)
+            : null,
+        thumbnail: json['thumbnail'] != null
+            ? decodeBase64(json['thumbnail'] as String)
+            : null,
+        scans: json['scans'] != null
+            ? deserializeArray(
+                json['scans'] as List,
+                (e) => decodeBase64(e as String),
+              )
+            : null,
+        issuedAt: json['issuedAt'] != null
+            ? parseDateTime(json['issuedAt'] as String)
+            : null,
 
-      biometricChip: json['biometricChip'] != null
-          ? decodeBase64(json['biometricChip'] as String)
-          : null,
-    );
+        biometricChip: json['biometricChip'] != null
+            ? decodeBase64(json['biometricChip'] as String)
+            : null,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for PetPassport: $e', e);
+    }
   }
 
   /// Converts this [PetPassport] to a JSON map.

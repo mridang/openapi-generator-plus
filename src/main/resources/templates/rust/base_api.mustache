@@ -78,6 +78,8 @@ fn is_no_auth(auth: &dyn Authenticator) -> bool {
 
 /// Parameters for the `invoke_api` call.
 pub(crate) struct InvokeApiParams<'a> {
+    /// The `Class.operationId` the call belongs to, named in the errors the call raises.
+    pub operation: &'a str,
     pub method: &'a str,
     pub path: &'a str,
     /// Query parameters as `(name, value, allow_reserved)` triples. When
@@ -200,8 +202,17 @@ impl BaseApi {
         request_path: &str,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(timeout) = params.call.timeout {
-            if timeout.is_zero() {
+            if timeout.as_millis() == 0 {
                 return Err(Box::new(ConfigurationError::InvalidTimeout(0)));
+            }
+        }
+        /* A header value with a CR or LF would split the request head; refuse it before anything is sent. */
+        for (name, value) in params.header_params.iter().chain(params.call.headers.iter()) {
+            if value.contains(['\r', '\n']) {
+                return Err(Box::new(ConfigurationError::InvalidArgument(format!(
+                    "header '{}' must not contain CR or LF characters",
+                    name
+                ))));
             }
         }
         let mut request_url = params.path.to_string();
@@ -452,10 +463,11 @@ impl BaseApi {
          * invoke_api. Binary operations set this to "Vec<u8>" so we can route
          * non-JSON bodies straight to the raw-bytes path below. */
         let is_binary_return = params.return_type == "Vec<u8>";
+        let operation = params.operation;
         let method = params.method;
         let request_path = crate::errors::api_error::request_path_of(params.path);
         let response = self.invoke_api(params).await?;
-        decode_response(&response, is_binary_return)
+        decode_response(&response, is_binary_return, operation)
             .map_err(|err| attach_response(err, &response, method, &request_path))
     }
 
@@ -532,6 +544,7 @@ fn attach_response(
 fn decode_response<T: DeserializeOwned>(
     response: &ApiHttpResponse,
     is_binary_return: bool,
+    operation: &str,
 ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
     {
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
@@ -622,8 +635,9 @@ fn decode_response<T: DeserializeOwned>(
                     return Err(Box::new(
                         crate::errors::serialization_error::SerializationError::new(
                             format!(
-                                "Unexpected response Content-Type '{}' for a JSON return type",
-                                resp_content_type.as_deref().unwrap_or("")
+                                "Unexpected response Content-Type '{}' for {}",
+                                resp_content_type.as_deref().unwrap_or(""),
+                                operation
                             ),
                             None,
                         ),
@@ -899,6 +913,18 @@ fn is_valid_cookie_value(value: &str) -> bool {
  * drive the public API surface remain in `tests/base_api_test.rs`. */
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_bhv_retries_029_an_unusable_retry_after_falls_back_to_the_backoff() {
+        /* The first retry waits 0.5 s less up to 25% jitter when Retry-After is not understood. */
+        for header in ["", "soon", "-5", "nan", "inf"] {
+            let parsed = parse_retry_after(header);
+            assert!(parsed.is_none(), "{:?} must not parse", header);
+            let delay = retry_delay(0, parsed);
+            assert!(delay >= std::time::Duration::from_millis(375), "{:?}: {:?}", header, delay);
+            assert!(delay <= std::time::Duration::from_millis(500), "{:?}: {:?}", header, delay);
+        }
+    }
+
     use super::{
         build_query_string, fits_budget, is_retryable_error, is_retryable_status,
         parse_retry_after, retry_delay, serialize_body, BaseApi, CallOptions, InvokeApiParams,
@@ -948,13 +974,41 @@ mod tests {
     }
 
     #[test]
-    fn test_backoff_doubles_from_half_a_second_to_eight_seconds_with_jitter() {
+    fn test_bhv_retries_027_backoff_doubles_from_half_a_second_to_eight_seconds_with_jitter() {
         use std::time::Duration;
         for (attempt, base_ms) in [(0u32, 500u64), (1, 1_000), (2, 2_000), (3, 4_000), (4, 8_000), (9, 8_000)] {
             for _ in 0..20 {
                 let delay = retry_delay(attempt, None);
                 assert!(delay <= Duration::from_millis(base_ms), "attempt {}: {:?}", attempt, delay);
                 assert!(delay >= Duration::from_millis(base_ms * 3 / 4), "attempt {}: {:?}", attempt, delay);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_retries_030_retry_backoff_jitter_takes_at_most_a_quarter_off_the_delay() {
+        use std::time::Duration;
+        for attempt in 0..5u32 {
+            let base_ms = 500u64 * (1u64 << attempt);
+            for _ in 0..50 {
+                let delay = retry_delay(attempt, None);
+                assert!(delay >= Duration::from_millis(base_ms * 3 / 4), "attempt {}: {:?}", attempt, delay);
+                assert!(delay <= Duration::from_millis(base_ms), "attempt {}: {:?}", attempt, delay);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_retries_041_backoff_starts_at_half_a_second_and_is_capped_at_eight_seconds() {
+        use std::time::Duration;
+        for _ in 0..50 {
+            let first = retry_delay(0, None);
+            assert!(first <= Duration::from_millis(500), "{:?}", first);
+            assert!(first >= Duration::from_millis(375), "{:?}", first);
+            for attempt in 4..=12u32 {
+                let delay = retry_delay(attempt, None);
+                assert!(delay <= Duration::from_millis(8_000), "attempt {}: {:?}", attempt, delay);
+                assert!(delay >= Duration::from_millis(6_000), "attempt {}: {:?}", attempt, delay);
             }
         }
     }
@@ -1042,6 +1096,7 @@ mod tests {
         let mut header_params = HashMap::new();
         header_params.insert("Accept".to_string(), "application/xml".to_string());
         let params = InvokeApiParams {
+            operation: "TestApi.test",
             method: "GET",
             path: "/items",
             query_params: Vec::new(),
@@ -1059,6 +1114,195 @@ mod tests {
         api.invoke_api(params).await.expect("a 200 response must succeed");
 
         assert_eq!(Some("application/xml".to_string()), *client.accept.lock().unwrap());
+    }
+
+    /// Records every `Accept` entry of the one request it receives, whatever the case of its name.
+    struct AcceptEntriesClient {
+        entries: std::sync::Mutex<Vec<(String, String)>>,
+    }
+
+    impl ApiClient for AcceptEntriesClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.entries.lock().unwrap() = headers
+                .iter()
+                .filter(|(name, _)| name.eq_ignore_ascii_case("accept"))
+                .map(|(name, value)| (name.clone(), value.clone()))
+                .collect();
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /// Accepts every connection, reads its request and never answers, counting the connections.
+    fn start_counting_silent_server() -> (String, Arc<std::sync::atomic::AtomicUsize>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        let addr = listener.local_addr().expect("local address");
+        let accepted = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = accepted.clone();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                std::thread::spawn(move || {
+                    let mut buf = [0u8; 4096];
+                    let _ = std::io::Read::read(&mut stream, &mut buf);
+                    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(10)));
+                    let _ = std::io::Read::read(&mut stream, &mut buf);
+                });
+            }
+        });
+        (format!("http://{}", addr), accepted)
+    }
+
+    /* retries042: a request that times out is sent once, even with a retry budget. */
+    #[tokio::test]
+    async fn test_bhv_retries_042_a_timeout_is_not_retried() {
+        let (base_url, accepted) = start_counting_silent_server();
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .timeout(Some(200))
+            .build()
+            .expect("valid transport options");
+        let client = Arc::new(crate::default_api_client::DefaultApiClient::new(Some(transport)));
+        let config = ConfigurationBuilder::new().base_url(&base_url).build();
+        let api = BaseApi::new(client, config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/slow",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions { max_retries: Some(2), ..CallOptions::default() },
+            error_schemas: &[],
+        };
+
+        let err = api.invoke_api(params).await.expect_err("a request past the timeout must fail");
+
+        assert!(
+            err.downcast_ref::<crate::errors::NetworkTimeoutError>().is_some(),
+            "expected a NetworkTimeoutError, got: {err}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        assert_eq!(1, accepted.load(std::sync::atomic::Ordering::SeqCst), "the timed-out request must be sent once");
+    }
+
+    /* Answers the first `failures` connections with 503 and every later one with 200,
+     * recording the X-Request-ID header of each request in arrival order. */
+    fn start_flaky_request_id_server(failures: usize) -> (String, Arc<std::sync::Mutex<Vec<String>>>) {
+        let captured = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let recorded = captured.clone();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        let base_url = format!("http://{}", listener.local_addr().expect("local address"));
+        std::thread::spawn(move || {
+            for (i, stream) in listener.incoming().enumerate() {
+                let Ok(mut stream) = stream else { continue };
+                let mut buf = [0u8; 8192];
+                let n = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
+                let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                if let Some(line) = text.lines().find(|l| l.to_ascii_lowercase().starts_with("x-request-id:")) {
+                    let value = line.split_once(':').map(|(_, v)| v.trim().to_string()).unwrap_or_default();
+                    recorded.lock().unwrap().push(value);
+                }
+                let response = if i < failures {
+                    "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                } else {
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}"
+                };
+                let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            }
+        });
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        (base_url, captured)
+    }
+
+    /* retries044: every retry carries a request id that differs from the attempts before it. */
+    #[tokio::test]
+    async fn test_bhv_retries_044_every_retry_carries_a_request_id_that_differs_from_the_attempts_before() {
+        let (base_url, captured) = start_flaky_request_id_server(2);
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .inject_request_id(true)
+            .build()
+            .expect("valid transport options");
+        let client = Arc::new(crate::default_api_client::DefaultApiClient::new(Some(transport)));
+        let config = ConfigurationBuilder::new().base_url(&base_url).build();
+        let api = BaseApi::new(client, config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/probe",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions { max_retries: Some(2), ..CallOptions::default() },
+            error_schemas: &[],
+        };
+
+        let _ = api.invoke_api(params).await;
+
+        let ids = captured.lock().unwrap().clone();
+        assert_eq!(3, ids.len(), "two retries after two 503 responses: {:?}", ids);
+        assert!(ids.iter().all(|id| !id.is_empty()), "every attempt carries an id: {:?}", ids);
+        let mut unique = ids.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(unique.len(), ids.len(), "each attempt must carry a new id: {:?}", ids);
+    }
+
+    /* headers030: a default header in another case replaces the negotiated Accept
+     * instead of being sent beside it. */
+    #[tokio::test]
+    async fn test_bhv_headers_030_a_default_header_in_another_case_replaces_the_negotiated_accept() {
+        let client = Arc::new(AcceptEntriesClient { entries: std::sync::Mutex::new(Vec::new()) });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("accept", "application/vnd.x+json")
+            .build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/test/echo",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions::default(),
+            error_schemas: &[],
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        assert_eq!(
+            vec![("accept".to_string(), "application/vnd.x+json".to_string())],
+            *client.entries.lock().unwrap()
+        );
     }
 
     /// Answers every request with a fixed status, or with a network failure, and
@@ -1170,6 +1414,7 @@ mod tests {
         let mut header_params = HashMap::new();
         header_params.insert("X-Call".to_string(), "from-parameter".to_string());
         InvokeApiParams {
+            operation: "TestApi.test",
             method: "GET",
             path: "/items/7",
             query_params: vec![("token".to_string(), "secret".to_string(), false)],
@@ -1308,6 +1553,7 @@ mod tests {
         let config = ConfigurationBuilder::new().base_url("http://localhost").build();
         let api = BaseApi::new(client.clone(), config, None);
         let params = InvokeApiParams {
+            operation: "TestApi.test",
             path: "https://items.example.org/v2/items/7",
             query_params: Vec::new(),
             ..call_params(CallOptions::default())
@@ -1322,7 +1568,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_a_network_failure_carries_the_method_and_path_of_the_request() {
+    async fn test_bhv_errors_057_a_network_failure_carries_the_method_and_path_of_the_request() {
         let api = api_for(ScriptedClient::custom(200, true, 0));
 
         let err = api
@@ -1382,6 +1628,106 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_bhv_retries_033_the_last_network_error_is_reported_once_the_retries_are_spent() {
+        let client = ScriptedClient::custom(200, true, 2);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("every attempt fails");
+
+        assert!(err.downcast_ref::<crate::errors::NetworkError>().is_some(), "{err}");
+        assert_eq!(3, client.calls());
+    }
+
+    /// Answers 503 with `Retry-After: 0` twice, then 200, and records the body of every request.
+    struct BodyRecordingClient {
+        bodies: std::sync::Mutex<Vec<Option<Vec<u8>>>>,
+    }
+
+    impl BodyRecordingClient {
+        fn answer(
+            &self,
+            body: Option<&RequestBody>,
+        ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+            let mut bodies = self.bodies.lock().unwrap();
+            bodies.push(match body {
+                Some(RequestBody::Bytes(bytes)) => Some(bytes.clone()),
+                _ => None,
+            });
+            let mut headers = HashMap::new();
+            let status = if bodies.len() < 3 {
+                headers.insert("retry-after".to_string(), "0".to_string());
+                503
+            } else {
+                200
+            };
+            Ok(ApiHttpResponse::new(status, "{}".to_string(), headers))
+        }
+    }
+
+    impl ApiClient for BodyRecordingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let outcome = self.answer(body);
+            Box::pin(async move { outcome })
+        }
+
+        fn send_request_with_options(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            body: Option<&RequestBody>,
+            _options: &crate::api_client::RequestOptions,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let outcome = self.answer(body);
+            Box::pin(async move { outcome })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_034_a_string_body_is_sent_again_unchanged_on_every_retry() {
+        let client = Arc::new(BodyRecordingClient { bodies: std::sync::Mutex::new(Vec::new()) });
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            body: Some(b"plain text body".to_vec()),
+            content_type: "text/plain",
+            ..call_params(CallOptions { max_retries: Some(2), ..CallOptions::default() })
+        };
+
+        api.invoke_api(params).await.expect("the third attempt succeeds");
+
+        let bodies = client.bodies.lock().unwrap();
+        assert_eq!(3, bodies.len());
+        for sent in bodies.iter() {
+            assert_eq!(Some(b"plain text body".to_vec()), *sent);
+        }
+    }
+
+    #[tokio::test]
     async fn test_bhv_transport_002_a_per_call_timeout_sets_the_deadline_the_transport_receives() {
         let client = ScriptedClient::new(200);
         let api = api_for(client.clone());
@@ -1397,6 +1743,65 @@ mod tests {
         let deadline = client.last_deadline.lock().unwrap().expect("a deadline");
         assert!(deadline >= before + std::time::Duration::from_secs(30));
         assert!(deadline <= std::time::Instant::now() + std::time::Duration::from_secs(30));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_043_an_unauthorized_response_is_not_replayed_without_a_fresh_credential() {
+        let client = ScriptedClient::new(401);
+        let api = api_for(client.clone());
+
+        let result = api.invoke_api(call_params(CallOptions::default())).await;
+
+        assert!(result.is_err(), "the 401 must reach the caller");
+        assert_eq!(1, client.calls(), "no authenticator can refresh the credential, so it is not replayed");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_headers_031_a_header_value_with_a_line_break_is_refused_before_sending() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let mut params = call_params(CallOptions::default());
+        params.header_params.insert("X-Bad".to_string(), "a\r\nInjected: yes".to_string());
+
+        let result = api.invoke_api(params).await;
+
+        assert!(result.is_err(), "a CR or LF in a header value must be refused");
+        assert_eq!(0, client.calls(), "nothing may be sent");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_transport_070_a_per_call_timeout_bounds_the_deadline_the_transport_receives() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let before = std::time::Instant::now();
+
+        api.invoke_api(call_params(CallOptions {
+            timeout: Some(std::time::Duration::from_secs(30)),
+            ..CallOptions::default()
+        }))
+        .await
+        .expect("a 200 response must succeed");
+
+        let deadline = client.last_deadline.lock().unwrap().expect("a deadline");
+        assert!(deadline >= before + std::time::Duration::from_secs(30) - std::time::Duration::from_millis(50));
+        assert!(deadline <= std::time::Instant::now() + std::time::Duration::from_secs(30));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_options_057_a_sub_millisecond_per_call_timeout_is_refused_before_anything_is_sent() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions {
+                timeout: Some(std::time::Duration::from_micros(500)),
+                ..CallOptions::default()
+            }))
+            .await
+            .expect_err("a timeout under one millisecond must be refused");
+
+        assert!(err.to_string().contains("Invalid timeout"), "{err}");
+        assert_eq!(0, client.calls());
     }
 
     #[tokio::test]
@@ -1429,6 +1834,7 @@ mod tests {
         let config = ConfigurationBuilder::new().base_url("http://localhost").build();
         let api = BaseApi::new(Arc::new(client), config, None);
         let params = InvokeApiParams {
+            operation: "TestApi.test",
             method: "GET",
             path: "/text",
             query_params: Vec::new(),
@@ -1521,7 +1927,7 @@ mod tests {
     /* An array form field MUST serialize as repeated keys (`tags=a&tags=b`),
      * never a bracketed/joined `tags=[a, b]` or `tags=a,b`. */
     #[test]
-    fn test_serialize_body_form_urlencoded_array_repeated_keys() {
+    fn test_bhv_serializationwire_053_serialize_body_form_urlencoded_array_repeated_keys() {
         let json_bytes = encode_form_pairs(&[
             ("nickname", serde_json::json!("Rex")),
             ("tags", serde_json::json!(["fluffy", "good boy"])),
@@ -1628,6 +2034,14 @@ mod tests {
     fn test_bhv_serializationparam_060_build_query_string_keeps_reserved_when_allowed() {
         let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), true)]);
         assert_eq!(query, "q=a:b/c");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_107_query_value_keeps_only_the_unreserved_set_literal() {
+        /* The unreserved set (ALPHA, DIGIT, '-', '.', '_', '~') stays literal; every
+         * other sub-delimiter, including * ! ' ( ), is percent-encoded. */
+        let query = build_query_string(&[("q".to_string(), "a*b!c'd(e)f~g-h.i_j".to_string(), false)]);
+        assert_eq!(query, "q=a%2Ab%21c%27d%28e%29f~g-h.i_j");
     }
 
     /* Authenticators that name themselves, so a test can tell which one a call used. */
@@ -1786,5 +2200,17 @@ mod tests {
 
         assert_eq!(Some("b".to_string()), host_for(&["a", "b", "c"]));
         assert_eq!(Some("c".to_string()), host_for(&["a", "c", "b"]));
+    }
+
+    #[test]
+    fn test_bhv_serialization_006_query_names_and_values_encode_reserved_and_space_characters() {
+        let query = super::build_query_string(&[("a&b=c".to_string(), "x&y z".to_string(), false)]);
+        assert_eq!(query, "a%26b%3Dc=x%26y%20z");
+    }
+
+    #[test]
+    fn test_bhv_serialization_007_a_plus_sign_is_sent_as_percent_2b_and_non_ascii_as_utf8_bytes() {
+        let query = super::build_query_string(&[("q".to_string(), "1+2 \u{e9}".to_string(), false)]);
+        assert_eq!(query, "q=1%2B2%20%C3%A9");
     }
 }

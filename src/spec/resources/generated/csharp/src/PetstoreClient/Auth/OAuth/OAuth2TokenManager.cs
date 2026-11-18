@@ -34,6 +34,21 @@ public sealed class OAuth2TokenManager
     /// </summary>
     private const long MaxExpiresInSeconds = 31_536_000L;
 
+    /* D10: the token body lists these keys first, in this order, then every
+     * other key sorted, so every SDK sends the same bytes for the same grant. */
+    private static readonly string[] TokenBodyKeyOrder =
+    [
+        "grant_type",
+        "code",
+        "refresh_token",
+        "username",
+        "password",
+        "client_id",
+        "client_secret",
+        "redirect_uri",
+        "scope",
+    ];
+
     private readonly object _stateLock = new();
     private Task<string>? _inflightRefresh;
     private IApiClient? _apiClient;
@@ -69,6 +84,11 @@ public sealed class OAuth2TokenManager
     /// Endpoint for the internal refresh_token grant. Defaults to
     /// <paramref name="tokenUrl"/> when null.
     /// </param>
+    /// <param name="cancellationToken">
+    /// Cancels the token request this call starts. A cancelled call stops that
+    /// request and raises <see cref="OperationCanceledException"/> without waiting
+    /// for the token endpoint to answer.
+    /// </param>
     /// <returns>A valid access token.</returns>
     /// <remarks>
     /// When a refresh token is held and <paramref name="parameters"/> is not
@@ -85,7 +105,8 @@ public sealed class OAuth2TokenManager
         Uri tokenUrl,
         Dictionary<string, string> parameters,
         Dictionary<string, string>? extraHeaders = null,
-        Uri? refreshUrl = null
+        Uri? refreshUrl = null,
+        CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
@@ -108,7 +129,8 @@ public sealed class OAuth2TokenManager
                 tokenUrl,
                 refreshUrl ?? tokenUrl,
                 parameters,
-                extraHeaders
+                extraHeaders,
+                cancellationToken
             );
         }
 
@@ -127,18 +149,26 @@ public sealed class OAuth2TokenManager
     /// <param name="tokenUrl">The OAuth2 token endpoint URL.</param>
     /// <param name="parameters">The token request parameters, sent unchanged.</param>
     /// <param name="extraHeaders">Optional additional headers to send with the token request.</param>
+    /// <param name="cancellationToken">Cancels the token request this call starts.</param>
     /// <returns>The new access token.</returns>
     public Task<string> ExchangeAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders = null
+        Dictionary<string, string>? extraHeaders = null,
+        CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
         Task<string> task;
         lock (_stateLock)
         {
-            task = ExchangeAfterAsync(_inflightRefresh, tokenUrl, parameters, extraHeaders);
+            task = ExchangeAfterAsync(
+                _inflightRefresh,
+                tokenUrl,
+                parameters,
+                extraHeaders,
+                cancellationToken
+            );
             _inflightRefresh = task;
         }
 
@@ -149,7 +179,8 @@ public sealed class OAuth2TokenManager
         Task<string>? previous,
         Uri tokenUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders
+        Dictionary<string, string>? extraHeaders,
+        CancellationToken cancellationToken
     )
     {
         if (previous is not null)
@@ -173,7 +204,8 @@ public sealed class OAuth2TokenManager
         RefreshToken = null;
         try
         {
-            return await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
+            return await FetchTokenAsync(tokenUrl, parameters, extraHeaders, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch
         {
@@ -205,7 +237,8 @@ public sealed class OAuth2TokenManager
         Uri tokenUrl,
         Uri refreshUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders
+        Dictionary<string, string>? extraHeaders,
+        CancellationToken cancellationToken
     )
     {
         bool isRefreshGrant =
@@ -228,7 +261,12 @@ public sealed class OAuth2TokenManager
             }
             try
             {
-                return await FetchTokenAsync(refreshUrl, refreshParams, extraHeaders)
+                return await FetchTokenAsync(
+                        refreshUrl,
+                        refreshParams,
+                        extraHeaders,
+                        cancellationToken
+                    )
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -254,7 +292,8 @@ public sealed class OAuth2TokenManager
             }
         }
 
-        return await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
+        return await FetchTokenAsync(tokenUrl, parameters, extraHeaders, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -282,7 +321,8 @@ public sealed class OAuth2TokenManager
     private async Task<string> FetchTokenAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders
+        Dictionary<string, string>? extraHeaders,
+        CancellationToken cancellationToken
     )
     {
         if (_apiClient is null)
@@ -296,11 +336,14 @@ public sealed class OAuth2TokenManager
 
         string body = string.Join(
             "&",
-            parameters.Select(p =>
-                Uri.EscapeDataString(p.Key).Replace("%20", "+", StringComparison.Ordinal)
-                + "="
-                + Uri.EscapeDataString(p.Value).Replace("%20", "+", StringComparison.Ordinal)
-            )
+            parameters
+                .OrderBy(p => TokenBodyRank(p.Key))
+                .ThenBy(p => p.Key, StringComparer.Ordinal)
+                .Select(p =>
+                    Uri.EscapeDataString(p.Key).Replace("%20", "+", StringComparison.Ordinal)
+                    + "="
+                    + Uri.EscapeDataString(p.Value).Replace("%20", "+", StringComparison.Ordinal)
+                )
         );
 
         Dictionary<string, string> headers = new()
@@ -325,7 +368,14 @@ public sealed class OAuth2TokenManager
          * A transport failure propagates unchanged as NetworkException /
          * NetworkTimeoutException. */
         ApiHttpResponse response = await _apiClient
-            .SendRequestAsync("POST", tokenUrl, headers, body, noRedirect: true)
+            .SendRequestAsync(
+                "POST",
+                tokenUrl,
+                headers,
+                body,
+                noRedirect: true,
+                cancellationToken: cancellationToken
+            )
             .ConfigureAwait(false);
 
         if (response.StatusCode is < 200 or >= 300)
@@ -491,7 +541,7 @@ public sealed class OAuth2TokenManager
                 return 0L;
             case JsonValueKind.String:
                 string? text = element.GetString()?.Trim();
-                if (string.IsNullOrEmpty(text))
+                if (string.IsNullOrEmpty(text) || !IsPlainDecimal(text))
                 {
                     return 0L;
                 }
@@ -523,6 +573,39 @@ public sealed class OAuth2TokenManager
     /// <see cref="MaxExpiresInSeconds"/>. NaN and infinity carry no lifetime,
     /// so they give <c>0</c> (the token is treated as stale).
     /// </summary>
+    /* The string form of expires_in is a plain decimal: digits, optionally one
+     * point with digits on both sides. Exponents, hex, signs, digit separators
+     * and a bare trailing point are refused, so the token is not cached. */
+    private static bool IsPlainDecimal(string text)
+    {
+        int digits = 0;
+        int points = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c >= '0' && c <= '9')
+            {
+                digits++;
+            }
+            else if (c == '.' && i > 0 && i < text.Length - 1)
+            {
+                points++;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        return digits > 0 && points <= 1;
+    }
+
+    /* Rank of a token body key in TokenBodyKeyOrder; unknown keys rank last. */
+    private static int TokenBodyRank(string key)
+    {
+        int index = Array.IndexOf(TokenBodyKeyOrder, key);
+        return index < 0 ? TokenBodyKeyOrder.Length : index;
+    }
+
     private static long ClampExpiresIn(double seconds)
     {
         if (double.IsNaN(seconds) || double.IsInfinity(seconds))

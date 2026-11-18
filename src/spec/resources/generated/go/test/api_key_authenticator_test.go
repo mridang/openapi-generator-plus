@@ -115,7 +115,7 @@ func TestBhvAuthapikey001_ApiKeyAuthenticator_UnicodeSpaceIsNotBlank(t *testing.
 
 // CR/LF/NUL are forbidden at every location to prevent header/cookie/query
 // injection.
-func TestApiKeyAuthenticator_RejectsControlCharsAtEveryLocation(t *testing.T) {
+func TestBhvAuth009_ApiKeyAuthenticator_RejectsControlCharsAtEveryLocation(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		value    string
@@ -141,7 +141,7 @@ func TestBhvAuthapikey008_ApiKeyAuthenticator_HeaderLocationRejectsNonAscii(t *t
 
 // The rejection reads as the canonical sentence the other SDKs use, with the
 // key name quoted.
-func TestApiKeyAuthenticator_RejectionMessages(t *testing.T) {
+func TestBhvAuth012_ApiKeyAuthenticator_RejectionMessages(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		value    string
@@ -270,6 +270,25 @@ func TestBhvAuthapikey003_ApiKeyAuthenticator_CrlfInQueryKeyThrowsAtConstruction
 	expectInvalidApiKey(t, "abc\r\n", auth.ApiKeyLocationQuery)
 }
 
+// A CR in a header key is refused at construction, as a CR/LF is.
+func TestBhvAuthapikey018_ApiKeyAuthenticator_CrInHeaderKeyThrowsAtConstruction(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "abc\r", auth.ApiKeyLocationHeader)
+}
+
+// An API key authenticator refuses an empty key at construction and never renders the key.
+func TestBhvAuthapikey020_ApiKeyAuthenticator_ValidatesEagerlyAndRedactsTheKey(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "", auth.ApiKeyLocationHeader)
+	secret := "key-" + "material-" + "7731"
+	a := mustApiKey(t, "https://api.example.com", "X-API-Key", secret, auth.ApiKeyLocationHeader)
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
+		if strings.Contains(s, secret) {
+			t.Errorf("expected the key to be redacted, got %q", s)
+		}
+	}
+}
+
 // An empty cookie key is refused at construction.
 func TestBhvAuthapikey004_ApiKeyAuthenticator_EmptyCookieKeyThrowsAtConstruction(t *testing.T) {
 	t.Parallel()
@@ -303,5 +322,102 @@ func TestBhvAuthapikey015_ApiKeyAuthenticator_ValidQueryKeyIsExposedInQueryParam
 	a := mustApiKey(t, "https://api.example.com", "api_key", "abc123", auth.ApiKeyLocationQuery)
 	if got, want := a.QueryParams()["api_key"], "abc123"; got != want {
 		t.Fatalf("api_key query param = %q, want %q", got, want)
+	}
+}
+
+// The key is emitted at the one location its authenticator was built for and at neither of the other two.
+func TestBhvAuthapikey022_ApiKeyAuthenticator_KeyIsEmittedOnlyAtItsOwnLocation(t *testing.T) {
+	t.Parallel()
+	const key = "abc123"
+	cases := []struct {
+		name     string
+		location auth.ApiKeyLocation
+	}{
+		{"header", auth.ApiKeyLocationHeader},
+		{"query", auth.ApiKeyLocationQuery},
+		{"cookie", auth.ApiKeyLocationCookie},
+	}
+	for _, tc := range cases {
+		a := mustApiKey(t, "https://api.example.com", "api_key", key, tc.location)
+		places := []struct {
+			name   string
+			values map[string]string
+		}{
+			{"header", a.AuthHeaders()},
+			{"query", a.QueryParams()},
+			{"cookie", a.CookieParams()},
+		}
+		for _, place := range places {
+			carries := false
+			for _, value := range place.values {
+				if value == key {
+					carries = true
+				}
+			}
+			if want := place.name == tc.name; carries != want {
+				t.Errorf("%s location: key emitted at %s = %v, want %v", tc.name, place.name, carries, want)
+			}
+		}
+	}
+}
+
+// A cookie value is not held to the header's printable-ASCII rule, so a non-ASCII key is accepted and sent only as a cookie.
+func TestBhvAuthapikey023_ApiKeyAuthenticator_CookieLocationAcceptsNonAscii(t *testing.T) {
+	t.Parallel()
+	a := mustApiKey(t, "https://api.example.com", "session", "kéy", auth.ApiKeyLocationCookie)
+	if got, want := a.CookieParams()["session"], "kéy"; got != want {
+		t.Fatalf("session cookie = %q, want %q", got, want)
+	}
+	if len(a.AuthHeaders()) != 0 || len(a.QueryParams()) != 0 {
+		t.Fatalf("a cookie key leaked into headers %v or query %v", a.AuthHeaders(), a.QueryParams())
+	}
+}
+
+// The authenticator never prints its key, even when it is nested inside another value.
+func TestBhvAuthapikey026_ApiKeyAuthenticator_IsNotLeakedInNestedDebugOutput(t *testing.T) {
+	t.Parallel()
+	secret := "key-" + "material-" + "7733"
+	a := mustApiKey(t, "https://api.example.com", "X-API-Key", secret, auth.ApiKeyLocationHeader)
+	holder := struct{ Auth *auth.ApiKeyAuthenticator }{a}
+	for _, v := range []interface{}{holder, []*auth.ApiKeyAuthenticator{a}, map[string]*auth.ApiKeyAuthenticator{"k": a}} {
+		for _, s := range []string{fmt.Sprint(v), fmt.Sprintf("%+v", v)} {
+			if strings.Contains(s, secret) {
+				t.Errorf("expected the key to be redacted, got %q", s)
+			}
+		}
+	}
+}
+
+func TestBhvAuth006_ApiKeyAuthenticator_HeaderKeyUsesTheSpecDeclaredName(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewApiKeyAuthenticator("https://api.example.com", "X-Custom-Key", "key-value", auth.ApiKeyLocationHeader)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := a.AuthHeaders()["X-Custom-Key"]; got != "key-value" {
+		t.Errorf("expected the key under the declared header name, got %q", got)
+	}
+}
+
+func TestBhvAuth018_ApiKeyAuthenticator_RefusalNeverEchoesTheKey(t *testing.T) {
+	t.Parallel()
+	_, err := auth.NewApiKeyAuthenticator("https://api.example.com", "X-Key", "bad\nSECRET-KEY-VALUE", auth.ApiKeyLocationHeader)
+	if err == nil {
+		t.Fatal("expected the control character to be refused")
+	}
+	if strings.Contains(err.Error(), "SECRET-KEY-VALUE") || strings.Contains(fmt.Sprintf("%#v", err), "SECRET-KEY-VALUE") {
+		t.Errorf("the refusal echoed the key: %q", err.Error())
+	}
+}
+
+// A generic API-key authenticator built without a key reads no environment value and fails.
+func TestBhvAuth007_ApiKeyAuthenticator_GenericWithoutKeyReadsNoneAndFails(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewApiKeyAuthenticator("https://api.example.com", "X-Key", "", auth.ApiKeyLocationHeader)
+	if err == nil {
+		t.Errorf("expected a generic authenticator without a key to fail, got %v", a)
+	}
+	if a != nil {
+		t.Error("expected no authenticator")
 	}
 }

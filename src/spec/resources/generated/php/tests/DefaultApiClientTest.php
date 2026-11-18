@@ -25,7 +25,55 @@ test('bhv transport 018 makes https request with verify ssl false', function ():
     expect($json['method'])->toBe('GET');
 });
 
+test('bhv transport 062 with verify ssl false a certificate that does not name the address is accepted', function (): void {
+    /* Reach the fixture server by its IP address, which its certificate does not name, so a host name
+     * check would fail if it ran. */
+    $parts = parse_url(getenv('CHASM_HTTPS_URL') ?: '');
+    assert(is_array($parts));
+    $address = gethostbyname((string) ($parts['host'] ?? ''));
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(false)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', 'https://' . $address . ':' . ($parts['port'] ?? 443) . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
 // -- Custom CA bundle --
+
+test('bhv transport 066 a CA bundle file trusts every certificate it contains', function (): void {
+    /* The unrelated certificate comes first, so only a client that reads the whole bundle reaches the
+     * fixture CA that signed the server certificate. */
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    $caCertPath = getenv('CA_CERT_PATH') ?: '';
+    $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    assert($key !== false);
+    $csr = openssl_csr_new(['commonName' => 'unrelated-root'], $key);
+    assert($csr instanceof \OpenSSLCertificateSigningRequest);
+    $cert = openssl_csr_sign($csr, null, $key, 1);
+    assert($cert instanceof \OpenSSLCertificate);
+    openssl_x509_export($cert, $unrelatedPem);
+    $bundle = tempnam(sys_get_temp_dir(), 'ca-bundle-');
+    assert(is_string($bundle));
+    file_put_contents($bundle, $unrelatedPem . file_get_contents($caCertPath));
+
+    try {
+        $transport = TransportOptions::builder()
+            ->verifySsl(true)
+            ->caCertPath($bundle)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+        expect($response->statusCode)->toBe(200);
+    } finally {
+        unlink($bundle);
+    }
+});
 
 test('bhv transport 017 makes https request with custom ca cert', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
@@ -110,6 +158,19 @@ test('bhv transport 020 AK: proxy url with userinfo carries credentials', functi
     // The credentials map to the RFC 7617 Proxy-Authorization value.
     $expected = 'Basic ' . base64_encode(urldecode($user) . ':' . urldecode($pass));
     expect($expected)->toBe('Basic dXNlcjpwYXNz');
+});
+
+test('bhv transport 076 percent-escapes in the proxy userinfo decode to the credentials and a literal plus stays a plus', function (): void {
+    $transport = TransportOptions::builder()
+        ->proxy('http://us%40er:p%2Bss+x@127.0.0.1:3128')
+        ->build();
+
+    $parts = parse_url((string) $transport->proxy);
+    expect($parts)->toBeArray();
+    $user = rawurldecode((string) ($parts['user'] ?? ''));
+    $pass = rawurldecode((string) ($parts['pass'] ?? ''));
+    expect($user)->toBe('us@er');
+    expect($pass)->toBe('p+ss+x');
 });
 
 // -- HTTP proxy with TLS --
@@ -699,7 +760,7 @@ test('bhv transport 001 proxy auth squid end to end', function (): void {
     expect($response->body)->toContain('"method"');
 });
 
-test('proxy that requires credentials answers 407 when none are sent', function (): void {
+test('bhv transport 063 proxy that requires credentials answers 407 when none are sent', function (): void {
     $client = new DefaultApiClient(
         TransportOptions::builder()->proxy((string) getenv('PROXY_AUTH_URL'))->build()
     );
@@ -709,6 +770,15 @@ test('proxy that requires credentials answers 407 when none are sent', function 
 });
 
 // -- TLS verification enabled --
+
+test('bhv transport 059 an authenticating proxy refuses a request without credentials', function (): void {
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy((string) getenv('PROXY_AUTH_URL'))->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(407);
+});
 
 test('bhv transport 025 verify ssl true rejects a server certificate the system trust store does not know', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';

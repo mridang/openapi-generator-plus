@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -50,7 +51,7 @@ func TestModel_DeprecatedSchemaCarriesADeprecatedParagraph(t *testing.T) {
 
 // A model's externalDocs description reaches its doc comment as written, with no
 // HTML entity in place of the quote, apostrophe, ampersand or angle brackets.
-func TestModel_ExternalDocsDescriptionKeepsTheSpecProseVerbatim(t *testing.T) {
+func TestBhvSerializationobject227_Model_ExternalDocsDescriptionKeepsTheSpecProseVerbatim(t *testing.T) {
 	t.Parallel()
 	path := "../pkg/models/account.go"
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)
@@ -120,7 +121,7 @@ func TestModel_EnumsExposeTheirAllowedValues(t *testing.T) {
 }
 
 /* An integer enum member is PascalCase like every other enum member. */
-func TestModel_IntegerEnumMembersFollowTheEnumCasing(t *testing.T) {
+func TestBhvModels021_Model_IntegerEnumMembersFollowTheEnumCasing(t *testing.T) {
 	t.Parallel()
 	if models.PriorityNumber1 != 1 || models.PriorityNumber2 != 2 || models.PriorityNumber3 != 3 {
 		t.Errorf("expected Number1 to Number3 to carry 1 to 3, got %d %d %d", models.PriorityNumber1, models.PriorityNumber2, models.PriorityNumber3)
@@ -170,7 +171,7 @@ func TestBhvSerializationobject029_Model_ConstructionNeverValidatesAnEnumValue(t
 	}
 }
 
-func TestModel_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
+func TestBhvSerializationobject182_Model_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
 	t.Parallel()
 	var item models.StockItem
 	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"not-a-member"}`), &item); err == nil {
@@ -178,6 +179,120 @@ func TestModel_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
 	}
 	if err := json.Unmarshal([]byte(`{"priority":99}`), &item); err == nil {
 		t.Error("expected the unknown priority to be rejected on decode")
+	}
+}
+
+// The text form of an enum member is exactly its declared wire value.
+func TestBhvSerialization001_Model_EnumTextFormIsTheDeclaredWireValue(t *testing.T) {
+	t.Parallel()
+	if got := models.AvailabilityOclock.String(); got != "o'clock" {
+		t.Errorf("expected the text form to be the wire value o'clock, got %q", got)
+	}
+	if got := models.AvailabilityAB.String(); got != `a\b` {
+		t.Errorf("expected the text form to be the wire value a\\b, got %q", got)
+	}
+	if got := models.PriorityNumber2.String(); got != "2" {
+		t.Errorf("expected the text form of the integer enum to be 2, got %q", got)
+	}
+}
+
+// An enum member held by a model is written with its exact wire string, casing included.
+func TestBhvSerialization002_Model_HeldEnumMemberIsWrittenWithItsExactWireString(t *testing.T) {
+	t.Parallel()
+	item := models.NewStockItem(models.PriorityNumber1).WithAvailability(models.AvailabilityAvailable)
+	data, err := json.Marshal(item)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"availability":"Available"`) {
+		t.Errorf("expected the held enum member written as \"Available\", got %s", data)
+	}
+}
+
+// A wire value that an enum declares decodes to the member carrying exactly that value.
+func TestBhvSerialization003_Model_DecodingAWireValueYieldsTheMemberCarryingIt(t *testing.T) {
+	t.Parallel()
+	var availability models.Availability
+	if err := json.Unmarshal([]byte(`"on-hold"`), &availability); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if availability != models.AvailabilityOnHold {
+		t.Errorf("expected AvailabilityOnHold, got %q", availability)
+	}
+	var priority models.Priority
+	if err := json.Unmarshal([]byte("3"), &priority); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if priority != models.PriorityNumber3 {
+		t.Errorf("expected PriorityNumber3, got %v", priority)
+	}
+}
+
+// A generated enum lists its declared members, maps each to its wire value and
+// refuses any value outside them.
+func TestBhvSerialization004_Model_EnumListsItsMembersAndRefusesAnyOtherValue(t *testing.T) {
+	t.Parallel()
+	members := models.AllAvailabilityValues()
+	if len(members) != 7 {
+		t.Fatalf("expected seven declared members, got %d", len(members))
+	}
+	for _, member := range members {
+		data, err := json.Marshal(member)
+		if err != nil {
+			t.Fatalf("unexpected error serializing %q: %v", member, err)
+		}
+		var back models.Availability
+		if err := json.Unmarshal(data, &back); err != nil || back != member {
+			t.Errorf("expected %q to map to its wire value and back, got %q (%v)", member, back, err)
+		}
+	}
+	outside := models.Availability("extreme")
+	if _, err := json.Marshal(outside); err == nil {
+		t.Error("expected a value outside the declared members to be refused on marshal")
+	}
+	var decoded models.Availability
+	if err := json.Unmarshal([]byte(`"extreme"`), &decoded); err == nil {
+		t.Error("expected a value outside the declared members to be refused on decode")
+	}
+}
+
+// Models whose decimal fields hold numerically equal values compare equal. Go has
+// no decimal type, so the literals 1.5 and 1.50 are the same float64.
+func TestBhvModels018_Model_NumericallyEqualDecimalFieldsCompareEqual(t *testing.T) {
+	t.Parallel()
+	a := models.NewDryFood(1.5)
+	b := models.NewDryFood(1.50)
+	if !a.Equal(*b) {
+		t.Error("expected models with numerically equal decimals to compare equal")
+	}
+	if a.Equal(*models.NewDryFood(1.6)) {
+		t.Error("expected models with different decimals to compare unequal")
+	}
+}
+
+// A generated model whose schema allows undeclared properties reports that it does.
+func TestBhvModels022_Model_ModelWithUndeclaredPropertiesHasAnAdditionalPropertiesBucket(t *testing.T) {
+	t.Parallel()
+	if _, ok := reflect.TypeOf(models.Metadata{}).FieldByName("AdditionalProperties"); !ok {
+		t.Error("expected Metadata, whose schema allows undeclared properties, to carry AdditionalProperties")
+	}
+	if _, ok := reflect.TypeOf(models.DryFood{}).FieldByName("AdditionalProperties"); ok {
+		t.Error("expected DryFood, whose schema declares every property, to carry no AdditionalProperties")
+	}
+}
+
+// Model keys are written in the order the schema declares them, never sorted.
+func TestBhvSerialization011_Model_KeysAreWrittenInDeclaredOrder(t *testing.T) {
+	t.Parallel()
+	item := models.NewStockItem(models.PriorityNumber1).WithAvailability(models.AvailabilitySold)
+	data, err := json.Marshal(item)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	priorityAt := strings.Index(string(data), `"priority"`)
+	availabilityAt := strings.Index(string(data), `"availability"`)
+	if priorityAt < 0 || availabilityAt < 0 || priorityAt > availabilityAt {
+		t.Errorf("expected priority written before availability as declared, got %s", data)
 	}
 }
 

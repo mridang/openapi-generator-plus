@@ -63,6 +63,11 @@ defmodule PetstoreClient.HeaderSelectorTest do
       refute Map.has_key?(headers, "Accept")
     end
 
+    test "bhv headers 027 an empty accept list yields an accept value of empty string, so only Content-Type is set" do
+      headers = PetstoreClient.HeaderSelector.select_headers([], "application/json", false)
+      assert headers == %{"Content-Type" => "application/json"}
+    end
+
     test "bhv headers 005 does not set Accept header when accepts is nil" do
       headers = PetstoreClient.HeaderSelector.select_headers(nil, "application/json", false)
       refute Map.has_key?(headers, "Accept")
@@ -71,6 +76,13 @@ defmodule PetstoreClient.HeaderSelectorTest do
     test "bhv headers 006 does not set Accept header when all entries are filtered out" do
       headers = PetstoreClient.HeaderSelector.select_headers(["", nil], "application/json", false)
       refute Map.has_key?(headers, "Accept")
+    end
+
+    test "bhv headers 029 the Accept header carries no value when every entry is blank" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(["  ", "\t", ""], "application/json", false)
+
+      assert headers == %{"Content-Type" => "application/json"}
     end
 
     test "bhv headers 025 sets Content-Type header when not multipart" do
@@ -198,6 +210,20 @@ defmodule PetstoreClient.HeaderSelectorTest do
         )
 
       assert headers["Accept"] == "application/json"
+    end
+  end
+
+  describe "Accept header weights" do
+    test "bhv headers 032 the Accept header lists media types without quality weights" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json", "application/xml"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "application/json, application/xml"
+      refute headers["Accept"] =~ "q="
     end
   end
 end

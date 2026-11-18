@@ -138,7 +138,8 @@ func TestBhvSerializationparam065_ValueSerializer_SerializeValue_CookieNull(t *t
 	}
 }
 
-func TestValueSerializer_SerializeValue_NilQuery(t *testing.T) {
+// An unset query value produces no query entry at all.
+func TestBhvSerialization014_ValueSerializer_SerializeValue_NilQueryProducesNoEntry(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(nil, "query", "string", "")
 	if result != nil {
@@ -443,6 +444,17 @@ func TestBhvSerializationparam005_ValueSerializer_SerializeValue_HeaderArray(t *
 	}
 }
 
+// An array in an unstyled or simple header style is written as its items, comma-joined.
+func TestBhvSerialization013_ValueSerializer_SerializeValue_ArrayInHeaderWritesItsItems(t *testing.T) {
+	t.Parallel()
+	if result := serializeValue([]string{"a", "b"}, "header", "array", "simple"); result != "a,b" {
+		t.Errorf("expected the simple-style header array written as its items, got %v", result)
+	}
+	if result := serializeValue([]string{"a", "b"}, "header", "array", ""); result != "a,b" {
+		t.Errorf("expected the unstyled header array written as its items, got %v", result)
+	}
+}
+
 func TestBhvSerializationparam030_ValueSerializer_SerializeValue_HeaderEmptyArray(t *testing.T) {
 	t.Parallel()
 	result := serializeValue([]string{}, "header", "array", "")
@@ -621,9 +633,17 @@ func TestValueSerializer_SerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
 	}
 }
 
+func TestBhvSerializationparam106_ValueSerializer_SerializeStyled_PathWithNullStyleBehavesLikeSimple(t *testing.T) {
+	t.Parallel()
+	result := serializeStyled("id", "5", "path", "string", "", "", false)
+	if result != "5" {
+		t.Errorf("expected a path with no style to serialize like simple, got %v", result)
+	}
+}
+
 // ── SerializeStyled: form ──
 
-func TestValueSerializer_SerializeStyled_FormScalar(t *testing.T) {
+func TestBhvSerializationparam105_ValueSerializer_SerializeStyled_FormScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "blue", "query", "string", "", "form", true)
 	if result != "blue" {
@@ -869,14 +889,59 @@ func TestValueSerializer_ToStringSlice_TypedEnumSlice(t *testing.T) {
 	}
 }
 
+func TestBhvSerializationparam117_ValueSerializer_SerializeStyled_FormNoExplodeSetJoinsLikeAnArray(t *testing.T) {
+	t.Parallel()
+	set := models.Set[string]{"a", "b"}
+	if got := serializeStyled("ids", set, "query", "array", "", "form", false); got != "a,b" {
+		t.Errorf("expected 'a,b' for a Set in form style without explode, got %v", got)
+	}
+}
+
+func TestBhvSerializationparam110_ValueSerializer_StringifyDate_UTCMidnightIsYYYYMMDD(t *testing.T) {
+	t.Parallel()
+	when := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
+	if got := stringifyDate(when); got != "2025-01-01" {
+		t.Errorf("expected '2025-01-01', got %q", got)
+	}
+}
+
+func TestBhvSerializationparam120_ValueSerializer_DateArrayWritesEachElementAsYYYYMMDD(t *testing.T) {
+	t.Parallel()
+	days := []string{
+		stringifyDate(time.Date(2024, time.January, 15, 10, 30, 0, 0, time.UTC)),
+		stringifyDate(time.Date(2024, time.February, 1, 23, 59, 0, 0, time.UTC)),
+	}
+	if got := serializeValue(days, "query", "array", "csv"); got != "2024-01-15,2024-02-01" {
+		t.Errorf("expected '2024-01-15,2024-02-01', got %v", got)
+	}
+}
+
+func TestBhvSerializationparam119_ValueSerializer_EncodePathSegment_TildeIsKeptLiteral(t *testing.T) {
+	t.Parallel()
+	if got := encodePathSegment("a~b"); got != "a~b" {
+		t.Errorf("expected the tilde kept literal, got %q", got)
+	}
+}
+
+func TestBhvSerializationparam122_ValueSerializer_EncodeQueryValue_AllowReservedKeepsReservedLiteral(t *testing.T) {
+	t.Parallel()
+	const in = "v1.0/beta:rc1&at=a@b,c;d"
+	if got := encodeQueryValue(in, true); got != in {
+		t.Errorf("expected reserved characters kept literal, got %q", got)
+	}
+}
+
 // ── SerializeDeepObject ──
 
-func TestValueSerializer_SerializeDeepObject(t *testing.T) {
+func TestBhvSerializationparam111_ValueSerializer_SerializeDeepObject(t *testing.T) {
 	t.Parallel()
-	result := serializeDeepObject("filter", map[string]any{
+	result, err := serializeDeepObject("filter", map[string]any{
 		"status": "active",
 		"type":   "dog",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if result["filter[status]"] != "active" {
 		t.Errorf("expected filter[status]='active', got %q", result["filter[status]"])
@@ -888,15 +953,15 @@ func TestValueSerializer_SerializeDeepObject(t *testing.T) {
 
 func TestBhvSerializationparam061_ValueSerializer_SerializeDeepObject_Nil(t *testing.T) {
 	t.Parallel()
-	result := serializeDeepObject("filter", nil)
-	if len(result) != 0 {
+	result, err := serializeDeepObject("filter", nil)
+	if err != nil || len(result) != 0 {
 		t.Errorf("expected empty map for nil, got %v", result)
 	}
 }
 
 // ── SerializeStyled: fallback to SerializeValue for unknown style ──
 
-func TestValueSerializer_SerializeStyled_UnknownStyleFallback(t *testing.T) {
+func TestBhvSerializationparam109_ValueSerializer_SerializeStyled_UnknownStyleFallback(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "5", "query", "string", "", "unknownStyle", false)
 	if result != "5" {
@@ -1237,7 +1302,7 @@ type styledCriteria struct {
 
 // D47/F1143: an object-valued parameter is encoded property by property, in the
 // model's declaration order, whatever its wire names (min_age is snake case).
-func TestValueSerializer_SerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
+func TestBhvSerialization015_ValueSerializer_SerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
 	t.Parallel()
 	breed := "lab"
 	minAge := int32(3)
@@ -1279,8 +1344,98 @@ func TestBhvSerializationparam017_ValueSerializer_SerializeDeepObject_ModelBecom
 	t.Parallel()
 	breed := "lab"
 	minAge := int32(3)
-	got := serializeDeepObject("criteriaDeep", &styledCriteria{Breed: &breed, MinAge: &minAge})
+	got, err := serializeDeepObject("criteriaDeep", &styledCriteria{Breed: &breed, MinAge: &minAge})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if len(got) != 2 || got["criteriaDeep[breed]"] != "lab" || got["criteriaDeep[min_age]"] != "3" {
 		t.Errorf("expected criteriaDeep[breed]=lab and criteriaDeep[min_age]=3, got %v", got)
+	}
+}
+
+func TestBhvSerialization005_ValueSerializer_PathSegmentPercentEncodesEverythingButUnreservedCharacters(t *testing.T) {
+	t.Parallel()
+	if got := encodePathSegment("a-._~b"); got != "a-._~b" {
+		t.Errorf("expected unreserved characters literal, got %q", got)
+	}
+	if got := encodePathSegment("a b/c?d#e"); got != "a%20b%2Fc%3Fd%23e" {
+		t.Errorf("expected space, slash, question mark and hash percent-encoded, got %q", got)
+	}
+}
+
+// wireOrderedCriteria declares its fields in the reverse of their wire-name order,
+// so a sorted walk would write the wrong sequence.
+type wireOrderedCriteria struct {
+	Zeta  *int32  `json:"zeta_value,omitempty"`
+	Alpha *string `json:"alpha,omitempty"`
+}
+
+// An object-valued parameter in a delimited style alternates keys and values, joined
+// by the style's own delimiter, whether the value is a map or a model.
+func TestBhvSerialization016_ValueSerializer_SerializeStyled_DelimitedObjectAlternatesKeysAndValues(t *testing.T) {
+	t.Parallel()
+	criteria := map[string]any{"min_age": int32(3), "breed": "lab"}
+	if got := serializeStyled("criteria", criteria, "query", "styledCriteria", "", "spaceDelimited", true); got != "breed lab min_age 3" {
+		t.Errorf("expected space-joined pairs, got %v", got)
+	}
+	if got := serializeStyled("criteria", criteria, "query", "styledCriteria", "", "pipeDelimited", false); got != "breed|lab|min_age|3" {
+		t.Errorf("expected pipe-joined pairs, got %v", got)
+	}
+}
+
+// A model object-valued parameter is written under each property's wire name, in
+// declaration order, in every style.
+func TestBhvSerialization017_ValueSerializer_SerializeStyled_ModelWritesWireNamesInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	zeta := int32(7)
+	alpha := "x"
+	criteria := &wireOrderedCriteria{Zeta: &zeta, Alpha: &alpha}
+	cases := []struct {
+		name     string
+		location string
+		style    string
+		explode  bool
+		want     any
+	}{
+		{"form csv", "query", "form", false, "zeta_value,7,alpha,x"},
+		{"simple header", "header", "simple", false, "zeta_value,7,alpha,x"},
+		{"label", "path", "label", false, ".zeta_value,7,alpha,x"},
+		{"matrix", "path", "matrix", false, ";criteria=zeta_value,7,alpha,x"},
+		{"matrix exploded", "path", "matrix", true, ";zeta_value=7;alpha=x"},
+		{"space delimited", "query", "spaceDelimited", false, "zeta_value 7 alpha x"},
+		{"pipe delimited", "query", "pipeDelimited", false, "zeta_value|7|alpha|x"},
+	}
+	for _, tc := range cases {
+		if got := serializeStyled("criteria", criteria, tc.location, "wireOrderedCriteria", "", tc.style, tc.explode); got != tc.want {
+			t.Errorf("%s: expected %v, got %v", tc.name, tc.want, got)
+		}
+	}
+}
+
+// A deepObject value holding a nested object or array is refused with a serialization error.
+func TestBhvSerialization018_ValueSerializer_SerializeDeepObject_NestedObjectIsRefused(t *testing.T) {
+	t.Parallel()
+	_, err := serializeDeepObject("filter", map[string]any{"outer": map[string]any{"inner": "1"}})
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a nested object, got %T: %v", err, err)
+	}
+	_, err = serializeDeepObject("filter", map[string]any{"tags": []string{"a"}})
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a nested array, got %T: %v", err, err)
+	}
+}
+
+// An unset property of a model, or a null entry in a parameter map, is left out of the output.
+func TestBhvSerialization019_ValueSerializer_SerializeStyled_UnsetPropertyAndNullEntryAreLeftOut(t *testing.T) {
+	t.Parallel()
+	minAge := int32(3)
+	exploded, ok := serializeStyled("criteria", &styledCriteria{MinAge: &minAge}, "query", "styledCriteria", "", "form", true).(queryPairs)
+	if !ok || len(exploded) != 1 || exploded[0] != [2]string{"min_age", "3"} {
+		t.Errorf("expected only min_age=3 for a model with one set property, got %v", exploded)
+	}
+	mapped, ok := serializeStyled("criteria", map[string]any{"breed": nil, "min_age": int32(3)}, "query", "styledCriteria", "", "form", true).(queryPairs)
+	if !ok || len(mapped) != 1 || mapped[0] != [2]string{"min_age", "3"} {
+		t.Errorf("expected only min_age=3 for a map with a null entry, got %v", mapped)
 	}
 }

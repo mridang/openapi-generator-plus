@@ -215,6 +215,11 @@ class Client
             }
         }
 
+        if (trim($hostAuthenticator->getHost()) === '') {
+            $this->close();
+            throw new \InvalidArgumentException('A client needs a base URL: the host of the authenticator is empty');
+        }
+
         $config = Configuration::builder()
             ->baseUrl($hostAuthenticator->getHost())
             ->build();

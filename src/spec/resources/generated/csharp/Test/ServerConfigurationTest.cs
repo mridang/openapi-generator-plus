@@ -230,7 +230,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void ServerConfigurationCopiesTheCallersVariablesAtConstruction()
+    public void BhvServers025ServerConfigurationCopiesTheCallersVariablesAtConstruction()
     {
         var variables = new Dictionary<string, ServerVariable>
         {
@@ -257,6 +257,57 @@ public class ServerConfigurationTest
         var url = server.GetUrl(new Dictionary<string, string> { ["env"] = "anything" });
 
         Assert.Equal("https://anything.example.com", url);
+    }
+
+    [Fact]
+    public void BhvServers020RejectsAServerVariableValueOutsideItsEnum()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        Assert.Throws<ArgumentException>(() =>
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "dev" })
+        );
+    }
+
+    [Fact]
+    public void BhvServers021ResolvesSpecialCharactersInDefaultAndEnumValuesRaw()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("o'neil", null, ["o'neil", "a&b"]),
+            }
+        );
+
+        Assert.Equal("https://o'neil.example.com/api", server.GetUrl());
+        Assert.Equal(
+            "https://a&b.example.com/api",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "a&b" })
+        );
+    }
+
+    [Fact]
+    public void BhvServers023ReplacementPatternsInAValueAreSubstitutedLiterally()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable> { ["env"] = new ServerVariable("api", null, []) }
+        );
+
+        Assert.Equal(
+            "https://$1$&$$.example.com",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "$1$&$$" })
+        );
     }
 
     [Fact]
@@ -305,5 +356,28 @@ public class ServerConfigurationTest
         Assert.Equal("Primary server", server.Description);
         Assert.Single(server.Variables);
         Assert.True(server.Variables.ContainsKey("env"));
+    }
+
+    [Fact]
+    public void BhvServers028GeneratedServersAndTheirVariablesCannotBeChanged()
+    {
+        var servers = Assert.IsAssignableFrom<IList<ServerConfiguration>>(Servers.All);
+        Assert.Throws<NotSupportedException>(() => servers.Add(Servers.All[0]));
+
+        foreach (ServerConfiguration server in Servers.All)
+        {
+            var variables = Assert.IsAssignableFrom<IDictionary<string, ServerVariable>>(
+                server.Variables
+            );
+            Assert.Throws<NotSupportedException>(() =>
+                variables.Add("unlisted", new ServerVariable("x"))
+            );
+
+            foreach (ServerVariable variable in server.Variables.Values)
+            {
+                var allowed = Assert.IsAssignableFrom<IList<string>>(variable.EnumValues);
+                Assert.Throws<NotSupportedException>(() => allowed.Add("unlisted"));
+            }
+        }
     }
 }

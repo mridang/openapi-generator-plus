@@ -80,7 +80,20 @@ defmodule PetstoreClient.Models.MetadataTest do
       refute with_extra == other_extra
     end
 
-    test "defines additional_properties function" do
+    test "bhv models 012 inspect dumps the fields and the additional_properties map" do
+      metadata = %PetstoreClient.Models.Metadata{
+        created_at: ~U[2024-01-15 10:30:00Z],
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      text = inspect(metadata)
+
+      assert text =~ "%PetstoreClient.Models.Metadata{"
+      assert text =~ "created_at: ~U[2024-01-15 10:30:00Z]"
+      assert text =~ ~s(additional_properties: %{"customField" => "hello"})
+    end
+
+    test "bhv models 022 defines additional_properties function" do
       assert PetstoreClient.Models.Metadata.additional_properties() == true
     end
   end
@@ -94,7 +107,7 @@ defmodule PetstoreClient.Models.MetadataTest do
   # documentation noise. It is a parity assertion that should already pass and
   # stay passing.
   describe "generated model docblocks (L1 parity)" do
-    test ~s(bhv models 007 no generated model carries a literal "Example: null" / "@example null" doc line) do
+    test "bhv models 007 no generated model carries a literal example null doc line" do
       model_files =
         Path.wildcard(Path.join([File.cwd!(), "lib", "**", "models", "*.ex"]))
 
@@ -137,6 +150,82 @@ defmodule PetstoreClient.Models.MetadataTest do
       description = PetstoreClient.MixProject.project()[:package][:description]
       assert is_binary(description)
       assert String.trim(description) != ""
+    end
+  end
+
+  describe "model construction and copies" do
+    test "bhv models 013 a newly built model starts with an empty additional_properties map, never nil" do
+      metadata = %PetstoreClient.Models.Metadata{}
+
+      assert metadata.additional_properties == %{}
+    end
+
+    test "bhv models 014 a built model cannot be reassigned, and an update leaves the original unchanged" do
+      metadata = %PetstoreClient.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+
+      _updated = %{metadata | created_at: "2025-01-01T00:00:00+00:00"}
+
+      assert metadata.created_at == "2024-01-01T00:00:00+00:00"
+    end
+
+    test "bhv models 015 a changed copy keeps the additional properties of the original" do
+      metadata = %PetstoreClient.Models.Metadata{
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      copy = %{metadata | created_at: "2024-01-01T00:00:00+00:00"}
+
+      assert copy.additional_properties == %{"customField" => "hello"}
+    end
+
+    test "bhv models 016 a copy clears an optional field only when nil is set and keeps it when omitted" do
+      metadata = %PetstoreClient.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+
+      cleared = %{metadata | created_at: nil}
+      kept = %{metadata | additional_properties: %{"x" => "1"}}
+
+      assert cleared.created_at == nil
+      assert kept.created_at == "2024-01-01T00:00:00+00:00"
+    end
+
+    test "bhv models 017 a copy can set an optional field and the original keeps its value" do
+      metadata = %PetstoreClient.Models.Metadata{}
+
+      copy = %{metadata | created_at: "2024-01-01T00:00:00+00:00"}
+
+      assert copy.created_at == "2024-01-01T00:00:00+00:00"
+      assert metadata.created_at == nil
+    end
+
+    test "bhv models 019 models with a different value in any field compare unequal" do
+      first = %PetstoreClient.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+      second = %PetstoreClient.Models.Metadata{created_at: "2025-01-01T00:00:00+00:00"}
+      third = %{first | additional_properties: %{"x" => "1"}}
+
+      refute first == second
+      refute first == third
+    end
+
+    test "bhv models 020 models with the same field values compare equal and hash alike" do
+      first = %PetstoreClient.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+      second = %PetstoreClient.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+
+      assert first == second
+      assert :erlang.phash2(first) == :erlang.phash2(second)
+      assert MapSet.size(MapSet.new([first, second])) == 1
+    end
+
+    test "bhv models 023 undeclared keys named like SDK internals stay additional properties" do
+      metadata =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"serialize":"hello"}), "Metadata")
+
+      assert metadata.additional_properties == %{"serialize" => "hello"}
+    end
+
+    test "bhv models 024 a newly built model leaves its optional properties unset" do
+      metadata = %PetstoreClient.Models.Metadata{}
+
+      assert metadata.created_at == nil
     end
   end
 end

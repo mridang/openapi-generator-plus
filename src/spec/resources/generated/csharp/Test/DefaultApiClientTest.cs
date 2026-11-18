@@ -29,6 +29,21 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task BhvSerializationobject183HandlesNullBody()
+    {
+        var client = new DefaultApiClient();
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvTransport018MakesHttpsRequestWithVerifySslFalse()
     {
         var transport = TransportOptions.Builder().VerifySsl(false).Build();
@@ -43,6 +58,34 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         // Chasm echo envelope: presence of "method" field confirms a JSON response body.
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport062WithVerifySslFalseACertificateThatDoesNotNameTheAddressIsAccepted()
+    {
+        /* Reach the mock server by an IP address, which its certificate does not
+           name, so the host name check would fail if it ran. */
+        var httpsUri = new Uri(_fixture.HttpsBaseUrl);
+        var addresses = await Dns.GetHostAddressesAsync(
+            httpsUri.Host,
+            TestContext.Current.CancellationToken
+        );
+        var address =
+            addresses[0].AddressFamily == AddressFamily.InterNetworkV6
+                ? "[" + addresses[0] + "]"
+                : addresses[0].ToString();
+        var transport = TransportOptions.Builder().VerifySsl(false).Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://" + address + ":" + httpsUri.Port + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
         Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
@@ -140,6 +183,60 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport066ACaBundleFileTrustsEveryCertificateInIt()
+    {
+        /* The bundle holds an unrelated CA first and the CA that signed the
+           mock server second. Only the second one can anchor the server's chain,
+           so a bundle that kept only its first certificate would refuse this. */
+        using var unrelatedKey = RSA.Create(2048);
+        var unrelatedRequest = new CertificateRequest(
+            "CN=unrelated-bundle-ca",
+            unrelatedKey,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1
+        );
+        unrelatedRequest.CertificateExtensions.Add(
+            new X509BasicConstraintsExtension(true, false, 0, true)
+        );
+        using var unrelated = unrelatedRequest.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddDays(1)
+        );
+        var caPem = await File.ReadAllTextAsync(
+            Path.Combine(Directory.GetCurrentDirectory(), "Test", "Resources", "certs", "ca.pem"),
+            TestContext.Current.CancellationToken
+        );
+        var bundlePath = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(
+                bundlePath,
+                unrelated.ExportCertificatePem().TrimEnd() + "\n" + caPem.TrimStart(),
+                TestContext.Current.CancellationToken
+            );
+            var transport = TransportOptions
+                .Builder()
+                .VerifySsl(true)
+                .CaCertPath(bundlePath)
+                .Build();
+
+            var client = new DefaultApiClient(transport);
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            );
+
+            Assert.Equal(200, response.StatusCode);
+        }
+        finally
+        {
+            File.Delete(bundlePath);
+        }
     }
 
     [Fact]
@@ -402,6 +499,29 @@ public class DefaultApiClientTest
     // -- Request timeout --
 
     [Fact]
+    public async Task BhvTransport082DefaultAndTimeoutOnlyClientsCompleteARequest()
+    {
+        var defaults = new DefaultApiClient();
+        var timed = new DefaultApiClient(TransportOptions.Builder().Timeout(5000).Build());
+
+        var fromDefaults = await defaults.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        var fromTimed = await timed.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, fromDefaults.StatusCode);
+        Assert.Equal(200, fromTimed.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvTransport024TimesOutOnSlowEndpoint()
     {
         var transport = TransportOptions.Builder().Timeout(1000).Build();
@@ -422,7 +542,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CancellingTheCallTokenAbortsTheSlowEndpoint()
+    public async Task BhvTransport060CancellingTheCallTokenAbortsTheSlowEndpoint()
     {
         var client = new DefaultApiClient(TransportOptions.Builder().Timeout(30000).Build());
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));

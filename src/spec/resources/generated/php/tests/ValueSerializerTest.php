@@ -20,6 +20,18 @@ namespace {
         expect(ValueSerializer::serialize('a/b c', 'path', 'string'))->toBe('a%2Fb%20c');
     });
 
+    test('bhv serializationparam 119 a tilde is kept literal in a path parameter value', function (): void {
+        expect(ValueSerializer::serialize('a~b', 'path', 'string'))->toBe('a~b');
+        expect(ValueSerializer::serialize('~', 'path', 'string'))->toBe('~');
+    });
+
+    test('bhv serializationparam 118 a content cookie value is encoded to the shared percent encoded bytes', function (): void {
+        /* A `content:` cookie is written as the percent-encoded JSON of its value
+         * (api.mustache: rawurlencode of ObjectSerializer::serialize). */
+        $json = ObjectSerializer::serialize(['k' => "a b~*\u{00E9}"]);
+        expect(rawurlencode($json))->toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
+    });
+
     test('bhv serializationparam 062 path null returns empty string', function (): void {
         expect(ValueSerializer::serialize(null, 'path', 'string'))->toBe('');
     });
@@ -343,8 +355,12 @@ namespace {
 
 // -- serializeStyled: null style falls back to location default --
 
-    test('null style behaves like simple for path', function (): void {
+    test('bhv serializationparam 106 path with null style behaves like simple', function (): void {
         expect(ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false))->toBe('5');
+    });
+
+    test('bhv serializationparam 105 a form scalar serializes styled as its own value', function (): void {
+        expect(ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'form', true))->toBe('blue');
     });
 
     test('bhv serializationparam 035 empty style falls back', function (): void {
@@ -362,6 +378,22 @@ namespace {
     test('bhv serializationparam 061 deep object null returns empty array', function (): void {
         $result = ValueSerializer::serializeDeepObject('filter', null);
         expect($result)->toBe([]);
+    });
+
+    test('bhv serializationparam 111 a deepObject parameter writes each property as name[key]', function (): void {
+        $result = ValueSerializer::serializeDeepObject('filter', ['status' => 'active', 'type' => 'dog']);
+        expect($result)->toBe(['filter[status]' => 'active', 'filter[type]' => 'dog']);
+    });
+
+    test('bhv serializationparam 108 a nested object leaf in a styled parameter is rejected with a serialization error', function (): void {
+        expect(fn () => ValueSerializer::serializeDeepObject('criteria', ['inner' => ['deeper' => 1]]))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+        expect(fn () => ValueSerializer::serializeStyled('criteria', [['deeper' => 1]], 'query', 'array', null, 'form', true))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    });
+
+    test('bhv serializationparam 109 an unknown parameter style falls back to plain value serialization', function (): void {
+        expect(ValueSerializer::serializeStyled('id', '5', 'query', 'string', null, 'unknownStyle', false))->toBe('5');
     });
 
 // -- path encoding parity --
@@ -446,7 +478,7 @@ namespace {
         expect(ValueSerializer::encodeQueryAllowingReserved('a#b[c]d e'))->toBe('a%23b%5Bc%5Dd%20e');
     });
 
-    test('styled path scalar preserves sub delimiters not over encoded', function (): void {
+    test('bhv serialization 005 styled path scalar preserves sub delimiters not over encoded', function (): void {
         // php-rawurlencode-overencodes regression on the styled per-item path.
         expect(ValueSerializer::serializeStyled('id', 'a,b', 'path', 'string', null, 'simple', false))->toBe('a,b');
         expect(ValueSerializer::serializeStyled('id', 'a:b', 'path', 'string', null, 'simple', false))->toBe('a:b');
@@ -495,7 +527,7 @@ namespace {
 
 /* -- date-only marker in non-path locations -- */
 
-    test('query date only emits yyyy mm dd', function (): void {
+    test('bhv serializationparam 110 a date value is written as yyyy mm dd', function (): void {
         $dt = new \DateTime('2024-01-01T10:30:45+00:00');
         expect(ValueSerializer::serialize($dt, 'query', '\\DateTime|date'))->toBe('2024-01-01');
         expect(ValueSerializer::serializeStyled('d', $dt, 'query', '\\DateTime|date', null, 'form', true))->toBe('2024-01-01');
@@ -521,7 +553,7 @@ namespace {
         ->toBe(['2024-01-15', '2024-02-01']);
     });
 
-    test('header array of dates emits yyyy mm dd per item', function (): void {
+    test('bhv serializationparam 120 an array of date values is written with each element as yyyy mm dd', function (): void {
         $dates = [new \DateTime('2024-01-15T10:30:45+00:00'), new \DateTime('2024-02-01T23:59:59+00:00')];
         expect(ValueSerializer::serialize($dates, 'header', 'array|date'))->toBe('2024-01-15,2024-02-01');
     });
@@ -536,7 +568,7 @@ namespace {
         expect(ValueSerializer::serialize($dt, 'query', '\\DateTime'))->toContain('10:30:45');
     });
 
-    test('format time param keeps non zero milliseconds and drops zero ones', function (string $input, string $expected): void {
+    test('bhv operations 139 format time param keeps non zero milliseconds and drops zero ones', function (string $input, string $expected): void {
         $time = new \DateTimeImmutable($input);
         expect(ValueSerializer::serialize($time, 'query', '\\DateTimeImmutable'))->toBe($expected);
         expect(ValueSerializer::serializeStyled('at', $time, 'query', '\\DateTimeImmutable', null, 'form', true))->toBe($expected);
@@ -547,12 +579,12 @@ namespace {
     'sub millisecond only' => ['2024-01-01T10:30:00.0004+00:00', '10:30:00'],
     ]);
 
-    test('format time path param is never a full date-time', function (): void {
+    test('bhv serialization 043 format time path param is never a full date-time', function (): void {
         $time = new \DateTimeImmutable('2024-01-01T10:30:00.5+00:00');
         expect(ValueSerializer::serialize($time, 'path', '\\DateTimeImmutable'))->toBe('10%3A30%3A00.500');
     });
 
-    test('format date only helper drops the time component', function (): void {
+    test('bhv serialization 044 format date only helper drops the time component', function (): void {
         expect(ValueSerializer::formatDateOnly(new \DateTime('2024-01-01T10:30:45+00:00')))->toBe('2024-01-01');
         expect(ValueSerializer::formatDateOnly(new \DateTimeImmutable('2024-12-31T23:59:59+00:00')))->toBe('2024-12-31');
         expect(ValueSerializer::formatDateOnly(null))->toBeNull();
@@ -600,15 +632,56 @@ namespace {
         expect(ValueSerializer::serialize(new \Ds\Set(['red', 'blue']), 'query', 'array', 'multi'))->toBe(['red', 'blue']);
     });
 
-    test('styled form set serializes like an array', function (): void {
-        expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['blue', 'black']), 'query', 'array', null, 'form', false))->toBe('blue,black');
-    });
-
     test('styled form exploded set expands to repeated values', function (): void {
         expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['blue', 'black']), 'query', 'array', null, 'form', true))->toBe(['blue', 'black']);
     });
 
+    test('bhv serializationparam 117 a set in form style without explode joins its elements with commas like an array', function (): void {
+        expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['red', 'blue']), 'query', 'array', null, 'form', false))->toBe('red,blue');
+    });
+
     test('bhv serializationparam 066 a null value is an empty string in the path location', function (): void {
         expect(ObjectSerializer::toPathValue(null))->toBe('');
+    });
+
+    test('bhv serialization 013 an array in a header is written as its items', function (): void {
+        expect(ValueSerializer::serializeStyled('X-Items', ['a', 'b'], 'header', 'array', null, 'simple', false))->toBe('a,b');
+    });
+
+    test('bhv serialization 014 an unset object-valued query parameter produces no entry', function (): void {
+        expect(ValueSerializer::serializeStyled('c', null, 'query', 'SerializerProbe', null, 'form', true))->toBeNull();
+    });
+
+    test('bhv serialization 015 matrix and label styles lay an object out with their own prefix and separators', function (): void {
+        $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+        expect(ValueSerializer::serializeStyled('c', $criteria, 'path', 'SerializerProbe', null, 'matrix', true))
+        ->toBe(';breed=lab;min_age=3');
+        expect(ValueSerializer::serializeStyled('c', $criteria, 'path', 'SerializerProbe', null, 'label', false))
+        ->toBe('.breed,lab,min_age,3');
+    });
+
+    test('bhv serialization 016 an object in a delimited style is alternating keys and values', function (): void {
+        $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+        expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'pipeDelimited', false))
+        ->toBe('breed|lab|min_age|3');
+    });
+
+    test('bhv serialization 017 a model object parameter lists its wire names in declaration order in every style', function (): void {
+        $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+        $formWire = ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'form', true);
+        \assert(is_array($formWire));
+        expect(array_keys($formWire))->toBe(['breed', 'min_age']);
+        $spaceWire = ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'spaceDelimited', true);
+        \assert(is_array($spaceWire));
+        expect(array_keys($spaceWire))->toBe(['breed', 'min_age']);
+    });
+
+    test('bhv serialization 018 a nested object inside an object-valued parameter is refused', function (): void {
+        expect(fn () => ValueSerializer::serializeDeepObject('criteria', ['inner' => ['deeper' => 1]]))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    });
+
+    test('bhv serialization 019 a null entry in a parameter map is left out of the output', function (): void {
+        expect(ValueSerializer::serializeDeepObject('filter', ['a' => null, 'b' => 'x']))->toBe(['filter[b]' => 'x']);
     });
 }

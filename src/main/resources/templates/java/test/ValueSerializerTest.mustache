@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import {{invokerPackage}}.errors.SerializationException;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
@@ -179,8 +180,8 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("tilde preserved (RFC 3986 unreserved)")
-        void tildePreserved() {
+        @DisplayName("bhvSerializationParam119 tilde preserved (RFC 3986 unreserved)")
+        void bhvSerializationParam119TildeIsKeptLiteralInAPathValue() {
             // '~' is an RFC 3986 unreserved character and MUST NOT be
             // percent-encoded. URLEncoder emits %7E; the canonical encoding
             // (Node, C#, etc.) keeps a literal '~'.
@@ -608,6 +609,16 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerialization016 an object-valued delimited parameter alternates keys and values")
+        void bhvSerialization016ObjectInDelimitedStyleAlternatesKeysAndValues() {
+            Map<String, String> fields = new java.util.LinkedHashMap<>();
+            fields.put("role", "admin");
+            fields.put("firstName", "Alex");
+            assertEquals("role|admin|firstName|Alex",
+                    ValueSerializer.serializeStyled("user", fields, "query", "object", null, "pipeDelimited", false));
+        }
+
+        @Test
         @DisplayName("bhvSerializationParam076 scalar returns stringified value")
         void bhvSerializationParam076ScalarReturnsStringifiedValue() {
             assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "pipeDelimited", false));
@@ -631,6 +642,12 @@ class ValueSerializerTest {
         @DisplayName("bhvSerializationParam002 allow reserved leaves reserved chars literal but still encodes others")
         void bhvSerializationParam002AllowReservedKeepsReservedCharsLiteral() {
             assertEquals("a:b/c%20d%23e", ValueSerializer.encodeQueryAllowingReserved("a:b/c d#e"));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationParam122 an allowReserved query value keeps its reserved characters literal on the wire")
+        void bhvSerializationParam122AllowReservedQueryValueKeepsReservedCharsLiteral() {
+            assertEquals("a:b/c?d=e&f", ValueSerializer.encodeQueryAllowingReserved("a:b/c?d=e&f"));
         }
 
         @Test
@@ -679,6 +696,12 @@ class ValueSerializerTest {
         @Test
         @DisplayName("bhvSerializationParam041 scalar with explode true returns string not list")
         void bhvSerializationParam041ScalarExplodeTrueReturnsString() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationParam105 SerializeStyled form scalar")
+        void bhvSerializationParam105SerializeStyledFormScalar() {
             assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true));
         }
 
@@ -761,8 +784,8 @@ class ValueSerializerTest {
     class NullStyleFallbackTests {
 
         @Test
-        @DisplayName("path with null style behaves like simple")
-        void pathWithNullStyleBehavesLikeSimple() {
+        @DisplayName("bhvSerializationParam106 path with null style behaves like simple")
+        void bhvSerializationParam106PathWithNullStyleBehavesLikeSimple() {
             assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false));
         }
 
@@ -824,6 +847,17 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationParam111 a deepObject parameter writes each property as name[key] in declaration order")
+        void bhvSerializationParam111DeepObjectWritesEachPropertyAsNameKey() {
+            Map<String, Object> fields = new java.util.LinkedHashMap<>();
+            fields.put("color", "blue");
+            fields.put("size", "large");
+            var result = ValueSerializer.serializeDeepObject("filter", fields);
+            assertEquals(List.of("filter[color]", "filter[size]"), List.copyOf(result.keySet()));
+            assertEquals("large", result.get("filter[size]"));
+        }
+
+        @Test
         @DisplayName("bhvSerializationParam061 null returns empty map")
         void bhvSerializationParam061NullReturnsEmptyMap() {
             var result = ValueSerializer.serializeDeepObject("filter", null);
@@ -861,7 +895,7 @@ class ValueSerializerTest {
 
         @Test
         @DisplayName("matrix, label and simple styles expand per the explode flag")
-        void pathStylesExpand() {
+        void bhvSerialization015PathStylesExpand() {
             assertEquals(";c=breed,lab,min_age,3",
                     ValueSerializer.serializeStyled("c", fields(), "path", "object", null, "matrix", false));
             assertEquals(";breed=lab;min_age=3",
@@ -873,12 +907,74 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("a nested value in an object parameter is refused")
-        void nestedValueIsRefused() {
+        @DisplayName("bhvSerializationParam108 a nested object leaf in a styled parameter is rejected with a serialization error")
+        void bhvSerializationParam108NestedObjectLeafIsASerializationError() {
             Map<String, Object> nested = new java.util.LinkedHashMap<>();
             nested.put("inner", Map.of("a", "b"));
-            assertThrows(RuntimeException.class,
+            assertThrows(SerializationException.class,
                     () -> ValueSerializer.serializeStyled("c", nested, "query", "object", null, "form", false));
         }
+    }
+
+    @Nested
+    @DisplayName("styled arrays, unknown styles and date values")
+    class StyledArrayAndDateTests {
+
+        @Test
+        @DisplayName("bhvSerializationParam109 an unknown parameter style falls back to plain value serialization")
+        void bhvSerializationParam109UnknownStyleFallsBackToPlainValue() {
+            assertEquals("a,b",
+                    ValueSerializer.serializeStyled("ids", List.of("a", "b"), "query", "array", null, "bogus", false));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationParam117 a set in form style without explode joins its elements with commas like an array")
+        void bhvSerializationParam117SetInFormStyleWithoutExplodeJoinsLikeAnArray() {
+            assertEquals("a,b",
+                    ValueSerializer.serializeStyled("ids", new java.util.LinkedHashSet<>(List.of("a", "b")),
+                        "query", "array", null, "form", false));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationParam115 a csv query array keeps an empty slot for a null element")
+        void bhvSerializationParam115CsvQueryArrayKeepsAnEmptySlotForANullElement() {
+            assertEquals("a,,c", ValueSerializer.serialize(Arrays.asList("a", null, "c"), "query", "array", "csv"));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationParam110 a date value is written as YYYY-MM-DD")
+        void bhvSerializationParam110DateValueIsWrittenAsYyyyMmDd() {
+            assertEquals("2024-01-15", ValueSerializer.serialize(LocalDate.of(2024, 1, 15), "query", "string", null));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationParam120 an array of date values is written with each element as YYYY-MM-DD")
+        void bhvSerializationParam120ArrayOfDatesWritesEachElementAsYyyyMmDd() {
+            assertEquals("2024-01-15,2024-02-01",
+                    ValueSerializer.serializeStyled("since",
+                        List.of(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 2, 1)),
+                        "query", "array", null, "simple", false));
+        }
+    }
+
+    @Test
+    void bhvSerialization005PathValueKeepsUnreservedAndSubDelimitersLiteral() {
+        assertEquals(
+                "a-b.c_d~e!$&'()*,;=:@",
+                ValueSerializer.serialize("a-b.c_d~e!$&'()*,;=:@", "path", "string", null));
+        assertEquals("a%2Fb%3Fc", ValueSerializer.serialize("a/b?c", "path", "string", null));
+    }
+
+    @Test
+    void bhvSerialization014UnsetQueryParameterProducesNoQueryEntry() {
+        java.util.Map<String, Object> query = new java.util.LinkedHashMap<>();
+        ValueSerializer.putQuery(query, "absent", null, false);
+        assertTrue(query.isEmpty());
+    }
+
+    @Test
+    void bhvSerialization044DateTimeForADateParameterIsWrittenAsItsCalendarDate() {
+        java.time.OffsetDateTime at = java.time.OffsetDateTime.parse("2024-05-06T07:08:09Z");
+        assertEquals("2024-05-06", ValueSerializer.serialize(at, "query", "date", null));
     }
 }

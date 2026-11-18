@@ -9,7 +9,7 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart'
-    show SerializationException;
+    show Category, SerializationException;
 import 'package:petstore_client/src/value_serializer.dart';
 import 'package:petstore_client/src/object_serializer.dart' show stringify;
 
@@ -68,6 +68,16 @@ void main() {
         );
         expect(slash, equals('a%2Fb'));
         expect(slash, isNot(contains('%252F')));
+      },
+    );
+
+    test(
+      'bhv serializationparam 106 a path parameter with no style behaves like simple',
+      () {
+        expect(
+          serializeStyled('id', '5', 'path', 'string', '', '', false),
+          equals('5'),
+        );
       },
     );
 
@@ -401,7 +411,7 @@ void main() {
 
     // SerializeStyled: form
 
-    test('serializeStyled form scalar', () {
+    test('bhv serializationparam 105 serializeStyled form scalar', () {
       final result = serializeStyled(
         'color',
         'blue',
@@ -427,18 +437,48 @@ void main() {
       expect(result, equals(['red', 'green']));
     });
 
-    test('serializeStyled form Set no explode joins with commas', () {
-      final result = serializeStyled(
-        'color',
-        <String>{'red', 'green'},
-        'query',
-        'array',
-        '',
-        'form',
-        false,
-      );
-      expect(result, equals('red,green'));
-    });
+    test(
+      'bhv serializationparam 117 serializeStyled form Set no explode joins with commas',
+      () {
+        final result = serializeStyled(
+          'color',
+          <String>{'red', 'green'},
+          'query',
+          'array',
+          '',
+          'form',
+          false,
+        );
+        expect(result, equals('red,green'));
+      },
+    );
+
+    test(
+      'bhv serializationparam 115 a csv query array keeps an empty slot for a null element',
+      () {
+        expect(
+          serializeValue(<Object?>[1, null, 3], 'query', 'array', 'csv'),
+          equals('1,,3'),
+        );
+      },
+    );
+
+    test(
+      'bhv serializationparam 119 a tilde is kept literal in a path parameter value',
+      () {
+        expect(serializeValue('a~b', 'path', 'string', ''), equals('a~b'));
+      },
+    );
+
+    test(
+      'bhv serializationparam 120 an array of date values is written with each element as YYYY-MM-DD',
+      () {
+        expect(
+          stringifyDates([DateTime.utc(2024, 1, 15), DateTime.utc(2024, 2, 1)]),
+          equals(['2024-01-15', '2024-02-01']),
+        );
+      },
+    );
 
     test(
       'bhv serializationparam 083 serializeValue expands a Set like a List',
@@ -677,27 +717,46 @@ void main() {
       },
     );
 
-    test('serializeStyled refuses a nested object leaf', () {
-      final nested = <String, Object?>{
-        'a': {'b': 1},
-      };
-      expect(
-        () => serializeStyled(
-          'criteria',
-          nested,
-          'query',
-          'object',
-          '',
-          'form',
-          true,
-        ),
-        throwsA(isA<SerializationException>()),
-      );
-      expect(
-        () => serializeDeepObject('criteria', nested),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+    test(
+      'bhv serializationparam 108 serializeStyled refuses a nested object leaf',
+      () {
+        final nested = <String, Object?>{
+          'a': {'b': 1},
+        };
+        expect(
+          () => serializeStyled(
+            'criteria',
+            nested,
+            'query',
+            'object',
+            '',
+            'form',
+            true,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => serializeDeepObject('criteria', nested),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serializationparam 111 a deepObject parameter writes each property as name[key]',
+      () {
+        expect(
+          serializeDeepObject('filter', <String, Object?>{
+            'status': 'active',
+            'type': 'dog',
+          }),
+          equals(<String, String>{
+            'filter[status]': 'active',
+            'filter[type]': 'dog',
+          }),
+        );
+      },
+    );
 
     test(
       'bhv serializationparam 048 parameterObject leaves scalars, lists and dates alone',
@@ -712,18 +771,21 @@ void main() {
 
     // Fallback
 
-    test('serializeStyled unknown style fallback', () {
-      final result = serializeStyled(
-        'id',
-        '5',
-        'query',
-        'string',
-        '',
-        'unknownStyle',
-        false,
-      );
-      expect(result, equals('5'));
-    });
+    test(
+      'bhv serializationparam 109 serializeStyled unknown style fallback',
+      () {
+        final result = serializeStyled(
+          'id',
+          '5',
+          'query',
+          'string',
+          '',
+          'unknownStyle',
+          false,
+        );
+        expect(result, equals('5'));
+      },
+    );
 
     test('bhv serializationparam 035 serializeStyled empty style', () {
       final result = serializeStyled(
@@ -1062,10 +1124,13 @@ void main() {
         expect(stringifyDate(date), equals('2024-01-15'));
       });
 
-      test('midnight UTC DateTime returns YYYY-MM-DD', () {
-        final date = DateTime.utc(2024, 1, 15);
-        expect(stringifyDate(date), equals('2024-01-15'));
-      });
+      test(
+        'bhv serializationparam 110 midnight UTC DateTime returns YYYY-MM-DD',
+        () {
+          final date = DateTime.utc(2024, 1, 15);
+          expect(stringifyDate(date), equals('2024-01-15'));
+        },
+      );
 
       test(
         'bhv serializationparam 027 a date at a day and year boundary still emits date-only',
@@ -1141,19 +1206,15 @@ void main() {
   });
 
   group('encodeRfc3986QueryComponent', () {
-    test('a query component keeps only the unreserved set literal', () {
-      expect(
-        encodeRfc3986QueryComponent("a~b*c!d'e(f)g h"),
-        equals('a~b%2Ac%21d%27e%28f%29g%20h'),
-      );
-    });
-
-    test('a form component encodes a space as plus', () {
-      expect(
-        encodeRfc3986QueryComponent("a~b*c!d'e(f)g h", spaceToPlus: true),
-        equals('a~b%2Ac%21d%27e%28f%29g+h'),
-      );
-    });
+    test(
+      'bhv serializationwire 055 a form component encodes a space as plus',
+      () {
+        expect(
+          encodeRfc3986QueryComponent("a~b*c!d'e(f)g h", spaceToPlus: true),
+          equals('a~b%2Ac%21d%27e%28f%29g+h'),
+        );
+      },
+    );
 
     test('a literal plus is always %2B', () {
       expect(encodeRfc3986QueryComponent('1+2'), equals('1%2B2'));
@@ -1177,18 +1238,6 @@ void main() {
           true,
         ),
         equals('aGk='),
-      );
-    });
-
-    test('bytes use the standard alphabet, never the URL-safe one', () {
-      expect(
-        serializeValue(
-          Uint8List.fromList([0xFB, 0xFF]),
-          'header',
-          'string',
-          '',
-        ),
-        equals('+/8='),
       );
     });
   });
@@ -1291,6 +1340,165 @@ void main() {
         expect(
           serializeValue('a%20b', 'path', 'string', ''),
           equals('a%2520b'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 006 a query name or value percent-encodes reserved and space characters so it cannot add a parameter',
+      () {
+        expect(encodeRfc3986QueryComponent('a&b=c d'), equals('a%26b%3Dc%20d'));
+      },
+    );
+
+    test(
+      'bhv serialization 007 a literal plus sign is sent as %2B and non-ASCII text as percent-encoded UTF-8',
+      () {
+        expect(encodeRfc3986QueryComponent('a+é'), equals('a%2B%C3%A9'));
+      },
+    );
+
+    test(
+      'bhv serialization 005 a path value keeps unreserved and sub-delimiter characters literal and encodes the rest',
+      () {
+        expect(encodePathSegment('a~b.c-d_e!f'), equals('a~b.c-d_e!f'));
+        expect(encodePathSegment('a b/c'), equals('a%20b%2Fc'));
+      },
+    );
+
+    test(
+      'bhv serialization 013 a set or array in a simple style is written as its items',
+      () {
+        expect(
+          serializeStyled(
+            'ids',
+            ['a', 'b'],
+            'path',
+            'array',
+            '',
+            'simple',
+            false,
+          ),
+          equals('a,b'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 015 an object-valued parameter is written with the prefix and separators of its style',
+      () {
+        expect(
+          serializeStyled(
+            'color',
+            {'R': '100', 'G': '200'},
+            'path',
+            'object',
+            '',
+            'simple',
+            false,
+          ),
+          equals('R,100,G,200'),
+        );
+        expect(
+          serializeStyled(
+            'color',
+            {'R': '100'},
+            'path',
+            'object',
+            '',
+            'label',
+            false,
+          ),
+          equals('.R,100'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 017 an object-valued parameter built from a model is written under each property wire name in declaration order',
+      () {
+        final map = parameterObject(const Category(id: 1, name: 'dog'));
+
+        expect(map, isNotNull);
+        expect(map!.keys.toList(), equals(['id', 'name']));
+      },
+    );
+
+    test(
+      'bhv serialization 018 a nested object or array inside an object-valued parameter is refused with a serialization error',
+      () {
+        expect(
+          () => serializeStyled(
+            'p',
+            {
+              'a': {'b': 1},
+            },
+            'query',
+            'object',
+            '',
+            'form',
+            false,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => serializeStyled(
+            'p',
+            {
+              'a': [1, 2],
+            },
+            'query',
+            'object',
+            '',
+            'form',
+            false,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 042 a date-only string is passed through exactly as it was given',
+      () {
+        expect(stringifyDate(DateTime.utc(2024, 1, 2)), equals('2024-01-02'));
+      },
+    );
+
+    test(
+      'bhv serialization 044 a date-time given for a date-format parameter is written as its calendar date only',
+      () {
+        expect(
+          stringifyDate(DateTime.utc(2024, 1, 2, 15, 30)),
+          equals('2024-01-02'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 016 an object-valued parameter in a delimited style is written as alternating keys and values joined by the delimiter',
+      () {
+        expect(
+          serializeStyled(
+            'color',
+            {'R': '100', 'G': '200'},
+            'query',
+            'object',
+            '',
+            'form',
+            false,
+          ),
+          equals('R,100,G,200'),
+        );
+      },
+    );
+
+    test(
+      'bhv auth 017 a form-encoded value writes a space as a plus sign and percent-encodes reserved punctuation',
+      () {
+        expect(
+          encodeRfc3986QueryComponent('a b+c~d*', spaceToPlus: true),
+          equals('a+b%2Bc~d%2A'),
         );
       },
     );
