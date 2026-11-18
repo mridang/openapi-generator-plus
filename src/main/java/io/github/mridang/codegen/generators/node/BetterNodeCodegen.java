@@ -64,6 +64,31 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 .toString();
     }
 
+    /**
+     * Marks each inherited property of a discriminator child that the base
+     * already declares and that has no initializer. TypeScript rejects such a
+     * redeclaration (TS2612), and a readonly base field cannot be assigned in
+     * the child, so the model template leaves those fields to the base. An
+     * inherited property with a default keeps its declaration, because the
+     * child's own constructor assigns the default to it.
+     */
+    @Override
+    protected void decorateClassicDiscriminatorChild(final CodegenModel child, final CodegenModel base) {
+        final Set<String> baseProps = new HashSet<>();
+        for (final CodegenProperty p : base.vars) {
+            baseProps.add(p.baseName);
+        }
+        for (final CodegenProperty p : child.vars) {
+            final boolean isDiscriminator = base.discriminator != null
+                    && Objects.equals(base.discriminator.getPropertyBaseName(), p.baseName);
+            final boolean hasInitializer = p.defaultValue != null || isDiscriminator
+                    || Boolean.TRUE.equals(p.vendorExtensions.get("siblingDefaultIsEnum"));
+            if (baseProps.contains(p.baseName) && !hasInitializer) {
+                p.vendorExtensions.put("x-skip-redeclare", true);
+            }
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
     protected void decorateErrorSchema(Map<String, Object> schema) {

@@ -1535,8 +1535,8 @@ describe("BaseApi content-type deserialization guard", () => {
     client.responseHeaders = { "content-type": "text/plain" };
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
-    await expect(
-      testApi.call(
+    const error = await testApi
+      .call(
         "GET",
         "/test/echo",
         {},
@@ -1547,11 +1547,11 @@ describe("BaseApi content-type deserialization guard", () => {
         (json) => json as { id: number },
         undefined,
         "model",
-      ),
-    ).rejects.toThrow(
-      new SerializationError(
-        "Unexpected response Content-Type 'text/plain' for TestableApi.testOperation: expected a JSON body",
-      ),
+      )
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SerializationError);
+    expect((error as SerializationError).message).toBe(
+      "Unexpected response Content-Type 'text/plain' for TestableApi.testOperation: expected a JSON body",
     );
   });
 
