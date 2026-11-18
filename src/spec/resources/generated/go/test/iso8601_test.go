@@ -21,14 +21,14 @@ import (
 
 // format:duration ↔ time.Duration protobuf-JSON round-trip helpers.
 
-func TestIso8601_MarshalDurationProtoJSON_Zero(t *testing.T) {
+func TestBhvLanggo038_Iso8601_MarshalDurationProtoJSON_Zero(t *testing.T) {
 	t.Parallel()
 	if got := petstore.MarshalDurationProtoJSON(0); got != "0s" {
 		t.Errorf("expected 0s, got %q", got)
 	}
 }
 
-func TestIso8601_MarshalDurationProtoJSON_HoursMinutes(t *testing.T) {
+func TestBhvLanggo039_Iso8601_MarshalDurationProtoJSON_HoursMinutes(t *testing.T) {
 	t.Parallel()
 	d := time.Hour + 30*time.Minute
 	if got := petstore.MarshalDurationProtoJSON(d); got != "5400s" {
@@ -36,21 +36,21 @@ func TestIso8601_MarshalDurationProtoJSON_HoursMinutes(t *testing.T) {
 	}
 }
 
-func TestIso8601_MarshalDurationProtoJSON_SecondsOnly(t *testing.T) {
+func TestBhvLanggo040_Iso8601_MarshalDurationProtoJSON_SecondsOnly(t *testing.T) {
 	t.Parallel()
 	if got := petstore.MarshalDurationProtoJSON(45 * time.Second); got != "45s" {
 		t.Errorf("expected 45s, got %q", got)
 	}
 }
 
-func TestIso8601_MarshalDurationProtoJSON_FractionalSeconds(t *testing.T) {
+func TestBhvLanggo041_Iso8601_MarshalDurationProtoJSON_FractionalSeconds(t *testing.T) {
 	t.Parallel()
 	if got := petstore.MarshalDurationProtoJSON(1500 * time.Millisecond); got != "1.500s" {
 		t.Errorf("expected 1.500s, got %q", got)
 	}
 }
 
-func TestIso8601_MarshalDurationProtoJSON_Nanos(t *testing.T) {
+func TestBhvLanggo042_Iso8601_MarshalDurationProtoJSON_Nanos(t *testing.T) {
 	t.Parallel()
 	d := 3600*time.Second + time.Nanosecond
 	if got := petstore.MarshalDurationProtoJSON(d); got != "3600.000000001s" {
@@ -58,14 +58,14 @@ func TestIso8601_MarshalDurationProtoJSON_Nanos(t *testing.T) {
 	}
 }
 
-func TestIso8601_MarshalDurationProtoJSON_Negative(t *testing.T) {
+func TestBhvLanggo043_Iso8601_MarshalDurationProtoJSON_Negative(t *testing.T) {
 	t.Parallel()
 	if got := petstore.MarshalDurationProtoJSON(-(time.Hour + time.Minute)); got != "-3660s" {
 		t.Errorf("expected -3660s, got %q", got)
 	}
 }
 
-func TestIso8601_UnmarshalDurationProtoJSON_Nanos(t *testing.T) {
+func TestBhvLanggo044_Iso8601_UnmarshalDurationProtoJSON_Nanos(t *testing.T) {
 	t.Parallel()
 	got, err := petstore.UnmarshalDurationProtoJSON("3600.000000001s")
 	if err != nil {
@@ -76,7 +76,7 @@ func TestIso8601_UnmarshalDurationProtoJSON_Nanos(t *testing.T) {
 	}
 }
 
-func TestIso8601_UnmarshalDurationProtoJSON_Negative(t *testing.T) {
+func TestBhvLanggo045_Iso8601_UnmarshalDurationProtoJSON_Negative(t *testing.T) {
 	t.Parallel()
 	got, err := petstore.UnmarshalDurationProtoJSON("-300s")
 	if err != nil {
@@ -108,7 +108,7 @@ func TestBhvSerialization045_Iso8601_UnmarshalDurationProtoJSON_RejectsMalformed
 
 // secs*1e9 wraps an int64 past about 9.2e9 seconds; a value outside the range
 // of time.Duration must be rejected, not silently wrapped.
-func TestIso8601_UnmarshalDurationProtoJSON_RejectsOverflow(t *testing.T) {
+func TestBhvLanggo046_Iso8601_UnmarshalDurationProtoJSON_RejectsOverflow(t *testing.T) {
 	t.Parallel()
 	cases := []string{"9223372037s", "-9223372037s", "9223372036.854775808s", "99999999999999999999s"}
 	for _, c := range cases {
@@ -142,7 +142,7 @@ func TestBhvSerialization047_Iso8601_Duration_RoundTripsTheExtremes(t *testing.T
 	}
 }
 
-func TestIso8601_Duration_RoundTrip(t *testing.T) {
+func TestBhvLanggo047_Iso8601_Duration_RoundTrip(t *testing.T) {
 	t.Parallel()
 	originals := []time.Duration{
 		0,
@@ -210,7 +210,7 @@ func TestBhvSerialization043_Iso8601_FormatTimeOfDay_Basic(t *testing.T) {
 	}
 }
 
-func TestIso8601_FormatTimeOfDay_Midnight(t *testing.T) {
+func TestBhvLanggo048_Iso8601_FormatTimeOfDay_Midnight(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	if got := petstore.FormatTimeOfDay(ts); got != "00:00:00" {
@@ -229,7 +229,7 @@ func TestBhvSerialization041_Iso8601_ParseTimeOfDay_Basic(t *testing.T) {
 	}
 }
 
-func TestIso8601_ParseTimeOfDay_WithFraction(t *testing.T) {
+func TestBhvLanggo049_Iso8601_ParseTimeOfDay_WithFraction(t *testing.T) {
 	t.Parallel()
 	got, err := petstore.ParseTimeOfDay("09:15:30.500")
 	if err != nil {
@@ -240,7 +240,7 @@ func TestIso8601_ParseTimeOfDay_WithFraction(t *testing.T) {
 	}
 }
 
-func TestIso8601_ParseTimeOfDay_Invalid(t *testing.T) {
+func TestBhvLanggo050_Iso8601_ParseTimeOfDay_Invalid(t *testing.T) {
 	t.Parallel()
 	_, err := petstore.ParseTimeOfDay("not a time")
 	var serErr *petstore.SerializationError
@@ -249,7 +249,7 @@ func TestIso8601_ParseTimeOfDay_Invalid(t *testing.T) {
 	}
 }
 
-func TestIso8601_TimeOfDay_RoundTrip(t *testing.T) {
+func TestBhvLanggo051_Iso8601_TimeOfDay_RoundTrip(t *testing.T) {
 	t.Parallel()
 	original := "14:25:00"
 	parsed, err := petstore.ParseTimeOfDay(original)
