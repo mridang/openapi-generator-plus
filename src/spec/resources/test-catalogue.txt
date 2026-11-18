@@ -2387,3 +2387,18 @@ langphp033 | A third global server keeps its URL, description and variable throu
 langphp034 | A multipart text part carries only a Content-Disposition header.
 langphp035 | The retry backoff doubles from half a second up to a cap of eight seconds.
 langcsharp060 | A non-finite expires_in value skips caching of the token
+||||||| 7ebe2e571
+langphp036 | A date-only cookie value is written as yyyy-mm-dd.
+langphp037 | Each date in a query array is written as yyyy-mm-dd.
+langphp038 | A date-time query value keeps its time when no date marker is present.
+langphp039 | A set query parameter in multi format expands to repeated values.
+langphp040 | An exploded styled form set expands to repeated values.
+langphp041 | Every SDK class autoloads from its own file in a fresh process.
+langphp042 | The README names the published package and the proxy setter that exists.
+langphp043 | File upload parameters are typed as the file object the options require.
+langphp044 | The test runner configuration runs the hand written spec directory as well as the tests.
+langphp045 | A call hook set on the builder is returned by the configuration.
+langphp046 | A configuration has no call hook unless one was set.
+langphp047 | The debug output of a configuration omits its call hook.
+langphp048 | A secret constructor parameter is marked sensitive so its value is hidden from stack traces and dumps. | multi
+langphp049 | An explicit API key takes precedence over the environment variable and a key provider.
