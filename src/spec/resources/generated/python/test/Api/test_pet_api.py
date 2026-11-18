@@ -593,7 +593,7 @@ class TestPetApi:
         assert result is not None
         assert isinstance(result, list)
 
-    def test_add_pet_photos_requires_options(self) -> None:
+    def test_bhv_misc_010_add_pet_photos_requires_options(self) -> None:
         # Parity with the other 11 SDKs: when an operation's Options object has
         # required fields, the options argument is required (no default). Omitting
         # it must raise TypeError at call time, not silently pass None through.
@@ -738,6 +738,19 @@ class TestPetApi:
         assert sent["cookie"] == "session=abc"
         assert sent["accept"] == "text/plain"
         assert captured["result"] == "done"
+
+    async def test_bhv_misc_008_a_supplied_required_cookie_is_sent_in_the_cookie_header(
+        self,
+    ) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_summary(
+                7, datetime.date(2024, 1, 5), GetPetSummaryOptions(session="abc")
+            ),
+            "text/plain",
+            b"done",
+        )
+        sent = {name.lower(): value for name, value in captured["headers"].items()}
+        assert sent["cookie"] == "session=abc"
 
     async def test_bhv_operations_056_get_pet_summary_requires_the_session_cookie(
         self,
@@ -1329,7 +1342,8 @@ class TestPetApiErrorHandling:
             ValueError, match="Missing the required parameter 'category'"
         ):
             await api.get_pet_by_name(
-                "Fido", GetPetByNameOptions(category=None, x_correlation_id="r")
+                "Fido",
+                GetPetByNameOptions(category=cast(Any, None), x_correlation_id="r"),
             )
         assert client.captured_url == ""
 

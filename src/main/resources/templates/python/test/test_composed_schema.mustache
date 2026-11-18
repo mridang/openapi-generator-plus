@@ -187,6 +187,24 @@ class TestAnyOfPetTreatment:
         assert serialized is not None
         assert len(serialized) > 0
 
+    def test_bhv_unions_044_each_variant_has_a_factory_and_an_accessor_that_identify_it(self) -> None:
+        medication = Medication(drugName='Amoxicillin', dosage='500mg')
+        wrapped = PetTreatment(medication)
+        assert wrapped.actual_instance is medication
+
+    def test_bhv_unions_045_a_decoded_union_equals_one_built_by_its_factory(self) -> None:
+        decoded = ObjectSerializer().deserialize('{"drugName":"Amoxicillin","dosage":"500mg"}', 'PetTreatment')
+        built = PetTreatment(Medication(drugName='Amoxicillin', dosage='500mg'))
+        assert decoded == built
+
+    def test_bhv_misc_046_unions_with_equal_content_are_equal_and_hash_equally(self) -> None:
+        first = PetTreatment(Medication(drugName='Amoxicillin', dosage='500mg'))
+        second = PetTreatment(Medication(drugName='Amoxicillin', dosage='500mg'))
+        other = PetTreatment(Medication(drugName='Ibuprofen', dosage='200mg'))
+        assert first == second
+        assert hash(first) == hash(second)
+        assert first != other
+
     def test_bhv_unions_001_a_factory_wraps_its_variant_and_only_that_variant_matches(self) -> None:
         medication = Medication(drugName='Amoxicillin', dosage='500mg')
         wrapped = PetTreatment(medication)

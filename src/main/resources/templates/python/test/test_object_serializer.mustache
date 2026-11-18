@@ -601,6 +601,9 @@ class TestCollectionsOfModelsUseTheModelWireForm:
 
 
 class TestStringify:
+    def test_bhv_misc_088_a_decimal_keeps_the_decimal_places_it_was_written_with(self) -> None:
+        assert ObjectSerializer.stringify(Decimal('1.50')) == '1.50'
+
     def test_bhv_serialization_113_a_string_passes_through_without_normalising_its_form(self) -> None:
         assert ObjectSerializer.stringify('e\u0301') == 'e\u0301'
 
@@ -621,7 +624,7 @@ class TestStringify:
 
     def test_bhv_serialization_090_malformed_base64_is_rejected_not_repaired(self) -> None:
         with pytest.raises(SerializationException):
-            ObjectSerializer()._deserialize('aGk', 'bytes')
+            ObjectSerializer().deserialize('"aGk"', 'bytes')
 
     def test_bhv_serialization_091_bytes_with_the_high_bit_set_survive_a_round_trip(self) -> None:
         data = b'\xff\x80\x00'
@@ -1180,12 +1183,16 @@ class TestDeserialize:
     def test_bhv_serialization_095_an_explicit_null_on_the_wire_replaces_the_default(self) -> None:
         from {{packageName}}.models.defaults import Defaults
 
-        assert ObjectSerializer().deserialize('{"label":null}', Defaults).label is None
+        decoded = ObjectSerializer().deserialize('{"label":null}', Defaults)
+        assert decoded is not None
+        assert decoded.label is None
 
     def test_bhv_serialization_096_an_absent_field_decodes_to_its_declared_default(self) -> None:
         from {{packageName}}.models.defaults import Defaults
 
-        assert ObjectSerializer().deserialize('{}', Defaults).retries == 3
+        decoded = ObjectSerializer().deserialize('{}', Defaults)
+        assert decoded is not None
+        assert decoded.retries == 3
 
     def test_bhv_serialization_097_an_enum_default_is_written_when_the_field_is_serialized(self) -> None:
         import json
@@ -1521,7 +1528,7 @@ class TestDecodeValidates:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"name":"Fido","photoUrls":[],"status":"bogus"}', 'Pet')
 
-    def test_a_value_outside_the_declared_constraints_is_rejected(self) -> None:
+    def test_bhv_misc_091_a_value_outside_the_declared_constraints_is_rejected(self) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(
                 '{"name":"Fido","photoUrls":[],"nickname":"' + 'x' * 40 + '"}', 'Pet'
@@ -1554,7 +1561,7 @@ class TestModelsAreImmutable:
         assert json.loads(ObjectSerializer().serialize([[1, 2], [3]])) == [[1, 2], [3]]
 
     def test_bhv_serialization_079_a_copy_changes_only_the_named_fields(self) -> None:
-        pet = Pet(name='Fido', photoUrls=['x'])
+        pet = Pet(name='Fido', photoUrls={'x'})
         copy = pet.model_copy(update={'name': 'Rex'})
         assert copy is not pet
         assert copy.name == 'Rex'
@@ -2177,7 +2184,7 @@ class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
         # string must NOT be mis-parsed element-by-element into a list.
         assert not isinstance(restored.actual_instance, list)
 
-    def test_array_variant_serializes_to_base64_strings(self) -> None:
+    def test_bhv_misc_049_array_variant_serializes_to_base64_strings(self) -> None:
         import json
         model = self._model()
         payloads = [bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x05, 0x06, 0x07, 0x08])]

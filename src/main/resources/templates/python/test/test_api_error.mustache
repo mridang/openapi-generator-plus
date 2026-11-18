@@ -297,6 +297,11 @@ class TestFromResponse:
         assert err.response_body == '{"code":7}'
         assert err.error_body == {'code': 7}
 
+    def test_bhv_errors_097_an_unrecognised_4xx_status_raises_the_generic_client_error(self) -> None:
+        err = ApiException.from_response(499, {}, None)
+
+        assert type(err) is ClientException
+
     def test_bhv_errors_048_a_status_418_throws_client_exception(self) -> None:
         err = ApiException.from_response(418, None, None)
 
@@ -364,6 +369,10 @@ class TestFromResponse:
             assert type(err) is ApiException
             assert not isinstance(err, ClientException)
             assert not isinstance(err, ServerException)
+
+    def test_bhv_misc_023_an_unmapped_5xx_is_the_generic_server_error_and_another_unmapped_status_the_base_error(self) -> None:
+        assert type(ApiException.from_response(520, {}, None)) is ServerException
+        assert type(ApiException.from_response(399, {}, None)) is ApiException
 
     def test_bhv_errors_056_status_at_or_above_600_is_not_a_server_error(self) -> None:
         # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
@@ -506,6 +515,12 @@ class TestApiErrorRendering:
 
         assert str(err) == "boom"
 
+    def test_bhv_misc_016_the_rendered_body_is_capped_and_states_the_bytes_omitted(self) -> None:
+        err = ApiException(status_code=502, message="bad gateway", response_body='a' * 3000)
+
+        assert 'more bytes' in str(err)
+        assert len(str(err)) < 1500
+
     def test_bhv_errors_065_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out(self) -> None:
         err = ApiException(
             status_code=502, message="bad gateway", response_body='a' * 3000
@@ -547,6 +562,11 @@ class TestApiErrorRendering:
 
         assert 'Bearer abc' not in str(err)
         assert 'realm=x' not in str(err)
+
+    def test_bhv_misc_020_the_request_line_needs_both_the_method_and_the_path(self) -> None:
+        err = ApiException.from_response(500, {}, 'x', None, '/items')
+
+        assert 'Request:' not in str(err)
 
     def test_bhv_errors_023_masks_credential_headers_in_the_rendered_headers(self) -> None:
         headers = {
@@ -760,6 +780,15 @@ class TestApiErrorTypedBodyFailures:
 
 
 class TestOAuth2ServerExceptionMessage:
+    def test_bhv_misc_018_a_non_json_token_error_body_exposes_status_no_code_and_the_raw_text(self) -> None:
+        from {{packageName}}.errors import OAuth2ServerException
+
+        err = OAuth2ServerException(500, None, None, None, 'upstream exploded')
+
+        assert err.status_code == 500
+        assert err.code is None
+        assert err.raw_body == 'upstream exploded'
+
 
     def test_bhv_errors_049_names_the_status_and_the_error_code(self) -> None:
         err = OAuth2ServerException(400, 'invalid_grant', None, None, '{}')

@@ -40,6 +40,7 @@ class TestValueSerializerPath:
             2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc
         )
         rendered = ValueSerializer.serialize(moment, "query", "string")
+        assert isinstance(rendered, str)
         assert "T13:45:30" in rendered
         assert rendered.endswith(("+00:00", "Z"))
 
