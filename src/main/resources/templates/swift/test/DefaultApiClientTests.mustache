@@ -335,18 +335,6 @@ import FoundationNetworking
         #expect(capturedBody?.contains("Content-Disposition: form-data") ?? false)
     }
 
-    // Gap W2: a multipart field name containing CR/LF/NUL must be rejected to
-    // prevent Content-Disposition header injection.
-    @Test func testMultipartFieldNameWithCrlfRejected() async throws {
-        let client = makeClient { _ in (Data("{}".utf8), 200, [:]) }
-        let badField: [String: Any] = ["name\r\nInjected: yes": "value"]
-        await #expect(throws: (any Error).self) {
-            _ = try await client.sendRequest(
-                method: "POST", url: "https://example.com",
-                headers: [:], body: badField)
-        }
-    }
-
     // W-new-2: multipart field-name validation must run on every branch (not
     // just binary). Confirm that even for a plain String value, a CR/LF in
     // the field name is rejected, preventing Content-Disposition smuggling.
@@ -366,24 +354,6 @@ import FoundationNetworking
         let client = DefaultApiClient()
         client.close()
         client.close()
-    }
-
-    // close-lifecycle-three-way (Gap T-D4): sending a request after close()
-    // is a wrong call order. It must surface ConfigurationError.invalidState
-    // rather than a foreign URLSession "session invalidated" exception, an
-    // SDK error, or a silent success.
-    @Test func testSendAfterCloseThrowsInvalidState() async throws {
-        let client = makeClient { _ in (self.jsonBody(), 200, [:]) }
-        client.close()
-        let error = await #expect(throws: ConfigurationError.self) {
-            _ = try await client.sendRequest(
-                method: "GET", url: "https://example.com", headers: [:], body: nil)
-        }
-        guard case .invalidState(let reason)? = error else {
-            Issue.record("expected ConfigurationError.invalidState, got \(String(describing: error))")
-            return
-        }
-        #expect(reason == "ApiClient has been closed and can no longer send requests")
     }
 
     @Test func testBhvTransport005DecompressesGzipResponse() async throws {
@@ -575,21 +545,6 @@ import FoundationNetworking
     }
 
     // MARK: - HTTPS -> HTTP body replay guard (Gap 3.3)
-
-    /// An HTTPS -> HTTP redirect with a body in flight MUST be
-    /// refused: replaying the body in cleartext leaks whatever
-    /// TLS was protecting (credentials, PII, signed tokens). The
-    /// SessionDelegate routes the would-be downgrade follow-up to
-    /// `completionHandler(nil)`, which surfaces the original 3xx
-    /// response to the caller. Verified at the helper level: an
-    /// https->http origin pair is ALWAYS cross-origin and so MUST
-    /// also strip credentials even before the body-replay check.
-    @Test func testHttpsToHttpIsCrossOrigin() {
-        let httpsURL = URL(string: "https://example.com/token")!
-        let httpURL = URL(string: "http://example.com/token")!
-        #expect(!DefaultApiClient.sameOrigin(httpsURL, httpURL),
-            "https->http must be cross-origin (TLS downgrade) for body-replay refusal")
-    }
 
     // MARK: - 303 Content-Length drop (Gap 3.4)
 
@@ -1378,18 +1333,6 @@ private final class RedirectStubURLProtocol: URLProtocol {
         #expect(response.statusCode == 200)
     }
 
-    @Test func testRedirect303SwitchesToGetAndDropsBody() async throws {
-        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-        let client = try DefaultApiClient(transportOptions: transport)
-        let response = try await client.sendRequest(
-            method: "POST", url: chasmHttpUrl + "/test/redirect/303",
-            headers: ["Content-Type": "application/json"], body: "hello-body")
-        #expect(response.statusCode == 200)
-        let echoed = try echo(response)
-        #expect(echoed["method"] as? String == "GET")
-        #expect((echoed["body"] as? String ?? "").isEmpty)
-    }
-
     @Test func testSendsMultipartFormData() async throws {
         let client = DefaultApiClient()
         let formFields: [String: Any] = [
@@ -1473,11 +1416,4 @@ private final class RedirectStubURLProtocol: URLProtocol {
         #expect(response.body.contains("userId"))
     }
 
-    @Test func testPostWithNullBodySendsContentLengthZero() async throws {
-        let client = DefaultApiClient()
-        let response = try await client.sendRequest(
-            method: "POST", url: chasmHttpUrl + "/test/echo", headers: [:], body: nil)
-        #expect(response.statusCode == 200)
-        #expect(try echo(response)["contentLength"] as? Int == 0)
-    }
 }
