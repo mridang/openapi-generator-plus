@@ -545,4 +545,10 @@ defmodule PetstoreClient.TransportOptionsTest do
 
     assert opts.req_options == [connect_options: [timeout: 1]]
   end
+
+  test "bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error" do
+    assert_raise ArgumentError,
+                 "Invalid timeout: must be a positive number of milliseconds (got 0)",
+                 fn -> PetstoreClient.TransportOptions.new(timeout: 0) end
+  end
 end
