@@ -4347,4 +4347,37 @@ class ObjectSerializerTest {
     return java.util.Objects.requireNonNull(
         serializer.deserialize(json, com.example.petstore.models.Order.class));
   }
+
+  @Test
+  void bhvMisc121AnObjectWithNoDeclaredSchemaIsWrittenAsAJsonObject() {
+    Map<String, Object> properties = new java.util.LinkedHashMap<>();
+    properties.put("a", 1);
+    properties.put("b", "x");
+    assertEquals("{\"a\":1,\"b\":\"x\"}", serializer.serialize(properties));
+  }
+
+  @Test
+  void bhvMisc122AStringDefaultIsAppliedAsTheExactLiteral() {
+    assertEquals(
+        "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
+        serializer.deserialize("{}", com.example.petstore.models.Defaults.class).greeting);
+  }
+
+  @Test
+  void bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndRejectsOthers() {
+    assertEquals(
+        List.of(" ", "@@", "a-b", "a_b"),
+        Arrays.stream(com.example.petstore.models.Separator.values())
+            .map(com.example.petstore.models.Separator::getValue)
+            .toList());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> com.example.petstore.models.Separator.fromValue("not-declared"));
+  }
+
+  @Test
+  void bhvMisc138ConvertingAnEnumMemberToTextYieldsItsWireValue() {
+    assertEquals("a-b", com.example.petstore.models.Separator.A_B.toString());
+    assertEquals(" ", String.valueOf(com.example.petstore.models.Separator.SPACE_1));
+  }
 }

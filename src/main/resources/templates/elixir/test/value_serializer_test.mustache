@@ -7,6 +7,17 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert {{moduleName}}.ValueSerializer.serialize(nil, :path, "string") == ""
     end
 
+    test "bhv serialization 108 a parameter with no declared style uses the default style for its location" do
+      assert {{moduleName}}.ValueSerializer.serialize_styled("id", ["a", "b"], :path, "array", nil, nil, false) ==
+               {{moduleName}}.ValueSerializer.serialize_styled("id", ["a", "b"], :path, "array", nil, "simple", false)
+    end
+
+    test "bhv serialization 110 an absent value is sent as nil in the query location and as an empty value elsewhere" do
+      assert {{moduleName}}.ValueSerializer.serialize(nil, :query, "string") == nil
+      assert {{moduleName}}.ValueSerializer.serialize(nil, :header, "string") == ""
+      assert {{moduleName}}.ValueSerializer.serialize(nil, :path, "string") == ""
+    end
+
     test "bhv serializationparam 100 string returns URL-encoded value" do
       assert {{moduleName}}.ValueSerializer.serialize("hello", :path, "string") == "hello"
     end

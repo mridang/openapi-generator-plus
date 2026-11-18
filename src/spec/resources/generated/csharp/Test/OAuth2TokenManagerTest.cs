@@ -2009,4 +2009,43 @@ public class OAuth2TokenManagerTest
         );
         Assert.Contains("access_token", ex.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task BhvMisc172ATokenRequestIsSentOnceAndNotRetriedOn503()
+    {
+        var handler = new UnavailableTokenHandler();
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(new DefaultApiClient(new System.Net.Http.HttpClient(handler)));
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            manager.GetAccessTokenAsync(
+                TokenUrl,
+                ClientCredentialsGrant(),
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(1, handler.Requests);
+    }
+
+    private sealed class UnavailableTokenHandler : System.Net.Http.HttpMessageHandler
+    {
+        public int Requests { get; private set; }
+
+        protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(
+            System.Net.Http.HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Requests++;
+            return Task.FromResult(
+                new System.Net.Http.HttpResponseMessage(
+                    System.Net.HttpStatusCode.ServiceUnavailable
+                )
+                {
+                    Content = new System.Net.Http.StringContent("down"),
+                }
+            );
+        }
+    }
 }

@@ -48,6 +48,19 @@ internal data class MetadataHolder(
     val byKey: Map<String, com.example.petstore.models.Metadata>? = null,
 )
 
+@Serializable
+internal data class DecimalAmountHolder(
+    @Serializable(with = StringDecimalSerializer::class)
+    @SerialName("amount")
+    val amount: java.math.BigDecimal,
+)
+
+@Serializable
+internal data class WireNamedHolder(
+    @SerialName("owner_id")
+    val ownerId: Long? = null,
+)
+
 class ObjectSerializerTest {
     private val serializer = ObjectSerializer()
 
@@ -3498,6 +3511,84 @@ class ObjectSerializerTest {
         fun hostileDescriptionStaysAComment() {
             val source = modelSource("Tier")
             assertTrue(source.contains("/** The largest tier. Ends with * / and #{x} and \$x. */\n    @SerialName(\"l\")"))
+        }
+    }
+
+    @Nested
+    @DisplayName("wire forms and key matching")
+    inner class WireFormAndKeyTests {
+        @Test
+        @DisplayName("bhvMisc085 a UUID that is not in canonical form is refused with a type error")
+        fun bhvMisc085NonCanonicalUuidIsRefused() {
+            assertThrows(IllegalArgumentException::class.java) {
+                Uuid.parse("550e8400-e29b-41d4-a716-44665544000")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<UuidHolder>("{\"id\":\"550e8400-e29b-41d4-a716-44665544000\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc086 a list element that holds JSON text is written as a string, not decoded again")
+        fun bhvMisc086JsonTextElementIsNotDecodedTwice() {
+            assertEquals("[\"{\\\"a\\\":1}\"]", serializer.serialize(listOf("{\"a\":1}")))
+        }
+
+        @Test
+        @DisplayName("bhvMisc087 a decimal in a loosely built body is written as a bare JSON number")
+        fun bhvMisc087LooselyBuiltDecimalIsBareNumber() {
+            val json = serializer.serialize(mapOf("amount" to java.math.BigDecimal("12.50")))
+            assertTrue(json.contains("\"amount\":12.50"), "got: $json")
+        }
+
+        @Test
+        @DisplayName("bhvMisc088 a decimal decoded from text keeps the decimal places it was written with")
+        fun bhvMisc088DecodedDecimalKeepsItsScale() {
+            val holder = serializer.deserialize<DecimalAmountHolder>("{\"amount\":\"12.50\"}")
+            assertEquals(2, holder!!.amount.scale())
+        }
+
+        @Test
+        @DisplayName("bhvMisc089 a date-time is written in canonical form inside a list, set and map")
+        fun bhvMisc089DateTimeCanonicalInsideCollections() {
+            val at = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC)
+            val canonical = "\"2024-01-15T10:30:00.000Z\""
+            assertTrue(serializer.serialize(listOf(at)).contains(canonical))
+            assertTrue(serializer.serialize(setOf(at)).contains(canonical))
+            assertTrue(serializer.serialize(mapOf("k" to at)).contains(canonical))
+        }
+
+        @Test
+        @DisplayName("bhvMisc092 properties are matched only by their wire name, never by the attribute name")
+        fun bhvMisc092PropertiesMatchOnlyByWireName() {
+            val byWireName = serializer.deserialize<WireNamedHolder>("{\"owner_id\":5}")
+            assertEquals(5L, byWireName!!.ownerId)
+            val byAttributeName = serializer.deserialize<WireNamedHolder>("{\"ownerId\":5}")
+            assertNull(byAttributeName!!.ownerId)
+        }
+
+        @Test
+        @DisplayName("bhvMisc093 additional properties with numeric names are written as JSON object members")
+        fun bhvMisc093NumericAdditionalPropertiesAreObjectMembers() {
+            val alone = serializer.serialize(serializer.deserialize<com.example.petstore.models.Metadata>("{\"1\":\"x\"}"))
+            assertTrue(alone.contains("\"1\":\"x\""), "got: $alone")
+            val beside =
+                serializer.serialize(
+                    serializer.deserialize<com.example.petstore.models.Metadata>("{\"createdAt\":\"2024-01-01T00:00:00Z\",\"2\":\"y\"}"),
+                )
+            assertTrue(beside.contains("\"2\":\"y\""), "got: $beside")
+            assertTrue(beside.contains("\"createdAt\""), "got: $beside")
+        }
+    }
+
+    @Nested
+    @DisplayName("duration wire form")
+    inner class DurationWireFormTests {
+        @Test
+        @DisplayName("bhvMisc090 a duration writes its fractional seconds in the protobuf-style wire form")
+        fun bhvMisc090DurationWritesFractionalSecondsOnTheWire() {
+            val json = serializer.serialize(mapOf("wait" to java.time.Duration.ofMillis(1500)))
+            assertTrue(json.contains("\"wait\":\"1.500s\""), "got: $json")
         }
     }
 }
