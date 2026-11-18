@@ -26,6 +26,17 @@ public class OpenIdConnectAuthenticatorTest
             );
         }
 
+        public void EnqueueWithCacheControl(string body, string cacheControl)
+        {
+            _responses.Enqueue(
+                new ApiHttpResponse(
+                    200,
+                    body,
+                    new Dictionary<string, string> { ["Cache-Control"] = cacheControl }
+                )
+            );
+        }
+
         public string? LastBody { get; private set; }
         public Uri? LastUrl { get; private set; }
         public string? LastMethod { get; private set; }
@@ -277,7 +288,7 @@ public class OpenIdConnectAuthenticatorTest
     [Theory]
     [InlineData("http://auth.example.com/token", "https://auth.example.com/authorize")]
     [InlineData("https://auth.example.com/token", "http://auth.example.com/authorize")]
-    public async Task RejectsADiscoveredEndpointThatIsNotHttps(
+    public async Task BhvAuthoidc032RejectsADiscoveredEndpointThatIsNotHttps(
         string tokenEndpoint,
         string authorizationEndpoint
     )
@@ -352,7 +363,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task DiscoveryFailureNamesTheRequestMethodAndPath()
+    public async Task BhvAuthoidc033DiscoveryFailureNamesTheRequestMethodAndPath()
     {
         var client = new FakeApiClient();
         client.Enqueue("down", statusCode: 503);
@@ -873,5 +884,54 @@ public class OpenIdConnectAuthenticatorTest
             }
             return Task.FromResult(_responses.Dequeue());
         }
+    }
+
+    private static string Discovery(string authorizePath)
+    {
+        return "{\"authorization_endpoint\":\"https://auth.example.com/"
+            + authorizePath
+            + "\","
+            + "\"token_endpoint\":\"https://auth.example.com/token\"}";
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc030DiscoveryServedWithMaxAgeZeroIsFetchedAgainOnEveryUse()
+    {
+        var client = new FakeApiClient();
+        client.EnqueueWithCacheControl(Discovery("authorize-1"), "max-age=0");
+        client.EnqueueWithCacheControl(Discovery("authorize-2"), "max-age=0");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        Uri second = await auth.BuildAuthorizationUrlAsync();
+
+        Assert.StartsWith(
+            "https://auth.example.com/authorize-2?",
+            second.AbsoluteUri,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc031CachedDiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed()
+    {
+        var client = new FakeApiClient();
+        client.EnqueueWithCacheControl(Discovery("authorize-1"), "max-age=1");
+        client.EnqueueWithCacheControl(Discovery("authorize-2"), "max-age=1");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await Task.Delay(TimeSpan.FromMilliseconds(1100));
+        Uri second = await auth.BuildAuthorizationUrlAsync();
+
+        Assert.StartsWith(
+            "https://auth.example.com/authorize-2?",
+            second.AbsoluteUri,
+            StringComparison.Ordinal
+        );
     }
 }

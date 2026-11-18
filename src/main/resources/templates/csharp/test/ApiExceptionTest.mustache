@@ -555,4 +555,12 @@ public class ApiExceptionTest
 
         Assert.Null(factory);
     }
+
+    [Fact]
+    public void BhvErrors049OAuth2ServerErrorNamesTheStatusAndTheErrorCode()
+    {
+        Assert.Equal(
+            "Token request failed with status 400: invalid_grant",
+            new OAuth2ServerException(400, "invalid_grant", null, null, "{}").Message);
+    }
 }

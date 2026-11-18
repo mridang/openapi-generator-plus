@@ -432,4 +432,46 @@ public class OAuth2PasswordAuthenticatorTest
         Assert.Equal("https://auth.example.com/token", client.Requests[2].Url.AbsoluteUri);
         Assert.Contains("grant_type=password", client.Requests[2].Body!, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task BhvAuthoauthtwopassword021TokenRequestBodyUsesTheFixedParameterOrder()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal(
+            "grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+            client.LastBody
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwopassword022FirstGrantGoesToTheTokenUrlAndTheRefreshGrantToTheRefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+
+        var auth = new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/token"),
+            "testuser",
+            "testpass",
+            Scopes,
+            new Uri("https://auth.example.com/refresh")
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        await auth.GetAuthHeadersAsync();
+        Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
+    }
 }

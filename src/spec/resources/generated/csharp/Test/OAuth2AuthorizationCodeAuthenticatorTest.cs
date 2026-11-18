@@ -663,4 +663,34 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         Assert.Equal("Bearer tok1", headers["Authorization"]);
         Assert.Equal(2, client.CallCount);
     }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode030HeadersBeforeTheExchangeNameTheExchangeCall()
+    {
+        var auth = CreateAuthenticator();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync()
+        );
+
+        Assert.Contains("ExchangeCodeAsync()", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode032CodeExchangeBodyUsesTheFixedParameterOrder()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("C");
+
+        Assert.StartsWith(
+            "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+            client.LastBody!,
+            StringComparison.Ordinal
+        );
+    }
 }

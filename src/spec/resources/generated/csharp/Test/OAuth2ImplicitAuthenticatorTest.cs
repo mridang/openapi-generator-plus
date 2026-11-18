@@ -217,7 +217,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void SetAccessTokenAcceptsAHorizontalTab()
+    public void BhvAuthoauthtwoimplicit016SetAccessTokenAcceptsAHorizontalTab()
     {
         var auth = CreateAuthenticator();
 

@@ -301,4 +301,21 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         );
         Assert.Equal("id~%2A%21%27%28%29:sec~%2A%21%27%28%29", decoded);
     }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoclientcred016TokenRequestBodyUsesTheFixedParameterOrder()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal(
+            "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+            client.LastBody
+        );
+    }
 }

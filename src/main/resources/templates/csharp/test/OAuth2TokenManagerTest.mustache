@@ -1068,4 +1068,93 @@ public class OAuth2TokenManagerTest
         Assert.Equal("ref1", manager.RefreshToken);
         Assert.Equal(2, client.CallCount);
     }
+
+    [Theory]
+    [InlineData("{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\"}", "Token request failed with status 400: invalid_grant -- refresh token expired")]
+    [InlineData("{\"error\":\"invalid_grant\"}", "Token request failed with status 400: invalid_grant")]
+    [InlineData("upstream exploded", "Token request failed with status 400: upstream exploded")]
+    public async Task BhvAuthoauthtwotokenmgr042TokenErrorMessageNamesTheStatusAndTheCodeAndDescription(string body, string expected)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(body, statusCode: 400);
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+
+        Assert.Equal(expected, ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwotokenmgr043TokenRequestBodyUsesTheFixedKeyOrder()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        await manager.GetAccessTokenAsync(
+            new Uri("https://auth.example.com/token"),
+            new Dictionary<string, string>
+            {
+                ["zeta"] = "z",
+                ["scope"] = "s",
+                ["redirect_uri"] = "r",
+                ["client_secret"] = "cs",
+                ["client_id"] = "ci",
+                ["password"] = "p",
+                ["username"] = "u",
+                ["refresh_token"] = "rt",
+                ["code"] = "c",
+                ["alpha"] = "a",
+                ["grant_type"] = "password",
+            });
+
+        Assert.Equal(
+            "grant_type=password&code=c&refresh_token=rt&username=u&password=p&client_id=ci&client_secret=cs&redirect_uri=r&scope=s&alpha=a&zeta=z",
+            client.LastBody);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwotokenmgr045PaddedDecimalExpiresInIsAcceptedAsALifetime()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"pad-tok\",\"expires_in\":\" 3600.5\\n\"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        await manager.GetAccessTokenAsync(tokenUrl, parameters);
+
+        Assert.Equal(1, client.CallCount);
+    }
+
+    [Theory]
+    [InlineData("1e3")]
+    [InlineData("0x10")]
+    [InlineData("3_600")]
+    [InlineData("5.")]
+    [InlineData("+5")]
+    [InlineData("-5")]
+    [InlineData("abc")]
+    [InlineData("")]
+    public async Task BhvAuthoauthtwotokenmgr046StringExpiresInOutsideThePlainDecimalGrammarLeavesTheTokenStale(string expiresIn)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"odd1\",\"expires_in\":\"" + expiresIn + "\"}");
+        client.Enqueue("{\"access_token\":\"odd2\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        Assert.Equal("odd1", await manager.GetAccessTokenAsync(tokenUrl, parameters));
+        Assert.Equal("odd2", await manager.GetAccessTokenAsync(tokenUrl, parameters));
+        Assert.Equal(2, client.CallCount);
+    }
 }

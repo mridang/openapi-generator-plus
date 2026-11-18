@@ -1980,7 +1980,7 @@ public class BaseApiTest
     // the per-call override (null here), and BaseApi falls back to the
     // client-level authenticator.
     [Fact]
-    public async Task SecuredOperationStillAppliesClientAuthenticator()
+    public async Task BhvAuthintegration018SecuredOperationStillAppliesClientAuthenticator()
     {
         var client = new CapturingApiClient();
         var clientAuth = new TestAuthenticator(
@@ -2066,5 +2066,52 @@ public class BaseApiTest
         };
 
         Assert.Throws<SerializationException>(() => api.ContentParameter(unserializable, location));
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration019InvalidAuthCookieFailsBeforeAnyRequestIsSent()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        var auth = new TestAuthenticator(
+            cookies: new Dictionary<string, string> { { "session", "a;b" } }
+        );
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            testApi.CallAsync<object>(
+                "GET",
+                "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json",
+                auth
+            )
+        );
+
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task BhvSerializationparam107QueryValueKeepsOnlyTheUnreservedSetLiteral()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?> { { "q", "a!b*c'd(e)f~g" } },
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        Assert.Contains(
+            "q=a%21b%2Ac%27d%28e%29f~g",
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
     }
 }

@@ -34,6 +34,21 @@ public sealed class OAuth2TokenManager
     /// </summary>
     private const long MaxExpiresInSeconds = 31_536_000L;
 
+    /* D10: the token body lists these keys first, in this order, then every
+     * other key sorted, so every SDK sends the same bytes for the same grant. */
+    private static readonly string[] TokenBodyKeyOrder =
+    [
+        "grant_type",
+        "code",
+        "refresh_token",
+        "username",
+        "password",
+        "client_id",
+        "client_secret",
+        "redirect_uri",
+        "scope",
+    ];
+
     private readonly object _stateLock = new();
     private Task<string>? _inflightRefresh;
     private IApiClient? _apiClient;
@@ -296,11 +311,14 @@ public sealed class OAuth2TokenManager
 
         string body = string.Join(
             "&",
-            parameters.Select(p =>
-                Uri.EscapeDataString(p.Key).Replace("%20", "+", StringComparison.Ordinal)
-                + "="
-                + Uri.EscapeDataString(p.Value).Replace("%20", "+", StringComparison.Ordinal)
-            )
+            parameters
+                .OrderBy(p => TokenBodyRank(p.Key))
+                .ThenBy(p => p.Key, StringComparer.Ordinal)
+                .Select(p =>
+                    Uri.EscapeDataString(p.Key).Replace("%20", "+", StringComparison.Ordinal)
+                    + "="
+                    + Uri.EscapeDataString(p.Value).Replace("%20", "+", StringComparison.Ordinal)
+                )
         );
 
         Dictionary<string, string> headers = new()
@@ -491,7 +509,7 @@ public sealed class OAuth2TokenManager
                 return 0L;
             case JsonValueKind.String:
                 string? text = element.GetString()?.Trim();
-                if (string.IsNullOrEmpty(text))
+                if (string.IsNullOrEmpty(text) || !IsPlainDecimal(text))
                 {
                     return 0L;
                 }
@@ -523,6 +541,39 @@ public sealed class OAuth2TokenManager
     /// <see cref="MaxExpiresInSeconds"/>. NaN and infinity carry no lifetime,
     /// so they give <c>0</c> (the token is treated as stale).
     /// </summary>
+    /* The string form of expires_in is a plain decimal: digits, optionally one
+     * point with digits on both sides. Exponents, hex, signs, digit separators
+     * and a bare trailing point are refused, so the token is not cached. */
+    private static bool IsPlainDecimal(string text)
+    {
+        int digits = 0;
+        int points = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c >= '0' && c <= '9')
+            {
+                digits++;
+            }
+            else if (c == '.' && i > 0 && i < text.Length - 1)
+            {
+                points++;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        return digits > 0 && points <= 1;
+    }
+
+    /* Rank of a token body key in TokenBodyKeyOrder; unknown keys rank last. */
+    private static int TokenBodyRank(string key)
+    {
+        int index = Array.IndexOf(TokenBodyKeyOrder, key);
+        return index < 0 ? TokenBodyKeyOrder.Length : index;
+    }
+
     private static long ClampExpiresIn(double seconds)
     {
         if (double.IsNaN(seconds) || double.IsInfinity(seconds))
