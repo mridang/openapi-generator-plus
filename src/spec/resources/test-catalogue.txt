@@ -2029,6 +2029,14 @@ langdart084 | an array-valued union decoded from identical wire JSON compares eq
 langdart085 | two unions with differing byte values compare unequal
 langdart086 | a deflate content coding over a body that is not deflate data surfaces as an API error, not a crash
 ||||||| 2231357ed
+||||||| f622b5d59
+langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
+langnode002 | An error constructor accepts an optional cause
+langnode003 | Reading an error's message property returns the rendered text
+langnode004 | An error's message is null when no message was given
+langnode005 | A status maps to its exception class and keeps the response context
+langnode006 | A fallback error built from a response records the request it answers
+||||||| cef6fbad1
 langelixir001 | A server variable keeps its declared enum values after construction, so they can be checked later.
 langelixir002 | A server variable must declare a default value, and omitting it is an error.
 langelixir003 | An array body where an object is expected raises a serialization error rather than an access error.
