@@ -453,4 +453,17 @@ import Testing
         location: location)
     }
   }
+
+  /* A credential is sent using the security scheme the operation declares, such as an API key header rather than bearer. */
+  @Test func testBhvMisc221ACredentialIsSentInTheDeclaredApiKeyHeaderNotBearer() async throws {
+    let auth = try ApiKeyAuthenticator(
+      host: "https://api.example.com",
+      keyParamName: "X-API-Key",
+      apiKey: "key-1",
+      location: .header
+    )
+    let headers = await auth.authHeaders()
+    #expect(headers["X-API-Key"] == "key-1")
+    #expect(headers["Authorization"] == nil)
+  }
 }

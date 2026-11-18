@@ -3999,3 +3999,82 @@ async fn test_bhv_misc_133_a_300_or_305_response_is_returned_as_it_is_even_with_
         );
     }
 }
+
+#[tokio::test]
+async fn test_bhv_misc_100_a_multipart_body_keeps_its_declared_subtype_and_falls_back_when_unsafe()
+{
+    use petstore::api_client::{MultipartValue, RequestBody};
+
+    let cases: [(Option<&str>, &str); 4] = [
+        (None, "multipart/form-data"),
+        (Some("multipart/mixed"), "multipart/mixed"),
+        (Some("multipart/related"), "multipart/related"),
+        (Some("multipart/bad d"), "multipart/form-data"),
+    ];
+    for (declared, expected) in cases {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        thread::spawn(move || {
+            if let Some(stream) = listener.incoming().next() {
+                let mut stream = stream.unwrap();
+                let request = read_whole_request(&mut stream);
+                let _ = tx.send(request);
+                let _ = std::io::Write::write_all(
+                    &mut stream,
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                );
+            }
+        });
+
+        let mut headers = HashMap::new();
+        if let Some(value) = declared {
+            headers.insert("Content-Type".to_string(), value.to_string());
+        }
+        let body = RequestBody::Multipart(vec![(
+            "field".to_string(),
+            MultipartValue::Text("value".to_string()),
+        )]);
+        let client = DefaultApiClient::new(None);
+        client
+            .send_request("POST", &format!("{}/echo", base_url), &headers, Some(&body))
+            .await
+            .expect("unexpected error");
+
+        let request = rx.recv().expect("no request captured");
+        let line = request
+            .lines()
+            .find(|l| l.to_ascii_lowercase().starts_with("content-type:"))
+            .expect("a Content-Type header");
+        let value = line["content-type:".len()..].trim();
+        assert!(
+            value.starts_with(&format!("{}; boundary=", expected)),
+            "declared {:?} sent {}",
+            declared,
+            value
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_127_a_location_with_only_a_query_keeps_the_path() {
+    let (base_url, follow_up) = start_recording_redirect_server(302, "?b=2");
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    client
+        .send_request(
+            "GET",
+            &format!("{}/start?a=1", base_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("unexpected error");
+
+    let request = follow_up.recv().expect("no follow-up request captured");
+    assert!(request.starts_with("GET /start?b=2 "), "{}", request);
+}

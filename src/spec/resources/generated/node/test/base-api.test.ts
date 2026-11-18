@@ -1011,6 +1011,62 @@ describe("BaseApi", () => {
       ]);
     });
 
+    test("bhvMisc159 a 401 is replayed once with fresh credentials even when retries are turned off", async () => {
+      const { seen, stub } = renewingServer((authorization) =>
+        authorization === "Bearer tok-1" ? 401 : 200,
+      );
+      const testable = new TestableApi(
+        stub,
+        new Configuration({ baseUrl: "https://api.example.com" }),
+        oauth(stub),
+      );
+
+      await testable.call(
+        "GET",
+        "/items",
+        {},
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        null,
+      );
+
+      expect(
+        seen.filter((entry) => entry.url === "https://api.example.com/items"),
+      ).toHaveLength(2);
+    });
+
+    test("bhvMisc191 an auth cookie with a character RFC 6265 forbids is refused with an OpenAPI error", async () => {
+      const { stub } = renewingServer(() => 200);
+      const cookieAuth = new ApiKeyAuthenticator(
+        "https://api.example.com",
+        "SESSION_ID",
+        "bad\u0001value",
+        ApiKeyLocation.COOKIE,
+      );
+      const testable = new TestableApi(
+        stub,
+        new Configuration({ baseUrl: "https://api.example.com" }),
+        cookieAuth,
+      );
+
+      const error = await testable
+        .call(
+          "GET",
+          "/items",
+          {},
+          {},
+          null,
+          ["application/json"],
+          "application/json",
+          null,
+        )
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ApiError);
+    });
+
     test("bhv retries 008 reports a second 401 as the usual Unauthorized error after exactly one replay", async () => {
       const { seen, stub } = renewingServer(() => 401);
       const testable = new TestableApi(

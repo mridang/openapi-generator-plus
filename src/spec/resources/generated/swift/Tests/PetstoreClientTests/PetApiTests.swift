@@ -1827,6 +1827,11 @@ private struct MockExternalPetInfoServer: GetExternalPetInfoServer {
   func getUrl() -> String { return chasmUrl }
 }
 
+/// The server a multi-server operation is pointed at in the chosen-server test.
+private struct MockChosenPetInfoServer: GetMultiServerPetInfoServer {
+  func getUrl() -> String { return "https://chosen.example.net" }
+}
+
 /* A hand-written fake of the PetApi group: it implements every operation, records each
  * call as "operation(path arguments)" and fails with the typed not-found error. */
 private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
@@ -2502,5 +2507,77 @@ private func classify(_ call: () async throws -> Void) async -> String {
       _ = try await api.getPetById(petId: 1)
     }
     #expect(error?.requestPath == "/v1/pet/1")
+  }
+
+  /* An optional array query parameter is serialized in its declared style, with no bracket or comma-joined rendering. */
+  @Test func testBhvMisc213AnOptionalArrayQueryParameterIsSerializedInItsDeclaredStyle()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    _ = try await api.getPetTag(
+      petId: 5, tagName: "cute", options: GetPetTagOptions(colors: ["blue", "black"]))
+    #expect(mockClient.lastURL.contains("colors=blue&colors=black"))
+  }
+
+  /* A binary response is returned as decoded bytes, while the raw body keeps the encoded text. */
+  @Test func testBhvMisc216ABinaryResponseIsReturnedDecodedWhileTheRawBodyKeepsTheEncodedText()
+    async throws
+  {
+    let mockApi = petApiForMock(statusCode: 200, body: "aGVsbG8=", contentType: "image/png")
+    let result = try await mockApi.getPetAvatarWithHTTPInfo(petId: 1)
+    #expect(result.data == Data("hello".utf8))
+    #expect(result.rawBody == "aGVsbG8=")
+  }
+
+  /* A binary upload sends the in-memory bytes it is given. */
+  @Test func testBhvMisc217ABinaryUploadSendsTheInMemoryBytesItIsGiven() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    try await api.uploadPetDocument(
+      petId: 1, options: UploadPetDocumentOptions(file: Data("document-bytes".utf8)))
+    let sent = mockClient.lastBody ?? Data()
+    #expect(sent.range(of: Data("document-bytes".utf8)) != nil)
+  }
+
+  /* An operation with several servers sends its request to the server chosen for that operation. */
+  @Test func testBhvMisc219AnOperationWithSeveralServersSendsToTheChosenServer() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    _ = try await api.getMultiServerPetInfo(
+      petId: 1, server: MockChosenPetInfoServer(), options: nil)
+    #expect(mockClient.lastURL.hasPrefix("https://chosen.example.net"))
+  }
+
+  /* A call returning the full response keeps the status code and decodes the union type of the body. */
+  @Test func testBhvMisc220AFullResponseKeepsTheStatusCodeAndDecodesTheUnionBody() async throws {
+    let mockApi = petApiForMock(
+      statusCode: 201, body: "{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}")
+    let treatment = try JSONDecoder().decode(
+      PetTreatment.self, from: Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8))
+    let result = try await mockApi.addPetTreatmentWithHTTPInfo(
+      petId: 5, petTreatment: treatment, options: nil)
+    #expect(result.statusCode == 201)
+    #expect(result.data?.asMedication != nil)
+  }
+
+  /* A success response with a 201 status and an empty body returns no data, without an error. */
+  @Test func testBhvMisc222ACreatedResponseWithAnEmptyBodyReturnsNoData() async throws {
+    let mockApi = petApiForMock(statusCode: 201, body: "")
+    let result = try await mockApi.addPetWithHTTPInfo(pet: Pet(name: "Fido", photoUrls: []))
+    #expect(result.statusCode == 201)
+    #expect(result.data == nil)
   }
 }

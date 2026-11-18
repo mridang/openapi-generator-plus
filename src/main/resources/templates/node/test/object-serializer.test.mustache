@@ -22,6 +22,18 @@ import { uuid, isUuid } from '../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
 
 describe('ObjectSerializer', () => {
+  test('bhvMisc139 a collection passed into a model is copied, so later changes to the source do not reach the model', () => {
+    const source = [{ weightKg: '7' }];
+    const edge = new EdgeCases({ freeFormAny: source });
+    source.push({ weightKg: '8' });
+    expect(edge.freeFormAny).toEqual([{ weightKg: '7' }]);
+  });
+
+  test('bhvMisc139 a collection held by a model cannot be changed through the model', () => {
+    const edge = new EdgeCases({ freeFormAny: [{ weightKg: '7' }] });
+    expect(Object.isFrozen(edge.freeFormAny)).toBe(true);
+  });
+
   describe('unified exception hierarchy', () => {
     // SerializationError must extend the branded {{errorPrefix}}Error root so
     // callers can catch every SDK-originated error — transport and serde
