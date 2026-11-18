@@ -433,3 +433,5 @@ go | misc091 | the SDK does not enforce pattern, length or range keywords (S3), 
 go | misc092 | encoding/json matches a key to a field by case-folding the tag, so a key differing from the wire name only by case is matched; the petstore has no property whose Go name differs from its wire name by more than case
 kotlin | operations164 | a required parameter is a non-null Kotlin type, so a nil argument is rejected by the compiler and cannot reach the call; a missing required Options field is refused with an argument error by bhv operations 132
 python | misc068 | python keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
+ruby | misc061 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no caller cancellation or context value reaches an authenticator
+ruby | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation

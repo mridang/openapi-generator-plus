@@ -473,6 +473,24 @@ describe {{moduleName}}::DefaultApiClient do
       _(json['headers']['x-custom']).must_equal('custom-value')
     end
 
+    it 'bhv_misc_050 per-call options override the options object and an unset option falls through to it' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .default_header('Accept', 'text/plain')
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      response = client.send_request(
+        :GET, "#{chasm_url}/test/echo",
+        { 'Accept' => 'application/json' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['headers']['accept']).must_equal('application/json')
+    end
+
     it 'bhv_options_004 caller headers override transport default headers' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 

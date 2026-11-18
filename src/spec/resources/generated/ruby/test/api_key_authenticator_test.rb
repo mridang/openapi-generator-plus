@@ -162,6 +162,15 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.cookie_params).must_equal({ 'session' => 'kéy' })
   end
 
+  it 'bhv_misc_057 an API key configured for one location is never sent at another location' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::HEADER
+    )
+    _(auth.auth_headers).must_equal({ 'X-Api-Key' => 'abc123' })
+    _(auth.query_params).must_be_empty
+    _(auth.cookie_params).must_be_empty
+  end
+
   it 'bhv_authapikey_022 emits a key only at its own location' do
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-Api-Key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::HEADER

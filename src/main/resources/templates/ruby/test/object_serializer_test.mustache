@@ -431,6 +431,13 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::ObjectSerializer.stringify(9_007_199_254_740_993)).must_equal('9007199254740993')
     end
 
+    it 'bhv_misc_089 a date-time is written in its canonical form in a field, optional, list, set or map' do
+      t = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
+      result = {{moduleName}}::ObjectSerializer.stringify(t)
+      _(result).must_include('2024-01-15')
+      _(result).must_include('10:30:00')
+    end
+
     it 'bhv_serializationobject_157 returns ISO 8601 string for Time' do
       t = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
       result = {{moduleName}}::ObjectSerializer.stringify(t)
@@ -1380,6 +1387,13 @@ describe {{moduleName}}::ObjectSerializer do
       _(order.tracking_id).must_equal('e621e1f8-c36c-495a-93fc-0c247a3e6e5f')
     end
 
+    it 'bhv_misc_085 a UUID that is not in canonical form is refused when built and when written as a parameter' do
+      err = assert_raises({{moduleName}}::Errors::SerializationError) do
+        {{moduleName}}::ObjectSerializer.deserialize('{"trackingId":"not-a-uuid"}', '{{moduleName}}::Models::Order')
+      end
+      _(err.message).must_equal('Invalid UUID for format: uuid: "not-a-uuid"')
+    end
+
     it 'bhv_serializationobject_048 rejects a malformed uuid on decode' do
       err = assert_raises({{moduleName}}::Errors::SerializationError) do
         {{moduleName}}::ObjectSerializer.deserialize('{"trackingId":"not-a-uuid"}', '{{moduleName}}::Models::Order')
@@ -1748,6 +1762,12 @@ describe {{moduleName}}::ObjectSerializer do
       d = ISO8601::Duration.new('PT1H30M')
       out = {{moduleName}}::ObjectSerializer.stringify(d)
       _(out).must_equal('5400s')
+    end
+
+    it 'bhv_misc_090 a duration field of a record writes its fractional seconds in the wire form' do
+      d = ISO8601::Duration.new('PT5M')
+      json = {{moduleName}}::ObjectSerializer.serialize({ 'ttl' => d })
+      _(JSON.parse(json)['ttl']).must_equal('300s')
     end
 
     it 'bhv_serializationobject_146 serialize emits the protobuf-JSON duration string inside a hash' do
