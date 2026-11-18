@@ -1962,3 +1962,11 @@ langcsharp017 | A bare number read in exponent notation is written back in plain
 langcsharp018 | A duplicate key inside a nested object keeps the last value
 langcsharp019 | A copy with changed fields keeps every other field of the source model
 langcsharp020 | A copy of a model keeps its concrete type when held through its base type
+langcsharp021 | An operation whose parameters are all optional runs with no arguments and does not throw
+langcsharp022 | A missing options object names the first required field of the operation
+langcsharp023 | A cookie parameter with a control character is refused before any request is sent
+langcsharp024 | A per-operation server with variables sends its request to the resolved URL
+langcsharp025 | Each operation receives only the credential of the scheme it requires
+langcsharp026 | A JSON null body from an operation that returns a collection raises the API error
+langcsharp027 | A date-time form field is written in its canonical string form
+langcsharp028 | An operation that is not deprecated carries no deprecation marker
