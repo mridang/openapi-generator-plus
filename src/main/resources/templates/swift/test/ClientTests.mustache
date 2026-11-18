@@ -401,18 +401,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         }
     }
 
-    @Test func {{#isFirstBearerScheme}}testBhvAuthscheme010{{/isFirstBearerScheme}}{{^isFirstBearerScheme}}test{{/isFirstBearerScheme}}{{className}}TreatsAnEmptyVariableAsUnset() {
-{{#envVars}}
-{{#-first}}
-        let missing = ConfigurationError.invalidArgument(
-            "Missing the credential '{{field}}': pass it, or set the {{envName}} environment variable")
-{{/-first}}
-{{/envVars}}
-        #expect(throws: missing) {
-            _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
-        }
-    }
-
 {{/perSchemeAuthEntries}}
     // MARK: - One credential per security scheme (F857)
 

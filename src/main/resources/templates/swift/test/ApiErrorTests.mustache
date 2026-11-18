@@ -142,6 +142,25 @@ import Testing
         #expect(ApiError().errorDescription == "Error message: the server returns an error")
     }
 
+    /* Response headers render as compact JSON with the keys sorted and slashes unescaped. */
+    @Test func testBhvErrors050ResponseHeadersRenderAsCompactSortedJsonWithUnescapedSlashes() {
+        let err = ApiError(
+            statusCode: 500, message: "boom",
+            responseHeaders: ["z-link": "https://a.example/x", "a": "1"])
+        #expect(
+            err.errorDescription
+                == "boom\nHTTP status code: 500\nResponse headers: "
+                + "{\"a\":\"1\",\"z-link\":\"https://a.example/x\"}")
+    }
+
+    /* An empty message falls back to the generic error line, then the status line. */
+    @Test func testBhvErrors051AnEmptyMessageFallsBackToTheGenericErrorLine() {
+        let err = ApiError(statusCode: 500, message: "")
+        #expect(
+            err.errorDescription
+                == "Error message: the server returns an error\nHTTP status code: 500")
+    }
+
     /* The rendered form caps the body, escapes control characters and masks
      * credential headers; the full body stays on responseBody. */
     @Test func testBhvErrors001ErrorDescriptionCapsTheBodyEscapesControlsAndMasksSecretHeaders() {
@@ -267,7 +286,7 @@ import Testing
 
     /* A named error always reports its own status, whatever it is built
      * from, so the type and the status can never disagree. */
-    @Test func testNamedErrorsPinTheirStatus() {
+    @Test func testBhvErrors053EachNamedErrorPinsItsOwnHTTPStatusCode() {
         #expect(BadRequestError(message: "x").statusCode == 400)
         #expect(UnauthorizedError(message: "x").statusCode == 401)
         #expect(ForbiddenError(message: "x").statusCode == 403)
@@ -340,6 +359,37 @@ import Testing
         #expect(err.statusCode == 502)
     }
 
+    /* A typed client error thrown as itself is caught by the base API error catch and
+     * reaches the {{errorPrefix}}Error root. */
+    @Test func testBhvErrors052ATypedClientErrorIsCaughtByTheBaseApiErrorCatch() {
+        var caught: ApiError?
+        do {
+            throw NotFoundError(message: "gone")
+        } catch let error as ApiError {
+            caught = error
+        } catch {
+            Issue.record("a typed client error must be caught by the ApiError catch: \(error)")
+        }
+        #expect(caught is NotFoundError)
+        #expect(caught?.statusCode == 404)
+        #expect(caught as? {{errorPrefix}}Error != nil)
+    }
+
+    /* The status error constructors leave the response context unset unless it is passed. */
+    @Test func testBhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNil() {
+        let badRequest = BadRequestError(message: "x")
+        #expect(badRequest.responseBody == nil)
+        #expect(badRequest.responseHeaders == nil)
+        #expect(badRequest.errorBody == nil)
+        #expect(badRequest.requestMethod == nil)
+        #expect(badRequest.requestPath == nil)
+
+        let internalError = InternalServerError(message: "x")
+        #expect(internalError.responseBody == nil)
+        #expect(internalError.responseHeaders == nil)
+        #expect(internalError.requestMethod == nil)
+    }
+
     @Test func testBhvErrors018TypedErrorConformsToApiErrorAnd{{errorPrefix}}Error() {
         // A typed HTTP error subclasses ApiError and therefore conforms to
         // {{errorPrefix}}Error transitively.
@@ -348,6 +398,15 @@ import Testing
         #expect(err is ApiError)
         #expect(err is {{errorPrefix}}Error)
         #expect(err as? {{errorPrefix}}Error != nil)
+    }
+
+    /* Only a status above 599 is outside the 5xx arm, so it stays the base error. */
+    @Test func testBhvErrors056AStatusOf600OrMoreYieldsTheBaseErrorNotAServerError() {
+        let err: any Error = ApiError.fromResponse(statusCode: 600, headers: [:], body: "")
+        #expect(type(of: err) == ApiError.self)
+        #expect(!(err is ServerError))
+        #expect(!(err is ClientError))
+        #expect((err as? ApiError)?.statusCode == 600)
     }
 
     @Test func testBhvErrors025SerializationErrorConformsTo{{errorPrefix}}Error() {
