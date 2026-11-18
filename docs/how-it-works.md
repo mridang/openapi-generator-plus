@@ -68,6 +68,10 @@ Each language has a set of specs under `src/spec/java/io/github/mridang/codegen/
 
 `etc/ci-local.sh` is the single definition of green and CI runs the same steps. `etc/ci-local.sh check <Lang>` runs spotless, spotbugs, the unit tests and that language's specs, then requires a clean tree after regeneration. `check --quick` skips the integration specs. A commit is allowed only after the check has passed on it locally. A `ContainerLaunchException`, a `404 exec` or a container killed with exit code 137 is infrastructure, not a code failure; re-run that language once before concluding anything.
 
+### Compiled examples
+
+`AbstractFencesSpec` reads `README.md` and `SKILLS.md` from the golden, takes every fence tagged with the SDK language, checks that each declares its kind, wraps them with the language's harness and builds them in the runtime container. The same golden ships `examples/quickstart`, built by `make examples` and run by `make examples-run`. A language that declares a minimum runtime also has a `<Lang>MinRuntimeSpec` that runs its client spec in the image of that runtime.
+
 ### Shared helper containers
 
 Two services support the generated tests. Chasm is a mock server that serves the full fixture specification, so each SDK's tests talk to a real HTTP server; Squid is a proxy used for the proxy and authentication tests. `SharedHelperContainers` starts one Chasm and one Squid per Maven run on a shared network and stops them in the same shutdown hook that closes the network. `SharedRuntimeContainer` hands their addresses to every language container through environment variables (`CHASM_HTTP_URL`, `CHASM_HTTPS_URL` and the internal variants, `PROXY_URL` and others).

@@ -1412,3 +1412,9 @@ unions302 | An allOf base decodes to the subtype its implicit schema name mappin
 unions303 | An unknown allOf discriminator value fails and the error names the value
 unions304 | An allOf base payload without its discriminator fails
 errors205 | A decode failure of a response carries the status, the headers and the raw body
+examples001 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+examples002 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+examples003 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+examples004 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+examples005 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+examples006 | The SDK Makefile has an examples target that builds every file under examples

@@ -202,6 +202,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected boolean hasAnyOAuth2;
     protected boolean generateTests;
     protected boolean generateUnitTests;
+    protected boolean generateExamples;
 
     /**
      * Initializes shared codegen defaults by clearing the
@@ -240,6 +241,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         + "client) that compile against any generated SDK. Real "
                         + "clients enable this to ship a harmonized unit-test suite "
                         + "without the petstore-coupled tests (default: false).")
+                .defaultValue("false"));
+        cliOptions.add(CliOption.newBoolean("generateExamples",
+                "Whether to generate examples/quickstart, one complete program that "
+                        + "builds a client, calls one operation and closes the client, "
+                        + "built by the SDK's own Makefile target. A real client opts in "
+                        + "when it is ready to keep the directory (default: false).")
                 .defaultValue("false"));
 
         modifyFeatureSet(features -> features
@@ -535,6 +542,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         additionalProperties.put("generateUnitTests", generateUnitTests);
 
+        if (additionalProperties.containsKey("generateExamples")) {
+            generateExamples =
+                    Boolean.parseBoolean(additionalProperties.get("generateExamples").toString());
+        }
+        additionalProperties.put("generateExamples", generateExamples);
+
         getPropertyOrDefault("clientClassName", "Client");
 
         /* The root error type is named from this prefix plus each language's
@@ -589,6 +602,60 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     protected List<SupportingFileSpec> getSupportingFileSpecs() {
         return List.of();
+    }
+
+    /**
+     * Hands the templates the example operation: the first operation, in the order the
+     * documents are generated, that needs no path, query, header, cookie or body parameter and
+     * no security. It is exposed as {@code exampleOperation} (the operation itself, so a
+     * template reads {@code operationId} and {@code vendorExtensions.op.signatureArgs} from it),
+     * {@code exampleOperationApi} (the name of its API group) and {@code hasExampleOperation}.
+     * When no operation qualifies, {@code hasExampleOperation} is false and the quickstart
+     * builds the client and closes it.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        CodegenOperation example = null;
+        String exampleApi = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        if (example == null && needsNoInput(op)) {
+                            example = op;
+                            exampleApi = String.valueOf(((Map<String, Object>) operations).get("baseName"));
+                            if (exampleApi == null || "null".equals(exampleApi)) {
+                                exampleApi = String.valueOf(((Map<String, Object>) api).get("baseName"));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasExampleOperation", example != null);
+        if (example != null) {
+            objs.put("exampleOperation", example);
+            objs.put("exampleOperationApi", exampleApi);
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    private static boolean needsNoInput(final CodegenOperation op) {
+        final boolean security = op.authMethods != null && !op.authMethods.isEmpty();
+        final boolean required = op.requiredParams != null && !op.requiredParams.isEmpty();
+        return !security && !required && op.bodyParam == null;
     }
 
     /**
