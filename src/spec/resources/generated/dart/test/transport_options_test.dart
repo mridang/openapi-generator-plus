@@ -83,19 +83,22 @@ void main() {
       );
     });
 
-    test('the default client exposes the retry policy of its options', () {
-      final client = DefaultApiClient(
-        transportOptions: TransportOptionsBuilder()
-            .maxRetries(4)
-            .timeout(2500)
-            .build(),
-      );
-      addTearDown(client.close);
+    test(
+      'bhv langdart 079 the default client exposes the retry policy of its options',
+      () {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .maxRetries(4)
+              .timeout(2500)
+              .build(),
+        );
+        addTearDown(client.close);
 
-      expect(client, isA<RetryingApiClient>());
-      expect(client.maxRetries, equals(4));
-      expect(client.timeoutMillis, equals(2500));
-    });
+        expect(client, isA<RetryingApiClient>());
+        expect(client.maxRetries, equals(4));
+        expect(client.timeoutMillis, equals(2500));
+      },
+    );
 
     test('bhv options 043 verifySsl defaults to true', () {
       final opts = TransportOptionsBuilder().build();

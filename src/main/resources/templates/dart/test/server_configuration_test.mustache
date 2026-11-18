@@ -231,7 +231,7 @@ void main() {
       expect(config.url(), equals('https://{version}.api.example.com/v2'));
     });
 
-    test('does not expand a placeholder an override introduces, in either order', () {
+    test('bhv servers 029 does not expand a placeholder an override introduces, in either order', () {
       const config = ServerConfiguration(
         urlTemplate: 'https://{a}.example.com/{b}',
         variables: {
@@ -253,7 +253,7 @@ void main() {
       expect(config.url(), equals('https://h/{unknown}'));
     });
 
-    test('a constant configuration cannot be modified through its variables', () {
+    test('bhv langdart 078 a constant configuration cannot be modified through its variables', () {
       const config = ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
         variables: {

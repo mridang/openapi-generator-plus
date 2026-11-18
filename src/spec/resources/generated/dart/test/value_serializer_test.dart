@@ -424,18 +424,21 @@ void main() {
       expect(result, equals('blue'));
     });
 
-    test('serializeStyled form Set explode repeats each element', () {
-      final result = serializeStyled(
-        'color',
-        <String>{'red', 'green'},
-        'query',
-        'array',
-        '',
-        'form',
-        true,
-      );
-      expect(result, equals(['red', 'green']));
-    });
+    test(
+      'bhv serialization 107 serializeStyled form Set explode repeats each element',
+      () {
+        final result = serializeStyled(
+          'color',
+          <String>{'red', 'green'},
+          'query',
+          'array',
+          '',
+          'form',
+          true,
+        );
+        expect(result, equals(['red', 'green']));
+      },
+    );
 
     test(
       'bhv serializationparam 117 serializeStyled form Set no explode joins with commas',
@@ -1046,10 +1049,13 @@ void main() {
         },
       );
 
-      test('stringify of date-only string preserves YYYY-MM-DD', () {
-        // Sanity check: stringify must not reformat date-only strings.
-        expect(stringify('2024-01-15'), equals('2024-01-15'));
-      });
+      test(
+        'bhv langdart 080 stringify of date-only string preserves YYYY-MM-DD',
+        () {
+          // Sanity check: stringify must not reformat date-only strings.
+          expect(stringify('2024-01-15'), equals('2024-01-15'));
+        },
+      );
     });
 
     test(
@@ -1216,7 +1222,7 @@ void main() {
       },
     );
 
-    test('a literal plus is always %2B', () {
+    test('bhv langdart 081 a literal plus is always %2B', () {
       expect(encodeRfc3986QueryComponent('1+2'), equals('1%2B2'));
       expect(
         encodeRfc3986QueryComponent('1+2', spaceToPlus: true),
@@ -1226,20 +1232,23 @@ void main() {
   });
 
   group('format: byte parameters', () {
-    test('bytes serialize to padded standard base64 in a query', () {
-      expect(
-        serializeStyled(
-          'fp',
-          Uint8List.fromList([0x68, 0x69]),
-          'query',
-          'string',
-          '',
-          'form',
-          true,
-        ),
-        equals('aGk='),
-      );
-    });
+    test(
+      'bhv langdart 082 bytes serialize to padded standard base64 in a query',
+      () {
+        expect(
+          serializeStyled(
+            'fp',
+            Uint8List.fromList([0x68, 0x69]),
+            'query',
+            'string',
+            '',
+            'form',
+            true,
+          ),
+          equals('aGk='),
+        );
+      },
+    );
   });
 
   group('ValueSerializer null elements and path sub-delimiters', () {

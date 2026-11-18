@@ -103,7 +103,7 @@ void main() {
       expect(auth.queryParams(), equals({'api_key': 'abc123'}));
     });
 
-    test('HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+    test('bhv langdart 009 HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
       // HEADER location must reject anything outside printable ASCII +
       // TAB to prevent header injection (\r\n) and silent UTF-8
       // mangling that varies per HTTP lib.
@@ -366,7 +366,7 @@ void main() {
       expect(auth.cookieParams(), isEmpty);
     });
 
-    test('InternalApiKeyAuthenticator sends X-Internal-Key as a header', () {
+    test('bhv misc 221 InternalApiKeyAuthenticator sends X-Internal-Key as a header', () {
       final auth = builders['InternalApiKeyAuthenticator']!('k1');
 
       expect(auth.authHeaders(), equals({'X-Internal-Key': 'k1'}));
