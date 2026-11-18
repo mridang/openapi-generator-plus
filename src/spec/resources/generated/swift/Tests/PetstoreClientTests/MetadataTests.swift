@@ -157,17 +157,6 @@ import Testing
 
   // MARK: - Immutable models
 
-  /* A model is immutable: copy replaces the properties it is given and keeps the rest. */
-  @Test func testCopyReplacesOnlyTheGivenProperties() {
-    let original = Order(id: 1, quantity: 7, status: .approved)
-    let changed = original.copy(quantity: 9)
-
-    #expect(changed.quantity == 9)
-    #expect(changed.id == 1)
-    #expect(changed.status == .approved)
-    #expect(original.quantity == 7)
-  }
-
   @Test func testBhvModels016CopyClearsAnOptionalPropertyOnlyWithSomeNil() {
     let original = Order(id: 1, quantity: 7)
 

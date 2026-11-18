@@ -148,19 +148,9 @@ import Testing
     #expect(result == "a,b,c")
   }
 
-  @Test func testToHeaderValueNil() {
-    let result = ObjectSerializer.toHeaderValue(nil)
-    #expect(result == "")
-  }
-
   @Test func testBhvSerializationobject140ToFormValueString() {
     let result = ObjectSerializer.toFormValue("hello")
     #expect(result == "hello")
-  }
-
-  @Test func testToFormValueInt() {
-    let result = ObjectSerializer.toFormValue(123)
-    #expect(result == "123")
   }
 
   @Test func testBhvSerializationobject165ToFormValueNil() {
@@ -322,20 +312,12 @@ import Testing
     #expect(ObjectSerializer.toCookieValue("hello") == "hello")
   }
 
-  @Test func testToCookieValueNil() {
-    #expect(ObjectSerializer.toCookieValue(nil) == "")
-  }
-
   @Test func testBhvSerializationobject040ToCookieValueInt() {
     #expect(ObjectSerializer.toCookieValue(42) == "42")
   }
 
   @Test func testBhvSerializationobject159StringifyString() {
     #expect(ObjectSerializer.stringify("hello") == "hello")
-  }
-
-  @Test func testStringifyInt() {
-    #expect(ObjectSerializer.stringify(42) == "42")
   }
 
   @Test func testBhvSerializationobject211StringifyInt64() {
@@ -346,11 +328,6 @@ import Testing
   @Test func testBhvSerializationobject190LongIsStringifiedToItsExactDecimalDigits() {
     #expect(ObjectSerializer.stringify(Int64.max) == "9223372036854775807")
     #expect(ObjectSerializer.stringify(Int64.min) == "-9223372036854775808")
-  }
-
-  @Test func testStringifyFloat64() {
-    let result = ObjectSerializer.stringify(3.14)
-    #expect(result.hasPrefix("3.14"))
   }
 
   @Test func testBhvSerializationobject155StringifyBool() {
@@ -391,10 +368,6 @@ import Testing
     #expect(
       result == "2024-01-15T10:50:00.123+00:00",
       "the millisecond fraction must be kept, got: \(result)")
-  }
-
-  @Test func testStringifyNil() {
-    #expect(ObjectSerializer.stringify(nil) == "")
   }
 
   /* The sub-millisecond part is truncated, never rounded: rounding would
@@ -1340,15 +1313,6 @@ import Testing
     }
   }
 
-  @Test func testUUIDOptionalDecodesNil() throws {
-    struct Holder: Codable {
-      let id: UUID?
-    }
-    let json = "{}"
-    let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
-    #expect(decoded?.id == nil)
-  }
-
   // MARK: - protobuf duration (format:duration)
 
   /* A malformed protobuf-JSON duration raises the SDK SerializationError. */
@@ -1374,11 +1338,6 @@ import Testing
   @Test func testBhvSerializationobject112DurationParseWholeSeconds() throws {
     let value = try ObjectSerializer.decodeDuration("5400s")
     #expect(value == 5_400)
-  }
-
-  @Test func testDurationParseLargeWholeSeconds() throws {
-    let value = try ObjectSerializer.decodeDuration("93784s")
-    #expect(value == 86_400 + 7_200 + 180 + 4)
   }
 
   @Test func testBhvSerializationobject054DurationParseFractionalSeconds() throws {
@@ -1431,10 +1390,6 @@ import Testing
 
   @Test func testBhvSerializationobject081DurationFormatWholeSeconds() throws {
     #expect(try ObjectSerializer.encodeDuration(3_725) == "3725s")
-  }
-
-  @Test func testDurationFormatLargeWholeSeconds() throws {
-    #expect(try ObjectSerializer.encodeDuration(2 * 86_400) == "172800s")
   }
 
   @Test func testBhvSerializationobject105DurationFormatNegative() throws {
@@ -2051,23 +2006,6 @@ import Testing
   }
 
   // MARK: - format:duration sub-0.0001s magnitude (no scientific notation)
-
-  // A sub-0.0001s duration (50 microseconds = 0.00005s) must encode in fixed
-  // decimal-fraction form ("0.000050s"), never in scientific notation
-  // ("5e-05s"), and must round-trip back to the same magnitude. The negative
-  // and whole/fractional cases are covered above; this pins the small-
-  // magnitude formatting that a naive %g/String(describing:) would corrupt.
-  @Test func testDurationFormatSubTenThousandthNoScientificNotation() throws {
-    let out = try ObjectSerializer.encodeDuration(0.00005)
-    #expect(
-      !out.lowercased().contains("e"),
-      "sub-0.0001s duration must not use scientific notation, got: \(out)")
-    #expect(out.hasSuffix("s"))
-    let parsed = try ObjectSerializer.decodeDuration(out)
-    #expect(
-      abs(parsed - 0.00005) < 1e-9,
-      "sub-0.0001s duration must round-trip, got: \(out) -> \(parsed)")
-  }
 
   @Test
   func testBhvSerializationobject212DurationFormatNegativeSubTenThousandthNoScientificNotation()

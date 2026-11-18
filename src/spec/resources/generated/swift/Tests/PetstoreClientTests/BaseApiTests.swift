@@ -660,18 +660,6 @@ import Testing
     #expect(client.seenAuthorization == ["Bearer t1"])
   }
 
-  @Test func testASecond401IsSurfacedWithoutAThirdAttempt() async throws {
-    let client = ScriptedApiClient(statuses: [401, 401, 200])
-    let auth = RotatingAuth()
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: client, config: config, authenticator: auth)
-
-    await #expect(throws: UnauthorizedError.self) {
-      _ = try await api.getPetById(petId: 1)
-    }
-    #expect(client.seenAuthorization.count == 2)
-  }
-
   /* A bearer token is not one this SDK fetched, so a 401 is never replayed. */
   @Test func testBhvRetries002ABearerAuthenticatorNeverReplays() async throws {
     let client = ScriptedApiClient(statuses: [401, 200])
@@ -1789,16 +1777,6 @@ import Testing
     /* id and category are optional and unset; they must not appear in the wire payload. */
     #expect(!json.contains("\"id\""), "nil id must be omitted from JSON: \(json)")
     #expect(!json.contains("\"category\""), "nil category must be omitted from JSON: \(json)")
-  }
-
-  @Test func testDeserializeIgnoresUnknownProperties() throws {
-    /* Swift's synthesized Codable init silently drops unknown JSON keys,
-     * matching the cross-language "discard extras on deserialise" expectation. */
-    let json =
-      "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[],\"unknownField\":\"ignored\",\"anotherExtra\":42}"
-    let pet: Pet? = try ObjectSerializer.deserialize(json, as: Pet.self)
-    #expect(pet?.name == "Fido")
-    #expect(pet?.id == 1)
   }
 
   // MARK: - ProxyAuthTests

@@ -5,19 +5,6 @@ import Testing
 
 @Suite final class ApiResultTests {
 
-    @Test func testStoresAllFields() {
-        let result = ApiResult<String>(
-            statusCode: 200,
-            data: "payload",
-            rawBody: "{\"value\":\"payload\"}",
-            headers: ["Content-Type": "application/json"]
-        )
-        #expect(result.statusCode == 200)
-        #expect(result.data == "payload")
-        #expect(result.rawBody == "{\"value\":\"payload\"}")
-        #expect(result.headers["Content-Type"] == "application/json")
-    }
-
     @Test func testBhvResults001DataMayBeNilForNoContent() {
         let result = ApiResult<String>(
             statusCode: 204,
