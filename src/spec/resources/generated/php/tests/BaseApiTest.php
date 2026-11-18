@@ -507,7 +507,7 @@ test('bhv authintegration 002 a per-call oauth authenticator is given the transp
     expect($first['url'])->toBe('https://auth.example.com/token');
 });
 
-test('a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (
+test('bhv operations 157 a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (
     string $kind
 ): void {
     $client = new CapturingApiClient();
@@ -755,7 +755,7 @@ test('configured api-key query authenticator sends no api-key param on a securit
     expect($client->capturedUrl)->not->toContain('secret-api-key');
 });
 
-test('configured cookie authenticator sets no cookie on a security:[] operation', function (): void {
+test('bhv auth 044 configured cookie authenticator sets no cookie on a security:[] operation', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $auth = new ApiKeyAuthenticator('http://localhost', 'session', 'secret-session', ApiKeyLocation::COOKIE);
@@ -2482,4 +2482,93 @@ test('bhv telemetry 007 a call retried by the transport records one span and one
     expect($spans->getSpans())->toHaveCount(1);
     $count = HookTelemetry::number(HookTelemetry::metrics($reader, $metrics)['http.client.request.count']);
     expect($count->value)->toEqual(1);
+});
+
+test('bhv auth 046 an operation that inherits the document level security receives the client authenticator on the wire', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
+});
+
+test('bhv auth 043 each operation sends only the credential of the scheme it names in its security requirement', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'), null, [
+        'apiKeyHeader' => new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER),
+        'petStoreBearer' => new BearerAuthenticator('http://localhost', 'secret-jwt-token'),
+    ]);
+    try {
+        $api->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+});
+
+test('bhv auth 045 a credential supplied for an operation scheme replaces a default authorization header set on the client', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost', ['Authorization' => 'Basic default-credential']);
+    $api = new PetApi($client, $config, null, [
+        'petStoreBearer' => new BearerAuthenticator('http://localhost', 'secret-jwt-token'),
+    ]);
+    try {
+        $api->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
+});
+
+test('bhv auth 047 an operation with several schemes uses the first one it holds and sends no scheme credential when it holds none', function (): void {
+    $held = new CapturingApiClient();
+    $firstHeld = new PetApi($held, new Configuration('http://localhost'), null, [
+        'petStoreBearer' => new BearerAuthenticator('http://localhost', 'secret-jwt-token'),
+        'apiKeyHeader' => new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER),
+    ]);
+    try {
+        $firstHeld->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($held->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
+    expect($held->capturedHeaders)->not->toHaveKey('Authorization');
+
+    $none = new CapturingApiClient();
+    $noneHeld = new PetApi($none, new Configuration('http://localhost'), null, [
+        'unrelatedScheme' => new BearerAuthenticator('http://localhost', 'secret-jwt-token'),
+    ]);
+    try {
+        $noneHeld->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($none->capturedHeaders)->not->toHaveKey('Authorization');
+    expect($none->capturedHeaders)->not->toHaveKey('X-API-Key');
+});
+
+test('bhv operations 163 a request with no body sends no content type header whatever the case of the default', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost', ['content-type' => 'application/json']);
+    $api = new PetApi($client, $config);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect(array_change_key_case($client->capturedHeaders, CASE_LOWER))->not->toHaveKey('content-type');
+});
+
+test('bhv operations 164 a call with a missing required parameter raises a type error and sends no request', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    expect(fn () => $api->getPetByIdWithHttpInfo(null))->toThrow(\TypeError::class);
+    expect($client->capturedUrl ?? '')->toBe('');
 });

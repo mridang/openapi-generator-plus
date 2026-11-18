@@ -1873,6 +1873,8 @@ class PetApiTest {
         assertThat(calls.get(0)[0]).isEqualTo(7L);
         assertThat(calls.get(0)[1]).isNull();
         assertThat(calls.get(0)[2]).isNull();
+    }
+
     @Test
     void bhvAuth043OperationSendsOnlyTheCredentialOfTheSchemeItNames() throws Exception {
         Map<String, String> sent = new HashMap<>();

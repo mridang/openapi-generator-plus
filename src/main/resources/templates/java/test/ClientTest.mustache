@@ -434,6 +434,31 @@ class ClientTest {
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        java.util.List<String> started = new java.util.concurrent.CopyOnWriteArrayList<>();
+        java.util.List<Integer> finished = new java.util.concurrent.CopyOnWriteArrayList<>();
+        CallHook hook = (info, headers) -> {
+            started.add(info.operationId() + " " + info.urlTemplate());
+            return outcome -> finished.add(outcome.statusCode());
+        };
+        try (supplied) {
+            {{clientClassName}} client = {{clientClassName}}.builder("http://127.0.0.1:" + server.getAddress().getPort())
+                    .transportOptions(TransportOptions.builder().httpClient(supplied).build())
+                    .callHook(hook)
+                    .build();
+            client.store.getInventory();
+
+            assertEquals(java.util.List.of("getInventory /store/inventory"), started);
+            assertEquals(java.util.List.of(200), finished);
+            client.close();
+        } finally {
+            server.stop(0);
+        }
+    }
+
     @Test
     void bhvLifecycle042RequestsGoThroughTheSuppliedHttpClient() throws Exception {
         com.sun.net.httpserver.HttpServer server =
@@ -508,23 +533,6 @@ class ClientTest {
         });
         server.start();
         java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
-        java.util.List<String> started = new java.util.concurrent.CopyOnWriteArrayList<>();
-        java.util.List<Integer> finished = new java.util.concurrent.CopyOnWriteArrayList<>();
-        CallHook hook = (info, headers) -> {
-            started.add(info.operationId() + " " + info.urlTemplate());
-            return outcome -> finished.add(outcome.statusCode());
-        };
-        try (supplied) {
-            {{clientClassName}} client = {{clientClassName}}.builder("http://127.0.0.1:" + server.getAddress().getPort())
-                    .transportOptions(TransportOptions.builder().httpClient(supplied).build())
-                    .callHook(hook)
-                    .build();
-            client.store.getInventory();
-
-            assertEquals(java.util.List.of("getInventory /store/inventory"), started);
-            assertEquals(java.util.List.of(200), finished);
-            client.close();
-        } finally {
         try {
             {{invokerPackage}}.DefaultApiClient apiClient = new {{invokerPackage}}.DefaultApiClient(
                     TransportOptions.builder().httpClient(supplied).build());

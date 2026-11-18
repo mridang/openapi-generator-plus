@@ -3251,6 +3251,7 @@ class ObjectSerializerTest {
                     ObjectSerializer.stringify(new java.math.BigDecimal("12.345678901234567890123")));
             assertEquals("1000", ObjectSerializer.stringify(new java.math.BigDecimal("1E+3")));
         }
+    }
 
     @Test
     void bhvSerialization067ExtraPropertiesAreWrittenAsTopLevelKeys() throws Exception {

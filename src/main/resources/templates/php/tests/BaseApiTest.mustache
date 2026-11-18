@@ -2290,6 +2290,8 @@ test('bhv telemetry 007 a call retried by the transport records one span and one
     expect($spans->getSpans())->toHaveCount(1);
     $count = HookTelemetry::number(HookTelemetry::metrics($reader, $metrics)['http.client.request.count']);
     expect($count->value)->toEqual(1);
+});
+
 test('bhv auth 046 an operation that inherits the document level security receives the client authenticator on the wire', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');

@@ -2523,6 +2523,9 @@ func TestBhvMocking006_PetApi_CallWithoutOptionsReachesTheFullSignatureWithNoneS
 	}
 	if fake.gotSrv != nil {
 		t.Errorf("expected the fake to see no per-call options, got %v", fake.gotSrv)
+	}
+}
+
 // Each operation sends only the credential of the scheme it names in its security requirement.
 func TestBhvAuth043_PetApi_AddPetSendsOnlyTheSchemeItNames(t *testing.T) {
 	t.Parallel()

@@ -251,7 +251,7 @@ func TestClient_WithTokenFailsWhenACredentialCannotBeResolved(t *testing.T) {
 	}
 }
 
-func TestClient_WithTokenProviderAsksTheProviderForEveryRequestWithTheCallContext(t *testing.T) {
+func TestBhvAuth037_Client_WithTokenProviderAsksTheProviderForEveryRequestWithTheCallContext(t *testing.T) {
 	t.Parallel()
 	var seen []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -480,5 +480,59 @@ func TestBhvHooks010_Client_AHookSetOnTheClientStillFiresWhenTheCallerSuppliedTh
 	}
 	if got := seen.Load(); got != "supplied" {
 		t.Errorf("expected the hook header on the request, got %v", got)
+	}
+}
+
+// A token provider takes precedence over the same token read from the environment.
+func TestBhvAuth038_Client_TokenProviderTakesPrecedenceOverTheEnvironmentToken(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
+	var seen string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	provider := func(context.Context) (string, error) { return "provider-token", nil }
+	client, err := petstore.NewClientWithTokenProvider(server.URL, provider, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	if seen != "Bearer provider-token" {
+		t.Errorf("expected the provider token, got %q", seen)
+	}
+}
+
+// An environment variable that is set but empty counts as unset.
+func TestBhvAuth040_Client_EmptyTokenVariableCountsAsUnset(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "")
+	client, err := petstore.NewClientWithToken("/api/v3", "", nil)
+	if !errors.Is(err, petstore.ErrMissingCredential) || client != nil {
+		t.Errorf("expected ErrMissingCredential and no client, got %v %v", client, err)
+	}
+}
+
+// A token passed to the constructor takes precedence over the same environment variable.
+func TestBhvAuth041_Client_ExplicitTokenWinsOverTheEnvironmentVariable(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
+	var seen string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "explicit-token", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	if seen != "Bearer explicit-token" {
+		t.Errorf("expected the explicit token, got %q", seen)
 	}
 }
