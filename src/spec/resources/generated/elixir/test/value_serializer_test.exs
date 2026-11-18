@@ -925,6 +925,19 @@ defmodule PetstoreClient.ValueSerializerTest do
       end
     end
 
+    test "bhv serialization 005 a path value keeps unreserved and sub-delimiter characters literal and percent-encodes every other character" do
+      literal = "-._~!$&'()*+,;=:@"
+
+      for code <- 0x20..0x7E do
+        char = <<code>>
+        kept = URI.char_unreserved?(code) or String.contains?(literal, char)
+        expected = if kept, do: char, else: "%" <> Base.encode16(char)
+
+        assert PetstoreClient.ValueSerializer.serialize("a" <> char <> "b", :path, "string") ==
+                 "a" <> expected <> "b"
+      end
+    end
+
     test "bhv serializationparam 119 a tilde is kept literal in a path parameter value" do
       assert PetstoreClient.ValueSerializer.serialize("a~b", :path, "string") == "a~b"
       assert PetstoreClient.ValueSerializer.serialize("~", :path, "string") == "~"
@@ -1248,6 +1261,91 @@ defmodule PetstoreClient.ValueSerializerTest do
 
       assert PetstoreClient.ValueSerializer.maybe_allow_reserved(nil, true) == nil
     end
+  end
+
+  test "bhv serialization 015 an object-valued parameter is written with the prefix and separators of its style" do
+    object = %{"role" => "admin", "firstName" => "Alex"}
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "filter",
+             object,
+             :path,
+             "object",
+             nil,
+             "label",
+             false
+           ) ==
+             ".firstName,Alex,role,admin"
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "filter",
+             object,
+             :path,
+             "object",
+             nil,
+             "label",
+             true
+           ) ==
+             ".firstName=Alex.role=admin"
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "filter",
+             object,
+             :path,
+             "object",
+             nil,
+             "matrix",
+             false
+           ) ==
+             ";filter=firstName,Alex,role,admin"
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "filter",
+             object,
+             :path,
+             "object",
+             nil,
+             "matrix",
+             true
+           ) ==
+             ";firstName=Alex;role=admin"
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "filter",
+             object,
+             :query,
+             "object",
+             nil,
+             "form",
+             false
+           ) ==
+             "firstName,Alex,role,admin"
+  end
+
+  test "bhv serialization 016 an object-valued parameter in a delimited style is written as alternating keys and values joined by the delimiter" do
+    object = %{"role" => "admin", "firstName" => "Alex"}
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "filter",
+             object,
+             :query,
+             "object",
+             nil,
+             "pipeDelimited",
+             false
+           ) ==
+             "firstName|Alex|role|admin"
+
+    assert PetstoreClient.ValueSerializer.serialize_styled(
+             "filter",
+             object,
+             :query,
+             "object",
+             nil,
+             "spaceDelimited",
+             false
+           ) ==
+             "firstName Alex role admin"
   end
 
   test "bhv serializationparam 002 path array item with reserved char is percent encoded" do

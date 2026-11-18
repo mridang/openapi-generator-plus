@@ -115,6 +115,17 @@ defmodule {{moduleName}}.ValueSerializer do
   # `k1,v1,k2,v2`: the flat form of a non-exploded object.
   defp flatten_object(pairs), do: Enum.flat_map(pairs, fn {key, value} -> [key, value] end)
 
+  # The wire pairs of an object-valued style parameter: path values are
+  # percent-encoded, every other location is written as it is.
+  defp object_style_pairs(value, location) do
+    value
+    |> object_pairs()
+    |> Enum.map(fn {key, val} -> {style_part(key, location), style_part(val, location)} end)
+  end
+
+  defp style_part(text, :path), do: encode_path_segment(text)
+  defp style_part(text, _location), do: text
+
   # Returns the wire-value string for `value` when `schema_type` resolves to a
   # generated enum module that maps the atom via `value/1`; otherwise nil so
   # the caller falls back to `stringify/1`.
@@ -326,6 +337,18 @@ defmodule {{moduleName}}.ValueSerializer do
   defp serialize_matrix(_param_name, nil, :query, _explode), do: nil
   defp serialize_matrix(_param_name, nil, _location, _explode), do: ""
 
+  # matrix object: `;key=value;key=value` when exploded, otherwise
+  # `;name=key,value,key,value`.
+  defp serialize_matrix(param_name, value, location, explode) when is_object(value) do
+    pairs = object_style_pairs(value, location)
+
+    if explode do
+      Enum.map_join(pairs, "", fn {key, val} -> ";#{key}=#{val}" end)
+    else
+      ";#{param_name}=#{Enum.join(flatten_object(pairs), ",")}"
+    end
+  end
+
   defp serialize_matrix(param_name, value, :path, explode) when is_list(value) do
     if explode do
       Enum.map_join(value, "", fn v ->
@@ -363,6 +386,18 @@ defmodule {{moduleName}}.ValueSerializer do
   defp serialize_label(nil, :query, _explode), do: nil
   defp serialize_label(nil, _location, _explode), do: ""
 
+  # label object: `.key=value.key=value` when exploded, otherwise
+  # `.key,value,key,value`.
+  defp serialize_label(value, location, explode) when is_object(value) do
+    pairs = object_style_pairs(value, location)
+
+    if explode do
+      "." <> Enum.map_join(pairs, ".", fn {key, val} -> "#{key}=#{val}" end)
+    else
+      "." <> Enum.join(flatten_object(pairs), ",")
+    end
+  end
+
   defp serialize_label(value, :path, explode) when is_list(value) do
     if explode do
       ".#{Enum.map_join(value, ".", fn v -> encode_path_segment({{moduleName}}.ObjectSerializer.stringify(v)) end)}"
@@ -391,6 +426,12 @@ defmodule {{moduleName}}.ValueSerializer do
 
   defp serialize_delimited(nil, :query, _delimiter, _explode), do: nil
   defp serialize_delimited(nil, _location, _delimiter, _explode), do: ""
+
+  # A delimited object is its alternating keys and values joined by the
+  # delimiter, whatever explode says.
+  defp serialize_delimited(value, location, delimiter, _explode) when is_object(value) do
+    value |> object_style_pairs(location) |> flatten_object() |> Enum.join(delimiter)
+  end
 
   defp serialize_delimited(value, _location, _delimiter, true) when is_list(value) do
     Enum.map(value, &{{moduleName}}.ObjectSerializer.stringify/1)

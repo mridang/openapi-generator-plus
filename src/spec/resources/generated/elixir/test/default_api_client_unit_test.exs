@@ -1239,6 +1239,177 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert target_headers["x-trace"] == "keep"
   end
 
+  # Answers each request from a table keyed by its full URL, so a redirect chain
+  # runs through the SDK's own follower with no socket. Every request the
+  # transport is handed is sent to this test as {:hop, request}.
+  defp routed_client(routes, transport_opts \\ []) do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:hop, request})
+      {status, headers, body} = Map.fetch!(routes, URI.to_string(request.url))
+      {request, Req.Response.new(status: status, headers: headers, body: body)}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new([req_options: [adapter: adapter]] ++ transport_opts)
+
+    PetstoreClient.DefaultApiClient.new(transport)
+  end
+
+  defp collect_hops(acc \\ []) do
+    receive do
+      {:hop, request} -> collect_hops(acc ++ [request])
+    after
+      0 -> acc
+    end
+  end
+
+  test "bhv redirects 039 a request with no body keeps its method when a redirect goes from HTTPS to plain HTTP" do
+    client =
+      routed_client(%{
+        "https://secure.invalid/start" => {307, [{"location", "http://plain.invalid/next"}], ""},
+        "http://plain.invalid/next" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://secure.invalid/start",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert [_first, second] = collect_hops()
+    assert second.method == :get
+  end
+
+  test "bhv redirects 040 a 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused" do
+    for status <- [301, 302, 303] do
+      client =
+        routed_client(%{
+          "https://secure.invalid/start" =>
+            {status, [{"location", "http://plain.invalid/next"}], ""},
+          "http://plain.invalid/next" =>
+            {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+        })
+
+      response =
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :post,
+          "https://secure.invalid/start",
+          %{"Content-Type" => "application/json"},
+          ~s({"x":1})
+        )
+
+      assert response.status_code == 200, "a #{status} from HTTPS to plain HTTP must be followed"
+      assert [_first, second] = collect_hops()
+      assert second.method == :get
+    end
+  end
+
+  test "bhv redirects 041 a redirect that turns a POST into a GET sends the follow-up with no Content-Length or Content-Type" do
+    client =
+      routed_client(%{
+        "https://api.invalid/start" => {302, [{"location", "https://api.invalid/landing"}], ""},
+        "https://api.invalid/landing" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :post,
+      "https://api.invalid/start",
+      %{"Content-Type" => "application/json"},
+      ~s({"x":1})
+    )
+
+    assert [_first, second] = collect_hops()
+    assert second.method == :get
+    assert Req.Request.get_header(second, "content-length") == []
+    assert Req.Request.get_header(second, "content-type") == []
+  end
+
+  test "bhv redirects 042 a 307 redirect of a bodyless POST keeps the request a POST and sends Content-Length zero" do
+    client =
+      routed_client(%{
+        "https://api.invalid/start" => {307, [{"location", "https://api.invalid/landing"}], ""},
+        "https://api.invalid/landing" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :post,
+      "https://api.invalid/start",
+      %{},
+      nil
+    )
+
+    assert [_first, second] = collect_hops()
+    assert second.method == :post
+    assert Req.Request.get_header(second, "content-length") == ["0"]
+  end
+
+  test "bhv redirects 043 a relative Location is resolved against the URL of the request that received the redirect" do
+    client =
+      routed_client(%{
+        "https://api.invalid/a/b/c" => {302, [{"location", "d/e"}], ""},
+        "https://api.invalid/a/b/d/e" => {302, [{"location", "../../f?x=1"}], ""},
+        "https://api.invalid/a/f?x=1" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://api.invalid/a/b/c",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+
+    assert Enum.map(collect_hops(), &URI.to_string(&1.url)) == [
+             "https://api.invalid/a/b/c",
+             "https://api.invalid/a/b/d/e",
+             "https://api.invalid/a/f?x=1"
+           ]
+  end
+
+  test "bhv redirects 044 a cross-origin redirect keeps the SDK's own proxy credential and drops the caller's authorization and token headers" do
+    client =
+      routed_client(
+        %{
+          "http://origin.invalid/a" => {302, [{"location", "http://other.invalid/b"}], ""},
+          "http://other.invalid/b" =>
+            {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+        },
+        proxy: "http://proxy-user:proxy-pass@proxy.invalid:3128"
+      )
+
+    proxy_header = PetstoreClient.DefaultApiClient.proxy_auth_header(client)
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "http://origin.invalid/a",
+      %{"Authorization" => "Bearer caller-secret", "X-Auth-Token" => "caller-token"},
+      nil
+    )
+
+    assert [_first, second] = collect_hops()
+    connect_options = Map.get(second.options, :connect_options, [])
+    assert Keyword.get(connect_options, :proxy_headers) == [{"proxy-authorization", proxy_header}]
+    assert Req.Request.get_header(second, "authorization") == []
+    assert Req.Request.get_header(second, "x-auth-token") == []
+  end
+
   test "bhv redirects 033 a redirect to a different port is a different origin and drops the credentials" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
