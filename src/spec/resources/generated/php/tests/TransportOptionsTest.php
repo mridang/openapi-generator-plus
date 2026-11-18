@@ -289,7 +289,7 @@ test('bhv options 046 constructing directly with a non http proxy scheme is reje
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
 });
 
-test('constructor rejects a malformed proxy url', function (): void {
+test('bhv misc 298 constructor rejects a malformed proxy url', function (): void {
     expect(fn () => new TransportOptions(proxy: 'not-a-url'))
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL: not-a-url');
 });
