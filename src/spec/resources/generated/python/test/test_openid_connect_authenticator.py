@@ -675,6 +675,18 @@ class TestDiscoveryCacheLifetime:
             == "https://auth2.example.com/token"
         )
 
+    def test_bhv_misc_199_discovery_runs_again_when_the_cached_document_has_a_zero_max_age(
+        self,
+    ) -> None:
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=0")
+        auth.set_api_client(mock_client)
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
 
 class TestDiscoveryTransportFailure:
     def test_bhv_authoidc_033_a_failed_discovery_request_names_its_method_and_path(
@@ -708,6 +720,30 @@ class TestDiscoveryTransportFailure:
             auth.build_authorization_url()
 
         assert excinfo.value is failure
+
+    def test_bhv_misc_201_a_failed_discovery_request_reports_its_path_without_the_query_string(
+        self,
+    ) -> None:
+        auth = OpenIdConnectAuthenticator(
+            host="https://api.example.com",
+            openid_connect_url="https://auth.example.com/.well-known/openid-configuration?tenant=a",
+            client_id="oidc_client",
+            client_secret="oidc_secret",
+            redirect_uri="https://app.example.com/callback",
+            scopes=["openid", "profile"],
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=503,
+            body="down",
+            headers={"content-type": "text/plain"},
+        )
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(ApiException) as exc_info:
+            auth.build_authorization_url()
+
+        assert exc_info.value.request_path == "/.well-known/openid-configuration"
 
 
 class TestOidcAuthorizationUrl:

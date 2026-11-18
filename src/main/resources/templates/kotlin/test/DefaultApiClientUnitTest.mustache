@@ -3555,4 +3555,132 @@ class DefaultApiClientUnitTest {
         apiClient.close()
         assertDoesNotThrow { apiClient.close() }
     }
+    @Nested
+    @DisplayName("response bodies, raw queries and multipart layout")
+    inner class ResponseBodiesAndPartLayout {
+
+        @Test
+        @DisplayName("bhvMisc081 a binary response body is returned as base64 text")
+        fun bhvMisc081BinaryBodyIsReturnedAsBase64() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = byteArrayOf(1, 2, 3),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "application/octet-stream"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/binary", emptyMap(), null)
+            }
+            assertEquals("AQID", response!!.body)
+        }
+
+        @Test
+        @DisplayName("bhvMisc083 a raw query keeps its repeated keys, values and percent-encodings exactly")
+        fun bhvMisc083RawQueryIsSentExactlyAsWritten() {
+            var sentQuery: String? = null
+            val client = mockClient(requestCapture = { request -> sentQuery = request.url.encodedQuery })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "GET",
+                    "http://localhost/search?a=1&a=2&b=%20%2F&c=",
+                    emptyMap(),
+                    null,
+                )
+            }
+            assertEquals("a=1&a=2&b=%20%2F&c=", sentQuery)
+        }
+
+        @Test
+        @DisplayName("bhvMisc095 a response body with bytes invalid in its charset replaces each bad byte with U+FFFD")
+        fun bhvMisc095InvalidCharsetBytesDecodeToReplacementCharacter() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = byteArrayOf(0x41, 0xFF.toByte(), 0x42),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "text/plain; charset=UTF-8"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/invalid", emptyMap(), null)
+            }
+            assertEquals("A�B", response!!.body)
+        }
+
+        @Test
+        @DisplayName("bhvMisc096 a text multipart part carries only its Content-Disposition and no transfer encoding")
+        fun bhvMisc096PartsCarryNoTransferEncodingHeader() {
+            var bodyBytes: ByteArray? = null
+            val client = mockClient(requestCapture = { request ->
+                bodyBytes = runBlocking { request.body.toByteArray() }
+            })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    linkedMapOf<String, Any?>("text" to "value"),
+                )
+            }
+            val wire = String(bodyBytes!!, Charsets.ISO_8859_1)
+            assertFalse(wire.contains("Content-Transfer-Encoding"), wire)
+            assertTrue(wire.contains("name=\"text\"\r\n\r\nvalue"), wire)
+        }
+
+        @Test
+        @DisplayName("bhvMisc097 each element of a multipart array field is its own part in order")
+        fun bhvMisc097ArrayElementsAreSeparateParts() {
+            var bodyBytes: ByteArray? = null
+            val client = mockClient(requestCapture = { request ->
+                bodyBytes = runBlocking { request.body.toByteArray() }
+            })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    linkedMapOf<String, Any?>("tags" to listOf("first", "second"), "note" to "single"),
+                )
+            }
+            val wire = String(bodyBytes!!, Charsets.ISO_8859_1)
+            assertEquals(2, Regex("name=\"tags\"").findAll(wire).count(), wire)
+            assertEquals(1, Regex("name=\"note\"").findAll(wire).count(), wire)
+            assertTrue(wire.indexOf("first") < wire.indexOf("second"), wire)
+        }
+
+        @Test
+        @DisplayName("bhvMisc099 a non-ASCII multipart filename becomes one canonical directive with an ASCII fallback")
+        fun bhvMisc099NonAsciiFilenameUsesCanonicalDirective() {
+            assertEquals(
+                "filename=\"na_ve file.txt\"; filename*=UTF-8''na%C3%AFve%20file.txt",
+                buildFilenameDirective("naïve file.txt"),
+            )
+        }
+    }
+    @Nested
+    @DisplayName("declared multipart subtype")
+    inner class DeclaredMultipartSubtype {
+
+        @Test
+        @DisplayName("bhvMisc100 a declared multipart subtype is kept and gets a boundary")
+        fun bhvMisc100DeclaredMultipartSubtypeIsKept() {
+            var contentType: String? = null
+            val client = mockClient(requestCapture = { request ->
+                contentType = request.body.contentType.toString()
+            })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/mixed"),
+                    linkedMapOf<String, Any?>("note" to "x"),
+                )
+            }
+            assertTrue(contentType!!.startsWith("multipart/mixed; boundary="), contentType)
+        }
+    }
 }
