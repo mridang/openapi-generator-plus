@@ -107,7 +107,7 @@ module Petstore::Client
       # properties (matching the 10 SDKs that round-trip them). Keyed by the
       # original JSON key; values are typed via ADDITIONAL_PROPERTIES_TYPE
       # when one is declared.
-      attribute :additional_properties, Types::Hash.optional.meta(omittable: true).default(Hash.new.freeze)
+      attribute :additional_properties, Types::Hash.optional.meta(omittable: true).default({}.freeze)
       attribute :created_at, Types::Any.optional.meta(omittable: true)
     end
   end

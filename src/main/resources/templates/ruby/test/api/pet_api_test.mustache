@@ -499,7 +499,7 @@ describe {{moduleName}}::Api::PetApi do
           )
         )
         body = captured_body.pop
-        offsets = %w[file document_type notes].map { |part| body.index("name=\"#{part}\"") }
+        offsets = %w[file documentType notes].map { |part| body.index("name=\"#{part}\"") }
         _(offsets.compact.size).must_equal 3
         _(offsets).must_equal offsets.sort
       ensure

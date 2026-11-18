@@ -611,7 +611,7 @@ module {{moduleName}}
       # properties (matching the 10 SDKs that round-trip them). Keyed by the
       # original JSON key; values are typed via ADDITIONAL_PROPERTIES_TYPE
       # when one is declared.
-      attribute :additional_properties, Types::Hash.optional.meta(omittable: true).default(Hash.new.freeze)
+      attribute :additional_properties, Types::Hash.optional.meta(omittable: true).default({}.freeze)
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
       # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.

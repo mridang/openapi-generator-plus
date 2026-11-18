@@ -318,7 +318,7 @@ module Petstore::Client
       def transport_call_options(request_options)
         timeout = request_options&.timeout
         max_retries = request_options&.max_retries
-        raise ArgumentError, "Invalid timeout: must be a positive number of milliseconds (got #{timeout.inspect})" if timeout && (!timeout.is_a?(Numeric) || timeout <= 0)
+        raise ArgumentError, "Invalid timeout: must be at least one millisecond (got #{timeout.inspect})" if timeout && (!timeout.is_a?(Numeric) || timeout < 1)
 
         ::Petstore::Client::TransportOptions.validate_max_retries!(max_retries) unless max_retries.nil?
         { timeout: timeout, max_retries: max_retries }.compact
