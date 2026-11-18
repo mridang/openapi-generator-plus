@@ -1942,6 +1942,20 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langjava001 | Closing a client leaves a transport the caller injected open, so another client can reuse it.
+langjava002 | A default header the caller sets wins over the SDK header of the same name, whatever the case of the name.
+langjava003 | The sensitive header names the SDK masks are stored lowercased so that lookups ignore case.
+langjava004 | The https-to-http body refusal applies only to a downgrade; same-scheme and upgrading redirects are not refused.
+langjava005 | A non-ASCII multipart filename gets an RFC 5987 filename star that percent-encodes all but unreserved characters.
+langjava006 | An interrupted caller thread surfaces as a cancellation exception, never as an SDK error.
+langjava007 | Only idempotent methods, including QUERY, are replayable on a dropped connection; POST and PATCH are not.
+langjava008 | A POST whose connection drops before any response is sent once and raises a network error.
+langjava009 | A GET whose connection drops before any response is replayed exactly once before a network error is raised.
+langjava010 | A connection closed after the headers raises a network exception that keeps the original cause.
+langjava011 | A zstd body whose decoder library is missing raises an error naming the unavailable library, never the encoded bytes.
+langjava012 | A corrupt zstd body raises a decoding error that does not blame a missing library.
+langjava013 | A request sent without default headers carries only the headers the caller passed for that request.
+||||||| cef6fbad1
 langcsharp001 | Constructing a model with an unknown enum value keeps that value without throwing
 langcsharp002 | Malformed JSON raises the library serialization error and no native parser error escapes
 langcsharp003 | A null in a free-form field stays null after decoding

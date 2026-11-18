@@ -166,7 +166,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void renderedFormMasksTheAuthenticationChallengeHeadersToo() {
+  void bhvErrors087RenderedFormMasksTheAuthenticationChallengeHeadersToo() {
     ApiException ex =
         new ApiException(
             401,
@@ -206,14 +206,17 @@ class ApiExceptionTest {
   }
 
   @Test
-  void renderedBodyIsCappedAndControlCharactersAreEscaped() {
+  void bhvErrors086RenderedBodyIsCappedAndTheFullBodyStaysAvailable() {
     String longBody = "x".repeat(1030);
     ApiException capped = new ApiException(500, "boom", Map.of(), longBody);
     assertEquals(
         "boom\nHTTP status code: 500\nResponse body: " + "x".repeat(1024) + "... (6 more bytes)",
         capped.toString());
     assertEquals(longBody, capped.getResponseBody());
+  }
 
+  @Test
+  void bhvErrors085RenderedBodyEscapesLineBreaksSoABodyCannotForgeALine() {
     ApiException forged = new ApiException(500, "boom", Map.of(), "a\r\nHTTP status code: 200");
     assertEquals(
         "boom\nHTTP status code: 500\nResponse body: a\\r\\nHTTP status code: 200",
@@ -638,7 +641,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void everyExceptionConstructorTakesTheRequestMethodAndPath() {
+  void bhvErrors092EveryExceptionConstructorTakesTheRequestMethodAndPath() {
     java.io.IOException cause = new java.io.IOException("root cause");
     ApiException[] errors = {
       new ApiException(418, "m", null, null, null, cause, "PUT", "/a?q=1"),
@@ -836,7 +839,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+  void bhvErrors094EveryErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
     java.util.List<Class<? extends RuntimeException>> errors =
         java.util.List.of(
             OpenAPIException.class,
@@ -917,7 +920,8 @@ class ApiExceptionTest {
     assertFalse(token instanceof ApiException);
   }
 
-  void serializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery() {
+  @Test
+  void bhvErrors090SerializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery() {
     SerializationException bare = new SerializationException("bad");
     assertEquals(0, bare.getStatusCode());
     assertNull(bare.getResponseHeaders());
