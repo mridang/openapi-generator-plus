@@ -138,7 +138,12 @@ export abstract class AbstractApiClient implements ApiClient {
       return ApiError.fromResponse(proxyStatus, null, null, { method, path: request.requestPath });
     }
     if (name === 'TypeError') {
-      return new NetworkError(message, { cause: error, ...request });
+      const networkError = new NetworkError(message, { cause: error, ...request });
+      /* OpenSSL and undici codes for a rejected certificate or failed TLS handshake. */
+      if (/^(ERR_TLS_|ERR_SSL_|ERR_CERT_|CERT_|UNABLE_TO_|SELF_SIGNED_|DEPTH_ZERO_)/.test(causeCode)) {
+        AbstractApiClient.tlsFailures.add(networkError);
+      }
+      return networkError;
     }
     return new ApiError(0, message, null, null, null, { cause: error, ...request });
   }
@@ -339,7 +344,7 @@ export abstract class AbstractApiClient implements ApiClient {
       const retryable =
         response != null
           ? AbstractApiClient.isRetryableStatus(response.statusCode)
-          : AbstractApiClient.isRetryableFailure(failure);
+          : AbstractApiClient.isRetryableFailure(failure, method);
       if (!retryable || multipart || attempt >= maxRetries) {
         return finish();
       }
@@ -370,19 +375,32 @@ export abstract class AbstractApiClient implements ApiClient {
     return status === 408 || status === 409 || status === 429 || (status >= 500 && status <= 599 && status !== 501);
   }
 
+  /** Network errors that are TLS or certificate failures: the same answer comes back on every attempt. */
+  private static readonly tlsFailures = new WeakSet<object>();
+
+  /** Methods that RFC 9110 defines as idempotent (QUERY per the HTTP QUERY draft). */
+  private static readonly idempotentMethods: ReadonlySet<string> = new Set([
+    'GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY'
+  ]);
+
   /**
-   * Whether a failure is a network error that happened before any response:
-   * not a timeout (the deadline is spent), not a failure while reading a
-   * body, not any other error.
+   * Whether a failure is a network error that happened before any response,
+   * for a method that may be sent again: not a timeout (the deadline is
+   * spent), not a failure while reading a body, not a TLS or certificate
+   * failure, not any other error, and not a non-idempotent method (a POST
+   * or PATCH whose connection dropped may already have been applied).
    *
    * @param failure the value the attempt rejected with
+   * @param method the HTTP method of the request
    * @returns true when the request is worth repeating
    */
-  private static isRetryableFailure(failure: unknown): boolean {
+  private static isRetryableFailure(failure: unknown, method: string): boolean {
     return (
       failure instanceof NetworkError &&
       !(failure instanceof NetworkTimeoutError) &&
-      !AbstractApiClient.afterResponse.has(failure)
+      !AbstractApiClient.afterResponse.has(failure) &&
+      !AbstractApiClient.tlsFailures.has(failure) &&
+      AbstractApiClient.idempotentMethods.has(method.toUpperCase())
     );
   }
 

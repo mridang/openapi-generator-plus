@@ -1746,6 +1746,95 @@ void main() {
       }
     });
 
+    test('bhv misc 177 a default Content-Type header in any letter case is not sent when the request has no body', () async {
+      String? contentType = 'unset';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await request.drain<void>();
+        contentType = request.headers.value('content-type');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .defaultHeader('content-type', 'application/json')
+              .build(),
+        );
+        await client.sendRequest('GET', 'http://localhost:${server.port}/x', {}, null);
+        expect(contentType, isNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 181 content placed in a header is sent exactly as serialised, with no percent-encoding applied', () async {
+      String? raw;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await request.drain<void>();
+        raw = request.headers.value('x-raw');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().build(),
+        );
+        await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/x',
+          {'X-Raw': 'a%20b c/d'},
+          null,
+        );
+        expect(raw, equals('a%20b c/d'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 182 a cross-origin redirect removes the Authorization header whatever its letter case', () async {
+      final seen = <String?>[];
+      final other = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      other.listen((request) async {
+        await request.drain<void>();
+        seen.add(request.headers.value('authorization'));
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+      final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      origin.listen((request) async {
+        await request.drain<void>();
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${other.port}/next')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().followRedirects(true).build(),
+        );
+        for (final name in ['Authorization', 'AUTHORIZATION', 'authorization']) {
+          await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${origin.port}/start',
+            {name: 'Bearer caller-secret'},
+            null,
+          );
+        }
+        expect(seen, everyElement(isNull));
+      } finally {
+        await origin.close();
+        await other.close();
+      }
+    });
+
     test('bhv misc 132 a per-call header whose name holds a credential word is dropped on a cross-origin redirect', () async {
       String? firstSeen;
       String? landedSeen;

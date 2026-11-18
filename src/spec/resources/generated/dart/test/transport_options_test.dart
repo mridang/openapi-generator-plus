@@ -22,6 +22,45 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 175 a credential header name is hidden in any letter case',
+      () {
+        final text = TransportOptions.builder()
+            .defaultHeader('aUtHoRiZaTiOn', 'Bearer hidden-secret')
+            .build()
+            .toString();
+
+        expect(text, isNot(contains('hidden-secret')));
+      },
+    );
+
+    test(
+      'bhv misc 180 the inspect form shows the values of non-sensitive default headers',
+      () {
+        final text = TransportOptions.builder()
+            .defaultHeader('X-Visible', 'shown-value')
+            .defaultHeader('Authorization', 'Bearer hidden-secret')
+            .build()
+            .toString();
+
+        expect(text, contains('shown-value'));
+        expect(text, isNot(contains('hidden-secret')));
+      },
+    );
+
+    test(
+      'bhv misc 186 a ready-made HTTP connection combined with a CA bundle is rejected when the options are built',
+      () {
+        expect(
+          () => TransportOptionsBuilder()
+              .httpClient(http.Client())
+              .caCertPath('ca.pem')
+              .build(),
+          throwsArgumentError,
+        );
+      },
+    );
+
     test('bhv misc 026 a configuration mistake is not an API exception', () {
       expect(
         () => TransportOptions.builder().timeout(-1),

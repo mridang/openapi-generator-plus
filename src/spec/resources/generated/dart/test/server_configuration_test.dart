@@ -401,6 +401,17 @@ void main() {
       },
     );
 
+    test('bhv misc 156 lists every server in declaration order', () {
+      expect(
+        allServers.map((s) => s.urlTemplate).toList(),
+        equals([
+          '/api/v3',
+          'https://{environment}.example.com/api/{version}',
+          'https://{tenant}.example.com/api',
+        ]),
+      );
+    });
+
     test(
       'bhv langdart 078 a constant configuration cannot be modified through its variables',
       () {
