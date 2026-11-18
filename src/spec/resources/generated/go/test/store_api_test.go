@@ -440,7 +440,7 @@ func TestBhvOperations107_StoreApi_GetBySwatchOmitsUnsetOptionalEnumParameters(t
 
 // Nested containers and enum bodies decode into their typed leaves through the
 // operation, not just through the serializer.
-func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
+func TestBhvLanggo008_StoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 	t.Parallel()
 
 	t.Run("matrix", func(t *testing.T) {
