@@ -2252,3 +2252,22 @@ langnode058 | A credential falls back to the environment when no value is passed
 langnode059 | A missing credential error names the variable when nothing supplies the value
 langnode060 | An OAuth2 credential from the environment with a line break is refused
 langnode061 | An OAuth2 credential from the environment without a line break is accepted
+langnode062 | An empty CA certificate path file fails to parse
+langnode063 | A connection failure has null response headers
+langnode064 | A client used after close throws an invalid-state error
+langnode065 | Dot-jpg and dot-jpeg extensions map to image/jpeg
+langnode066 | A file with no extension falls back to application/octet-stream
+langnode067 | An unknown file extension falls back to application/octet-stream
+langnode068 | Dot-jpg and dot-jpeg extensions map to image/jpeg in a multipart form
+langnode069 | A multipart filename with no extension falls back to application/octet-stream
+langnode070 | The apiKey-in-header names listed in the comment have no dangling separator
+langnode071 | Hardcoded provider key names absent from the spec are not listed
+langnode072 | Header names in the credential set are lowercase
+langnode073 | Non-credential headers are not in the credential set
+langnode074 | A running request is cancelled through its own signal only
+langnode075 | An already-decoded body is left untouched by decoding
+langnode076 | A per-call timeout of null lifts the transport deadline during the backoff wait
+langnode077 | Two URLs with the same origin are recognised as the same origin
+langnode078 | Two URLs with different origins are recognised as different origins
+langnode079 | A redirect status follows with the stated method and keeps or drops the body
+langnode080 | A maxRetries value of the wrong type is rejected
