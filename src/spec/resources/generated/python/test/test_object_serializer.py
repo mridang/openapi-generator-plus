@@ -1406,6 +1406,29 @@ class TestModelsAreImmutable:
         )
 
 
+class TestModelValueEquality:
+    """Equality is structural over every field, nested lists and maps included, and never throws."""
+
+    @staticmethod
+    def _vault(shards: list, labels: dict) -> Any:
+        from petstore_client.models.binary_vault import BinaryVault
+
+        return BinaryVault(seal=b"seal", shards=shards, labels=labels)
+
+    def test_bhv_equality_001_same_values_are_equal_and_a_change_in_any_nested_value_is_not(
+        self,
+    ) -> None:
+        first = self._vault([b"a", b"b"], {"k": b"v"})
+        assert first == self._vault([b"a", b"b"], {"k": b"v"})
+        assert first != self._vault([b"a", b"c"], {"k": b"v"})
+        assert first != self._vault([b"a", b"b"], {"k": b"w"})
+        assert first != self._vault([b"a", b"b"], {"other": b"v"})
+        assert first != {"seal": b"seal", "shards": [b"a", b"b"], "labels": {"k": b"v"}}
+        assert first != "BinaryVault"
+        none_value: Any = None
+        assert first != none_value
+
+
 class TestTimeFormat:
     """4.8: ``format: time`` round-trips through ``datetime.time``."""
 
