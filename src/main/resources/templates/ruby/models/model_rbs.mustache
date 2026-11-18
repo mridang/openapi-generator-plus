@@ -89,6 +89,11 @@ module {{moduleName}}::Models
     OPENAPI_FORMATS: Hash[Symbol, String]
     REQUIRED_NULLABLE: Hash[Symbol, bool]
     PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+{{#vendorExtensions.x-allof-base}}
+    OPENAPI_DISCRIMINATOR_NAME: String
+    OPENAPI_DISCRIMINATOR_MAPPING: Hash[String, String]
+    def self.build_subtype: (untyped) -> untyped
+{{/vendorExtensions.x-allof-base}}
     def inspect: () -> String
     def with: (**untyped) -> {{classname}}
 {{#isAdditionalPropertiesTrue}}

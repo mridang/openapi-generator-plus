@@ -518,6 +518,8 @@ module Petstore::Client
         end
         if klass.respond_to?(:openapi_one_of) || klass.respond_to?(:openapi_any_of)
           klass.build(data)
+        elsif klass.const_defined?(:OPENAPI_DISCRIMINATOR_MAPPING, false)
+          klass.build_subtype(data)
         elsif klass.const_defined?(:OPENAPI_TYPES)
           deserialize_model(data, klass)
         elsif klass.const_defined?(:VALUES)

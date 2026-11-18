@@ -12,6 +12,7 @@ require 'time'
 require 'tod'
 require 'dry-struct'
 require_relative '../types'
+require 'petstore/client/models/vehicle'
 
 # :nodoc:
 module Petstore::Client

@@ -93,6 +93,42 @@ module Petstore::Client
         self.class.new(**attributes, **changes)
       end
 
+      # The discriminator of this allOf base type and the subtype each of its
+      # values names. Subtypes inherit this class but not these constants, so
+      # ObjectSerializer decodes a subtype as itself and only the base routes.
+      OPENAPI_DISCRIMINATOR_NAME = 'shapeType'
+      OPENAPI_DISCRIMINATOR_MAPPING = {
+        'Circle' => 'Circle',
+        'Square' => 'Square'
+      }.freeze
+
+      # Decodes a payload into the subtype its discriminator value names.
+      #
+      # @param data [Object] the parsed payload
+      # @return [Shape] the subtype instance
+      # @raise [Errors::SerializationError] if the payload is not an object, the
+      #   discriminator is missing, or its value is not in the mapping
+      def self.build_subtype(data)
+        unless data.is_a?(Hash)
+          raise ::Petstore::Client::Errors::SerializationError,
+                "Expected a JSON object for Shape, got #{data.class}: #{data.inspect}"
+        end
+
+        discriminator_value = data.transform_keys(&:to_s)[OPENAPI_DISCRIMINATOR_NAME]
+        if discriminator_value.nil?
+          raise ::Petstore::Client::Errors::SerializationError,
+                "Missing discriminator '#{OPENAPI_DISCRIMINATOR_NAME}' for Shape"
+        end
+
+        klass_name = OPENAPI_DISCRIMINATOR_MAPPING[discriminator_value.to_s]
+        unless klass_name
+          raise ::Petstore::Client::Errors::SerializationError,
+                "Unknown discriminator value for Shape: '#{discriminator_value}'"
+        end
+
+        ::Petstore::Client::ObjectSerializer.convert_to_type(data, klass_name)
+      end
+
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
         JSON_KEY_MAP[key.to_s] || key.to_sym
