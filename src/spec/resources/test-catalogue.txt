@@ -2482,3 +2482,4 @@ langphp059 | A composite authenticator takes its host from its first member.
 langphp060 | A composite authenticator with no members is refused.
 langphp061 | An anyOf variant with only numeric additional properties serializes as an object.
 langphp062 | The composer manifest declares a valid package name.
+langphp063 | A result carries its payload, headers and status together.
