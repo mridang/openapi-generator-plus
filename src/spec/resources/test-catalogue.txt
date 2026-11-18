@@ -2618,3 +2618,4 @@ langcsharp066 | The builder sets the call hook and the default is none
 langcsharp067 | The string form of a configuration does not print the call hook
 langcsharp068 | A header-located key rejects control characters and non-ASCII text at construction
 langcsharp069 | A key placed in the query is not emitted as a header or cookie
+langcsharp070 | Null server variable overrides are refused when the url is built
