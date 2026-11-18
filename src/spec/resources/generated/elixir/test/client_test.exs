@@ -300,6 +300,59 @@ defmodule PetstoreClient.ClientTest do
     end
   end
 
+  test "bhv lifecycle 039 a client with no host or an empty token is refused at construction, and a valid token builds one" do
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "")
+    end
+
+    assert_raise ArgumentError, ~r/A base URL is required/, fn ->
+      PetstoreClient.Client.new(PetstoreClient.Auth.BearerAuthenticator.new("", "valid-token"))
+    end
+
+    client =
+      PetstoreClient.Client.new(
+        PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "valid-token")
+      )
+
+    assert %PetstoreClient.Client{} = client
+    assert PetstoreClient.Client.close(client) == :ok
+  end
+
+  test "bhv lifecycle 040 leaving a scope that closes the client releases its transport" do
+    authenticator =
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "/api/v3",
+        "id",
+        "secret",
+        "https://auth.example.com/token",
+        []
+      )
+
+    client = PetstoreClient.Client.new(authenticator)
+    manager = authenticator.token_manager
+
+    try do
+      assert Process.alive?(manager)
+    after
+      assert PetstoreClient.Client.close(client) == :ok
+    end
+
+    refute Process.alive?(manager)
+
+    err =
+      assert_raise RuntimeError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client.api_client,
+          :get,
+          "http://127.0.0.1:1/never",
+          %{},
+          nil
+        )
+      end
+
+    assert err.message == "ApiClient has been closed and can no longer send requests"
+  end
+
   test "bhv lifecycle 026 a client built with no credential at all is refused" do
     assert_raise ArgumentError, ~r/At least one credential is required/, fn ->
       PetstoreClient.Client.new(nil)

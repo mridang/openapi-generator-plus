@@ -157,6 +157,30 @@ defmodule PetstoreClient.Api.StoreApiTest do
              PetstoreClient.Api.StoreApi.reserve_stock(existing)
   end
 
+  test "bhv operations 154 a body is checked only against the schema of its own status" do
+    created =
+      new_store_api_for_mock(201, "application/json", ~s({"reservationId":1,"quantity":2}))
+
+    assert_raise PetstoreClient.Errors.SerializationError,
+                 ~r/Missing required field 'receiptCode'/,
+                 fn ->
+                   PetstoreClient.Api.StoreApi.reserve_stock(created)
+                 end
+
+    existing =
+      new_store_api_for_mock(
+        200,
+        "application/json",
+        ~s({"receiptCode":"r-1","expiresAt":"2030-01-01T00:00:00.000+00:00"})
+      )
+
+    assert_raise PetstoreClient.Errors.SerializationError,
+                 ~r/Missing required field 'reservationId'/,
+                 fn ->
+                   PetstoreClient.Api.StoreApi.reserve_stock(existing)
+                 end
+  end
+
   test "bhv operations 130 a malformed 2xx JSON body propagates the deserialization error" do
     api = new_store_api_for_mock(200, "application/json", ~s({"id":))
 

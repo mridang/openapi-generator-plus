@@ -2251,6 +2251,45 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert Req.Request.get_header(request, "x-other") == []
   end
 
+  test "bhv options 053 per-call timeout, retry limit and headers take effect on that one call only" do
+    state = retry_state([{500, [{"retry-after", "0"}]}, 200])
+
+    assert {:ok, _} = get_thing_with(state, max_retries: 1, headers: %{"X-Once" => "yes"}, timeout: 5_000)
+
+    [first, second] = attempts()
+    assert Req.Request.get_header(first, "x-once") == ["yes"]
+    assert Req.Request.get_header(second, "x-once") == ["yes"]
+
+    assert {:ok, _} = get_thing(state)
+
+    [third] = attempts()
+    assert Req.Request.get_header(third, "x-once") == []
+  end
+
+  test "bhv options 055 a call without per-call options leaves the client timeout, retry limit and headers in force" do
+    state =
+      retry_state(
+        [{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200],
+        max_retries: 1,
+        timeout: 5_000,
+        default_headers: %{"X-Client" => "on"}
+      )
+
+    assert state.api_client.transport_options.timeout == 5_000
+    assert {:error, _} = get_thing(state)
+
+    requests = attempts()
+    assert length(requests) == 2
+    assert Enum.all?(requests, &(Req.Request.get_header(&1, "x-client") == ["on"]))
+  end
+
+  test "bhv options 057 a per-call timeout below one millisecond is refused" do
+    for timeout <- [0, -5] do
+      err = assert_raise ArgumentError, fn -> {{moduleName}}.Api.BaseApi.call_settings(nil, timeout: timeout) end
+      assert err.message == "Invalid timeout: must be a positive number of milliseconds (got #{timeout})"
+    end
+  end
+
   test "a per-call timeout bounds that call and a Retry-After past it is not waited for" do
     state = retry_state([{503, [{"retry-after", "5"}]}, 200])
     started = System.monotonic_time(:millisecond)

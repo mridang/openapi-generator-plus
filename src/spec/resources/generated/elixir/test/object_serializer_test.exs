@@ -1468,6 +1468,25 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
+    test "bhv models 018 models whose decimal fields hold numerically equal values compare equal" do
+      first = PetstoreClient.ObjectSerializer.deserialize(~s({"weightKg":2.5}), "DryFood")
+      second = PetstoreClient.ObjectSerializer.deserialize(~s({"weightKg":2.50}), "DryFood")
+
+      assert first == second
+      assert %PetstoreClient.Models.DryFood{weight_kg: 2.5} = second
+    end
+
+    test "bhv models 021 each member of an integer-backed enum carries its declared number as its value" do
+      for {member, number} <- [number_1: 1, number_2: 2, number_3: 3] do
+        assert PetstoreClient.Models.Priority.value(member) == number
+      end
+
+      assert Enum.map(
+               PetstoreClient.Models.Priority.all_values(),
+               &PetstoreClient.Models.Priority.value/1
+             ) == [1, 2, 3]
+    end
+
     test "bhv serializationobject 093 an integer-backed enum never serializes as a JSON string" do
       item = %PetstoreClient.Models.StockItem{priority: :number_3}
       data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))

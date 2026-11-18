@@ -552,6 +552,51 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert_raise ArgumentError, fn -> {{moduleName}}.DefaultApiClient.new(transport) end
   end
 
+  test "bhv headers 031 a request header value containing a carriage return or line feed is refused before the request is sent" do
+    {:ok, listen_socket} = :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen_socket)
+
+    # Records what arrives on the connection: a refused request writes no bytes.
+    receiver =
+      Task.async(fn ->
+        case :gen_tcp.accept(listen_socket, 3_000) do
+          {:ok, socket} -> :gen_tcp.recv(socket, 0, 1_000)
+          {:error, reason} -> {:error, reason}
+        end
+      end)
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    for value <- ["ok\r\nX-Injected: yes", "ok\nX-Injected: yes"] do
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:#{port}/items",
+          %{"X-Probe" => value},
+          nil
+        )
+      end
+    end
+
+    assert {:error, _reason} = Task.await(receiver, 10_000)
+    :ok = :gen_tcp.close(listen_socket)
+  end
+
+  test "bhv options 061 a user agent set on transport options is kept as given, and none leaves it unset" do
+    {base_url, _port} = start_header_capture_server()
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(user_agent: "MyApp/2.0"))
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["user-agent"] == "MyApp/2.0"
+
+    {base_url, _port} = start_header_capture_server()
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(user_agent: nil))
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+    refute Map.has_key?(headers, "user-agent")
+  end
+
   test "bhv transport 052 sends an empty User-Agent header when the option is the empty string" do
     {base_url, _port} = start_header_capture_server()
     transport = {{moduleName}}.TransportOptions.new(user_agent: "")
@@ -1209,6 +1254,28 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
 
   # network-timeout-error: a request that exceeds the configured timeout
   # raises NetworkTimeoutError with status 0.
+  test "bhv errors 078 a network failure message and its cause never show the query string" do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false])
+    {:ok, port} = :inet.port(socket)
+    :ok = :gen_tcp.close(socket)
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    err =
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:#{port}/items?token=secretvalue",
+          %{},
+          nil
+        )
+      end
+
+    refute Exception.message(err) =~ "secretvalue"
+    refute inspect(err) =~ "secretvalue"
+  end
+
   test "bhv transport 058 timeout raises NetworkTimeoutError" do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(socket)
@@ -1288,6 +1355,15 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
       assert err.cause == cause
       assert {{moduleName}}.Errors.NetworkError.network_error?(err)
     end
+  end
+
+  test "bhv errors 083 an unreadable CA certificate path fails at construction with an error that names the path" do
+    path = "/nonexistent/ca-#{System.unique_integer([:positive])}.pem"
+    transport = {{moduleName}}.TransportOptions.new(ca_cert_path: path)
+
+    err = assert_raise ArgumentError, fn -> {{moduleName}}.DefaultApiClient.new(transport) end
+
+    assert err.message == "failed to read CA certificate from #{inspect(path)}: no such file or directory"
   end
 
   test "bhv transport 065 a configured CA bundle replaces the system trust store instead of adding to it" do
