@@ -2015,5 +2015,7 @@ langjava049 | The skill documents the environment variable of every credential.
 langjava050 | Each scheme authenticator prints its own name with its secret redacted.
 langjava051 | The client routes each scheme's credential only to the operations that require that scheme.
 langjava052 | A tilde in a path parameter is left unencoded in the request path.
+langjava053 | A credential made only of control characters, such as a newline, reports as empty, not as a control-character failure. | multi
+langjava054 | A token provider's result that already carries the bearer prefix keeps it exactly once.
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
 langjava064 | A null path parameter beside a null required options object is the first violation reported.
