@@ -215,7 +215,7 @@ describe("BasicAuthenticator", () => {
     });
 
     it.each([userVariable, secretVariable])(
-      "an empty %s counts as unset",
+      "bhv misc 068 an empty %s counts as unset",
       (empty) => {
         process.env[userVariable] = "alice";
         process.env[secretVariable] = "x";
