@@ -146,7 +146,7 @@ void main() {
       );
     });
 
-    test('rejects CR, LF and NUL in the access token', () {
+    test('bhv auth 009 rejects CR, LF and NUL in the access token', () {
       final auth = _createAuthenticator();
 
       for (final token in ['a\rb', 'a\nb', 'a\x00b']) {

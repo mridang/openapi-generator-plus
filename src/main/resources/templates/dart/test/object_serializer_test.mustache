@@ -108,7 +108,7 @@ void main() {
       expect(original.copyWith(), equals(original));
     });
 
-    test('copyWith sets a nullable field to null only when null is passed', () {
+    test('bhv models 016 copyWith sets a nullable field to null only when null is passed', () {
       const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
 
       expect(original.copyWith(nickname: 'Fi').nickname, equals('Fi'));

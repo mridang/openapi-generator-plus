@@ -326,7 +326,7 @@ void main() {
       expect('?'.allMatches(url).length, equals(1));
     });
 
-    test('the PKCE challenge of the RFC 7636 appendix B verifier is the published one', () {
+    test('bhv auth 008 the PKCE challenge of the RFC 7636 appendix B verifier is the published one', () {
       expect(
         OAuth2AuthorizationCodeAuthenticator.pkceChallenge(
             'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'),

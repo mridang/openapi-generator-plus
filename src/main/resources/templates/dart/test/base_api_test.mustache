@@ -870,7 +870,7 @@ void main() {
       }
     });
 
-    test('returns null data for empty 200 response', () async {
+    test('bhv transport 067 returns an empty body as a success for an empty 200 response', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
@@ -2232,7 +2232,7 @@ void main() {
       expect(config.baseUrl, startsWith('https://staging.example.com'));
     });
 
-    test('the shared server constants cannot be modified', () {
+    test('bhv servers 028 the shared server constants cannot be modified', () {
       expect(() => allServers.add(server0), throwsUnsupportedError);
       expect(
         () => server1.variables['evil'] = const ServerVariable(defaultValue: 'x'),
@@ -3389,7 +3389,7 @@ void main() {
       expect(client.sentHeaders, isEmpty);
     });
 
-    test('an Options object carries all three into the call', () async {
+    test('bhv options 053 an Options object carries all three into the call', () async {
       final client = _ScriptedApiClient([
         ApiHttpResponse(
             statusCode: 200,
@@ -3762,6 +3762,183 @@ void main() {
         throwsA(isA<ServerException>()
             .having((e) => e.requestPath, 'requestPath', '/a/b')),
       );
+    });
+
+    test('bhv operations 155 query parameters are sent in the order the specification declares them', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String capturedUrl = '';
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetTag(
+          1,
+          'favorite',
+          GetPetTagOptions(
+            revision: '2',
+            filter: 'soft',
+            sizes: ['small'],
+            colors: ['red'],
+          ),
+        );
+
+        final keys = ['colors=', 'sizes=', 'filter=', 'revision='];
+        final positions = keys.map((k) => capturedUrl.indexOf(k)).toList();
+        expect(positions, everyElement(greaterThanOrEqualTo(0)),
+            reason: 'expected every query key in $capturedUrl');
+        final sorted = List<int>.of(positions)..sort();
+        expect(positions, equals(sorted),
+            reason: 'query keys out of declared order in $capturedUrl');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 156 form-encoded body fields are sent in the order the specification declares them', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String receivedBody = '';
+      server.listen((request) async {
+        receivedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"code":200,"type":"","message":"ok"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.setPetPreferences(
+          1,
+          const SetPetPreferencesOptions(
+            note: 'quiet',
+            tags: ['red'],
+            nickname: 'Rex',
+          ),
+        );
+
+        final nickname = receivedBody.indexOf('nickname=');
+        final tags = receivedBody.indexOf('tags=');
+        final note = receivedBody.indexOf('note=');
+        expect(nickname, greaterThanOrEqualTo(0), reason: receivedBody);
+        expect(tags, greaterThan(nickname), reason: receivedBody);
+        expect(note, greaterThan(tags), reason: receivedBody);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv retries 043 an unauthorized response is not replayed when no authenticator can refresh the credentials', () async {
+      final client = _ScriptedApiClient([_reply(401), _reply(200)]);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/test/echo'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+    });
+
+    test('bhv retries 044 every retry carries a request id that differs from the attempts before it', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final ids = <String?>[];
+      server.listen((request) {
+        ids.add(request.headers.value('x-request-id'));
+        request.response
+          ..statusCode = ids.length < 3 ? 503 : 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final transport = TransportOptionsBuilder().injectRequestId(true).build();
+        final api = PetApi(
+            apiClient: DefaultApiClient(transportOptions: transport),
+            config: config);
+
+        await api.getPetTag(1, 'favorite', null);
+        expect(ids, hasLength(3));
+        expect(ids.whereType<String>().toSet(), hasLength(3),
+            reason: 'request ids repeated across retries: $ids');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv transport 070 a per-call timeout bounds the request and the request never runs past it', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await Future<void>.delayed(const Duration(seconds: 3));
+        try {
+          request.response
+            ..statusCode = 200
+            ..write('late')
+            ..close();
+        } catch (_) {}
+      });
+
+      try {
+        final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().timeout(60000).build());
+        final watch = Stopwatch()..start();
+        await expectLater(
+          client.sendRequest('GET', 'http://localhost:${server.port}/slow', {},
+              null,
+              timeout: 200),
+          throwsA(isA<NetworkTimeoutException>()),
+        );
+        expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+        client.close();
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv transport 071 a single configured timeout bounds the response phase and the whole request', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await Future<void>.delayed(const Duration(seconds: 3));
+        try {
+          request.response
+            ..statusCode = 200
+            ..write('late')
+            ..close();
+        } catch (_) {}
+      });
+
+      try {
+        final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().timeout(200).build());
+        final watch = Stopwatch()..start();
+        await expectLater(
+          client.sendRequest('GET', 'http://localhost:${server.port}/slow', {},
+              null),
+          throwsA(isA<NetworkTimeoutException>()),
+        );
+        expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+        client.close();
+      } finally {
+        await server.close(force: true);
+      }
     });
   });
 }

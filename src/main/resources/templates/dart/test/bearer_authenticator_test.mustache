@@ -72,7 +72,7 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
     });
 
-    test('a named environment variable is read instead of the default', () {
+    test('bhv auth 007 a named environment variable is read instead of the default', () {
       final auth = BearerAuthenticator(
         host: '{{{basePath}}}',
         environmentVariable: 'OTHER_TOKEN',
