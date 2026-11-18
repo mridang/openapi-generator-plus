@@ -70,4 +70,18 @@ class ApiResultTest {
         val result = ApiResult(200, "x", "raw", mapOf("X-Request-ID" to "abc"))
         assertEquals(mapOf("X-Request-ID" to "abc"), result.headers)
     }
+
+    @Test
+    @DisplayName("bhvResults004 an API result exposes the deserialized data")
+    fun exposesDeserializedData() {
+        val result = ApiResult(200, 42, "42", emptyMap())
+        assertEquals(42, result.data)
+    }
+
+    @Test
+    @DisplayName("bhvResults005 a result exposes the raw response body")
+    fun exposesRawBody() {
+        val result = ApiResult(200, "x", "{\"raw\":true}", emptyMap())
+        assertEquals("{\"raw\":true}", result.rawBody)
+    }
 }

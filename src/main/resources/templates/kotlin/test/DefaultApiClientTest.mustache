@@ -691,7 +691,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("F839: redirect method rewriting follows RFC 9110 15.4")
+        @DisplayName("bhvRedirects029 a redirect rewrites the method only as RFC 9110 section 15.4 allows")
         fun redirectMethodRewritingFollowsRfc9110() {
             val cases = listOf(
                 Triple(301, "POST", "GET"), Triple(302, "POST", "GET"), Triple(303, "POST", "GET"),
@@ -721,6 +721,35 @@ class DefaultApiClientTest {
                     apiClient.sendRequest(method, "https://secure.example.com/x", emptyMap(), "body")
                 }
                 assertEquals(expected, secondHopMethod, "$status $method")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects036 a 303 redirect turns every method except HEAD into GET")
+        fun redirect303TurnsEveryMethodExceptHeadIntoGet() {
+            for (method in listOf("POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")) {
+                var hopCount = 0
+                var secondHopMethod: String? = null
+                val engine = MockEngine { req ->
+                    hopCount++
+                    if (hopCount == 1) {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.SeeOther,
+                            headers = headersOf("Location", "https://secure.example.com/dest"),
+                        )
+                    } else {
+                        secondHopMethod = req.method.value
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+                val transport = TransportOptions.builder().followRedirects(true).build()
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                runBlocking {
+                    apiClient.sendRequest(method, "https://secure.example.com/x", emptyMap(), "body")
+                }
+                val expected = if (method == "HEAD") "HEAD" else "GET"
+                assertEquals(expected, secondHopMethod, "303 after $method")
             }
         }
 
@@ -1019,8 +1048,16 @@ class DefaultApiClientTest {
          * equal and credentials survive the hop.
          */
         @Test
-        @DisplayName("redirect_to_explicit_default_port_preserves_authorization")
+        @DisplayName("bhvRedirects030 an explicit default port is the same origin as the implicit one")
         fun redirectToExplicitDefaultPortPreservesAuthorization() {
+            assertTrue(
+                sameOrigin(java.net.URI("https://host/x"), java.net.URI("https://host:443/y")),
+                "explicit :443 must be the same origin as the implicit https port"
+            )
+            assertTrue(
+                sameOrigin(java.net.URI("http://host/x"), java.net.URI("http://host:80/y")),
+                "explicit :80 must be the same origin as the implicit http port"
+            )
             assertEquals(443, effectivePort(java.net.URI("https://host/x")),
                 "implicit https port must normalize to 443")
             assertEquals(443, effectivePort(java.net.URI("https://host:443/y")),
@@ -1031,6 +1068,15 @@ class DefaultApiClientTest {
                 "explicit :80 must round-trip as 80")
             assertEquals(8443, effectivePort(java.net.URI("https://host:8443/y")),
                 "non-default ports must round-trip unchanged")
+        }
+
+        @Test
+        @DisplayName("bhvRedirects034 origin comparison separates a different scheme, host or port")
+        fun originComparisonSeparatesSchemeHostAndPort() {
+            val base = java.net.URI("https://host:8443/x")
+            assertFalse(sameOrigin(base, java.net.URI("http://host:8443/y")), "a different scheme")
+            assertFalse(sameOrigin(base, java.net.URI("https://other:8443/y")), "a different host")
+            assertFalse(sameOrigin(base, java.net.URI("https://host:9443/y")), "a different port")
         }
 
         /*

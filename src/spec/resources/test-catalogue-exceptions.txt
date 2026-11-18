@@ -148,3 +148,4 @@ go | options046 | Go builds TransportOptions only through NewTransportOptionsBui
 java | authscheme008 | The SsoAuth scheme is openIdConnect, for which the Java generator emits no per-scheme wrapper (only OpenIdConnectAuthenticator, built from a discovery URL), so no environment variable is read or named
 kotlin | lifecycle030 | The scheme constructor takes the base URL as its required first argument (F857), so no scheme credential can supply it; the default authenticator supplies it through the authenticator constructor
 kotlin | options046 | TransportOptions has a private constructor, so a caller cannot build one directly and the scheme check runs only in the builder, where the refusal is pinned by bhv options 051
+kotlin | retries032 | Kotlin request bodies are a String, a ByteArray or a multipart map, all held in memory, and no public body type is a one-shot stream that a retry would have to refuse to resend (bhv retries 034 covers the string body)
