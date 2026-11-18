@@ -200,7 +200,10 @@ void main() {
         await auth.exchangeCode('code-a');
 
         expect(client.urls, equals(['https://auth.example.com/token']));
-        expect(client.bodies.single, contains('read+write'));
+        expect(
+          client.bodies.single,
+          startsWith('grant_type=authorization_code&'),
+        );
       },
     );
 
@@ -398,9 +401,10 @@ void main() {
 
         await auth.exchangeCode('a');
         await auth.exchangeCode('b');
-        await auth.authHeadersAsync();
+        await expectLater(auth.authHeadersAsync(), throwsA(isA<StateError>()));
 
-        expect(client.bodies[2], isNot(contains('ref1')));
+        expect(client.bodies, hasLength(2));
+        expect(client.bodies.any((b) => b.contains('ref1')), isFalse);
       },
     );
 

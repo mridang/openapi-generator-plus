@@ -124,6 +124,10 @@ class OAuth2TokenManager {
       }
     }
 
+    if (params['grant_type'] == 'refresh_token' && _refreshToken.isEmpty) {
+      throw StateError(
+          'No refresh token is held; exchange an authorization code again.');
+    }
     await _fetchToken(tokenUrl, params, extraHeaders);
     return _accessToken;
   }
