@@ -284,7 +284,7 @@ test('bhv authscheme 002 explicit arguments need no environment', function (): v
     });
 });
 
-test('the base class reads no environment variable', function (): void {
+test('bhv auth 007 the base class reads no environment variable', function (): void {
     withApiKeyEnvironment('from-environment', function (): void {
         $message = '';
         try {
@@ -296,7 +296,7 @@ test('the base class reads no environment variable', function (): void {
     });
 });
 
-test('an api key provider is asked for the key on every request', function (): void {
+test('bhv auth 005 an api key provider is asked for the key on every request', function (): void {
     $calls = 0;
     $auth = new ApiKeyAuthenticator(
         'https://api.example.com',
@@ -461,4 +461,28 @@ test('bhv authscheme 006 an api key query scheme authenticator treats an empty e
 
 test('bhv authscheme 007 a session cookie scheme authenticator treats an empty environment variable as unset and names it', function (): void {
     assertApiKeyWrappersRefuseEmptyVariable('cookie');
+});
+
+test('bhv auth 006 an api key sent in a header is keyed by the declared header name', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Custom-Key', 'abc123', ApiKeyLocation::HEADER);
+    expect($auth->getAuthHeaders())->toBe(['X-Custom-Key' => 'abc123']);
+});
+
+test('bhv auth 004 an api key authenticator built with no key and no provider is refused at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv auth 016 the printable form of an api key authenticator names its type and never shows the key', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'key-secret-789', ApiKeyLocation::HEADER);
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+
+    expect($varDump)->toContain('ApiKeyAuthenticator');
+    expect($varDump)->not->toContain('key-secret-789');
+    expect(print_r($auth, true))->toContain('ApiKeyAuthenticator');
 });

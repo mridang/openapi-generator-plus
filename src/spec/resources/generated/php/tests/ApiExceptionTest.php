@@ -157,7 +157,7 @@ test('bhv errors 003 every status-specific error keeps an optional cause', funct
     \PetstoreClient\Errors\InternalServerErrorException::class,
 ]);
 
-test('every typed API error extends the base ApiException', function (): void {
+test('bhv errors 080 every typed API error extends the base ApiException', function (): void {
     /* #5: a caller catching the base ApiException must catch every typed
      * error the SDK throws. ClientException/ServerException extend
      * ApiException directly; the status-specific errors extend those. A
@@ -567,4 +567,53 @@ test('bhv errors 070 a 502 response maps to the server error', function (): void
 
     expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
     expect($ex->getStatusCode())->toBe(502);
+});
+
+test('bhv errors 072 an error body that starts with a byte order mark decodes as the same body without it', function (): void {
+    $withMark = ApiException::fromResponse(400, null, "\xEF\xBB\xBF" . '{"code":"bad"}');
+    $withoutMark = ApiException::fromResponse(400, null, '{"code":"bad"}');
+
+    expect($withMark->getErrorBody())->toBe(['code' => 'bad']);
+    expect($withMark->getErrorBody())->toBe($withoutMark->getErrorBody());
+});
+
+test('bhv errors 073 an error body nested beyond common parser defaults is parsed and kept as structured data', function (): void {
+    $depth = 600;
+    $error = ApiException::fromResponse(400, null, str_repeat('[', $depth) . str_repeat(']', $depth));
+
+    expect($error->getErrorBody())->toBeArray();
+});
+
+test('bhv errors 074 an error that never received a response renders its text as the message alone', function (): void {
+    $error = new ApiException(0, 'connection dropped');
+
+    expect((string) $error)->toBe('connection dropped');
+});
+
+test('bhv errors 075 a rendered error body cut at its size limit never splits a multi-byte character', function (): void {
+    $body = str_repeat('a', 1023) . str_repeat('é', 4);
+    $rendered = (string) new ApiException(500, 'boom', null, $body);
+
+    expect(mb_check_encoding($rendered, 'UTF-8'))->toBeTrue();
+    expect($rendered)->toContain('... (' . (strlen($body) - 1023) . ' more bytes)');
+});
+
+test('bhv errors 076 an error the sdk did not raise is not classified as one of its own errors, even when wrapped', function (): void {
+    $wrapped = new \RuntimeException('outer', 0, new \RuntimeException('inner'));
+
+    expect($wrapped)->not->toBeInstanceOf(ApiException::class);
+    expect($wrapped)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
+});
+
+test('bhv errors 077 a url in diagnostics drops its query string, userinfo and fragment', function (): void {
+    $error = new ApiException(500, 'boom', null, null, null, null, 'get', 'https://user:pass@api.example.com:8443/v1/items?token=secret#frag');
+
+    expect($error->getRequestPath())->toBe('/v1/items');
+    expect((string) $error)->not->toContain('token=secret');
+    expect((string) $error)->not->toContain('pass');
+    expect((string) $error)->not->toContain('#frag');
+});
+
+test('bhv errors 084 an error built without a response reports a status code of zero by default', function (): void {
+    expect((new ApiException())->getStatusCode())->toBe(0);
 });

@@ -209,3 +209,12 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+php | transport068 | PHP has no per-call cancellation (S7): a call takes no cancellation signal, so there is no already-cancelled call to refuse before a request is sent
+php | transport069 | PHP has no per-call cancellation (S7): a call takes no cancellation signal or context, so no signal can reach the transport request
+php | auth013 | PHP has no per-call cancellation (S7): a token request takes no cancellation signal, so cancelling a call cannot stop the token request it started
+php | auth027 | PHP has no per-call cancellation (S7): a token refresh cannot be cancelled, so no cancelled refresh can be rethrown or skip the fallback grant
+php | auth030 | PHP runs one request at a time in one process with no threads or tasks, so token state cannot be read and written concurrently (the single-process token state is pinned by bhv auth 028)
+php | misc001 | PHP runs one request at a time in one process with no threads or tasks, so replacing the access token cannot race with a reader
+php | lifecycle037 | PHP runs one request at a time in one process, so a close() cannot run while a request is still in flight; the refusal after close is bhv lifecycle 008
+php | errors079 | PHP attaches request details only through the error constructor, so there is no later attachment that could replace or be ignored after the error is built
+php | auth015 | PHP's header call raises the token error instead of returning headers, so no header map without an Authorization entry can ever be returned; the raise is pinned by bhv auth 001

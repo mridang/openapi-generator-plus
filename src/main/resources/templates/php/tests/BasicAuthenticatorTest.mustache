@@ -143,7 +143,7 @@ test('bhv authbasic 013 explicit credentials win over the environment', function
     });
 });
 
-test('an explicit user name is used with the password from the environment', function (): void {
+test('bhv auth 024 an explicit user name is used with the password from the environment', function (): void {
     withBasicEnvironment('env-user', 'env-secret', function (): void {
         $auth = new {{className}}('https://api.example.com', 'alice');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic ' . base64_encode('alice:env-secret'));
@@ -264,4 +264,11 @@ test('bhv authscheme 003 a basic scheme authenticator names its username variabl
 
 test('bhv authscheme 004 a basic scheme authenticator names its password variable when that variable is empty', function (): void {
     assertBasicWrappersRefuseEmptyVariable('password', 'wrapper-user', '');
+});
+
+test('bhv errors 081 a refused credential names whether the username or the password is at fault', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', "bad\nuser", 'secret'))
+        ->toThrow(\InvalidArgumentException::class, 'username');
+    expect(fn () => new BasicAuthenticator('https://api.example.com', 'user', "bad\npassword"))
+        ->toThrow(\InvalidArgumentException::class, 'password');
 });

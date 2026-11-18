@@ -1405,7 +1405,7 @@ test('an operation takes no per call authenticator', function (): void {
     expect((new \ReflectionClass(AddPetOptions::class))->hasProperty('auth'))->toBeFalse();
 });
 
-test('per call headers are sent and win over a configured header of the same name', function (): void {
+test('bhv options 053 per call headers are sent and win over a configured header of the same name', function (): void {
     [$api, $captured] = newHeaderCapturingPetApi();
     $pet = new Pet(name: 'HeaderDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
 
@@ -1416,7 +1416,7 @@ test('per call headers are sent and win over a configured header of the same nam
     expect($captured->headers['X-Tenant'] ?? null)->toBe('t1');
 });
 
-test('a per call timeout and retry count must be valid', function (): void {
+test('bhv options 056 a per call timeout and retry count must be valid', function (): void {
     expect(fn () => new AddPetOptions(timeout: 0))
         ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
     expect(fn () => new AddPetOptions(maxRetries: -1))
@@ -1479,7 +1479,7 @@ test('bhv operations 086 unsecured operation options has no auth field', functio
     expect($unsecured->hasProperty('maxRetries'))->toBeTrue();
 });
 
-test('options class is immutable: construction works but property writes throw', function (): void {
+test('bhv options 063 options class is immutable: construction works but property writes throw', function (): void {
     /* The per-operation Options classes are immutable value objects: properties are
      * constructor-promoted public readonly, so a write after construction throws. */
     $opts = new AddPetOptions(timeout: 500);
