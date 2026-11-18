@@ -682,6 +682,10 @@ dart | misc152 | Dart has no cancellation signal on a call: a request is cancell
 dart | misc153 | Dart has no cancellation signal on a call or client: a request is cancelled by cancelling its stream subscription, so no signal can abort an in-flight request
 dart | misc166 | invokeApi treats a null per-call timeout as the transport timeout, so a call has no way to switch its own deadline off
 dart | misc170 | TLS failures are dart:io TlsException values that the shared retry loop cannot name, since the web build has no dart:io; they are retried like other network errors
+dart | misc173 | Dart request bodies have no streamed form (text, bytes, a map or absent), so a streamed body cannot be replayed or refused across a redirect
+dart | misc176 | the dart fixture has no operation with a required cookie parameter, so there is no call that sends a cookie parameter; cookies are sent only from authentication (authintegration 004 and 017)
+dart | misc185 | the dart OAuth token managers expose no stop operation, so a second stop and a token request after stop cannot be made
+dart | misc188 | the dart client keeps its closed flag private and exposes no getter, so the closed state cannot be observed from outside the client
 kotlin | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
 kotlin | misc098 | Kotlin request bodies are ByteArray values and the MultipartWriter buffers every part into a ByteArrayOutputStream, so no caller-supplied stream reaches the SDK and there is nothing for it to close (transport061 pins the buffering)
 ||||||| 3033dba2f
