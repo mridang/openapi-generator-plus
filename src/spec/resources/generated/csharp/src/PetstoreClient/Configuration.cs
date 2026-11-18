@@ -42,14 +42,23 @@ public sealed class Configuration
     public IReadOnlyDictionary<string, string> DefaultHeaders { get; }
 
     /// <summary>
+    /// The hook that runs around every operation call, or null for none. It is
+    /// configuration and not a transport option because it runs above the transport,
+    /// so it also fires when the caller supplied the transport.
+    /// </summary>
+    public ICallHook? CallHook { get; }
+
+    /// <summary>
     /// Creates a new Configuration with the specified values.
     /// </summary>
     public Configuration(
         string baseUrl = "/api/v3",
-        Dictionary<string, string>? defaultHeaders = null
+        Dictionary<string, string>? defaultHeaders = null,
+        ICallHook? callHook = null
     )
     {
         BaseUrl = baseUrl;
+        CallHook = callHook;
         DefaultHeaders = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(defaultHeaders ?? [])
         );
@@ -91,6 +100,7 @@ public sealed class ConfigurationBuilder
 {
     private string _baseUrl = "/api/v3";
     private readonly Dictionary<string, string> _defaultHeaders = [];
+    private ICallHook? _callHook;
 
     /// <summary>Set the base URL for all API requests.</summary>
     /// <param name="baseUrl">The base URL.</param>
@@ -147,13 +157,26 @@ public sealed class ConfigurationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Set the hook that runs around every operation call. Use
+    /// <see cref="ICallHook.Chain"/> to run several.
+    /// </summary>
+    /// <param name="callHook">The hook, or null for none.</param>
+    /// <returns>This builder.</returns>
+    public ConfigurationBuilder CallHook(ICallHook? callHook)
+    {
+        _callHook = callHook;
+        return this;
+    }
+
     /// <summary>Build and return an immutable Configuration instance.</summary>
     /// <returns>The configured instance.</returns>
     public Configuration Build()
     {
         return new Configuration(
             baseUrl: _baseUrl,
-            defaultHeaders: new Dictionary<string, string>(_defaultHeaders)
+            defaultHeaders: new Dictionary<string, string>(_defaultHeaders),
+            callHook: _callHook
         );
     }
 }

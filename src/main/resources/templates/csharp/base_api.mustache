@@ -135,6 +135,14 @@ public abstract class BaseApi
     /// The operation's error factories by declared status (<c>404</c>, <c>4XX</c>,
     /// <c>default</c>), or null when it declares none.
     /// </param>
+    /// <param name="operationId">
+    /// The operation id exactly as the spec writes it, handed to the call hook; null
+    /// falls back to <paramref name="operationName"/>.
+    /// </param>
+    /// <param name="urlTemplate">
+    /// The spec path template of the operation, handed to the call hook; null falls
+    /// back to <paramref name="path"/>.
+    /// </param>
     /// <param name="cancellationToken">Token that cancels the request.</param>
     protected async Task<ApiResult<T>> InvokeApiForResultAsync<T>(
         string method,
@@ -153,6 +161,8 @@ public abstract class BaseApi
         IReadOnlyDictionary<string, string>? extraHeaders = null,
         int? maxRetries = null,
         IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -220,8 +230,13 @@ public abstract class BaseApi
         bool isMultipart = contentType == "multipart/form-data";
         /* The request headers, rebuilt from scratch on every call so a retry
            or a replay after a 401 carries current authentication headers. */
-        async Task<Dictionary<string, string>> BuildHeadersAsync()
+        /* The edits the call hook made to the headers, kept as a delta and
+           reapplied on every rebuild so a header it set is on every send of the
+           call. A null value is a header it removed. */
+        Dictionary<string, string?>? hookDelta = null;
+        async Task<Dictionary<string, string>> BuildHeadersAsync(bool freshAuthWins)
         {
+            HashSet<string> authKeys = new(StringComparer.OrdinalIgnoreCase);
             Dictionary<string, string> built = HeaderSelector.SelectHeaders(
                 accepts,
                 contentType,
@@ -246,6 +261,7 @@ public abstract class BaseApi
                 foreach (KeyValuePair<string, string> header in authHeaders)
                 {
                     built[header.Key] = header.Value;
+                    _ = authKeys.Add(header.Key);
                 }
 
                 Dictionary<string, string> cookies = effectiveAuth.GetCookieParams();
@@ -269,6 +285,7 @@ public abstract class BaseApi
                         }
                         return c.Key + "=" + c.Value;
                     }));
+                    _ = authKeys.Add("Cookie");
                     built["Cookie"] =
                         built.TryGetValue("Cookie", out string? existing)
                         && !string.IsNullOrEmpty(existing)
@@ -301,11 +318,47 @@ public abstract class BaseApi
                 _ = built.Remove("Content-Type");
             }
 
+            if (hookDelta is not null)
+            {
+                ApplyHookDelta(built, hookDelta, freshAuthWins ? authKeys : null);
+            }
+
             return built;
         }
 
-        Dictionary<string, string> headers = await BuildHeadersAsync().ConfigureAwait(false);
+        Dictionary<string, string> headers = await BuildHeadersAsync(false).ConfigureAwait(false);
 
+        /* The call hook starts once per call, on the final header set and before
+           anything is encoded or sent. An error it throws propagates unchanged and
+           nothing is sent; the observer it returns is finished exactly once below. */
+        ICallObserver? observer = null;
+        ICallHook? callHook = Config.CallHook;
+        if (callHook is not null)
+        {
+            string callUrl = url;
+            int cut = callUrl.IndexOfAny(['?', '#']);
+            if (cut >= 0)
+            {
+                callUrl = callUrl[..cut];
+            }
+            Dictionary<string, string> before = new(headers, headers.Comparer);
+            observer = callHook.Start(
+                new CallInfo(
+                    operationId ?? operationName ?? string.Empty,
+                    method.ToUpperInvariant(),
+                    urlTemplate ?? path,
+                    callUrl,
+                    ServerAddressOf(callUrl)
+                ),
+                headers
+            );
+            hookDelta = DiffHeaders(before, headers);
+        }
+        int callStatus = 0;
+        IReadOnlyDictionary<string, string>? callHeaders = null;
+        Exception? callError = null;
+        try
+        {
         object? requestBody = null;
         if (body != null)
         {
@@ -420,11 +473,16 @@ public abstract class BaseApi
                 headers,
                 requestBody,
                 false,
-                BuildHeadersAsync,
+                () => BuildHeadersAsync(false),
                 timeout,
                 maxRetries,
                 cancellationToken)
             .ConfigureAwait(false);
+        if (observer is not null)
+        {
+            callStatus = response.StatusCode;
+            callHeaders = LowerCaseHeaders(response.Headers);
+        }
 
         /* A 401 on an OAuth2 or OpenID Connect call means the cached access
            token is no longer accepted: drop it (the refresh token is kept),
@@ -442,7 +500,7 @@ public abstract class BaseApi
             Dictionary<string, string>? replayHeaders = null;
             try
             {
-                replayHeaders = await BuildHeadersAsync().ConfigureAwait(false);
+                replayHeaders = await BuildHeadersAsync(true).ConfigureAwait(false);
             }
             catch ({{errorPrefix}}Exception)
             {
@@ -459,11 +517,16 @@ public abstract class BaseApi
                         headers,
                         requestBody,
                         false,
-                        BuildHeadersAsync,
+                        () => BuildHeadersAsync(false),
                         timeout,
                         maxRetries,
                         cancellationToken)
                     .ConfigureAwait(false);
+                if (observer is not null)
+                {
+                    callStatus = response.StatusCode;
+                    callHeaders = LowerCaseHeaders(response.Headers);
+                }
             }
         }
 
@@ -563,6 +626,140 @@ public abstract class BaseApi
         }
 
         return new ApiResult<T>(response.StatusCode, data, response.Body, response.Headers);
+        }
+        catch (Exception e)
+        {
+            callError = e;
+            throw;
+        }
+        finally
+        {
+            FinishCall(observer, callStatus, callHeaders, callError);
+        }
+    }
+
+    /// <summary>
+    /// Finishes a call observer exactly once. An error the observer throws is
+    /// swallowed, so the call still returns its own result or its own error.
+    /// </summary>
+    private static void FinishCall(
+        ICallObserver? observer,
+        int status,
+        IReadOnlyDictionary<string, string>? headers,
+        Exception? error
+    )
+    {
+        if (observer is null)
+        {
+            return;
+        }
+        try
+        {
+            observer.Finish(new CallOutcome(status, headers, error));
+        }
+        catch (Exception ex)
+            when (ex is not OutOfMemoryException and not StackOverflowException)
+        {
+            /* An observer must never replace the outcome of the call. */
+        }
+    }
+
+    /// <summary>
+    /// The host of a request URL: lower-case, without port and without the
+    /// brackets of an IPv6 literal.
+    /// </summary>
+    private static string ServerAddressOf(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed))
+        {
+            return string.Empty;
+        }
+        return AsciiLower(parsed.DnsSafeHost);
+    }
+
+    /// <summary>Lowercases the ASCII letters of a header name or host.</summary>
+    private static string AsciiLower(string value)
+    {
+        char[] chars = value.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            if (chars[i] is >= 'A' and <= 'Z')
+            {
+                chars[i] = (char)(chars[i] + 32);
+            }
+        }
+        return new string(chars);
+    }
+
+    /// <summary>A read-only copy of the response headers with lower-cased names.</summary>
+    private static System.Collections.ObjectModel.ReadOnlyDictionary<string, string> LowerCaseHeaders(
+        IReadOnlyDictionary<string, string> headers
+    )
+    {
+        Dictionary<string, string> lowered = new(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            lowered[AsciiLower(header.Key)] = header.Value;
+        }
+        return new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(lowered);
+    }
+
+    /// <summary>
+    /// What a call hook changed in the headers: the headers it added or changed,
+    /// and, as a null value, the ones it removed.
+    /// </summary>
+    private static Dictionary<string, string?> DiffHeaders(
+        Dictionary<string, string> before,
+        Dictionary<string, string> after
+    )
+    {
+        Dictionary<string, string?> delta = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string name in before.Keys)
+        {
+            if (!after.ContainsKey(name))
+            {
+                delta[name] = null;
+            }
+        }
+        foreach (KeyValuePair<string, string> header in after)
+        {
+            if (!before.TryGetValue(header.Key, out string? old) || old != header.Value)
+            {
+                delta[header.Key] = header.Value;
+            }
+        }
+        return delta;
+    }
+
+    /// <summary>
+    /// Reapplies the edits a call hook made. A header named in
+    /// <paramref name="skip"/> was just set again by authentication, and that
+    /// fresh value wins.
+    /// </summary>
+    private static void ApplyHookDelta(
+        Dictionary<string, string> built,
+        Dictionary<string, string?> delta,
+        HashSet<string>? skip
+    )
+    {
+        foreach (KeyValuePair<string, string?> edit in delta)
+        {
+            if (skip is not null && skip.Contains(edit.Key))
+            {
+                continue;
+            }
+            foreach (string existing in built.Keys.ToList())
+            {
+                if (string.Equals(existing, edit.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = built.Remove(existing);
+                }
+            }
+            if (edit.Value is not null)
+            {
+                built[edit.Key] = edit.Value;
+            }
+        }
     }
 
     /// <summary>

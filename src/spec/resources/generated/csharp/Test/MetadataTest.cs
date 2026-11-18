@@ -351,6 +351,8 @@ public class MetadataTest
         Assert.Equal(withExtra.GetHashCode(), sameExtra.GetHashCode());
     }
 
+    private static object? NoObject() => null;
+
     [Fact]
     public void BhvEquality001SameValuesAreEqualAndANestedChangeIsNot()
     {
@@ -375,7 +377,7 @@ public class MetadataTest
         Assert.Equal(left.GetHashCode(), right.GetHashCode());
         Assert.NotEqual(left, nestedChange);
         Assert.False(left.Equals(new Tag()));
-        Assert.False(left.Equals((object?)null));
+        Assert.False(left.Equals(NoObject()));
     }
 
     [Fact]

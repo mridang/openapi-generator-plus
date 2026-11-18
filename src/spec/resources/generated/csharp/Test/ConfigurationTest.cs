@@ -31,6 +31,31 @@ public class ConfigurationTest
         Assert.Empty(config.DefaultHeaders);
     }
 
+    private sealed class NoopHook : ICallHook
+    {
+        public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers) => null;
+
+        public override string ToString() => "the-hook-secret";
+    }
+
+    [Fact]
+    public void TheBuilderSetsTheCallHookAndTheDefaultIsNone()
+    {
+        var hook = new NoopHook();
+
+        Assert.Null(Configuration.Builder().Build().CallHook);
+        Assert.Same(hook, Configuration.Builder().CallHook(hook).Build().CallHook);
+        Assert.Same(hook, new Configuration("http://localhost", null, hook).CallHook);
+    }
+
+    [Fact]
+    public void TheStringFormDoesNotPrintTheCallHook()
+    {
+        var config = Configuration.Builder().CallHook(new NoopHook()).Build();
+
+        Assert.DoesNotContain("the-hook-secret", config.ToString(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void BhvConfig007BuilderReturnsConfigurationBuilderInstance()
     {

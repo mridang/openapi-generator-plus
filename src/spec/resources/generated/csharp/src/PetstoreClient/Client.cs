@@ -52,7 +52,7 @@ public sealed class Client : IDisposable
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     public Client(IAuthenticator authenticator)
-        : this(authenticator, TransportOptions.Builder().Build()) { }
+        : this(authenticator, TransportOptions.Builder().Build(), null) { }
 
     /// <summary>
     /// Creates a new client with the given authenticator and transport options.
@@ -64,8 +64,19 @@ public sealed class Client : IDisposable
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     /// <param name="transportOptions">HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
-    public Client(IAuthenticator authenticator, TransportOptions? transportOptions)
-        : this(HostOf(authenticator), authenticator, NoSchemeAuthenticators, transportOptions) { }
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
+    public Client(
+        IAuthenticator authenticator,
+        TransportOptions? transportOptions,
+        ICallHook? callHook = null
+    )
+        : this(
+            HostOf(authenticator),
+            authenticator,
+            NoSchemeAuthenticators,
+            transportOptions,
+            callHook
+        ) { }
 
     /// <summary>
     /// Creates a new client that holds one optional credential per security scheme the spec
@@ -88,6 +99,7 @@ public sealed class Client : IDisposable
     /// <param name="browserAuth">Credential for the <c>browserAuth</c> security scheme, or null for none.</param>
     /// <param name="ssoAuth">Credential for the <c>ssoAuth</c> security scheme, or null for none.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     public Client(
         string host,
         PetstoreClient.Auth.PetStoreBasicAuthenticator? petStoreBasic = null,
@@ -103,7 +115,8 @@ public sealed class Client : IDisposable
         PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator? userAuth = null,
         PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator? browserAuth = null,
         PetstoreClient.Auth.OAuth.SsoAuthAuthenticator? ssoAuth = null,
-        TransportOptions? transportOptions = null
+        TransportOptions? transportOptions = null,
+        ICallHook? callHook = null
     )
         : this(
             host,
@@ -123,14 +136,16 @@ public sealed class Client : IDisposable
                 ("browserAuth", browserAuth),
                 ("ssoAuth", ssoAuth)
             ),
-            transportOptions
+            transportOptions,
+            callHook
         ) { }
 
     private Client(
         string host,
         IAuthenticator? authenticator,
         IReadOnlyDictionary<string, IAuthenticator> schemeAuthenticators,
-        TransportOptions? transportOptions
+        TransportOptions? transportOptions,
+        ICallHook? callHook
     )
     {
         ArgumentNullException.ThrowIfNull(host);
@@ -150,7 +165,7 @@ public sealed class Client : IDisposable
             }
         }
 
-        Configuration config = Configuration.Builder().BaseUrl(host).Build();
+        Configuration config = Configuration.Builder().BaseUrl(host).CallHook(callHook).Build();
         Pet = new PetApi(_apiClient, config, authenticator, schemeAuthenticators);
         Problems = new ProblemsApi(_apiClient, config, authenticator, schemeAuthenticators);
         Store = new StoreApi(_apiClient, config, authenticator, schemeAuthenticators);
@@ -186,16 +201,19 @@ public sealed class Client : IDisposable
     /// <param name="host">API base URL.</param>
     /// <param name="accessToken">Bearer token.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     /// <returns>Configured client instance.</returns>
     public static Client WithToken(
         string host,
         string accessToken,
-        TransportOptions? transportOptions = null
+        TransportOptions? transportOptions = null,
+        ICallHook? callHook = null
     )
     {
         return new Client(
             new BearerAuthenticator(host, accessToken),
-            transportOptions ?? TransportOptions.Builder().Build()
+            transportOptions ?? TransportOptions.Builder().Build(),
+            callHook
         );
     }
 
@@ -212,13 +230,15 @@ public sealed class Client : IDisposable
     /// <param name="token">Bearer token, or null to read it from the environment.</param>
     /// <param name="tokenProvider">Callback that returns the current bearer token before each request.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     /// <returns>Configured client instance.</returns>
     /// <exception cref="InvalidOperationException">Thrown when no host or no credential is available.</exception>
     public static Client FromEnvironment(
         string? host = null,
         string? token = null,
         Func<CancellationToken, Task<string>>? tokenProvider = null,
-        TransportOptions? transportOptions = null
+        TransportOptions? transportOptions = null,
+        ICallHook? callHook = null
     )
     {
         string? resolvedHost = FirstSet(host, "SWAGGER_PETSTORE_OPEN_API_3_0_HOST");
@@ -232,7 +252,8 @@ public sealed class Client : IDisposable
         {
             return new Client(
                 new BearerAuthenticator(resolvedHost, tokenProvider),
-                transportOptions
+                transportOptions,
+                callHook
             );
         }
         string? resolvedToken = FirstSet(token, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN");
@@ -242,7 +263,11 @@ public sealed class Client : IDisposable
                 "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
             );
         }
-        return new Client(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions);
+        return new Client(
+            new BearerAuthenticator(resolvedHost, resolvedToken),
+            transportOptions,
+            callHook
+        );
     }
 
     private static string? FirstSet(string? explicitValue, string variable)
@@ -267,13 +292,19 @@ public sealed class Client : IDisposable
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     /// <returns>Configured client instance.</returns>
     public static Client WithAuthenticator(
         IAuthenticator authenticator,
-        TransportOptions? transportOptions = null
+        TransportOptions? transportOptions = null,
+        ICallHook? callHook = null
     )
     {
-        return new Client(authenticator, transportOptions ?? TransportOptions.Builder().Build());
+        return new Client(
+            authenticator,
+            transportOptions ?? TransportOptions.Builder().Build(),
+            callHook
+        );
     }
 
     /// <inheritdoc/>

@@ -259,6 +259,10 @@ The client implements `IDisposable`. Use `using` statements or call `Dispose()` 
 
 Every operation takes an optional options object (`<Operation>Options`) that also carries `Timeout` (milliseconds), `MaxRetries` and `Headers` for that call only; null keeps the transport's setting, and an operation with no parameters and no security has an options object with just these three. `Client.FromEnvironment()` builds a bearer client from `SWAGGER_PETSTORE_OPEN_API_3_0_HOST` and `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` (explicit arguments win, a `tokenProvider` callback replaces the token).
 
+### Hooks and telemetry
+
+One optional hook runs around every call: `Client.WithToken(host, token, callHook: hook)` (or `Configuration.Builder().CallHook(hook)`). `ICallHook.Start(info, headers)` runs once per call after the headers are final and may edit them; it returns an `ICallObserver` (or `null`) whose `Finish(outcome)` runs exactly once with the status (`0` when no response arrived), the lower-cased headers (`null` when none arrived) and the error. An error from `Start` reaches the caller; an error from `Finish` is swallowed. `ICallHook.Chain(a, b)` starts in order and finishes in reverse. `new OpenTelemetryCallHook()` records one span, `http.client.request.count` and `http.client.request.duration` per call; it needs no package, only `AddSource` and `AddMeter` for `PetstoreClient`.
+
 ### Credentials from the environment
 
 Each per-scheme authenticator takes optional credential arguments. A value you pass wins, else the environment variable is read once in the constructor (an empty value counts as unset), and a missing credential throws `InvalidOperationException` naming the variable. A bearer authenticator also accepts a `tokenProvider` callback, which wins over the environment.

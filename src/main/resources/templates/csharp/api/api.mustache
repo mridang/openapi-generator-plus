@@ -591,7 +591,9 @@ public class {{classname}} : BaseApi
                 {{#hasAuthMethods}}ResolveSchemeAuth({{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}}){{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
                 rawBody: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
                 cancellationToken: cancellationToken,
-                operationName: "{{classname}}.{{operationId}}"{{#vendorExtensions.op.hasMultiple2xx}},
+                operationName: "{{classname}}.{{operationId}}",
+                operationId: "{{#lambda.stringLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.stringLiteral}}",
+                urlTemplate: "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}"{{#vendorExtensions.op.hasMultiple2xx}},
                 decodeByStatus: (status, body) =>
                 {
 {{#vendorExtensions.op.successResponses}}

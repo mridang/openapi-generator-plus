@@ -145,6 +145,7 @@ public sealed class ClientTest : IDisposable
             "browserAuth",
             "ssoAuth",
             "transportOptions",
+            "callHook",
         };
         Assert.Equal(
             expected.OrderBy(n => n, StringComparer.Ordinal),
@@ -164,6 +165,33 @@ public sealed class ClientTest : IDisposable
         Assert.Null(handler.Authorization);
     }
 
+    private sealed class CountingHook : ICallHook
+    {
+        public List<string> Operations { get; } = [];
+
+        public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers)
+        {
+            Operations.Add(info.OperationId);
+            headers["X-Hook"] = "yes";
+            return null;
+        }
+    }
+
+    [Fact]
+    public async Task BhvHooks010TheClientHandsItsHookToEveryApiObjectAndItStillFiresOnASuppliedTransport()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var hook = new CountingHook();
+        using var client = new Client(_authenticator, transport, hook);
+
+        _ = await client.Store.GetInventoryAsync();
+        _ = await client.Store.GetOrderByIdAsync(1);
+
+        Assert.Equal(["getInventory", "getOrderById"], hook.Operations);
+        Assert.Equal("yes", handler.LastHookHeader);
+    }
+
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public int Requests { get; private set; }
@@ -172,12 +200,17 @@ public sealed class ClientTest : IDisposable
 
         public string? Authorization { get; private set; }
 
+        public string? LastHookHeader { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
             Requests++;
+            LastHookHeader = request.Headers.TryGetValues("X-Hook", out var values)
+                ? values.Single()
+                : null;
             Authorization = request.Headers.Authorization?.ToString();
             return Task.FromResult(
                 new HttpResponseMessage(System.Net.HttpStatusCode.OK)
