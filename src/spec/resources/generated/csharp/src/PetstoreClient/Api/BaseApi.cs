@@ -424,13 +424,12 @@ public abstract class BaseApi
         }
 
         Uri requestUri = new(url);
-        ApiHttpResponse response = await ApiClient
-            .SendRequestAsync(
+        ApiHttpResponse response = await SendRecordingRequestAsync(
+                ApiClient,
                 method,
                 requestUri,
                 headers,
                 requestBody,
-                false,
                 BuildHeadersAsync,
                 timeout,
                 maxRetries,
@@ -464,13 +463,12 @@ public abstract class BaseApi
             if (replayHeaders is not null)
             {
                 headers = replayHeaders;
-                response = await ApiClient
-                    .SendRequestAsync(
+                response = await SendRecordingRequestAsync(
+                        ApiClient,
                         method,
                         requestUri,
                         headers,
                         requestBody,
-                        false,
                         BuildHeadersAsync,
                         timeout,
                         maxRetries,
@@ -562,6 +560,45 @@ public abstract class BaseApi
         }
 
         return new ApiResult<T>(response.StatusCode, data, response.Body, response.Headers);
+    }
+
+    /// <summary>
+    /// Sends one request through the transport. A transport failure is raised without the
+    /// request it came from, so the method and path that failed are recorded on it here.
+    /// </summary>
+    private static async Task<ApiHttpResponse> SendRecordingRequestAsync(
+        IApiClient apiClient,
+        string method,
+        Uri requestUri,
+        Dictionary<string, string> headers,
+        object? requestBody,
+        Func<Task<Dictionary<string, string>>> refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await apiClient
+                .SendRequestAsync(
+                    method,
+                    requestUri,
+                    headers,
+                    requestBody,
+                    false,
+                    refreshHeaders,
+                    timeout,
+                    maxRetries,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        catch (NetworkException ex)
+        {
+            ex.RecordRequest(method, requestUri.AbsolutePath);
+            throw;
+        }
     }
 
     /// <summary>

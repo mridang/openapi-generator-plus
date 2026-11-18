@@ -268,6 +268,14 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvErrors064AnEmptyMessageRendersTheDefaultTextLikeAMissingOne()
+    {
+        var ex = new ApiException(0, "", null, null);
+
+        Assert.Equal("Error message: the server returns an error", ex.ToString());
+    }
+
+    [Fact]
     public void BhvErrors017GetTypedErrorBodyWithTheWrongShapeThrowsSerializationException()
     {
         var ex = ApiException.FromResponse(
@@ -466,6 +474,20 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvErrors065CutsALongBodyAtOneKibAndCountsTheBytesLeftOut()
+    {
+        var ex = new ApiException(502, "bad gateway", null, new string('a', 3000));
+
+        Assert.Equal(
+            "bad gateway\nHTTP status code: 502\nResponse body: "
+                + new string('a', 1024)
+                + "... (1976 more bytes)",
+            ex.ToString()
+        );
+        Assert.Equal(new string('a', 3000), ex.ResponseBody);
+    }
+
+    [Fact]
     public void RenderedBodyIsCappedAndNamesTheHiddenLength()
     {
         string body = new string('x', 1030);
@@ -551,6 +573,88 @@ public class ApiExceptionTest
         var ex = ApiException.FromResponse(status, new Dictionary<string, string>(), null);
 
         Assert.Equal(expected, ex.GetType());
+    }
+
+    [Fact]
+    public void BhvErrors058A400ResponseMapsToTheBadRequestError()
+    {
+        var ex = ApiException.FromResponse(400, new Dictionary<string, string>(), null);
+
+        Assert.IsType<BadRequestException>(ex);
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors059A403ResponseMapsToTheForbiddenError()
+    {
+        var ex = ApiException.FromResponse(403, new Dictionary<string, string>(), null);
+
+        Assert.IsType<ForbiddenException>(ex);
+        Assert.Equal(403, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors060A404ResponseMapsToTheNotFoundError()
+    {
+        var ex = ApiException.FromResponse(404, new Dictionary<string, string>(), null);
+
+        Assert.IsType<NotFoundException>(ex);
+        Assert.Equal(404, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors061ABadRequestErrorIsAClientErrorAnApiErrorAndTheRootError()
+    {
+        ApiException ex = ApiException.FromResponse(400, new Dictionary<string, string>(), null);
+
+        Assert.IsAssignableFrom<ClientException>(ex);
+        Assert.IsAssignableFrom<ApiException>(ex);
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
+    }
+
+    [Fact]
+    public void BhvErrors066A429ResponseBecomesATooManyRequestsErrorThatIsAClientError()
+    {
+        ApiException ex = ApiException.FromResponse(429, new Dictionary<string, string>(), null);
+
+        Assert.IsType<TooManyRequestsException>(ex);
+        Assert.IsAssignableFrom<ClientException>(ex);
+    }
+
+    [Fact]
+    public void BhvErrors067A409ResponseBecomesAConflictError()
+    {
+        var ex = ApiException.FromResponse(409, new Dictionary<string, string>(), null);
+
+        Assert.IsType<ConflictException>(ex);
+        Assert.Equal(409, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors068A422ResponseBecomesAnUnprocessableEntityError()
+    {
+        var ex = ApiException.FromResponse(422, new Dictionary<string, string>(), null);
+
+        Assert.IsType<UnprocessableEntityException>(ex);
+        Assert.Equal(422, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors069A500ResponseBecomesAnInternalServerError()
+    {
+        var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null);
+
+        Assert.IsType<InternalServerErrorException>(ex);
+        Assert.Equal(500, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors070A502ResponseBecomesAServerError()
+    {
+        var ex = ApiException.FromResponse(502, new Dictionary<string, string>(), null);
+
+        Assert.IsType<ServerException>(ex);
+        Assert.Equal(502, ex.StatusCode);
     }
 
     [Fact]

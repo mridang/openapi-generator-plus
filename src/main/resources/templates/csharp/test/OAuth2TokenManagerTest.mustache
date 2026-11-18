@@ -851,6 +851,15 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public void BhvAuthoauthtwotokenmgr047WithoutAnErrorCodeTheMessageNamesTheStatusAndRawBody()
+    {
+        var ex = new OAuth2ServerException(502, null, null, null, "Bad Gateway");
+
+        Assert.Equal("Token request failed with status 502: Bad Gateway", ex.Message);
+        Assert.Equal("Bad Gateway", ex.RawBody);
+    }
+
+    [Fact]
     public void BhvErrors046OAuth2ServerErrorMessageHasThreeForms()
     {
         Assert.Equal(

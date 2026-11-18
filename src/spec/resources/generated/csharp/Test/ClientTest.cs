@@ -94,6 +94,43 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BhvLifecycle026ANullAuthenticatorIsRefusedAtConstruction()
+    {
+        Assert.Throws<ArgumentNullException>(() => new Client((IAuthenticator)null!));
+    }
+
+    [Fact]
+    public async Task BhvLifecycle030TheDefaultAuthenticatorSuppliesTheBaseUrl()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        using var client = new Client(
+            new BearerAuthenticator("http://authenticator.invalid", "tok"),
+            transport
+        );
+
+        _ = await client.Store.GetOrderByIdAsync(1);
+
+        Assert.Equal("authenticator.invalid", handler.RequestUri?.Host);
+    }
+
+    [Fact]
+    public async Task BhvLifecycle035AClosedClientFailsWithTheClosedErrorAndNeverReachesTheTransport()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new Client(_authenticator, transport);
+        client.Dispose();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.Store.GetOrderByIdAsync(1)
+        );
+
+        Assert.Equal("ApiClient has been closed and can no longer send requests", ex.Message);
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
     public void BhvLifecycle015TheSchemeConstructorTakesOneOptionalCredentialPerSchemeNamedAfterIt()
     {
         var constructor = typeof(Client)
@@ -172,6 +209,8 @@ public sealed class ClientTest : IDisposable
 
         public string? Authorization { get; private set; }
 
+        public Uri? RequestUri { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
@@ -179,6 +218,7 @@ public sealed class ClientTest : IDisposable
         {
             Requests++;
             Authorization = request.Headers.Authorization?.ToString();
+            RequestUri = request.RequestUri;
             return Task.FromResult(
                 new HttpResponseMessage(System.Net.HttpStatusCode.OK)
                 {
@@ -238,7 +278,26 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task FromEnvironmentPrefersTheExplicitOptionsOverTheEnvironment()
+    public async Task BhvLifecycle032AnArgumentTokenWinsOverTheEnvironmentToken()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () => client = Client.FromEnvironment(token: "arg-token", transportOptions: transport)
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer arg-token", handler.Authorization);
+    }
+
+    [Fact]
+    public async Task BhvLifecycle028FromEnvironmentPrefersTheExplicitOptionsOverTheEnvironment()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();

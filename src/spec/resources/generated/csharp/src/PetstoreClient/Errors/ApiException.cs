@@ -184,6 +184,16 @@ public class ApiException : OpenAPIException
     }
 
     /// <summary>
+    /// Records the request a transport failure came from. The transport raises its
+    /// error without the request, so the call that sent it names the method and path.
+    /// </summary>
+    internal void RecordRequest(string requestMethod, string requestPath)
+    {
+        RequestMethod = requestMethod;
+        RequestPath = StripQuery(requestPath);
+    }
+
+    /// <summary>
     /// Deserialize the raw response body into the given type.
     ///
     /// Useful when the API returns a structured error body that you want to
