@@ -2021,6 +2021,96 @@ langswift075 | A redirect chain that finishes inside the timeout budget complete
 ||||||| 33b2fa75d
 ||||||| f622b5d59
 ||||||| f30be4711
+||||||| 8dce4124f
+langdart001 | a path or query value holding reserved punctuation is refused before any request is sent
+langdart002 | operation prose from the spec appears verbatim in the generated documentation
+langdart003 | a server variant substitutes each of its variables into the URL when selected
+langdart004 | a query array with unique items is sent as repeated key pairs in the order given
+langdart005 | a model built without arguments serializes its default enum value
+langdart006 | an array response with an element of the wrong type raises a serialization error
+langdart007 | a map of arrays response with an element of the wrong type raises a serialization error
+langdart008 | a typed error body with a field of the wrong type raises a serialization error
+langdart009 | an API key header value with CR, LF or non-ASCII characters is refused
+langdart010 | each failing status is dispatched to the error type declared for it
+langdart011 | an API exception exposes its response body and headers as nullable values
+langdart012 | a bearer authenticator refuses an empty or whitespace-only token at construction
+langdart013 | a multipart model part is sent with wire property names and ISO date-time values
+langdart014 | an unknown charset in a response falls back to UTF-8 without raising an error
+langdart015 | a 503 response is sent again once after about half a second
+langdart016 | 408, 409, 429 and 502 responses are retried
+langdart017 | 400, 404, 422 and 501 responses are never retried
+langdart018 | a map of int32 values decodes each leaf as an integer
+langdart019 | a nested array of int32 values is checked one leaf at a time
+langdart020 | a model property is checked against the integer width of its declared format
+langdart021 | a rejected username never appears in the construction error
+langdart022 | an authenticator built with no token from any source fails at construction
+langdart023 | a bearer authenticator with no token names the environment variable it was missing | multi
+langdart024 | the scheme name in each generated bearer authenticator test identifies the scheme under test
+langdart025 | an unset environment variable with no other source fails at construction
+langdart026 | a failing observer does not stop the others, and its error is rethrown afterwards
+langdart027 | each observer receives a header map that carries the edits made by the observers before it
+langdart028 | the client passes its call hook to every API group
+langdart029 | a discriminator set to null in a variant payload is refused
+langdart030 | a composed variant round trips through its JSON constructor
+langdart031 | a status-keyed result exposes its variant through typed accessors
+langdart032 | typed constructors and accessors of a composed type name the variant
+langdart033 | composed unions decoded from identical JSON compare equal
+langdart034 | the configuration builder is reachable as a static entry point
+langdart035 | the call hook is unset by default
+langdart036 | the builder stores the call hook and returns the builder
+langdart037 | the builder clears the call hook when given null
+langdart038 | the string form of a configuration omits the call hook
+langdart039 | a too-many-redirects refusal is reported on the request that caused it
+langdart040 | a response in a content coding that cannot be decoded is refused
+langdart041 | a quoted charset parameter naming a Windows code page decodes the body with it
+langdart042 | a server that never answers raises a network timeout exception
+langdart043 | a scalar multipart field is sent as a single part
+langdart044 | the JSON media type check recognises JSON content types
+langdart045 | the description is written as a quoted scalar in the package metadata
+langdart046 | the repository link is declared in the package metadata and the README
+langdart047 | the homepage link is declared in the package metadata and the README
+langdart048 | the issue tracker link is declared in the package metadata and the README
+langdart049 | the documentation link is declared in the package metadata and the README
+langdart050 | the README names the authors
+langdart051 | the README documents the per-call, credential and model features
+langdart052 | every package the test suite needs is declared in the package metadata
+langdart053 | the library documentation contains no backslash-escaped quotes
+langdart054 | the internal no-auth sentinel is hidden from the public API
+langdart055 | a model deserializes from its JSON form
+langdart056 | instances that differ only in additional properties are not equal
+langdart057 | the synchronous header accessor raises after the exchange instead of returning no credentials
+langdart058 | the authorize URL is exact and separates scopes with %20
+langdart059 | the synchronous header accessor raises instead of returning no credentials
+langdart060 | a server error without a JSON body keeps the raw body in the error
+langdart061 | a rejected access token never appears in the construction error
+langdart062 | the synchronous header accessor raises instead of returning no credentials
+langdart063 | a re-grant without expires_in clears the earlier expiry
+langdart064 | a finite double decodes
+langdart065 | a raw JSON string decodes into a map
+langdart066 | a JSON nesting depth over the limit is refused during deserialization
+langdart067 | a form value of an integer is written as its digits
+langdart068 | a microsecond component is cut to a fixed three-digit fraction
+langdart069 | a null element of a nested int32 array raises a serialization error
+langdart070 | optional fields are written when they are set explicitly
+langdart071 | a protobuf duration truncates digits finer than a microsecond toward zero
+langdart072 | a partial-time string in HH:MM:SS form is accepted
+langdart073 | unknown fields read from JSON are not written back on serialization
+langdart074 | an RFC 3339 date-time with any fraction and offset is accepted
+langdart075 | a URI that is not absolute is refused
+langdart076 | the synchronous header accessor raises instead of returning no credentials
+langdart077 | a cleartext authorization endpoint is refused
+langdart078 | a constant configuration rejects changes made through its variables
+langdart079 | the default client exposes the retry policy of its options
+langdart080 | a date-only string is preserved as written
+langdart081 | a literal plus sign in a value is percent-encoded as %2B
+langdart082 | bytes serialize to padded standard base64 in a query
+langdart083 | a byte-valued union decoded from identical wire JSON compares equal to its twin
+langdart084 | an array-valued union decoded from identical wire JSON compares equal to its twin
+langdart085 | two unions with differing byte values compare unequal
+langdart086 | a deflate content coding over a body that is not deflate data surfaces as an API error, not a crash
+||||||| 2231357ed
+||||||| f622b5d59
+||||||| d921d1c70
 langphp001 | An object without a string form is stringified through its fallback rather than failing.
 langphp002 | A forward slash in a serialized string is written without escaping.
 langphp003 | A string leaf inside a container keeps its text and is never parsed as JSON again.

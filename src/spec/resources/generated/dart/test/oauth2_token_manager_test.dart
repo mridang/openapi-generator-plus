@@ -333,23 +333,26 @@ void main() {
       },
     );
 
-    test('a re-grant without expires_in clears the stale expiry', () async {
-      // F911: no expires_in means no expiry, so the next call is cached.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1","expires_in":0}');
-      client.enqueue('{"access_token":"tok2"}');
+    test(
+      'bhv langdart 063 a re-grant without expires_in clears the stale expiry',
+      () async {
+        // F911: no expires_in means no expiry, so the next call is cached.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":0}');
+        client.enqueue('{"access_token":"tok2"}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'client_credentials'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      expect(await manager.getAccessToken(tokenUrl, params), equals('tok1'));
-      expect(await manager.getAccessToken(tokenUrl, params), equals('tok2'));
-      expect(await manager.getAccessToken(tokenUrl, params), equals('tok2'));
-      expect(client.requestCount, equals(2));
-    });
+        expect(await manager.getAccessToken(tokenUrl, params), equals('tok1'));
+        expect(await manager.getAccessToken(tokenUrl, params), equals('tok2'));
+        expect(await manager.getAccessToken(tokenUrl, params), equals('tok2'));
+        expect(client.requestCount, equals(2));
+      },
+    );
 
     test(
       'bhv authoauthtwotokenmgr 024 refresh_token empty string preserves existing',
@@ -958,14 +961,17 @@ void main() {
       },
     );
 
-    test('OAuth2TokenException is a OpenAPIException (branded root)', () {
-      final err = OAuth2TokenException('boom');
+    test(
+      'bhv errors 094 OAuth2TokenException is a OpenAPIException (branded root)',
+      () {
+        final err = OAuth2TokenException('boom');
 
-      expect(err, isA<OAuth2TokenException>());
-      expect(err, isA<OpenAPIException>());
-      expect(err, isA<Exception>());
-      expect(err.message, equals('boom'));
-    });
+        expect(err, isA<OAuth2TokenException>());
+        expect(err, isA<OpenAPIException>());
+        expect(err, isA<Exception>());
+        expect(err.message, equals('boom'));
+      },
+    );
 
     test(
       'bhv errors 045 OAuth2ServerException is a OpenAPIException (branded root)',

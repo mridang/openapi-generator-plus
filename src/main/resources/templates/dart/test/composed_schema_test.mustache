@@ -91,7 +91,7 @@ void main() {
       expect(food.foodType, equals('dry'));
     });
 
-    test('DryFood rejects an explicit null discriminator', () {
+    test('bhv langdart 029 DryFood rejects an explicit null discriminator', () {
       expect(
         () => DryFood.fromJson(<String, dynamic>{'foodType': null, 'weightKg': 2.5}),
         throwsA(isA<SerializationException>()),
@@ -141,7 +141,7 @@ void main() {
       expect(food.toJson(), equals(<String, dynamic>{'foodType': 'dry', 'weightKg': 2.5}));
     });
 
-    test('PetFood constructor round trips through fromJson', () {
+    test('bhv langdart 030 PetFood constructor round trips through fromJson', () {
       final wire = jsonDecode(jsonEncode(PetFood(WetFood(volumeMl: 400)).toJson()))
           as Map<String, dynamic>;
 
@@ -161,7 +161,7 @@ void main() {
       expect(dry.toJson(), equals(<String, dynamic>{'foodType': 'dry', 'weightKg': 2.5}));
     });
 
-    test('a result decoded by status code exposes its variant through the accessors', () {
+    test('bhv langdart 031 a result decoded by status code exposes its variant through the accessors', () {
       final reservation = ReserveStockResponse.reservation(
           const Reservation(reservationId: 1, quantity: 2));
 
@@ -169,7 +169,7 @@ void main() {
       expect(reservation.asReservationReceipt, isNull);
     });
 
-    test('PetTreatment typed constructors and accessors name the variant', () {
+    test('bhv langdart 032 PetTreatment typed constructors and accessors name the variant', () {
       final surgery = PetTreatment.surgery(Surgery(procedureName: 'Spay', durationMinutes: 45));
 
       expect(surgery.isSurgery, isTrue);
@@ -345,7 +345,7 @@ void main() {
       );
     });
 
-    test('oneOf unions decoded from identical JSON are equal', () {
+    test('bhv langdart 033 oneOf unions decoded from identical JSON are equal', () {
       final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
 
       final a = PetFood.fromJson(json);
@@ -528,7 +528,7 @@ void main() {
     });
 
     test(
-        'SetPetAvatarThumbnailRequest byte unions decoded from identical wire '
+        'bhv langdart 083 SetPetAvatarThumbnailRequest byte unions decoded from identical wire '
         'bytes are value-equal and hash equally', () {
       // M5 regression: the scalar `byte` variant decodes to a fresh Uint8List
       // per call, whose built-in `==` is identity. Two unions built from the
@@ -550,7 +550,7 @@ void main() {
     });
 
     test(
-        'SetPetAvatarThumbnailRequest array unions decoded from identical wire '
+        'bhv langdart 084 SetPetAvatarThumbnailRequest array unions decoded from identical wire '
         'bytes are value-equal and hash equally', () {
       // M5 regression for the ARRAY variant (List<Uint8List>): nested byte
       // lists are still identity-compared by Dart's built-in `==`, so the
@@ -569,7 +569,7 @@ void main() {
     });
 
     test(
-        'SetPetAvatarThumbnailRequest unions with differing bytes are unequal',
+        'bhv langdart 085 SetPetAvatarThumbnailRequest unions with differing bytes are unequal',
         () {
       // Sanity: deep-equality must still distinguish genuinely different
       // payloads — the fix must not collapse all unions to "equal".

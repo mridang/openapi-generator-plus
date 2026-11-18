@@ -891,7 +891,7 @@ Future<void> main(List<String> args) async {
     // succeed — proving the refusal is scoped to the offending request and
     // not stored on a shared error slot.
     test(
-      'a too-many-redirects refusal stays on its own request (Wave E)',
+      'bhv langdart 039 a too-many-redirects refusal stays on its own request (Wave E)',
       () async {
         final transport = TransportOptionsBuilder()
             .followRedirects(true)
@@ -989,23 +989,26 @@ Future<void> main(List<String> args) async {
     });
 
     for (final coding in ['br', 'zstd']) {
-      test('refuses a $coding response it cannot decode', () async {
-        final client = DefaultApiClient();
-        await expectLater(
-          client.sendRequest('GET', '$chasmHttpUrl/test/compressed/$coding', {
-            'Accept-Encoding': coding,
-          }, null),
-          throwsA(
-            isA<ApiException>()
-                .having((e) => e.statusCode, 'statusCode', 200)
-                .having(
-                  (e) => e.message,
-                  'message',
-                  equals("Unsupported Content-Encoding '$coding'"),
-                ),
-          ),
-        );
-      });
+      test(
+        'bhv langdart 040 refuses a $coding response it cannot decode',
+        () async {
+          final client = DefaultApiClient();
+          await expectLater(
+            client.sendRequest('GET', '$chasmHttpUrl/test/compressed/$coding', {
+              'Accept-Encoding': coding,
+            }, null),
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.statusCode, 'statusCode', 200)
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    equals("Unsupported Content-Encoding '$coding'"),
+                  ),
+            ),
+          );
+        },
+      );
     }
 
     test(
