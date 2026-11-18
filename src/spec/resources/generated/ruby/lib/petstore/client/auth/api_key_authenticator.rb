@@ -24,6 +24,10 @@ module Petstore::Client
       def initialize(host, key_param_name, api_key, location, env: ENV, api_key_env: "#{ENV_PREFIX}_API_KEY")
         super()
         api_key = credential_from(api_key, api_key_env, env)
+        if api_key.nil?
+          raise ArgumentError,
+                "Missing API key for '#{key_param_name}': pass it or set the environment variable #{api_key_env}"
+        end
         validate_api_key!(key_param_name, api_key, location)
         @host = host
         @key_param_name = key_param_name
