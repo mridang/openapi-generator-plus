@@ -1166,6 +1166,28 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvAuth043AnOperationSendsOnlyTheCredentialOfItsNamedScheme()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["petStoreBearer"] = new BearerAuthenticator("http://localhost", "scheme-token"),
+            ["apiKeyHeader"] = new ApiKeyHeaderAuthenticator("http://localhost", "key-1"),
+        };
+        var api = new PetApi(client, config, null, schemes);
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("Bearer scheme-token", client.CapturedHeaders["Authorization"]);
+        Assert.False(client.CapturedHeaders.ContainsKey("X-API-Key"));
+    }
+
+    [Fact]
     public async Task BhvOperations078TestAddPetUsesConfiguredCredentialsWhenAuthOmitted()
     {
         // When no per-call auth is supplied (Options omitted entirely), the

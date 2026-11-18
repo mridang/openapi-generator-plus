@@ -1380,7 +1380,10 @@ public class OAuth2TokenManagerTest
     )]
     [InlineData("not json", "Token request failed with status 400: not json")]
     [InlineData("{\"error\":\"\"}", "Token request failed with status 400: {\"error\":\"\"}")]
-    public async Task TokenEndpointFailureMessageFollowsTheBody(string body, string expected)
+    public async Task BhvAuth054TokenEndpointFailureMessageFollowsTheBody(
+        string body,
+        string expected
+    )
     {
         var client = new FakeApiClient();
         client.Enqueue(body, statusCode: 400);
