@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -958,23 +959,26 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
-     * A classic allOf base is a plain struct in Rust for now (the tagged enum
-     * for it is open work on #104), and the struct template treats a
-     * discriminator property as one the mapping fills in, which a base has no
-     * value for. The base's property is therefore an ordinary required field.
+     * A classic allOf base is realised as a discriminated union of its
+     * subtypes, as a oneOf with a discriminator is: Rust structs cannot be
+     * subclassed, and a flat base struct could not hold the subtype a
+     * discriminator names. Once the shared pass has marked the base, its mapped
+     * subtypes become its {@code oneOf} set, so the union template emits the
+     * enum, the payload per subtype and the hand-written dispatch that rejects
+     * an unknown or missing discriminator (S4, issue #104). Each subtype struct
+     * keeps every field, including the discriminator, which its own constructor
+     * sets to the mapping value, so a subtype serializes its discriminator.
      */
-    private static void clearBaseDiscriminatorFlag(
-            final org.openapitools.codegen.CodegenModel model) {
+    private static void makeClassicBaseUnion(final org.openapitools.codegen.CodegenModel model) {
         if (!Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
             return;
         }
-        for (final List<org.openapitools.codegen.CodegenProperty> list : List.of(
-                model.vars, model.allVars, model.requiredVars,
-                model.optionalVars, model.readWriteVars)) {
-            for (final org.openapitools.codegen.CodegenProperty property : list) {
-                property.isDiscriminator = false;
-            }
+        final Set<String> variants = new LinkedHashSet<>();
+        for (final CodegenDiscriminator.MappedModel mapped :
+                model.discriminator.getMappedModels()) {
+            variants.add(mapped.getModelName());
         }
+        model.oneOf = variants;
     }
 
     /**
@@ -989,7 +993,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
-                clearBaseDiscriminatorFlag(modelMap.getModel());
+                makeClassicBaseUnion(modelMap.getModel());
                 modelMap.put(
                         "hasDefaultedOptionalVars", hasDefaultedOptionalVars(modelMap.getModel()));
             }

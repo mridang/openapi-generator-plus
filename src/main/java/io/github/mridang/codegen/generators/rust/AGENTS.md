@@ -67,10 +67,10 @@ Where: `readme.mustache` (the "Schema constraints" section holds the constraint 
 Test: none: asserting absence is not worth a test; the README text is the contract.
 
 ### allOf with a discriminator (S4)
-Rule (intended, not implemented): rust uses an internally tagged enum for the parent, subtype structs list the common fields and omit the discriminator field, and serde `flatten` is avoided; a model reused in two unions is never re-parented.
-Why: structs cannot subclass; flattening plus dispatch keeps the wire identical. Today only oneOf with a discriminator is realised (an enum with hand-written `Deserialize` that dispatches on the discriminator and rejects unknown values); `BetterRustCodegen.removesDiscriminatorPropertyFromChildren` and `setsDiscriminatorDefaultOnChildren` carry the discriminator rules.
+Rule: the base is a discriminated enum with one variant per mapped subtype (the `oneOf` path, fed by `makeClassicBaseUnion` in `BetterRustCodegen`); its hand-written `Deserialize` dispatches on the discriminator, decodes into the mapped subtype, and rejects a missing or unknown value by naming it; each subtype struct keeps all fields (no serde `flatten`) and its constructor sets the discriminator to the mapping value, so it serializes that value. A model reused in two unions is never re-parented.
+Why: structs cannot subclass; flattening plus dispatch keeps the wire identical. The same enum serves oneOf with a discriminator and classic allOf; `BetterRustCodegen.removesDiscriminatorPropertyFromChildren` (false) and `setsDiscriminatorDefaultOnChildren` carry the discriminator rules.
 Where: `models/model.mustache`, `BetterRustCodegen.java`.
-Test: `test/composed_schema_test.mustache` (oneOf cases only); classic allOf with a discriminator is #104.
+Test: `test/composed_schema_test.mustache` (oneOf cases and `test_bhv_unions_301` to `304`, `test_bhv_serializationobject_301`); fixture `Vehicle` and `Shape` in the petstore spec.
 
 ### Required and nullable (S5, D66)
 Rule: a required nullable property must be present on decode (absent is an error), an explicit `null` is kept, and encode always writes the key (`null` when unset). A required non-nullable field hard-fails on `null`.
