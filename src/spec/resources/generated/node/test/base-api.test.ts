@@ -228,6 +228,27 @@ describe("BaseApi", () => {
       }
     },
   );
+
+  test("bhv errors 071 a 401 response surfaces as an UnauthorizedError", async () => {
+    const error = await api()
+      .call(
+        "GET",
+        "/test/status/401",
+        {},
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        null,
+      )
+      .then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+
+    expect((error as Error).constructor).toBe(UnauthorizedError);
+    expect((error as ApiError).statusCode).toBe(401);
+  });
 });
 
 describe("BaseApi", () => {

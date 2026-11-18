@@ -118,7 +118,7 @@ describe("DefaultApiClient", () => {
    * Proxy-Authorization, so these two prove the credentials in the proxy
    * URL reach the proxy on the wire.
    */
-  test("authenticating proxy accepts the credentials from the proxy URL", async () => {
+  test("bhv options 052 authenticating proxy accepts the credentials from the proxy URL", async () => {
     const chasmUrl = process.env["CHASM_INTERNAL_HTTP_URL"]!;
     const transport = TransportOptions.builder()
       .proxy(`http://user:pass@${process.env["PROXY_AUTH_HOST_PORT"]!}`)
