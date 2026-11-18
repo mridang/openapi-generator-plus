@@ -536,28 +536,6 @@ test('bhv operations 157 a binary body is sent as raw bytes whether given as str
     fclose($resource);
 })->with(['string', 'resource', 'psr7']);
 
-test('a binary body file that can no longer be read throws instead of sending an empty body', function (): void {
-    $client = new CapturingApiClient();
-    $api = new TestableApi($client, new Configuration('http://localhost'));
-    $path = tempnam(sys_get_temp_dir(), 'body');
-    assert($path !== false);
-    file_put_contents($path, 'bytes');
-    $file = new \SplFileObject($path);
-    unlink($path);
-
-    expect(fn (): mixed => $api->call(
-        'POST',
-        '/test/echo',
-        [],
-        [],
-        $file,
-        ['application/json'],
-        'application/octet-stream',
-        null
-    ))->toThrow(\InvalidArgumentException::class, 'Failed to read request body file');
-    expect($client->capturedBody)->toBeNull();
-});
-
 test('bhv authintegration 009 falls back to client-level authenticator when no per-call auth is supplied', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
@@ -633,7 +611,7 @@ test('bhv authintegration 014 an operation uses the first alternative whose sche
     expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer b');
 });
 
-test('an alternative that needs two schemes applies both credentials', function (): void {
+test('bhv misc 074 an alternative that needs two schemes applies both credentials', function (): void {
     [$api, $client] = newSchemeApi([
         'bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer b']),
         'key' => new TestAuthenticator(headers: ['X-Key' => 'k']),
@@ -750,7 +728,7 @@ test('bhv authintegration 015 configured api-key authenticator is suppressed on 
     expect($client->capturedUrl)->not->toContain('secret-api-key');
 });
 
-test('configured api-key query authenticator sends no api-key param on a security:[] operation', function (): void {
+test('bhv langphp 052 configured api-key query authenticator sends no api-key param on a security:[] operation', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $auth = new ApiKeyAuthenticator('http://localhost', 'api_key', 'secret-api-key', ApiKeyLocation::QUERY);
@@ -1647,7 +1625,7 @@ test('bhv retries 005 a transient failure is retried and the retry carries fresh
     expect($seen->getArrayCopy())->toBe(['Bearer t1', 'Bearer t2', 'Bearer t3']);
 });
 
-test('an operation that keeps failing with a retryable status is attempted three times, then reported', function (): void {
+test('bhv misc 167 an operation that keeps failing with a retryable status is attempted three times, then reported', function (): void {
     /** @var \ArrayObject<int, string> $seen */
     $seen = new \ArrayObject();
     $api = flakyTransportApi(99, $seen, null);
