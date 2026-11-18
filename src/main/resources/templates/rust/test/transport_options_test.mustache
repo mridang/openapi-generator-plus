@@ -718,3 +718,37 @@ fn test_bhv_transport_077_a_ca_certificate_path_naming_a_directory_is_refused_wh
     assert!(result.is_err(), "a directory is not a certificate file");
     assert!(result.unwrap_err().to_string().contains(dir_text), "the error must name the path");
 }
+
+#[test]
+fn test_bhv_misc_034_a_caller_client_and_a_transport_together_are_refused() {
+    let transport = TransportOptions::builder()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+        .expect("valid transport options");
+    let err = DefaultApiClient::with_client(reqwest::Client::new(), Some(transport))
+        .err()
+        .expect("a caller client and a transport together must be refused");
+    assert!(err.to_string().contains("a proxy"), "the refusal names the conflict, got: {}", err);
+}
+
+#[test]
+fn test_bhv_misc_042_a_caller_client_with_verification_disabled_is_refused_naming_the_setting() {
+    let transport = TransportOptions::builder()
+        .verify_ssl(false)
+        .build()
+        .expect("valid transport options");
+    let err = DefaultApiClient::with_client(reqwest::Client::new(), Some(transport))
+        .err()
+        .expect("a caller client with verification disabled must be refused");
+    assert!(err.to_string().contains("verify_ssl(false)"), "the refusal names the setting, got: {}", err);
+}
+
+#[test]
+fn test_bhv_misc_026_a_configuration_mistake_is_not_an_api_error() {
+    let err = TransportOptionsBuilder::new()
+        .timeout(Some(-1))
+        .build()
+        .expect_err("a negative timeout must be refused");
+    let boxed: Box<dyn std::error::Error> = Box::new(err);
+    assert!(boxed.downcast_ref::<ApiError>().is_none(), "a configuration error is not an ApiError, got: {}", boxed);
+}

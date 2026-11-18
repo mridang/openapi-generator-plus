@@ -497,6 +497,12 @@ defmodule {{moduleName}}.TransportOptionsTest do
     end
   end
 
+  test "bhv misc 042 a supplied connection with verification turned off is refused and the error names verify_ssl" do
+    assert_raise ArgumentError, ~r/verify_ssl/, fn ->
+      {{moduleName}}.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
+    end
+  end
+
   test "bhv lifecycle 024 a supplied client conflicts with the SDK's proxy and TLS settings" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
       {{moduleName}}.TransportOptions.new(

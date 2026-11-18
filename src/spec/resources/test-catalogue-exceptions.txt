@@ -443,6 +443,15 @@ go | misc105 | Go models have no validation step at construction or copy, so cop
 ||||||| 92a9dd837
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
+ruby | misc044 | contradicts transport089: a Content-Encoding that does not match its body is an API error, so a gzip header without the gzip signature cannot also be returned as the plain body
+ruby | misc052 | Ruby keyword arguments cannot name the same option twice in one call (a repeated keyword is a syntax error), so there is no second value of the same per-call option to resolve
+ruby | misc054 | a call reads its header hash before it returns and keeps no reference to it, and no option object holds the map for later, so a change the caller makes afterwards cannot reach a request
+ruby | misc059 | JSON.parse rejects the NaN and Infinity literals by default, so a token response cannot carry a non-finite lifetime for the cache to refuse
+ruby | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so there is no combined credential to send
+||||||| e7bc17643
+go | misc113 | Go models have no generated string form, and fmt's default formatting prints the address of each pointer to a list, map or byte field, so the contents of those fields are never shown
+kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPhotos options argument, since the parameter has no default value, so no runtime call without it can be made
+||||||| e6c85ecf4
 swift | misc010 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the same rule is stated by misc004
 swift | misc012 | every required argument is a non-optional Swift parameter, so a nil value cannot be passed; the empty-string case is covered by misc007
 ||||||| 68cea441c
@@ -459,3 +468,23 @@ python | misc051 | operation Options objects are typed, so an option the operati
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
 csharp | misc030 | C# has no request deadline: its timeout is a duration that starts when the call starts, so no call can begin already past its deadline
+||||||| 103ccb42b
+elixir | misc029 | The SDK has no cancellation argument (readme: a caller stops a call by terminating its process), so the SDK never sees a caller's cancellation and cannot wrap it in its error type
+elixir | misc033 | the test certificates are generated per Maven run as one CA and one server leaf (TestCertificates), so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
+elixir | misc034 | Elixir has no separate caller HTTP client beside a caller transport: a Finch pool and a Req adapter are both keys of one req_options list, which is accepted as given, so there is no client and transport pair to refuse
+elixir | misc035 | The SDK has no cancellation argument and no abort signal (readme), so no call can carry an already-aborted signal
+elixir | misc036 | A file part is an in-memory {:file, name, content} tuple that the SDK never consumes or closes, so the caller holds no handle that a failed request could leave unreadable
+elixir | misc044 | contradicts transport030: a Content-Encoding that does not match its body is an ApiError, pinned by BhvTransport030 (Gap AL), so a gzip header without the gzip signature cannot also be returned as the plain body
+||||||| 214915d4c
+rust | misc029 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no caller cancellation error exists for the SDK to wrap or replace
+rust | misc030 | Rust has no per-call deadline (S7): the only time bound is the transport timeout, so no already-passed deadline can be supplied to a call and reach the transport check
+rust | misc033 | the Rust suite has no TLS server or certificate chain fixture, so a server that sends an intermediate linking its leaf to a pinned root cannot be started in a test
+rust | misc035 | Rust has no abort signal on a call (S7): an already-cancelled call is a dropped future that never reaches the transport, and no abort error exists to assert
+rust | misc036 | Rust moves a caller's body into the call, so after a failed request the caller holds no part to read; readability after a failure does not arise
+rust | misc038 | the Rust suite has no TLS server, so a server presenting a self-signed certificate that the platform trust store rejects cannot be started in a test
+||||||| 04e54c449
+dart | misc030 | Dart has no per-call deadline: the only deadline is the client-wide timeout, which must be a positive number of milliseconds when built, so a deadline cannot already be past when a request starts
+dart | misc033 | the suite ships a single server certificate with no root and intermediate pair, so a root-only pinned CA file cannot be paired with a server that also sends the intermediate
+dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
+dart | misc044 | the Dart client raises on a body that declares gzip but fails to decode, as bhv transport 073 pins, so it never returns that body as plain content
+dart | misc047 | PetFood.toJson passes a value that is not one of its variants through unchanged instead of raising, so no serialization error names the union

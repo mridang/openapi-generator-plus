@@ -42,6 +42,16 @@ test('bhv authbearer 008 mixed case bearer prefix is stripped', function (): voi
     expect($headers['Authorization'])->toBe('Bearer xyz');
 });
 
+test('bhv misc 017 a rejected credential is never named in the construction error', function (): void {
+    try {
+        new BearerAuthenticator('https://api.example.com', "tok\r\nInjected: yes");
+        test()->fail('Expected exception not thrown');
+    } catch (\InvalidArgumentException $e) {
+        expect($e->getMessage())->not->toContain('Injected');
+        expect($e->getMessage())->not->toContain("tok\r\n");
+    }
+});
+
 test('bhv authbearer 012 bearer rejects crlf at construction', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', "tok\r\nInjected: yes"))
         ->toThrow(\InvalidArgumentException::class);
