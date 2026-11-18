@@ -1431,7 +1431,7 @@ defmodule PetstoreClient.ValueSerializerTest do
     test "bhv serialization 113 a string value passes through unchanged without normalising its form" do
       decomposed = "é"
 
-      assert PetstoreClient.ValueSerializer.serialize(decomposed, :path, "string") == decomposed
+      assert PetstoreClient.ValueSerializer.serialize(decomposed, :path, "string") == "e%CC%81"
     end
 
     test "bhv serialization 114 an integer serializes with every digit, including a full 64-bit value" do

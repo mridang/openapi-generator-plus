@@ -2560,7 +2560,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   test "bhv serialization 068 a model built in code is not validated and keeps wrong types and unknown values" do
-    pet = %PetstoreClient.Models.Pet{name: 123, status: "not-a-status"}
+    pet = %PetstoreClient.Models.Pet{name: 123, photo_urls: [], status: "not-a-status"}
 
     assert pet.name == 123
     assert pet.status == "not-a-status"
