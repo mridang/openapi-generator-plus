@@ -276,3 +276,11 @@ rust | lifecycle040 | Rust's scoped-disposal construct is Drop, and the generate
 rust | transport069 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no cancellation signal or caller context reaches the transport to be asserted
 rust | transport074 | The zstd, brotli and flate2 decoders are compiled into the crate, so no codec library can be missing at run time
 rust | transport079 | reqwest with rustls honours verify_ssl(false), so no client built by the crate is unable to honour it and no construction refusal exists
+swift | models014 | Swift model properties are declared with let, so reassigning one is a compile-time error that no runtime test can observe
+swift | options063 | Swift per-call options are structs whose fields are declared with let, so changing a built one is a compile-time error that no runtime test can observe
+swift | servers028 | Swift generated server lists are let constants, so changing one after creation is a compile-time error that no runtime test can observe
+swift | serialization011 | Swift writes model keys sorted through JSONEncoder with sortedKeys, a forced divergence recorded as D85, so model keys are not in declaration order
+swift | serialization041 | Swift maps format time to String with no time-of-day type in Foundation, so the wire string is the value and is never parsed into a time value
+swift | serialization043 | Swift maps format time to String with no time-of-day type in Foundation, so a time of day is kept as its wire string and never written from a time value
+swift | auth001 | Swift OAuth2 authenticators expose only the async authHeaders() requirement, so a synchronous header call does not compile and there is no sync accessor to raise from
+swift | transport076 | Swift on Linux refuses any proxy setting because URLSession applies no proxy there, so proxy credentials never reach a request on this platform and cannot be checked

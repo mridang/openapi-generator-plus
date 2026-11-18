@@ -94,7 +94,7 @@ import FoundationNetworking
         #expect(error?.errorDescription?.contains("must use http or https scheme") == true)
     }
 
-    @Test func testSessionDefaultsToNil() throws {
+    @Test func testBhvOptions058SessionDefaultsToNil() throws {
         #expect(try TransportOptionsBuilder().build().session == nil)
     }
 
@@ -120,7 +120,7 @@ import FoundationNetworking
     /* A supplied session cannot be combined with the SDK's own proxy, TLS or
        redirect settings: build() fails fast. */
     @Test(arguments: ["proxy", "caCertPath", "verifySsl", "followRedirects", "maxRedirects"])
-    func testSessionConflictsWithOwnSettings(setting: String) {
+    func testBhvTransport078SessionConflictsWithOwnSettings(setting: String) {
         let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
         switch setting {
         case "proxy": builder.proxy("http://proxy.example.com:8080")
@@ -418,7 +418,7 @@ import FoundationNetworking
     }
 
 #if os(Linux)
-    @Test func testSettingProxyRaisesOnLinux() throws {
+    @Test func testBhvTransport080SettingProxyRaisesOnLinux() throws {
         // On Linux, URLSession does not support proxy configuration.
         // TransportOptions accepts the proxy value; DefaultApiClient's init
         // rejects it with ConfigurationError.invalidProxy rather than
@@ -440,4 +440,61 @@ import FoundationNetworking
         #expect(opts.proxy != nil)
     }
 #endif
+    // MARK: - Behaviour catalogue: transport option defaults and printable form
+
+    /* A caller-supplied session is unset unless given, and a supplied one is kept unchanged. */
+    @Test func testBhvOptions059SuppliedSessionIsKeptUnchangedAndUnsetByDefault() throws {
+        #expect(try TransportOptionsBuilder().build().session == nil)
+        let session = URLSession(configuration: .ephemeral)
+        let opts = try TransportOptionsBuilder().session(session).build()
+        #expect(opts.session === session)
+    }
+
+    /* The static builder entry point carries the values set on it and the direct build's defaults. */
+    @Test func testBhvOptions060StaticBuilderCarriesTheValuesAndTheSameDefaults() throws {
+        let viaStatic = try TransportOptions.builder().timeout(5000).build()
+        #expect(viaStatic.timeout == 5000)
+        let direct = try TransportOptionsBuilder().build()
+        #expect(viaStatic.maxRetries == direct.maxRetries)
+        #expect(viaStatic.followRedirects == direct.followRedirects)
+        #expect(viaStatic.userAgent == direct.userAgent)
+    }
+
+    /* A user agent is kept as given, and setting it to none sends no User-Agent header. */
+    @Test func testBhvOptions061UserAgentIsKeptAsGivenOrUnsetWhenNone() throws {
+        let named = try TransportOptionsBuilder().userAgent("example-agent/1.0").build()
+        #expect(named.userAgent == "example-agent/1.0")
+        let none = try TransportOptionsBuilder().userAgent(nil).build()
+        #expect(none.userAgent == nil)
+    }
+
+    /* The printable form shows the configured maximum number of retries. */
+    @Test func testBhvOptions064PrintableFormShowsTheMaxRetries() throws {
+        let opts = try TransportOptionsBuilder().maxRetries(5).build()
+        #expect(opts.description.contains("maxRetries: 5"))
+    }
+
+    /* The printable form never shows a proxy password or a caller-supplied default header secret. */
+    @Test func testBhvOptions065PrintableFormNeverShowsAProxyPasswordOrSecretHeader() throws {
+        let opts = try TransportOptionsBuilder()
+            .proxy("http://alice:proxy-secret-pass@proxy.example.com:8080")
+            .defaultHeader(name: "Authorization", value: "Bearer header-secret-token")
+            .build()
+        #expect(!opts.description.contains("proxy-secret-pass"))
+        #expect(!opts.description.contains("header-secret-token"))
+        #expect(!opts.debugDescription.contains("proxy-secret-pass"))
+    }
+
+    /* The printable form shows a proxy URL with no credentials exactly as configured. */
+    @Test func testBhvOptions066PrintableFormShowsAProxyUrlWithoutCredentialsAsConfigured() throws {
+        let opts = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
+        #expect(opts.description.contains("proxy: http://proxy.example.com:8080,"))
+    }
+
+    /* A valid proxy URL is kept on directly built options, and no proxy leaves it unset. */
+    @Test func testBhvOptions067ValidProxyIsKeptAndNoProxyLeavesItUnset() throws {
+        let proxied = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
+        #expect(proxied.proxy?.absoluteString == "http://proxy.example.com:8080")
+        #expect(try TransportOptionsBuilder().build().proxy == nil)
+    }
 }

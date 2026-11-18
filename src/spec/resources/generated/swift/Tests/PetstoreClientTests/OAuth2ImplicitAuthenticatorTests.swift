@@ -25,7 +25,7 @@ import Testing
 
   /* The token is set from the redirect callback while requests read it from
      other threads; every read sees a complete token, never a torn one. */
-  @Test func testConcurrentSetAndReadOfTheAccessToken() async throws {
+  @Test func testBhvAuth030ConcurrentSetAndReadOfTheAccessToken() async throws {
     let auth = createAuthenticator()
     try auth.setAccessToken("token-0")
     let headers = await withTaskGroup(of: String?.self) { group in
@@ -203,7 +203,7 @@ import Testing
   }
 
   /* The authorize URL parameters are emitted in the fixed cross-SDK order. */
-  @Test func testAuthorizationUrlUsesFixedParameterOrder() throws {
+  @Test func testBhvAuth014AuthorizationUrlUsesFixedParameterOrder() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL(state: "s")
@@ -240,5 +240,30 @@ import Testing
       authorizationURL: "https://auth.example.com/authorize")
     #expect(auth.description.contains("clientID: client-1"))
     #expect(auth.description.contains("authorizationURL: https://auth.example.com/authorize"))
+  }
+  // MARK: - Behaviour catalogue: replacing the token under concurrent reads
+
+  /* Replacing the token while others read the headers is race-free: each read gets one complete token that was set. */
+  @Test func testBhvMisc001ReplacingTheTokenWhileReadingIsRaceFree() async throws {
+    let auth = createAuthenticator()
+    try auth.setAccessToken("token-0")
+    let seen = await withTaskGroup(of: String?.self) { group in
+      for i in 0..<200 {
+        group.addTask {
+          if i % 2 == 1 {
+            try? auth.setAccessToken("token-\(i)")
+            return nil
+          }
+          return try? await auth.authHeaders()["Authorization"]
+        }
+      }
+      var reads: [String] = []
+      for await header in group {
+        if let header { reads.append(header) }
+      }
+      return reads
+    }
+    #expect(seen.count == 100)
+    #expect(seen.allSatisfy { $0.hasPrefix("Bearer token-") })
   }
 }

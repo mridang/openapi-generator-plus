@@ -133,7 +133,7 @@ final class PetApiTests {
 
   /* A request that exceeds the configured timeout is a NetworkTimeoutError,
      which is a NetworkError with status 0. */
-  @Test func testTimeoutThrowsNetworkTimeoutError() async throws {
+  @Test func testBhvTransport072TimeoutThrowsNetworkTimeoutError() async throws {
     let transport = try TransportOptionsBuilder().timeout(1000).build()
     let client = try DefaultApiClient(transportOptions: transport)
     let error = await #expect(throws: NetworkTimeoutError.self) {
@@ -1378,7 +1378,7 @@ final class PetApiTests {
   }
 
   /* A 200 with no body comes back with an empty body, not an error. */
-  @Test func testEmptyBodyResponseIsReturnedAsIs() async throws {
+  @Test func testBhvTransport067EmptyBodyResponseIsReturnedAsIs() async throws {
     let client = DefaultApiClient()
     let response = try await client.sendRequest(
       method: "GET", url: "\(chasmHttpUrl)/test/empty", headers: [:], body: nil)
@@ -1551,7 +1551,7 @@ final class PetApiTests {
   // remain readable after construction. A param-bearing Options round-trips
   // its parameters. This pins the immutable shape: the properties are readable
   // but cannot be reassigned after construction.
-  @Test func testOptionsConstructedAndReadBack() async throws {
+  @Test func testBhvOptions062OptionsConstructedAndReadBack() async throws {
     let paramOpts = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S"])
     #expect(paramOpts.colors == ["blue", "black"])
     #expect(paramOpts.sizes == ["S"])

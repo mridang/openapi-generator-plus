@@ -886,4 +886,74 @@ import Testing
   @Test func testBhvSerializationparam081SemicolonIsPreservedInPathSegment() {
     #expect(ValueSerializer.encodePathSegment("a;b") == "a;b")
   }
+
+  // MARK: - Behaviour catalogue: path, header, style and object parameters
+
+  @Test func testBhvSerialization005PathSegmentKeepsOnlyUnreservedAndSubDelimitersLiteral() {
+    #expect(
+      ValueSerializer.encodePathSegment("a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r")
+        == "a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r")
+    #expect(ValueSerializer.encodePathSegment("a/b?c#d%e") == "a%2Fb%3Fc%23d%25e")
+  }
+
+  @Test func testBhvSerialization013UnstyledAndSimpleHeaderArrayIsItsItems() {
+    let unstyled = ValueSerializer.serializeStyled(
+      "ids", value: ["1", "2"], location: "header", schemaType: "array", collectionFormat: "",
+      style: "", explode: false)
+    #expect(unstyled as? String == "1,2")
+    let simple = ValueSerializer.serializeStyled(
+      "ids", value: ["1", "2"], location: "header", schemaType: "array", collectionFormat: "",
+      style: "simple", explode: false)
+    #expect(simple as? String == "1,2")
+  }
+
+  @Test func testBhvSerialization015ObjectValuedPathParameterUsesItsStyleSeparators() {
+    let criteria = Criteria(breed: "lab", minAge: 3, active: true, note: nil)
+    let simple = ValueSerializer.serializeStyled(
+      "c", value: criteria, location: "path", schemaType: "object", collectionFormat: "",
+      style: "simple", explode: false)
+    #expect(simple as? String == "active,true,breed,lab,min_age,3")
+    let exploded = ValueSerializer.serializeStyled(
+      "c", value: criteria, location: "path", schemaType: "object", collectionFormat: "",
+      style: "simple", explode: true)
+    #expect(exploded as? String == "active=true,breed=lab,min_age=3")
+    let label = ValueSerializer.serializeStyled(
+      "c", value: criteria, location: "path", schemaType: "object", collectionFormat: "",
+      style: "label", explode: true)
+    #expect(label as? String == ".active=true.breed=lab.min_age=3")
+    let matrix = ValueSerializer.serializeStyled(
+      "c", value: criteria, location: "path", schemaType: "object", collectionFormat: "",
+      style: "matrix", explode: false)
+    #expect(matrix as? String == ";c=active,true,breed,lab,min_age,3")
+  }
+
+  @Test func testBhvSerialization016ObjectInDelimitedStyleAlternatesNamesAndValues() {
+    let criteria = Criteria(breed: "lab", minAge: 3, active: true, note: nil)
+    let piped = ValueSerializer.serializeStyled(
+      "c", value: criteria, location: "header", schemaType: "object", collectionFormat: "",
+      style: "pipeDelimited", explode: false)
+    #expect(piped as? String == "active|true|breed|lab|min_age|3")
+    let spaced = ValueSerializer.serializeStyled(
+      "c", value: criteria, location: "header", schemaType: "object", collectionFormat: "",
+      style: "spaceDelimited", explode: false)
+    #expect(spaced as? String == "active true breed lab min_age 3")
+  }
+
+  @Test func testBhvSerialization018NestedObjectInAnObjectParameterIsRefused() throws {
+    let nested = Nested(
+      name: "outer", inner: Criteria(breed: "lab", minAge: 3, active: true, note: nil))
+    let result = ValueSerializer.serializeStyled(
+      "n", value: nested, location: "query", schemaType: "object", collectionFormat: "",
+      style: "form", explode: true)
+    let parameter = try #require(result as? ValueSerializer.ObjectParameter)
+    #expect(parameter.failure != nil)
+    #expect(parameter.fields.isEmpty)
+  }
+  // MARK: - Behaviour catalogue: encoding of a content-typed parameter
+
+  /* A content-typed parameter is encoded once, and the cookie encoder does not encode it again. */
+  @Test func testBhvSerialization008ContentTypedParameterIsEncodedOnlyOnce() {
+    #expect(ValueSerializer.encodeCookieValue("{\"a\":1}") == "%7B%22a%22%3A1%7D")
+    #expect(ValueSerializer.encodeCookieValue("%7B") == "%257B")
+  }
 }

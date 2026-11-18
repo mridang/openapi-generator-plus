@@ -483,6 +483,8 @@ public class BaseApi: @unchecked Sendable {
     var parts: [String] = []
     for (k, v) in queryParams {
       guard let v = v else { continue }
+      /* An empty value is no value: its key is left out, as for an unset one. */
+      if let text = v as? String, text.isEmpty { continue }
       /* An exploded object-valued parameter is one `field=value` pair per
        * field, under the field's own name rather than the parameter's. */
       if let object = v as? ValueSerializer.ObjectParameter {

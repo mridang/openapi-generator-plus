@@ -155,7 +155,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testWithTokenFactoryBuildsAClientAndRejectsInvalidTokens() throws {
+  @Test func testBhvLifecycle039WithTokenFactoryBuildsAClientAndRejectsInvalidTokens() throws {
     _ = try Client.withToken(host: "/api/v3", accessToken: "abc.def-123")
     _ = try Client.withToken(
       host: "/api/v3", accessToken: "abc", transportOptions: try TransportOptionsBuilder().build())
@@ -288,7 +288,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         ))
   }
 
-  @Test func testAnEmptyEnvironmentValueCountsAsUnset() {
+  @Test func testBhvConfig025AnEmptyEnvironmentValueCountsAsUnset() {
     #expect(
       throws: ConfigurationError.invalidArgument(
         "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
@@ -364,14 +364,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(value == "env-value")
   }
 
-  @Test func testAnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
+  @Test func testBhvAuth023AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
     let value = try BaseAuthenticator.credential(
       "", name: "token", variable: "EXAMPLE_TOKEN",
       environment: ["EXAMPLE_TOKEN": "env-value"])
     #expect(value == "")
   }
 
-  @Test func testAnEmptyOrMissingVariableIsAMissingCredential() {
+  @Test func testBhvAuth003AnEmptyOrMissingVariableIsAMissingCredential() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'token': pass it, or set the EXAMPLE_TOKEN environment variable")
     #expect(throws: missing) {
@@ -1118,7 +1118,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   /* An operation declared without security never carries a credential, even
      when the client holds one for every scheme. */
-  @Test func testAnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
+  @Test func testBhvAuth021AnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
     let host = "https://unauthenticated.example.com"
     let client = try schemeClient(
       host: host,
@@ -1135,7 +1135,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   }
 
   /* A credential that needs the transport gets the client's own. */
-  @Test func testASchemeCredentialThatNeedsTheTransportGetsTheClientsOwn() throws {
+  @Test func testBhvAuth025ASchemeCredentialThatNeedsTheTransportGetsTheClientsOwn() throws {
     let aware = SchemeTransportProbe()
     let client = try schemeClient(host: "https://transport.example.com", petStoreBearer: aware)
     defer { client.close() }

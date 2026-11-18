@@ -110,7 +110,7 @@ import Testing
     "[1,2,3]",
     "\"dry\"",
   ])
-  func testPetFoodDecodeFailuresSurfaceAsSerializationError(json: String) {
+  func testBhvUnions038PetFoodDecodeFailuresSurfaceAsSerializationError(json: String) {
     let error = #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize(json, as: PetFood.self)
     }
@@ -198,7 +198,7 @@ import Testing
     #expect(try ObjectSerializer.serialize(wet) == "{\"foodType\":\"wet\",\"volumeMl\":400}")
   }
 
-  @Test func testPrimitiveUnionTypedAccessorsTellTheVariantsApart() {
+  @Test func testBhvUnions041PrimitiveUnionTypedAccessorsTellTheVariantsApart() {
     let scalar = SetPetAvatarThumbnailRequest.fromData(Data([0xFF]))
     #expect(scalar.isData)
     #expect(!scalar.isDataList)
@@ -343,7 +343,7 @@ import Testing
   }
 
   /// An anyOf wrapper built from no variants is refused, because reading it would trap.
-  @Test func testPetTreatmentFromNoVariantsIsNil() {
+  @Test func testBhvUnions042PetTreatmentFromNoVariantsIsNil() {
     #expect(PetTreatment([]) == nil)
   }
 
@@ -531,7 +531,7 @@ import Testing
   /// dictionaries STRUCTURALLY rather than falling to `default: false`, and
   /// Hashable must fold their contents in (not collapse every container to
   /// `combine(0)`). This guards the recursion added to `==`/`hash(into:)`.
-  @Test func testAnyCodableArrayEquatableAndHashable() {
+  @Test func testBhvSerialization021AnyCodableArrayEquatableAndHashable() {
     let a = AnyCodable([1, "two", true])
     let b = AnyCodable([1, "two", true])
     let c = AnyCodable([1, "two", false])
@@ -547,5 +547,36 @@ import Testing
     #expect(a == b)
     #expect(a != c)
     #expect(a.hashValue == b.hashValue)
+  }
+  // MARK: - Behaviour catalogue: union wrappers
+
+  /* A union wrapper built from one of its variants holds that exact value and returns it unchanged. */
+  @Test func testBhvUnions037WrapperHoldsTheVariantItWasBuiltFrom() {
+    let dry = DryFood(weightKg: 2.5)
+    let food = PetFood(dry)
+    #expect(food.isDryFood)
+    #expect(food.asDryFood == dry)
+  }
+
+  /* Building a union wrapper from a value never validates it or throws. */
+  @Test func testBhvUnions039BuildingAWrapperNeverValidatesTheValue() {
+    let food = PetFood(DryFood(weightKg: -1))
+    #expect(food.isDryFood)
+    #expect(food.asDryFood?.weightKg == -1)
+  }
+
+  /* A union wrapper's typed accessor returns the variant it holds and nothing for the others. */
+  @Test func testBhvUnions040TypedAccessorReturnsOnlyTheHeldVariant() {
+    let wet = WetFood(volumeMl: 400)
+    let food = PetFood(wet)
+    #expect(food.asWetFood == wet)
+    #expect(food.asDryFood == nil)
+    #expect(!food.isDryFood)
+  }
+
+  /* A discriminator value already set on a subtype is written as given, not replaced by the default. */
+  @Test func testBhvUnions043SetDiscriminatorIsWrittenAsGiven() throws {
+    let json = try ObjectSerializer.serialize(DryFood(foodType: "custom", weightKg: 1))
+    #expect(json.contains("\"foodType\":\"custom\""))
   }
 }

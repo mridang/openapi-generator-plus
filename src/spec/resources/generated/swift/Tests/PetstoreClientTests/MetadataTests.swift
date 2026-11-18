@@ -168,7 +168,7 @@ import Testing
     #expect(original.quantity == 7)
   }
 
-  @Test func testCopyClearsAnOptionalPropertyOnlyWithSomeNil() {
+  @Test func testBhvModels016CopyClearsAnOptionalPropertyOnlyWithSomeNil() {
     let original = Order(id: 1, quantity: 7)
 
     #expect(original.copy(quantity: nil).quantity == 7)
@@ -184,7 +184,7 @@ import Testing
     #expect(original.quantity == 4)
   }
 
-  @Test func testCopyOfAModelWithAdditionalPropertiesKeepsThem() {
+  @Test func testBhvModels015CopyOfAModelWithAdditionalPropertiesKeepsThem() {
     let when = Date(timeIntervalSince1970: 1_705_315_800)
     let original = Metadata(createdAt: when, additionalProperties: ["extra": AnyCodable("x")])
 
@@ -205,13 +205,13 @@ import Testing
   }
 
   /* An enum prints its wire value, not the case name. */
-  @Test func testEnumDescriptionIsTheWireValue() {
+  @Test func testBhvSerialization001EnumDescriptionIsTheWireValue() {
     #expect("\(OrderStatusEnum.approved)" == "approved")
     #expect("\(Priority.number2)" == "2")
     #expect(String(describing: Priority.number3) == "3")
   }
 
-  @Test func testIntegerEnumMembersAreLowerCamelCase() {
+  @Test func testBhvModels021IntegerEnumMembersAreLowerCamelCase() {
     #expect(Priority.allCases.map { "\($0)" } == ["1", "2", "3"])
     #expect(Priority.number1.rawValue == 1)
   }
@@ -310,5 +310,68 @@ import Testing
 
   @Test func testReadmeListsTheLicenseInThePackageSection() throws {
     #expect(try readme().contains("- License: MIT"))
+  }
+
+  // MARK: - Behaviour catalogue: model construction, copies and additional properties
+
+  /* A newly built model's additional properties start as an empty collection. */
+  @Test func testBhvModels013AdditionalPropertiesStartEmpty() {
+    #expect(Metadata(createdAt: nil).additionalProperties.isEmpty)
+  }
+
+  /* A copy can set an optional field, and clearing it leaves the original as it was. */
+  @Test func testBhvModels017CopySetsOrClearsAnOptionalFieldAndKeepsTheOriginal() {
+    let original = Order(id: 1, quantity: 7)
+    #expect(original.copy(quantity: 9).quantity == 9)
+    #expect(original.copy(quantity: .some(nil)).quantity == nil)
+    #expect(original.quantity == 7)
+  }
+
+  /* Two models with a different value in any field compare unequal. */
+  @Test func testBhvModels019ModelsDifferingInAnyFieldCompareUnequal() {
+    #expect(Order(id: 1) != Order(id: 2))
+    #expect(Order(id: 1, quantity: 7) != Order(id: 1, quantity: 8))
+  }
+
+  /* A generated model whose schema allows undeclared properties exposes them. */
+  @Test func testBhvModels022ModelWithAdditionalPropertiesReportsThem() {
+    let model = Metadata(createdAt: nil, additionalProperties: ["extra": AnyCodable("x")])
+    #expect(model.additionalProperties["extra"] != nil)
+  }
+
+  /* Undeclared keys named like the SDK's own methods are kept as additional properties. */
+  @Test func testBhvModels023UndeclaredKeysNamedLikeMethodsAreKeptAsAdditionalProperties() throws {
+    let json = "{\"copy\":1,\"description\":\"x\"}"
+    let model = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Metadata.self))
+    #expect(model.additionalProperties.keys.sorted() == ["copy", "description"])
+  }
+
+  /* A newly built model leaves its optional properties unset. */
+  @Test func testBhvModels024NewModelLeavesOptionalPropertiesUnset() {
+    let order = Order()
+    #expect(order.id == nil)
+    #expect(order.quantity == nil)
+    #expect(order.petId == nil)
+  }
+  // MARK: - Behaviour catalogue: enum members
+
+  /* A model's enum member is written as its exact declared wire string, casing included. */
+  @Test func testBhvSerialization002EnumMemberIsWrittenAsItsWireString() throws {
+    let order = Order(status: OrderStatusEnum(rawValue: "approved"))
+    #expect(try ObjectSerializer.serialize(order).contains("\"status\":\"approved\""))
+  }
+
+  /* A wire value an enum declares decodes to the member carrying exactly that value. */
+  @Test func testBhvSerialization003WireValueDecodesToItsMember() throws {
+    let order = try #require(
+      try ObjectSerializer.deserialize("{\"status\":\"approved\"}", as: Order.self))
+    #expect(order.status == OrderStatusEnum(rawValue: "approved"))
+  }
+
+  /* A generated enum lists its declared members and refuses any value outside them. */
+  @Test func testBhvSerialization004EnumListsItsMembersAndRefusesOthers() {
+    #expect(OrderStatusEnum.allCases.map { $0.rawValue }.contains("placed"))
+    #expect(OrderStatusEnum.allCases.map { $0.rawValue }.contains("approved"))
+    #expect(OrderStatusEnum(rawValue: "not-a-status") == nil)
   }
 }

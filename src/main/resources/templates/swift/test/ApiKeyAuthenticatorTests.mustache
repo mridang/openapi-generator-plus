@@ -109,7 +109,7 @@ import Testing
         ("kéy", ApiKeyLocation.header, "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
         ("a\u{7F}b", ApiKeyLocation.header, "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
     ])
-    func testRejectionMessagesNameTheBranch(apiKey: String, location: ApiKeyLocation, message: String) {
+    func testBhvAuth012RejectionMessagesNameTheBranch(apiKey: String, location: ApiKeyLocation, message: String) {
         #expect(throws: ConfigurationError.invalidArgument(message)) {
             _ = try ApiKeyAuthenticator(
                 host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: apiKey, location: location)
@@ -299,5 +299,20 @@ import Testing
         #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' must not be empty")) {
             _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "   ", location: .header)
         }
+    }
+    // MARK: - Behaviour catalogue: API key placement and redaction
+
+    /* An API key sent in a header appears under the header name the spec declares. */
+    @Test func testBhvAuth006ApiKeyInAHeaderUsesTheDeclaredName() async throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "key-123", location: .header)
+        let headers = try await auth.authHeaders()
+        #expect(headers["X-API-Key"] == "key-123")
+    }
+
+    /* A secret passed to an authenticator never appears in its description or dump. */
+    @Test func testBhvAuth018ApiKeySecretNeverAppearsInItsDescription() throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "key-secret-018", location: .header)
+        #expect(!String(describing: auth).contains("key-secret-018"))
+        #expect(!String(reflecting: auth).contains("key-secret-018"))
     }
 }

@@ -74,4 +74,14 @@ import Testing
     #expect(result.rawBody == "\"payload\"")
     #expect(result.headers == ["X-A": "1"])
   }
+
+  // MARK: - Behaviour catalogue: result headers
+
+  /* The headers a result exposes are a copy taken when it is built, so later source changes do not show. */
+  @Test func testBhvResults006ResultHeadersAreAReadOnlyCopyAtBuildTime() {
+    var source = ["X-Trace": "1"]
+    let result = ApiResult<String>(statusCode: 200, data: nil, rawBody: "", headers: source)
+    source["X-Trace"] = "2"
+    #expect(result.headers["X-Trace"] == "1")
+  }
 }

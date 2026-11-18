@@ -92,7 +92,7 @@ import Testing
   /// actually used: an unreachable or ignored hook would mean trace context
   /// is never injected. The propagator is process-wide state, so the suite
   /// is serialized and this test restores it.
-  @Test func testRegisteredPropagatorIsUsed() {
+  @Test func testBhvMisc002RegisteredPropagatorIsUsed() {
     let traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
     TraceContextUtil.propagator = { headers in
       headers["traceparent"] = traceparent
