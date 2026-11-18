@@ -857,6 +857,10 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvRedirects056 a request that opts out of transport default headers sends none of them")
+        fun bhvRedirects056OptOutSendsNoDefaultHeaders() = noRedirectRequestSkipsDefaultHeaders()
+
+        @Test
         @DisplayName("bhvRedirects016 a no-redirect (token) request does not carry the transport default headers")
         fun noRedirectRequestSkipsDefaultHeaders() {
             val seen = mutableListOf<String?>()
@@ -1708,6 +1712,10 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvRedirects055 a redirect whose target scheme is not http or https is refused with an error")
+        fun bhvRedirects055NonHttpSchemeRedirectIsRefused() = redirectToNonHttpSchemeThrows()
+
+        @Test
         @DisplayName("bhvRedirects020 redirect to non-http(s) scheme throws ApiException")
         fun redirectToNonHttpSchemeThrows() {
             val engine =
@@ -1760,6 +1768,10 @@ class DefaultApiClientUnitTest {
             }
             assertTrue(redirectBody.isClosedForRead, "the refused redirect's body must be read and released")
         }
+
+        @Test
+        @DisplayName("bhvRetries051 a request with a body is refused, with status 307, when a redirect downgrades https to http")
+        fun bhvRetries051DowngradeRefusesBodyWith307() = refusesBodyReplayOnHttpsToHttpDowngrade()
 
         @Test
         @DisplayName("bhvRetries017 Gap 3.3: refuses to replay body on HTTPS->HTTP downgrade")
