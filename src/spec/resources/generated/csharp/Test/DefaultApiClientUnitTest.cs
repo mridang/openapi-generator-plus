@@ -3113,7 +3113,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallerCancellationPropagatesUnwrapped()
+    public async Task BhvMisc262CallerCancellationPropagatesUnwrapped()
     {
         // Only the SDK's own timeout becomes NetworkTimeoutException. A
         // cancellation the caller triggers (here CancelPendingRequests on the
@@ -4045,6 +4045,65 @@ public class DefaultApiClientUnitTest
             ex.ToString(),
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task BhvMisc266ACallerHeaderReplacesTheRequestIdDefaultWhateverItsCase()
+    {
+        var values = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                if (string.Equals(header.Key, "X-Request-ID", StringComparison.OrdinalIgnoreCase))
+                {
+                    values.AddRange(header.Value);
+                }
+            }
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().InjectRequestId(true).Build()
+        );
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string> { ["x-request-id"] = "caller-id" },
+            null
+        );
+
+        Assert.Equal("caller-id", Assert.Single(values));
+    }
+
+    [Fact]
+    public async Task BhvMisc267ADefaultHeaderOnACallerSuppliedHttpClientIsSentWithEachRequest()
+    {
+        var values = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                if (string.Equals(header.Key, "X-Client", StringComparison.OrdinalIgnoreCase))
+                {
+                    values.AddRange(header.Value);
+                }
+            }
+            return Task.CompletedTask;
+        });
+        var http = new HttpClient(handler);
+        http.DefaultRequestHeaders.Add("X-Client", "callers-client");
+
+        var client = new DefaultApiClient(http);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal("callers-client", Assert.Single(values));
     }
 
     // ---- automatic retries (F823) ----

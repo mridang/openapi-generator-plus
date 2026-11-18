@@ -587,6 +587,28 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task BhvMisc263APerCallTimeoutLongerThanTheClientTimeoutLetsASlowResponseComplete()
+    {
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().Timeout(1000).MaxRetries(0).Build()
+        );
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/slow"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            null,
+            10000,
+            0,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvTransport024TimesOutOnSlowEndpoint()
     {
         var transport = TransportOptions.Builder().Timeout(1000).Build();

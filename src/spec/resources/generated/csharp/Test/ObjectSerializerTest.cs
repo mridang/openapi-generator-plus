@@ -1397,6 +1397,32 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvMisc246ANegativeWholeSecondDurationStringParsesToANegativeDuration()
+        {
+            Assert.Equal(TimeSpan.FromSeconds(-90), ProtobufDurationConverter.Parse("-90s"));
+        }
+
+        [Fact]
+        public void BhvMisc248ADurationWithDaysIsFormattedAsADurationString()
+        {
+            Assert.Equal("172800s", ProtobufDurationConverter.Format(TimeSpan.FromDays(2)));
+        }
+
+        [Fact]
+        public void BhvMisc251ADurationStringWithADayDesignatorIsRejected()
+        {
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                ProtobufDurationConverter.Parse("1d")
+            );
+        }
+
+        [Fact]
+        public void BhvMisc256AFractionalSecondKeepsOnlyTheDigitsPresent()
+        {
+            Assert.Equal("10:30:00.5", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 500)));
+        }
+
+        [Fact]
         public void BhvSerializationobject081FormatProtobufDurationEmitsWholeSeconds()
         {
             Assert.Equal("90s", ProtobufDurationConverter.Format(TimeSpan.FromSeconds(90)));
@@ -1992,6 +2018,38 @@ public static class ObjectSerializerTest
             Assert.NotNull(meta);
             Assert.NotNull(meta!.AdditionalProperties);
             Assert.Equal("emea", meta.AdditionalProperties!["region"].ToString());
+        }
+
+        [Fact]
+        public void BhvMisc243AnAbsentOptionalArrayFieldDecodesToNull()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1}");
+            Assert.NotNull(item);
+            Assert.Null(item!.Matrix);
+        }
+
+        [Fact]
+        public void BhvMisc244ABodyWithALeadingByteOrderMarkDecodesIntoTheModel()
+        {
+            var meta = _serializer.Deserialize<Metadata>("﻿{\"region\":\"emea\"}");
+            Assert.NotNull(meta);
+            Assert.Equal("emea", meta!.AdditionalProperties!["region"].ToString());
+        }
+
+        [Fact]
+        public void BhvMisc245ATimeOfDayInAPlainObjectIsSerializedAsAJsonString()
+        {
+            Assert.Equal("\"10:30:00\"", _serializer.Serialize(new TimeOnly(10, 30, 0)));
+        }
+
+        [Fact]
+        public void BhvMisc249AFreeFormObjectKeepsItsObjectAndIntegerEntriesThroughARoundTrip()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"flags\":{\"on\":true},\"count\":3}");
+            var back = _serializer.Deserialize<Metadata>(_serializer.Serialize(meta));
+            var json = _serializer.Serialize(back);
+            Assert.Contains("\"on\":true", json, StringComparison.Ordinal);
+            Assert.Contains("\"count\":3", json, StringComparison.Ordinal);
         }
 
         [Fact]

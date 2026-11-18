@@ -445,6 +445,29 @@ public class BaseApiTest
 
     [Theory]
     [MemberData(nameof(StatusToException))]
+    public async Task BhvMisc264EachListedErrorStatusRaisesAnApiErrorCarryingThatStatus(
+        int status,
+        Type expectedType
+    )
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    $"/test/status/{status}",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
+        );
+
+        Assert.Equal(status, ex.StatusCode);
+    }
+
+    [Theory]
+    [MemberData(nameof(StatusToException))]
     public async Task BhvMisc284ATypedErrorIsRaisedForEachListedStatus(
         int status,
         Type expectedType

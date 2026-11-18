@@ -201,6 +201,66 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void BhvMisc258AVariableWithNoOverrideUsesItsDefaultInTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{path}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["path"] = new ServerVariable("v1", null, ["v1", "v2"]),
+            });
+
+        Assert.Equal("https://api.example.com/v1", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvMisc259APlaceholderWithNoDeclaredVariableStaysInTheUrlAsWritten()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{unknown}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api"]),
+            });
+
+        Assert.Equal("https://api.example.com/{unknown}", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvMisc260ANullOverrideForAnEnumVariableIsRejectedNotSubstituted()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            });
+
+        Assert.ThrowsAny<ArgumentException>(
+            () => server.GetUrl(new Dictionary<string, string> { ["env"] = null! }));
+    }
+
+    [Fact]
+    public void BhvMisc261ABackslashSequenceInAValueIsInsertedLiterally()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, []),
+            });
+
+        Assert.Equal(
+            "https://a\\nb.example.com",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "a\\nb" }));
+    }
+
+    [Fact]
     public void BhvServers002GetUrlSubstitutesARepeatedVariableEverywhere()
     {
         var server = new ServerConfiguration(
@@ -262,7 +322,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlAcceptsAnyValueWhenEnumIsEmpty()
+    public void BhvMisc257GetUrlAcceptsAnyValueWhenEnumIsEmpty()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com",
