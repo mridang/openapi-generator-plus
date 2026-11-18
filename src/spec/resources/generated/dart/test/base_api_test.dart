@@ -4806,6 +4806,22 @@ void main() {
     );
 
     test(
+      'bhv misc 114 a success response is decoded by the decoder for the status code actually received',
+      () async {
+        final client = _ScriptedApiClient([
+          jsonReply(
+            201,
+            '{"receiptCode":"r1","expiresAt":"2030-01-01T00:00:00Z"}',
+          ),
+        ]);
+
+        final result = await storeApi(client).reserveStock(null);
+
+        expect(result.actualInstance, isA<ReservationReceipt>());
+      },
+    );
+
+    test(
       'bhv operations 154 a body that fits only the other status schema is refused',
       () async {
         final client = _ScriptedApiClient([

@@ -1660,6 +1660,209 @@ void main() {
     );
 
     test(
+      'bhv misc 125 a 307 redirect that stays on one scheme is followed with its body',
+      () async {
+        String? landedBody;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          final body = await utf8.decodeStream(request);
+          if (request.uri.path == '/start') {
+            request.response
+              ..statusCode = 307
+              ..headers.set('Location', '/landed')
+              ..close();
+            return;
+          }
+          landedBody = body;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
+          );
+          final resp = await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/start',
+            {'Content-Type': 'application/json'},
+            Uint8List.fromList(utf8.encode('{"a":1}')),
+          );
+          expect(resp.statusCode, equals(200));
+          expect(landedBody, equals('{"a":1}'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 128 a cross-origin redirect keeps the proxy credential the transport applies',
+      () async {
+        final second = <String, String?>{};
+        final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        proxy.listen((request) {
+          if (request.headers.value('host') == 'a.test') {
+            request.response
+              ..statusCode = 302
+              ..headers.set('Location', 'http://c.test/y')
+              ..close();
+            return;
+          }
+          second['proxy-authorization'] = request.headers.value(
+            'proxy-authorization',
+          );
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .proxy('http://user:pass@127.0.0.1:${proxy.port}')
+              .followRedirects(true)
+              .build();
+          final resp = await DefaultApiClient(
+            transportOptions: transport,
+          ).sendRequest('GET', 'http://a.test/x', {}, null);
+          expect(resp.statusCode, equals(200));
+          expect(second['proxy-authorization'], equals('Basic dXNlcjpwYXNz'));
+        } finally {
+          await proxy.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 129 the proxy credential is sent once on a hop to a different origin',
+      () async {
+        int? count;
+        final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        proxy.listen((request) {
+          if (request.headers.value('host') == 'a.test') {
+            request.response
+              ..statusCode = 302
+              ..headers.set('Location', 'http://c.test/y')
+              ..close();
+            return;
+          }
+          count = request.headers['proxy-authorization']?.length;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .proxy('http://user:pass@127.0.0.1:${proxy.port}')
+              .followRedirects(true)
+              .build();
+          await DefaultApiClient(
+            transportOptions: transport,
+          ).sendRequest('GET', 'http://a.test/x', {}, null);
+          expect(count, equals(1));
+        } finally {
+          await proxy.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 130 a credential removed by a cross-origin hop is not restored on a later hop to the origin',
+      () async {
+        String? seen = 'unset';
+        final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        final other = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        origin.listen((request) async {
+          await request.drain<void>();
+          if (request.uri.path == '/start') {
+            request.response
+              ..statusCode = 302
+              ..headers.set('Location', 'http://127.0.0.1:${other.port}/mid')
+              ..close();
+            return;
+          }
+          seen = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+        other.listen((request) async {
+          await request.drain<void>();
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', 'http://127.0.0.1:${origin.port}/end')
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
+          );
+          final resp = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${origin.port}/start',
+            {'Authorization': 'Bearer caller-secret'},
+            null,
+          );
+          expect(resp.statusCode, equals(200));
+          expect(seen, isNull);
+        } finally {
+          await origin.close();
+          await other.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 131 a supplied session follows a redirect under the SDK redirect rules',
+      () async {
+        String? landedPath;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await request.drain<void>();
+          if (request.uri.path == '/start') {
+            request.response
+              ..statusCode = 302
+              ..headers.set('Location', '/landing')
+              ..close();
+            return;
+          }
+          landedPath = request.uri.path;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final supplied = http.Client();
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .httpClient(supplied)
+                .build(),
+          );
+          final resp = await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/start',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(200));
+          expect(landedPath, equals('/landing'));
+          supplied.close();
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv misc 132 a per-call header whose name holds a credential word is dropped on a cross-origin redirect',
       () async {
         String? firstSeen;
@@ -1988,6 +2191,67 @@ void main() {
                 (e) => e.statusCode,
                 'statusCode',
                 308,
+              ),
+            ),
+          );
+          expect(
+            targetHits,
+            equals(0),
+            reason:
+                'plain-HTTP target must not be contacted after '
+                'an HTTPS->HTTP downgrade with a POST body',
+          );
+        } finally {
+          await source.close();
+          await target.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 124 a request body is not replayed across a 301 redirect from HTTPS to HTTP',
+      () async {
+        final certDir = 'test/fixtures/certs';
+        final tlsContext = SecurityContext()
+          ..useCertificateChain('$certDir/server.pem')
+          ..usePrivateKey('$certDir/server-key.pem');
+
+        var targetHits = 0;
+        final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        target.listen((request) {
+          targetHits++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        final source = await HttpServer.bindSecure(
+          InternetAddress.loopbackIPv4,
+          0,
+          tlsContext,
+        );
+        source.listen((request) {
+          request.response
+            ..statusCode = 301
+            ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder().verifySsl(false).build();
+          final client = DefaultApiClient(transportOptions: transport);
+          await expectLater(
+            client.sendRequest(
+              'POST',
+              'https://127.0.0.1:${source.port}/submit',
+              {'Content-Type': 'application/json'},
+              Uint8List.fromList(utf8.encode('{"token":"hunter2"}')),
+            ),
+            throwsA(
+              isA<ApiException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                301,
               ),
             ),
           );

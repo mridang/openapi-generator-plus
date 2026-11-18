@@ -154,6 +154,17 @@ class TestBearerSchemeWrappers:
 
 
 class TestBearerTokenProvider:
+    def test_bhv_misc_194_a_token_from_the_provider_gets_the_bearer_prefix(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token_provider=lambda: 'abc')
+
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer abc'
+
+    def test_bhv_misc_195_a_whitespace_only_token_from_the_provider_is_rejected_on_use(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token_provider=lambda: '   ')
+
+        with pytest.raises(ValueError, match='must not be empty'):
+            auth.get_auth_headers()
+
 
     def test_bhv_authbearer_014_the_provider_is_asked_for_every_request(self) -> None:
         tokens = iter(['one', 'two'])
