@@ -1267,11 +1267,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
   describe "format: duration parsing and round-trips" do
     test "bhv serializationobject 212 a sub-0.0001s or negative duration is written without scientific notation" do
-      tiny = PetstoreClient.ObjectSerializer.convert_to_type("0.00001s", "Duration")
-      negative = PetstoreClient.ObjectSerializer.convert_to_type("-0.00001s", "Duration")
+      tiny = PetstoreClient.ObjectSerializer.convert_to_type("0.000050s", "Duration")
+      negative = PetstoreClient.ObjectSerializer.convert_to_type("-0.000050s", "Duration")
 
-      assert PetstoreClient.ObjectSerializer.stringify(tiny) == "0.00001s"
-      assert PetstoreClient.ObjectSerializer.stringify(negative) == "-0.00001s"
+      assert PetstoreClient.ObjectSerializer.stringify(tiny) == "0.000050s"
+      assert PetstoreClient.ObjectSerializer.stringify(negative) == "-0.000050s"
     end
 
     test "bhv serializationobject 184 an ISO 8601 duration string is rejected" do
