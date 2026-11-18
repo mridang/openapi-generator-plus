@@ -2599,3 +2599,539 @@ langphp067 | Non-ASCII text in a serialized string is written literally and neve
 langphp068 | A hook that returns no observer is skipped while the other hooks still finish.
 langphp069 | The chain returns no observer when no hook returns one.
 langphp070 | Headers edited by one hook are handed on to the next hook.
+langjava001 | Closing a client leaves a transport the caller injected open, so another client can reuse it.
+langjava002 | A default header the caller sets wins over the SDK header of the same name, whatever the case of the name.
+langjava003 | The sensitive header names the SDK masks are stored lowercased so that lookups ignore case.
+langjava004 | The https-to-http body refusal applies only to a downgrade; same-scheme and upgrading redirects are not refused.
+langjava005 | A non-ASCII multipart filename gets an RFC 5987 filename star that percent-encodes all but unreserved characters.
+langjava006 | An interrupted caller thread surfaces as a cancellation exception, never as an SDK error.
+langjava007 | Only idempotent methods, including QUERY, are replayable on a dropped connection; POST and PATCH are not.
+langjava008 | A POST whose connection drops before any response is sent once and raises a network error.
+langjava009 | A GET whose connection drops before any response is replayed exactly once before a network error is raised.
+langjava010 | A connection closed after the headers raises a network exception that keeps the original cause.
+langjava011 | A zstd body whose decoder library is missing raises an error naming the unavailable library, never the encoded bytes.
+langjava012 | A corrupt zstd body raises a decoding error that does not blame a missing library.
+langjava013 | A request sent without default headers carries only the headers the caller passed for that request.
+langcsharp065 | Cancelling the client-level token aborts a slow endpoint and reports the cancellation
+langcsharp066 | The builder sets the call hook and the default is none
+langcsharp067 | The string form of a configuration does not print the call hook
+langcsharp068 | A header-located key rejects control characters and non-ASCII text at construction
+langcsharp069 | A key placed in the query is not emitted as a header or cookie
+langpython003 | Every constructor chains the given cause.
+langpython004 | Fields are read only.
+langpython005 | The request is unknown by default.
+langpython006 | An incomplete request attachment is ignored.
+langpython007 | An API key authenticator compares by identity, so two instances with equal secrets are unequal and hash apart.
+langpython008 | Is frozen.
+langpython009 | Empty headers pass through as empty dict not none.
+langpython010 | Present headers pass through.
+langpython011 | Status 201 decodes the second schema even when the body fits both.
+langpython012 | With http info keeps the status and the decoded union.
+langpython013 | A query parameter name with reserved characters is percent encoded.
+langpython014 | Non ascii query text is sent as percent encoded utf8.
+langpython015 | Non ascii form text is sent as percent encoded utf8.
+langpython016 | Get auth headers runs off the event loop thread.
+langpython017 | Sentinel is identity distinct from none.
+langpython018 | An operation naming only an undeclared scheme uses the default.
+langpython019 | The first credential the client holds is returned.
+langpython020 | A scheme credential is given the apis transport when it needs one.
+langpython021 | A call started after close raises the client closed error.
+langpython022 | Non form data multipart body stays a parts dict.
+langpython023 | Form bool field serializes lowercase.
+langpython024 | Unexpected content type names the operation.
+langpython025 | Operation has no base url parameter.
+langpython026 | Format date path param is date only.
+langpython027 | Control characters fail closed before the transport.
+langpython028 | A value outside the cookie octets is refused before sending.
+langpython029 | Templated variant substitutes every variable.
+langpython030 | Multi server operation offers each server.
+langpython031 | Request goes to the regional server of a multi server operation.
+langpython032 | A retryable status is sent again.
+langpython033 | The backoff waits before the retry.
+langpython034 | A basic authenticator compares by identity, so two instances with equal credentials are unequal and hash apart.
+langpython035 | Rejects empty token.
+langpython036 | Token is not leaked in repr.
+langpython037 | A refused password is named as the fault.
+langpython038 | Rejects ascii whitespace only token as empty.
+langpython039 | A bearer authenticator compares by identity, so two instances with equal tokens are unequal and hash apart.
+langpython040 | A chain of no hooks does nothing.
+langpython041 | A chain is a call hook.
+langpython042 | One failing observer does not stop the others.
+langpython043 | The response headers are lower cased and read only.
+langpython044 | No response means no headers rather than an empty map.
+langpython045 | A token and a token provider together are rejected.
+langpython046 | The default authenticator alone is enough.
+langpython047 | The scheme credentials are keyword only.
+langpython048 | Each scheme names the scheme it is the credential of.
+langpython049 | The call hook reaches every api group.
+langpython050 | The transport is released when the last of several requests ends.
+langpython051 | Closing with nothing in flight releases the transport at once.
+langpython052 | The variant tuple follows the declaration.
+langpython053 | Second variant match returns value.
+langpython054 | The positional form takes exactly one argument.
+langpython055 | Repr keeps the base url and other header values.
+langpython056 | There is no call hook by default.
+langpython057 | The builder sets the call hook and the configuration reads it back.
+langpython058 | The string form does not print the call hook.
+langpython059 | The environment fills a value that was not passed.
+langpython060 | Strips credential named headers on a cross origin hop.
+langpython061 | Extracts charset parameter.
+langpython062 | Emoji name gets a single underscore.
+langpython063 | Text mode file is rejected not silently reencoded.
+langpython064 | Explicit str tuple content is rejected.
+langpython065 | 308 downgrade with body raises.
+langpython066 | A pool manager that does not follow redirects is accepted.
+langpython067 | 302 post to get drops content length.
+langpython068 | 302 bodyless post to get drops the zero content length.
+langpython069 | Parent segment is removed.
+langpython070 | Current segment is removed.
+langpython071 | Absolute path keeps query and fragment.
+langpython072 | Protocol relative reference inherits the scheme.
+langpython073 | Absolute url is returned verbatim.
+langpython074 | Unparseable location resolves to none.
+langpython075 | Direct pool keeps ten connections per host.
+langpython076 | Proxy pool keeps ten connections per host.
+langpython077 | Close is idempotent.
+langpython078 | Sensitive header comment lists names without a dangling separator.
+langpython079 | Frame with content size decodes.
+langpython080 | Close clears the pool manager the client created.
+langpython081 | These statuses are not retried.
+langpython082 | Retry after in the past means no wait.
+langpython083 | An exhausted deadline times out without sending.
+langpython084 | An unrelated connection failure is not a timeout.
+langpython085 | Should keep a non form data multipart subtype for the transport.
+langpython086 | Field name kwargs bucket is spread not nested.
+langpython087 | Pyproject description keeps quotes and markup unescaped.
+langpython088 | Make test runs the configured testpaths not only the test directory.
+langpython089 | Readme package name is the manifest name.
+langpython090 | Skills install command uses the manifest name.
+langpython091 | Readme opens with installation and usage that link the skills.
+langpython092 | Readme files supported features outside not supported.
+langpython093 | Readme documents credentials per call options and the behaviours to know.
+langpython094 | Readme not supported lists xml links and mutual tls.
+langpython095 | Skills models sample passes the required fields.
+langpython096 | Readme and skills name the credential of each security scheme.
+langpython097 | Readme and skills describe a graceful close and raw cookies.
+langpython098 | Skills call the authenticator an abstract base class.
+langpython099 | Skills error handling example passes real arguments.
+langpython100 | Zero retries is allowed.
+langpython101 | The options object carries the per call settings.
+langpython102 | Instances differing only in additional properties are not equal.
+langpython103 | Omitting the token url raises.
+langpython104 | Credentials cannot be reassigned.
+langpython105 | A client-credentials OAuth2 authenticator compares by identity, so equal settings never compare equal.
+langpython106 | Omitting the token url username and password raises.
+langpython107 | Omitting only the password raises.
+langpython108 | Credentials cannot be reassigned.
+langpython109 | A password OAuth2 authenticator compares by identity, so equal settings never compare equal.
+langpython110 | Container datetime accepts a long fraction.
+langpython111 | Awaredatetime alias rejects naive.
+langpython112 | List of datetime rejects naive element.
+langpython113 | D84 characters are written literally in a string.
+langpython114 | String value still rejected.
+langpython115 | Host only url keeps no trailing slash.
+langpython116 | Default port and host case preserved.
+langpython117 | Encode writes every digit unquoted.
+langpython118 | A list of models keeps the exact digits.
+langpython119 | Decode rejects a quoted number.
+langpython120 | Constructor rejects a string.
+langpython121 | Frozenset serializes as json array.
+langpython122 | Top level set serializes as json array.
+langpython123 | Sanitize set returns list.
+langpython124 | List of models emits bytes as base64.
+langpython125 | Keeps empty slot for null array element in pipes.
+langpython126 | Keeps empty slot for null array element in multi.
+langpython127 | The strict flag does not leak onto other models.
+langpython128 | Undeclared keys are kept on each value of a map.
+langpython129 | A free form null stays null.
+langpython130 | Serialize nan raises.
+langpython131 | Serialize infinity raises.
+langpython132 | Serialize negative infinity raises.
+langpython133 | Deserialize infinity raises.
+langpython134 | Model double field is frozen and still rejects a non finite value.
+langpython135 | A non finite double never reaches the wire.
+langpython136 | Serialize non finite decimal number raises.
+langpython137 | Serialize decimal number beyond double range is exact.
+langpython138 | An unknown enum string is kept as given.
+langpython139 | A valid value is still coerced.
+langpython140 | The attribute name and the wire name both work when a value is kept.
+langpython141 | A kept value goes out on the wire as given.
+langpython142 | A required argument left out raises a type error.
+langpython143 | The other values of a model with a kept value are unchanged.
+langpython144 | A model with a kept value is still frozen and hashable.
+langpython145 | A map model keeps a wrong value and the unknown keys.
+langpython146 | Model validate still validates.
+langpython147 | A composed wrapper is frozen and hashable.
+langpython148 | Stringify time drops a sub millisecond part.
+langpython149 | Stringify duration with days.
+langpython150 | Serialize duration in dict.
+langpython151 | Bare integer duration is rejected.
+langpython152 | Non ascii digits are rejected.
+langpython153 | Member value is an int.
+langpython154 | Deserialize yields correct member.
+langpython155 | Scalar byte serializes to base64.
+langpython156 | Scalar byte decodes from base64 string.
+langpython157 | Constructing with bytes that look like base64 keeps them.
+langpython158 | Copying the decoded value is stable.
+langpython159 | Serializing base64 encodes the raw bytes.
+langpython160 | Pet passport thumbnail and scans round trip.
+langpython161 | Malformed base64 is rejected inside an array and a map.
+langpython162 | Non string constructor value is rejected.
+langpython163 | String wire value is still accepted.
+langpython164 | Integral value coerced to float.
+langpython165 | Fractional value still parses.
+langpython166 | Nested array round trips.
+langpython167 | Nested array of integers rejects a quoted leaf.
+langpython168 | Integers are still accepted.
+langpython169 | Scalar response rejects a value of another type.
+langpython170 | Known referenced enum value accepted.
+langpython171 | Deep json beyond cap is rejected.
+langpython172 | Attribute name does not satisfy a required property.
+langpython173 | Attribute name is ignored as an unknown key.
+langpython174 | List elements ignore the attribute name.
+langpython175 | Dict values ignore the attribute name.
+langpython176 | Direct validation still accepts the attribute name.
+langpython177 | Attribute name is captured as an additional property.
+langpython178 | Attribute name is captured for list elements.
+langpython179 | Direct validation still accepts the attribute name for an extras model.
+langpython180 | Decoding a response with the deprecated field does not warn.
+langpython181 | Serializing the deprecated field does not warn.
+langpython182 | The whole models package imports with the look around pattern.
+langpython183 | Repr still masks the password.
+langpython184 | Matching value is accepted on construction.
+langpython185 | Non matching value is rejected on decode.
+langpython186 | Non matching value is kept by the constructor.
+langpython187 | A payload nested past the depth limit is refused.
+langpython188 | A loopback http endpoint is accepted.
+langpython001 | Operation prose reaches the docstring verbatim.
+langpython002 | Path parameter doc carries the required label.
+langpython189 | It builds from its environment variables alone.
+langpython190 | A missing credential names its variable.
+langpython191 | The environment supplies the token.
+langpython192 | The environment supplies the username and password.
+langpython193 | The environment supplies the key.
+langpython194 | Variables are read only.
+langpython195 | All is an immutable tuple.
+langpython196 | Repr keeps other default header values.
+langpython197 | A datetime for a styled date parameter sends only the date.
+langpython198 | Path value is fully percent encoded.
+langpython199 | Header value is sent verbatim.
+langpython200 | Query value is left for the query builder.
+langpython201 | Simple exploded assigns each property.
+langpython202 | Query entries expand an exploded object.
+langpython203 | A hook that returns nothing is skipped when the call finishes.
+langpython204 | A cancelled call is recorded with the cancelled error type.
+langpython205 | An unknown parameter style falls back to the plain value form.
+langpython206 | A date value is written as year, month and day with no time part.
+langpython207 | Each model property is written under its own name as the key.
+langpython208 | A nested object used as a leaf value is a serialization error.
+langpython209 | A cookie value is fully percent-encoded on the wire.
+langruby001 | The generated YARD documentation shows operation prose without literal escape sequences
+langruby002 | The generated YARD options documentation shows prose without literal escape sequences
+langruby003 | A generated server class built from enum-valued variables resolves its URL from those values
+langruby004 | A value outside the enum of a later server variable is rejected and the error names that variable
+langruby005 | A form-urlencoded body omits optional properties that the caller did not set
+langruby006 | An operation that is not deprecated carries no deprecation marker on its options class
+langruby007 | A deprecated parameter is marked on its generated options class
+langruby008 | The generated YARD documentation declares a binary download as a StringIO
+langruby009 | The generated RBS signatures declare a binary download as a StringIO
+langruby010 | A server URL with explicit enum variable values forms the templated URL from the chosen values
+langruby011 | A Set of labels expands into one query pair per element when sent as a query
+langruby012 | The generated Options object carries only the per-call settings and no transport state
+langruby013 | An operation with no parameters still takes no argument at all
+langruby014 | A nil required account is refused before the request is sent
+langruby015 | An api key authenticator with no given key and no environment key fails at construction
+langruby016 | A result object does not freeze the hash the caller passed in
+langruby017 | A call hook can delete a header and the deletion survives a transport retry
+langruby018 | A call that names no spec operation falls back to the operation name and request path
+langruby019 | ISO-8859-1 basic credentials are transcoded to UTF-8 before they are encoded
+langruby020 | Each validation rejection names the offending part
+langruby021 | The token is redacted from inspect and to_s output
+langruby022 | Every observer in a call hook chain runs even when one of them fails
+langruby023 | The values describing a call are exposed as frozen values
+langruby024 | Each library file path names exactly the constant it declares
+langruby025 | The call hook reaches every API group of the client
+langruby026 | A composed-schema variant can be built through its typed factory and another type is rejected
+langruby027 | An array of byte variants serializes as an array of base64 strings
+langruby028 | A client has no call hook by default
+langruby029 | The call hook builder sets the hook and returns the builder
+langruby030 | The call hook builder removes the hook when given nil
+langruby031 | The call hook builder rejects a hook that cannot start a call
+langruby032 | Inspecting a configuration does not print the call hook
+langruby033 | A method the HTTP library does not know, such as QUERY, is sent with its body
+langruby034 | The passthrough query encoder is installed on the connection the client builds
+langruby035 | An encoded plus and an encoded space in a query remain distinct
+langruby036 | The query encoder decodes to the raw string and encodes it back unchanged
+langruby037 | An upload with a given file extension sets the matching content type
+langruby038 | With no CA certificate configured, the certificate store is left unset
+langruby039 | A validly brotli-encoded response body is decompressed
+langruby040 | A retryable status response is returned once the retries are spent
+langruby041 | A status response that is not retryable is not retried
+langruby042 | The generated gem does not declare the faraday follow_redirects gem
+langruby043 | The runtime's default gems are declared in the gemspec
+langruby044 | The generated model sources are found on disk for documentation checks
+langruby045 | Genuine examples declared in the spec are still documented
+langruby046 | An access token that is missing, empty or of the wrong type is reported as missing
+langruby047 | A non-string error value is not taken as an error code
+langruby048 | A bare epoch number is rejected as a date-time
+langruby049 | An array body where an object model is expected raises a serialization error
+langruby050 | An array where a nested model is expected raises a serialization error
+langruby051 | Inline property enums are exposed as nested constants classes
+langruby052 | Nil array elements are kept, and only hashes are filtered
+langruby053 | A model holding an unknown inline enum string is built without raising
+langruby054 | A model copied with an unknown inline enum string does not raise
+langruby055 | Enum constants are frozen strings
+langruby056 | The VALUES list of an enum contains every constant and is frozen
+langruby057 | Serializing positive infinity raises
+langruby058 | Serializing negative infinity raises
+langruby059 | Stringifying a time of day emits HH:MM:SS
+langruby060 | A time of day value passes through type conversion unchanged
+langruby061 | An ISO8601 duration value passes through type conversion unchanged
+langruby062 | A known value of a referenced enum field is accepted
+langruby063 | A free-form number is kept as a float
+langruby064 | A value the caller sets is written in place of the schema default
+langruby065 | A present value for a nullable property is decoded as given
+langruby066 | An out-of-range duration string is refused
+langruby067 | Discovery failure with a given status raises the matching error class
+langruby068 | The README documents the schema constraints and uniqueItems ordering
+langruby069 | The README makes no claim about how other SDKs handle a discriminator with no match
+langruby070 | The README lists unsupported features and states that uniqueItems order is unspecified
+langruby071 | The README documents the retry option and does not say requests are never retried
+langruby072 | The README documents per-call options, error request context and design notes
+langruby073 | The README names the environment variable of every credential
+langruby074 | The README documents the credential per security scheme, closing the client and cookie
+langruby075 | The generated authenticators can be found in the gem
+langruby076 | Scheme authenticators take positional arguments like their base authenticators
+langruby077 | Each scheme wrapper is built from its own variables alone
+langruby078 | A Bearer scheme wrapper takes its token provider after the variable
+langruby079 | A server configuration is immutable and freezes its variables map
+langruby080 | The skills document defines the Error Handling example as a method taking the operation argument
+langruby081 | The Error Handling example in the skills document leaves no undefined variable
+langruby082 | The Error Handling example in the skills document ends with a rescue of the root error type
+langruby083 | The skills document lists transport subsections in canonical order
+langruby084 | The Error Handling example in the skills document parses
+langruby085 | The skills document names the environment variable of every credential and the per-call options
+langruby086 | The skills document documents the credential per security scheme, closing the client and cookie
+langruby087 | A supplied connection is kept as the transport connection
+langruby088 | Transport options default to no connection
+langruby089 | A value that is not a connection object is rejected as a connection
+langruby090 | A password refused at construction for containing a NUL byte names the password in its error
+langgo001 | Multipart model part uses wire keys.
+langgo002 | Multipart file part content type from extension.
+langgo003 | Upload field accepts an io reader.
+langgo004 | New takes the credentials of each scheme.
+langgo005 | Operation doc comments attach to the method.
+langgo006 | Parameter docs keep the spec prose verbatim.
+langgo007 | Operation doc ends with the method and path.
+langgo008 | Nested container operations decode typed leaves.
+langgo009 | Error implements error interface.
+langgo010 | Error fields are immutable.
+langgo011 | Result holds struct data.
+langgo012 | Base http response public type name and fields.
+langgo013 | Base error dispatch.
+langgo014 | Base error dispatch via.
+langgo015 | Base form urlencoded wire format.
+langgo016 | Base null body place order with order still sends jsonbody.
+langgo017 | Base retries anetwork error that happened before aresponse.
+langgo018 | Base per call timeout longer than the clients lets aslow response through.
+langgo019 | Base attach request context is kept once and ignores other errors.
+langgo020 | Call hook chain of hooks that observe nothing returns no observer.
+langgo021 | Call hook chain finishes the observers already started when alater hook fails to start.
+langgo022 | Call hook anew call info cuts the query and the fragment and reads the host.
+langgo023 | Client sub accessors use short group names.
+langgo024 | Client with token fails when acredential cannot be resolved.
+langgo025 | Composed schema food constructed from apointer stores the variant by value.
+langgo026 | Composed schema dry food null discriminator property is still rejected.
+langgo027 | Composed schema treatment marshal rejects avalue that is not avariant.
+langgo028 | Composed schema set avatar thumbnail request typed constructors name their variants.
+langgo029 | Composed schema model with returns acopy and leaves the receiver alone.
+langgo030 | Configuration call hook is held by the configuration and never printed.
+langgo031 | Default client redirect method rewriting.
+langgo032 | Default client unit validate multipart field name rejects crlf.
+langgo033 | Default client unit drops303 content length on coerced get.
+langgo034 | Default client unit demoted get drops entity headers.
+langgo035 | Default client unit build httpclient transport has standard timeouts and no implicit proxy.
+langgo036 | Header selector is text mime.
+langgo037 | Header selector media type strips parameters and lowercases.
+langgo038 | Iso8601 marshal duration proto json zero.
+langgo039 | Iso8601 marshal duration proto json hours minutes.
+langgo040 | Iso8601 marshal duration proto json seconds only.
+langgo041 | Iso8601 marshal duration proto json fractional seconds.
+langgo042 | Iso8601 marshal duration proto json nanos.
+langgo043 | Iso8601 marshal duration proto json negative.
+langgo044 | Iso8601 unmarshal duration proto json nanos.
+langgo045 | Iso8601 unmarshal duration proto json negative.
+langgo046 | Iso8601 unmarshal duration proto json rejects overflow.
+langgo047 | Iso8601 duration round trip.
+langgo048 | Iso8601 format time of day midnight.
+langgo049 | Iso8601 parse time of day with fraction.
+langgo050 | Iso8601 parse time of day invalid.
+langgo051 | Iso8601 time of day round trip.
+langgo052 | Metadata deserialize from json.
+langgo053 | Metadata miscased key is an additional property not the declared field.
+langgo054 | Metadata exact key wins over miscased duplicate.
+langgo055 | Model deprecated schema carries adeprecated paragraph.
+langgo056 | Model deprecated field keeps its description and starts adeprecated paragraph.
+langgo057 | Model enums expose their allowed values.
+langgo058 | Model avalue sent next to asibling default wins on decode.
+langgo059 | Oauth2 authorization code authenticator user auth wrapper authorization url carries declared scopes.
+langgo060 | Oauth2 authorization code authenticator exchange code is safe against concurrent requests.
+langgo061 | Oauth2 implicit authenticator authorize url encodes scope spaces as percent20.
+langgo062 | Oauth2 token manager redacts stored tokens.
+langgo063 | Object serializer serialize nested model strings are not htmlescaped.
+langgo064 | Object serializer serialize additional properties are not htmlescaped.
+langgo065 | Object serializer serialize any of merged variants are not htmlescaped.
+langgo066 | Object serializer serialize set items are not htmlescaped.
+langgo067 | Object serializer serialize invalid type.
+langgo068 | Object serializer to path value nil.
+langgo069 | Object serializer to query value string slice tsv.
+langgo070 | Object serializer to query value string slice pipes.
+langgo071 | Object serializer stringify time.
+langgo072 | Object serializer stringify string pointer.
+langgo073 | Object serializer stringify nil string pointer.
+langgo074 | Object serializer stringify nil scalar pointers.
+langgo075 | Object serializer serialization error is catchable via errors as.
+langgo076 | Object serializer serialize declared enum value is written.
+langgo077 | Object serializer model equal identical.
+langgo078 | Object serializer model equal different.
+langgo079 | Object serializer model equal map bearing model.
+langgo080 | Object serializer serialize nil emits null.
+langgo081 | Object serializer is jsonnull.
+langgo082 | Object serializer looks like jsondocument.
+langgo083 | Object serializer date time returns iso8601 string.
+langgo084 | Readme lint note names only the linters the config runs.
+langgo085 | Readme lint command checks the generated sources.
+langgo086 | Readme schema constraints section says what go validates and that unique items are not sorted.
+langgo087 | Readme cancellation section describes the context parameter.
+langgo088 | Readme configuration section documents the retries.
+langgo089 | Readme has the shared sections in the shared order.
+langgo090 | Readme skills configuration has the shared subsections in the shared order.
+langgo091 | Request option with headers copies the map when the option is built.
+langgo092 | Request option new call settings rejects anegative retry limit.
+langgo093 | Request option new call settings reports the first invalid option.
+langgo094 | Server configuration accessors expose immutable state.
+langgo095 | Server variable constructor copies enum slice.
+langgo096 | Skills upload parameters are documented as io reader.
+langgo097 | Skills error handling example ends with the base error arm.
+langgo098 | Main.
+langgo099 | Trace context util concurrent set and inject is race free.
+langgo100 | Trace context util registered propagator is used.
+langgo101 | Trace context util propagator reads the span from the call context.
+langgo102 | Transport options user agent default then set.
+langgo103 | Value serializer serialize styled optional scalar pointers send their value.
+langgo104 | Value serializer serialize styled simple scalar path encodes slash.
+langgo105 | Value serializer serialize styled no style path encodes slash.
+langgo106 | Value serializer serialize styled pipe delimited pointer to slice.
+langgo107 | Value serializer serialize styled space delimited pointer to slice.
+langgo108 | Value serializer serialize styled form explode pointer to slice returns list.
+langgo109 | Value serializer serialize styled form typed enum slice.
+langgo110 | Value serializer serialize styled pipe delimited pointer to typed enum slice.
+langgo111 | Value serializer serialize styled path pointer to slice array.
+langgo112 | Value serializer to string slice pointer to slice.
+langgo113 | Value serializer to string slice nil pointer is not array.
+langgo114 | Value serializer to string slice typed enum slice.
+langgo115 | Value serializer serialize styled object with no set properties is omitted from the query.
+langgo116 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo117 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo118 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo119 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo120 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo121 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo122 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo123 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo124 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo125 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo126 | A typed error matches every level of its hierarchy above it | multi
+langelixir001 | A server variable keeps its declared enum values after construction, so they can be checked later.
+langelixir002 | A server variable must declare a default value, and omitting it is an error.
+langelixir003 | An array body where an object is expected raises a serialization error rather than an access error.
+langelixir004 | A deprecated schema is flagged in its generated documentation rather than on each function.
+langelixir005 | A typed view of an error body is built from the body's own fields.
+langelixir006 | A declared error schema yields an error that is an API error and every ancestor kind it belongs to.
+langelixir007 | Network and OAuth failures are recognised as SDK errors by the family checks.
+langelixir008 | An exception that the SDK did not raise is not classified as an SDK error.
+langelixir009 | Extra transport options default to an empty list when none are given.
+langelixir010 | Extra transport options given by the caller are passed through to the request.
+langelixir011 | Extra transport options must be a keyword list, and anything else is refused.
+langelixir012 | Connection options are accepted when the SDK sets no proxy or TLS option of its own.
+langelixir013 | A parameter with a null style falls back to the default style for its location.
+langelixir014 | Exchanging a code on a copy of the authenticator readies the copy the client holds.
+langelixir015 | A scheme authenticator keeps the endpoint URLs the spec declares.
+langelixir016 | Exchanging a code readies the authenticator without relying on the return value.
+langelixir017 | A scheme authenticator keeps the scopes the spec declares.
+langelixir018 | A password scheme authenticator keeps its credentials and the endpoint URLs the spec declares.
+langelixir019 | The allowed values of an enum server variable are shown as a bracketed comma-separated list.
+langelixir020 | Closing a client releases its transport and its authenticator's token manager.
+langelixir021 | Closing a client works when its authenticator holds no resources to release.
+langelixir022 | A credential keyed to a name that is not a declared security scheme is refused with an argument error.
+langelixir023 | Closing a client releases the authenticator and each scheme credential exactly once.
+langelixir024 | A call hook set on the client reaches the configuration of every API module.
+langelixir025 | Default headers default to an empty map when none are given.
+langelixir026 | No call hook is set by default, and one set later is kept without being printed.
+langelixir027 | A wall clock timeout is enforced while the call is waiting for its task to yield.
+langelixir028 | An auth cookie containing a character RFC 6265 forbids raises an argument error.
+langelixir029 | An auth cookie made only of legal cookie octets is sent exactly as given.
+langelixir030 | An auth cookie with a space, quote, comma, semicolon, backslash, control or non-ASCII character is refused.
+langelixir031 | Query parameters are appended to the request URL.
+langelixir032 | A multipart filename containing a carriage return or line feed raises an argument error.
+langelixir033 | A multipart filename containing a NUL byte raises an argument error.
+langelixir034 | Text decoded as UTF-16 without a byte order mark is read as big-endian.
+langelixir035 | A response body defaults to an empty string, not nil, when none is received.
+langelixir036 | A per-call timeout bounds that call, and a Retry-After longer than it is not waited for.
+langelixir037 | Call settings are read from the options struct, with explicit options winning and nil values left out.
+langelixir038 | Each 2xx status decodes as the response type declared for that status.
+langelixir039 | A 2xx status that no response row names decodes as the union type.
+langelixir040 | A Retry-After header given in seconds is read as a delay in milliseconds.
+langelixir041 | A non-string error value in an OAuth error response is not taken as an error code.
+langelixir042 | Every call hook observer is finished even when one of them fails.
+langelixir043 | A chain of hooks that return nothing produces no observer state.
+langelixir044 | A credential that is not found in any source raises an error that names its variable.
+langelixir045 | The parameters of an authorization URL are written in a fixed order.
+langelixir046 | Each invalid credential is rejected with its own error message.
+langelixir047 | An empty token is rejected with an error.
+langelixir048 | The Basic and Bearer scheme authenticators delegate to the base authenticators.
+langelixir049 | A redirect from HTTPS to HTTP is the only change flagged as a downgrade.
+langelixir050 | A time value is written as an ISO 8601 time string.
+langelixir051 | An ISO 8601 time string is parsed into a time value under its bare type key.
+langelixir052 | A time value survives a round trip through sanitising and back.
+langelixir053 | A protobuf duration string is parsed into a duration value under its type key.
+langelixir054 | A duration value survives a round trip through sanitising and back.
+langelixir055 | A very small duration is written as fixed-point digits, never in scientific notation.
+langelixir056 | The default transport implements the close operation.
+langelixir057 | The headers of a result default to an empty map.
+langelixir058 | A model without its own serialisation function is passed through unchanged as a body.
+langelixir059 | A model part in a multipart body is serialised through the configured serialiser under its wire names.
+langelixir060 | A value that is not a date-time string raises a serialization error that carries its cause.
+langelixir061 | A string where a set is expected raises an error instead of passing the raw string through.
+langelixir062 | A list where a string-keyed map is expected raises an error.
+langelixir063 | Every integer element of a map and of a nested grid decodes.
+langelixir064 | An inline enum value is serialised to its name.
+langelixir065 | Nested models and list elements keep their declaration order.
+langelixir066 | Each element of a list or set is encoded, and nil stays nil.
+langelixir067 | A non-string payload is rejected with an error.
+langelixir068 | A value that is not a string is refused where a string payload is required.
+langelixir069 | A time value is written as hours, minutes and seconds.
+langelixir070 | A zero fractional part of a time value is dropped when it is written.
+langelixir071 | A wire-cased property name is mapped back to its member name when decoded.
+langelixir072 | Each wire value is inverted to its typed value when converted.
+langelixir073 | A nested integer grid is written back out in the same shape.
+langelixir074 | A payload that matches no variant of an anyOf reports no match without raising.
+langelixir075 | An inline enum of a model exposes its declared members.
+langelixir076 | Each enum of a model exposes its declared members, including when two models share a name.
+langelixir077 | A property with the wrong type fails when the model is decoded.
+langelixir078 | Building a subtype without its discriminator value raises an error.
+langelixir079 | Operation and parameter descriptions reach the generated docs verbatim, never interpolated or escaped.
+langelixir080 | A model's external documentation text reaches its module docs verbatim.
+langelixir081 | An operation with no servers rejects a server option at call time.
+langelixir082 | A misspelt content type option is rejected rather than ignored.
+langelixir083 | A per-operation server variant resolves a value that is inside the variable's enum.
+langelixir084 | A string path parameter is percent-encoded exactly once, with no double encoding.
+langelixir085 | An empty non-exploded array query parameter is sent as an empty value.
+langelixir086 | A 404 error names the request that failed.
+langelixir087 | Both variants of a generated operation call the hook once, with the operation's id.
+langelixir088 | The header selector reports false for a plain text media type.
+langelixir089 | An error response names the request that produced it.
+langelixir090 | A credential held by a scheme is used in preference to the client-level authenticator.
+langelixir091 | A mis-cased enum value raises rather than matching case-insensitively.
+langelixir092 | A byte value survives a round trip through base64 encoding and decoding.
+langelixir093 | A UUID whose segments have the wrong lengths is rejected on decode.
