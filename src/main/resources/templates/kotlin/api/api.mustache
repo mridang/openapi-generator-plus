@@ -150,6 +150,7 @@ class {{classname}} : BaseApi {
      * @return {{{returnType}}}
 {{/returnType}}
      * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
@@ -428,7 +429,14 @@ class {{classname}} : BaseApi {
 {{/vendorExtensions.op.successResponses}}
                         else -> objectSerializer.deserialize<{{{vendorExtensions.op.successUnionType}}}>(text)
                     }
-                }{{/vendorExtensions.op.hasMultiple2xx}})
+                }{{/vendorExtensions.op.hasMultiple2xx}}{{#vendorExtensions.op.hasErrorSchemaResponses}},
+                errorSchemas = mapOf(
+{{#vendorExtensions.op.errorSchemaResponses}}
+                    "{{{status}}}" to {{{invokerPackage}}}.errors.ErrorFactory { method, requestPath, status, headers, body ->
+                        {{{invokerPackage}}}.errors.{{{schemaClassName}}}.fromErrorResponse(method, requestPath, status, headers, body)
+                    }{{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+                ){{/vendorExtensions.op.hasErrorSchemaResponses}})
     }
     {{/operation}}
 }

@@ -7,6 +7,7 @@ import {{invokerPackage}}.errors.SerializationException
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.errors.BadRequestException
 import {{invokerPackage}}.errors.ClientException
+import {{invokerPackage}}.errors.ErrorFactory
 import {{invokerPackage}}.errors.NotFoundException
 import {{invokerPackage}}.errors.ServerException
 import org.junit.jupiter.api.Assertions.*
@@ -530,4 +531,61 @@ class ApiExceptionTest {
         assertNull(ex.errorBody)
         assertEquals("<html>oops</html>", ex.responseBody)
     }
+
+    @Test
+    @DisplayName("bhvErrors201 an error is retryable exactly for the statuses the client retries")
+    fun anErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+        for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {
+            assertTrue(ApiException.fromResponse(status, emptyMap(), null).isRetryable, "status $status")
+        }
+        for (status in listOf(400, 401, 403, 404, 422, 501, 302)) {
+            assertFalse(ApiException.fromResponse(status, emptyMap(), null).isRetryable, "status $status")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvErrors202 an error exposes the x-request-id response header as its request id")
+    fun anErrorExposesTheRequestIdHeaderAsItsRequestId() {
+        assertEquals("abc", ApiException.fromResponse(500, mapOf("X-Request-ID" to "abc"), null).requestId)
+        assertEquals("abc", ApiException.fromResponse(500, mapOf("x-request-id" to "abc"), null).requestId)
+        assertNull(ApiException.fromResponse(500, mapOf("other" to "abc"), null).requestId)
+        assertNull(ApiException(0, "no response", null, null).requestId)
+    }
+
+    @Test
+    @DisplayName("bhvErrors203 the error factory of an operation is chosen by exact status, then range, then default")
+    fun theErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+        fun factory(message: String) =
+            ErrorFactory { _, _, status, headers, body -> ApiException(status, message, headers, body) }
+        val factories = mapOf("404" to factory("exact"), "4XX" to factory("range"), "default" to factory("default"))
+
+        assertEquals("exact", ApiException.fromResponse(404, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals("range", ApiException.fromResponse(418, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals("default", ApiException.fromResponse(502, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals(
+            {{invokerPackage}}.errors.BadGatewayException::class,
+            ApiException.fromResponse(502, emptyMap(), "{}", "GET", "/x", emptyMap())::class,
+        )
+        assertEquals(
+            NotFoundException::class,
+            ApiException.fromResponse(404, emptyMap(), "{}", "GET", "/x", null)::class,
+        )
+    }
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+    @Test
+    @DisplayName("bhvErrors204 a body that does not match its declared error schema leaves the status error with the raw body and a cause")
+    fun aBodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+        val ex = {{invokerPackage}}.errors.{{{className}}}.fromErrorResponse("GET", "/x", {{sampleStatus}}, emptyMap(), "[1, 2")
+
+        assertEquals(ApiException.fromResponse({{sampleStatus}}, emptyMap(), "[1, 2")::class, ex::class)
+        assertEquals("[1, 2", ex.responseBody)
+        assertEquals({{sampleStatus}}, ex.statusCode)
+        assertNotNull(ex.cause)
+    }
+{{/-first}}
+{{/errorSchemas}}
+{{/hasErrorSchemas}}
 }

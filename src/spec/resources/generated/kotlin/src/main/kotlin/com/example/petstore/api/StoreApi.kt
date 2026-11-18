@@ -126,6 +126,8 @@ class StoreApi : BaseApi {
      * @param options the per-call timeout, headers and maxRetries
 
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun deleteOrder(
         orderId: Long,
@@ -464,6 +466,8 @@ class StoreApi : BaseApi {
 
      * @return Order
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun getOrderById(
         orderId: Long,
@@ -796,6 +800,7 @@ class StoreApi : BaseApi {
 
      * @return Order
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      */
     suspend fun placeOrder(
         order: Order? = null,
@@ -845,6 +850,7 @@ class StoreApi : BaseApi {
 
      * @return ReserveStockResponse
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      */
     suspend fun reserveStock(options: ReserveStockOptions? = null): ReserveStockResponse =
         reserveStockWithHttpInfo(options).let { result ->

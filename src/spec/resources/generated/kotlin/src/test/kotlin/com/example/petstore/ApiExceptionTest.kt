@@ -10,6 +10,7 @@ package com.example.petstore
 import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.BadRequestException
 import com.example.petstore.errors.ClientException
+import com.example.petstore.errors.ErrorFactory
 import com.example.petstore.errors.NotFoundException
 import com.example.petstore.errors.OpenAPIException
 import com.example.petstore.errors.SerializationException
@@ -607,5 +608,57 @@ class ApiExceptionTest {
         val ex = ApiException.fromResponse(500, emptyMap(), "<html>oops</html>")
         assertNull(ex.errorBody)
         assertEquals("<html>oops</html>", ex.responseBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors201 an error is retryable exactly for the statuses the client retries")
+    fun anErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+        for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {
+            assertTrue(ApiException.fromResponse(status, emptyMap(), null).isRetryable, "status $status")
+        }
+        for (status in listOf(400, 401, 403, 404, 422, 501, 302)) {
+            assertFalse(ApiException.fromResponse(status, emptyMap(), null).isRetryable, "status $status")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvErrors202 an error exposes the x-request-id response header as its request id")
+    fun anErrorExposesTheRequestIdHeaderAsItsRequestId() {
+        assertEquals("abc", ApiException.fromResponse(500, mapOf("X-Request-ID" to "abc"), null).requestId)
+        assertEquals("abc", ApiException.fromResponse(500, mapOf("x-request-id" to "abc"), null).requestId)
+        assertNull(ApiException.fromResponse(500, mapOf("other" to "abc"), null).requestId)
+        assertNull(ApiException(0, "no response", null, null).requestId)
+    }
+
+    @Test
+    @DisplayName("bhvErrors203 the error factory of an operation is chosen by exact status, then range, then default")
+    fun theErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+        fun factory(message: String) = ErrorFactory { _, _, status, headers, body -> ApiException(status, message, headers, body) }
+        val factories = mapOf("404" to factory("exact"), "4XX" to factory("range"), "default" to factory("default"))
+
+        assertEquals("exact", ApiException.fromResponse(404, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals("range", ApiException.fromResponse(418, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals("default", ApiException.fromResponse(502, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals(
+            com.example.petstore.errors.BadGatewayException::class,
+            ApiException.fromResponse(502, emptyMap(), "{}", "GET", "/x", emptyMap())::class,
+        )
+        assertEquals(
+            NotFoundException::class,
+            ApiException.fromResponse(404, emptyMap(), "{}", "GET", "/x", null)::class,
+        )
+    }
+
+    @Test
+    @DisplayName("bhvErrors204 a body that does not match its declared error schema leaves the status error with the raw body and a cause")
+    fun aBodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+        val ex =
+            com.example.petstore.errors.UnexpectedFailureException
+                .fromErrorResponse("GET", "/x", 400, emptyMap(), "[1, 2")
+
+        assertEquals(ApiException.fromResponse(400, emptyMap(), "[1, 2")::class, ex::class)
+        assertEquals("[1, 2", ex.responseBody)
+        assertEquals(400, ex.statusCode)
+        assertNotNull(ex.cause)
     }
 }

@@ -525,6 +525,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".kt"),
             new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.kt"),
+            new SupportingFileSpec("errors/ErrorFactory.mustache", errorsFolder, "ErrorFactory.kt"),
             new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.kt"),
             new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.kt"),
             new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.kt"),
@@ -1209,6 +1210,19 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             from = end;
         }
         return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/SchemaException.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, sourceFolder, invokerPackage.replace('.', '/'), "errors", className + ".kt")
+                .toString();
     }
 
     /** {@inheritDoc} */

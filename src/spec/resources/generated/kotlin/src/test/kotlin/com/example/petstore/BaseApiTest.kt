@@ -1188,6 +1188,36 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvErrors205 a decode failure of a response carries the status, the headers and the raw body")
+        fun decodeFailureCarriesTheResponseAndTheRequest() {
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiHttpResponse =
+                        ApiHttpResponse(
+                            201,
+                            "{\"id\":",
+                            mapOf("Content-Type" to "application/json", "x-request-id" to "abc"),
+                        )
+                }
+            val testApi = TestableApiWithClient(client, "http://localhost/v2")
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    runBlocking { testApi.callForResult<Map<String, String>>("POST", "/test/echo?page=2") }
+                }
+            assertEquals(201, ex.statusCode)
+            assertEquals("abc", ex.responseHeaders?.get("x-request-id"))
+            assertEquals("{\"id\":", ex.responseBody)
+            assertEquals("POST", ex.requestMethod)
+            assertEquals("/v2/test/echo", ex.requestPath)
+        }
+
+        @Test
         @DisplayName("bhvSerializationwire005 deserializes vendor JSON MIME types like application/problem+json")
         fun deserializesVendorJsonMimeType() {
             val client =

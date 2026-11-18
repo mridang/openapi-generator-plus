@@ -1,0 +1,86 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors
+
+import {{invokerPackage}}.ObjectSerializer
+import {{modelPackage}}.{{schemaName}}
+
+/**
+ * Exception for a response whose body is a [{{schemaName}}], declared under HTTP
+ * {{#statuses}}{{.}}{{^-last}}, {{/-last}}{{/statuses}}.
+ *
+{{#parentIsFamily}}
+ * @param statusCode the HTTP status code of the response
+{{/parentIsFamily}}
+ * @param message the error message
+ * @param responseHeaders the HTTP response headers, if available
+ * @param responseBody the raw HTTP response body, if available
+ * @param errorBody the response body decoded as [{{schemaName}}], if available
+ * @param cause the underlying failure, if any
+ * @param requestMethod the HTTP method of the request that failed, if known
+ * @param requestPath the path of the request that failed, without its query string, if known
+ */
+open class {{className}}(
+{{#parentIsFamily}}
+    statusCode: Int,
+{{/parentIsFamily}}
+    message: String = "",
+    responseHeaders: Map<String, String>? = null,
+    responseBody: String? = null,
+    errorBody: {{schemaName}}? = null,
+    cause: Throwable? = null,
+    requestMethod: String? = null,
+    requestPath: String? = null
+) : {{parentClassName}}({{#parentIsFamily}}statusCode, {{/parentIsFamily}}message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath) {
+    /** The response body decoded as [{{schemaName}}], or null if it is not available. */
+    override val errorBody: {{schemaName}}?
+        get() = super.errorBody as {{schemaName}}?
+
+    companion object {
+        /**
+         * Builds the exception for a response, decoding the body as [{{schemaName}}]. A body that
+         * does not match the schema yields the status exception with the raw body and the
+         * decoding failure as its cause.
+         *
+         * @param requestMethod the HTTP method of the request, if known
+         * @param requestPath the path of the request, if known
+         * @param statusCode the HTTP status code of the response
+         * @param responseHeaders the HTTP response headers, if available
+         * @param responseBody the raw HTTP response body, if available
+         * @return the exception to throw
+         */
+        @JvmStatic
+        fun fromErrorResponse(
+            requestMethod: String?,
+            requestPath: String?,
+            statusCode: Int,
+            responseHeaders: Map<String, String>?,
+            responseBody: String?,
+        ): ApiException {
+            val status = ApiException.fromResponse(statusCode, responseHeaders, responseBody, requestMethod, requestPath)
+            if (responseBody.isNullOrEmpty()) {
+                return status
+            }
+            val message = status.message ?: "API returned status code $statusCode"
+            return try {
+                val decoded =
+                    ObjectSerializer().deserialize<{{schemaName}}>(responseBody)
+                        ?: throw SerializationException("Error body is empty")
+                {{className}}(
+{{#parentIsFamily}}
+                    statusCode,
+{{/parentIsFamily}}
+                    message,
+                    responseHeaders,
+                    responseBody,
+                    decoded,
+                    null,
+                    requestMethod,
+                    requestPath,
+                )
+            } catch (e: SerializationException) {
+                ApiException.statusFallback(statusCode, responseHeaders, responseBody, requestMethod, requestPath, e)
+            }
+        }
+    }
+}
