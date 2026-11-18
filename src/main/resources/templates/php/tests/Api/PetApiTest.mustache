@@ -1705,7 +1705,7 @@ test('bhv operations 083 staging server variants resolve every enum combination 
     'sandbox v3' => ['sandbox', 'v3'],
 ]);
 
-test('a staging server variable outside its enum cannot be constructed', function (): void {
+test('bhv servers 020 a per-operation server variable value outside its enum is rejected', function (): void {
     expect(fn () => \{{invokerPackage}}\Api\GetStagingPetInfoServerEnvironment::from('production'))
         ->toThrow(\ValueError::class);
 });

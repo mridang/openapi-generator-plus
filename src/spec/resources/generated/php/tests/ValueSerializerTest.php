@@ -20,6 +20,18 @@ namespace {
         expect(ValueSerializer::serialize('a/b c', 'path', 'string'))->toBe('a%2Fb%20c');
     });
 
+    test('bhv serializationparam 119 a tilde is kept literal in a path parameter value', function (): void {
+        expect(ValueSerializer::serialize('a~b', 'path', 'string'))->toBe('a~b');
+        expect(ValueSerializer::serialize('~', 'path', 'string'))->toBe('~');
+    });
+
+    test('bhv serializationparam 118 a content cookie value is encoded to the shared percent encoded bytes', function (): void {
+        /* A `content:` cookie is written as the percent-encoded JSON of its value
+         * (api.mustache: rawurlencode of ObjectSerializer::serialize). */
+        $json = ObjectSerializer::serialize(['k' => "a b~*\u{00E9}"]);
+        expect(rawurlencode($json))->toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
+    });
+
     test('bhv serializationparam 062 path null returns empty string', function (): void {
         expect(ValueSerializer::serialize(null, 'path', 'string'))->toBe('');
     });
@@ -364,6 +376,22 @@ namespace {
         expect($result)->toBe([]);
     });
 
+    test('bhv serializationparam 111 a deepObject parameter writes each property as name[key]', function (): void {
+        $result = ValueSerializer::serializeDeepObject('filter', ['status' => 'active', 'type' => 'dog']);
+        expect($result)->toBe(['filter[status]' => 'active', 'filter[type]' => 'dog']);
+    });
+
+    test('bhv serializationparam 108 a nested object leaf in a styled parameter is rejected with a serialization error', function (): void {
+        expect(fn () => ValueSerializer::serializeDeepObject('criteria', ['inner' => ['deeper' => 1]]))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+        expect(fn () => ValueSerializer::serializeStyled('criteria', [['deeper' => 1]], 'query', 'array', null, 'form', true))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    });
+
+    test('bhv serializationparam 109 an unknown parameter style falls back to plain value serialization', function (): void {
+        expect(ValueSerializer::serializeStyled('id', '5', 'query', 'string', null, 'unknownStyle', false))->toBe('5');
+    });
+
 // -- path encoding parity --
 // Cross-language parity tests for path-segment percent-encoding.
 // Every SDK must produce identical encoded strings for these inputs.
@@ -495,7 +523,7 @@ namespace {
 
 /* -- date-only marker in non-path locations -- */
 
-    test('query date only emits yyyy mm dd', function (): void {
+    test('bhv serializationparam 110 a date value is written as yyyy mm dd', function (): void {
         $dt = new \DateTime('2024-01-01T10:30:45+00:00');
         expect(ValueSerializer::serialize($dt, 'query', '\\DateTime|date'))->toBe('2024-01-01');
         expect(ValueSerializer::serializeStyled('d', $dt, 'query', '\\DateTime|date', null, 'form', true))->toBe('2024-01-01');
@@ -521,7 +549,7 @@ namespace {
         ->toBe(['2024-01-15', '2024-02-01']);
     });
 
-    test('header array of dates emits yyyy mm dd per item', function (): void {
+    test('bhv serializationparam 120 an array of date values is written with each element as yyyy mm dd', function (): void {
         $dates = [new \DateTime('2024-01-15T10:30:45+00:00'), new \DateTime('2024-02-01T23:59:59+00:00')];
         expect(ValueSerializer::serialize($dates, 'header', 'array|date'))->toBe('2024-01-15,2024-02-01');
     });
@@ -606,6 +634,10 @@ namespace {
 
     test('styled form exploded set expands to repeated values', function (): void {
         expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['blue', 'black']), 'query', 'array', null, 'form', true))->toBe(['blue', 'black']);
+    });
+
+    test('bhv serializationparam 117 a set in form style without explode joins its elements with commas like an array', function (): void {
+        expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['red', 'blue']), 'query', 'array', null, 'form', false))->toBe('red,blue');
     });
 
     test('bhv serializationparam 066 a null value is an empty string in the path location', function (): void {

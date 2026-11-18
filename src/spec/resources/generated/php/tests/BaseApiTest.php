@@ -993,7 +993,7 @@ test('bhv errors 035 rejects a text plain body for a model return with a seriali
         );
 })->with([\PetstoreClient\Models\Pet::class, 'int', 'array<string>']);
 
-test('a binary return type gets the raw bytes of a JSON body', function (): void {
+test('bhv serializationwire 060 a binary return type gets the raw bytes of a JSON body', function (): void {
     $client = new class implements ApiClient {
         public function close(): void
         {
@@ -1118,6 +1118,23 @@ test('bhv serializationwire 012 form urlencoded body encodes space as plus', fun
         null
     );
     expect($client->capturedBody)->toBe('q=a+b+c');
+});
+
+test('bhv serializationwire 057 a form-urlencoded body keeps only the unreserved set literal and escapes the rest', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        ['k~*' => "a~b*c!'()"],
+        ['application/json'],
+        'application/x-www-form-urlencoded',
+        null
+    );
+    expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
 });
 
 test('form urlencoded body renders date-time, enum and number fields canonically', function (): void {
