@@ -2344,3 +2344,16 @@ async fn test_bhv_misc_025_a_typed_call_fails_when_the_server_answers_a_client_e
         .expect_err("a client error status must fail the typed call");
     assert!(err.downcast_ref::<NotFoundError>().is_some(), "expected NotFoundError, got: {}", err);
 }
+
+#[tokio::test]
+async fn test_bhv_misc_123_a_pre_encoded_cookie_value_is_sent_unchanged() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = DeletePetOptions::new().api_key("abc%20def%3d".to_string());
+    let _ = api.delete_pet(1, Some(&opts)).await;
+    let request = rx.recv().expect("expected a captured request").to_lowercase();
+    assert!(
+        request.contains("cookie: api_key=abc%20def%3d"),
+        "a pre-encoded cookie value must not be encoded again, got request: {}",
+        request
+    );
+}

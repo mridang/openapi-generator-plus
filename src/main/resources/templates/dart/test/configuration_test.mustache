@@ -324,6 +324,24 @@ void main() {
 
       expect(config.toString(), isNot(contains('_NoopHook')));
     });
+    test('bhv misc 276 The default configuration and the default builder both use the base URL declared in the spec', () {
+      expect(Configuration.defaultConfiguration().baseUrl, equals('{{{basePath}}}'));
+      expect(Configuration.builder().build().baseUrl, equals('{{{basePath}}}'));
+    });
+
+    test('bhv misc 277 Each call to the default configuration returns a distinct configuration object', () {
+      expect(identical(Configuration.defaultConfiguration(), Configuration.defaultConfiguration()), isFalse);
+    });
+
+    test('bhv misc 279 Changing the headers returned from a configuration does not change the headers it holds', () {
+      final config = Configuration.builder().defaultHeader('X-Keep', 'yes').build();
+
+      final headers = config.defaultHeaders;
+      headers['X-New'] = 'no';
+
+      expect(config.defaultHeaders.containsKey('X-New'), isFalse);
+      expect(config.defaultHeaders, containsPair('X-Keep', 'yes'));
+    });
   });
 }
 

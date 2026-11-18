@@ -407,8 +407,12 @@ class BaseApi {
         }
 
         /* No response arrived: a network error. A timeout is not retried, since
-         * the budget that expired would be spent again on the same request. */
+         * the budget that expired would be spent again on the same request. A
+         * non-idempotent method is not sent a second time, because the first send
+         * may already have changed the server. */
         if (replayable &&
+            const {'GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY'}
+                .contains(method.toUpperCase()) &&
             retries < maxRetriesLeft &&
             failure is! NetworkTimeoutException) {
           final delay = _retryDelay(retries, const {});

@@ -406,6 +406,21 @@ class ConfigurationTest {
     }
 
     @Test
+    @DisplayName("bhvMisc136 the debug text shows the base URL and the non-sensitive default headers")
+    fun bhvMisc136DebugTextShowsBaseUrlAndPlainHeaders() {
+        val text =
+            Configuration
+                .builder()
+                .baseUrl("http://localhost/api")
+                .defaultHeader("X-Trace", "on")
+                .defaultHeader("Authorization", "secret")
+                .build()
+                .toString()
+        assertTrue(text.contains("http://localhost/api") && text.contains("X-Trace=on"), text)
+        assertFalse(text.contains("secret"), text)
+    }
+
+    @Test
     fun bhvMisc276DefaultConfigurationUsesTheSpecBaseUrl() =
         runBlocking<Unit> {
             assertEquals("/api/v3", Configuration.defaultConfiguration().baseUrl)
