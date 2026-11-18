@@ -1,0 +1,564 @@
+defmodule PetstoreClient.CallHookRecipeTest do
+  use ExUnit.Case, async: false
+
+  require OpenTelemetry.Tracer, as: Tracer
+
+  # The recipe the README shows, printed from the same partial.
+  defmodule TelemetryCallHook do
+    @moduledoc """
+    A call hook that records one span, one request count and one duration per
+    call. It needs `opentelemetry_api` and `opentelemetry_api_experimental` in
+    your own `mix.exs`, and records nothing until an OpenTelemetry SDK runs.
+
+    Pass it as `{TelemetryCallHook, tracer: tracer, meter: meter}` to use a
+    tracer and a meter other than the global ones.
+    """
+
+    @behaviour PetstoreClient.CallHook
+
+    @scope_name :petstore_client
+    @scope_version "1.0.0"
+
+    @impl true
+    def start(info, headers), do: start(info, headers, [])
+
+    @impl true
+    def start(info, headers, opts) do
+      tracer =
+        Keyword.get_lazy(opts, :tracer, fn ->
+          :opentelemetry.get_tracer(@scope_name, @scope_version, :undefined)
+        end)
+
+      meter =
+        Keyword.get_lazy(opts, :meter, fn ->
+          :opentelemetry_experimental.get_meter(
+            :opentelemetry.instrumentation_scope(@scope_name, @scope_version, :undefined)
+          )
+        end)
+
+      attributes = %{
+        "http.request.method" => info.method,
+        "url.template" => info.url_template,
+        "server.address" => info.server_address
+      }
+
+      span =
+        :otel_tracer.start_span(tracer, info.operation_id, %{
+          kind: :client,
+          attributes: attributes
+        })
+
+      # The hook writes the traceparent itself, so the request names the client span.
+      headers =
+        :otel_propagator_text_map.inject_from(
+          :otel_tracer.set_current_span(:otel_ctx.get_current(), span),
+          :opentelemetry.get_text_map_injector(),
+          headers,
+          fn key, value, carrier -> Map.put(carrier, key, value) end
+        )
+
+      {headers,
+       %{span: span, meter: meter, attributes: attributes, started: System.monotonic_time()}}
+    end
+
+    @impl true
+    def finish(state, outcome) do
+      failure = error_type(outcome)
+
+      attributes =
+        state.attributes
+        |> then(fn attributes ->
+          if outcome.status_code > 0,
+            do: Map.put(attributes, "http.response.status_code", outcome.status_code),
+            else: attributes
+        end)
+        |> then(fn attributes ->
+          if failure, do: Map.put(attributes, "error.type", failure), else: attributes
+        end)
+
+      :otel_span.set_attributes(
+        state.span,
+        Map.take(attributes, ["http.response.status_code", "error.type"])
+      )
+
+      if failure, do: :otel_span.set_status(state.span, :opentelemetry.status(:error, failure))
+      :otel_span.end_span(state.span)
+
+      seconds =
+        System.convert_time_unit(System.monotonic_time() - state.started, :native, :nanosecond) /
+          1_000_000_000
+
+      context = :otel_ctx.get_current()
+      :otel_counter.create(state.meter, :"http.client.request.count", %{unit: :"{request}"})
+      :otel_counter.add(context, state.meter, :"http.client.request.count", 1, attributes)
+      :otel_histogram.create(state.meter, :"http.client.request.duration", %{unit: :s})
+
+      :otel_histogram.record(
+        context,
+        state.meter,
+        :"http.client.request.duration",
+        seconds,
+        attributes
+      )
+
+      :ok
+    end
+
+    defp error_type(%{status_code: status}) when status >= 400, do: Integer.to_string(status)
+    defp error_type(%{error: nil}), do: nil
+    defp error_type(%{error: %PetstoreClient.Errors.NetworkTimeoutError{}}), do: "timeout"
+    defp error_type(%{error: %PetstoreClient.Errors.NetworkError{}}), do: "network_error"
+
+    defp error_type(%{error: %PetstoreClient.Errors.SerializationError{}}),
+      do: "serialization_error"
+
+    defp error_type(%{error: {:exit, _reason}}), do: "cancelled"
+    defp error_type(_outcome), do: "_OTHER"
+  end
+
+  # Records every batch of metrics the SDK exports, in a named Agent, so a test
+  # can read what was recorded after a flush.
+  defmodule RecordingMetricExporter do
+    @behaviour :otel_exporter_metrics
+
+    @impl true
+    def init(store), do: {:ok, store}
+
+    @impl true
+    def export(metrics, _resource, store) do
+      Agent.update(store, fn recorded -> recorded ++ metrics end)
+      :ok
+    end
+
+    @impl true
+    def shutdown(_store), do: :ok
+  end
+
+  # A transport that answers from a function and records the headers it was given.
+  defmodule AnsweringApiClient do
+    defstruct [:agent, :answer]
+
+    def new(answer) do
+      {:ok, agent} = Agent.start_link(fn -> [] end)
+      %__MODULE__{agent: agent, answer: answer}
+    end
+
+    def send_request(%__MODULE__{agent: agent, answer: answer}, _method, url, headers, _body) do
+      Agent.update(agent, fn requests -> requests ++ [{url, headers}] end)
+      answer.()
+    end
+
+    def requests(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
+  end
+
+  defmodule ExitingApiClient do
+    def send_request(_method, _url, _headers, _body), do: exit(:shutdown)
+  end
+
+  @store :call_hook_recipe_metrics
+  @scope_name "petstore_client"
+  @scope_version "1.0.0"
+
+  setup_all do
+    Application.load(:opentelemetry)
+    Application.put_env(:opentelemetry, :traces_exporter, :none)
+    Application.put_env(:opentelemetry, :processors, [{:otel_simple_processor, %{}}])
+    Application.load(:opentelemetry_experimental)
+    {:ok, _} = Agent.start_link(fn -> [] end, name: @store)
+
+    Application.put_env(:opentelemetry_experimental, :readers, [
+      %{module: :otel_metric_reader, config: %{exporter: {RecordingMetricExporter, @store}}}
+    ])
+
+    {:ok, _} = Application.ensure_all_started(:opentelemetry_experimental)
+    :ok
+  end
+
+  # The simple span processor sends every finished span to this test process: an
+  # in-memory exporter.
+  setup do
+    :otel_simple_processor.set_exporter(:otel_exporter_pid, self())
+    :ok
+  end
+
+  # A unique url template per test keeps the cumulative metrics of one test out of
+  # the next one.
+  defp template(name), do: "/recipe/#{name}/{id}"
+
+  defp call(client, template, call_opts \\ [], hook_opts \\ [], query_params \\ %{}) do
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: "https://API.Example.com:8443",
+        call_hook: {TelemetryCallHook, hook_opts}
+      )
+
+    state = %{config: config, api_client: client}
+    operation = [operation: {"findThings", template}]
+
+    PetstoreClient.Api.BaseApi.invoke_api(
+      state,
+      :get,
+      "/things",
+      query_params,
+      %{},
+      nil,
+      ["application/json"],
+      "application/json",
+      nil,
+      nil,
+      operation ++ call_opts
+    )
+  end
+
+  defp ok_client(status \\ 200, headers \\ %{}) do
+    AnsweringApiClient.new(fn ->
+      %PetstoreClient.ApiHttpResponse{status_code: status, headers: headers, body: ""}
+    end)
+  end
+
+  defp transport_state_client(script) do
+    {:ok, steps} = Agent.start_link(fn -> script end)
+
+    adapter = fn request ->
+      step =
+        Agent.get_and_update(steps, fn
+          [only] -> {only, [only]}
+          [first | rest] -> {first, rest}
+        end)
+
+      {request, step.()}
+    end
+
+    PetstoreClient.DefaultApiClient.new(
+      PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    )
+  end
+
+  defp response(status, headers \\ []),
+    do: fn -> Req.Response.new(status: status, headers: headers, body: "") end
+
+  defp span_fields(
+         {:span, _trace_id, span_id, _tracestate, parent_span_id, _remote, name, kind, _start,
+          _end, attributes, _events, _links, status, _flags, _recording, scope}
+       ) do
+    %{
+      span_id: span_id,
+      parent_span_id: parent_span_id,
+      name: name,
+      kind: kind,
+      attributes: :otel_attributes.map(attributes),
+      status: status,
+      scope: scope
+    }
+  end
+
+  defp next_span do
+    assert_receive {:span, span}, 1_000
+    span_fields(span)
+  end
+
+  defp metrics_named(name, template) do
+    :ok = :otel_meter_provider.force_flush()
+
+    @store
+    |> Agent.get(& &1)
+    |> Enum.filter(fn {:metric, metric_name, _scope, _description, _unit, _data} = metric ->
+      metric_name == name and
+        Enum.any?(datapoints(metric), fn {attributes, _} ->
+          attributes["url.template"] == template
+        end)
+    end)
+  end
+
+  defp datapoints(
+         {:metric, _name, _scope, _description, _unit, {:sum, points, _temporality, _monotonic}}
+       ),
+       do:
+         Enum.map(points, fn {:datapoint, attributes, _start, _time, value, _exemplars, _flags} ->
+           {attributes, value}
+         end)
+
+  defp datapoints(
+         {:metric, _name, _scope, _description, _unit, {:histogram, points, _temporality}}
+       ),
+       do:
+         Enum.map(points, fn {:histogram_datapoint, attributes, _start, _time, count, sum,
+                              _buckets, _bounds, _exemplars, _flags, _min, _max} ->
+           {attributes, {count, sum}}
+         end)
+
+  defp point_for(name, template) do
+    metric = name |> metrics_named(template) |> List.last()
+    {:metric, _name, scope, _description, unit, _data} = metric
+
+    [{attributes, value}] =
+      Enum.filter(datapoints(metric), fn {attributes, _} ->
+        attributes["url.template"] == template
+      end)
+
+    %{attributes: attributes, value: value, scope: scope, unit: unit}
+  end
+
+  test "bhv telemetry 001 the span is named with the spec operation id and has kind client" do
+    assert {:ok, _} = call(ok_client(), template("t001"))
+
+    span = next_span()
+    assert span.name == "findThings"
+    assert span.kind == :client
+  end
+
+  test "bhv telemetry 002 a 2xx sets the request attributes and the status code and leaves the span status unset" do
+    assert {:ok, _} = call(ok_client(), template("t002"), [], [], [{"a", "1"}])
+
+    span = next_span()
+
+    assert span.attributes == %{
+             "http.request.method" => "GET",
+             "url.template" => template("t002"),
+             "server.address" => "api.example.com",
+             "http.response.status_code" => 200
+           }
+
+    assert span.status in [:undefined, nil]
+  end
+
+  test "bhv telemetry 003 a 4xx or 5xx sets error.type to the status code and marks the span as an error" do
+    for status <- [404, 500] do
+      assert {:error, _} = call(ok_client(status), template("t003"), max_retries: 0)
+
+      span = next_span()
+      assert span.attributes["error.type"] == Integer.to_string(status)
+      assert span.attributes["http.response.status_code"] == status
+      assert {:status, :error, _message} = span.status
+    end
+  end
+
+  test "bhv telemetry 004 error.type is timeout, network_error, serialization_error, cancelled or _OTHER" do
+    timeout = transport_state_client([fn -> %Req.TransportError{reason: :timeout} end])
+
+    assert {:error, %PetstoreClient.Errors.NetworkTimeoutError{}} =
+             call(timeout, template("t004"))
+
+    assert next_span().attributes["error.type"] == "timeout"
+
+    refused = transport_state_client([fn -> %Req.TransportError{reason: :econnrefused} end])
+
+    assert {:error, %PetstoreClient.Errors.NetworkError{}} =
+             call(refused, template("t004"), max_retries: 0)
+
+    assert next_span().attributes["error.type"] == "network_error"
+
+    text =
+      AnsweringApiClient.new(fn ->
+        %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          headers: %{"Content-Type" => "text/plain"},
+          body: "not json"
+        }
+      end)
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Api.BaseApi.invoke_api(
+        %{
+          config:
+            PetstoreClient.Configuration.new(
+              base_url: "https://api.example.com",
+              call_hook: {TelemetryCallHook, []}
+            ),
+          api_client: text
+        },
+        :get,
+        "/things",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        "Object",
+        nil,
+        operation: {"findThings", template("t004")}
+      )
+    end
+
+    assert next_span().attributes["error.type"] == "serialization_error"
+
+    assert catch_exit(call(ExitingApiClient, template("t004"))) == :shutdown
+    assert next_span().attributes["error.type"] == "cancelled"
+
+    broken = AnsweringApiClient.new(fn -> raise "the transport broke" end)
+    assert {:error, %RuntimeError{}} = call(broken, template("t004"))
+    assert next_span().attributes["error.type"] == "_OTHER"
+  end
+
+  test "bhv telemetry 005 a call with no response sets no http.response.status_code" do
+    refused = transport_state_client([fn -> %Req.TransportError{reason: :econnrefused} end])
+    assert {:error, _} = call(refused, template("t005"), max_retries: 0)
+
+    refute Map.has_key?(next_span().attributes, "http.response.status_code")
+  end
+
+  test "bhv telemetry 006 the span is a child of the active span and the traceparent sent names the client span" do
+    client = ok_client()
+
+    Tracer.with_span "caller" do
+      parent = Tracer.current_span_ctx()
+      assert {:ok, _} = call(client, template("t006"))
+
+      span = next_span()
+      assert span.parent_span_id == :otel_span.span_id(parent)
+
+      [{_url, headers}] = AnsweringApiClient.requests(client)
+
+      assert headers["traceparent"] ==
+               "00-#{:otel_span.hex_trace_id(parent)}-#{hex_span_id(span.span_id)}-01"
+
+      assert Enum.count(headers, fn {name, _} -> String.downcase(name) == "traceparent" end) == 1
+    end
+
+    assert_receive {:span, _caller}, 1_000
+  end
+
+  defp hex_span_id(span_id),
+    do: span_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(16, "0")
+
+  test "bhv telemetry 007 a call retried by the transport records one span and one count" do
+    client =
+      transport_state_client([
+        response(503, [{"retry-after", "0"}]),
+        response(503, [{"retry-after", "0"}]),
+        response(200)
+      ])
+
+    assert {:ok, _} = call(client, template("t007"))
+
+    next_span()
+    refute_receive {:span, _another}, 100
+    assert point_for(:"http.client.request.count", template("t007")).value == 1
+  end
+
+  test "bhv telemetry 008 the request count is incremented once per call with the attributes of the span" do
+    assert {:ok, _} = call(ok_client(), template("t008"))
+    span = next_span()
+
+    point = point_for(:"http.client.request.count", template("t008"))
+    assert point.value == 1
+    assert point.attributes == span.attributes
+    assert point.unit == :"{request}"
+  end
+
+  test "bhv telemetry 009 the duration histogram records one value in seconds per call with the attributes of the span" do
+    assert {:ok, _} = call(ok_client(), template("t009"))
+    span = next_span()
+
+    point = point_for(:"http.client.request.duration", template("t009"))
+    assert {1, sum} = point.value
+    assert sum >= 0 and sum < 5
+    assert point.attributes == span.attributes
+    assert point.unit == :s
+  end
+
+  test "bhv telemetry 010 the instrumentation scope is named after the package and carries its version" do
+    assert {:ok, _} = call(ok_client(), template("t010"))
+
+    assert {:instrumentation_scope, @scope_name, @scope_version, _schema} = next_span().scope
+
+    assert {:instrumentation_scope, @scope_name, @scope_version, _schema} =
+             point_for(:"http.client.request.count", template("t010")).scope
+
+    assert {:instrumentation_scope, @scope_name, @scope_version, _schema} =
+             point_for(:"http.client.request.duration", template("t010")).scope
+  end
+
+  test "bhv telemetry 011 a tracer and a meter handed to the hook are used instead of the global ones" do
+    tracer = :opentelemetry.get_tracer(:handed_scope, "9.9.9", :undefined)
+
+    assert {:ok, _} =
+             call(ok_client(), template("t011"), [],
+               tracer: tracer,
+               meter: {:otel_meter_noop, []}
+             )
+
+    assert {:instrumentation_scope, "handed_scope", "9.9.9", _schema} = next_span().scope
+    assert metrics_named(:"http.client.request.count", template("t011")) == []
+
+    silent = [tracer: {:otel_tracer_noop, []}, meter: {:otel_meter_noop, []}]
+    assert {:ok, _} = call(ok_client(), template("t011b"), [], silent)
+
+    refute_receive {:span, _span}, 100
+    assert metrics_named(:"http.client.request.count", template("t011b")) == []
+  end
+
+  test "bhv telemetry 012 with no provider the hook records nothing and the call is unchanged" do
+    silent = [tracer: {:otel_tracer_noop, []}, meter: {:otel_meter_noop, []}]
+    hooked = ok_client(200, %{"X-A" => "1"})
+    plain = ok_client(200, %{"X-A" => "1"})
+
+    assert {:ok, nil} = call(hooked, template("t012"), [], silent)
+
+    assert {:ok, nil} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               %{
+                 config:
+                   PetstoreClient.Configuration.new(base_url: "https://API.Example.com:8443"),
+                 api_client: plain
+               },
+               :get,
+               "/things",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
+
+    refute_receive {:span, _span}, 100
+
+    assert AnsweringApiClient.requests(hooked) |> Enum.map(&elem(&1, 1)) ==
+             AnsweringApiClient.requests(plain) |> Enum.map(&elem(&1, 1))
+  end
+
+  test "bhv telemetry 013 the span ends exactly once, also when the call throws" do
+    assert catch_exit(call(ExitingApiClient, template("t013"))) == :shutdown
+    next_span()
+    refute_receive {:span, _another}, 100
+
+    broken = AnsweringApiClient.new(fn -> raise "the transport broke" end)
+    assert {:error, _} = call(broken, template("t013"))
+    next_span()
+    refute_receive {:span, _another}, 100
+  end
+
+  test "bhv telemetry 014 no attribute carries a query string, a header value or a credential" do
+    client = ok_client()
+    secret = "s3cret-value"
+
+    assert {:ok, _} =
+             call(
+               client,
+               template("t014"),
+               [headers: %{"Authorization" => "Bearer " <> secret}],
+               [],
+               [{"token", secret}]
+             )
+
+    span = next_span()
+    count = point_for(:"http.client.request.count", template("t014"))
+
+    for attributes <- [span.attributes, count.attributes] do
+      assert Map.keys(attributes) |> Enum.sort() ==
+               [
+                 "http.request.method",
+                 "http.response.status_code",
+                 "server.address",
+                 "url.template"
+               ]
+
+      refute attributes
+             |> Map.values()
+             |> Enum.any?(fn value ->
+               is_binary(value) and (value =~ secret or value =~ "?" or value =~ "Bearer")
+             end)
+    end
+  end
+end

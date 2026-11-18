@@ -379,4 +379,19 @@ defmodule PetstoreClient.ClientTest do
     assert client.problems != nil
     assert client.store != nil
   end
+
+  test "a call hook given to the client reaches the configuration of every API" do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
+    hook = PetstoreClient.CallHook.chain([])
+
+    client = PetstoreClient.Client.new(authenticator, nil, [], call_hook: hook)
+
+    assert client.pet.config.call_hook == hook
+    assert client.problems.config.call_hook == hook
+    assert client.store.config.call_hook == hook
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.Client.new(authenticator, nil, [], unknown: 1)
+    end
+  end
 end

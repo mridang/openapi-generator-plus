@@ -143,6 +143,40 @@ Every operation has a `_with_http_info` variant that returns the status, headers
 
 An error carries the request it answers: `request_method` and `request_path` (the path without the query string), and its message has a `Request: GET /path` line after the status line.
 
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the request is sent and observe the status or the error afterwards, and without a hook set the call does nothing extra.
+
+A hook is a module that implements the `{{moduleName}}.CallHook` behaviour, or `{module, opts}`, which is called as `module.start(info, headers, opts)`. `info` is a `CallInfo` with `operation_id` (exactly as the spec writes it), `method`, `url_template` (the spec path, for example `/items/{id}`), `url` (without query string and fragment) and `server_address` (the host, lower-case, without port or IPv6 brackets). `headers` is the final set of request headers: defaults, call headers, authentication, cookies and trace context are already in it. `start` returns the headers to send and a state, or `nil` for no change and nothing to observe. When the state is not `nil`, `finish(state, outcome)` is called once the call has ended. `outcome` is a `CallOutcome` with `status_code` (0 when no response arrived), `headers` (lower-cased names, `nil` when no response arrived) and `error` (the very error the caller receives, or `nil`). Set the hook with the `call_hook:` option of `Configuration.new/1` or of the client, and use `CallHook.chain([first, second])` to run several: they start in the order given and finish in the reverse order.
+
+`start` runs once per operation call, however many times the transport sends the request, and `finish` runs exactly once on every way the call can end. A header the hook sets is on every send of the call, and the fresh credentials of the one replay after a 401 still replace a header of the same name. An error raised by `start` reaches the caller unchanged and nothing is sent. An error raised by `finish` is swallowed. The hook runs above the transport, so it also runs when you supply your own, and it runs inline in the calling process, so it must not block. Headers are a plain map: reuse the spelling of an existing name to replace it.
+
+```elixir
+defmodule TenantHook do
+  @behaviour {{moduleName}}.CallHook
+
+  @impl true
+  def start(_info, headers), do: {Map.put(headers, "X-Tenant", "a"), nil}
+
+  @impl true
+  def finish(_state, _outcome), do: :ok
+end
+
+client = {{moduleName}}.{{clientClassName}}.with_token("{{{basePath}}}", "token", nil, call_hook: TenantHook)
+```
+
+#### OpenTelemetry
+
+This SDK ships no OpenTelemetry adapter and the SDK itself depends on no OpenTelemetry package: the Elixir OpenTelemetry metrics API is not stable yet, so the same hook is shown as a recipe instead. It records one span per call, named with the operation id, of kind client, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code as text for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). It also records the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) with the same attributes, under an instrumentation scope named after the package and carrying its version. It injects the `traceparent` header itself, so the span sent to the server is the client span. Add `opentelemetry_api` and `opentelemetry_api_experimental` to your own `mix.exs`; without an OpenTelemetry SDK it does nothing.
+
+```elixir
+{{>call_hook_recipe}}
+```
+
+```elixir
+client = {{moduleName}}.{{clientClassName}}.with_token("{{{basePath}}}", "token", nil, call_hook: TelemetryCallHook)
+```
+
 ### Response compression
 
 The SDK sends `Accept-Encoding` for the codecs it can decode (`gzip` and `deflate`, `br` when the optional `:brotli` dependency is present, `zstd` on OTP 28) and decodes the body before it returns; the returned headers no longer carry `content-encoding` or `content-length`. A caller-supplied `Accept-Encoding` header, in any casing, replaces the SDK's.

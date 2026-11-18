@@ -157,4 +157,26 @@ defmodule PetstoreClient.ConfigurationTest do
     assert shown =~ "application/json"
     assert config.default_headers["Authorization"] == "Bearer abc123"
   end
+
+  defmodule SomeHook do
+    @behaviour PetstoreClient.CallHook
+
+    @impl true
+    def start(_info, headers), do: {headers, nil}
+
+    @impl true
+    def finish(_state, _outcome), do: :ok
+  end
+
+  test "a call hook is none by default, set by call_hook and never printed" do
+    assert PetstoreClient.Configuration.new().call_hook == nil
+
+    config = PetstoreClient.Configuration.new(call_hook: {SomeHook, %{password: "hunter2"}})
+
+    assert config.call_hook == {SomeHook, %{password: "hunter2"}}
+    shown = inspect(config)
+    refute shown =~ "hunter2"
+    refute shown =~ "SomeHook"
+    assert shown =~ "call_hook: :set"
+  end
 end
