@@ -461,3 +461,6 @@ python | misc044 | a declared gzip body that is not gzip raises ApiException (tr
 python | misc051 | operation Options objects are typed, so an option the operation cannot apply is refused by Python as an unknown keyword at construction
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
+kotlin | misc030 | sendRequest takes no per-call deadline and a caller's deadline is a coroutine withTimeout (pinned by langkotlin026), so a deadline already past cannot be handed to a call
+kotlin | misc033 | the HTTPS fixture server presents only its leaf certificate, so there is no intermediate to leave out of the chain it sends
+kotlin | misc044 | a declared gzip body that is not gzip raises ApiException (transport030), so the plain body is never returned
