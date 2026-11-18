@@ -1297,3 +1297,71 @@ fn test_bhv_skills_002_skills_configuration_documents_the_retries() {
         "the retries must name the Retry-After header"
     );
 }
+
+#[test]
+fn test_bhv_errors_074_an_error_without_a_response_renders_its_message_alone() {
+    let err = ApiError::new(0, "connection refused".to_string(), None, None);
+    let shown = err.to_string();
+    assert!(shown.contains("connection refused"), "{}", shown);
+    assert!(
+        !shown.contains("status"),
+        "no status line without a response: {}",
+        shown
+    );
+}
+
+#[test]
+fn test_bhv_errors_076_an_error_the_sdk_did_not_raise_is_not_classified_as_one_of_its_own() {
+    use petstore::OpenAPIErrorExt;
+    let wrapped: Box<dyn std::error::Error + Send + Sync> = Box::new(std::io::Error::other("boom"));
+    assert!(
+        wrapped.api_error_kind().is_none(),
+        "a foreign error must not be classified"
+    );
+}
+
+#[test]
+fn test_bhv_errors_079_the_first_complete_request_is_kept_and_later_attachments_are_ignored() {
+    let first = ApiError::new(500, "boom".to_string(), None, None)
+        .with_request("GET", "/first")
+        .with_request("POST", "/second");
+    assert_eq!(first.request_method(), Some("GET"));
+    assert_eq!(first.request_path(), Some("/first"));
+    let incomplete = ApiError::new(500, "boom".to_string(), None, None)
+        .with_request("", "/ignored")
+        .with_request("PUT", "/kept");
+    assert_eq!(incomplete.request_method(), Some("PUT"));
+    assert_eq!(incomplete.request_path(), Some("/kept"));
+}
+
+#[test]
+fn test_bhv_errors_080_a_typed_http_error_is_caught_by_the_root_type_and_keeps_its_status() {
+    use petstore::OpenAPIErrorExt;
+    let err: Box<dyn std::error::Error + Send + Sync> =
+        Box::new(NotFoundError::try_from(client_chain(404, "gone")).expect("404"));
+    assert_eq!(err.to_string().contains("404"), true, "{}", err);
+    match err.api_error_kind() {
+        Some(ApiErrorKind::NotFound(inner)) => assert_eq!(inner.status_code(), 404),
+        other => panic!("expected the NotFound kind, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_bhv_errors_083_a_ca_certificate_path_that_cannot_be_read_is_named_at_construction() {
+    let missing = "/definitely/not/here/ca.pem";
+    let built = petstore::TransportOptions::builder()
+        .ca_cert_path(missing)
+        .build();
+    let err = built.expect_err("a missing CA file must be refused");
+    assert!(
+        err.to_string().contains(missing),
+        "the error must name the file: {}",
+        err
+    );
+}
+
+#[test]
+fn test_bhv_errors_084_an_error_built_without_a_response_reports_status_zero_by_default() {
+    let err = ApiError::new(0, "no response".to_string(), None, None);
+    assert_eq!(err.status_code(), 0);
+}

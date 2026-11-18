@@ -2872,3 +2872,81 @@ fn test_bhv_lifecycle_036_closing_a_client_a_second_time_raises_nothing() {
     ApiClient::close(&client);
     assert!(client.is_closed());
 }
+
+/// Accepts connections and never answers, holding each one open for a while.
+fn start_never_answering_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        for stream in listener.incoming().flatten() {
+            thread::spawn(move || {
+                thread::sleep(std::time::Duration::from_secs(5));
+                drop(stream);
+            });
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+#[tokio::test]
+async fn test_bhv_transport_071_one_timeout_bounds_the_connection_and_the_response_receipt() {
+    let base_url = start_never_answering_server();
+    let transport = TransportOptions::builder()
+        .timeout(Some(300))
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let started = std::time::Instant::now();
+
+    let result = ApiClient::send_request(&client, "GET", &format!("{}/slow", base_url), &HashMap::new(), None).await;
+
+    assert!(result.is_err(), "a server that never answers must hit the timeout");
+    assert!(started.elapsed() < std::time::Duration::from_secs(3), "the timeout must bound the wait");
+}
+
+#[tokio::test]
+async fn test_bhv_transport_072_an_unrelated_connection_failure_is_not_reported_as_a_timeout() {
+    let transport = TransportOptions::builder()
+        .timeout(Some(5_000))
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let result = ApiClient::send_request(&client, "GET", "http://127.0.0.1:1/refused", &HashMap::new(), None).await;
+
+    let err = result.expect_err("a refused connection must fail");
+    assert!(
+        err.downcast_ref::<{{packageName}}::errors::NetworkTimeoutError>().is_none(),
+        "a refused connection is not a timeout: {}",
+        err
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_transport_073_a_corrupt_compressed_body_raises_an_error_instead_of_raw_bytes() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: 4\r\nConnection: close\r\n\r\nnot!",
+    );
+    let client = DefaultApiClient::new(None);
+
+    let result = ApiClient::send_request(&client, "GET", &format!("{}/corrupt", base_url), &HashMap::new(), None).await;
+
+    assert!(result.is_err(), "a corrupt gzip stream must not be returned as raw bytes");
+}
+
+#[tokio::test]
+async fn test_bhv_transport_081_the_caller_supplied_client_sends_the_url_and_headers_unchanged() {
+    let (base_url, heads) = start_head_capture_server();
+    let client = DefaultApiClient::with_client(reqwest::Client::new(), None).expect("a plain client is accepted");
+    let mut headers = HashMap::new();
+    headers.insert("X-Probe".to_string(), "1".to_string());
+
+    let _ = ApiClient::send_request(&client, "GET", &format!("{}/probe?x=1", base_url), &headers, None).await;
+
+    let head = heads.recv_timeout(std::time::Duration::from_secs(5)).expect("the request reached the server");
+    assert!(head.starts_with("GET /probe?x=1 "), "{}", head);
+    assert!(head.to_ascii_lowercase().contains("x-probe: 1"), "{}", head);
+}

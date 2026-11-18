@@ -221,3 +221,6 @@ rust | unions039 | A oneOf is a plain enum and cannot hold null or an invalid va
 rust | unions040 | A oneOf is matched with pattern matching on the enum, so there is no typed accessor that returns the held variant
 rust | unions042 | A oneOf is a plain enum that must hold one variant, so there is no empty wrapper whose is-accessors could answer false
 rust | lifecycle040 | Rust's scoped-disposal construct is Drop, and the generated DefaultApiClient Drop releases the reqwest pool without any observable hook, so the explicit close is the tested path (lifecycle036)
+rust | transport069 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no cancellation signal or caller context reaches the transport to be asserted
+rust | transport074 | The zstd, brotli and flate2 decoders are compiled into the crate, so no codec library can be missing at run time
+rust | transport079 | reqwest with rustls honours verify_ssl(false), so no client built by the crate is unable to honour it and no construction refusal exists

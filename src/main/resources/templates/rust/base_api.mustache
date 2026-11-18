@@ -1596,6 +1596,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_bhv_transport_070_a_per_call_timeout_bounds_the_deadline_the_transport_receives() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let before = std::time::Instant::now();
+
+        api.invoke_api(call_params(CallOptions {
+            timeout: Some(std::time::Duration::from_secs(30)),
+            ..CallOptions::default()
+        }))
+        .await
+        .expect("a 200 response must succeed");
+
+        let deadline = client.last_deadline.lock().unwrap().expect("a deadline");
+        assert!(deadline >= before + std::time::Duration::from_secs(30) - std::time::Duration::from_millis(50));
+        assert!(deadline <= std::time::Instant::now() + std::time::Duration::from_secs(30));
+    }
+
+    #[tokio::test]
     async fn test_bhv_options_057_a_sub_millisecond_per_call_timeout_is_refused_before_anything_is_sent() {
         let client = ScriptedClient::new(200);
         let api = api_for(client.clone());
