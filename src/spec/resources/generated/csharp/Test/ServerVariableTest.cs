@@ -83,7 +83,7 @@ public class ServerVariableTest
     }
 
     [Fact]
-    public void CopiesTheCallersEnumListAtConstruction()
+    public void BhvServers026CopiesTheCallersEnumListAtConstruction()
     {
         var allowed = new List<string> { "api", "staging" };
         var variable = new ServerVariable("api", null, allowed);

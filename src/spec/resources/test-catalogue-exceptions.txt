@@ -209,3 +209,5 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+csharp | transport074 | every coding the SDK decodes (gzip, deflate, br) is a .NET runtime decoder, so no codec library can be missing at run time; a coding it cannot decode is refused as bhv errors 042
+csharp | transport075 | .NET ships no zstd decoder and the SDK does not advertise zstd (SupportedEncodings is gzip, deflate, br), so a zstd frame is refused as an unknown coding and never decoded at any expansion ratio

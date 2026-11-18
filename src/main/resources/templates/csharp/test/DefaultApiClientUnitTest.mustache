@@ -2539,6 +2539,139 @@ public class DefaultApiClientUnitTest
         }
     }
 
+    [Fact]
+    public async Task BhvTransport067EmptySuccessBodyIsReturnedAsASuccess()
+    {
+        var client = new DefaultApiClient(CreateMockHttpClient(HttpStatusCode.NoContent, ""));
+
+        var response = await client.SendRequestAsync(
+            "DELETE",
+            new Uri("http://example.com/empty"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(204, response.StatusCode);
+        Assert.Equal("", response.Body);
+    }
+
+    [Fact]
+    public void BhvErrors077RedactQueryKeepsSchemeHostPortAndPathOnly()
+    {
+        var url = new Uri("https://user:secret@example.com:8443/a/b?token=abc#frag");
+
+        Assert.Equal("https://example.com:8443/a/b?***", DefaultApiClient.RedactQuery(url));
+    }
+
+    [Fact]
+    public async Task BhvErrors078ConnectionFailureMessageNeverShowsTheQueryString()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://127.0.0.1:1/never?token=SECRET-VALUE"),
+            new Dictionary<string, string>(),
+            null
+        ));
+
+        for (Exception? cause = ex; cause != null; cause = cause.InnerException)
+        {
+            Assert.DoesNotContain("SECRET-VALUE", cause.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task BhvTransport070PerCallTimeoutBoundsTheRequestDeadline()
+    {
+        var client = new DefaultApiClient(
+            new HttpClient(new HangingHandler()),
+            TransportOptions.Builder().Timeout(30000).MaxRetries(0).Build());
+        var started = DateTime.UtcNow;
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkTimeoutException>(() => SendWithCallOptions(client, 200, 0));
+
+        Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task BhvTransport081SuppliedClientCarriesEveryRequestWithItsUrlAndHeadersUnchanged()
+    {
+        var seen = new List<HttpRequestMessage>();
+        var injected = new HttpClient(new CapturingHandler(request =>
+        {
+            seen.Add(request);
+            return Task.CompletedTask;
+        }));
+        var client = new DefaultApiClient(TransportOptions.Builder().HttpClient(injected).Build());
+        var url = new Uri("http://example.com/echo?a=1");
+        var headers = new Dictionary<string, string> { ["X-Caller"] = "caller-1" };
+
+        await client.SendRequestAsync("GET", url, headers, null);
+        await client.SendRequestAsync("GET", url, headers, null);
+
+        Assert.Equal(2, seen.Count);
+        Assert.All(seen, request =>
+        {
+            Assert.Equal(url, request.RequestUri);
+            Assert.Equal("caller-1", request.Headers.GetValues("X-Caller").Single());
+        });
+    }
+
+    [Fact]
+    public void BhvTransport076ProxyUserInfoIsPercentDecodedAndALiteralPlusStaysPlus()
+    {
+        Assert.Equal(
+            "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("us@er:p+ss")),
+            DefaultApiClient.BuildProxyAuthorizationHeader("http://us%40er:p%2Bss@proxy.example.com:8080"));
+        Assert.Equal(
+            "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("bob:a+b")),
+            DefaultApiClient.BuildProxyAuthorizationHeader("http://bob:a+b@proxy.example.com:8080"));
+    }
+
+    [Fact]
+    public void BhvTransport077DirectoryCaCertPathFailsAtConstructionNamingTheDirectory()
+    {
+        string directory = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var transport = TransportOptions.Builder().CaCertPath(directory).Build();
+
+        var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
+
+        Assert.Contains(directory, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvErrors083UnreadableCaCertPathFailsAtConstructionNamingThatPath()
+    {
+        var transport = TransportOptions.Builder().CaCertPath("relative/missing-ca.pem").Build();
+
+        var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
+
+        Assert.Contains("relative/missing-ca.pem", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport073CorruptGzipStreamSurfacesApiExceptionNotRawBytes()
+    {
+        // Gzip magic and a header, then a truncated stream: the decoder fails mid-body.
+        byte[] corrupt = [0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02];
+        var handler = new EncodedBodyHandler(
+            HttpStatusCode.OK,
+            corrupt,
+            contentEncoding: "gzip",
+            contentType: "application/json");
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/corrupt-gzip"),
+            new Dictionary<string, string>(),
+            null
+        ));
+
+        Assert.Equal(200, ex.StatusCode);
+    }
+
     // ---- multipart-text-part-contenttype-csharp ----
     // The code fix lives in BuildTextPart (StringContent emitted with no
     // default text/plain Content-Type). A faithful regression test needs a

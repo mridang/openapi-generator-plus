@@ -2196,7 +2196,10 @@ public class BaseApiTest
     [InlineData("path", "%7B%22a%20b%22:%22c%2Fd%22%7D")]
     [InlineData("header", "{\"a b\":\"c/d\"}")]
     [InlineData("cookie", "%7B%22a%20b%22%3A%22c%2Fd%22%7D")]
-    public void ContentParameterIsSdkJsonEncodedOnceByLocation(string location, string expected)
+    public void BhvSerialization008ContentParameterIsSdkJsonEncodedOnceByLocation(
+        string location,
+        string expected
+    )
     {
         var api = new TestableApi("http://localhost");
 
@@ -2238,7 +2241,7 @@ public class BaseApiTest
     [InlineData("path")]
     [InlineData("header")]
     [InlineData("cookie")]
-    public void ContentParameterFailureIsASerializationException(string location)
+    public void BhvSerialization009ContentParameterFailureIsASerializationException(string location)
     {
         var api = new TestableApi("http://localhost");
         var unserializable = new PetstoreClient.Models.PhotoMetadata

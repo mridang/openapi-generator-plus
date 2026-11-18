@@ -717,7 +717,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public void InvalidatingBeforeAnyDiscoveryIsHarmless()
+    public void BhvAuth002InvalidatingBeforeAnyDiscoveryIsHarmless()
     {
         CreateAuthenticator().InvalidateAccessToken();
     }

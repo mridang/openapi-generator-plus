@@ -96,7 +96,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void WholeNumberDoubleKeepsDecimalPoint()
+        public void BhvSerialization036WholeNumberDoubleKeepsDecimalPoint()
         {
             // A whole-number float stringifies as "1.0", not "1", matching the
             // other SDKs (Go/Java/Kotlin/Python/...). C#'s default "G" drops the
@@ -536,7 +536,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BracketsInsideStringsDoNotCountTowardsTheDepthLimit()
+        public void BhvSerialization024BracketsInsideStringsDoNotCountTowardsTheDepthLimit()
         {
             string json = "{\"name\":\"" + new string('[', 2000) + "\\\"[\"}";
             var category = _serializer.Deserialize<Category>(json);
@@ -615,7 +615,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void Int32BoundariesRoundTrip()
+        public void BhvSerialization031Int32BoundariesRoundTrip()
         {
             var order = _serializer.Deserialize<Order>("{\"quantity\":2147483647}");
 
@@ -705,7 +705,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BuildingAUnionFromANullVariantDoesNotThrow()
+        public void BhvUnions042BuildingAUnionFromANullVariantDoesNotThrow()
         {
             var union = ReserveStockResponse.FromReservation(null!);
 
@@ -1144,7 +1144,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void EmptyDictionaryOfPetDeserializesToEmptyMap()
+        public void BhvSerialization026EmptyDictionaryOfPetDeserializesToEmptyMap()
         {
             var map = _serializer.Deserialize<Dictionary<string, Pet>>("{}");
             Assert.NotNull(map);
@@ -1244,7 +1244,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void TimeOnlyTruncatesBelowTheMillisecond()
+        public void BhvSerialization038TimeOnlyTruncatesBelowTheMillisecond()
         {
             Assert.Equal(
                 "10:30:00.123",
@@ -1286,7 +1286,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void TimeOnlyBodyPropertyRejectsAMalformedTime()
+        public void BhvSerialization045TimeOnlyBodyPropertyRejectsAMalformedTime()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<EdgeCases>("{\"cutoff\":\"not-a-time\"}")
@@ -1438,7 +1438,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationSerializesThroughObjectSerializer()
+        public void BhvSerialization048DurationSerializesThroughObjectSerializer()
         {
             var ts = new TimeSpan(1, 30, 0);
             string json = _serializer.Serialize(ts);
@@ -1667,7 +1667,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PriorityRejectsStringWireValue()
+        public void BhvSerialization029PriorityRejectsStringWireValue()
         {
             // An integer-backed enum must reject a quoted "2" — the converter
             // requires a JSON number token.
@@ -1859,7 +1859,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DoubleFieldStillDecodesFromFractionalJsonNumber()
+        public void BhvSerialization034DoubleFieldStillDecodesFromFractionalJsonNumber()
         {
             var loc = _serializer.Deserialize<PhotoMetadataLocation>("{\"lat\":5.5}");
             Assert.NotNull(loc);
@@ -2162,7 +2162,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NanosecondFractionWithOffsetIsAccepted()
+        public void BhvSerialization039NanosecondFractionWithOffsetIsAccepted()
         {
             Order? order = _serializer.Deserialize<Order>(
                 "{\"shipDate\":\"2024-01-01T10:00:00.123456789+05:30\"}"
@@ -2649,7 +2649,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void EveryModelPropertyIsSetOnlyDuringConstruction()
+        public void BhvModels014EveryModelPropertyIsSetOnlyDuringConstruction()
         {
             Type[] models = typeof(Reservation)
                 .Assembly.GetTypes()

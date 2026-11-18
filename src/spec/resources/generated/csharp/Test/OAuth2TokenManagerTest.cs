@@ -719,7 +719,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task ConcurrentReadersNeverSeeATokenOtherThanOneThatWasSet()
+    public async Task BhvMisc001ConcurrentReadersNeverSeeATokenOtherThanOneThatWasSet()
     {
         // F909: the token and its expiry are published as one snapshot, so a
         // reader racing a writer sees one complete token or the other.
@@ -845,6 +845,31 @@ public class OAuth2TokenManagerTest
 
     private static Dictionary<string, string> ClientCredentialsGrant() =>
         new() { ["grant_type"] = "client_credentials" };
+
+    [Fact]
+    public async Task BhvErrors082MalformedOptionalFieldsAreDroppedAndAValidCodeIsKept()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"error\":\"invalid_grant\",\"error_description\":42,\"error_uri\":[\"x\"]}",
+            statusCode: 400
+        );
+        client.Enqueue("{\"error\":7,\"error_description\":\"ignored\"}", statusCode: 400);
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var malformed = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant())
+        );
+        Assert.Equal("invalid_grant", malformed.Code);
+        Assert.Null(malformed.Description);
+        Assert.Null(malformed.Uri);
+
+        var nonString = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant())
+        );
+        Assert.Null(nonString.Code);
+    }
 
     [Fact]
     public async Task BhvAuthoauthtwotokenmgr039TokenWithoutExpiresInIsCachedIndefinitely()

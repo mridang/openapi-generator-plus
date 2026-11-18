@@ -468,7 +468,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedHttpClientIsPreservedOnReadBack()
+    public void BhvOptions058SuppliedHttpClientIsPreservedOnReadBack()
     {
         using var client = new HttpClient();
         var opts = TransportOptions.Builder().HttpClient(client).Build();
@@ -477,7 +477,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedHandlerIsPreservedOnReadBack()
+    public void BhvOptions059SuppliedHandlerIsPreservedOnReadBack()
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         var opts = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -496,7 +496,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedClientConflictsWithProxy()
+    public void BhvTransport078SuppliedClientConflictsWithProxy()
     {
         using var client = new HttpClient();
         var ex = Assert.Throws<ArgumentException>(() =>
@@ -522,7 +522,19 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedHandlerConflictsWithProxyAndTlsSettings()
+    public void BhvTransport079DisablingVerificationOnASuppliedHandlerFailsAtBuild()
+    {
+        using var handler = new HttpClientHandler();
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpMessageHandler(handler).VerifySsl(false).Build()
+        );
+
+        Assert.Contains("VerifySsl", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvTransport080SuppliedHandlerConflictsWithProxyAndTlsSettings()
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         Assert.Throws<ArgumentException>(() =>
@@ -538,7 +550,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedStockHandlerThatFollowsRedirectsConflictsWithTheRedirectPolicy()
+    public void BhvRedirects045SuppliedStockHandlerThatFollowsRedirectsConflictsWithTheRedirectPolicy()
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = true };
         Assert.Throws<ArgumentException>(() =>

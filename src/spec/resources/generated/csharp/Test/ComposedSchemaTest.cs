@@ -118,7 +118,10 @@ public class ComposedSchemaTest
     [InlineData("true", "True")]
     [InlineData("{\"a\":1}", "Object")]
     [InlineData("[\"dry\"]", "Array")]
-    public void OneOfNonStringDiscriminatorThrowsSerializationException(string value, string kind)
+    public void BhvUnions038OneOfNonStringDiscriminatorThrowsSerializationException(
+        string value,
+        string kind
+    )
     {
         // A discriminator that is not a JSON string must surface as the
         // SDK-owned SerializationException, never as a raw
@@ -349,13 +352,13 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void ATypedFactoryDoesNotValidateAtConstruction()
+    public void BhvUnions039ATypedFactoryDoesNotValidateAtConstruction()
     {
         Assert.Null(Record.Exception(() => SetPetAvatarThumbnailRequest.FromByte(null!)));
     }
 
     [Fact]
-    public void AnAnyOfAccessorsReadTheRetainedVariant()
+    public void BhvUnions040AnAnyOfAccessorsReadTheRetainedVariant()
     {
         var medication = new Medication { DrugName = "Amoxicillin", Dosage = "500mg" };
 
@@ -370,7 +373,7 @@ public class ComposedSchemaTest
     // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
 
     [Fact]
-    public void OneOfNonDiscriminatorDeserializesStringVariant()
+    public void BhvUnions041OneOfNonDiscriminatorDeserializesStringVariant()
     {
         // The byte/string variant of the oneOf.
         var json = "\"YmFzZTY0\"";

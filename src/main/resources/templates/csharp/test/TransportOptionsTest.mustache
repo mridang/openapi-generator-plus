@@ -488,7 +488,18 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedHandlerConflictsWithProxyAndTlsSettings()
+    public void BhvTransport079DisablingVerificationOnASuppliedHandlerFailsAtBuild()
+    {
+        using var handler = new HttpClientHandler();
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpMessageHandler(handler).VerifySsl(false).Build());
+
+        Assert.Contains("VerifySsl", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvTransport080SuppliedHandlerConflictsWithProxyAndTlsSettings()
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         Assert.Throws<ArgumentException>(() =>

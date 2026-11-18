@@ -189,6 +189,14 @@ public class ApiException : OpenAPIException
     /// </summary>
     internal void RecordRequest(string requestMethod, string requestPath)
     {
+        if (RequestMethod is not null && RequestPath is not null)
+        {
+            return;
+        }
+        if (string.IsNullOrEmpty(requestMethod) || string.IsNullOrEmpty(requestPath))
+        {
+            return;
+        }
         RequestMethod = requestMethod;
         RequestPath = StripQuery(requestPath);
     }
@@ -275,7 +283,13 @@ public class ApiException : OpenAPIException
      * (F1080). The full body stays on ResponseBody. */
     private static string RenderBody(string body)
     {
-        string head = body.Length > MaxRenderedBodyLength ? body[..MaxRenderedBodyLength] : body;
+        int cut = Math.Min(body.Length, MaxRenderedBodyLength);
+        // A cut between the two halves of a surrogate pair would leave a lone surrogate.
+        if (cut < body.Length && char.IsHighSurrogate(body[cut - 1]))
+        {
+            cut--;
+        }
+        string head = body[..cut];
         StringBuilder escaped = new(head.Length);
         foreach (char c in head)
         {

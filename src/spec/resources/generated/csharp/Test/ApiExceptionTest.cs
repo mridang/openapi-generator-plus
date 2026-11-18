@@ -199,7 +199,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void FromResponseKeepsAModeratelyNestedBody()
+    public void BhvErrors073FromResponseKeepsAModeratelyNestedBody()
     {
         string nested = new string('[', 100) + new string(']', 100);
 
@@ -249,7 +249,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void ToStringOmitsTheStatusWhenNoResponseArrived()
+    public void BhvErrors074ToStringOmitsTheStatusWhenNoResponseArrived()
     {
         var ex = new ApiException(0, "connection refused", null, null);
 
@@ -288,7 +288,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void GetTypedErrorBodyToleratesALeadingByteOrderMark()
+    public void BhvErrors072GetTypedErrorBodyToleratesALeadingByteOrderMark()
     {
         var ex = ApiException.FromResponse(
             400,
@@ -726,6 +726,71 @@ public class ApiExceptionTest
         );
 
         Assert.Null(factory);
+    }
+
+    [Fact]
+    public void BhvErrors075CutNeverSplitsASurrogatePair()
+    {
+        // The emoji is two UTF-16 units and the 1 KiB cut falls between them.
+        string body = new string('a', 1023) + "\U0001F600" + "bbbb";
+
+        var ex = new ApiException(502, "bad gateway", null, body);
+
+        Assert.Equal(
+            "bad gateway\nHTTP status code: 502\nResponse body: "
+                + new string('a', 1023)
+                + "... (8 more bytes)",
+            ex.ToString()
+        );
+    }
+
+    [Fact]
+    public void BhvErrors076ForeignErrorsAreNotSdkErrorsEvenWhenWrapped()
+    {
+        var foreign = new InvalidOperationException("boom");
+        var wrapped = new Exception("outer", foreign);
+
+        Assert.IsNotAssignableFrom<ApiException>(foreign);
+        Assert.IsNotAssignableFrom<OpenAPIException>(foreign);
+        Assert.IsNotAssignableFrom<ApiException>(wrapped);
+        Assert.IsNotAssignableFrom<OpenAPIException>(wrapped);
+    }
+
+    [Fact]
+    public void BhvErrors079RecordRequestKeepsTheFirstCompleteRecord()
+    {
+        var ex = new ApiException(500, "boom");
+
+        ex.RecordRequest("", "/incomplete");
+        ex.RecordRequest("GET", "/first?token=1");
+        ex.RecordRequest("POST", "/second");
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/first", ex.RequestPath);
+    }
+
+    [Fact]
+    public void BhvErrors080TypedHttpErrorIsCaughtByTheRootTypeAndKeepsItsStatus()
+    {
+        Exception? caught = null;
+        try
+        {
+            throw new NotFoundException("missing");
+        }
+        catch (OpenAPIException ex)
+        {
+            caught = ex;
+        }
+
+        var kind = Assert.IsAssignableFrom<ClientException>(caught);
+        Assert.Equal(404, kind.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors084ErrorBuiltWithoutAResponseReportsStatusZero()
+    {
+        Assert.Equal(0, new ApiException("boom").StatusCode);
+        Assert.Equal(0, new ApiException().StatusCode);
     }
 
     [Fact]

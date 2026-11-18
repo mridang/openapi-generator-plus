@@ -230,7 +230,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void ServerConfigurationCopiesTheCallersVariablesAtConstruction()
+    public void BhvServers025ServerConfigurationCopiesTheCallersVariablesAtConstruction()
     {
         var variables = new Dictionary<string, ServerVariable>
         {

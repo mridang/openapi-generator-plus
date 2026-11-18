@@ -397,6 +397,24 @@ public class StoreApiTest
         Assert.Equal(Defaults.ModeEnum.Medium, result.Mode);
     }
 
+    [Fact]
+    public async Task BhvOperations155QueryParametersAreSentInTheSpecifiedOrder()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(
+            new SearchStoreOptions { Labels = ["a"], At = new TimeOnly(10, 30, 0) }
+        );
+
+        var names = client
+            .Url!.Query.TrimStart('?')
+            .Split('&')
+            .Select(part => part.Split('=')[0])
+            .ToArray();
+        Assert.Equal(new[] { "labels", "at" }, names);
+    }
+
     private sealed class RequestCapturingApiClient : IApiClient
     {
         public Uri? Url { get; private set; }
@@ -485,7 +503,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task OperationPassesTheCancellationTokenToTheTransport()
+    public async Task BhvTransport069OperationPassesTheCancellationTokenToTheTransport()
     {
         var client = new TokenCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -699,7 +717,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task ReserveStockReadsA201BodyAsTheReceiptSchemaNotTheFirstThatFits()
+    public async Task BhvUnions036ReserveStockReadsA201BodyAsTheReceiptSchemaNotTheFirstThatFits()
     {
         var api = NewStoreApiForMock(
             201,
@@ -713,7 +731,22 @@ public class StoreApiTest
     }
 
     [Fact]
-    public void AUnionIsBuiltFromAVariantAndNeverChanges()
+    public async Task BhvOperations154ABodyThatFitsAnotherStatusSchemaIsRefused()
+    {
+        // The 200 response is checked against Reservation only; a receipt-shaped body fits 201, not 200.
+        var api = NewStoreApiForMock(
+            200,
+            "application/json",
+            "{\"receiptCode\":\"R-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}"
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            api.ReserveStockAsync()
+        );
+    }
+
+    [Fact]
+    public void BhvUnions037AUnionIsBuiltFromAVariantAndNeverChanges()
     {
         var reservation = new Reservation(31L, 4);
 
@@ -767,7 +800,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task AnOperationPassesItsPerCallOptionsToTheTransport()
+    public async Task BhvOptions053AnOperationPassesItsPerCallOptionsToTheTransport()
     {
         var client = new CallOptionsApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -787,7 +820,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task AnOperationWithoutPerCallOptionsLeavesTheTransportSettingsAlone()
+    public async Task BhvOptions055AnOperationWithoutPerCallOptionsLeavesTheTransportSettingsAlone()
     {
         var client = new CallOptionsApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -840,7 +873,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task APerCallTimeoutOfZeroIsRejectedOnAnOperationWithNoParameters()
+    public async Task BhvOptions056APerCallTimeoutOfZeroIsRejectedOnAnOperationWithNoParameters()
     {
         var client = new CallOptionsApiClient { Body = "{}" };
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());

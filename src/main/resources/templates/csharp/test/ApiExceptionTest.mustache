@@ -680,6 +680,70 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvErrors075CutNeverSplitsASurrogatePair()
+    {
+        // The emoji is two UTF-16 units and the 1 KiB cut falls between them.
+        string body = new string('a', 1023) + "\U0001F600" + "bbbb";
+
+        var ex = new ApiException(502, "bad gateway", null, body);
+
+        Assert.Equal(
+            "bad gateway\nHTTP status code: 502\nResponse body: "
+                + new string('a', 1023)
+                + "... (8 more bytes)",
+            ex.ToString());
+    }
+
+    [Fact]
+    public void BhvErrors076ForeignErrorsAreNotSdkErrorsEvenWhenWrapped()
+    {
+        var foreign = new InvalidOperationException("boom");
+        var wrapped = new Exception("outer", foreign);
+
+        Assert.IsNotAssignableFrom<ApiException>(foreign);
+        Assert.IsNotAssignableFrom<{{errorPrefix}}Exception>(foreign);
+        Assert.IsNotAssignableFrom<ApiException>(wrapped);
+        Assert.IsNotAssignableFrom<{{errorPrefix}}Exception>(wrapped);
+    }
+
+    [Fact]
+    public void BhvErrors079RecordRequestKeepsTheFirstCompleteRecord()
+    {
+        var ex = new ApiException(500, "boom");
+
+        ex.RecordRequest("", "/incomplete");
+        ex.RecordRequest("GET", "/first?token=1");
+        ex.RecordRequest("POST", "/second");
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/first", ex.RequestPath);
+    }
+
+    [Fact]
+    public void BhvErrors080TypedHttpErrorIsCaughtByTheRootTypeAndKeepsItsStatus()
+    {
+        Exception? caught = null;
+        try
+        {
+            throw new NotFoundException("missing");
+        }
+        catch ({{errorPrefix}}Exception ex)
+        {
+            caught = ex;
+        }
+
+        var kind = Assert.IsAssignableFrom<ClientException>(caught);
+        Assert.Equal(404, kind.StatusCode);
+    }
+
+    [Fact]
+    public void BhvErrors084ErrorBuiltWithoutAResponseReportsStatusZero()
+    {
+        Assert.Equal(0, new ApiException("boom").StatusCode);
+        Assert.Equal(0, new ApiException().StatusCode);
+    }
+
+    [Fact]
     public void BhvErrors049OAuth2ServerErrorNamesTheStatusAndTheErrorCode()
     {
         Assert.Equal(
