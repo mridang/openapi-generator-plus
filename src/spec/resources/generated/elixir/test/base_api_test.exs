@@ -1162,7 +1162,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert PetstoreClient.Api.BaseApi.scheme_auth(api, ["first", "second"]) == first
   end
 
-  test "scheme_auth returns nil when the client holds none of the listed schemes" do
+  test "bhv auth 047 scheme_auth returns nil when the client holds none of the listed schemes" do
     held = %{
       scheme_authenticators: %{"first" => %TestAuthenticator{host_url: "https://one.invalid"}}
     }
@@ -2110,6 +2110,38 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # sentinel) and BaseApi falls back to the client-level authenticator. A
   # configured client credential MUST reach the wire — the regression that
   # silently dropped auth on every inherited-security operation.
+  test "bhv auth 044 an operation that declares no security sends no credential from the client authenticator" do
+    {:ok, name} = AuthAppliedCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "secret-token-123")
+
+    api = PetstoreClient.Api.StoreApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+    _result = PetstoreClient.Api.StoreApi.get_inventory(api)
+
+    captured = AuthAppliedCapturingApiClient.captured(name)
+    refute Map.has_key?(captured.headers, "Authorization")
+
+    Agent.stop(name)
+  end
+
+  test "bhv auth 046 an operation that inherits the document security receives the client authenticator" do
+    {:ok, name} = AuthAppliedCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "secret-token-123")
+
+    api = PetstoreClient.Api.PetApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+    _result = PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
+
+    captured = AuthAppliedCapturingApiClient.captured(name)
+    assert captured.headers["Authorization"] == "Bearer secret-token-123"
+
+    Agent.stop(name)
+  end
+
   test "bhv authintegration 012 inherited-security operation applies the configured client authenticator" do
     {:ok, name} = AuthAppliedCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")

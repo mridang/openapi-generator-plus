@@ -96,6 +96,15 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer xyz"
     end
 
+    test "bhv auth 038 a token provider takes precedence over the same token in the environment" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", fn -> "from-provider" end)
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer from-provider"
+    end
+
     test "bhv authbearer 018 an explicit token wins over the environment" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
       System.put_env(name, "env-token")

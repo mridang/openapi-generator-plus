@@ -945,13 +945,19 @@ defmodule {{moduleName}}.Api.PetApiTest do
     assert headers["Authorization"] == "default"
   end
 
+  test "bhv auth 045 a credential for the operation's scheme replaces a default Authorization header" do
+    headers = delete_with(credential("default"), %{"adminBasic" => credential("admin")})
+
+    assert headers["Authorization"] == "admin"
+  end
+
   test "a held scheme wins over the client-level authenticator" do
     headers = delete_with(credential("default"), %{"adminBasic" => credential("admin")})
 
     assert headers["Authorization"] == "admin"
   end
 
-  test "an operation uses the scheme credential of its own security, not another operation's" do
+  test "bhv auth 043 an operation uses the scheme credential of its own security, not another operation's" do
     {:ok, name} = HeaderCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
 
