@@ -1847,6 +1847,15 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert result == bytes
   end
 
+  test "bhv serialization 119 a response is decoded with its declared charset label and falls back to UTF-8 without one" do
+    assert PetstoreClient.DefaultApiClient.decode_text_body(
+             <<0xE9>>,
+             "text/plain; charset=ISO-8859-1"
+           ) == "é"
+
+    assert PetstoreClient.DefaultApiClient.decode_text_body("é", "text/plain") == "é"
+  end
+
   # WAVE F: a BOM-less utf-16 response body must decode as big-endian per
   # RFC 2781. The bytes 00 50 00 65 00 74 are "Pet" in UTF-16BE; the same
   # bytes read little-endian would be a different (CJK) string, so decoding
@@ -3078,6 +3087,24 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert String.contains?(serialized, "Content-Type: image/png"),
            "Expected image/png for .png file, got: #{serialized}"
+  end
+
+  test "bhv serialization 120 a multipart file part takes its Content-Type from its extension and falls back to octet-stream" do
+    pdf =
+      PetstoreClient.DefaultApiClient.build_multipart_body(
+        %{"file" => {:file, "report.pdf", <<1, 2, 3>>}},
+        "BOUNDARY"
+      )
+
+    assert String.contains?(pdf, "Content-Type: application/pdf")
+
+    bare =
+      PetstoreClient.DefaultApiClient.build_multipart_body(
+        %{"file" => {:file, "README", <<1, 2, 3>>}},
+        "BOUNDARY"
+      )
+
+    assert String.contains?(bare, "Content-Type: application/octet-stream")
   end
 
   test "bhv serializationwire 039 a file with a dotted name and a png extension is image/png" do
