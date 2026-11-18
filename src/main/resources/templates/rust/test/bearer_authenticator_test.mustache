@@ -336,3 +336,17 @@ async fn test_bhv_misc_066_a_token_provider_value_is_sent_as_the_bearer_credenti
 
     assert_eq!(headers.get("Authorization").map(|s| s.as_str()), Some("Bearer live"));
 }
+
+#[test]
+fn test_bhv_misc_190_the_printed_bearer_authenticator_hides_the_token() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "tok-secret-190").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("tok-secret-190"), "{}", debug);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_193_the_bearer_scheme_header_matches_the_base_bearer_header() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "tok193").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(headers.get("Authorization").map(|s| s.as_str()), Some("Bearer tok193"));
+}
