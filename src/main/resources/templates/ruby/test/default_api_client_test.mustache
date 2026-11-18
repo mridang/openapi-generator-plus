@@ -68,6 +68,32 @@ describe {{moduleName}}::DefaultApiClient do
       _(err.cause).must_be_kind_of(Faraday::SSLError)
     end
 
+    it 'bhv_transport_093 a server certificate signed by another CA is rejected with a network error' do
+      key = OpenSSL::PKey::RSA.new(2048)
+      other_ca = OpenSSL::X509::Certificate.new
+      other_ca.version = 2
+      other_ca.serial = 1
+      other_ca.subject = other_ca.issuer = OpenSSL::X509::Name.parse('/CN=unrelated-test-ca')
+      other_ca.public_key = key.public_key
+      other_ca.not_before = Time.now - 60
+      other_ca.not_after = Time.now + 3600
+      other_ca.sign(key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+      file = Tempfile.new(['other-ca', '.pem'])
+      file.write(other_ca.to_pem)
+      file.close
+
+      transport = {{moduleName}}::TransportOptions.builder.verify_ssl(true).ca_cert_path(file.path).build
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      err = assert_raises({{moduleName}}::Errors::NetworkError) do
+        client.send_request(:GET, "#{ENV.fetch('CHASM_HTTPS_URL')}/test/echo", {}, nil)
+      end
+
+      _(err.status_code).must_equal(0)
+      _(err.cause).must_be_kind_of(Faraday::SSLError)
+    ensure
+      file&.unlink
+    end
+
     it 'bhv_transport_023 rejects a server certificate the configured CA did not sign' do
       key = OpenSSL::PKey::RSA.new(2048)
       other_ca = OpenSSL::X509::Certificate.new
@@ -244,6 +270,19 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'request timeout' do
+    it 'bhv_transport_086 a request that exceeds its timeout fails with the network timeout error within the budget' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .timeout(1000)
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      error = _ { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }.must_raise {{moduleName}}::Errors::NetworkTimeoutError
+      _(error.status_code).must_equal 0
+      _(error.cause).wont_be_nil
+    end
+
     it 'bhv_transport_024 times out on slow endpoint' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
@@ -692,6 +731,10 @@ describe {{moduleName}}::DefaultApiClient do
       _(JSON.parse(response.body)['title']).must_equal('compressed fixture body')
     end
 
+    it 'bhv_transport_088 a validly gzip-encoded response body is decoded before it is returned' do
+      assert_decodes('gzip')
+    end
+
     it 'bhv_transport_005 decompresses gzip response' do
       assert_decodes('gzip')
     end
@@ -724,6 +767,17 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'response shapes through the mock server' do
+    it 'bhv_transport_090 response headers repeated on the wire are returned with every value present' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      response = {{moduleName}}::DefaultApiClient.new.send_request(:GET, "#{chasm_url}/test/response-headers", {}, nil)
+
+      _(response.headers['x-custom-header']).must_equal('foo')
+      link = response.headers['link']
+      _(link.index('rel="next"')).must_be :<, link.index('rel="prev"')
+      cookies = response.headers['set-cookie']
+      _(cookies.index('a=1')).must_be :<, cookies.index('b=2')
+    end
+
     it 'bhv_transport_022 keeps every value of a repeated response header, in order' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       response = {{moduleName}}::DefaultApiClient.new.send_request(:GET, "#{chasm_url}/test/response-headers", {}, nil)
@@ -1026,6 +1080,17 @@ describe {{moduleName}}::DefaultApiClient do
     end
 
     it 'bhv_lifecycle_042 a caller-supplied connection sends its requests through that transport' do
+      seen = [] # : Array[Hash[String, String]]
+      transport = {{moduleName}}::TransportOptions.builder.connection(injected_connection(seen)).user_agent('sdk-ua/1').build
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      resp = client.send_request(:GET, 'http://localhost/ping', {}, nil)
+      _(resp.status_code).must_equal(200)
+      _(resp.body).must_equal('pong')
+      _(seen.length).must_equal(1)
+      _(seen.first['User-Agent']).must_equal('sdk-ua/1')
+    end
+
+    it 'bhv_transport_092 a caller-supplied HTTP connection receives the SDK request' do
       seen = [] # : Array[Hash[String, String]]
       transport = {{moduleName}}::TransportOptions.builder.connection(injected_connection(seen)).user_agent('sdk-ua/1').build
       client = {{moduleName}}::DefaultApiClient.new(transport)

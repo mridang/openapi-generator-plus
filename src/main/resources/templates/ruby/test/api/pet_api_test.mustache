@@ -610,7 +610,7 @@ describe {{moduleName}}::Api::PetApi do
     end
 
     # S16 / F406: a caller-supplied stream is read, never closed.
-    it 'leaves a caller-supplied upload stream open' do
+    it 'bhv_transport_091 leaves a caller-supplied upload stream open' do
       api, server, thread, captured_body, = capture_document_request
       begin
         io = StringIO.new('doc')

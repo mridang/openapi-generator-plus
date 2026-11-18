@@ -1540,7 +1540,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(err.request_path).must_equal '/v1/items/7'
   end
 
-  it 'names the request on a failure that never reached the server' do
+  it 'bhv_errors_091 names the request on a failure that never reached the server' do
     config = {{moduleName}}::Configuration.builder.base_url('https://example.test').build
     test_api = TestableApi.new(RaisingApiClient.new, config)
 
@@ -1551,6 +1551,30 @@ describe {{moduleName}}::Api::BaseApi do
     _(err.request_method).must_equal 'POST'
     _(err.request_path).must_equal '/items'
     _(err.status_code).must_equal 0
+  end
+
+  it 'bhv_errors_092 every error raised for a request carries that request method and path and a timeout stays a timeout' do
+    config = {{moduleName}}::Configuration.builder.base_url('https://example.test').build
+    test_api = TestableApi.new(RaisingApiClient.new, config)
+
+    err = assert_raises({{moduleName}}::Errors::NetworkError) do
+      test_api.call(:get, '/items/7', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/items/7'
+  end
+
+  it 'bhv_transport_087 a connection that cannot be established raises the SDK network error' do
+    config = {{moduleName}}::Configuration.builder.base_url('https://example.test').build
+    test_api = TestableApi.new(RaisingApiClient.new, config)
+
+    err = assert_raises({{moduleName}}::Errors::NetworkError) do
+      test_api.call(:get, '/items/7', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/items/7'
   end
 
   it 'bhv_errors_057 a network failure error carries the request method and path' do
