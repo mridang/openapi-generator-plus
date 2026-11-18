@@ -255,6 +255,7 @@ class {{classname}}
         return new self(\{{invokerPackage}}\ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));
 {{/discriminator}}
     }
+{{>model_equals}}
 }
 {{/-first}}
 {{/oneOf}}
@@ -392,6 +393,7 @@ class {{classname}}
     {
         return new self(\{{invokerPackage}}\ObjectSerializer::resolveAnyOfAll($data, self::anyOfCandidates()));
     }
+{{>model_equals}}
 }
 {{/-first}}
 {{/anyOf}}
@@ -831,6 +833,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
         return $vars;
     }
 {{/hasPasswordVars}}
+{{>model_equals}}
 }
 {{/anyOf}}
 {{/oneOf}}
