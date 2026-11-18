@@ -1038,7 +1038,7 @@ import Testing
     let decoded = try #require(
       try ObjectSerializer.deserialize(
         "{\"items\":[{\"extra\":\"a\"},{\"extra\":\"b\"}]}", as: MetadataList.self))
-    #expect(decoded.items.map { $0.additionalProperties["extra"]?.value as? String } == ["a", "b"])
+    #expect(decoded.items.map { $0.additionalProperties["extra"] } == ["a", "b"])
   }
 
   /* Undeclared keys held by a nested model are written back as keys of that model when the parent is serialized. */
@@ -2052,7 +2052,7 @@ import Testing
     let written = try ObjectSerializer.serialize(first)
     let second = try #require(try ObjectSerializer.deserialize(written, as: Metadata.self))
     #expect(
-      second.additionalProperties["extra"]?.value as? String == "kept",
+      second.additionalProperties["extra"] == "kept",
       "the extra key must survive the round trip, got: \(written)")
   }
 

@@ -249,7 +249,7 @@ public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sen
         if let val = options.{{paramName}} {
             queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
         } else {
-            queryParams["{{baseName}}"] = ""
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery("")
         }
 {{/vendorExtensions.param.queryRequiredNullable}}
 {{^vendorExtensions.param.queryRequiredNullable}}

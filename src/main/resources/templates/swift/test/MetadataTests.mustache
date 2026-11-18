@@ -135,7 +135,7 @@ import Testing
 
     /* The description dumps the declared fields and the additionalProperties map. */
     @Test func testBhvModels012ToStringDumpsTheFieldsAndAdditionalProperties() {
-        let metadata = Metadata(additionalProperties: ["customField": AnyCodable("hello")])
+        let metadata = Metadata(additionalProperties: ["customField": "hello"])
         let dump = String(describing: metadata)
         #expect(dump.contains("createdAt: nil"))
         #expect(dump.contains("additionalProperties"))
@@ -355,13 +355,13 @@ import Testing
 
     /* A generated model whose schema allows undeclared properties exposes them. */
     @Test func testBhvModels022ModelWithAdditionalPropertiesReportsThem() {
-        let model = Metadata(createdAt: nil, additionalProperties: ["extra": AnyCodable("x")])
+        let model = Metadata(createdAt: nil, additionalProperties: ["extra": "x"])
         #expect(model.additionalProperties["extra"] != nil)
     }
 
     /* Undeclared keys named like the SDK's own methods are kept as additional properties. */
     @Test func testBhvModels023UndeclaredKeysNamedLikeMethodsAreKeptAsAdditionalProperties() throws {
-        let json = "{\"copy\":1,\"description\":\"x\"}"
+        let json = "{\"copy\":\"1\",\"description\":\"x\"}"
         let model = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Metadata.self))
         #expect(model.additionalProperties.keys.sorted() == ["copy", "description"])
     }
