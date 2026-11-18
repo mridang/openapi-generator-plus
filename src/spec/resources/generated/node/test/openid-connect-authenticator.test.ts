@@ -237,6 +237,35 @@ describe("OpenIdConnectAuthenticator", () => {
   });
 
   describe("PKCE and token renewal", () => {
+    test("bhvMisc078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce", async () => {
+      mockClient.responses = [discoveryResponse(), discoveryResponse()];
+      const query = new URL(await authenticator.buildAuthorizationUrl())
+        .searchParams;
+      expect(query.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(query.get("code_challenge_method")).toBe("S256");
+      expect(query.has("nonce")).toBe(false);
+    });
+
+    test("bhvMisc076 a call after a dropped code exchange reuses the discovered configuration and sees the code as not yet exchanged", async () => {
+      mockClient.responses = [
+        discoveryResponse("max-age=3600"),
+        { statusCode: 500, body: "", headers: {} },
+        tokenResponse("tok1"),
+      ];
+      await authenticator.buildAuthorizationUrl();
+      await expect(
+        authenticator.exchangeCode("my-auth-code"),
+      ).rejects.toThrow();
+      expect(mockClient.callCount).toBe(2);
+
+      await authenticator.buildAuthorizationUrl();
+      expect(mockClient.callCount).toBe(2);
+
+      mockClient.responses = [tokenResponse("tok2")];
+      await authenticator.exchangeCode("my-auth-code");
+      expect(mockClient.callCount).toBe(3);
+    });
+
     const discoveryResponse = (
       cacheControl = "max-age=0",
     ): ApiHttpResponse => ({

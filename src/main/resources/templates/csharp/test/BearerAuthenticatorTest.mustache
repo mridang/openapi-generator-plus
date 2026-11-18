@@ -253,4 +253,14 @@ public class BearerAuthenticatorTest
 
         Assert.Same(failure, thrown);
     }
+
+    [Fact]
+    public void BhvMisc193BasicAndBearerSendTheirHeaderAndRefuseBadInputTheSameWay()
+    {
+        Assert.Equal("Bearer xyz", new BearerAuthenticator("https://api.example.com", "xyz").GetAuthHeaders()["Authorization"]);
+        Assert.StartsWith("Basic ", new BasicAuthenticator("https://api.example.com", "alice", "s3cret").GetAuthHeaders()["Authorization"], StringComparison.Ordinal);
+        _ = Assert.Throws<ArgumentException>(() => new BearerAuthenticator("https://api.example.com", "a\r\nb"));
+        _ = Assert.Throws<ArgumentException>(() => new BasicAuthenticator("https://api.example.com", "a\r\nb", "s3cret"));
+    }
+
 }

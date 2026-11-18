@@ -719,6 +719,55 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     #expect(error?.message == "OIDC discovery document is not a JSON object")
   }
 
+  /* A discovery document that is not a JSON object keeps no cause and does not repeat the body. */
+  @Test func testBhvMisc070ANonObjectDiscoveryDocumentKeepsNoCauseAndNoBody() async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: "<html>not json</html>")))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let error = await #expect(throws: SerializationError.self) {
+      _ = try await auth.buildAuthorizationURL()
+    }
+    #expect(error?.message == "OIDC discovery document is not a JSON object")
+    #expect(error?.cause == nil)
+    #expect(!String(describing: error).contains("<html>"))
+  }
+
+  /* The authorization URL carries an S256 PKCE challenge and no nonce. */
+  @Test func testBhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndNoNonce() async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let url = try await auth.buildAuthorizationURL()
+
+    #expect(url.contains("code_challenge_method=S256"))
+    #expect(!url.contains("nonce="))
+  }
+
+  /* A call made while the code exchange is in flight reuses the discovered configuration. */
+  @Test func testBhvMisc076ACallDuringTheCodeExchangeReusesTheDiscoveredConfiguration() async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+    client.responses.append(
+      .success(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}")))
+    client.delayNanoseconds = 200_000_000
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+    _ = try await auth.buildAuthorizationURL()
+
+    async let exchange: Void = auth.exchangeCode("oidc-code")
+    try await Task.sleep(nanoseconds: 50_000_000)
+    let url = try await auth.buildAuthorizationURL()
+    try await exchange
+
+    #expect(url.contains("code_challenge="))
+    #expect(client.getCount == 1)
+  }
+
   @Test func testBhvAuthoidc018EmptyStateIsOmittedFromTheAuthorizationUrl() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
