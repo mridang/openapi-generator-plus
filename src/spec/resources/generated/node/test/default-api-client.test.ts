@@ -344,7 +344,7 @@ describe("DefaultApiClient", () => {
    * path exactly when verifySsl=false is set, and rejected otherwise.
    */
   describe("auth path honours transport TLS options (#4)", () => {
-    test("token exchange reaches a self-signed endpoint with verifySsl=false", async () => {
+    test("bhv misc 269 token exchange reaches a self-signed endpoint with verifySsl=false", async () => {
       const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
 
       const transport = TransportOptions.builder().verifySsl(false).build();
@@ -365,7 +365,7 @@ describe("DefaultApiClient", () => {
       ).rejects.toBeInstanceOf(OAuth2TokenError);
     }, 30000);
 
-    test("token exchange rejects a self-signed endpoint when verifySsl is left on", async () => {
+    test("bhv langnode 081 token exchange rejects a self-signed endpoint when verifySsl is left on", async () => {
       const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
 
       // Default transport: verifySsl is ON. The self-signed chasm cert is
