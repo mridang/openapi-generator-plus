@@ -39,7 +39,7 @@ describe("ServerVariable", () => {
     expect(variable.enumValues).toEqual([]);
   });
 
-  it("freezes its enum values so the array cannot be mutated", () => {
+  it("bhv servers 024 freezes its enum values so the array cannot be mutated", () => {
     const variable = new ServerVariable("prod", null, ["prod", "staging"]);
     expect(Object.isFrozen(variable.enumValues)).toBe(true);
   });
