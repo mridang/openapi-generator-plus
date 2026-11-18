@@ -209,3 +209,6 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+kotlin | auth001 | Kotlin has no synchronous header call: getAuthHeaders is a suspend function for every authenticator, so there is no sync path that could return unauthenticated headers
+kotlin | transport075 | zstd bodies are decoded only when the optional zstd-jni library is on the classpath, and the generated build does not ship it, so the expansion-ratio behaviour cannot be reached in the petstore suite
+kotlin | servers026 | ServerVariable keeps the List the caller passed, the same reason as kotlin | servers024: a frozen copy would turn it into a regular class with hand-written equals, hashCode and copy

@@ -335,7 +335,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("bhvAuthbearer004 an authenticator with no argument, no environment value and no provider is refused at construction")
+    @DisplayName("bhvAuth004 an authenticator with no argument, no environment value and no provider is refused at construction")
     fun authenticatorWithNoCredentialIsRefusedAtConstruction() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             BearerAuthenticator("https://api.example.com")
@@ -344,7 +344,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("bhvAuthbearer023 an explicitly passed empty token is refused and not replaced by another source")
+    @DisplayName("bhvAuth023 an explicitly passed empty token is refused and not replaced by another source")
     fun explicitlyEmptyTokenIsRefused() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             BearerAuthenticator("https://api.example.com", "")
@@ -353,7 +353,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("bhvAuthbearer009 a token returned by a provider that is blank or holds a line break or NUL is refused")
+    @DisplayName("bhvAuth009 a token returned by a provider that is blank or holds a line break or NUL is refused")
     fun providedTokenThatIsBlankOrUnsafeIsRefused() = runBlocking {
         for (bad in listOf("   ", "tok\nInjected: yes", "tok\u0000")) {
             val auth = BearerAuthenticator("https://api.example.com", null, { bad })
@@ -364,7 +364,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("bhvAuthbearer012 each refused token raises a message that states why it was refused")
+    @DisplayName("bhvAuth012 each refused token raises a message that states why it was refused")
     fun refusedTokenMessageStatesTheReason() {
         val blank = assertThrows(IllegalArgumentException::class.java) {
             BearerAuthenticator("https://api.example.com", "  ")
@@ -377,7 +377,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("bhvAuthbearer016 the string form of the authenticator masks the token and names its own type")
+    @DisplayName("bhvAuth016 the string form of the authenticator masks the token and names its own type")
     fun stringFormMasksTheToken() {
         val text = BearerAuthenticator("https://api.example.com", "secret-value").toString()
         assertFalse(text.contains("secret-value"), text)

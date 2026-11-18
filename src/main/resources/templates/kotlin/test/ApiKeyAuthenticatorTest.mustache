@@ -450,7 +450,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("bhvAuthapikey006 an API key sent in a header appears under the header name the spec declares")
+    @DisplayName("bhvAuth006 an API key sent in a header appears under the header name the spec declares")
     fun apiKeyHeaderUsesTheDeclaredName() = runBlocking {
         val auth = ApiKeyAuthenticator(
             "https://api.example.com", "X-Declared-Key", "k-42", ApiKeyLocation.HEADER
@@ -459,7 +459,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("bhvAuthapikey009 an API key that holds a line break or NUL is refused when built")
+    @DisplayName("bhvAuth009 an API key that holds a line break or NUL is refused when built")
     fun apiKeyWithLineBreakOrNulIsRefusedWhenBuilt() {
         for (bad in listOf("abc\r\nInjected: yes", "abc\u0000")) {
             assertThrows(IllegalArgumentException::class.java) {

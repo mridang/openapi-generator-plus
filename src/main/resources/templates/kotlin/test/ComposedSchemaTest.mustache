@@ -628,4 +628,26 @@ class ComposedSchemaTest {
             assertNull(union.asSurgery())
         }
     }
+
+    @Nested
+    @DisplayName("union wrapper contract behaviours")
+    inner class UnionWrapperContractBehaviours {
+
+        @Test
+        @DisplayName("bhvUnions039 building a union wrapper from a value never validates it or throws")
+        fun wrapperBuildsFromAnyValueWithoutThrowing() {
+            assertNotNull(PetTreatment(actualInstance = null))
+            assertNotNull(PetTreatment(actualInstance = "not a treatment"))
+        }
+
+        @Test
+        @DisplayName("bhvUnions040 a typed accessor returns the variant it holds and nothing for the other variants")
+        fun typedAccessorReturnsOnlyTheHeldVariant() {
+            val reservation = Reservation(reservationId = 31L, quantity = 4)
+            val union = ReserveStockResponse.fromReservation(reservation)
+
+            assertSame(reservation, union.asReservation())
+            assertNull(union.asReservationReceipt())
+        }
+    }
 }
