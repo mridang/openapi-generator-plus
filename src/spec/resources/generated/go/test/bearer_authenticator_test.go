@@ -175,7 +175,7 @@ func TestBhvAuthbearer013_BearerAuthenticator_ReprShowsTheNonSecretFields(t *tes
 // The service-token wrapper is a Bearer authenticator under its own name: it
 // emits the same header, refuses an empty token, and prints its own name with
 // the token masked.
-func TestBearerAuthenticator_ServiceTokenWrapperBehavesAsBearerUnderItsOwnName(t *testing.T) {
+func TestBhvAuthbearer023_BearerAuthenticator_ServiceTokenWrapperBehavesAsBearerUnderItsOwnName(t *testing.T) {
 	t.Parallel()
 	a, err := auth.NewServiceTokenAuthenticator("https://api.example.com", "xyz")
 	if err != nil {
@@ -265,6 +265,32 @@ func TestBhvAuthbearer014_BearerAuthenticator_TokenProviderIsCalledForEveryReque
 func TestBhvAuthbearer017_BearerAuthenticator_WhitespaceOnlyTokenIsRejectedAtConstruction(t *testing.T) {
 	t.Parallel()
 	for _, token := range []string{"   ", " \t\r\n\f\v "} {
+		a, err := auth.NewBearerAuthenticator("https://api.example.com", token)
+		if !errors.Is(err, auth.ErrInvalidBearerToken) {
+			t.Errorf("token %q: expected ErrInvalidBearerToken, got %v", token, err)
+		}
+		if a != nil {
+			t.Errorf("token %q: expected a nil authenticator", token)
+		}
+	}
+}
+
+// A token outside printable ASCII is refused at construction with ErrInvalidBearerToken.
+func TestBhvAuthbearer022_BearerAuthenticator_RejectsANonAsciiTokenAtConstruction(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewBearerAuthenticator("https://api.example.com", "tök"+"én")
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
+	}
+	if a != nil {
+		t.Error("expected a nil authenticator")
+	}
+}
+
+// Line breaks alone are whitespace, so a token made only of them is refused at construction.
+func TestBhvAuthbearer027_BearerAuthenticator_RejectsALineBreakOnlyToken(t *testing.T) {
+	t.Parallel()
+	for _, token := range []string{"\n", "\r", "\n\n"} {
 		a, err := auth.NewBearerAuthenticator("https://api.example.com", token)
 		if !errors.Is(err, auth.ErrInvalidBearerToken) {
 			t.Errorf("token %q: expected ErrInvalidBearerToken, got %v", token, err)

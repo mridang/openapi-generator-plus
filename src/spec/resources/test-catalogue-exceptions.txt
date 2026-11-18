@@ -141,3 +141,4 @@ dart | retries032 | Dart has no request body stream type: BaseApi takes an in-me
 elixir | authbearer026 | BearerAuthenticator.new/2 takes one token argument that is either a string or a zero-arity function, so a token and a token provider cannot be passed together
 elixir | errors052 | Elixir has no exception subclassing: rescue matches a struct's exact module, so a rescue of ApiError does not catch a NotFoundError; the family is checked with ApiError.api_error?/1 instead (bhv errors 033 and 047)
 elixir | errors054 | Elixir raises no unexpected Content-Type error: a body whose Content-Type is not JSON is returned as the raw body (bhv serializationwire 025), so no error exists that could name an operation or an HTTP verb
+go | authbearer026 | Go's bearer constructor takes a token or a token provider through separate constructors (NewXAuthenticator and NewXAuthenticatorWithProvider), so no call can pass both

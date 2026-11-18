@@ -181,9 +181,42 @@ func Test{{#firstApiKey}}BhvAuthapikey019_{{/firstApiKey}}SchemeAuthenticator_{{
 		}
 	}
 }
+
+{{#firstApiKey}}
+// With no key passed the environment supplies it, and a passed key wins over the environment.
+func TestBhvAuthapikey021_SchemeAuthenticator_{{className}}_ReadsTheKeyFromEnvironmentUnlessOnePassed(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	fromEnvironment, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+	if err != nil {
+		t.Fatalf("expected the environment to supply the key, got %v", err)
+	}
+	requireScheme{{className}}Credentials(t, fromEnvironment, schemeEnvValue)
+
+	passed, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	requireScheme{{className}}Credentials(t, passed, schemeArgValue)
+}
+
+// The per-scheme wrapper never prints its key in its default string form.
+func TestBhvAuthapikey025_SchemeAuthenticator_{{className}}_MasksTheKeyInItsDebugOutput(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	secret := schemeEnvValue("apiKey")
+	if s := a.String(); strings.Contains(s, secret) {
+		t.Errorf("expected the key to be masked, got %q", s)
+	}
+}
+{{/firstApiKey}}
 {{/isApiKey}}
 
-func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}{{#firstBearer}}BhvAuthbearer019_{{/firstBearer}}{{failsNamingId}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range scheme{{className}}Variables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {
@@ -204,6 +237,39 @@ func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}SchemeAuthenticator_{{cla
 		}
 	}
 }
+{{#firstBasic}}
+
+// An empty environment variable fails construction without arguments, and the error names that variable.
+func TestBhvAuthscheme003_SchemeAuthenticator_{{className}}_FailsNamingTheVariableWhenItIsEmpty(t *testing.T) {
+	for i, variable := range scheme{{className}}Variables {
+		t.Run(scheme{{className}}Fields[i], func(t *testing.T) {
+			setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, "empty")
+
+			a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+
+			requireMissingCredential(t, err, variable)
+			if a != nil {
+				t.Error("expected no authenticator")
+			}
+		})
+	}
+}
+
+// A per-scheme basic wrapper emits the same Authorization header as the base authenticator it wraps.
+func TestBhvAuthbasic019_SchemeAuthenticator_{{className}}_EmitsTheBaseBasicHeader(t *testing.T) {
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	base, err := auth.NewBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error from NewBasicAuthenticator: %v", err)
+	}
+	if got, want := a.AuthHeaders()["Authorization"], base.AuthHeaders()["Authorization"]; got != want {
+		t.Errorf("expected the base Basic header %q, got %q", want, got)
+	}
+}
+{{/firstBasic}}
 {{#isBearer}}
 
 func TestBhvAuthscheme002_SchemeAuthenticator_{{className}}_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
@@ -219,7 +285,7 @@ func TestBhvAuthscheme002_SchemeAuthenticator_{{className}}_WithProviderAsksTheP
 	}
 }
 
-func Test{{#firstBearer}}BhvLifecycle025_{{/firstBearer}}SchemeAuthenticator_{{className}}_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func Test{{#firstBearer}}BhvLifecycle025_{{/firstBearer}}{{^firstBearer}}BhvAuthbearer025_{{/firstBearer}}SchemeAuthenticator_{{className}}_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
