@@ -2049,3 +2049,81 @@ langpython106 | Omitting the token url username and password raises.
 langpython107 | Omitting only the password raises.
 langpython108 | Credentials cannot be reassigned.
 langpython109 | A password OAuth2 authenticator compares by identity, so equal settings never compare equal.
+langpython110 | Container datetime accepts a long fraction.
+langpython111 | Awaredatetime alias rejects naive.
+langpython112 | List of datetime rejects naive element.
+langpython113 | D84 characters are written literally in a string.
+langpython114 | String value still rejected.
+langpython115 | Host only url keeps no trailing slash.
+langpython116 | Default port and host case preserved.
+langpython117 | Encode writes every digit unquoted.
+langpython118 | A list of models keeps the exact digits.
+langpython119 | Decode rejects a quoted number.
+langpython120 | Constructor rejects a string.
+langpython121 | Frozenset serializes as json array.
+langpython122 | Top level set serializes as json array.
+langpython123 | Sanitize set returns list.
+langpython124 | List of models emits bytes as base64.
+langpython125 | Keeps empty slot for null array element in pipes.
+langpython126 | Keeps empty slot for null array element in multi.
+langpython127 | The strict flag does not leak onto other models.
+langpython128 | Undeclared keys are kept on each value of a map.
+langpython129 | A free form null stays null.
+langpython130 | Serialize nan raises.
+langpython131 | Serialize infinity raises.
+langpython132 | Serialize negative infinity raises.
+langpython133 | Deserialize infinity raises.
+langpython134 | Model double field is frozen and still rejects a non finite value.
+langpython135 | A non finite double never reaches the wire.
+langpython136 | Serialize non finite decimal number raises.
+langpython137 | Serialize decimal number beyond double range is exact.
+langpython138 | An unknown enum string is kept as given.
+langpython139 | A valid value is still coerced.
+langpython140 | The attribute name and the wire name both work when a value is kept.
+langpython141 | A kept value goes out on the wire as given.
+langpython142 | A required argument left out raises a type error.
+langpython143 | The other values of a model with a kept value are unchanged.
+langpython144 | A model with a kept value is still frozen and hashable.
+langpython145 | A map model keeps a wrong value and the unknown keys.
+langpython146 | Model validate still validates.
+langpython147 | A composed wrapper is frozen and hashable.
+langpython148 | Stringify time drops a sub millisecond part.
+langpython149 | Stringify duration with days.
+langpython150 | Serialize duration in dict.
+langpython151 | Bare integer duration is rejected.
+langpython152 | Non ascii digits are rejected.
+langpython153 | Member value is an int.
+langpython154 | Deserialize yields correct member.
+langpython155 | Scalar byte serializes to base64.
+langpython156 | Scalar byte decodes from base64 string.
+langpython157 | Constructing with bytes that look like base64 keeps them.
+langpython158 | Copying the decoded value is stable.
+langpython159 | Serializing base64 encodes the raw bytes.
+langpython160 | Pet passport thumbnail and scans round trip.
+langpython161 | Malformed base64 is rejected inside an array and a map.
+langpython162 | Non string constructor value is rejected.
+langpython163 | String wire value is still accepted.
+langpython164 | Integral value coerced to float.
+langpython165 | Fractional value still parses.
+langpython166 | Nested array round trips.
+langpython167 | Nested array of integers rejects a quoted leaf.
+langpython168 | Integers are still accepted.
+langpython169 | Scalar response rejects a value of another type.
+langpython170 | Known referenced enum value accepted.
+langpython171 | Deep json beyond cap is rejected.
+langpython172 | Attribute name does not satisfy a required property.
+langpython173 | Attribute name is ignored as an unknown key.
+langpython174 | List elements ignore the attribute name.
+langpython175 | Dict values ignore the attribute name.
+langpython176 | Direct validation still accepts the attribute name.
+langpython177 | Attribute name is captured as an additional property.
+langpython178 | Attribute name is captured for list elements.
+langpython179 | Direct validation still accepts the attribute name for an extras model.
+langpython180 | Decoding a response with the deprecated field does not warn.
+langpython181 | Serializing the deprecated field does not warn.
+langpython182 | The whole models package imports with the look around pattern.
+langpython183 | Repr still masks the password.
+langpython184 | Matching value is accepted on construction.
+langpython185 | Non matching value is rejected on decode.
+langpython186 | Non matching value is kept by the constructor.
+langpython187 | A payload nested past the depth limit is refused.
