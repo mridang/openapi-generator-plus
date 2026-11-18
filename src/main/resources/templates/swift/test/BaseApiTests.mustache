@@ -251,7 +251,7 @@ import Testing
 
     // MARK: - Binary response answered with JSON
 
-    @Test func testContentDispositionFilenameStarKeepsOnlyUnreservedCharacters() throws {
+    @Test func testBhvSerialization124ContentDispositionFilenameStarKeepsOnlyUnreservedCharacters() throws {
         let value = try BaseApi.buildContentDisposition(name: "file", filename: "r\u{E9}sum\u{E9}*(1).pdf")
         #expect(value.contains("filename=\"r_sum_*(1).pdf\""))
         #expect(value.contains("filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf"))
@@ -259,7 +259,7 @@ import Testing
 
     /* A character outside the BMP is one underscore in the ASCII fallback and
      * its four UTF-8 bytes in filename*. */
-    @Test func testContentDispositionNonBmpFilenameIsOneUnderscoreAndFourBytes() throws {
+    @Test func testBhvLangswift006ContentDispositionNonBmpFilenameIsOneUnderscoreAndFourBytes() throws {
         let value = try BaseApi.buildContentDisposition(name: "file", filename: "a\u{1F600}b.txt")
         #expect(value.contains("filename=\"a_b.txt\""))
         #expect(value.contains("filename*=UTF-8''a%F0%9F%98%80b.txt"))
@@ -272,7 +272,7 @@ import Testing
         ("a.html", "text/html"), ("a.mp4", "video/mp4"), ("a.mp3", "audio/mpeg"),
         ("a.xyz123", "application/octet-stream"), ("nodot", "application/octet-stream"),
     ])
-    func testMimeTypeForFilenameCoversTheTable(filename: String, mime: String) {
+    func testBhvSerialization120MimeTypeForFilenameCoversTheTable(filename: String, mime: String) {
         #expect(BaseApi.mimeTypeForFilename(filename) == mime)
     }
 
@@ -284,13 +284,13 @@ import Testing
     }
 
     @Test(arguments: [["bad name": "x"], ["name": "a;b"]])
-    func testCookieHeaderValueRefusesForbiddenCharacters(cookies: [String: String]) {
+    func testBhvMisc191CookieHeaderValueRefusesForbiddenCharacters(cookies: [String: String]) {
         #expect(throws: ConfigurationError.self) {
             _ = try BaseApi.cookieHeaderValue(cookies)
         }
     }
 
-    @Test func testBinaryOperationAnsweredWithJsonReturnsTheRawBytes() async throws {
+    @Test func testBhvSerialization128BinaryOperationAnsweredWithJsonReturnsTheRawBytes() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":7,\"name\":\"photo\"}"
 
@@ -334,7 +334,7 @@ import Testing
         }
     }
 
-    @Test func testErrorDispatch400() async throws {
+    @Test func testBhvErrors006ErrorDispatch400() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 400
         mockClient.responseBody = "{\"error\":\"bad request\"}"
@@ -366,7 +366,7 @@ import Testing
         }
     }
 
-    @Test func testErrorDispatch403() async throws {
+    @Test func testBhvErrors006ErrorDispatch403() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 403
 
@@ -381,7 +381,7 @@ import Testing
         }
     }
 
-    @Test func testErrorDispatch404() async throws {
+    @Test func testBhvErrors006ErrorDispatch404() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 404
 
@@ -396,7 +396,7 @@ import Testing
         }
     }
 
-    @Test func testErrorDispatch409() async throws {
+    @Test func testBhvErrors006ErrorDispatch409() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 409
 
@@ -411,7 +411,7 @@ import Testing
         }
     }
 
-    @Test func testErrorDispatch422() async throws {
+    @Test func testBhvErrors006ErrorDispatch422() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 422
 
@@ -426,7 +426,7 @@ import Testing
         }
     }
 
-    @Test func testErrorDispatch429() async throws {
+    @Test func testBhvErrors006ErrorDispatch429() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 429
 
@@ -442,7 +442,7 @@ import Testing
         }
     }
 
-    @Test func testErrorDispatch500() async throws {
+    @Test func testBhvErrors006ErrorDispatch500() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 500
 
@@ -457,7 +457,7 @@ import Testing
         }
     }
 
-    @Test func testErrorDispatch502() async throws {
+    @Test func testBhvErrors006ErrorDispatch502() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 502
 
@@ -576,7 +576,7 @@ import Testing
         }
     }
 
-    @Test func testIsTextContentType() {
+    @Test func testBhvLangswift007IsTextContentType() {
         #expect(BaseApi.isTextContentType("text/plain; charset=utf-8"))
         #expect(BaseApi.isTextContentType("application/xml"))
         #expect(BaseApi.isTextContentType("application/atom+xml"))
@@ -676,13 +676,13 @@ import Testing
         #expect(mockClient.lastHeaders["Accept"] == "application/xml")
     }
 
-    @Test func testMergeHeadersReplacesEverySpellingOfAName() {
+    @Test func testBhvLangswift008MergeHeadersReplacesEverySpellingOfAName() {
         let merged = BaseApi.mergeHeaders(
             ["Accept": "a", "ACCEPT": "b", "X-Other": "o"], overriding: ["accept": "c"])
         #expect(merged == ["accept": "c", "X-Other": "o"])
     }
 
-    @Test func testMergeHeadersPicksTheSameWinnerWithinOneLayer() {
+    @Test func testBhvLangswift009MergeHeadersPicksTheSameWinnerWithinOneLayer() {
         let layer = ["authorization": "lower", "Authorization": "upper"]
         for _ in 0..<20 {
             let merged = BaseApi.mergeHeaders([:], overriding: layer)
@@ -1496,7 +1496,7 @@ import Testing
 
     // '#', '[' and ']' are percent-encoded by the encoder itself, so the bytes
     // it produces are the bytes the HTTP client sends.
-    @Test func testAllowReservedPercentEncodesHashAndBrackets() {
+    @Test func testBhvLangswift010AllowReservedPercentEncodesHashAndBrackets() {
         let encoded = BaseApi.buildQueryString(
             ["revision": ValueSerializer.AllowReservedValue(value: "a'b[c]#d")])
         #expect(encoded == "revision=a'b%5Bc%5D%23d", "got: \(encoded)")
@@ -2181,7 +2181,7 @@ import Testing
     // SerializationError, surfaced through the throwing call) rather than
     // swallowing it and returning the raw string. invokeAPIForResult routes the
     // body through ObjectSerializer.deserialize, which throws on malformed JSON.
-    @Test func testMalformed2xxBodyFailsLoud() async throws {
+    @Test func testBhvSerialization103Malformed2xxBodyFailsLoud() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 200
         // Truncated object: valid status, JSON content-type, broken body.
@@ -2205,7 +2205,7 @@ import Testing
 
     /* Every primitive is a plain text part in its canonical stringify form
      * with no part Content-Type; only a model is an application/json part. */
-    @Test func testMultipartPrimitivesAreTextPartsAndModelsAreJsonParts() throws {
+    @Test func testBhvSerialization127MultipartPrimitivesAreTextPartsAndModelsAreJsonParts() throws {
         let parser = ISO8601DateFormatter()
         let instant = parser.date(from: "2024-01-15T10:30:00Z")!
         let formParts: [String: Any] = [
@@ -2233,7 +2233,7 @@ import Testing
     // MARK: - Request context on errors
 
     /* A failure answered by the server names the request made through the API. */
-    @Test func testStatusErrorNamesTheRequestMadeThroughTheApi() async throws {
+    @Test func testBhvErrors091StatusErrorNamesTheRequestMadeThroughTheApi() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 404
         let config = ConfigurationBuilder().baseURL("https://example.com/v2/").build()
@@ -2300,7 +2300,7 @@ import Testing
     }
 
     /* A failure that arrived without a response names the request too. */
-    @Test func testTransportFailureNamesTheRequest() async throws {
+    @Test func testBhvErrors092TransportFailureNamesTheRequest() async throws {
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: FailingApiClient(), config: config)
 
@@ -2334,7 +2334,7 @@ import Testing
         #expect(mockClient.lastHeaders["Content-Type"] == "application/json")
     }
 
-    @Test func testPerCallTimeoutMustBePositive() async throws {
+    @Test func testBhvLangswift011PerCallTimeoutMustBePositive() async throws {
         let mockClient = MockApiClient()
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
@@ -2420,7 +2420,7 @@ import Testing
         }
     }
 
-    @Test func testSeveralSuccessResponsesWithAnEmptyBodyHaveNoData() async throws {
+    @Test func testBhvLangswift012SeveralSuccessResponsesWithAnEmptyBodyHaveNoData() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 201
         mockClient.responseBody = ""

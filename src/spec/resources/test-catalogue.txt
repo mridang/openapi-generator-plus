@@ -1947,3 +1947,10 @@ langswift002 | An OAuth2 token error's localized description is exactly its mess
 langswift003 | A refused loopback connection with no response raises a network error with status zero that keeps the transport error
 langswift004 | A status error built with no response data has no typed body until one is decoded
 langswift005 | Attaching request context to an error a second time does not replace the first request's method and path
+langswift006 | A filename with a character outside the Basic Multilingual Plane becomes one underscore in the ASCII fallback and four UTF-8 bytes encoded
+langswift007 | Text, XML and JavaScript content types are text while PDF and PNG are not
+langswift008 | Merging header layers replaces every spelling of a header name that differs only by case
+langswift009 | When one header layer holds two spellings of a name the same value wins on every merge
+langswift010 | An allow-reserved query value keeps reserved characters but percent-encodes hash and brackets
+langswift011 | A per-call timeout of zero is rejected with a configuration error
+langswift012 | A success response with an empty body and a status other than 200 has no data but keeps its status
