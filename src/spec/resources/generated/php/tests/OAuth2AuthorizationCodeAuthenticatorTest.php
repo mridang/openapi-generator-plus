@@ -981,3 +981,32 @@ test('bhv misc 062 the authorization url carries the scopes the security scheme 
 
     expect($authenticator->buildAuthorizationUrl('csrf-state'))->toContain('scope=read%20write');
 });
+
+test('bhv misc 077 a generated pkce verifier is 43 unreserved characters and differs per call', function (): void {
+    $first = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+    $second = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+    $first->buildAuthorizationUrl();
+    $second->buildAuthorizationUrl();
+    $verifier = new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier');
+    $firstVerifier = (string) $verifier->getValue($first);
+    $secondVerifier = (string) $verifier->getValue($second);
+
+    expect(preg_match('/^[A-Za-z0-9._~-]{43}$/', $firstVerifier))->toBe(1);
+    expect($firstVerifier)->not->toBe($secondVerifier);
+});
