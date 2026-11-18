@@ -353,7 +353,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     refute "cookie" in sent
   end
 
-  test "an empty 200 body comes back as an empty body" do
+  test "bhv transport 067 an empty 200 body comes back as an empty body" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 

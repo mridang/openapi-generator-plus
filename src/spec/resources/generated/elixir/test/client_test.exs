@@ -230,7 +230,7 @@ defmodule PetstoreClient.ClientTest do
     assert {:ok, _result} = Task.await(task)
   end
 
-  test "close twice releases the authenticator once" do
+  test "bhv lifecycle 036 close twice releases the authenticator once" do
     client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()})
 
     assert PetstoreClient.Client.close(client) == :ok
@@ -239,7 +239,7 @@ defmodule PetstoreClient.ClientTest do
     refute_received {:released, _label}
   end
 
-  test "closing after the last in-flight request does not release the authenticator a second time" do
+  test "bhv lifecycle 037 closing after the last in-flight request does not release the authenticator a second time" do
     {_adapter, transport} = blocked_transport()
     client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
     call = call_through(client)

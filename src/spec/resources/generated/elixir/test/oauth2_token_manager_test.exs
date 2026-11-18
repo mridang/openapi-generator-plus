@@ -770,7 +770,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert URI.decode_query(retry) == params
     end
 
-    test "a refresh that fails again after the fallback grant raises the grant's error" do
+    test "bhv auth 026 a refresh that fails again after the fallback grant raises the grant's error" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

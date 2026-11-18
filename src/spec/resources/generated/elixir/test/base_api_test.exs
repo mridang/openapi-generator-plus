@@ -592,7 +592,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
-  test "an ordered query list is sent in the given order, not sorted" do
+  test "bhv serialization 011 an ordered query list is sent in the given order, not sorted" do
     {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: CapturingApiClient}
@@ -1656,7 +1656,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert String.contains?(disposition, "filename=\"a\\\"b.txt\"")
   end
 
-  test "multipart filename with embedded backslash is backslash-escaped" do
+  test "bhv serialization 056 multipart filename with embedded backslash is backslash-escaped" do
     disposition =
       PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\\b.txt")
 
@@ -2822,7 +2822,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "valid enum wire value deserializes to its atom" do
+  test "bhv serialization 003 valid enum wire value deserializes to its atom" do
     pet =
       PetstoreClient.ObjectSerializer.deserialize(
         ~s({"name":"rex","photoUrls":[],"status":"available"}),

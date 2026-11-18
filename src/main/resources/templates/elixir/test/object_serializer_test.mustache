@@ -2086,5 +2086,35 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.Models.StrictTag.strict_properties?()
     end
   end
+
+  describe "numbers" do
+    test "bhv serialization 036 a whole-number float is written with a decimal point" do
+      assert {{moduleName}}.ObjectSerializer.serialize(1.0) == "1.0"
+    end
+  end
+
+
+  describe "serialized text" do
+    test "bhv serialization 021 values with equal content compare equal and hash alike" do
+      first = %{{moduleName}}.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+      second = %{{moduleName}}.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+      other = %{{moduleName}}.Models.Metadata{created_at: "2025-01-01T00:00:00+00:00"}
+
+      assert first == second
+      assert :erlang.phash2(first) == :erlang.phash2(second)
+      refute first == other
+    end
+
+    test "bhv serialization 023 a payload that is not well-formed JSON fails with the SerializationError" do
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize("{\"id\": 1} trailing", "Category")
+      end
+    end
+
+    test "bhv serialization 061 slash, angle brackets and ampersand are written literally" do
+      assert {{moduleName}}.ObjectSerializer.serialize("a/b<c>&d") == ~s("a/b<c>&d")
+    end
+  end
+
 end
 {{/generateTests}}

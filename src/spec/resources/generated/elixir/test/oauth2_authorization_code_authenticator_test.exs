@@ -587,7 +587,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                "Bearer tok1"
     end
 
-    test "token request bodies and the authorization URL are in the fixed order" do
+    test "bhv auth 019 token request bodies and the authorization URL are in the fixed order" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -760,7 +760,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       refute String.contains?(FakeApiClient.last_body(fake_client), "code_verifier")
     end
 
-    test "the refresh request carries no code verifier" do
+    test "bhv auth 020 the refresh request carries no code verifier" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

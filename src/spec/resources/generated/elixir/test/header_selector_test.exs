@@ -212,4 +212,18 @@ defmodule PetstoreClient.HeaderSelectorTest do
       assert headers["Accept"] == "application/json"
     end
   end
+
+  describe "Accept header weights" do
+    test "bhv headers 032 the Accept header lists media types without quality weights" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json", "application/xml"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "application/json, application/xml"
+      refute headers["Accept"] =~ "q="
+    end
+  end
 end

@@ -51,4 +51,15 @@ defmodule PetstoreClient.ApiResultTest do
       assert result.headers == %{}
     end
   end
+
+  describe "headers" do
+    test "bhv results 006 the headers of a result are a copy taken when it is built" do
+      source = %{"x-request-id" => "1"}
+      result = %ApiResult{status_code: 200, headers: source}
+
+      _changed = Map.put(source, "x-request-id", "2")
+
+      assert result.headers == %{"x-request-id" => "1"}
+    end
+  end
 end
