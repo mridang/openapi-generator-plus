@@ -123,13 +123,36 @@ class TestTransportOptions:
             TransportOptions(timeout=value)
         assert str(direct.value) == message
 
+    def test_bhv_options_045_a_negative_max_redirects_is_rejected_at_configuration(self) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().max_redirects(-1)
+        assert str(exc_info.value) == (
+            'Invalid max_redirects: must be an integer of at least 0 (got -1)'
+        )
+        with pytest.raises(ValueError):
+            TransportOptions(max_redirects=-1)
+        assert TransportOptions.builder().max_redirects(0).build().max_redirects == 0
+
+    def test_bhv_options_047_a_negative_timeout_is_rejected_at_configuration(self) -> None:
+        with pytest.raises(ValueError):
+            TransportOptions.builder().timeout(-1)
+        with pytest.raises(ValueError):
+            TransportOptions(timeout=-1)
+
+    def test_bhv_options_051_a_proxy_url_with_a_scheme_other_than_http_or_https_is_rejected(self) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().proxy('socks5://proxy.example.com:1080')
+        assert str(exc_info.value) == (
+            'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080'
+        )
+
     def test_bhv_options_024_invalid_proxy_url_throws_exception(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             TransportOptions.builder().proxy('not-a-url').build()
         assert type(exc_info.value) is ValueError
         assert not isinstance(exc_info.value, {{errorPrefix}}Exception)
 
-    def test_constructing_directly_with_a_non_http_proxy_scheme_raises(self) -> None:
+    def test_bhv_options_046_constructing_directly_with_a_non_http_proxy_scheme_raises(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             TransportOptions(proxy='ftp://proxy.example.com:21')
         assert str(exc_info.value) == (
