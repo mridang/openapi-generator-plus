@@ -395,6 +395,10 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("bhvOperations160 a call to an external-variant operation is sent to the generated server variant URL")
+        fun bhvOperations160ExternalVariantCallUsesServerUrl() = testGetExternalPetInfo()
+
+        @Test
         @DisplayName("bhvOperations061 getExternalPetInfo uses per-operation server URL")
         fun testGetExternalPetInfo() {
             // The operation declares its own server. The client below sends
@@ -797,6 +801,10 @@ class PetApiTest {
                 }
             assertEquals(500, exception.statusCode)
         }
+
+        @Test
+        @DisplayName("bhvOperations159 a call that returns a value raises a typed API error on an empty success body")
+        fun bhvOperations159EmptySuccessBodyRaisesTypedError() = testEmptyBodyOnBodyReturningOpThrows()
 
         @Test
         @DisplayName("bhvOperations036 empty 200 body on a body-returning op throws ApiException")

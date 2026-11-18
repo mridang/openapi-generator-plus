@@ -595,6 +595,10 @@ class DefaultApiClientTest {
     @DisplayName("redirect method preservation (Gap T2)")
     inner class RedirectMethodPreservation {
         @Test
+        @DisplayName("bhvRedirects049 a 307 redirect repeats the request with the same method and body")
+        fun bhvRedirects049RepeatsMethodAndBodyOn307() = redirect307PreservesMethodAndBody()
+
+        @Test
         @DisplayName("307 preserves method and body (POST stays POST)")
         fun redirect307PreservesMethodAndBody() {
             val chasmUrl = ChasmContainer.getBaseUrl()
@@ -746,6 +750,134 @@ class DefaultApiClientTest {
                 assertEquals(expected, secondHopMethod, "$status $method")
             }
         }
+
+        @Test
+        @DisplayName("bhvRedirects046 a redirect chain past the limit raises a too-many-redirects error with the 3xx status")
+        fun bhvRedirects046ChainPastTheLimitRaisesTooManyRedirects() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "https://secure.example.com/next"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).maxRedirects(2).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrowsExactly(ApiException::class.java) {
+                runBlocking { apiClient.sendRequest("GET", "https://secure.example.com/x", emptyMap(), null) }
+            }
+            assertEquals(302, ex.statusCode)
+            assertEquals("Too many redirects (exceeded 2)", ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvRedirects052 a redirect to another origin removes Authorization, Cookie, Proxy-Authorization and secret headers")
+        fun bhvRedirects052CrossOriginRedirectDropsCredentials() {
+            var hopCount = 0
+            var secondHopHeaders: io.ktor.http.Headers? = null
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location", "https://other.example.com/dest"),
+                    )
+                } else {
+                    secondHopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "https://secure.example.com/x",
+                    mapOf(
+                        "Authorization" to "Bearer t",
+                        "Cookie" to "s=1",
+                        "Proxy-Authorization" to "Basic x",
+                        "X-Api-Key" to "k",
+                    ),
+                    null,
+                )
+            }
+            val headers = secondHopHeaders!!
+            for (name in listOf("Authorization", "Cookie", "Proxy-Authorization", "X-Api-Key")) {
+                assertFalse(headers.contains(name), name)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects048 a 301 or 302 turns a POST follow-up into GET and keeps the method of every other request")
+        fun bhvRedirects048MovedStatusesTurnPostIntoGet() {
+            for (status in listOf(HttpStatusCode.MovedPermanently, HttpStatusCode.Found)) {
+                for (method in listOf("POST", "PUT", "PATCH", "DELETE", "HEAD", "GET")) {
+                    var hopCount = 0
+                    var secondHopMethod: String? = null
+                    val engine = MockEngine { req ->
+                        hopCount++
+                        if (hopCount == 1) {
+                            respond(
+                                content = "",
+                                status = status,
+                                headers = headersOf("Location", "https://secure.example.com/dest"),
+                            )
+                        } else {
+                            secondHopMethod = req.method.value
+                            respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                        }
+                    }
+                    val transport = TransportOptions.builder().followRedirects(true).build()
+                    val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                    runBlocking {
+                        apiClient.sendRequest(method, "https://secure.example.com/x", emptyMap(), "body")
+                    }
+                    val expected = if (method == "POST") "GET" else method
+                    assertEquals(expected, secondHopMethod, "${status.value} after $method")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects050 for 301, 302, 303, 307 and 308 the follow-up method matches the RFC 9110 table")
+        fun bhvRedirects050FollowUpMethodMatchesTheRfcTable() {
+            val table = mapOf(
+                HttpStatusCode.MovedPermanently to "GET",
+                HttpStatusCode.Found to "GET",
+                HttpStatusCode.SeeOther to "GET",
+                HttpStatusCode.TemporaryRedirect to "POST",
+                HttpStatusCode.PermanentRedirect to "POST",
+            )
+            for ((status, expected) in table) {
+                var hopCount = 0
+                var secondHopMethod: String? = null
+                val engine = MockEngine { req ->
+                    hopCount++
+                    if (hopCount == 1) {
+                        respond(
+                            content = "",
+                            status = status,
+                            headers = headersOf("Location", "https://secure.example.com/dest"),
+                        )
+                    } else {
+                        secondHopMethod = req.method.value
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+                val transport = TransportOptions.builder().followRedirects(true).build()
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                runBlocking {
+                    apiClient.sendRequest("POST", "https://secure.example.com/x", emptyMap(), "body")
+                }
+                assertEquals(expected, secondHopMethod, "${status.value} after POST")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects051 a 303 turns a follow-up into GET except that a HEAD request stays HEAD")
+        fun bhvRedirects051HeadStaysHeadOn303() = redirect303TurnsEveryMethodExceptHeadIntoGet()
 
         @Test
         @DisplayName("bhvRedirects036 a 303 redirect turns every method except HEAD into GET")
@@ -1132,6 +1264,10 @@ class DefaultApiClientTest {
          * compared host + port and so happily forwarded the Authorization
          * over plain HTTP.
          */
+        @Test
+        @DisplayName("bhvRedirects053 Authorization is removed when the scheme changes between https and http on the same host")
+        fun bhvRedirects053StripsAuthorizationOnSchemeChange() = httpsToHttpSameHostStripsAuthorization()
+
         @Test
         @DisplayName("https_to_http_same_host_strips_authorization")
         fun httpsToHttpSameHostStripsAuthorization() {

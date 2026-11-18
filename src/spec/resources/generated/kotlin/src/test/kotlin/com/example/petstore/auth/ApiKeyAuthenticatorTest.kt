@@ -559,4 +559,75 @@ class ApiKeyAuthenticatorTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("bhvAuth031 an API key sent in a header carries the fixed name and value on the wire")
+    fun bhvAuth031ApiKeyHeaderIsExactOnTheWire() =
+        runBlocking {
+            val auth =
+                ApiKeyAuthenticator(
+                    "https://api.example.com",
+                    "X-API-Key",
+                    "abc123",
+                    ApiKeyLocation.HEADER,
+                )
+            assertEquals(mapOf("X-API-Key" to "abc123"), auth.getAuthHeaders())
+        }
+
+    @Test
+    @DisplayName("bhvAuth032 a session-cookie key is sent as the SESSION_ID cookie with exact name and value")
+    fun bhvAuth032SessionCookieIsExactOnTheWire() {
+        val auth = SessionCookieAuthenticator("https://api.example.com", "k4")
+        assertEquals(mapOf("SESSION_ID" to "k4"), auth.getCookieParams())
+    }
+
+    @Test
+    @DisplayName("bhvAuth033 printing an API-key authenticator never reveals its secret")
+    fun bhvAuth033ToStringNeverRevealsTheSecret() {
+        val auth =
+            ApiKeyAuthenticator(
+                "https://api.example.com",
+                "X-API-Key",
+                "abc123",
+                ApiKeyLocation.HEADER,
+            )
+        assertFalse(auth.toString().contains("abc123"), auth.toString())
+    }
+
+    @Test
+    @DisplayName("bhvAuth034 an API-key authenticator rejects a blank key when it is constructed")
+    fun bhvAuth034BlankKeyIsRejectedAtConstruction() {
+        for (blank in listOf("", "   ", "\t\n")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator("https://api.example.com", "X-API-Key", blank, ApiKeyLocation.HEADER)
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth035 a key containing NUL or a non-ASCII character in a header is rejected")
+    fun bhvAuth035ControlAndNonAsciiHeaderValuesAreRejected() {
+        for (bad in listOf("abc\u0000def", "kéy")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator("https://api.example.com", "X-API-Key", bad, ApiKeyLocation.HEADER)
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth037 a key provider is asked again for each request and its current value is sent")
+    fun bhvAuth037ProviderIsAskedOnEachRequest() =
+        runBlocking {
+            var calls = 0
+            val auth =
+                ApiKeyAuthenticator(
+                    "https://api.example.com",
+                    "X-API-Key",
+                    null,
+                    ApiKeyLocation.HEADER,
+                    apiKeyProvider = { "key-${++calls}" },
+                )
+            assertEquals(mapOf("X-API-Key" to "key-1"), auth.getAuthHeaders())
+            assertEquals(mapOf("X-API-Key" to "key-2"), auth.getAuthHeaders())
+        }
 }

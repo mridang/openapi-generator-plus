@@ -2630,6 +2630,10 @@ class DefaultApiClientUnitTest {
     @DisplayName("close lifecycle")
     inner class CloseLifecycle {
         @Test
+        @DisplayName("bhvLifecycle044 a request in flight when the client is closed, with its retries, still completes")
+        fun bhvLifecycle044InFlightRequestSurvivesClose() = closeLetsAnInFlightRequestFinishWithItsBody()
+
+        @Test
         @DisplayName("bhvLifecycle019 close lets an in-flight request finish with its body and refuses a new one")
         fun closeLetsAnInFlightRequestFinishWithItsBody() {
             val engine =
@@ -2694,6 +2698,10 @@ class DefaultApiClientUnitTest {
             apiClient.close()
             assertFalse(transport.coroutineContext[kotlinx.coroutines.Job]!!.isActive, "a second close reopened the transport")
         }
+
+        @Test
+        @DisplayName("bhvLifecycle045 closing the SDK client does not close a caller-supplied HTTP client")
+        fun bhvLifecycle045CloseLeavesASuppliedClientOpen() = closeNeverClosesACallerSuppliedTransport()
 
         @Test
         @DisplayName("bhvLifecycle020 close never closes a transport the caller supplied")
@@ -3482,6 +3490,10 @@ class DefaultApiClientUnitTest {
                 TransportOptions.builder().proxy("not a url").build()
             }
         }
+
+        @Test
+        @DisplayName("bhvLifecycle042 a client built on a caller-supplied HTTP transport sends its requests through it")
+        fun bhvLifecycle042SuppliedTransportCarriesRequests() = suppliedClientCarriesEveryRequestUnchanged()
 
         @Test
         @DisplayName("bhvTransport081 a caller-supplied HTTP client carries every request with the URL and caller headers unchanged")

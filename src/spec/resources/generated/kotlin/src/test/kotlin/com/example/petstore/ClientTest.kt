@@ -236,6 +236,10 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("bhvLifecycle043 after the client is closed a new request fails and never reaches the network")
+    fun bhvLifecycle043RequestAfterCloseIsRefused() = bhvLifecycle035ARequestAfterCloseFailsAndNeverReachesTheTransport()
+
+    @Test
     @DisplayName("bhvLifecycle038 close is on the ApiClient contract: a custom transport without close can be closed")
     fun customTransportWithoutCloseCanBeClosedTwice() {
         val transport =

@@ -631,6 +631,10 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    @DisplayName("bhvAuth056 an expires_in value is honoured only as a decimal number and any other value marks the token stale")
+    fun bhvAuth056NonDecimalExpiresInMarksTheTokenStale() = nonFiniteExpiresInMarksTheTokenStale()
+
+    @Test
     fun nonFiniteExpiresInMarksTheTokenStale() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"inf1","expires_in":"Infinity"}""")
@@ -1288,6 +1292,48 @@ class OAuth2TokenManagerTest {
         assertEquals(400, ex.statusCode)
         assertEquals("invalid_grant", ex.code)
         assertEquals("Token request failed with status 400: invalid_grant", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth054 a non-success token response surfaces as an OAuth2 server error naming status and body")
+    fun bhvAuth054TokenServerErrorNamesStatusAndBody() = tokenServerErrorMessageNamesTheStatusCodeAndDescription()
+
+    @Test
+    @DisplayName("bhvAuth057 a refresh that is rejected or returns a malformed response falls back to the original grant")
+    fun bhvAuth057RefreshFailureFallsBackToTheOriginalGrant() {
+        val params = mapOf("grant_type" to "password", "username" to "u", "password" to "p")
+        for ((refreshStatus, refreshBody) in listOf(400 to """{"error":"invalid_grant"}""", 200 to "not json")) {
+            val client = FakeApiClient()
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+            client.enqueue("""{"access_token":"first","refresh_token":"ref","expires_in":0}""")
+            runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+            client.enqueue(refreshBody, refreshStatus)
+            client.enqueue("""{"access_token":"second","expires_in":3600}""")
+            val token = runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+            assertEquals("second", token, "refresh status $refreshStatus")
+            assertEquals(
+                "password",
+                client.lastBody?.let { body ->
+                    body.split("&").first { it.startsWith("grant_type=") }.substringAfter("=")
+                },
+                "original grant re-run",
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth055 a network failure during a token request reaches the caller unchanged")
+    fun bhvAuth055NetworkFailureReachesTheCallerUnchanged() {
+        val manager = OAuth2TokenManager()
+        manager.apiClient = FakeApiClient()
+        val ex =
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking {
+                    manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+                }
+            }
+        assertEquals("No responses queued", ex.message)
     }
 
     @Test
