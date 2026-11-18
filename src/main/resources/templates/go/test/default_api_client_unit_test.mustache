@@ -12,8 +12,10 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+	"{{packageName}}/pkg/auth"
 	"{{packageName}}/pkg/auth/oauth"
 	pkgerrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
@@ -3231,6 +3233,101 @@ func TestBhvAuthoidc008_DefaultApiClientUnit_DiscoveryDoesNotSendTheTransportDef
 	}
 	if got := headers.Get("X-Default-Header"); got != "" {
 		t.Errorf("expected no transport default header on the discovery request, got %q", got)
+	}
+}
+
+// The token endpoint of a client-credentials grant is sent without the transport's
+// default headers, the same as a discovery request.
+func TestBhvAuth010_DefaultApiClientUnit_TokenEndpointRequestCarriesNoTransportDefaultHeaders(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"token-1","expires_in":3600}`))
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().DefaultHeader("X-Default-Header", "transport-default").Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+
+	authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
+		"https://api.example.com",
+		"client-id",
+		"client-secret",
+		server.URL+"/token",
+		[]string{"read"},
+	)
+	authenticator.SetApiClient(&authApiClientAdapter{inner: client})
+	if _, err := authenticator.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error from the token endpoint: %v", err)
+	}
+
+	var headers http.Header
+	select {
+	case headers = <-seen:
+	default:
+		t.Fatal("expected the token request to reach the server")
+	}
+	if got := headers.Get("X-Default-Header"); got != "" {
+		t.Errorf("expected no transport default header on the token request, got %q", got)
+	}
+}
+
+// A credential that sends HTTP requests is given the client's transport when the
+// client is built, so its token request reaches the server.
+func TestBhvAuth025_DefaultApiClientUnit_CredentialIsGivenTheClientTransportWhenBuilt(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"token-1","expires_in":3600}`))
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	credential := oauth.NewOAuth2ClientCredentialsAuthenticator(
+		"https://api.example.com",
+		"client-id",
+		"client-secret",
+		server.URL+"/token",
+		[]string{"read"},
+	)
+	_ = newClient("https://api.example.com", nil, map[string]Authenticator{"oauth": credential}, transport)
+
+	if _, err := credential.AuthHeadersOrError(); err != nil {
+		t.Fatalf("expected the credential to fetch its token through the client's transport, got %v", err)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Errorf("expected one token request to the server, got %d", got)
+	}
+}
+
+// Each credential field takes its passed value or else its own environment variable,
+// independently of the other fields.
+func TestBhvAuth024_DefaultApiClientUnit_EachCredentialFieldResolvesIndependently(t *testing.T) {
+	t.Setenv("BHV_AUTH024_USER", "user-from-env")
+	t.Setenv("BHV_AUTH024_PASSWORD", "")
+
+	user, err := auth.ResolveCredential("", "BHV_AUTH024_USER", "username")
+	if err != nil || user != "user-from-env" {
+		t.Errorf("expected the username from its variable, got %q (%v)", user, err)
+	}
+	password, err := auth.ResolveCredential("passed-password", "BHV_AUTH024_PASSWORD", "password")
+	if err != nil || password != "passed-password" {
+		t.Errorf("expected the passed password to win over its unset variable, got %q (%v)", password, err)
+	}
+	_, err = auth.ResolveCredential("", "BHV_AUTH024_PASSWORD", "password")
+	if !errors.Is(err, auth.ErrMissingCredential) {
+		t.Errorf("expected ErrMissingCredential when neither passed nor set, got %v", err)
 	}
 }
 

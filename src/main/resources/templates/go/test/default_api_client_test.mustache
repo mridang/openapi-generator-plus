@@ -1053,6 +1053,42 @@ func TestBhvRedirects001_DefaultApiClient_Redirect302HttpsToHttpDropsTheBodyAndB
 	}
 }
 
+// A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed, because those
+// statuses send the next request without a body.
+func TestBhvRedirects040_DefaultApiClient_Redirect301302303HttpsToHttpIsFollowed(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther} {
+		plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Location", plainTarget.URL+"/downgraded")
+			w.WriteHeader(status)
+		}))
+
+		transport, buildErr := NewTransportOptionsBuilder().
+			VerifySsl(false).
+			FollowRedirects(true).
+			Build()
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		client := NewDefaultApiClient(transport)
+		resp, err := client.SendRequest(
+			"POST", origin.URL+"/start",
+			map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+			[]byte("client_secret=hunter2"),
+		)
+		if err != nil {
+			t.Errorf("status %d: expected the HTTPS to HTTP redirect to be followed, got %v", status, err)
+		} else if resp.StatusCode != 200 {
+			t.Errorf("status %d: expected status 200 from the plaintext target, got %d", status, resp.StatusCode)
+		}
+		origin.Close()
+		plainTarget.Close()
+	}
+}
+
 // The downgrade guard protects a request BODY, so it must not fire when there
 // is none: a bodyless GET and a POST sent with a nil body (which carries an
 // empty body to get an explicit Content-Length: 0) both follow a 307/308
@@ -1906,6 +1942,61 @@ func TestBhvLifecycle022_DefaultApiClient_CloseReleasesTheTransportAtOnceAndASec
 	}
 	if closedConnections.Load() == 0 {
 		t.Error("expected Close to release the idle connection of the transport it created")
+	}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected a second Close to be a no-op, got %v", err)
+	}
+}
+
+// Closing while requests are in flight releases the transport only after the last
+// of them finishes, and releases it once.
+func TestBhvLifecycle037_DefaultApiClient_CloseReleasesOnlyAfterTheLastInFlightRequestAndOnce(t *testing.T) {
+	t.Parallel()
+	var closedConnections atomic.Int32
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started <- struct{}{}
+		<-release
+		w.WriteHeader(200)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateClosed {
+			closedConnections.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	done := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			_, err := client.SendRequest("GET", server.URL, map[string]string{}, nil)
+			done <- err
+		}()
+	}
+	<-started
+	<-started
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	if n := closedConnections.Load(); n != 0 {
+		t.Errorf("expected no connection released while requests are in flight, got %d", n)
+	}
+	close(release)
+	for i := 0; i < 2; i++ {
+		if err := <-done; err != nil {
+			t.Errorf("expected the request in flight to finish, got %v", err)
+		}
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for closedConnections.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if closedConnections.Load() == 0 {
+		t.Error("expected the transport released once the last request finished")
 	}
 	if err := client.Close(); err != nil {
 		t.Errorf("expected a second Close to be a no-op, got %v", err)
