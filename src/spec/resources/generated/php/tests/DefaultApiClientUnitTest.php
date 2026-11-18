@@ -2197,7 +2197,7 @@ test('bhv retries 022 Retry-After as an HTTP date is honoured', function (): voi
     expect($client->pauses[0])->toBeGreaterThan(25.0)->toBeLessThanOrEqual(30.0);
 });
 
-test('an unreadable Retry-After falls back to the backoff', function (): void {
+test('bhv retries 029 falls back to the backoff when Retry-After is not understood', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $client = retryTestClient([[503, ['Retry-After' => 'soon']], 200], null, $log);
@@ -2682,6 +2682,13 @@ test('bhv serializationwire 040 a multipart file without an extension defaults t
     $guess = new \ReflectionMethod(DefaultApiClient::class, 'guessMimeType');
 
     expect($guess->invoke($client, null, 'blob'))->toBe('application/octet-stream');
+});
+
+test('bhv serializationwire 056 a multipart file with an unknown extension falls back to octet stream', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+    $guess = new \ReflectionMethod(DefaultApiClient::class, 'guessMimeType');
+
+    expect($guess->invoke($client, null, 'blob.xyzzy'))->toBe('application/octet-stream');
 });
 
 test('bhv serializationwire 050 a multipart filename containing a NUL byte is rejected', function (): void {

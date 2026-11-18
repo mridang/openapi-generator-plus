@@ -454,6 +454,10 @@ test('slash and non ascii text in a model body are written literally', function 
     expect(ObjectSerializer::serialize($category))->toBe('{"id":1,"name":"https://x/y café"}');
 });
 
+test('bhv serializationobject 186 request JSON escapes the quote, the backslash and each control character', function (): void {
+    expect(ObjectSerializer::serialize("\"\\\x01\x1f"))->toBe('"\\"\\\\\\u0001\\u001f"');
+});
+
 test('bhv serializationobject 160 tab character escaped properly in json', function (): void {
     $result = ObjectSerializer::serialize("a\tb");
     expect($result)->toContain('\t');
@@ -997,6 +1001,11 @@ test('bhv serializationobject 112 deserialize duration as DateInterval parses pr
     expect($result->invert)->toBe(0);
     // round-trips back to the canonical protobuf form.
     expect(ObjectSerializer::formatProtobufDuration($result))->toBe('3600s');
+});
+
+test('bhv serializationobject 184 an ISO-8601 duration string is rejected', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('"PT1H"', 'DateInterval'))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
 test('bhv serializationobject 054 deserialize duration parses fractional protobuf seconds', function (): void {
@@ -2276,7 +2285,7 @@ test('bhv serializationobject 207 a non-standard base64 value is rejected on dec
     'not base64' => ['!!!!'],
 ]);
 
-test('byte field decode accepts strict base64', function (): void {
+test('bhv serializationobject 185 deserialize accepts canonical padded base64', function (): void {
     /** @var PetPassport $passport */
     $passport = ObjectSerializer::deserialize('{"thumbnail":"dGVzdA=="}', PetPassport::class);
     expect($passport->thumbnail)->toBe('test');

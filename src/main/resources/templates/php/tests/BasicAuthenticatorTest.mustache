@@ -136,7 +136,7 @@ test('bhv authbasic 001 basic credentials are read from the environment when non
     });
 });
 
-test('an explicit basic credential wins over the environment', function (): void {
+test('bhv authbasic 013 explicit credentials win over the environment', function (): void {
     withBasicEnvironment('env-user', 'env-secret', function (): void {
         $auth = new {{className}}('https://api.example.com', 'alice', 'explicit-secret');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic ' . base64_encode('alice:explicit-secret'));
