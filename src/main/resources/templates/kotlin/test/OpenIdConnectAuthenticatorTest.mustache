@@ -129,7 +129,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun aFailedDiscoveryReportsItsRequest() {
+    fun bhvAuthoidc033AFailedDiscoveryReportsItsRequest() {
         val client = FakeApiClient()
         client.enqueue("down", statusCode = 503)
         val auth = createAuthenticator()
@@ -440,7 +440,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun throwsWhenDiscoveredEndpointIsNotHttps() {
+    fun bhvAuthoidc032ThrowsWhenDiscoveredEndpointIsNotHttps() {
         // F859: the token endpoint receives the client secret and the code.
         val client = FakeApiClient()
         client.enqueue(
@@ -467,7 +467,7 @@ class OpenIdConnectAuthenticatorTest {
         """{"issuer":"https://auth.example.com","authorization_endpoint":"$authorizeUrl","token_endpoint":"https://auth.example.com/token"}"""
 
     @Test
-    fun discoveryIsFetchedAgainOnceItsMaxAgeHasElapsed() {
+    fun bhvAuthoidc031DiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize-v1"), headers = mapOf("cache-control" to "public, max-age=0"))
         client.enqueue(discovery("https://auth.example.com/authorize-v2"))
@@ -691,5 +691,18 @@ class OpenIdConnectAuthenticatorTest {
 
         assertEquals(1, gets)
         assertEquals(5, urls.size)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoidc030 a discovery document served with max-age=0 is fetched again on every use")
+    fun discoveryWithMaxAgeZeroIsFetchedOnEveryUse() {
+        val client = FakeApiClient()
+        repeat(3) {
+            client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("cache-control" to "max-age=0"))
+        }
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        repeat(3) { runBlocking { auth.buildAuthorizationUrl() } }
+        assertEquals(3, client.getCount)
     }
 }

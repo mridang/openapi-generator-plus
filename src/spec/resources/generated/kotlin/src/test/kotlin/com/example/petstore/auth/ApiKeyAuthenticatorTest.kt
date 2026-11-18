@@ -481,7 +481,7 @@ class ApiKeyAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: the argument wins over the environment variable, which wins over the provider")
+    @DisplayName("bhvAuthscheme009 a credential passed explicitly wins over its environment variable")
     fun precedenceIsArgumentThenEnvironmentThenProvider() =
         runBlocking {
             val provider: suspend () -> String = { "from-provider" }
