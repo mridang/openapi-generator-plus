@@ -864,7 +864,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void OptionalFieldsMayBeOmitted()
+        public void BhvSerializationobject231OptionalFieldsMayBeOmitted()
         {
             // Only the required fields are present; all optional fields absent.
             var json = "{\"name\":\"Fido\",\"photoUrls\":[\"u\"]}";
@@ -1040,6 +1040,21 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvSerializationobject229DeserializeMapOfModelsReturnsAnInstanceForEachValue()
+        {
+            var json = "{\"dogs\":{\"id\":1,\"name\":\"Dogs\"},\"cats\":{\"id\":2,\"name\":\"Cats\"}}";
+
+            var map = _serializer.Deserialize<Dictionary<string, Category>>(json);
+
+            Assert.NotNull(map);
+            Assert.Equal(2, map!.Count);
+            Assert.IsType<Category>(map["dogs"]);
+            Assert.Equal("Dogs", map["dogs"].Name);
+            Assert.IsType<Category>(map["cats"]);
+            Assert.Equal("Cats", map["cats"].Name);
+        }
+
+        [Fact]
         public void DictionaryOfPetEntriesAreNotRawJsonElement()
         {
             var json = "{\"a\":{\"id\":7,\"name\":\"A\",\"photoUrls\":[\"u\"]}}";
@@ -1135,6 +1150,17 @@ public static class ObjectSerializerTest
             Assert.Equal("10:30:00", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0)));
             Assert.Equal("10:30:00.123", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 123)));
             Assert.Equal("10:30:00.050", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 50)));
+        }
+
+        [Fact]
+        public void BhvSerializationobject230TimeStringifiedThenParsedYieldsTheSameValue()
+        {
+            var original = new TimeOnly(7, 30, 15);
+            var text = ObjectSerializer.Stringify(original);
+
+            var parsed = _serializer.Deserialize<EdgeCases>("{\"cutoff\":\"" + text + "\"}");
+
+            Assert.Equal(original, parsed!.Cutoff);
         }
 
         [Fact]

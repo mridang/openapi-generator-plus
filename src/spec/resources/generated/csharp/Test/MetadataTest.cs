@@ -213,6 +213,20 @@ public class MetadataTest
     }
 
     [Fact]
+    public void BhvSerializationobject227ModelExternalDocsDescriptionIsDocumentedVerbatim()
+    {
+        var account = File.ReadAllText(
+            Path.Combine(ProjectRoot().FullName, "src", "PetstoreClient", "Models", "Account.cs")
+        );
+
+        Assert.Contains(
+            "<![CDATA[Account <docs> & \"notes\" it's here]]>",
+            account,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public void ProjectFileWritesTheDocumentationFileAndPacksTheReadmeAndSymbols()
     {
         var projectFolder = Path.Combine(ProjectRoot().FullName, "src", "PetstoreClient");

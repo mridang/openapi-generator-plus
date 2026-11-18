@@ -245,6 +245,55 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void BhvServers020RejectsAServerVariableValueOutsideItsEnum()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        Assert.Throws<ArgumentException>(
+            () => server.GetUrl(new Dictionary<string, string> { ["env"] = "dev" }));
+    }
+
+    [Fact]
+    public void BhvServers021ResolvesSpecialCharactersInDefaultAndEnumValuesRaw()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("o'neil", null, ["o'neil", "a&b"]),
+            }
+        );
+
+        Assert.Equal("https://o'neil.example.com/api", server.GetUrl());
+        Assert.Equal("https://a&b.example.com/api", server.GetUrl(new Dictionary<string, string> { ["env"] = "a&b" }));
+    }
+
+    [Fact]
+    public void BhvServers023ReplacementPatternsInAValueAreSubstitutedLiterally()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, []),
+            }
+        );
+
+        Assert.Equal(
+            "https://$1$&$$.example.com",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "$1$&$$" }));
+    }
+
+    [Fact]
     public void GetUrlNullOverridesThrows()
     {
         var server = new ServerConfiguration(

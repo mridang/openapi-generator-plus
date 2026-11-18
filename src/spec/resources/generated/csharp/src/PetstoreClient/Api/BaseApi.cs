@@ -508,6 +508,7 @@ public abstract class BaseApi
                 typeof(T) == typeof(byte[])
                 && responseContentType != null
                 && HeaderSelector.IsJsonMime(responseContentType)
+                && response.Body.TrimStart().StartsWith('"')
             )
             {
                 /* A top-level `format: byte` response carried as application/json
