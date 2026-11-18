@@ -2023,5 +2023,6 @@ langjava057 | The project manifest declares a description.
 langjava058 | A composed schema with no matching branch throws a deserialization error.
 langjava059 | The configuration's string form omits the call hook.
 langjava060 | A generated PKCE verifier is 43 unreserved characters and differs on each call.
+langjava061 | A failed first token exchange leaves no session behind and is not repeated.
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
 langjava064 | A null path parameter beside a null required options object is the first violation reported.
