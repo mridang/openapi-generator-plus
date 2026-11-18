@@ -2375,3 +2375,5 @@ langphp030 | A required cookie parameter is sent when a value is supplied.
 langphp031 | The password authenticator masks its client secret and password in debug output.
 langphp032 | The OpenID Connect authenticator masks its client secret in debug output.
 langphp033 | A third global server keeps its URL, description and variable through a round trip.
+langphp034 | A multipart text part carries only a Content-Disposition header.
+langphp035 | The retry backoff doubles from half a second up to a cap of eight seconds.
