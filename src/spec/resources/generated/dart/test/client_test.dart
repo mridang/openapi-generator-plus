@@ -95,6 +95,22 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 204 Constructing a client without a required host or token fails immediately with a missing-credential error.',
+      () {
+        if (Platform.environment[BearerAuthenticator
+                .defaultEnvironmentVariable] !=
+            null) {
+          return;
+        }
+
+        expect(
+          () => Client.withToken(host: '/api/v3'),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
     test('bhv lifecycle 012 construct with authenticator only', () {
       final authenticator = BearerAuthenticator(
         host: '/api/v3',
@@ -217,6 +233,22 @@ void main() {
 
     test(
       'bhv lifecycle 013 close on a client that built its own transport is idempotent',
+      () {
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://localhost:1',
+            token: 'test-token',
+          ),
+        );
+
+        client.close();
+
+        expect(client.close, returnsNormally);
+      },
+    );
+
+    test(
+      'bhv misc 203 Calling close on a client that is already closed does nothing and raises no error.',
       () {
         final client = Client(
           authenticator: BearerAuthenticator(
@@ -355,6 +387,35 @@ void main() {
 
     test(
       'bhv lifecycle 030 the base URL comes from the default authenticator first, then from the first scheme credential',
+      () {
+        final scheme = BearerAuthenticator(
+          host: 'https://scheme.example.com',
+          token: 'tok',
+        );
+        final fallback = BearerAuthenticator(
+          host: 'https://default.example.com',
+          token: 'tok',
+        );
+
+        final withDefault = Client(
+          authenticator: fallback,
+          petStoreBasic: scheme,
+        );
+        final schemeOnly = Client(petStoreBasic: scheme);
+
+        expect(
+          withDefault.pet.config.baseUrl,
+          equals('https://default.example.com'),
+        );
+        expect(
+          schemeOnly.pet.config.baseUrl,
+          equals('https://scheme.example.com'),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 206 A client built with only a default authenticator is constructed successfully and takes its host from that authenticator.',
       () {
         final scheme = BearerAuthenticator(
           host: 'https://scheme.example.com',

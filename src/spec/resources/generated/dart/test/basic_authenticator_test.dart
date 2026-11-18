@@ -47,6 +47,24 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 207 A credential that is not passed to the constructor or with_token call is read from the matching environment variable.',
+      () {
+        final environment = {
+          BasicAuthenticator.defaultUsernameVariable: 'alice',
+          BasicAuthenticator.defaultPasswordVariable: 'pw1',
+        };
+        final auth = BasicAuthenticator(
+          host: 'https://api.example.com',
+          environment: environment,
+        );
+
+        environment[BasicAuthenticator.defaultUsernameVariable] = 'bob';
+
+        expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
+      },
+    );
+
     test('bhv authbasic 012 an empty variable counts as unset', () {
       expect(
         () => BasicAuthenticator(
@@ -59,6 +77,41 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test(
+      'bhv misc 208 An environment variable set to an empty value is treated the same as an unset one when the implicit authenticator looks up its credential.',
+      () {
+        expect(
+          () => BasicAuthenticator(
+            host: 'https://api.example.com',
+            environment: {
+              BasicAuthenticator.defaultUsernameVariable: '',
+              BasicAuthenticator.defaultPasswordVariable: 'pw1',
+            },
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'bhv misc 205 when a credential is found nowhere, the missing-credential error names the variable that should supply it',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: 'https://api.example.com',
+            environment: const {},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(BearerAuthenticator.defaultEnvironmentVariable),
+            ),
+          ),
+        );
+      },
+    );
 
     test(
       'bhv authbasic 003 missing or empty credentials fail at construction',
@@ -324,7 +377,46 @@ void main() {
     );
 
     test(
+      'bhv misc 196 A scheme wrapper with no token from its argument or environment fails with an error.',
+      () {
+        expect(
+          () => AdminBasicAuthenticator(
+            host: 'https://api.example.com',
+            environment: const {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv authbasic 019 generated basic scheme wrappers emit the same Basic header as the base authenticator',
+      () {
+        final secret = ['s3', 'cret'].join();
+        final base = BasicAuthenticator(
+          host: 'https://api.example.com',
+          username: 'alice',
+          password: secret,
+        );
+        builders.forEach((name, build) {
+          expect(
+            build('alice', secret).authHeaders(),
+            equals(base.authHeaders()),
+          );
+        });
+      },
+    );
+
+    test(
+      'bhv misc 193 The Basic and Bearer scheme authenticators send the same header as their base authenticators and reject invalid input the same way.',
       () {
         final secret = ['s3', 'cret'].join();
         final base = BasicAuthenticator(
