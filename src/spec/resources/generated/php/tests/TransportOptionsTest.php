@@ -275,7 +275,7 @@ test('bhv options 008 a rejected proxy url never carries its userinfo into the m
     ],
 ]);
 
-test('constructor accepts a valid proxy and none', function (): void {
+test('bhv options 067 constructor accepts a valid proxy and none', function (): void {
     expect((new TransportOptions(proxy: 'https://proxy:3128'))->proxy)->toBe('https://proxy:3128');
     expect((new TransportOptions())->proxy)->toBeNull();
 });
@@ -337,7 +337,7 @@ test('bhv options 007 constructor rejects a negative max retries', function (): 
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
 });
 
-test('debug output shows the max retries', function (): void {
+test('bhv options 064 debug output shows the max retries', function (): void {
     expect(print_r(TransportOptions::builder()->maxRetries(4)->build(), true))->toContain('[maxRetries] => 4');
 });
 

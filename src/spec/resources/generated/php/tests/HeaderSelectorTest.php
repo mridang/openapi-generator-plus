@@ -156,7 +156,7 @@ test('bhv headers 003 should not reorder json types ahead of others', function (
     expect($headers['Accept'])->toEqual('text/html, application/vnd.api+json, application/json');
 });
 
-test('should not add quality weights', function (): void {
+test('bhv headers 032 should not add quality weights', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['text/html', 'application/json'],
         'application/json',

@@ -114,7 +114,7 @@ test('secret constructor parameters are marked sensitive', function (): void {
     expect($sensitive)->toBe(['token']);
 });
 
-test('rejected token is not recorded in the exception stack trace', function (): void {
+test('bhv auth 018 rejected token is not recorded in the exception stack trace', function (): void {
     // Exception backtraces record call arguments when zend.exception_ignore_args
     // is Off (the built-in default); a sensitive parameter is replaced by a
     // placeholder so the secret never reaches getTraceAsString().
@@ -374,4 +374,60 @@ test('bhv authbearer 026 a token and a token provider passed together are refuse
 test('bhv authbearer 027 a whitespace only token is refused at construction', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', " \t "))
         ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv auth 009 a bearer token that is blank or holds a control character is refused when built', function (string $token): void {
+    expect(fn () => new BearerAuthenticator('https://api.example.com', $token))
+        ->toThrow(\InvalidArgumentException::class);
+})->with([
+    'blank' => [' '],
+    'carriage return' => ["abc\rdef"],
+    'line feed' => ["abc\ndef"],
+    'nul' => ["abc\x00def"],
+]);
+
+test('a bearer token from a provider that holds a line feed is refused when the header is built', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', null, fn (): string => "abc\ndef");
+    expect(fn (): array => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv auth 012 each refused bearer token states why it was refused', function (): void {
+    $messages = [];
+    foreach (['', "abc\ndef", "tökén"] as $token) {
+        try {
+            new BearerAuthenticator('https://api.example.com', $token);
+        } catch (\InvalidArgumentException $e) {
+            $messages[] = $e->getMessage();
+        }
+    }
+    expect($messages)->toHaveCount(3);
+    expect($messages[0])->toContain('must not be empty');
+    expect($messages[1])->toContain('printable ASCII');
+    expect($messages[2])->toContain('printable ASCII');
+});
+
+test('bhv auth 023 an explicitly passed empty bearer token is refused and not replaced by any other source', function (): void {
+    expect(fn () => new BearerAuthenticator('https://api.example.com', ''))
+        ->toThrow(\InvalidArgumentException::class, 'must not be empty');
+});
+
+test('a bearer authenticator built with no token, no provider and no environment is refused', function (): void {
+    expect(fn () => new BearerAuthenticator('https://api.example.com'))
+        ->toThrow(\InvalidArgumentException::class, 'Bearer token is required');
+    expect(fn () => new BearerAuthenticator('https://api.example.com'))
+        ->toThrow(\InvalidArgumentException::class, 'Bearer token is required');
+});
+
+test('the printable form of a bearer authenticator names its type and never shows the token', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', 'tok-secret-123');
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+    $printR = print_r($auth, true);
+
+    expect($varDump)->toContain('BearerAuthenticator');
+    expect($varDump)->not->toContain('tok-secret-123');
+    expect($printR)->toContain('BearerAuthenticator');
+    expect($printR)->not->toContain('tok-secret-123');
 });

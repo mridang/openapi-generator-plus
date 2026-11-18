@@ -518,7 +518,7 @@ test('multipart file part carries no content transfer encoding', function (): vo
     }
 });
 
-test('multipart psr7 stream part is sent as a file part with its bytes', function (): void {
+test('bhv serialization 059 multipart psr7 stream part is sent as a file part with its bytes', function (): void {
     $capturedBody = '';
     $mockClient = new MockHttpClient(
         function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
@@ -569,7 +569,7 @@ test('bhv serializationwire 038 multipart pdf file gets application pdf content 
     }
 });
 
-test('multipart resource falls back to octet stream', function (): void {
+test('bhv serialization 058 multipart resource falls back to octet stream', function (): void {
     $stream = fopen('php://temp', 'w+');
     expect($stream)->toBeResource();
     fwrite($stream, "\x00\xFF\x42 raw bytes");
@@ -733,7 +733,7 @@ test('multipart text parts carry only a content disposition like the psr18 clien
     expect($capturedBody)->not->toContain('Content-Type');
 });
 
-test('decodes iso 8859 1 error body to utf 8', function (): void {
+test('bhv serialization 055 decodes iso 8859 1 error body to utf 8', function (): void {
     $body = "\xE9rreur"; // ISO-8859-1 'érreur'
     $mockResponse = new MockResponse($body, [
         'http_code' => 500,
@@ -1066,7 +1066,7 @@ test('bhv redirects 014 no redirect false still follows redirects', function ():
     expect($response->statusCode)->toBe(200);
 });
 
-test('resolves a relative Location per RFC 3986', function (string $location, string $expected): void {
+test('bhv redirects 043 resolves a relative Location per RFC 3986', function (string $location, string $expected): void {
     $urls = [];
     $mockClient = new MockHttpClient(
         function (string $method, string $url) use (&$urls, $location): MockResponse {
@@ -1138,7 +1138,7 @@ test('bhv retries 020 https to http downgrade refuses body replay on 308', funct
         });
 });
 
-test('https to http downgrade on get without body still follows', function (): void {
+test('bhv redirects 039 https to http downgrade on get without body still follows', function (): void {
     /* The downgrade guard only fires for body-bearing replays. A plain
      * GET (no body) is allowed to follow a 307/308 downgrade since
      * there's no body to leak. */
@@ -1155,7 +1155,7 @@ test('https to http downgrade on get without body still follows', function (): v
     expect($response->statusCode)->toBe(200);
 });
 
-test('https to https with body still follows on 307', function (): void {
+test('bhv redirects 038 https to https with body still follows on 307', function (): void {
     /* Same-scheme HTTPS redirects must still replay the body; the guard
      * only applies to the downgrade direction. */
     $hop = new MockResponse('', [
@@ -1182,7 +1182,7 @@ test('https to https with body still follows on 307', function (): void {
 // refuses body-replay on every redirect status). Co-located with the existing
 // 307/308 body-replay tests above (their working MockHttpClient harness).
 
-test('N1: 302 https to http downgrade with body proceeds as get', function (): void {
+test('bhv redirects 040 N1: 302 https to http downgrade with body proceeds as get', function (): void {
     /* A 302 from an HTTPS origin to an HTTP URL while carrying a POST body
      * must NOT throw — 301/302 force the follow-up to GET and drop the body,
      * so there is no plaintext body to leak. The request proceeds. */
@@ -1288,7 +1288,7 @@ test('bhv redirects 010 a 3xx whose Location is absent or unparseable comes back
     'malformed location' => [['Location' => 'http://[bad']],
 ]);
 
-test('a token request does not carry the transport default headers', function (): void {
+test('bhv auth 010 a token request does not carry the transport default headers', function (): void {
     $seen = [];
     $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
         $seen = $options['headers'];
@@ -1426,7 +1426,7 @@ test('bhv errors 040 malformed request URL raises invalid argument exception', f
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('an unreadable caCertPath names the path and the cause', function (): void {
+test('bhv errors 083 an unreadable caCertPath names the path and the cause', function (): void {
     $transport = TransportOptions::builder()->caCertPath('/nonexistent/ca.pem')->build();
 
     expect(fn (): mixed => new DefaultApiClient($transport))
@@ -2723,4 +2723,150 @@ test('bhv errors 057 a network failure error carries the request method and the 
         expect($e->getRequestMethod())->toBe('GET');
         expect($e->getRequestPath())->toBe('/items');
     }
+});
+
+test('bhv errors 078 a network failure message never shows the query string of the request url', function (): void {
+    $refused = static function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TransportException(
+            'Could not resolve host for http://example.com/items?token=secret-value'
+        );
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($refused));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/items?token=secret-value', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\{{invokerPackage}}\Errors\NetworkException $e) {
+        expect($e->getMessage())->not->toContain('secret-value');
+        expect($e->getMessage())->toContain('http://example.com/items');
+    }
+});
+
+test('bhv transport 067 a successful response with no body is returned as a success with an empty body', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('', ['http_code' => 204])));
+
+    $response = $client->sendRequest('DELETE', 'http://example.com/item', [], null);
+
+    expect($response->statusCode)->toBe(204);
+    expect($response->body)->toBe('');
+});
+
+test('bhv transport 070 a per call timeout caps the request deadline at that call timeout', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = $options;
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->timeout(60000)->build());
+
+    $client->sendWithRetries('GET', 'http://example.com/a', static fn (): array => [], null, timeoutMs: 5000);
+
+    expect((float) $seen[0]['timeout'])->toBeLessThanOrEqual(5.0);
+    expect((float) $seen[0]['max_duration'])->toBeLessThanOrEqual(5.0);
+});
+
+test('bhv transport 071 a single configured timeout is passed to every timed phase of the request', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = $options;
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), TransportOptions::builder()->timeout(1000)->build());
+
+    $client->sendWithRetries('GET', 'http://example.com/a', static fn (): array => [], null);
+
+    expect((float) $seen[0]['timeout'])->toBe(1.0);
+    expect((float) $seen[0]['max_duration'])->toBeGreaterThan(0.0);
+});
+
+test('bhv transport 072 a deadline that expires while connecting raises the timeout error and a refused connection does not', function (): void {
+    $timedOut = new StubbedDefaultApiClient(new MockHttpClient(function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TimeoutException('Connection timed out');
+    }));
+    try {
+        $timedOut->sendRequest('GET', 'http://example.com/connect', [], null);
+        test()->fail('Expected NetworkTimeoutException');
+    } catch (\{{invokerPackage}}\Errors\NetworkTimeoutException $e) {
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\NetworkException::class);
+    }
+
+    $refused = new StubbedDefaultApiClient(new MockHttpClient(function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+    }));
+    try {
+        $refused->sendRequest('GET', 'http://example.com/connect', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\{{invokerPackage}}\Errors\NetworkException $e) {
+        expect($e)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
+    }
+});
+
+test('bhv transport 073 a compressed response whose stream is cut short raises the api error, not the raw bytes', function (): void {
+    $truncated = substr((string) gzencode('{"ok":true}'), 0, 8);
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse($truncated, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Encoding' => 'gzip'],
+    ])));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/echo', [], null);
+        test()->fail('Expected ApiException');
+    } catch (ApiException $e) {
+        expect($e::class)->toBe(ApiException::class);
+        expect($e->getCode())->toBe(200);
+    }
+});
+
+test('bhv transport 075 a zstd body with no declared decoded size is decoded completely', function (): void {
+    expect(function_exists('zstd_compress'))->toBeTrue();
+    $payload = str_repeat("\x00", 4 * 1024 * 1024);
+    $compressed = (string) zstd_compress($payload);
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse($compressed, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Encoding' => 'zstd'],
+    ])));
+
+    $response = $client->sendRequest('GET', 'http://example.com/zstd', [], null);
+
+    expect(strlen($response->body))->toBe(strlen($payload));
+});
+
+test('bhv transport 077 a ca certificate path that names a directory or holds no certificate fails at construction naming the path', function (): void {
+    $directory = sys_get_temp_dir();
+    expect(fn (): mixed => new DefaultApiClient(TransportOptions::builder()->caCertPath($directory)->build()))
+        ->toThrow(\InvalidArgumentException::class, $directory);
+
+    $empty = (string) tempnam(sys_get_temp_dir(), 'ca');
+    try {
+        expect(fn (): mixed => new DefaultApiClient(TransportOptions::builder()->caCertPath($empty)->build()))
+            ->toThrow(\InvalidArgumentException::class, $empty);
+    } finally {
+        unlink($empty);
+    }
+});
+
+test('bhv transport 082 a request made with default configuration completes and returns its response', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('ok', ['http_code' => 200])));
+
+    $response = $client->sendRequest('GET', 'http://example.com/default', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('ok');
+});
+
+test('bhv serialization 057 a multipart name holding a line break is refused before any request is sent', function (): void {
+    expect(fn () => DefaultApiClient::validateMultipartFilename("a\nb.pdf"))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => DefaultApiClient::validateMultipartFilename("a\rb.pdf"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 036 closing a client a second time raises no error and releases nothing further', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+
+    $client->close();
+    $client->close();
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
+        ->toThrow(\LogicException::class);
 });

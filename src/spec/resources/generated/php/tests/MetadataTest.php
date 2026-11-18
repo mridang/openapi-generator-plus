@@ -13,7 +13,7 @@ test('bhv models 008 serializes empty metadata', function (): void {
     expect($json)->not->toBeEmpty();
 });
 
-test('additional properties start as an empty map, never null', function (): void {
+test('bhv models 013 additional properties start as an empty map, never null', function (): void {
     $metadata = new Metadata();
 
     expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
@@ -149,7 +149,7 @@ test('bhv models 010 a declared property wins over a colliding additional proper
     expect(substr_count($json, '"createdAt"'))->toBe(1);
 });
 
-test('a model property cannot be assigned after construction', function (): void {
+test('bhv models 014 a model property cannot be assigned after construction', function (): void {
     $category = new \PetstoreClient\Models\Category(id: 1, name: 'Dogs');
 
     $property = new \ReflectionProperty($category, 'name');
@@ -158,7 +158,7 @@ test('a model property cannot be assigned after construction', function (): void
     expect($category->name)->toBe('Dogs');
 });
 
-test('a with method returns a changed copy and leaves the model as it was', function (): void {
+test('bhv models 017 a with method returns a changed copy and leaves the model as it was', function (): void {
     $category = new \PetstoreClient\Models\Category(id: 1, name: 'Dogs');
 
     $renamed = $category->withName('Cats');
@@ -178,7 +178,7 @@ test('bhv models 012 the field dump lists the fields and the additional properti
     expect($dump)->toContain('customField');
 });
 
-test('a with method carries the additional properties over to the copy', function (): void {
+test('bhv models 015 a with method carries the additional properties over to the copy', function (): void {
     /** @var \Ds\Map<string, mixed> $extra */
     $extra = new \Ds\Map(['customField' => 'hello']);
     $metadata = (new Metadata())->withAdditionalProperties($extra);

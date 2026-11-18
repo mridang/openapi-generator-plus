@@ -478,7 +478,7 @@ test('bhv serializationparam 080 reserved characters stay literal and other char
     expect(ValueSerializer::encodeQueryAllowingReserved('a#b[c]d e'))->toBe('a%23b%5Bc%5Dd%20e');
 });
 
-test('styled path scalar preserves sub delimiters not over encoded', function (): void {
+test('bhv serialization 005 styled path scalar preserves sub delimiters not over encoded', function (): void {
     // php-rawurlencode-overencodes regression on the styled per-item path.
     expect(ValueSerializer::serializeStyled('id', 'a,b', 'path', 'string', null, 'simple', false))->toBe('a,b');
     expect(ValueSerializer::serializeStyled('id', 'a:b', 'path', 'string', null, 'simple', false))->toBe('a:b');
@@ -579,12 +579,12 @@ test('bhv operations 139 format time param keeps non zero milliseconds and drops
     'sub millisecond only' => ['2024-01-01T10:30:00.0004+00:00', '10:30:00'],
 ]);
 
-test('format time path param is never a full date-time', function (): void {
+test('bhv serialization 043 format time path param is never a full date-time', function (): void {
     $time = new \DateTimeImmutable('2024-01-01T10:30:00.5+00:00');
     expect(ValueSerializer::serialize($time, 'path', '\\DateTimeImmutable'))->toBe('10%3A30%3A00.500');
 });
 
-test('format date only helper drops the time component', function (): void {
+test('bhv serialization 044 format date only helper drops the time component', function (): void {
     expect(ValueSerializer::formatDateOnly(new \DateTime('2024-01-01T10:30:45+00:00')))->toBe('2024-01-01');
     expect(ValueSerializer::formatDateOnly(new \DateTimeImmutable('2024-12-31T23:59:59+00:00')))->toBe('2024-12-31');
     expect(ValueSerializer::formatDateOnly(null))->toBeNull();

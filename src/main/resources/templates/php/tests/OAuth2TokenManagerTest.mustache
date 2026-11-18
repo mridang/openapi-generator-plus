@@ -786,7 +786,7 @@ test('bhv authoauthtwotokenmgr 015 failed exchange restores the previous session
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
-test('a failed first exchange leaves the session unexchanged', function (): void {
+test('bhv auth 028 a failed first exchange leaves the session unexchanged', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         400,
@@ -852,4 +852,93 @@ test('bhv authoauthtwotokenmgr 047 an oauth2 server error without an error code 
         expect($error->rawBody)->toBe('<html>bad gateway</html>');
         expect($error->getMessage())->toBe('Token request failed with status 502: <html>bad gateway</html>');
     }
+});
+
+test('bhv auth 002 invalidating before any exchange raises nothing and sends no request', function (): void {
+    $client = new MockTokenApiClient();
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->invalidateAccessToken();
+
+    expect($client->capturedRequests)->toBe([]);
+    expect($manager->isExchanged())->toBeFalse();
+});
+
+test('bhv auth 017 a form token body writes a space as plus and percent encodes other reserved punctuation', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('access', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', [
+        'grant_type' => 'password',
+        'username' => 'a b',
+        'password' => 'x&y=z+~-_.*',
+    ]);
+
+    expect($client->capturedRequests[0]['body'])
+        ->toBe('grant_type=password&username=a+b&password=x%26y%3Dz%2B~-_.%2A');
+});
+
+test('bhv auth 026 a failed refresh and a failed fallback grant raise the fallback error with its status', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('first', 0, 'revoked_refresh'));
+    $client->enqueueResponse(new ApiHttpResponse(401, (string) json_encode(['error' => 'invalid_grant']), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(503, (string) json_encode(['error' => 'temporarily_unavailable']), ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        test()->fail('Expected OAuth2ServerException');
+    } catch (OAuth2ServerException $error) {
+        expect($error->statusCode)->toBe(503);
+        expect($error->errorCode)->toBe('temporarily_unavailable');
+    }
+});
+
+test('bhv errors 082 a token error keeps its valid code when its description or uri is malformed', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(400, (string) json_encode([
+        'error' => 'invalid_grant',
+        'error_description' => 42,
+        'error_uri' => ['https://example.com/help'],
+    ]), ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        test()->fail('Expected OAuth2ServerException');
+    } catch (OAuth2ServerException $error) {
+        expect($error->errorCode)->toBe('invalid_grant');
+        expect($error->description)->toBeNull();
+        expect($error->uri)->toBeNull();
+    }
+});
+
+test('a non string error value is not taken as an error code', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(400, (string) json_encode(['error' => 7]), ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        test()->fail('Expected OAuth2ServerException');
+    } catch (OAuth2ServerException $error) {
+        expect($error->errorCode)->toBeNull();
+    }
+});
+
+test('bhv auth 001 a header call on a credential that needs its token exchange raises and never returns headers', function (): void {
+    $manager = new OAuth2TokenManager();
+
+    expect(fn (): string => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(\LogicException::class);
 });

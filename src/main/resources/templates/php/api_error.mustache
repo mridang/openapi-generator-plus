@@ -339,9 +339,11 @@ class ApiException extends {{errorPrefix}}Exception
         }
         if ($this->responseBody !== null && $this->responseBody !== '') {
             $body = $this->responseBody;
-            $omitted = strlen($body) - self::MAX_RENDERED_BODY_BYTES;
-            if ($omitted > 0) {
-                $body = substr($body, 0, self::MAX_RENDERED_BODY_BYTES);
+            $omitted = 0;
+            if (strlen($body) > self::MAX_RENDERED_BODY_BYTES) {
+                /* mb_strcut cuts at a byte offset without splitting a multi-byte character. */
+                $body = mb_strcut($body, 0, self::MAX_RENDERED_BODY_BYTES, 'UTF-8');
+                $omitted = strlen($this->responseBody) - strlen($body);
             }
             /* A hostile server must not forge log lines, so control characters
              * are shown escaped. The full body stays on getResponseBody(). */

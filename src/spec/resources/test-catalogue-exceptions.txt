@@ -243,3 +243,12 @@ node | serialization049 | Schema format constraints are not enforced at run time
 node | serialization036 | JavaScript has one number type, so 1.0 and 1 are the same value and JSON.stringify writes a whole number without a decimal point; no float-typed value exists that could carry the point
 node | serialization040 | the fixture's only form-urlencoded operation declares string fields, so no generated operation can send a date-time, duration, number, integer or boolean as a form field; their wire text is pinned by the serializationparam tests
 node | redirects044 | the proxy credential is set on the undici ProxyAgent dispatcher, which a stubbed fetch never sees, so only the caller-header removal half is observable and that is covered by redirects 011 and 012
+php | transport068 | PHP has no per-call cancellation (S7): a call takes no cancellation signal, so there is no already-cancelled call to refuse before a request is sent
+php | transport069 | PHP has no per-call cancellation (S7): a call takes no cancellation signal or context, so no signal can reach the transport request
+php | auth013 | PHP has no per-call cancellation (S7): a token request takes no cancellation signal, so cancelling a call cannot stop the token request it started
+php | auth027 | PHP has no per-call cancellation (S7): a token refresh cannot be cancelled, so no cancelled refresh can be rethrown or skip the fallback grant
+php | auth030 | PHP runs one request at a time in one process with no threads or tasks, so token state cannot be read and written concurrently (the single-process token state is pinned by bhv auth 028)
+php | misc001 | PHP runs one request at a time in one process with no threads or tasks, so replacing the access token cannot race with a reader
+php | lifecycle037 | PHP runs one request at a time in one process, so a close() cannot run while a request is still in flight; the refusal after close is bhv lifecycle 008
+php | errors079 | PHP attaches request details only through the error constructor, so there is no later attachment that could replace or be ignored after the error is built
+php | auth015 | PHP's header call raises the token error instead of returning headers, so no header map without an Authorization entry can ever be returned; the raise is pinned by bhv auth 001

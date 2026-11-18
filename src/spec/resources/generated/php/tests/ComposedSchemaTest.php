@@ -304,7 +304,7 @@ test('one of non-listed discriminator ref throws not falls through', function ()
         ->toThrow(\InvalidArgumentException::class, 'Unknown discriminator');
 });
 
-test('one of non-string discriminator ref throws', function (): void {
+test('bhv unions 038 one of non-string discriminator ref throws', function (): void {
     /* 4.7: a non-string discriminator value must throw deterministically
      * rather than silently fall through to a wrap-the-raw-payload path. */
     $data = ['foodType' => 42, 'weightKg' => 1.0];

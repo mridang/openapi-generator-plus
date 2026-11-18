@@ -294,7 +294,7 @@ test('bhv lifecycle 015 a client can be built from the credential of one securit
 
 {{/-first}}
 {{/schemeCredentials}}
-test('a supplied psr18 client receives the request from every api group', function (): void {
+test('bhv transport 081 a supplied psr18 client receives the request from every api group', function (): void {
     $factory = new Psr17Factory();
     $responses = [];
     for ($i = 0; $i < 50; $i++) {
@@ -335,6 +335,33 @@ test('bhv lifecycle 024 a supplied psr18 client conflicts with sdk proxy and tls
     'ca bundle' => [fn () => TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
     'tls verification off' => [fn () => TransportOptions::builder()->verifySsl(false)->build()],
 ]);
+
+test('bhv transport 078 a supplied psr18 client is refused at construction when a proxy is also configured', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->proxy('http://proxy:3128')->build();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+});
+
+test('bhv transport 079 turning off certificate verification is refused at construction on a supplied psr18 client', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->verifySsl(false)->build();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+});
+
+test('bhv transport 080 a proxy setting a supplied psr18 client cannot apply makes construction fail', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->build();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class);
+});
 
 test('bhv lifecycle 016 with token fails when the token is empty', function (): void {
     expect(fn () => {{clientClassName}}::withToken('{{{basePath}}}', ''))
