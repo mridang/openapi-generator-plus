@@ -430,3 +430,9 @@ swift | operations162 | the fixture has no date-only (format: date) parameter in
 swift | serialization078 | Swift maps format: time to String, as the idiom table in the swift AGENTS file records, so the SDK never formats a time of day itself and there is no zero-padding or fraction rule to test
 csharp | misc283 | C# has no package root module to re-export from: the error types are declared once in the Errors namespace and a consumer reaches each of them by that namespace
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
+elixir | misc083 | Elixir takes query parameters as a keyword list that the SDK encodes itself, so there is no raw query text input whose repeated keys or existing percent-encodings could be kept as written
+elixir | misc087 | Elixir has no decimal type: a decimal field is a binary float, so it cannot be written with its exact digits in plain notation (see serializationobject410)
+elixir | misc088 | Elixir decodes a decimal into a binary float, so it cannot keep the number of decimal places it was written with (see serializationobject410)
+elixir | misc091 | Elixir decodes responses into plain maps and structs without checking the constraints or patterns the schema declares, so there is no decode-time refusal to test
+elixir | misc092 | Elixir structs have no separate SDK attribute name: a property is read only by the key it is decoded from, so there is no second name that could be matched
+elixir | misc098 | Elixir multipart parts take binary content only, so there is no caller-supplied stream for the SDK to read into the body or leave open
