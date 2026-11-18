@@ -858,4 +858,12 @@ public class StoreApiTest
             () => api.GetInventoryAsync(new GetInventoryOptions { MaxRetries = -1 }));
         Assert.Null(client.MaxRetries);
     }
+
+    [Fact]
+    public async Task BhvMisc080A200BodyIsRefusedWhenItOnlyFitsTheSchemaOf201()
+    {
+        var api = NewStoreApiForMock(200, "application/json", "{\"receiptCode\":\"C1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}");
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.SerializationException>(() => api.ReserveStockAsync());
+    }
 }

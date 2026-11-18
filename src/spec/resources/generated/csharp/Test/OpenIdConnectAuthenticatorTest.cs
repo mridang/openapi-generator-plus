@@ -985,4 +985,100 @@ public class OpenIdConnectAuthenticatorTest
             StringComparison.Ordinal
         );
     }
+
+    [Fact]
+    public async Task BhvMisc070ADiscoveryDocumentThatIsNotAnObjectKeepsNoCauseAndHidesItsBody()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("[\"leaked-body\"]");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() =>
+            auth.BuildAuthorizationUrlAsync()
+        );
+
+        Assert.Equal("OIDC discovery document is not a JSON object", ex.Message);
+        Assert.Null(ex.InnerException);
+        Assert.DoesNotContain("leaked-body", ex.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class GatedExchangeApiClient : IApiClient
+    {
+        private readonly TaskCompletionSource _entered = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        private readonly TaskCompletionSource _release = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+
+        public int Discoveries { get; private set; }
+        public Task Entered => _entered.Task;
+
+        public void Release() => _release.TrySetResult();
+
+        public async Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            if (method == "GET")
+            {
+                Discoveries++;
+                return new ApiHttpResponse(
+                    200,
+                    "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                    new Dictionary<string, string>()
+                );
+            }
+
+            _entered.TrySetResult();
+            await _release.Task.ConfigureAwait(false);
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }
+            );
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc076ACallDuringTheCodeExchangeReusesTheDiscoveredConfiguration()
+    {
+        var client = new GatedExchangeApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        _ = await auth.BuildAuthorizationUrlAsync("s");
+
+        var exchange = auth.ExchangeCodeAsync("oidc-code");
+        await client.Entered.WaitAsync(TimeSpan.FromSeconds(5));
+        Uri url = await auth.BuildAuthorizationUrlAsync("s");
+        client.Release();
+        await exchange;
+
+        Assert.Contains("code_challenge=", url.Query, StringComparison.Ordinal);
+        Assert.Equal(1, client.Discoveries);
+    }
+
+    [Fact]
+    public async Task BhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndNoNonce()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}"
+        );
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync("s");
+        var query = System.Web.HttpUtility.ParseQueryString(url.Query);
+
+        Assert.Equal("S256", query["code_challenge_method"]);
+        Assert.Matches("^[A-Za-z0-9_-]{43}$", query["code_challenge"]!);
+        Assert.Null(query["nonce"]);
+    }
 }
