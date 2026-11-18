@@ -6,6 +6,33 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
     end
 
+    test "bhv serialization 108 a parameter with no declared style uses the default style for its location" do
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "id",
+               ["a", "b"],
+               :path,
+               "array",
+               nil,
+               nil,
+               false
+             ) ==
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "id",
+                 ["a", "b"],
+                 :path,
+                 "array",
+                 nil,
+                 "simple",
+                 false
+               )
+    end
+
+    test "bhv serialization 110 an absent value is sent as nil in the query location and as an empty value elsewhere" do
+      assert PetstoreClient.ValueSerializer.serialize(nil, :query, "string") == nil
+      assert PetstoreClient.ValueSerializer.serialize(nil, :header, "string") == ""
+      assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
+    end
+
     test "bhv serializationparam 100 string returns URL-encoded value" do
       assert PetstoreClient.ValueSerializer.serialize("hello", :path, "string") == "hello"
     end
@@ -841,6 +868,25 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "format:date parameter given a date-time" do
+    test "bhv misc 232 a string path parameter in the simple style percent-encodes slashes" do
+      assert PetstoreClient.ValueSerializer.serialize("a/b", :path, "string") == "a%2Fb"
+    end
+
+    test "bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included" do
+      result = PetstoreClient.ValueSerializer.serialize(~s({"a":1.5}), :cookie, "string")
+
+      assert result =~ "%7B"
+      assert result =~ "%3A"
+      refute result =~ ":"
+    end
+
+    test "bhv misc 236 a date-only value is written as yyyy-mm-dd with no time in query, header and cookie locations" do
+      date = ~D[2024-01-15]
+      assert PetstoreClient.ValueSerializer.serialize(date, :query, "string") == "2024-01-15"
+      assert PetstoreClient.ValueSerializer.serialize(date, :header, "string") == "2024-01-15"
+      assert PetstoreClient.ValueSerializer.serialize(date, :cookie, "string") == "2024-01-15"
+    end
+
     test "bhv serialization 044 a date-time given for a date parameter is written as its calendar date only" do
       assert PetstoreClient.ValueSerializer.serialize(
                ~U[2024-01-02 23:30:00Z],
@@ -1466,6 +1512,17 @@ defmodule PetstoreClient.ValueSerializerTest do
       for location <- [:path, :query, :header] do
         assert PetstoreClient.ValueSerializer.serialize(5, location, "integer") == "5"
       end
+    end
+  end
+
+  describe "misc parity deep object" do
+    test "bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, with absent values left out" do
+      assert PetstoreClient.ValueSerializer.serialize_deep_object("filter", %{
+               "b" => "2",
+               "c" => nil,
+               "a" => "1"
+             }) ==
+               %{"filter[a]" => "1", "filter[b]" => "2"}
     end
   end
 end

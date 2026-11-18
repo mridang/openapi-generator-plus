@@ -2399,6 +2399,18 @@ describe('request header and byte body handling', () => {
     expect(seen[1]!['Authorization']).toBe('Bearer api-only');
   });
 
+  it('bhv misc 202 a text body sent without a declared content type goes out as bare JSON', async () => {
+    let seenHeaders: Record<string, string> = {};
+    global.fetch = (async (_url: unknown, init: { headers: Record<string, string> }) => {
+      seenHeaders = init.headers;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient();
+
+    await client.sendRequest('POST', 'http://api.example/x', {}, 'hello');
+
+    expect(seenHeaders['Content-Type']).toBe('application/json');
+  });
   it('bhv misc 217 sends a plain Uint8Array body as raw bytes, not multipart', async () => {
     let seenBody: unknown;
     let seenHeaders: Record<string, string> = {};
@@ -3608,5 +3620,92 @@ describe('DefaultApiClient multipart parts and bodies (misc behaviours)', () => 
     expect(
       DefaultApiClient.decodeBody(Buffer.from([0x61, 0xff, 0x62, 0xfe]), 'text/plain; charset=utf-8'),
     ).toBe('a�b�');
+  });
+});
+
+describe('automatic retries misc behaviours', () => {
+  type Step = Response | Error;
+  let delays: number[];
+  let calls: Array<{ headers: Record<string, string>; body?: unknown }>;
+
+  beforeEach(() => {
+    delays = [];
+    calls = [];
+    jest.spyOn(globalThis, 'setTimeout').mockImplementation(((handler: () => void, ms?: number) => {
+      delays.push(ms ?? 0);
+      handler();
+      return 0 as unknown as NodeJS.Timeout;
+    }) as unknown as typeof setTimeout);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function playing(steps: Step[], configure: (builder: ReturnType<typeof TransportOptions.builder>) => void = () => undefined): DefaultApiClient {
+    const scripted = (async (_url: unknown, init?: { headers?: Record<string, string>; body?: unknown }) => {
+      calls.push({ headers: { ...(init?.headers ?? {}) }, body: init?.body });
+      const step = steps[Math.min(calls.length, steps.length) - 1]!;
+      if (step instanceof Error) {
+        throw step;
+      }
+      return step.clone();
+    }) as unknown as typeof fetch;
+    const builder = TransportOptions.builder().fetch(scripted);
+    configure(builder);
+    return new DefaultApiClient(builder.build());
+  }
+  const reply = (status: number, headers: Record<string, string> = {}): Response => new Response('body', { status, headers });
+  const send = (client: DefaultApiClient, options?: Parameters<DefaultApiClient['sendRequest']>[4]) =>
+    client.sendRequest('GET', 'http://api.example/items', {}, null, options);
+
+  it('bhv misc 162 an idempotent request whose connection drops before any response is sent again once', async () => {
+    const response = await send(playing([new TypeError('fetch failed'), reply(200)]));
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('bhv misc 164 a retry whose wait fits within the remaining timeout budget is sent', async () => {
+    const response = await send(
+      playing([reply(503, { 'Retry-After': '1' }), reply(200)], (builder) => builder.timeout(60000)),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('bhv misc 166 a call that disables its deadline is not cut short while it waits to retry', async () => {
+    const response = await send(
+      playing([reply(503, { 'Retry-After': '30' }), reply(200)], (builder) => builder.timeout(1000)),
+      { timeout: null },
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('bhv misc 167 a retryable status is attempted up to the retry limit and then returned as the last response', async () => {
+    const response = await send(playing([reply(503)]));
+    expect(response.statusCode).toBe(503);
+    expect(calls).toHaveLength(3);
+  });
+
+  it('bhv misc 168 with no retry setting a failing request is sent three times, pausing 0.5 s and then 1 s between attempts', async () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    await send(playing([reply(503)]));
+    expect(calls).toHaveLength(3);
+    expect(delays).toEqual([500, 1000]);
+  });
+
+  it('bhv misc 169 the pause between retries starts at 0.5 s, doubles on each attempt and never exceeds 8 s', async () => {
+    await send(playing([reply(500)], (builder) => builder.maxRetries(6).timeout(null)));
+    expect(delays).toHaveLength(6);
+    delays.forEach((delay, index) => {
+      const base = Math.min(500 * 2 ** index, 8000);
+      expect(delay).toBeGreaterThanOrEqual(base * 0.75);
+      expect(delay).toBeLessThanOrEqual(base);
+    });
+  });
+
+  it('bhv misc 171 a per-call maximum retry count larger than the transport limit applies to that call and allows more attempts', async () => {
+    await send(playing([reply(503)], (builder) => builder.maxRetries(1)), { maxRetries: 4 });
+    expect(calls).toHaveLength(5);
   });
 });
