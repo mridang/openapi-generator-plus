@@ -6,6 +6,16 @@ require 'json'
 describe 'Metadata' do
   parallelize_me!
 
+  it 'bhv_misc_092 a property is read by its wire name' do
+    metadata = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-15T10:00:00Z"}', 'Metadata')
+    _(metadata.created_at).must_equal(Time.utc(2024, 1, 15, 10, 0, 0))
+  end
+
+  it 'bhv_misc_093 a model whose only fields are numeric additional properties serializes as an object' do
+    metadata = Petstore::Client::Models::Metadata.new(additional_properties: { '0' => 'x', '1' => 'y' })
+    _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(metadata))).must_equal('0' => 'x', '1' => 'y')
+  end
+
   it 'bhv_models_008 serializes empty metadata' do
     metadata = Petstore::Client::Models::Metadata.new
     json = Petstore::Client::ObjectSerializer.serialize(metadata)

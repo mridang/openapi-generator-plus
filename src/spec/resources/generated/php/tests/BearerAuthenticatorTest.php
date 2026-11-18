@@ -487,3 +487,14 @@ test('bhv auth 037 a token provider is asked again for each request and its curr
     expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-1');
     expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-2');
 });
+
+test('bhv misc 066 a token provider value is sent as the bearer credential on the authenticated request', function (): void {
+    $calls = 0;
+    $auth = new BearerAuthenticator('https://api.example.com', null, function () use (&$calls): string {
+        $calls++;
+
+        return 'token-' . $calls;
+    });
+
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-1');
+});

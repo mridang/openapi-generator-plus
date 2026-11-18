@@ -6,6 +6,12 @@ describe Petstore::Client::ValueSerializer do
   parallelize_me!
 
   describe 'path location' do
+    it 'bhv_misc_084 a set optional scalar parameter sends its value in every location' do
+      %i[path query header cookie].each do |location|
+        _(Petstore::Client::ValueSerializer.serialize('on-hold', location, 'string')).must_equal('on-hold')
+      end
+    end
+
     it 'bhv_misc_082 an enum value is sent as its wire value in a path, query or header parameter' do
       %i[path query header].each do |location|
         _(Petstore::Client::ValueSerializer.serialize('on-hold', location, 'string')).must_equal('on-hold')
@@ -778,5 +784,11 @@ describe Petstore::Client::ValueSerializer do
 
   it 'bhv_serializationparam_070 path encoding of null is empty for every schema type' do
     _(Petstore::Client::ValueSerializer.serialize(nil, :path, 'integer')).must_equal('')
+  end
+
+  it 'bhv_misc_120 writes an object parameter as name and value pairs sorted by name, leaving out absent values' do
+    result = Petstore::Client::ValueSerializer.serialize_deep_object('filter', { 'b' => '2', 'a' => '1', 'gone' => nil })
+
+    _(result.keys).must_equal ['filter[a]', 'filter[b]']
   end
 end

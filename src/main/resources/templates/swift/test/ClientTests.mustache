@@ -553,6 +553,35 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
     }
 
+    /* An operation that declares no security never sends the client's default credential. */
+    @Test func testBhvMisc064AnOperationThatDeclaresNoSecurityNeverSendsTheClientCredential() async throws {
+        let host = "https://no-security-064.example.com"
+        let client = try {{clientClassName}}(
+            authenticator: try BearerAuthenticator(host: host, token: "client-token"),
+            transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+            callHook: nil)
+        defer { client.close() }
+
+        _ = try? await client.store.getInventory()
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "no-security-064.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    /* Scheme credentials are copied when the client is built, so a later change to the caller's variable does not reach it. */
+    @Test func testBhvMisc065SchemeCredentialsAreCopiedAtBuild() async throws {
+        let host = "https://copied-065.example.com"
+        var bearer = try BearerAuthenticator(host: host, token: "first-token")
+        let client = try schemeClient(host: host, petStoreBearer: bearer)
+        defer { client.close() }
+        bearer = try BearerAuthenticator(host: host, token: "second-token")
+
+        _ = try await client.pet.getPetById(petId: 1)
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "copied-065.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer first-token")
+    }
+
     /* A credential supplied for an operation's scheme replaces a default Authorization header set on the client. */
     @Test func testBhvAuth045SchemeCredentialReplacesADefaultAuthorizationHeader() async throws {
         let host = "https://default-header-045.example.com"

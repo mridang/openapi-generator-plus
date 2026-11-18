@@ -663,4 +663,42 @@ public class ComposedSchemaTest
         var serialized = _serializer.Serialize(car);
         Assert.Contains("\"vehicleType\":\"car\"", serialized, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("{\"foodType\":\"dry\"}")]
+    [InlineData("{\"foodType\":\"dry\",\"weightKg\":\"heavy\"}")]
+    public void BhvMisc045APayloadFailingAVariantSchemaIsNotAcceptedAsThatVariant(string json)
+    {
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
+    public void BhvMisc046UnionsWithEqualContentAreEqualAndHashEqually()
+    {
+        var left = SetPetAvatarThumbnailRequest.FromByte(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+        var right = SetPetAvatarThumbnailRequest.FromByte(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+        var other = SetPetAvatarThumbnailRequest.FromByte(new byte[] { 0x05, 0x06, 0x07, 0x08 });
+        Assert.Equal(left, right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        Assert.NotEqual(left, other);
+    }
+
+    [Fact]
+    public void BhvMisc049AChoiceBetweenOneBinaryAndAListWritesTheListAsBase64Items()
+    {
+        var request = SetPetAvatarThumbnailRequest.FromListByte(
+            new System.Collections.Generic.List<byte[]>
+            {
+                new byte[] { 0x01, 0x02 },
+                new byte[] { 0x03, 0x04 },
+            }
+        );
+
+        var json = _serializer.Serialize(request);
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, document.RootElement.ValueKind);
+        Assert.Equal("AQI=", document.RootElement[0].GetString());
+        Assert.Equal("AwQ=", document.RootElement[1].GetString());
+    }
 }
