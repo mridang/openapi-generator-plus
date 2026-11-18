@@ -89,6 +89,8 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
         super.normalize();
         getLogger().info("Default normalization complete. Applying custom rules...");
 
+        SpecWarnings.check(this.openAPI, Boolean.getBoolean(SpecWarnings.STRICT_PROPERTY), getLogger());
+
         applyRule(RULE_CONTENT_ENCODING, new ContentEncodingRule());
         applyRule(RULE_STRIP_PARAMS, new StripParametersRule());
         applyRule(RULE_CLEAN_EMPTY_REQUEST_BODIES, new CleanEmptyRequestBodiesRule());
