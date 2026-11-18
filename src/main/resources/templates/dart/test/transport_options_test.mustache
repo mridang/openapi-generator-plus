@@ -443,6 +443,19 @@ void main() {
       );
     });
 
+    test('bhv errors 098 a CA certificate path that does not exist names it and the read failure', () {
+      const path = '/nonexistent/ca.pem';
+
+      expect(
+        () => DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().caCertPath(path).build()),
+        throwsA(isA<ArgumentError>().having(
+            (e) => '${e.message}',
+            'message',
+            allOf(contains(path), contains('failed to read CA certificate')))),
+      );
+    });
+
     test('bhv transport 078 a caller-supplied HTTP client is refused at construction when a proxy is also configured', () {
       final custom = MockClient((_) async => http.Response('', 200));
 

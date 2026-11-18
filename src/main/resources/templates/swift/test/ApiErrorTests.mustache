@@ -883,4 +883,82 @@ import Testing
         let error = ApiError.fromResponse(statusCode: 400, headers: nil, body: body)
         #expect(error.errorBody != nil)
     }
+
+
+    /* A body of exactly 1 KiB is shown whole and the full body stays on responseBody. */
+    @Test func testBhvErrors086ABodyOfExactlyOneKibIsShownWhole() {
+        let body = String(repeating: "a", count: 1024)
+        let err = ApiError(statusCode: 500, message: "boom", responseBody: body)
+        #expect(ApiError.renderedBody(body) == body)
+        #expect(err.responseBody == body)
+    }
+
+    /* Credential and challenge headers are masked in the rendered message. */
+    @Test func testBhvErrors087CredentialAndChallengeHeadersAreMaskedInTheMessage() {
+        let err = ApiError(
+            statusCode: 401, message: "denied", responseBody: "",
+            responseHeaders: [
+                "cookie": "session=1", "www-authenticate": "Basic realm=x",
+                "proxy-authenticate": "Basic realm=y",
+            ])
+        let text = err.errorDescription ?? ""
+        #expect(text.contains("\"cookie\":\"***\""))
+        #expect(text.contains("\"www-authenticate\":\"***\""))
+        #expect(text.contains("\"proxy-authenticate\":\"***\""))
+        #expect(!text.contains("session=1"))
+        #expect(!text.contains("realm=x"))
+        #expect(!text.contains("realm=y"))
+    }
+
+    /* Absent or empty sections are left out and the present ones are kept. */
+    @Test func testBhvErrors088AbsentSectionsAreLeftOutAndPresentOnesAreKept() {
+        let err = ApiError(
+            statusCode: 500, message: "down", responseBody: "", responseHeaders: [:])
+        #expect(err.errorDescription == "down\nHTTP status code: 500")
+    }
+
+    /* An empty message renders the default text. A nil message cannot be built: message is a non-optional String. */
+    @Test func testBhvErrors089AnErrorWithNoMessageRendersTheDefaultText() {
+        let err = ApiError(statusCode: 0, message: "")
+        #expect(err.errorDescription == "Error message: the server returns an error")
+    }
+
+    /* An error with no response keeps its response body and headers as nil. */
+    @Test func testBhvErrors090AnErrorWithNoResponseKeepsBodyAndHeadersNil() {
+        let err = ApiError(statusCode: 0, message: "connection reset")
+        #expect(err.responseHeaders == nil)
+        #expect(err.responseBody == nil)
+    }
+
+    /* A byte-order-mark prefixed error body fills errorBody and the raw body is kept. */
+    @Test func testBhvErrors093AnErrorBuiltFromAResponseExposesTheDecodedAndRawBody() {
+        let body = "\u{FEFF}{\"code\":1}"
+        let err = ApiError.fromResponse(statusCode: 404, headers: [:], body: body)
+        #expect((err.errorBody as? [String: Any])?["code"] as? Int == 1)
+        #expect(err.responseBody == body)
+    }
+
+    /* A typed 4xx or 5xx error is found by its status-class family. */
+    @Test func testBhvErrors095ATypedErrorIsFoundByItsStatusFamily() {
+        let client: any Error = NotFoundError(message: "gone")
+        let server: any Error = InternalServerError(message: "boom")
+        #expect(client is ClientError)
+        #expect(server is ServerError)
+    }
+
+    /* Statuses outside the 4xx and 5xx ranges fall back to the base error. */
+    @Test func testBhvErrors096AStatusOutsideEveryClassRangeFallsBackToTheBaseError() {
+        for status in [399, 600] {
+            let err: any Error = ApiError.fromResponse(statusCode: status, headers: [:], body: "")
+            #expect(type(of: err) == ApiError.self)
+            #expect(!(err is ClientError))
+            #expect(!(err is ServerError))
+        }
+    }
+
+    /* An unrecognised 4xx status raises the generic client error. */
+    @Test func testBhvErrors097AnUnrecognisedClientStatusRaisesTheGenericClientError() {
+        let err: any Error = ApiError.fromResponse(statusCode: 499, headers: [:], body: "")
+        #expect(type(of: err) == ClientError.self)
+    }
 }

@@ -192,6 +192,14 @@ public class ConfigurationTest
     }
 
     [Fact]
+    public void BhvConfig026BuilderReturnsTheBaseUrlThatWasSet()
+    {
+        var config = Configuration.Builder().BaseUrl("https://builder.example.com").Build();
+
+        Assert.Equal("https://builder.example.com", config.BaseUrl);
+    }
+
+    [Fact]
     public void BhvConfig020BuilderChainSetsBaseUrlAndDefaultHeadersInOneConfiguration()
     {
         var config = Configuration

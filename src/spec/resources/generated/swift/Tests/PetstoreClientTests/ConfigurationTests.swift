@@ -287,4 +287,10 @@ import Testing
     #expect(!String(describing: config).contains("NoopHook"))
     #expect(!String(reflecting: config).contains("NoopHook"))
   }
+
+  /* The builder entry point returns the base URL that was set on the builder. */
+  @Test func testBhvConfig026TheBuilderReturnsTheBaseURLThatWasSet() {
+    let config = ConfigurationBuilder().baseURL("https://builder.example.com").build()
+    #expect(config.baseURL == "https://builder.example.com")
+  }
 }
