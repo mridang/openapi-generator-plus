@@ -414,38 +414,62 @@ public sealed class SchemeAuthenticatorTest
     [Fact]
     public void BhvAuthapikey025SchemeWrappersValidateEagerlyAndMaskTheKey()
     {
-        Assert.Throws<ArgumentException>(() =>
-            new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(Host, "tok\r\nInjected: yes")
-        );
-        var masked = new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(
-            Host,
-            ExplicitValue("apiKey")
-        );
-        Assert.DoesNotContain(ExplicitValue("apiKey"), masked.ToString(), StringComparison.Ordinal);
-        Assert.Throws<ArgumentException>(() =>
-            new PetstoreClient.Auth.InternalApiKeyAuthenticator(Host, "tok\r\nInjected: yes")
-        );
-        var masked = new PetstoreClient.Auth.InternalApiKeyAuthenticator(
-            Host,
-            ExplicitValue("apiKey")
-        );
-        Assert.DoesNotContain(ExplicitValue("apiKey"), masked.ToString(), StringComparison.Ordinal);
-        Assert.Throws<ArgumentException>(() =>
-            new PetstoreClient.Auth.ApiKeyQueryAuthenticator(Host, "tok\r\nInjected: yes")
-        );
-        var masked = new PetstoreClient.Auth.ApiKeyQueryAuthenticator(
-            Host,
-            ExplicitValue("apiKey")
-        );
-        Assert.DoesNotContain(ExplicitValue("apiKey"), masked.ToString(), StringComparison.Ordinal);
-        Assert.Throws<ArgumentException>(() =>
-            new PetstoreClient.Auth.SessionCookieAuthenticator(Host, "tok\r\nInjected: yes")
-        );
-        var masked = new PetstoreClient.Auth.SessionCookieAuthenticator(
-            Host,
-            ExplicitValue("apiKey")
-        );
-        Assert.DoesNotContain(ExplicitValue("apiKey"), masked.ToString(), StringComparison.Ordinal);
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(Host, "tok\r\nInjected: yes")
+            );
+            var masked = new PetstoreClient.Auth.ApiKeyHeaderAuthenticator(
+                Host,
+                ExplicitValue("apiKey")
+            );
+            Assert.DoesNotContain(
+                ExplicitValue("apiKey"),
+                masked.ToString(),
+                StringComparison.Ordinal
+            );
+        }
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new PetstoreClient.Auth.InternalApiKeyAuthenticator(Host, "tok\r\nInjected: yes")
+            );
+            var masked = new PetstoreClient.Auth.InternalApiKeyAuthenticator(
+                Host,
+                ExplicitValue("apiKey")
+            );
+            Assert.DoesNotContain(
+                ExplicitValue("apiKey"),
+                masked.ToString(),
+                StringComparison.Ordinal
+            );
+        }
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new PetstoreClient.Auth.ApiKeyQueryAuthenticator(Host, "tok\r\nInjected: yes")
+            );
+            var masked = new PetstoreClient.Auth.ApiKeyQueryAuthenticator(
+                Host,
+                ExplicitValue("apiKey")
+            );
+            Assert.DoesNotContain(
+                ExplicitValue("apiKey"),
+                masked.ToString(),
+                StringComparison.Ordinal
+            );
+        }
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new PetstoreClient.Auth.SessionCookieAuthenticator(Host, "tok\r\nInjected: yes")
+            );
+            var masked = new PetstoreClient.Auth.SessionCookieAuthenticator(
+                Host,
+                ExplicitValue("apiKey")
+            );
+            Assert.DoesNotContain(
+                ExplicitValue("apiKey"),
+                masked.ToString(),
+                StringComparison.Ordinal
+            );
+        }
     }
 
     [Fact]

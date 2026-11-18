@@ -748,7 +748,7 @@ public class ApiExceptionTest
     public void BhvErrors076ForeignErrorsAreNotSdkErrorsEvenWhenWrapped()
     {
         var foreign = new InvalidOperationException("boom");
-        var wrapped = new Exception("outer", foreign);
+        var wrapped = new InvalidOperationException("outer", foreign);
 
         Assert.IsNotAssignableFrom<ApiException>(foreign);
         Assert.IsNotAssignableFrom<OpenAPIException>(foreign);

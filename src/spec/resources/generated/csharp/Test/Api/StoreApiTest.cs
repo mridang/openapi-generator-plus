@@ -412,7 +412,8 @@ public class StoreApiTest
             .Split('&')
             .Select(part => part.Split('=')[0])
             .ToArray();
-        Assert.Equal(new[] { "labels", "at" }, names);
+        string[] expected = ["labels", "at"];
+        Assert.Equal(expected, names);
     }
 
     [Fact]

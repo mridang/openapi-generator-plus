@@ -131,9 +131,11 @@ public sealed class SchemeAuthenticatorTest
     {
 {{#schemeAuthTests}}
 {{#isApiKey}}
-        Assert.Throws<ArgumentException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, "tok\r\nInjected: yes"));
-        var masked = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, ExplicitValue("apiKey"));
-        Assert.DoesNotContain(ExplicitValue("apiKey"), masked.ToString(), StringComparison.Ordinal);
+        {
+            Assert.Throws<ArgumentException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, "tok\r\nInjected: yes"));
+            var masked = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, ExplicitValue("apiKey"));
+            Assert.DoesNotContain(ExplicitValue("apiKey"), masked.ToString(), StringComparison.Ordinal);
+        }
 {{/isApiKey}}
 {{/schemeAuthTests}}
     }

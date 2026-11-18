@@ -262,7 +262,8 @@ public class BaseApiTest
 
         Assert.Equal("created:{}", created.Data);
         Assert.Equal("ok:{}", existing.Data);
-        Assert.Equal([201, 200], decodedStatuses);
+        int[] expectedStatuses = [201, 200];
+        Assert.Equal(expectedStatuses, decodedStatuses);
     }
 
     private sealed class CapturingApiClient : IApiClient
