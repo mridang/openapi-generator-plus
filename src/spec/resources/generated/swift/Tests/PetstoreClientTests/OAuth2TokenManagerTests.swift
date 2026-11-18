@@ -1369,4 +1369,14 @@ import Testing
     #expect(manager.refreshToken == "ref1")
     #expect(client.requests.count == 2)
   }
+  // MARK: - Behaviour catalogue: invalidation before any exchange
+
+  /* Invalidating the access token before any exchange raises nothing and sends no request. */
+  @Test func testBhvAuth002InvalidatingBeforeAnyExchangeSendsNothing() {
+    let client = MockApiClient()
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+    manager.invalidateAccessToken()
+    #expect(client.requests.isEmpty)
+  }
 }
