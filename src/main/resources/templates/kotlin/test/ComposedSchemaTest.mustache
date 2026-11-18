@@ -134,6 +134,30 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("bhvUnions038 a union body whose discriminator is not a string or differs in case raises the SDK serialization error")
+        fun undecodableUnionBodyRaisesTheSdkSerializationError() {
+            val serializer = {{invokerPackage}}.ObjectSerializer()
+            for (payload in listOf(
+                """{"foodType":1,"weightKg":2.5}""",
+                """{"foodType":["dry"],"weightKg":2.5}""",
+                """{"FoodType":"dry","weightKg":2.5}""",
+            )) {
+                val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                    serializer.deserialize<PetFood>(payload)
+                }
+                assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvUnions043 a discriminator value already set on a subtype is written as given, not replaced by its default")
+        fun presetDiscriminatorIsWrittenAsGiven() {
+            val jsonString = json.encodeToString(DryFood(foodType = "custom", weightKg = 1.0))
+            assertTrue(jsonString.contains("\"foodType\":\"custom\""), jsonString)
+            assertFalse(jsonString.contains("\"foodType\":\"dry\""), jsonString)
+        }
+
+        @Test
         @DisplayName("bhvUnions020 serializes DryFood back to JSON")
         fun testSerializeDryFood() {
             val encodingJson = Json {
@@ -447,6 +471,15 @@ class ComposedSchemaTest {
         // kotlinx's built-in ByteArraySerializer (a JSON int-array), so the wrapper
         // must route the byte variants through Base64ByteArraySerializer explicitly
         // on BOTH encode and decode -- this test pins that wire form.
+
+        @Test
+        @DisplayName("bhvUnions041 an empty JSON array is the list variant and a base64 string is the byte variant")
+        fun eachVariantDecodesItsOwnShape() {
+            val list = json.decodeFromString<SetPetAvatarThumbnailRequest>("[]")
+            assertTrue(list.actualInstance is List<*>, list.actualInstance.toString())
+            val bytes = json.decodeFromString<SetPetAvatarThumbnailRequest>("\"AQID\"")
+            assertTrue(bytes.actualInstance is ByteArray, bytes.actualInstance.toString())
+        }
 
         @Test
         @DisplayName("bhvUnions019 setPetAvatarThumbnail byte oneOf round-trips through base64")
