@@ -656,6 +656,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", srcDir, "ObjectSerializer.swift"),
             new SupportingFileSpec("value_serializer.mustache", srcDir, "ValueSerializer.swift"),
             new SupportingFileSpec("trace_context_util.mustache", srcDir, "TraceContextUtil.swift"),
+            new SupportingFileSpec("call_hook.mustache", srcDir, "CallHook.swift"),
+            new SupportingFileSpec("call_info.mustache", srcDir, "CallInfo.swift"),
+            new SupportingFileSpec("call_outcome.mustache", srcDir, "CallOutcome.swift"),
             new SupportingFileSpec("api_response.mustache", srcDir, "ApiHttpResponse.swift"),
             new SupportingFileSpec("api_result.mustache", srcDir, "ApiResult.swift"),
             new SupportingFileSpec("api_client.mustache", srcDir, "ApiClient.swift"),
@@ -718,6 +721,14 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "test/TraceContextUtilTests.mustache",
                             testDir,
                             "TraceContextUtilTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/CallHookTests.mustache", testDir, "CallHookTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/CallHookRecipeTests.mustache",
+                            testDir,
+                            "CallHookRecipeTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ConfigurationTests.mustache",

@@ -222,4 +222,27 @@ import Testing
         #expect(config.baseURL == "https://example.com")
         #expect(config.defaultHeaders == ["X-A": "1", "X-B": "2"])
     }
+
+    private struct NoopHook: CallHook {
+        func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+            return nil
+        }
+    }
+
+    @Test func testBhvHooks001ADefaultConfigurationHasNoHook() {
+        #expect(Configuration.default().callHook == nil)
+    }
+
+    @Test func testBuilderSetsTheCallHookAndNilClearsIt() {
+        let builder = ConfigurationBuilder().callHook(NoopHook())
+        #expect(builder.build().callHook != nil)
+        #expect(builder.callHook(nil).build().callHook == nil)
+    }
+
+    /* A hook is code, not data: the string forms of a configuration never show it. */
+    @Test func testTheStringFormsOfAConfigurationDoNotShowTheHook() {
+        let config = ConfigurationBuilder().callHook(NoopHook()).build()
+        #expect(!String(describing: config).contains("NoopHook"))
+        #expect(!String(reflecting: config).contains("NoopHook"))
+    }
 }

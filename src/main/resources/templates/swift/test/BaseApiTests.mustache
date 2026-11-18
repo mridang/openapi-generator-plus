@@ -124,6 +124,131 @@ import Testing
         }
     }
 
+    // MARK: - Call hook doubles
+
+    /// Why a hook of these tests failed on purpose.
+    private enum HookFailure: Error, Equatable {
+        case start
+        case finish
+    }
+
+    /// Records every call it is told about and can edit the headers, refuse the
+    /// call or fail its observer.
+    private final class RecordingHook: CallHook, @unchecked Sendable {
+        private let lock = NSLock()
+        private var recordedInfos: [CallInfo] = []
+        private var recordedHeaders: [[String: String]] = []
+        private var recordedOutcomes: [CallOutcome] = []
+        var edit: (@Sendable (inout [String: String]) -> Void)?
+        var startError: (any Error)?
+        var finishError: (any Error)?
+        var returnsObserver = true
+
+        var infos: [CallInfo] { lock.withLock { recordedInfos } }
+        var seenHeaders: [[String: String]] { lock.withLock { recordedHeaders } }
+        var outcomes: [CallOutcome] { lock.withLock { recordedOutcomes } }
+
+        func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+            lock.withLock {
+                recordedInfos.append(info)
+                recordedHeaders.append(headers)
+            }
+            if let startError = startError {
+                throw startError
+            }
+            edit?(&headers)
+            return returnsObserver ? Observer(hook: self) : nil
+        }
+
+        fileprivate func finished(_ outcome: CallOutcome) throws {
+            lock.withLock { recordedOutcomes.append(outcome) }
+            if let finishError = finishError {
+                throw finishError
+            }
+        }
+
+        private struct Observer: CallObserver {
+            let hook: RecordingHook
+
+            func finish(_ outcome: CallOutcome) throws {
+                try hook.finished(outcome)
+            }
+        }
+    }
+
+    /// One answer of ``ScriptedTransport``.
+    private enum Step {
+        case status(Int, headers: [String: String] = ["Content-Type": "application/json"], body: String? = nil)
+        case fail(any Error)
+    }
+
+    /// Answers each send with the next step and records the headers of every
+    /// send. With `sendsPerRequest` above 1 it sends the same request that many
+    /// times inside one `sendRequest`, as a retrying transport does.
+    private final class ScriptedTransport: ApiClient, @unchecked Sendable {
+        private let lock = NSLock()
+        private var steps: [Step]
+        private var recorded: [[String: String]] = []
+        private var recordedURLs: [String] = []
+        let sendsPerRequest: Int
+
+        init(_ steps: [Step], sendsPerRequest: Int = 1) {
+            self.steps = steps
+            self.sendsPerRequest = sendsPerRequest
+        }
+
+        var sent: [[String: String]] { lock.withLock { recorded } }
+        var urls: [String] { lock.withLock { recordedURLs } }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            try await sendRequest(method: method, url: url, headers: headers, body: body, noRedirect: false)
+        }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool)
+            async throws -> ApiHttpResponse
+        {
+            var last = ApiHttpResponse(statusCode: 200, body: "{}", headers: [:])
+            for _ in 0..<sendsPerRequest {
+                let step: Step = lock.withLock {
+                    recorded.append(headers)
+                    recordedURLs.append(url)
+                    return steps.isEmpty ? .status(200) : steps.removeFirst()
+                }
+                switch step {
+                case .fail(let error):
+                    throw error
+                case .status(let status, let responseHeaders, let body):
+                    last = ApiHttpResponse(
+                        statusCode: status, body: body ?? "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+                        headers: responseHeaders)
+                }
+            }
+            return last
+        }
+    }
+
+    private func hookedApi(
+        _ hook: (any CallHook)?, transport: ApiClient, baseURL: String = "https://example.com",
+        authenticator: Authenticator? = nil
+    ) -> PetApi {
+        let config = ConfigurationBuilder().baseURL(baseURL).callHook(hook).build()
+        return PetApi(apiClient: transport, config: config, authenticator: authenticator)
+    }
+
+    private func hookedBase(_ hook: (any CallHook)?, transport: ApiClient, baseURL: String = "https://example.com") -> BaseApi {
+        let config = ConfigurationBuilder().baseURL(baseURL).callHook(hook).build()
+        return BaseApi(apiClient: transport, config: config)
+    }
+
+    private func plainParams(path: String, query: OrderedParams<Any?> = [:]) -> BaseApi.InvokeAPIParams {
+        return BaseApi.InvokeAPIParams(
+            method: "get", path: path, queryParams: query, headerParams: [:], body: nil,
+            accepts: ["application/json"], contentType: "application/json", returnType: "String",
+            auth: BaseApi.noAuthSentinel, operationId: "listItems", urlTemplate: "/items/{id}")
+    }
+
     // MARK: - Binary response answered with JSON
 
     @Test func testContentDispositionFilenameStarKeepsOnlyUnreservedCharacters() throws {
@@ -613,6 +738,296 @@ import Testing
         }
         #expect(auth.invalidations == 1)
         #expect(client.seenAuthorization.count == 1)
+    }
+
+    // MARK: - Call hook
+
+    @Test func testBhvHooks001WithoutAHookACallSendsTheSameHeadersAndReturnsTheSameResult() async throws {
+        let plain = ScriptedTransport([.status(200)])
+        let hooked = ScriptedTransport([.status(200)])
+        let observer = RecordingHook()
+        observer.returnsObserver = false
+
+        let first = try await hookedApi(nil, transport: plain).getPetById(petId: 7)
+        let second = try await hookedApi(observer, transport: hooked).getPetById(petId: 7)
+
+        #expect(plain.sent == hooked.sent)
+        #expect(first.name == second.name)
+        #expect(first.name == "x")
+    }
+
+    @Test func testBhvHooks002StartIsCalledOnceWithTheSpecOperationIdTheMethodTheTemplateAndTheUrl() async throws {
+        let hook = RecordingHook()
+        let api = hookedApi(hook, transport: ScriptedTransport([.status(200)]), baseURL: "https://example.com/v2")
+
+        _ = try await api.getPetById(petId: 7)
+
+        let info = try #require(hook.infos.first)
+        #expect(hook.infos.count == 1)
+        #expect(info.operationId == "getPetById")
+        #expect(info.method == "GET")
+        #expect(info.urlTemplate == "/pet/{petId}")
+        #expect(info.url == "https://example.com/v2/pet/7")
+    }
+
+    @Test(arguments: [
+        ("https://example.com", "example.com"),
+        ("https://API.Example.COM:8443/v1", "api.example.com"),
+        ("http://[::1]:8080", "::1"),
+        ("http://user:secret@10.0.0.5:9000/base", "10.0.0.5")
+    ])
+    func testBhvHooks003ServerAddressIsTheHostWithoutPortAndWithoutIPv6Brackets(
+        baseURL: String, host: String
+    ) async throws {
+        let hook = RecordingHook()
+        let api = hookedBase(hook, transport: ScriptedTransport([.status(200)]), baseURL: baseURL)
+
+        _ = try await api.invokeAPI(plainParams(path: "/items/7"))
+
+        #expect(hook.infos.first?.serverAddress == host)
+    }
+
+    @Test func testBhvHooks004AHeaderTheHookSetsReachesTheServer() async throws {
+        let hook = RecordingHook()
+        hook.edit = { $0["X-Hook"] = "from-hook" }
+        let transport = ScriptedTransport([.status(200)])
+
+        _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+
+        #expect(transport.sent.first?["X-Hook"] == "from-hook")
+    }
+
+    @Test func testBhvHooks005StartSeesTheFinalHeaderSetAndCanReplaceOne() async throws {
+        let hook = RecordingHook()
+        hook.edit = { $0["Authorization"] = "Replaced" }
+        let transport = ScriptedTransport([.status(200)])
+        let config = ConfigurationBuilder().baseURL("https://example.com")
+            .defaultHeader(name: "X-Default", value: "d").callHook(hook).build()
+        let api = PetApi(
+            apiClient: transport, config: config,
+            authenticator: try BearerAuthenticator(host: "https://example.com", token: "static-token"))
+
+        _ = try await api.getPetById(petId: 7)
+
+        let seen = try #require(hook.seenHeaders.first)
+        #expect(seen["Authorization"] == "Bearer static-token")
+        #expect(seen["X-Default"] == "d")
+        #expect(seen["Accept"] != nil)
+        #expect(transport.sent.first?["Authorization"] == "Replaced")
+    }
+
+    @Test func testBhvHooks006AHeaderTheHookSetsIsOnEverySendOfTheCallTheReplayAfterA401Included() async throws {
+        let hook = RecordingHook()
+        hook.edit = { $0["X-Hook"] = "kept" }
+        let transport = ScriptedTransport([.status(401), .status(200)])
+        let api = hookedApi(hook, transport: transport, authenticator: RotatingAuth())
+
+        _ = try await api.getPetById(petId: 7)
+
+        #expect(transport.sent.count == 2)
+        #expect(transport.sent.map { $0["X-Hook"] } == ["kept", "kept"])
+        #expect(hook.infos.count == 1)
+    }
+
+    @Test func testBhvHooks007TheFreshAuthenticationHeadersOfAReplayStillReplaceAHookHeaderOfTheSameName() async throws {
+        let hook = RecordingHook()
+        hook.edit = { $0["Authorization"] = "Hook-Value" }
+        let transport = ScriptedTransport([.status(401), .status(200)])
+        let api = hookedApi(hook, transport: transport, authenticator: RotatingAuth())
+
+        _ = try await api.getPetById(petId: 7)
+
+        #expect(transport.sent.map { $0["Authorization"] } == ["Hook-Value", "Bearer t2"])
+    }
+
+    @Test func testBhvHooks008ACallTheTransportSendsSeveralTimesCallsStartOnceAndFinishOnce() async throws {
+        let hook = RecordingHook()
+        let transport = ScriptedTransport([.status(503), .status(401), .status(200), .status(200)], sendsPerRequest: 2)
+        let api = hookedApi(hook, transport: transport, authenticator: RotatingAuth())
+
+        _ = try await api.getPetById(petId: 7)
+
+        #expect(transport.sent.count == 4)
+        #expect(hook.infos.count == 1)
+        #expect(hook.outcomes.count == 1)
+    }
+
+    @Test func testBhvHooks009ThePlainAndTheWithHttpInfoVariantCallTheHookOnceEach() async throws {
+        let hook = RecordingHook()
+        let api = hookedApi(hook, transport: ScriptedTransport([.status(200), .status(200)]))
+
+        _ = try await api.getPetById(petId: 7)
+        #expect(hook.infos.count == 1)
+        #expect(hook.outcomes.count == 1)
+
+        _ = try await api.getPetByIdWithHTTPInfo(petId: 7)
+        #expect(hook.infos.count == 2)
+        #expect(hook.outcomes.count == 2)
+    }
+
+    @Test func testBhvHooks010AHookSetOnTheConfigurationStillFiresWhenTheCallerSuppliedTheTransport() async throws {
+        let hook = RecordingHook()
+        let transport = MockApiClient()
+        transport.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        hook.edit = { $0["X-Hook"] = "yes" }
+
+        _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+
+        #expect(hook.infos.count == 1)
+        #expect(transport.lastHeaders["X-Hook"] == "yes")
+    }
+
+    @Test func testBhvHooks011FinishGetsTheStatusTheLowerCasedHeadersAndNoErrorOnA2xx() async throws {
+        let hook = RecordingHook()
+        let transport = ScriptedTransport([
+            .status(200, headers: ["Content-Type": "application/json", "X-Request-Id": "abc"])
+        ])
+
+        _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+
+        let outcome = try #require(hook.outcomes.first)
+        #expect(hook.outcomes.count == 1)
+        #expect(outcome.statusCode == 200)
+        #expect(outcome.headers?["x-request-id"] == "abc")
+        #expect(outcome.headers?["content-type"] == "application/json")
+        #expect(outcome.headers?["X-Request-Id"] == nil)
+        #expect(outcome.error == nil)
+    }
+
+    @Test func testBhvHooks012FinishGetsTheStatusTheHeadersAndTheSameTypedErrorTheCallerReceivesOnANon2xx() async throws {
+        let hook = RecordingHook()
+        let transport = ScriptedTransport([.status(404, headers: ["X-Reason": "gone"], body: "{}")])
+
+        do {
+            _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+            Issue.record("Expected NotFoundError")
+        } catch let thrown as NotFoundError {
+            let outcome = try #require(hook.outcomes.first)
+            #expect(outcome.statusCode == 404)
+            #expect(outcome.headers?["x-reason"] == "gone")
+            #expect((outcome.error as? NotFoundError) === thrown)
+        }
+        #expect(hook.outcomes.count == 1)
+    }
+
+    @Test func testBhvHooks013FinishGetsStatus0NilHeadersAndTheNetworkErrorWhenNoResponseArrived() async throws {
+        let hook = RecordingHook()
+        let failure = NetworkError(statusCode: 0, message: "connection refused")
+        let transport = ScriptedTransport([.fail(failure)])
+
+        do {
+            _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+            Issue.record("Expected NetworkError")
+        } catch let thrown as NetworkError {
+            #expect(thrown === failure)
+        }
+
+        let outcome = try #require(hook.outcomes.first)
+        #expect(outcome.statusCode == 0)
+        #expect(outcome.headers == nil)
+        #expect((outcome.error as? NetworkError) === failure)
+    }
+
+    @Test func testBhvHooks014FinishGetsTheTimeoutErrorWhenTheBudgetIsExhaustedNeverTheCancellationError() async throws {
+        let hook = RecordingHook()
+        let failure = NetworkTimeoutError(statusCode: 0, message: "Request timed out after 10 ms")
+        let transport = ScriptedTransport([.fail(failure)])
+
+        await #expect(throws: NetworkTimeoutError.self) {
+            _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+        }
+
+        let outcome = try #require(hook.outcomes.first)
+        #expect((outcome.error as? NetworkTimeoutError) === failure)
+        #expect(!(outcome.error is CancellationError))
+    }
+
+    @Test func testBhvHooks015FinishGetsTheCancellationAndTheCallRethrowsItNeverAsTheTimeoutError() async throws {
+        let hook = RecordingHook()
+        let transport = ScriptedTransport([.fail(CancellationError())])
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+        }
+
+        let outcome = try #require(hook.outcomes.first)
+        #expect(outcome.error is CancellationError)
+        #expect(!(outcome.error is NetworkTimeoutError))
+        #expect(outcome.statusCode == 0)
+        #expect(outcome.headers == nil)
+    }
+
+    @Test func testBhvHooks016FinishGetsTheSerializationErrorWithTheStatusThatArrivedWhenTheResponseCannotBeDecoded() async throws {
+        let hook = RecordingHook()
+        let transport = ScriptedTransport([.status(200, headers: ["X-Seen": "1"], body: "not json")])
+
+        await #expect(throws: SerializationError.self) {
+            _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+        }
+
+        let outcome = try #require(hook.outcomes.first)
+        #expect(hook.outcomes.count == 1)
+        #expect(outcome.statusCode == 200)
+        #expect(outcome.headers?["x-seen"] == "1")
+        #expect(outcome.error is SerializationError)
+    }
+
+    @Test func testBhvHooks017FinishIsCalledWhenTheRequestBodyCannotBeEncodedAndNothingIsSent() async throws {
+        let hook = RecordingHook()
+        let transport = ScriptedTransport([.status(200)])
+        let api = hookedBase(hook, transport: transport)
+        let params = BaseApi.InvokeAPIParams(
+            method: "POST", path: "/items", queryParams: [:], headerParams: [:],
+            body: ["location": ["lat": 1.5]], accepts: ["application/json"],
+            contentType: "application/x-www-form-urlencoded", returnType: "String",
+            auth: BaseApi.noAuthSentinel, operationId: "createItem", urlTemplate: "/items")
+
+        await #expect(throws: SerializationError.self) {
+            _ = try await api.invokeAPI(params)
+        }
+
+        #expect(hook.infos.count == 1)
+        #expect(hook.outcomes.count == 1)
+        #expect(hook.outcomes.first?.error is SerializationError)
+        #expect(transport.sent.isEmpty)
+    }
+
+    @Test func testBhvHooks018AnErrorThrownByStartReachesTheCallerUnchangedNothingIsSentAndFinishIsNotCalled() async throws {
+        let hook = RecordingHook()
+        hook.startError = HookFailure.start
+        let transport = ScriptedTransport([.status(200)])
+
+        await #expect(throws: HookFailure.self) {
+            _ = try await hookedApi(hook, transport: transport).getPetById(petId: 7)
+        }
+
+        #expect(transport.sent.isEmpty)
+        #expect(hook.outcomes.isEmpty)
+    }
+
+    @Test func testBhvHooks019AnErrorThrownByFinishIsSwallowedAndTheCallerStillGetsItsResultOrItsOwnError() async throws {
+        let hook = RecordingHook()
+        hook.finishError = HookFailure.finish
+
+        let pet = try await hookedApi(hook, transport: ScriptedTransport([.status(200)])).getPetById(petId: 7)
+        #expect(pet.name == "x")
+
+        await #expect(throws: NotFoundError.self) {
+            _ = try await hookedApi(hook, transport: ScriptedTransport([.status(404, body: "{}")])).getPetById(petId: 7)
+        }
+        #expect(hook.outcomes.count == 2)
+    }
+
+    @Test func testBhvHooks021TheUrlGivenToTheHookNeverCarriesTheQueryStringOrTheFragment() async throws {
+        let hook = RecordingHook()
+        let api = hookedBase(hook, transport: ScriptedTransport([.status(200)]))
+
+        _ = try await api.invokeAPI(plainParams(path: "/items/7#section", query: ["a": "1", "key": "secret-value"]))
+
+        #expect(hook.infos.first?.url == "https://example.com/items/7")
+        #expect(hook.infos.first?.method == "GET")
+        #expect(hook.infos.first?.urlTemplate == "/items/{id}")
+        #expect(hook.infos.first?.operationId == "listItems")
     }
 
     // MARK: - Nil body

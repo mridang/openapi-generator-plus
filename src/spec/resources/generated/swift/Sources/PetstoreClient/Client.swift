@@ -51,14 +51,16 @@ public final class Client: Sendable {
   ///   - authenticator: Provides host URL and auth headers.
   ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
   ///     default transport settings when omitted.
+  ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
   /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
   ///   be read or parsed.
-  public convenience init(authenticator: Authenticator, transportOptions: TransportOptions? = nil)
-    throws
-  {
+  public convenience init(
+    authenticator: Authenticator, transportOptions: TransportOptions? = nil,
+    callHook: (any CallHook)? = nil
+  ) throws {
     try self.init(
       baseURL: authenticator.host(), authenticator: authenticator, schemes: [:],
-      transportOptions: transportOptions)
+      transportOptions: transportOptions, callHook: callHook)
   }
 
   /// Creates a new client that holds one optional credential per security scheme
@@ -68,7 +70,7 @@ public final class Client: Sendable {
   /// you gave here; a call cannot pick another scheme. An operation none of
   /// whose schemes has a credential is sent without one. A credential that
   /// conforms to ``HttpAwareAuthenticator`` gets the shared ``ApiClient``, as the
-  /// authenticator of ``init(authenticator:transportOptions:)`` does.
+  /// authenticator of ``init(authenticator:transportOptions:callHook:)`` does.
   ///
   /// - Parameters:
   ///   - host: API base URL.
@@ -87,6 +89,7 @@ public final class Client: Sendable {
   ///   - ssoAuth: Credential for the `ssoAuth` security scheme (typically ``SsoAuthAuthenticator``), or nil for none.
   ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
   ///     default transport settings when omitted.
+  ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
   /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
   ///   be read or parsed.
   public convenience init(
@@ -104,7 +107,8 @@ public final class Client: Sendable {
     userAuth: Authenticator? = nil,
     browserAuth: Authenticator? = nil,
     ssoAuth: Authenticator? = nil,
-    transportOptions: TransportOptions? = nil
+    transportOptions: TransportOptions? = nil,
+    callHook: (any CallHook)? = nil
   ) throws {
     var schemes: [String: Authenticator] = [:]
     if let credential = petStoreBasic {
@@ -147,14 +151,16 @@ public final class Client: Sendable {
       schemes["ssoAuth"] = credential
     }
     try self.init(
-      baseURL: host, authenticator: nil, schemes: schemes, transportOptions: transportOptions)
+      baseURL: host, authenticator: nil, schemes: schemes, transportOptions: transportOptions,
+      callHook: callHook)
   }
 
   private init(
     baseURL: String,
     authenticator: Authenticator?,
     schemes: [String: Authenticator],
-    transportOptions: TransportOptions?
+    transportOptions: TransportOptions?,
+    callHook: (any CallHook)?
   ) throws {
     let opts = transportOptions ?? TransportOptions.defaults
     let apiClient = try DefaultApiClient(transportOptions: opts)
@@ -171,6 +177,7 @@ public final class Client: Sendable {
 
     let config = ConfigurationBuilder()
       .baseURL(baseURL)
+      .callHook(callHook)
       .build()
 
     self.pet = PetApi(
@@ -201,14 +208,16 @@ public final class Client: Sendable {
   ///   - host: API base URL.
   ///   - accessToken: Bearer token.
   ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+  ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
   /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
   ///   be read or parsed.
   public convenience init(
-    host: String, accessToken: String, transportOptions: TransportOptions? = nil
+    host: String, accessToken: String, transportOptions: TransportOptions? = nil,
+    callHook: (any CallHook)? = nil
   ) throws {
     try self.init(
       authenticator: BearerAuthenticator(host: host, token: accessToken),
-      transportOptions: transportOptions)
+      transportOptions: transportOptions, callHook: callHook)
   }
 
   /// Creates a client from explicit arguments first and the environment second.
@@ -225,26 +234,30 @@ public final class Client: Sendable {
   ///   - token: Bearer token, or nil to read it from the environment.
   ///   - tokenProvider: Returns the current bearer token before each request.
   ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+  ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
   /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when no host or no credential
   ///   is available, or the token is not valid.
   public static func fromEnvironment(
     host: String? = nil,
     token: String? = nil,
     tokenProvider: (@Sendable () async throws -> String)? = nil,
-    transportOptions: TransportOptions? = nil
+    transportOptions: TransportOptions? = nil,
+    callHook: (any CallHook)? = nil
   ) throws -> Client {
     return try fromEnvironment(
       host: host, token: token, tokenProvider: tokenProvider,
-      transportOptions: transportOptions, environment: ProcessInfo.processInfo.environment)
+      transportOptions: transportOptions, callHook: callHook,
+      environment: ProcessInfo.processInfo.environment)
   }
 
-  /// The same as ``fromEnvironment(host:token:tokenProvider:transportOptions:)`` over a
+  /// The same as ``fromEnvironment(host:token:tokenProvider:transportOptions:callHook:)`` over a
   /// given environment, so the lookup can be exercised without touching the process's own.
   static func fromEnvironment(
     host: String?,
     token: String?,
     tokenProvider: (@Sendable () async throws -> String)?,
     transportOptions: TransportOptions?,
+    callHook: (any CallHook)? = nil,
     environment: [String: String]
   ) throws -> Client {
     func firstSet(_ explicit: String?, _ variable: String) -> String? {
@@ -263,7 +276,7 @@ public final class Client: Sendable {
     if let tokenProvider = tokenProvider {
       return try Client(
         authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),
-        transportOptions: transportOptions)
+        transportOptions: transportOptions, callHook: callHook)
     }
     guard let resolvedToken = firstSet(token, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN") else {
       throw ConfigurationError.invalidArgument(
@@ -272,17 +285,19 @@ public final class Client: Sendable {
     }
     return try Client(
       authenticator: BearerAuthenticator(host: resolvedHost, token: resolvedToken),
-      transportOptions: transportOptions)
+      transportOptions: transportOptions, callHook: callHook)
   }
 
   /// Creates a client authenticated with a static Bearer token. The named
-  /// factory form of ``init(host:accessToken:transportOptions:)``, the
-  /// counterpart of ``withAuthenticator(_:transportOptions:)`` and the
+  /// factory form of ``init(host:accessToken:transportOptions:callHook:)``, the
+  /// counterpart of ``withAuthenticator(_:transportOptions:callHook:)`` and the
   /// `withToken` factory the other SDKs expose.
   public static func withToken(
-    host: String, accessToken: String, transportOptions: TransportOptions? = nil
+    host: String, accessToken: String, transportOptions: TransportOptions? = nil,
+    callHook: (any CallHook)? = nil
   ) throws -> Client {
-    try Client(host: host, accessToken: accessToken, transportOptions: transportOptions)
+    try Client(
+      host: host, accessToken: accessToken, transportOptions: transportOptions, callHook: callHook)
   }
 
   /// Creates a client from any ``Authenticator``, with optional transport options.
@@ -292,8 +307,10 @@ public final class Client: Sendable {
   /// type conforming to ``Authenticator`` and, optionally, ``TransportOptions`` to
   /// customize the underlying transport (proxy, TLS, timeouts).
   public static func withAuthenticator(
-    _ authenticator: Authenticator, transportOptions: TransportOptions? = nil
+    _ authenticator: Authenticator, transportOptions: TransportOptions? = nil,
+    callHook: (any CallHook)? = nil
   ) throws -> Client {
-    try Client(authenticator: authenticator, transportOptions: transportOptions)
+    try Client(
+      authenticator: authenticator, transportOptions: transportOptions, callHook: callHook)
   }
 }

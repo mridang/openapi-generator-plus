@@ -1,0 +1,127 @@
+import Foundation
+import OpenTelemetryApi
+import {{packageName}}
+
+/// Records one span for every call, and hands its count and its duration to
+/// the closures you give it.
+public final class OpenTelemetryCallHook: CallHook, @unchecked Sendable {
+    private let tracerProvider: (any TracerProvider)?
+    private let propagator: (any TextMapPropagator)?
+    private let activeSpan: (@Sendable () -> (any Span)?)?
+    private let onRequest: (@Sendable ([String: AttributeValue]) -> Void)?
+    private let onDuration: (@Sendable (Double, [String: AttributeValue]) -> Void)?
+
+    /// - Parameters:
+    ///   - tracerProvider: The provider the spans come from; the global provider when nil.
+    ///   - propagator: Writes the trace context into the request; the global one when nil.
+    ///   - activeSpan: The span the call's span is a child of; the active span when nil.
+    ///   - onRequest: Called once per call with the attributes of its span.
+    ///   - onDuration: Called once per call with its duration in seconds and the attributes of its span.
+    public init(
+        tracerProvider: (any TracerProvider)? = nil,
+        propagator: (any TextMapPropagator)? = nil,
+        activeSpan: (@Sendable () -> (any Span)?)? = nil,
+        onRequest: (@Sendable ([String: AttributeValue]) -> Void)? = nil,
+        onDuration: (@Sendable (Double, [String: AttributeValue]) -> Void)? = nil
+    ) {
+        self.tracerProvider = tracerProvider
+        self.propagator = propagator
+        self.activeSpan = activeSpan
+        self.onRequest = onRequest
+        self.onDuration = onDuration
+    }
+
+    public func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+        let provider = tracerProvider ?? OpenTelemetry.instance.tracerProvider
+        if provider is DefaultTracerProvider {
+            /* No provider is configured: record nothing and leave the call alone. */
+            return nil
+        }
+        let tracer = provider.get(
+            instrumentationName: "{{packageName}}", instrumentationVersion: "{{packageVersion}}")
+        let attributes: [String: AttributeValue] = [
+            "http.request.method": .string(info.method),
+            "url.template": .string(info.urlTemplate),
+            "server.address": .string(info.serverAddress)
+        ]
+        let builder = tracer.spanBuilder(spanName: info.operationId).setSpanKind(spanKind: .client)
+        for (key, value) in attributes {
+            builder.setAttribute(key: key, value: value)
+        }
+        if let parent = (activeSpan ?? { OpenTelemetry.instance.contextProvider.activeSpan })() {
+            builder.setParent(parent)
+        }
+        let span = builder.startSpan()
+        var carrier: [String: String] = [:]
+        (propagator ?? OpenTelemetry.instance.propagators.textMapPropagator).inject(
+            spanContext: span.context, carrier: &carrier, setter: HeaderSetter())
+        for (name, value) in carrier where !value.isEmpty {
+            headers[name] = value
+        }
+        return SpanObserver(
+            hook: self, span: span, started: DispatchTime.now().uptimeNanoseconds,
+            attributes: attributes)
+    }
+
+    fileprivate func recorded(seconds: Double, attributes: [String: AttributeValue]) {
+        onRequest?(attributes)
+        onDuration?(seconds, attributes)
+    }
+}
+
+private struct HeaderSetter: Setter {
+    func set(carrier: inout [String: String], key: String, value: String) {
+        carrier[key] = value
+    }
+}
+
+private final class SpanObserver: CallObserver, @unchecked Sendable {
+    private let hook: OpenTelemetryCallHook
+    private let span: any Span
+    private let started: UInt64
+    private let attributes: [String: AttributeValue]
+
+    init(hook: OpenTelemetryCallHook, span: any Span, started: UInt64, attributes: [String: AttributeValue]) {
+        self.hook = hook
+        self.span = span
+        self.started = started
+        self.attributes = attributes
+    }
+
+    func finish(_ outcome: CallOutcome) throws {
+        var attributes = self.attributes
+        if outcome.statusCode > 0 {
+            attributes["http.response.status_code"] = .int(outcome.statusCode)
+        }
+        if let errorType = SpanObserver.errorType(of: outcome) {
+            attributes["error.type"] = .string(errorType)
+            span.status = .error(description: errorType)
+        }
+        span.setAttributes(attributes)
+        span.end()
+        let seconds = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
+        hook.recorded(seconds: seconds, attributes: attributes)
+    }
+
+    private static func errorType(of outcome: CallOutcome) -> String? {
+        if outcome.statusCode >= 400 {
+            return String(outcome.statusCode)
+        }
+        guard let error = outcome.error else {
+            return nil
+        }
+        if error is CancellationError {
+            return "cancelled"
+        }
+        if error is NetworkTimeoutError {
+            return "timeout"
+        }
+        if error is NetworkError {
+            return "network_error"
+        }
+        if error is SerializationError {
+            return "serialization_error"
+        }
+        return "_OTHER"
+    }
+}
