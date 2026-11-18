@@ -1004,3 +1004,26 @@ func TestBhvMisc078_OpenIdConnectAuthenticator_AuthorizeUrlHasS256AndNoNonce(t *
 		t.Errorf("expected an S256 challenge and no nonce, got %q", got)
 	}
 }
+
+func TestBhvMisc070_OpenIdConnectAuthenticator_ANonObjectDiscoveryDocumentKeepsNoCauseAndNoBody(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `<html>not json</html>`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	_, err := authObj.AuthHeadersOrError()
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if serErr.Message() != "oidc discovery document is not valid JSON" {
+		t.Errorf("expected the canonical message, got %q", serErr.Message())
+	}
+	if serErr.Cause() != nil {
+		t.Errorf("expected no cause, got %v", serErr.Cause())
+	}
+	if strings.Contains(err.Error(), "<html>") {
+		t.Errorf("expected the response body not to be repeated, got %q", err.Error())
+	}
+}

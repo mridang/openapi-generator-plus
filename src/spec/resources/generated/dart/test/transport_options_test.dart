@@ -12,6 +12,13 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('TransportOptions', () {
+    test('bhv misc 026 a configuration mistake is not an API exception', () {
+      expect(
+        () => TransportOptions.builder().timeout(-1),
+        throwsA(allOf(isA<ArgumentError>(), isNot(isA<ApiException>()))),
+      );
+    });
+
     test(
       'bhv options 060 builder is the static entry point for the builder',
       () {

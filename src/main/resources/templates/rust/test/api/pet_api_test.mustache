@@ -2282,3 +2282,55 @@ async fn test_bhv_misc_006_a_bare_null_response_keeps_the_raw_body_and_gives_no_
     assert!(result.data().is_none());
     assert_eq!("null", result.raw_body());
 }
+
+#[tokio::test]
+async fn test_bhv_misc_008_a_supplied_required_cookie_is_sent_in_the_cookie_header() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = DeletePetOptions::new().api_key("session-abc".to_string());
+    let _ = api.delete_pet(1, Some(&opts)).await;
+    let request = rx.recv().expect("expected a captured request").to_lowercase();
+    assert!(
+        request.contains("cookie: api_key=session-abc"),
+        "the supplied cookie must be sent in the Cookie header, got request: {}",
+        request
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_014_a_null_body_for_an_operation_that_must_return_one_raises_and_returns_no_value() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a null body for a required return must raise");
+    assert!(err.downcast_ref::<ApiError>().is_some(), "must be the typed ApiError, got: {}", err);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_021_the_request_path_in_an_error_keeps_the_base_url_prefix_and_drops_the_query() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n",
+            );
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+
+    let base_url = format!("http://{}/v1", addr);
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let client = DefaultApiClient::new(Some(TransportOptions::builder().max_retries(0).build().expect("valid transport options")));
+    let api = PetApi::new(Arc::new(client), config, None);
+
+    let err = api.get_pet_by_id(1, None, None).await.expect_err("a 404 must fail");
+    let api_err = std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| e.source())
+        .find_map(|e| e.downcast_ref::<ApiError>())
+        .expect("every HTTP error chains to an ApiError");
+    assert_eq!(api_err.request_path(), Some("/v1/pet/1"));
+}
