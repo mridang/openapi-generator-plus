@@ -100,6 +100,35 @@ class GeneratedFileLayoutTest {
         "tracecontextutil",
         "Kotlin multiplatform: an expect declaration in src/main and its actual in src/jvmMain");
 
+    for (String language : Arrays.asList("csharp", "dart", "elixir", "java", "php", "ruby", "swift")) {
+      allow(
+          ALLOWED_EXTRA,
+          language,
+          "callinfo",
+          "the call hook's request description is its own type where the other languages declare it inline");
+      allow(
+          ALLOWED_EXTRA,
+          language,
+          "calloutcome",
+          "the call hook's result description is its own type where the other languages declare it inline");
+    }
+    for (String language : Arrays.asList("csharp", "java", "php")) {
+      allow(
+          ALLOWED_EXTRA,
+          language,
+          "callobserver",
+          "the call hook's observer is its own interface where the other languages return a closure or a state");
+    }
+    allow(ALLOWED_EXTRA, "php", "callhookchain", "PHP chains hooks in one class, as it does for authenticators");
+    allow(ALLOWED_EXTRA, "csharp", "chainedcallhook", "C# chains hooks in one class behind ICallHook.Chain");
+    for (String language : Arrays.asList("csharp", "java", "kotlin", "node", "php", "python", "rust")) {
+      allow(
+          ALLOWED_EXTRA,
+          language,
+          "opentelemetrycallhook",
+          "the optional OpenTelemetry adapter, shipped only where the language has a stable API package");
+    }
+    allow(ALLOWED_EXTRA, "go", "otelhook", "the optional OpenTelemetry adapter, its own Go package");
     allow(ALLOWED_EXTRA, "dart", "abstractapiclient", "dart base class the io and web clients extend");
     allow(ALLOWED_EXTRA, "node", "abstractapiclient", "TypeScript base class the node and web clients extend");
     allow(ALLOWED_EXTRA, "php", "abstractapiclient", "PHP base class the PSR-18 client extends");

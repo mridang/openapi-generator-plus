@@ -124,3 +124,5 @@ swift | transport020 | the test needs a URLProtocol stub, which FoundationNetwor
 swift | transport040 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | transport046 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | options034 | the Apple-platform variant of the proxy test; on Linux the SDK rejects a proxy with a configuration error, which the Linux variant testSettingProxyRaisesOnLinux covers (it carries no catalogue id)
+dart | hooks015 | Dart has no per-call cancellation (S7), so there is no cancelled call to report to finish; the timeout path is bhv hooks 014
+php | hooks015 | PHP has no per-call cancellation (S7) and runs one request at a time, so there is no cancelled call to observe; the timeout path is bhv hooks 014
