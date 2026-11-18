@@ -116,7 +116,7 @@ defmodule PetstoreClient.ApiErrorTest do
     assert byte_size(err.response_body) == 3_000
   end
 
-  test "the message leaves a body of exactly 1 KiB whole" do
+  test "bhv errors 086 the message leaves a body of exactly 1 KiB whole" do
     body = String.duplicate("a", 1_024)
     err = PetstoreClient.Errors.ApiError.exception(message: "boom", response_body: body)
 
@@ -348,7 +348,7 @@ defmodule PetstoreClient.ApiErrorTest do
     end
   end
 
-  test "typed_error_body deserializes the body of a specialised error" do
+  test "bhv langelixir 005 typed_error_body deserializes the body of a specialised error" do
     err = PetstoreClient.Errors.ApiError.from_response(404, %{}, ~s({"id":42,"name":"Dogs"}))
 
     body = PetstoreClient.Errors.ApiError.typed_error_body(err, "Category")
@@ -545,7 +545,7 @@ defmodule PetstoreClient.ApiErrorTest do
     assert %PetstoreClient.Errors.SerializationError{} = error.cause
   end
 
-  test "the error of a declared error schema is an ApiError and every error above it" do
+  test "bhv langelixir 006 the error of a declared error schema is an ApiError and every error above it" do
     error = PetstoreClient.Errors.UnexpectedFailureError.exception(%{})
 
     assert PetstoreClient.Errors.ApiError.api_error?(error)
@@ -607,7 +607,7 @@ defmodule PetstoreClient.ApiErrorTest do
       end
     end
 
-    test "a rescued SDK error is recognised via exceptions/0" do
+    test "bhv errors 094 a rescued SDK error is recognised via exceptions/0" do
       # Elixir's `rescue e in [...]` clause needs a compile-time literal list
       # of exception modules, so a runtime list cannot be spliced in. The
       # idiomatic equivalent is to rescue the error and assert membership in
@@ -623,7 +623,7 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.OpenAPIError.open_api_error?(caught)
     end
 
-    test "network and OAuth errors are recognised" do
+    test "bhv langelixir 007 network and OAuth errors are recognised" do
       for err <- [
             PetstoreClient.Errors.NetworkError.exception(message: "refused"),
             PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out"),
@@ -669,7 +669,7 @@ defmodule PetstoreClient.ApiErrorTest do
     # the hierarchy: a 404 is a NotFoundError, a ClientError and an ApiError; a
     # 500 is an InternalServerError, a ServerError and an ApiError; a
     # NetworkTimeoutError is a NetworkError and an ApiError.
-    test "family predicates express the error hierarchy" do
+    test "bhv errors 095 family predicates express the error hierarchy" do
       not_found =
         PetstoreClient.Errors.NotFoundError.exception(%{message: "missing", status_code: 404})
 
@@ -834,7 +834,7 @@ defmodule PetstoreClient.ApiErrorTest do
                0
     end
 
-    test "non-SDK exceptions are not recognised" do
+    test "bhv langelixir 008 non-SDK exceptions are not recognised" do
       refute PetstoreClient.Errors.OpenAPIError.open_api_error?(%RuntimeError{
                message: "unrelated"
              })

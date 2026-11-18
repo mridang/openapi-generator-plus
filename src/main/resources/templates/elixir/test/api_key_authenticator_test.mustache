@@ -239,7 +239,7 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticatorTest do
                    fn -> ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc\rdef", :header) end
     end
 
-    test "scheme authenticators for Basic and Bearer delegate to the base authenticators" do
+    test "bhv langelixir 048 scheme authenticators for Basic and Bearer delegate to the base authenticators" do
       basic = {{moduleName}}.Auth.AdminBasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
       assert {{moduleName}}.Auth.BasicAuthenticator.auth_headers(basic) == %{"Authorization" => "Basic YWxpY2U6czNjcmV0"}
       refute inspect(basic) =~ "s3cret"

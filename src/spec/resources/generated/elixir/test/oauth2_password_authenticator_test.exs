@@ -84,7 +84,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
 
     # The authenticator generated for the spec's password scheme passes its
     # token and refresh URLs to the flow in the right places.
-    test "scheme authenticator keeps the credentials and the declared URLs" do
+    test "bhv langelixir 018 scheme authenticator keeps the credentials and the declared URLs" do
       auth =
         PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator.new(
           "https://api.example.com",

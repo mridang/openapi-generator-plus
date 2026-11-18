@@ -1149,7 +1149,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       assert error.uri == nil
     end
 
-    test "a non-string error value is not taken as a code" do
+    test "bhv langelixir 041 a non-string error value is not taken as a code" do
       body = Jason.encode!(%{"error" => 7, "error_description" => "x"})
 
       {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
@@ -1387,7 +1387,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       end
     end
 
-    test "stop/1 is idempotent and a stopped manager raises a typed error" do
+    test "bhv misc 185 stop/1 is idempotent and a stopped manager raises a typed error" do
       {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
 
       assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.stop(manager) == :ok

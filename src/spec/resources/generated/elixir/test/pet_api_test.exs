@@ -281,7 +281,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert settings_only =~ "* `opts` - Keyword list.\n"
   end
 
-  test "operation and parameter prose reaches the docs verbatim, never interpolated or entity-escaped" do
+  test "bhv langelixir 079 operation and parameter prose reaches the docs verbatim, never interpolated or entity-escaped" do
     [summary] = function_docs(:get_pet_summary)
 
     assert summary =~ ~S(Get a <plain> "text" summary & it's short)
@@ -291,7 +291,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     refute summary =~ "&amp;"
   end
 
-  test "model external-docs prose reaches the module docs verbatim" do
+  test "bhv langelixir 080 model external-docs prose reaches the module docs verbatim" do
     {:docs_v1, _anno, _lang, _format, %{"en" => moduledoc}, _metadata, _docs} =
       Code.fetch_docs(PetstoreClient.Models.Account)
 
@@ -303,7 +303,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # error instead of being silently dropped (a `:server` on an operation without
   # servers would otherwise go to the default server, a misspelt `:content_type`
   # would send the default content-type).
-  test "an operation without servers rejects the :server opt", %{api: api} do
+  test "bhv langelixir 081 an operation without servers rejects the :server opt", %{api: api} do
     pet = %PetstoreClient.Models.Pet{name: "Rex", photo_urls: []}
     server = %PetstoreClient.ServerConfiguration{url_template: "http://other.example.com"}
 
@@ -312,7 +312,7 @@ defmodule PetstoreClient.Api.PetApiTest do
                  fn -> PetstoreClient.Api.PetApi.update_pet(api, 1, pet, nil, server: server) end
   end
 
-  test "an operation rejects a misspelt :content_type opt", %{api: api} do
+  test "bhv langelixir 082 an operation rejects a misspelt :content_type opt", %{api: api} do
     assert_raise ArgumentError,
                  ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries, :content_type\]/,
                  fn ->
@@ -325,7 +325,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # A per-operation server variable that declares an enum accepts only a member
   # of it, as the global ServerConfiguration does: any other value would be
   # spliced into the request host (and a nil one would leave it empty).
-  test "per-operation server variant resolves a value inside the variable enum" do
+  test "bhv langelixir 083 per-operation server variant resolves a value inside the variable enum" do
     server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{
       environment: PetstoreClient.Api.GetStagingPetInfoServer.Environment.sandbox(),
       version: PetstoreClient.Api.GetStagingPetInfoServer.Version.v3()
@@ -346,7 +346,7 @@ defmodule PetstoreClient.Api.PetApiTest do
                  fn -> PetstoreClient.Api.GetStagingPetInfoServer.StagingServer.url(server) end
   end
 
-  test "per-operation server variant rejects a variable left unset" do
+  test "bhv misc 155 per-operation server variant rejects a variable left unset" do
     server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{environment: "staging"}
 
     assert_raise ArgumentError,
@@ -550,7 +550,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "string path param is percent-encoded exactly once (no double-encoding)" do
+  test "bhv langelixir 084 string path param is percent-encoded exactly once (no double-encoding)" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -632,7 +632,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   # A non-exploded delimited array serialises to a single (empty) value, so an
   # explicitly empty list is sent as `colors=` / `sizes=` like in the other
   # SDKs, rather than dropping the key.
-  test "get_pet_tag sends an empty non-exploded array query param as an empty value" do
+  test "bhv langelixir 085 get_pet_tag sends an empty non-exploded array query param as an empty value" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -824,7 +824,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              PetstoreClient.Api.PetApi.get_pet_by_id(api, 99_999)
   end
 
-  test "error handling 404 names the request" do
+  test "bhv langelixir 086 error handling 404 names the request" do
     api = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
 
     assert {:error,
@@ -1098,7 +1098,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert headers["Authorization"] == "admin"
   end
 
-  test "a held scheme wins over the client-level authenticator" do
+  test "bhv langelixir 090 a held scheme wins over the client-level authenticator" do
     headers = delete_with(credential("default"), %{"adminBasic" => credential("admin")})
 
     assert headers["Authorization"] == "admin"
@@ -1320,7 +1320,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
-  test "get_multi_server_pet_info rejects a region outside the variable enum" do
+  test "bhv servers 030 get_multi_server_pet_info rejects a region outside the variable enum" do
     {name, api} = stub_pet_api(@sample_pet)
 
     regional = %PetstoreClient.Api.GetMultiServerPetInfoServer.Regional{region: "mars"}
@@ -2684,7 +2684,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     def finish(pid, outcome), do: send(pid, {:call_outcome, outcome})
   end
 
-  test "both variants of a generated operation call the hook once, with the spec operation id and path" do
+  test "bhv langelixir 087 both variants of a generated operation call the hook once, with the spec operation id and path" do
     {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
 
     config =
