@@ -3526,3 +3526,89 @@ func TestBhvSerialization119_DefaultApiClient_ABodyIsDecodedByItsDeclaredCharset
 		t.Errorf("expected BOM-less UTF-16 read as big-endian, got %q", got)
 	}
 }
+
+// bhvMisc101Source is a body source that fails once it is read.
+type bhvMisc101Source struct{}
+
+func (bhvMisc101Source) Read(p []byte) (int, error) { return 0, errors.New("source is gone") }
+
+// bhvMisc098Stream records whether the SDK closed it.
+type bhvMisc098Stream struct {
+	io.Reader
+	closed bool
+}
+
+func (s *bhvMisc098Stream) Close() error {
+	s.closed = true
+	return nil
+}
+
+func TestBhvMisc096_DefaultApiClientUnit_ATextPartCarriesOnlyItsContentDisposition(t *testing.T) {
+	t.Parallel()
+	body, err := buildMultipartBody(map[string]any{"title": "hello"}, "b")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	want := "--b\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nhello\r\n--b--"
+	if !strings.Contains(string(body), want) {
+		t.Errorf("expected the text part exactly, got %q", body)
+	}
+	if strings.Contains(string(body), "Content-Transfer-Encoding") {
+		t.Errorf("expected no Content-Transfer-Encoding header, got %q", body)
+	}
+}
+
+func TestBhvMisc097_DefaultApiClientUnit_AnArrayFieldIsOnePartPerElementInOrder(t *testing.T) {
+	t.Parallel()
+	body, err := buildMultipartBody(map[string]any{"tags": []string{"a", "b"}, "name": "x"}, "b")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	text := string(body)
+	if strings.Count(text, `name="tags"`) != 2 {
+		t.Errorf("expected two tags parts, got %q", text)
+	}
+	if strings.Index(text, "\r\n\r\na\r\n") > strings.Index(text, "\r\n\r\nb\r\n") {
+		t.Errorf("expected the elements in the order given, got %q", text)
+	}
+	if strings.Count(text, `name="name"`) != 1 {
+		t.Errorf("expected the scalar field as one part, got %q", text)
+	}
+}
+
+func TestBhvMisc098_DefaultApiClientUnit_ACallerStreamIsReadButNeverClosed(t *testing.T) {
+	t.Parallel()
+	stream := &bhvMisc098Stream{Reader: strings.NewReader("data")}
+	body, err := buildMultipartBody(map[string]any{"upload": stream}, "b")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	if !strings.Contains(string(body), "data") {
+		t.Errorf("expected the stream read into the body, got %q", body)
+	}
+	if stream.closed {
+		t.Errorf("expected the SDK not to close the caller stream")
+	}
+}
+
+func TestBhvMisc099_DefaultApiClientUnit_ANonAsciiFilenameHasOneFallbackAndAnExtendedForm(t *testing.T) {
+	t.Parallel()
+	body, err := buildMultipartBody(map[string]any{"résumé.pdf": strings.NewReader("x")}, "b")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	text := string(body)
+	if strings.Count(text, "filename=") != 1 {
+		t.Errorf("expected exactly one plain filename directive, got %q", text)
+	}
+	if !strings.Contains(text, "filename*=UTF-8''r%C3%A9sum%C3%A9.pdf") {
+		t.Errorf("expected the extended filename form, got %q", text)
+	}
+}
+
+func TestBhvMisc101_DefaultApiClientUnit_AnUnreadableBodySourceFailsTheBuild(t *testing.T) {
+	t.Parallel()
+	if _, err := buildMultipartBody(map[string]any{"upload": bhvMisc101Source{}}, "b"); err == nil {
+		t.Errorf("expected the unreadable source to fail the build, got no error")
+	}
+}

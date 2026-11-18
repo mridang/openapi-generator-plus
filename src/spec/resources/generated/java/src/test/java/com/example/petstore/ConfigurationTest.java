@@ -308,4 +308,11 @@ class ConfigurationTest {
 
     assertFalse(Configuration.builder().callHook(hook).build().toString().contains("callHook"));
   }
+
+  @Test
+  void bhvConfig026ConfigurationBuiltThroughTheBuilderReturnsTheBaseUrlSet() {
+    assertEquals(
+        "https://api.example.com/v2",
+        Configuration.builder().baseUrl("https://api.example.com/v2").build().getBaseUrl());
+  }
 }

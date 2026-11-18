@@ -562,3 +562,19 @@ func TestBhvEquality001_ModelEqual_ComparesNestedValues(t *testing.T) {
 		t.Error("expected nil not to equal a model")
 	}
 }
+
+func TestBhvMisc093_Model_NumericAdditionalPropertyNamesAreTopLevelKeys(t *testing.T) {
+	t.Parallel()
+	meta := models.Metadata{AdditionalProperties: map[string]string{"404": "missing", "7": "seven"}}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got["404"] != "missing" || got["7"] != "seven" {
+		t.Errorf("expected the numeric names as top-level members, got %s", data)
+	}
+}
