@@ -510,6 +510,22 @@ test('malformed json does not leak native exception', function (): void {
 // PHP with the throwing SDKs (the (de)serialization error surfaces, never a
 // silent fallback).
 
+test('bhv serializationobject 190 a long is stringified to its exact decimal digits', function (): void {
+    expect(ObjectSerializer::stringify(9007199254740993))->toBe('9007199254740993');
+});
+
+test('bhv serializationobject 191 an int64 above 2^53 keeps every digit when decoded', function (): void {
+    $order = ObjectSerializer::deserialize('{"id":9007199254740993}', Order::class);
+
+    expect($order->id)->toBe(9007199254740993);
+    expect(ObjectSerializer::serialize($order))->toContain('"id":9007199254740993');
+});
+
+test('bhv serializationobject 192 an unknown enum string fails at decode', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":1,"status":"teleporting"}', Order::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
 test('bhv serializationobject 172 unknown enum value on deserialize throws SerializationException', function (): void {
     // Pet::$status is a PetStatusEnum; "teleporting" is not a declared case.
     $json = '{"id":1,"name":"Rex","photoUrls":[],"status":"teleporting"}';

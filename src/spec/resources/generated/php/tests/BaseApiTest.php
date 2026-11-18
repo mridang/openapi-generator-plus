@@ -73,6 +73,19 @@ test('bhv errors 037 throws correct exception', function (int $status, string $e
     [502, ServerException::class],
 ]);
 
+test('bhv errors 071 a 401 response surfaces as an unauthorized error', function (): void {
+    expect(fn (): mixed => makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/status/401',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    ))->toThrow(UnauthorizedException::class);
+});
+
 test('bhv errors 029 get typed error body deserializes into given class', function (): void {
     $ex = new ApiException(400, 'boom', [], '{"id":42,"name":"Dogs"}');
     $typed = $ex->getTypedErrorBody(Category::class);

@@ -10,7 +10,7 @@ test('bhv results 003 exposes status code', function (): void {
     expect($result->statusCode)->toBe(200);
 });
 
-test('exposes deserialized data', function (): void {
+test('bhv results 004 exposes deserialized data', function (): void {
     $data = ['id' => 1, 'name' => 'example'];
     $result = new ApiResult(statusCode: 200, data: $data, rawBody: '', headers: []);
 
@@ -23,7 +23,7 @@ test('bhv results 001 data may be null', function (): void {
     expect($result->data)->toBeNull();
 });
 
-test('exposes raw body', function (): void {
+test('bhv results 005 exposes raw body', function (): void {
     $result = new ApiResult(statusCode: 200, data: null, rawBody: '{"id":1}', headers: []);
 
     expect($result->rawBody)->toBe('{"id":1}');
