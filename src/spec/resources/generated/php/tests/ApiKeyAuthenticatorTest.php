@@ -260,7 +260,7 @@ test('the api key environment variable is read once, when the authenticator is b
     });
 });
 
-test('a missing or empty environment api key fails when the authenticator is built', function (?string $value): void {
+test('bhv authscheme 012 an empty or unset environment api key is treated as unset and fails naming the variable', function (?string $value): void {
     withApiKeyEnvironment($value, function (): void {
         expect(fn () => new ApiKeyHeaderAuthenticator('https://api.example.com'))
             ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY');

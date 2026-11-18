@@ -173,7 +173,7 @@ test('every typed API error extends the base ApiException', function (): void {
     }
 });
 
-test('a typed error is caught by a base ApiException catch', function (): void {
+test('bhv errors 052 a typed error is caught by a base ApiException catch', function (): void {
     $caught = null;
     try {
         throw new \PetstoreClient\Errors\BadRequestException('bad request');
@@ -264,6 +264,53 @@ test('bhv errors 026 the request method and path are rendered on their own line 
 
     expect((string) $ex)->toBe("API returned status code 404\nHTTP status code: 404\nRequest: DELETE /items/7");
     expect((string) $ex)->not->toContain('secret');
+});
+
+test('bhv errors 050 response headers render in the error text as compact JSON with sorted keys and unescaped slashes', function (): void {
+    $ex = new ApiException(302, 'moved', [
+        'x-b' => '2',
+        'location' => 'https://example.com/a',
+        'x-a' => '1',
+    ]);
+
+    expect((string) $ex)->toContain('Response headers: {"location":"https://example.com/a","x-a":"1","x-b":"2"}');
+});
+
+test('bhv errors 051 an empty error message falls back to the generic error line', function (): void {
+    expect((string) new ApiException(502, ''))
+        ->toBe("Error message: the server returns an error\nHTTP status code: 502");
+});
+
+test('bhv errors 053 each named error pins its own status code', function (string $class, int $status): void {
+    expect((new $class('x'))->getStatusCode())->toBe($status);
+})->with([
+    [\PetstoreClient\Errors\BadRequestException::class, 400],
+    [\PetstoreClient\Errors\UnauthorizedException::class, 401],
+    [\PetstoreClient\Errors\ForbiddenException::class, 403],
+    [\PetstoreClient\Errors\NotFoundException::class, 404],
+    [\PetstoreClient\Errors\ConflictException::class, 409],
+    [\PetstoreClient\Errors\UnprocessableEntityException::class, 422],
+    [\PetstoreClient\Errors\TooManyRequestsException::class, 429],
+    [\PetstoreClient\Errors\InternalServerErrorException::class, 500],
+]);
+
+test('bhv errors 055 status error constructors default the response context to null', function (): void {
+    $ex = new \PetstoreClient\Errors\BadRequestException();
+
+    expect($ex->getStatusCode())->toBe(400);
+    expect($ex->getResponseHeaders())->toBeNull();
+    expect($ex->getResponseBody())->toBeNull();
+    expect($ex->getErrorBody())->toBeNull();
+    expect($ex->getRequestMethod())->toBeNull();
+    expect($ex->getRequestPath())->toBeNull();
+});
+
+test('bhv errors 056 a status at or above 600 yields the base error and not a server error', function (): void {
+    $ex = ApiException::fromResponse(600, ['x-request-id' => 'abc'], null);
+
+    expect($ex::class)->toBe(ApiException::class);
+    expect($ex)->not->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    expect($ex->getStatusCode())->toBe(600);
 });
 
 test('bhv errors 012 an error built without a request has no request context', function (): void {

@@ -1097,8 +1097,8 @@ config019 | The default configuration factory returns the spec base URL
 config020 | A configuration builder chain sets the base URL and default headers in one configuration
 config021 | A server URL template resolves its variables to their defaults
 config022 | Mutating the returned default headers does not change the configuration
-config023 | Each call to the default configuration factory returns a fresh instance with the same base URL
-config024 | The configuration has no settable process-wide default
+config023 | Repeated calls to the default configuration factory return the same configuration with the same base URL
+config024 | Setting the process-wide default configuration makes the default lookup return that configuration
 errors050 | Response headers render in the error text as compact JSON with sorted keys and unescaped slashes
 errors051 | An empty error message falls back to the generic error line
 errors052 | A typed client error is caught by a base API error catch and chains to the API error root
