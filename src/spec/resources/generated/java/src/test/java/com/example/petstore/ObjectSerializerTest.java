@@ -502,7 +502,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("array date-time is rejected")
-    void arrayDateTimeThrows() {
+    void bhvSerialization030ArrayDateTimeThrows() {
       assertDateTimeRejected("{\"shipDate\":[2023,11,14,22,13,20]}");
     }
 
@@ -777,7 +777,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("content-encoded parameter JSON keeps angle brackets and ampersands literal")
-    void contentParameterJsonIsLiteral() {
+    void bhvLangjava019ContentParameterJsonIsLiteral() {
       assertEquals(
           "{\"caption\":\"a<b>&c\"}", serializer.serialize(java.util.Map.of("caption", "a<b>&c")));
     }
@@ -1257,28 +1257,28 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("integral float literal for an integer field throws")
-    void integralFloatForLongFieldThrows() {
+    void bhvLangjava020IntegralFloatForLongFieldThrows() {
       assertCoercionRejected(
           "{\"id\":1.0}", com.example.petstore.models.Order.class, "Floating-point value (1.0)");
     }
 
     @Test
     @DisplayName("exponent literal for an integer field throws")
-    void exponentLiteralForLongFieldThrows() {
+    void bhvLangjava020ExponentLiteralForLongFieldThrows() {
       assertCoercionRejected(
           "{\"id\":1e2}", com.example.petstore.models.Order.class, "Floating-point value (1e2)");
     }
 
     @Test
     @DisplayName("integer number for a string field throws instead of becoming text")
-    void integerForStringFieldThrows() {
+    void bhvLangjava020IntegerForStringFieldThrows() {
       assertCoercionRejected(
           "{\"name\":5}", com.example.petstore.models.Category.class, "Integer value (5)");
     }
 
     @Test
     @DisplayName("fractional number for a string field throws instead of becoming text")
-    void floatForStringFieldThrows() {
+    void bhvLangjava020FloatForStringFieldThrows() {
       assertCoercionRejected(
           "{\"name\":1.5}", com.example.petstore.models.Category.class, "Float value (1.5)");
     }
@@ -1293,7 +1293,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("whole numbers and quoted strings still decode into their own field types")
-    void matchingScalarTypesStillDecode() {
+    void bhvLangjava021MatchingScalarTypesStillDecode() {
       com.example.petstore.models.Order order =
           serializer.deserialize(
               "{\"id\":9007199254740993,\"quantity\":3}", com.example.petstore.models.Order.class);
@@ -1399,7 +1399,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("optional array fields the caller never set are not sent")
-    void unsetOptionalArraysAreNotSent() {
+    void bhvLangjava022UnsetOptionalArraysAreNotSent() {
       com.example.petstore.models.Pet pet =
           new com.example.petstore.models.Pet(
               "doggie", new java.util.LinkedHashSet<>(List.of("u")));
@@ -1443,7 +1443,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("absent optional array decodes to null, not an empty list")
-    void absentOptionalArrayDecodesToNull() {
+    void bhvLangjava023AbsentOptionalArrayDecodesToNull() {
       com.example.petstore.models.Pet pet =
           serializer.deserialize(
               "{\"name\":\"x\",\"photoUrls\":[]}", com.example.petstore.models.Pet.class);
@@ -1623,7 +1623,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("one-nanosecond Duration keeps all 9 fractional digits")
-    void singleNanoKeepsNineDigits() {
+    void bhvLangjava024SingleNanoKeepsNineDigits() {
       java.time.Duration d = java.time.Duration.ofSeconds(3600, 1);
       assertEquals("3600.000000001s", ObjectSerializer.stringify(d));
     }
@@ -1637,7 +1637,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("microsecond Duration trims to 6 fractional digits")
-    void microsTrimsToSixDigits() {
+    void bhvLangjava025MicrosTrimsToSixDigits() {
       java.time.Duration d = java.time.Duration.ofSeconds(0, 123_456_000);
       assertEquals("0.123456s", ObjectSerializer.stringify(d));
     }
@@ -1714,7 +1714,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("a JSON array where a Duration is expected is a SerializationException")
-    void arrayTokenRejectedAsSerializationException() {
+    void bhvLangjava026ArrayTokenRejectedAsSerializationException() {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class,
@@ -2710,7 +2710,7 @@ class ObjectSerializerTest {
     /* Containers of byte arrays must print their content, not identity. */
     @Test
     @DisplayName("structuralToString dumps byte lists and maps by content")
-    void structuralToStringDumpsContainersByContent() {
+    void bhvLangjava027StructuralToStringDumpsContainersByContent() {
       assertEquals(
           "[[1, 2], [3]]",
           ObjectSerializer.structuralToString(
