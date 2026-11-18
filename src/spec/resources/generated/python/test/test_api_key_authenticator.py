@@ -224,7 +224,7 @@ class TestApiKeyAuthenticator:
         assert "abc123" not in rendered
         assert "***" in rendered
 
-    def test_equal_credentials_are_not_equal_by_value(self) -> None:
+    def test_bhv_lang_python_007_equal_credentials_are_not_equal_by_value(self) -> None:
         """Authenticators compare by identity, so a secret is never compared or hashed by value."""
         first = ApiKeyAuthenticator(
             host="https://api.example.com",

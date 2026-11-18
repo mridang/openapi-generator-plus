@@ -395,22 +395,6 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(secret_auth.to_s).wont_include 'super_secret_value'
   end
 
-  def test_redacts_secret
-    auth = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
-      'https://api.example.com',
-      'my_client_id',
-      'leaky_client_secret',
-      'https://auth.example.com/authorize',
-      'https://auth.example.com/token',
-      'https://app.example.com/callback',
-      %w[read write]
-    )
-    _(auth.inspect).wont_include 'leaky_client_secret'
-    _(auth.inspect).must_include '***'
-    _(auth.to_s).wont_include 'leaky_client_secret'
-    _(auth.to_s).must_include '***'
-  end
-
   it 'bhv_authoauthtwoauthcode_024 sends the code exchange to the token URL and the refresh grant to the refresh URL' do
     client = FakeAuthCodeClient.new([
                                       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },

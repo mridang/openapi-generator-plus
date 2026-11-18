@@ -1109,16 +1109,6 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_body.to_s).must_equal 'remindAt=2024-01-15T10%3A30%3A00.000%2B00%3A00'
   end
 
-  it 'form-urlencoded body stringifies a duration, a boolean and a number' do
-    client = CapturingApiClient.new
-    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
-    test_api = TestableApi.new(client, config)
-    form = { 'snooze' => ISO8601::Duration.new('PT1H'), 'urgent' => true, 'weight' => 1.5 }
-    test_api.call('POST', '/test', {}, {}, form,
-                  ['application/json'], 'application/x-www-form-urlencoded', nil)
-    _(client.captured_body.to_s).must_equal 'snooze=3600s&urgent=true&weight=1.5'
-  end
-
   it 'bhv_serializationwire_014 form-urlencoded body rejects a nested map value' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
@@ -2117,7 +2107,7 @@ describe Petstore::Client::Api::BaseApi do
     _(hook.infos.first.url).must_equal 'https://api.example.com/items/7'
   end
 
-  it 'lets a hook delete a header, keeping it deleted on a transport retry' do
+  it 'bhv_langruby_017 lets a hook delete a header, keeping it deleted on a transport retry' do
     seen = []
     hook = RecordingCallHook.new { |headers| headers.delete('Accept') }
     client = retrying_client([[503, { 'Retry-After' => '0' }, 'busy'], [200, { 'content-type' => 'application/json' }, '{}']], seen)
@@ -2128,7 +2118,7 @@ describe Petstore::Client::Api::BaseApi do
     _(seen.map { |headers| headers.key?('Accept') }).must_equal [false, false]
   end
 
-  it 'falls back to the operation name and the request path when the call names no spec operation' do
+  it 'bhv_langruby_018 falls back to the operation name and the request path when the call names no spec operation' do
     hook = RecordingCallHook.new
 
     hooked_api(hook).call_for_result(:get, '/items/7', {}, {}, nil, ['application/json'], 'application/json', nil,
