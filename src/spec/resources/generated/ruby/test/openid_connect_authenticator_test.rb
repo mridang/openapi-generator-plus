@@ -625,4 +625,15 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     err = _(-> { auth.build_authorization_url }).must_raise Petstore::Client::Errors::NotFoundError
     _(err.status_code).must_equal 404
   end
+
+  it 'bhv_auth_011 caches a discovery document with no usable max-age for the default lifetime' do
+    [{ 'cache-control' => 'no-store' }, { 'cache-control' => 'max-age=soon' }].each do |headers|
+      client = FakeOidcClient.new([discovery_response.merge(headers: headers)])
+      auth = oidc_authenticator(client)
+
+      auth.build_authorization_url
+      auth.build_authorization_url
+      _(discovery_requests(client).length).must_equal 1
+    end
+  end
 end

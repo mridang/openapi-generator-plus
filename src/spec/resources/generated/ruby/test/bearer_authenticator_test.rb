@@ -221,4 +221,12 @@ describe 'BearerAuthenticator', 'token refusal at construction' do
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "xy\r\nz")
     }).must_raise ArgumentError
   end
+
+  it 'bhv_auth_023 an explicitly passed empty token is refused and not replaced by the environment value' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', '', env: { "#{prefix}_TOKEN" => 'from-env' }) })
+            .must_raise ArgumentError
+
+    _(error.message).must_equal 'Bearer token must not be empty'
+  end
 end

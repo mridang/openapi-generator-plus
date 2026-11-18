@@ -807,4 +807,50 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     end
     _(err.message).must_equal 'Unsupported token_type in token response'
   end
+
+  it 'bhv_auth_030 token state read from several threads at once never shows a value that was not set' do
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    values = %w[tok_0 tok_1 tok_2 tok_3]
+    manager.access_token = values.first
+    observed = Queue.new
+
+    writers = values.map { |value| Thread.new { 200.times { manager.access_token = value } } }
+    readers = Array.new(4) do
+      Thread.new do
+        200.times { observed << manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' }) }
+      end
+    end
+    (writers + readers).each(&:join)
+
+    seen = []
+    seen << observed.pop until observed.empty?
+    _(seen.length).must_equal 800
+    _(seen.reject { |token| values.include?(token) }).must_be_empty
+  end
+
+  it 'bhv_errors_082 keeps a valid error code when its description and uri are not strings' do
+    client = FakeTokenClient.new([
+                                   { status: 400, body: { 'error' => 'invalid_grant', 'error_description' => 42, 'error_uri' => ['https://x'] } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    error = assert_raises(Petstore::Client::Errors::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/token', {})
+    end
+    _(error.code).must_equal 'invalid_grant'
+    _(error.description).must_be_nil
+    _(error.uri).must_be_nil
+  end
+
+  it 'a non-string error value is not taken as an error code' do
+    client = FakeTokenClient.new([{ status: 400, body: { 'error' => 7 } }])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    error = assert_raises(Petstore::Client::Errors::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/token', {})
+    end
+    _(error.code).must_be_nil
+  end
 end

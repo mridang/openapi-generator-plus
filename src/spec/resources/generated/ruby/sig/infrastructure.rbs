@@ -251,6 +251,8 @@ module Petstore::Client
     def run_hop: (Symbol, String, untyped, Hash[String, String], Float?, Numeric?) -> untyped
     def dispatch: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
     def header?: (Hash[String, String], String) -> bool
+    def validate_header_values!: (Hash[String, untyped]) -> void
+    def redact_url_text: (String?) -> String
     def network_error_class: (Faraday::Error) -> singleton(Errors::NetworkError)
     def validate_ca_cert_path: (String?) -> void
     def https_to_http_downgrade?: (String, String) -> bool
