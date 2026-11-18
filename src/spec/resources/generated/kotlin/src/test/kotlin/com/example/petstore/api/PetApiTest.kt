@@ -906,7 +906,7 @@ class PetApiTest {
                     409 to com.example.petstore.errors.ConflictException::class.java,
                     418 to com.example.petstore.errors.ClientException::class.java,
                     422 to com.example.petstore.errors.UnprocessableEntityException::class.java,
-                    502 to com.example.petstore.errors.ServerException::class.java,
+                    502 to com.example.petstore.errors.BadGatewayException::class.java,
                 )
             val config =
                 Configuration
