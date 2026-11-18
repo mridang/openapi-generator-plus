@@ -200,3 +200,14 @@ test('bhv servers 014 a variable without an enum accepts any override', function
 
     expect($server->getUrl(['env' => 'anything-goes']))->toBe('https://anything-goes.api.example.com');
 });
+
+test('bhv servers 025 changing the variables map after building the configuration leaves it unchanged', function (): void {
+    $variables = ['env' => new ServerVariable(defaultValue: 'api')];
+    $server = new ServerConfiguration(urlTemplate: 'https://{env}.example.com', variables: $variables);
+
+    $variables['env'] = new ServerVariable(defaultValue: 'other');
+    $variables['extra'] = new ServerVariable(defaultValue: 'x');
+
+    expect(array_keys($server->variables))->toBe(['env']);
+    expect($server->getUrl())->toBe('https://api.example.com');
+});

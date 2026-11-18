@@ -2389,3 +2389,84 @@ test('bhv serialization 041 a time string in hours, minutes and seconds parses i
 test('bhv serialization 064 a collection of unique values is written as a json array of its members', function (): void {
     expect(ObjectSerializer::serialize(new \Ds\Set(['a', 'b'])))->toBe('["a","b"]');
 });
+
+test('bhv serialization 012 map keys are written in ascending order', function (): void {
+    expect(ObjectSerializer::serialize(['b' => 2, 'a' => 1]))->toBe('{"a":1,"b":2}');
+    expect(ObjectSerializer::serialize(new \Ds\Map(['b' => 2, 'a' => 1])))->toBe('{"a":1,"b":2}');
+});
+
+test('bhv serialization 020 a field left unset is written with its schema default', function (): void {
+    $data = json_decode(ObjectSerializer::serialize(new Defaults()), true);
+
+    expect($data['retries'])->toBe(3);
+    expect($data['label'])->toBe('untitled');
+});
+
+test('bhv serialization 021 models with equal content are equal and serialize alike', function (): void {
+    $left = new Category(id: 1, name: 'Dogs');
+    $right = new Category(id: 1, name: 'Dogs');
+
+    expect($left == $right)->toBeTrue();
+    expect(ObjectSerializer::serialize($left))->toBe(ObjectSerializer::serialize($right));
+    expect($left == new Category(id: 1, name: 'Cats'))->toBeFalse();
+});
+
+test('bhv serialization 029 a quoted number for an integer field is refused', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":"5","name":"Dogs"}', Category::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serialization 030 a number for a date-time field is refused', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"createdAt":1700000000}', Metadata::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serialization 032 an integer field refuses a whole valued fraction or exponent', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":1.0,"name":"Dogs"}', Category::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":1e2,"name":"Dogs"}', Category::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serialization 033 an integer container refuses a leaf that is not a plain integer', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('[1,"2"]', 'int[]'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serialization 038 a time finer than a millisecond is truncated and never rounded up', function (): void {
+    $time = new \DateTimeImmutable('2024-01-01T10:30:00.999600+00:00');
+
+    expect(ObjectSerializer::formatTime($time))->toBe('10:30:00.999');
+});
+
+test('bhv serialization 042 a date only or time string is passed through exactly as given', function (): void {
+    expect(ObjectSerializer::stringify('2024-01-15'))->toBe('2024-01-15');
+    expect(ObjectSerializer::stringify('10:30:00'))->toBe('10:30:00');
+});
+
+test('bhv serialization 047 a duration at the bound round trips without overflow', function (): void {
+    $edge = ObjectSerializer::deserialize('{"retryAfter":"315576000000s"}', EdgeCases::class);
+
+    expect(ObjectSerializer::serialize($edge))->toContain('"retryAfter":"315576000000s"');
+});
+
+test('bhv serialization 054 a free form value keeps its json type', function (): void {
+    $meta = ObjectSerializer::deserialize('{"s":"5","n":null}', Metadata::class);
+
+    expect($meta->additionalProperties->get('s'))->toBe('5');
+    expect($meta->additionalProperties->hasKey('n'))->toBeTrue();
+    expect($meta->additionalProperties->get('n'))->toBeNull();
+});
+
+test('bhv serialization 062 a base64 byte property decodes to the raw bytes it encodes', function (): void {
+    $vault = ObjectSerializer::deserialize('{"seal":"AQ=="}', BinaryVault::class);
+
+    expect($vault->seal)->toBe("\x01");
+});
+
+test('bhv serialization 065 a null element of a list is kept in its own position', function (): void {
+    expect(ObjectSerializer::deserialize('["a",null,"b"]', 'string[]'))->toBe(['a', null, 'b']);
+    $dates = ObjectSerializer::deserialize('[null,"2024-01-15T10:30:00.000+00:00"]', '\DateTime[]');
+    expect($dates[0])->toBeNull();
+    expect($dates[1])->toBeInstanceOf(\DateTimeInterface::class);
+});

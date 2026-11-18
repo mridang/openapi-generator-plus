@@ -261,6 +261,13 @@ class ObjectSerializer
             foreach ($data as $property => $value) {
                 $data[$property] = self::sanitizeForSerialization($value);
             }
+            /* A map (an array with keys, not a list) is written with its keys in
+             * ascending order, so equal data always produces identical output. A
+             * list keeps its order. A model is normalized by the object branch
+             * below and keeps its declaration order. */
+            if (!array_is_list($data)) {
+                ksort($data, SORT_STRING);
+            }
             return $data;
         }
 

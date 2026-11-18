@@ -55,6 +55,8 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
                 ? $value
                 : $this->normalizer->normalize($value, $format, $context);
         }
+        /* A map is written with its keys in ascending order, so equal maps always produce identical output. */
+        $out->ksort(SORT_STRING);
         return $out;
     }
 

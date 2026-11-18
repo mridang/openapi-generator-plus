@@ -847,6 +847,27 @@ test('bhv serializationwire 061 a multipart filename with an embedded quote is b
     expect(DefaultApiClient::buildFilenameDirective('a"b.txt'))->toBe('filename="a\\"b.txt"');
 });
 
+test('bhv serialization 056 a multipart file name escapes its quote and backslash', function (): void {
+    expect(DefaultApiClient::buildFilenameDirective('a"b\\c.txt'))->toBe('filename="a\\"b\\\\c.txt"');
+});
+
+test('bhv serialization 060 a model sent as a multipart part declares the application json media type', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest('POST', 'http://example.com/upload', [], [
+        'model' => new MultipartModelPart(isEnabled: true),
+    ]);
+
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"model\"\r\nContent-Type: application/json\r\n");
+});
+
 test('bhv serializationwire 041 multipart filename ascii only omits filename star', function (): void {
     $directive = DefaultApiClient::buildFilenameDirective('file.png');
     expect($directive)->toBe('filename="file.png"');

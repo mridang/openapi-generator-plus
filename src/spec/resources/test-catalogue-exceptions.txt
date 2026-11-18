@@ -309,3 +309,4 @@ php | models020 | PHP objects have no hash protocol: a set or map keys an object
 php | options058 | TransportOptions holds no HTTP client field: the injected PSR-18 client is a constructor argument of Psr18ApiClient and is not stored on the built options, so there is no value to read back as the same instance or as unset
 php | options059 | TransportOptions holds no transport hook field: the caller's transport is the PSR-18 client constructor argument, so there is no option to read back as unset or kept
 php | redirects045 | the PSR-18 interface exposes no redirect policy, so the SDK cannot detect that an injected client follows redirects itself; the contract is documented on Psr18ApiClient instead
+php | serialization049 | format: uri is a plain string on the PHP 8.3 floor (the native URI type needs 8.5), so a relative value is not refused at decode

@@ -643,4 +643,43 @@ test('bhv serializationparam 117 a set in form style without explode joins its e
 test('bhv serializationparam 066 a null value is an empty string in the path location', function (): void {
     expect(ObjectSerializer::toPathValue(null))->toBe('');
 });
+
+test('bhv serialization 013 an array in a header is written as its items', function (): void {
+    expect(ValueSerializer::serializeStyled('X-Items', ['a', 'b'], 'header', 'array', null, 'simple', false))->toBe('a,b');
+});
+
+test('bhv serialization 014 an unset object-valued query parameter produces no entry', function (): void {
+    expect(ValueSerializer::serializeStyled('c', null, 'query', 'SerializerProbe', null, 'form', true))->toBeNull();
+});
+
+test('bhv serialization 015 matrix and label styles lay an object out with their own prefix and separators', function (): void {
+    $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+    expect(ValueSerializer::serializeStyled('c', $criteria, 'path', 'SerializerProbe', null, 'matrix', true))
+        ->toBe(';breed=lab;min_age=3');
+    expect(ValueSerializer::serializeStyled('c', $criteria, 'path', 'SerializerProbe', null, 'label', false))
+        ->toBe('.breed,lab,min_age,3');
+});
+
+test('bhv serialization 016 an object in a delimited style is alternating keys and values', function (): void {
+    $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+    expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'pipeDelimited', false))
+        ->toBe('breed|lab|min_age|3');
+});
+
+test('bhv serialization 017 a model object parameter lists its wire names in declaration order in every style', function (): void {
+    $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
+    expect(array_keys(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'form', true)))
+        ->toBe(['breed', 'min_age']);
+    expect(array_keys(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'spaceDelimited', true)))
+        ->toBe(['breed', 'min_age']);
+});
+
+test('bhv serialization 018 a nested object inside an object-valued parameter is refused', function (): void {
+    expect(fn () => ValueSerializer::serializeDeepObject('criteria', ['inner' => ['deeper' => 1]]))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serialization 019 a null entry in a parameter map is left out of the output', function (): void {
+    expect(ValueSerializer::serializeDeepObject('filter', ['a' => null, 'b' => 'x']))->toBe(['filter[b]' => 'x']);
+});
 }

@@ -491,6 +491,10 @@ final class ValueSerializer
         }
 
         foreach ($value as $key => $val) {
+            /* A null entry is an unset value and is left out, as an unset model property is. */
+            if ($val === null) {
+                continue;
+            }
             self::assertScalarLeaf($paramName, $val, (string) $key);
             $result[$paramName . '[' . $key . ']'] = ObjectSerializer::stringify($val);
         }
