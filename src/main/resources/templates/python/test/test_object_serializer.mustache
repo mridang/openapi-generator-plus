@@ -620,6 +620,11 @@ class TestToCookieValue:
     def test_bhv_serializationobject_040_converts_integer_to_string(self) -> None:
         assert ObjectSerializer.to_cookie_value(42) == '42'
 
+    def test_bhv_serializationobject_224_a_content_cookie_value_keeps_only_the_unreserved_set_literal(self) -> None:
+        from {{packageName}}.value_serializer import ValueSerializer
+        wire = ObjectSerializer().serialize({'k': 'a b~*é'})
+        assert ValueSerializer.encode_content('c', wire, 'cookie') == '%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D'
+
 
 class TestSerialize:
     def test_bhv_serializationobject_152_serializes_model_to_valid_json(self) -> None:
@@ -1918,19 +1923,16 @@ class TestReferencedEnumDefault:
 class TestSubMilliDurationNoScientificNotation:
     """Scenario 9 (residual) — a sub-0.0001s duration magnitude must serialize
     as a plain decimal with an `s` suffix, never in scientific notation
-    (`1e-06s`). A NEGATIVE duration is covered by TestDurationFormat above;
-    this guards the tiny-magnitude path where Python's default float repr
-    would otherwise switch to exponent form."""
+    (`1e-06s`). This guards the tiny-magnitude path where Python's default
+    float repr would otherwise switch to exponent form, for both signs."""
 
-    def test_bhv_serializationobject_212_one_microsecond_is_plain_decimal(self) -> None:
+    def test_bhv_serializationobject_212_sub_milli_and_negative_durations_are_plain_decimal(self) -> None:
         out = ObjectSerializer.stringify(datetime.timedelta(microseconds=1))
         assert out == '0.000001s'
         assert 'e' not in out.lower()
-
-    def test_negative_sub_milli_duration_is_plain_decimal(self) -> None:
-        out = ObjectSerializer.stringify(datetime.timedelta(microseconds=-1))
-        assert out == '-0.000001s'
-        assert 'e' not in out.lower()
+        negative = ObjectSerializer.stringify(datetime.timedelta(microseconds=-1))
+        assert negative == '-0.000001s'
+        assert 'e' not in negative.lower()
 
 
 class TestCanonicalSerdeBehaviours:

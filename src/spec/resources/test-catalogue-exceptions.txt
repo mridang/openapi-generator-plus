@@ -132,4 +132,3 @@ php | serializationparam104 | php has no content-cookie encoder: a cookie value 
 php | retries028 | PHP has no per-call cancellation (S7), so there is no caller to cancel during a retry wait; the budget that ends a wait is bhv retries 025
 swift | serializationparam106 | serializeStyled takes a non-optional style String, so a null style cannot be passed; the empty style that the SDK treats as unset is covered by bhv serializationparam 035
 swift | transport059 | the proxy setter raises on Linux (testSettingProxyRaisesOnLinux), so a request through the authenticating proxy runs only in the Apple-platform stub suite, the same reason as options034
-python | serializationobject224 | python encodes a content cookie through ValueSerializer.encode_content, which percent-encodes the serialized JSON keeping only the unreserved set (serializationparam104 pins that exact value), so a second test under this id would assert the same value again
