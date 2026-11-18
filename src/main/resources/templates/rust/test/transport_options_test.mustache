@@ -698,3 +698,12 @@ fn test_bhv_transport_080_a_proxy_scheme_the_client_cannot_apply_fails_construct
         .build();
     assert!(result.is_err(), "a proxy the client cannot apply must not be silently dropped");
 }
+
+#[test]
+fn test_bhv_transport_077_a_ca_certificate_path_naming_a_directory_is_refused_when_built() {
+    let dir = std::env::temp_dir();
+    let dir_text = dir.to_str().expect("a UTF-8 temp directory");
+    let result = TransportOptions::builder().ca_cert_path(dir_text).build();
+    assert!(result.is_err(), "a directory is not a certificate file");
+    assert!(result.unwrap_err().to_string().contains(dir_text), "the error must name the path");
+}

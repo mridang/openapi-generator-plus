@@ -161,3 +161,13 @@ async fn test_bhv_authbasic_002_scheme_wrappers_emit_the_basic_header_and_valida
         Err(ConfigurationError::InvalidArgument(_))
     ));
 }
+
+#[test]
+fn test_bhv_errors_081_a_basic_credential_refused_at_construction_names_the_field_at_fault() {
+    let err = BasicAuthenticator::new("https://example.com", "bad:user", "secret")
+        .expect_err("a colon in the username is refused");
+    assert!(err.to_string().contains("username"), "{}", err);
+    let bad_password = BasicAuthenticator::new("https://example.com", "user", "pass\0word")
+        .expect_err("a NUL in the password is refused");
+    assert!(bad_password.to_string().contains("password"), "{}", bad_password);
+}

@@ -327,3 +327,4 @@ fn test_bhv_authapikey_015_valid_query_key_is_exposed_in_query_params() {
 fn test_bhv_authapikey_017_whitespace_only_key_throws_at_construction() {
     assert!(refusal_reason("   ", ApiKeyLocation::Cookie).contains("must not be empty"));
 }
+
