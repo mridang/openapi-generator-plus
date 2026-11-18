@@ -497,7 +497,7 @@ import Testing
     /* Header names are case-insensitive (RFC 9110 section 5.1): a default
      * header spelled in another case replaces the negotiated one, so exactly
      * one Accept goes out and it is the configured one. */
-    @Test func testDefaultHeaderInAnotherCaseReplacesTheNegotiatedHeader() async throws {
+    @Test func testBhvHeaders030DefaultHeaderInAnotherCaseReplacesTheNegotiatedHeader() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 

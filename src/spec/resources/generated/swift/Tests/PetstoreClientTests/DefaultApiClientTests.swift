@@ -850,7 +850,7 @@ import Testing
 
     /* Cancelling the Swift task of an in-flight request aborts the underlying
        URLSession task and surfaces the platform's CancellationError. */
-    @Test func testCancellingInFlightRequestAbortsSessionTask() async throws {
+    @Test func testBhvTransport060CancellingInFlightRequestAbortsSessionTask() async throws {
       HangingURLProtocol.reset()
       let client = DefaultApiClient(
         transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
