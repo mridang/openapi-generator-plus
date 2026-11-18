@@ -2694,6 +2694,8 @@ import Testing
     /* Converting an enum member to text yields its wire value. */
     @Test func testBhvMisc138ConvertingAnEnumMemberToTextYieldsItsWireValue() {
         #expect("\(OrderStatusEnum.approved)" == "approved")
+    }
+
     /* An input object with no fields is filled with every declared default value. */
     @Test func testBhvMisc215AnInputObjectWithNoFieldsIsFilledWithEveryDeclaredDefault() throws {
         let defaults = Defaults()
