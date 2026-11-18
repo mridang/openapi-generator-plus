@@ -1,0 +1,17 @@
+module Petstore::Client::Models
+  class Sparse < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
+    def with: (**untyped) -> Sparse
+    ADDITIONAL_PROPERTIES: bool
+    ADDITIONAL_PROPERTIES_TYPE: String
+    ADDITIONAL_PROPERTIES_NULLABLE: bool
+    attr_reader additional_properties: Hash[String, String?]?
+    attr_reader label: String?
+  end
+end

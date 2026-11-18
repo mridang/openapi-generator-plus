@@ -715,18 +715,29 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * there are none, never undefined. Read-only: assign extra keys on the
    * instance itself.
    */
-  get additionalProperties(): Record<string, unknown> {
-    const extras: Record<string, unknown> = {};
+  get additionalProperties(): Record<string, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}unknown{{/vendorExtensions.additionalPropertiesValue}}> {
+    const extras: Record<string, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}unknown{{/vendorExtensions.additionalPropertiesValue}}> = {};
     for (const key of Object.keys(this)) {
       if (!{{classname}}.__additionalPropertiesDeclaredKeys.has(key)) {
-        extras[key] = (this as unknown as Record<string, unknown>)[key];
+        extras[key] = (this as unknown as Record<string, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}unknown{{/vendorExtensions.additionalPropertiesValue}}>)[key];
       }
     }
     if (this.#additionalPropertiesKey) {
-      extras['additionalProperties'] = this.#additionalPropertiesKey.value;
+      extras['additionalProperties'] = this.#additionalPropertiesKey.value as {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}unknown{{/vendorExtensions.additionalPropertiesValue}};
     }
     return extras;
   }
+{{#vendorExtensions.additionalPropertiesValue}}
+
+  /**
+   * Internal: decodes the undeclared wire keys of this model like the elements of
+   * a map of the value type, so a value of the wrong JSON type, or a null where
+   * the value schema is not nullable, fails the decode with a SerializationError.
+   * Read by the serializer.
+   */
+  static readonly __decodeAdditionalProperties = (raw: Record<string, unknown>): Record<string, {{{dataType}}}{{#isNullable}} | null{{/isNullable}}> =>
+    ObjectSerializer.deserializeMap(raw, {{>deserialize_arg}});
+{{/vendorExtensions.additionalPropertiesValue}}
 
   /**
    * Internal: the value held for a wire key named `additionalProperties`, or

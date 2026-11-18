@@ -2551,6 +2551,102 @@ class ObjectSerializerTest {
       }
     }
 
+    @Test
+    @DisplayName(
+        "bhvModels012 an additional property of the wrong JSON type throws SerializationException")
+    void bhvModels012WrongTypedAdditionalPropertyThrows() {
+      for (String body : new String[] {"{\"a\":2.5}", "{\"a\":\"2\"}", "{\"a\":3000000000}"}) {
+        assertThrows(
+            SerializationException.class,
+            () -> serializer.deserialize(body, com.example.petstore.models.Counters.class),
+            body);
+      }
+      assertThrows(
+          SerializationException.class,
+          () -> serializer.deserialize("{\"a\":3}", com.example.petstore.models.Metadata.class));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels013 an additional property whose value type is a model decodes to that model")
+    void bhvModels013ModelValuedAdditionalPropertyDecodesToTheModel() {
+      com.example.petstore.models.Roster roster =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}",
+                  com.example.petstore.models.Roster.class));
+      Map<String, com.example.petstore.models.Category> extras = roster.getAdditionalProperties();
+      com.example.petstore.models.Category category =
+          java.util.Objects.requireNonNull(extras.get("a"));
+      assertEquals(1L, category.id);
+      assertEquals("x", category.name);
+      assertThrows(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"a\":{\"id\":\"x\"}}", com.example.petstore.models.Roster.class));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels014 a null additional property is rejected unless the value schema is nullable")
+    void bhvModels014NullAdditionalPropertyIsRejectedUnlessNullable() {
+      assertThrows(
+          SerializationException.class,
+          () -> serializer.deserialize("{\"a\":null}", com.example.petstore.models.Counters.class));
+      com.example.petstore.models.Sparse sparse =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize("{\"a\":null}", com.example.petstore.models.Sparse.class));
+      assertTrue(sparse.getAdditionalProperties().containsKey("a"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels015 a typed additional property is written flat in its wire form after the"
+            + " declared ones")
+    void bhvModels015TypedAdditionalPropertyIsWrittenFlatInWireForm() {
+      OffsetDateTime at = OffsetDateTime.parse("2024-01-01T00:00:00Z");
+      com.example.petstore.models.Moments moments =
+          com.example.petstore.models.Moments.builder()
+              .label("l")
+              .putAdditionalProperty("at", at)
+              .build();
+      assertEquals(
+          "{\"label\":\"l\",\"at\":\"2024-01-01T00:00:00.000+00:00\"}",
+          serializer.serialize(moments));
+      assertEquals(
+          moments,
+          serializer.deserialize(
+              serializer.serialize(moments), com.example.petstore.models.Moments.class));
+      com.example.petstore.models.Blobs blobs =
+          com.example.petstore.models.Blobs.builder()
+              .putAdditionalProperty("b", new byte[] {0x68, 0x69})
+              .build();
+      assertEquals("{\"b\":\"aGk=\"}", serializer.serialize(blobs));
+      com.example.petstore.models.Blobs decodedBlobs =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize("{\"b\":\"aGk=\"}", com.example.petstore.models.Blobs.class));
+      assertTrue(
+          Arrays.equals(new byte[] {0x68, 0x69}, decodedBlobs.getAdditionalProperties().get("b")));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels016 a free-form additionalProperties keeps every JSON value as it arrives")
+    void bhvModels016FreeFormAdditionalPropertiesKeepAnyValue() {
+      com.example.petstore.models.Freeform freeform =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}",
+                  com.example.petstore.models.Freeform.class));
+      Map<String, Object> extras = freeform.getAdditionalProperties();
+      assertEquals(1, extras.get("a"));
+      assertEquals("x", extras.get("b"));
+      assertEquals(List.of(true), extras.get("c"));
+      assertTrue(extras.containsKey("d"));
+      assertNull(extras.get("d"));
+    }
+
     // A bare JSON null body decoded to a model type returns null, not a
     // partial object or an error.
     @Test

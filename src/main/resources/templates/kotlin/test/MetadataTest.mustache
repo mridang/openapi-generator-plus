@@ -61,7 +61,7 @@ class MetadataTest {
     @Test
     @DisplayName("the additionalProperties bucket can be supplied at construction and copy() carries it")
     fun testAdditionalPropertiesConstructorParameterAndCopy() {
-        val metadata = Metadata(additionalProperties = mutableMapOf<String, Any?>("k" to "v"))
+        val metadata = Metadata(additionalProperties = mutableMapOf("k" to "v"))
         assertEquals("v", metadata.additionalProperties["k"])
 
         val copied = metadata.copy(createdAt = null)
@@ -90,10 +90,9 @@ class MetadataTest {
     @Test
     @DisplayName("bhvEquality001 two models built from the same values are equal, and a change in any nested value makes them unequal")
     fun testStructuralEqualityOverNestedValues() {
-        val createdAt = OffsetDateTime.parse("2024-01-01T00:00:00Z")
-        val first = Metadata(createdAt = createdAt)
+        val first = Freeform(label = "x")
         first.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "b"))
-        val second = Metadata(createdAt = createdAt)
+        val second = Freeform(label = "x")
         second.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "b"))
         assertEquals(first, second)
         assertEquals(first.hashCode(), second.hashCode())
@@ -101,11 +100,11 @@ class MetadataTest {
         second.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "c"))
         assertNotEquals(first, second)
 
-        val otherDate = Metadata(createdAt = OffsetDateTime.parse("2024-01-02T00:00:00Z"))
+        val otherDate = Freeform(label = "y")
         otherDate.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "b"))
         assertNotEquals(first, otherDate)
 
-        assertFalse(first.equals("metadata"))
+        assertFalse(first.equals("freeform"))
         val absent: Any? = emptyList<Any>().firstOrNull()
         assertFalse(first.equals(absent))
     }
@@ -142,17 +141,87 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("bhvModels009 additional property values come back as strings")
-    fun testAdditionalPropertiesAreTypedAsString() {
+    @DisplayName("bhvModels009 additional properties are a string-keyed map of the value type")
+    fun testAdditionalPropertiesAreTypedAsTheValueType() {
         val serializer = ObjectSerializer()
-        val original = Metadata()
-        original.additionalProperties["key"] = "value"
-
-        val decoded = serializer.deserialize<Metadata>(serializer.serialize(original))
+        val decoded = serializer.deserialize<Metadata>("{\"key\":\"value\"}")
 
         assertNotNull(decoded)
-        assertInstanceOf(String::class.java, decoded!!.additionalProperties["key"])
-        assertEquals("value", decoded.additionalProperties["key"])
+        val extras: MutableMap<String, String> = decoded!!.additionalProperties
+        assertEquals("value", extras["key"])
+    }
+
+    @Test
+    @DisplayName("bhvModels025 an additional property of the wrong JSON type fails the decode")
+    fun testWrongTypedAdditionalPropertyFailsTheDecode() {
+        val serializer = ObjectSerializer()
+        for (body in listOf("{\"a\":2.5}", "{\"a\":\"2\"}", "{\"a\":3000000000}")) {
+            assertThrows(
+                {{invokerPackage}}.errors.SerializationException::class.java,
+                { serializer.deserialize<Counters>(body) },
+                body,
+            )
+        }
+        assertThrows(
+            {{invokerPackage}}.errors.SerializationException::class.java,
+            { serializer.deserialize<Metadata>("{\"a\":3}") },
+        )
+    }
+
+    @Test
+    @DisplayName("bhvModels026 an additional property whose value type is a model decodes to that model")
+    fun testModelValuedAdditionalPropertyDecodesToTheModel() {
+        val serializer = ObjectSerializer()
+        val roster = serializer.deserialize<Roster>("{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}")
+
+        val category: Category? = roster!!.additionalProperties["a"]
+        assertEquals(1L, category!!.id)
+        assertEquals("x", category.name)
+        assertThrows(
+            {{invokerPackage}}.errors.SerializationException::class.java,
+            { serializer.deserialize<Roster>("{\"a\":{\"id\":\"x\"}}") },
+        )
+    }
+
+    @Test
+    @DisplayName("bhvModels027 a null additional property is rejected unless the value schema is nullable")
+    fun testNullAdditionalPropertyIsRejectedUnlessNullable() {
+        val serializer = ObjectSerializer()
+        assertThrows(
+            {{invokerPackage}}.errors.SerializationException::class.java,
+            { serializer.deserialize<Counters>("{\"a\":null}") },
+        )
+        val sparse = serializer.deserialize<Sparse>("{\"a\":null}")
+
+        assertTrue(sparse!!.additionalProperties.containsKey("a"))
+        assertNull(sparse.additionalProperties["a"])
+    }
+
+    @Test
+    @DisplayName("bhvModels028 a typed additional property is written flat in its wire form")
+    fun testTypedAdditionalPropertyIsWrittenFlatInWireForm() {
+        val serializer = ObjectSerializer()
+        val moments = serializer.deserialize<Moments>("{\"label\":\"l\",\"at\":\"2024-01-01T00:00:00Z\"}")
+        val encoded = serializer.serialize(moments)
+
+        assertTrue(encoded.startsWith("{\"label\":\"l\",\"at\":\"2024-01-01T00:00:00"), encoded)
+        assertEquals(moments, serializer.deserialize<Moments>(encoded))
+
+        val blobs = serializer.deserialize<Blobs>("{\"b\":\"aGk=\"}")
+        assertArrayEquals("hi".toByteArray(), blobs!!.additionalProperties["b"])
+        assertEquals("{\"b\":\"aGk=\"}", serializer.serialize(blobs))
+    }
+
+    @Test
+    @DisplayName("bhvModels029 a free-form additionalProperties keeps every JSON value as it arrives")
+    fun testFreeFormAdditionalPropertiesKeepAnyValue() {
+        val serializer = ObjectSerializer()
+        val freeform = serializer.deserialize<Freeform>("{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}")
+
+        assertEquals(1L, freeform!!.additionalProperties["a"])
+        assertEquals("x", freeform.additionalProperties["b"])
+        assertEquals(listOf(true), freeform.additionalProperties["c"])
+        assertTrue(freeform.additionalProperties.containsKey("d"))
     }
 
     @Test
@@ -179,7 +248,7 @@ class MetadataTest {
         val serializer = ObjectSerializer()
         val original = Metadata()
         original.additionalProperties["customField"] = "hello"
-        original.additionalProperties["count"] = 42L
+        original.additionalProperties["count"] = "42"
 
         val encoded = serializer.serialize(original)
         // Extras must appear as real top-level JSON members, not a toString().
@@ -189,7 +258,7 @@ class MetadataTest {
         val decoded = serializer.deserialize<Metadata>(encoded)
         assertNotNull(decoded)
         assertEquals("hello", decoded!!.additionalProperties["customField"])
-        assertEquals(42L, decoded.additionalProperties["count"])
+        assertEquals("42", decoded.additionalProperties["count"])
     }
 
     @Test

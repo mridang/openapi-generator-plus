@@ -1877,16 +1877,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
-     * Whether {@code CodegenModel.additionalPropertiesType} is filled from the
-     * schema's {@code additionalProperties} (F865). Off by default because most
-     * model templates already render the slot, so turning it on changes their
-     * output; a language opts in when its template types the extras.
-     */
-    protected boolean populatesAdditionalPropertiesType() {
-        return false;
-    }
-
-    /**
      * Returns the declared type of the values of a schema's
      * {@code additionalProperties}, or {@code null} when it is absent,
      * boolean, or an untyped schema (so the bucket stays an any-map).
@@ -1902,6 +1892,46 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 || values.getType() != null
                 || (values.getTypes() != null && !values.getTypes().isEmpty());
         return typed ? getTypeDeclaration(values) : null;
+    }
+
+    /**
+     * Fills {@code additionalPropertiesType} and hands the templates the
+     * value node of a typed {@code additionalProperties} (issue 103). The
+     * node is a property built from the value schema, so a template renders
+     * the extras with the same partials it uses for the elements of a map
+     * property. It lives in {@code vendorExtensions} under
+     * {@code additionalPropertiesValue}, next to the boolean
+     * {@code hasTypedAdditionalProperties}. A free-form value schema
+     * ({@code true}, an empty schema or one with no type) sets neither, so
+     * the bucket keeps the any-type.
+     */
+    @SuppressWarnings("rawtypes")
+    private void populateTypedAdditionalProperties(CodegenModel built, @Nullable Schema schema) {
+        final String valueType = additionalPropertiesValueType(schema);
+        built.additionalPropertiesType = valueType;
+        if (valueType == null || schema == null) {
+            return;
+        }
+        final Schema values = (Schema) schema.getAdditionalProperties();
+        // The upstream map handling names the value type as the model's parent; the
+        // extras are a bucket, not inheritance, unless the schema really composes one.
+        if (built.parent != null && (schema.getAllOf() == null || schema.getAllOf().isEmpty())) {
+            built.parent = null;
+        }
+        final CodegenProperty node = fromProperty("additionalPropertiesValue", values, false);
+        // The node gets the language's per-property fix-ups (a byte or date-time type
+        // alias, an import flag) exactly like a declared property.
+        // An OAS 3.1 `type: [T, "null"]` value schema can reach this point before the
+        // nullable normalisation has folded it into `nullable: true`.
+        if (values.getTypes() != null && values.getTypes().contains("null")) {
+            node.isNullable = true;
+        }
+        postProcessModelProperty(built, node);
+        built.vendorExtensions.put("additionalPropertiesValue", node);
+        // A model, enum or container of them as the value type is imported like the type of
+        // a declared property, so the languages with explicit imports can name it.
+        addImports(built.imports, node);
+        built.vendorExtensions.put("hasTypedAdditionalProperties", true);
     }
 
     /**
@@ -1926,8 +1956,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         final CodegenModel built = super.fromModel(name, schema);
-        if (built != null && populatesAdditionalPropertiesType()) {
-            built.additionalPropertiesType = additionalPropertiesValueType(schema);
+        if (built != null) {
+            populateTypedAdditionalProperties(built, schema);
         }
         // Record enum models so referenced-enum properties (which carry
         // isEnum == false but a complexType naming the enum) can be told apart
@@ -2091,7 +2121,21 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                             break;
                         }
                     }
+                    final Object bucket = model.vendorExtensions.get("additionalPropertiesValue");
+                    if (!found
+                            && bucket instanceof CodegenProperty
+                            && ((CodegenProperty) bucket).dataType != null
+                            && ((CodegenProperty) bucket).dataType.contains(typeSubstring)) {
+                        found = true;
+                    }
                     if (found) {
+                        modelMap.put(flagName, true);
+                        result.put(flagName, true);
+                    }
+                } else if ("hasTypedAdditionalProperties".equals(key)) {
+                    // A typed additionalProperties bucket decodes each extra with its own
+                    // codec, which can fail with a formatted error (Go).
+                    if (model.vendorExtensions.get("hasTypedAdditionalProperties") != null) {
                         modelMap.put(flagName, true);
                         result.put(flagName, true);
                     }
@@ -6725,7 +6769,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 if (buildsFqnModelImports()) {
                     final TreeSet<String> fullImports = new TreeSet<>();
                     if (!typeImportMap.isEmpty()) {
-                        for (final CodegenProperty prop : model.allVars) {
+                        final List<CodegenProperty> scanned = new ArrayList<>(model.allVars);
+                        final Object bucket = model.vendorExtensions.get("additionalPropertiesValue");
+                        if (bucket instanceof CodegenProperty) {
+                            scanned.add((CodegenProperty) bucket);
+                        }
+                        for (final CodegenProperty prop : scanned) {
                             final String imp = typeImportMap.get(prop.dataType);
                             if (imp != null) {
                                 fullImports.add(imp);

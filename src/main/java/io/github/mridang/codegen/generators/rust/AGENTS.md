@@ -452,3 +452,5 @@ Rule: one struct per distinct declared error schema, `<Model>Error` in `src/erro
 Where: `errors/api_error.mustache`, `errors/schema_error.mustache`, `errors/root_error.mustache`, `errors/serialization_error.mustache`, `base_api.mustache`, `api/api.mustache`. Test: `test_bhv_errors_201` to `204` in `test/api_error_test.mustache`, `test_bhv_errors_205` in `base_api.mustache`.
 
 - Trace context from the caller (#136): `invoke_api` reads `Context::current()` once on its first poll and uses that value at every injection point, so a span attached on the caller's thread survives a move to another runtime thread; a caller may also use `FutureExt::with_context` (D95).
+
+- **F15 (typed `additionalProperties`, #103).** The field is `HashMap<String, V>` (`Option<V>` when nullable); a typed value fails the serde decode (null included), and a `byte` bucket uses `base64_serde::map` on decode and a base64 `serialize_additional_properties`.

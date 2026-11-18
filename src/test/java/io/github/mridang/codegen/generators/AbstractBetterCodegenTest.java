@@ -524,19 +524,43 @@ class AbstractBetterCodegenTest {
   }
 
   @Test
-  @DisplayName("additionalProperties of a typed schema fills additionalPropertiesType when opted in")
+  @DisplayName("a typed additionalProperties fills the model type and hands over a value node")
   void typedAdditionalPropertiesFillTheModelType() {
     final Schema<?> typed = new Schema<>().type("object");
     typed.setAdditionalProperties(new StringSchema());
     final Schema<?> untyped = new Schema<>().type("object");
     untyped.setAdditionalProperties(true);
-    final AbstractBetterCodegen ruby = codegen("ruby");
-    ruby.setOpenAPI(new OpenAPI().components(new Components()));
+    final Schema<?> empty = new Schema<>().type("object");
+    empty.setAdditionalProperties(new Schema<>());
+    for (final String language : List.of("java", "kotlin", "csharp", "php", "python", "ruby",
+        "node", "dart", "go", "rust", "swift", "elixir")) {
+      final AbstractBetterCodegen codegen = codegen(language);
+      codegen.setOpenAPI(new OpenAPI().components(new Components()
+          .addSchemas("Typed", typed).addSchemas("Untyped", untyped).addSchemas("Empty", empty)));
 
-    assertEquals("String", ruby.additionalPropertiesValueType(typed));
-    assertEquals(null, ruby.additionalPropertiesValueType(untyped));
-    assertTrue(ruby.populatesAdditionalPropertiesType());
-    assertFalse(codegen("java").populatesAdditionalPropertiesType());
+      assertEquals(codegen.getTypeDeclaration(new StringSchema()),
+          codegen.additionalPropertiesValueType(typed), language);
+      assertEquals(null, codegen.additionalPropertiesValueType(untyped), language);
+      assertEquals(null, codegen.additionalPropertiesValueType(empty), language);
+
+      final CodegenModel model = codegen.fromModel("Typed", typed);
+      assertEquals(true, model.vendorExtensions.get("hasTypedAdditionalProperties"), language);
+      assertTrue(model.vendorExtensions.get("additionalPropertiesValue") instanceof CodegenProperty,
+          language);
+      assertEquals(codegen.getTypeDeclaration(new StringSchema()),
+          model.additionalPropertiesType, language);
+      final Schema<?> nullableValues = new Schema<>().type("object");
+      nullableValues.setAdditionalProperties(new StringSchema().nullable(true));
+      final CodegenModel nullableModel = codegen.fromModel("Nullable", nullableValues);
+      final Object nullableNode = nullableModel.vendorExtensions.get("additionalPropertiesValue");
+      assertTrue(nullableNode instanceof CodegenProperty && ((CodegenProperty) nullableNode).isNullable,
+          language);
+      for (final String name : List.of("Untyped", "Empty")) {
+        final CodegenModel free = codegen.fromModel(name, name.equals("Empty") ? empty : untyped);
+        assertEquals(null, free.vendorExtensions.get("additionalPropertiesValue"), language);
+        assertEquals(null, free.vendorExtensions.get("hasTypedAdditionalProperties"), language);
+      }
+    }
   }
 
   @Test

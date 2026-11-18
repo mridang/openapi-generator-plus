@@ -2254,6 +2254,70 @@ class ObjectSerializerTest {
             }
         }
 
+        @Test
+        @DisplayName("bhvModels025 an additional property of the wrong JSON type throws SerializationException")
+        void bhvModels025WrongTypedAdditionalPropertyThrows() {
+            for (String body : new String[] {"{\"a\":2.5}", "{\"a\":\"2\"}", "{\"a\":3000000000}"}) {
+                assertThrows(SerializationException.class, () ->
+                    serializer.deserialize(body, {{modelPackage}}.Counters.class), body);
+            }
+            assertThrows(SerializationException.class, () ->
+                serializer.deserialize("{\"a\":3}", {{modelPackage}}.Metadata.class));
+        }
+
+        @Test
+        @DisplayName("bhvModels026 an additional property whose value type is a model decodes to that model")
+        void bhvModels026ModelValuedAdditionalPropertyDecodesToTheModel() {
+            {{modelPackage}}.Roster roster = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}", {{modelPackage}}.Roster.class));
+            Map<String, {{modelPackage}}.Category> extras = roster.getAdditionalProperties();
+            {{modelPackage}}.Category category = java.util.Objects.requireNonNull(extras.get("a"));
+            assertEquals(1L, category.id);
+            assertEquals("x", category.name);
+            assertThrows(SerializationException.class, () ->
+                serializer.deserialize("{\"a\":{\"id\":\"x\"}}", {{modelPackage}}.Roster.class));
+        }
+
+        @Test
+        @DisplayName("bhvModels027 a null additional property is rejected unless the value schema is nullable")
+        void bhvModels027NullAdditionalPropertyIsRejectedUnlessNullable() {
+            assertThrows(SerializationException.class, () ->
+                serializer.deserialize("{\"a\":null}", {{modelPackage}}.Counters.class));
+            {{modelPackage}}.Sparse sparse = java.util.Objects.requireNonNull(
+                serializer.deserialize("{\"a\":null}", {{modelPackage}}.Sparse.class));
+            assertTrue(sparse.getAdditionalProperties().containsKey("a"));
+        }
+
+        @Test
+        @DisplayName("bhvModels028 a typed additional property is written flat in its wire form after the declared ones")
+        void bhvModels028TypedAdditionalPropertyIsWrittenFlatInWireForm() {
+            OffsetDateTime at = OffsetDateTime.parse("2024-01-01T00:00:00Z");
+            {{modelPackage}}.Moments moments = {{modelPackage}}.Moments.builder()
+                .label("l").putAdditionalProperty("at", at).build();
+            assertEquals("{\"label\":\"l\",\"at\":\"2024-01-01T00:00:00.000+00:00\"}",
+                serializer.serialize(moments));
+            assertEquals(moments, serializer.deserialize(serializer.serialize(moments), {{modelPackage}}.Moments.class));
+            {{modelPackage}}.Blobs blobs = {{modelPackage}}.Blobs.builder()
+                .putAdditionalProperty("b", new byte[] {0x68, 0x69}).build();
+            assertEquals("{\"b\":\"aGk=\"}", serializer.serialize(blobs));
+            {{modelPackage}}.Blobs decodedBlobs = java.util.Objects.requireNonNull(
+                serializer.deserialize("{\"b\":\"aGk=\"}", {{modelPackage}}.Blobs.class));
+            assertTrue(Arrays.equals(new byte[] {0x68, 0x69}, decodedBlobs.getAdditionalProperties().get("b")));
+        }
+
+        @Test
+        @DisplayName("bhvModels029 a free-form additionalProperties keeps every JSON value as it arrives")
+        void bhvModels029FreeFormAdditionalPropertiesKeepAnyValue() {
+            {{modelPackage}}.Freeform freeform = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}", {{modelPackage}}.Freeform.class));
+            Map<String, Object> extras = freeform.getAdditionalProperties();
+            assertEquals(1, extras.get("a"));
+            assertEquals("x", extras.get("b"));
+            assertEquals(List.of(true), extras.get("c"));
+            assertTrue(extras.containsKey("d"));
+            assertNull(extras.get("d"));
+        }
+
         // A bare JSON null body decoded to a model type returns null, not a
         // partial object or an error.
         @Test

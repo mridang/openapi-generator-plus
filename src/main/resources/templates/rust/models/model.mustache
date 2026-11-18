@@ -250,8 +250,8 @@ pub struct {{classname}} {
     /// Additional properties not defined in the schema. An entry whose key is
     /// the wire name of a declared property is not written: the declared
     /// property wins and the key appears once.
-    #[serde(flatten, serialize_with = "serialize_additional_properties")]
-    pub additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,
+    #[serde(flatten, serialize_with = "serialize_additional_properties"{{#vendorExtensions.additionalPropertiesValue}}{{#isByteArray}}, deserialize_with = "super::base64_serde::map::deserialize"{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}})]
+    pub additional_properties: std::collections::HashMap<String, {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}Option<{{/isNullable}}{{{dataType}}}{{#isNullable}}>{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}crate::json_value::JsonValue{{/vendorExtensions.additionalPropertiesValue}}>,
 {{/isAdditionalPropertiesTrue}}
 }
 {{#isAdditionalPropertiesTrue}}
@@ -259,11 +259,26 @@ pub struct {{classname}} {
 /// Writes the additional properties of [`{{classname}}`] without the keys its
 /// declared properties already carry.
 fn serialize_additional_properties<S: serde::Serializer>(
-    value: &std::collections::HashMap<String, crate::json_value::JsonValue>,
+    value: &std::collections::HashMap<String, {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}Option<{{/isNullable}}{{{dataType}}}{{#isNullable}}>{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}crate::json_value::JsonValue{{/vendorExtensions.additionalPropertiesValue}}>,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     const DECLARED: &[&str] = &[{{#vars}}"{{baseName}}", {{/vars}}];
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isByteArray}}
+    use base64::Engine as _;
+    let encoded: std::collections::HashMap<String, String> = value
+        .iter()
+        .map(|(key, bytes)| (key.clone(), base64::engine::general_purpose::STANDARD.encode(bytes)))
+        .collect();
+    crate::object_serializer::serialize_extras(&encoded, DECLARED, serializer)
+{{/isByteArray}}
+{{^isByteArray}}
     crate::object_serializer::serialize_extras(value, DECLARED, serializer)
+{{/isByteArray}}
+{{/vendorExtensions.additionalPropertiesValue}}
+{{^vendorExtensions.additionalPropertiesValue}}
+    crate::object_serializer::serialize_extras(value, DECLARED, serializer)
+{{/vendorExtensions.additionalPropertiesValue}}
 }
 {{/isAdditionalPropertiesTrue}}
 
@@ -340,7 +355,7 @@ impl {{classname}} {
 {{#isAdditionalPropertiesTrue}}
 
     /// Returns this value with its additional properties replaced.
-    pub fn with_additional_properties(mut self, additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>) -> Self {
+    pub fn with_additional_properties(mut self, additional_properties: std::collections::HashMap<String, {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}Option<{{/isNullable}}{{{dataType}}}{{#isNullable}}>{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}crate::json_value::JsonValue{{/vendorExtensions.additionalPropertiesValue}}>) -> Self {
         self.additional_properties = additional_properties;
         self
     }

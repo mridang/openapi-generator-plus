@@ -28,7 +28,7 @@ Types are the typespecs that appear in the generated modules.
 | `boolean` | `boolean()` | |
 | `array` | `[T]` | |
 | `array` with `uniqueItems` | `MapSet.t(T)` | Sent in the `MapSet`'s own order. |
-| `object` with `additionalProperties` | `map()` | String keys. |
+| `object` with `additionalProperties` | `map()` | String keys.. `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object`, any type | `map()` for objects, `any()` for any type | |
 | nullable | `T \| nil` | |
 | `enum` | atoms | Each enum module has `all_values/0`. Atoms come from a fixed set, so server input cannot grow the atom table. |

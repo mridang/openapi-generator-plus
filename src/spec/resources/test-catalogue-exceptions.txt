@@ -16,7 +16,6 @@ elixir | retries019 | The psr18 client is a PHP transport object with its own ti
 go | lifecycle015 | Go has no keyword arguments, so one credential per security scheme is a positional constructor parameter and cannot be passed by name
 rust | authintegration011 | Rust operations take no per-call authenticator and the Options structs are plain data with no authenticator field, a shape the type system enforces at compile time, so no run-time test can observe its absence
 rust | options007 | max_retries takes a u32, so a negative count cannot be passed and the compiler rejects it before the builder runs
-rust | models009 | additional properties are a HashMap<String, JsonValue> that keeps any JSON value (models001 covers the round trip), so a string-only type is not the rust contract
 rust | headers002 | selectHeaders takes a &str content type, so a nil Content-Type cannot be passed; the empty-string default is covered by bhv headers 001
 rust | headers005 | selectHeaders takes a slice of accept values, so a null accept cannot be passed; an empty slice is covered by bhv headers 004
 rust | headers015 | isJsonMime takes a &str, so nil cannot be passed; the empty string is covered by bhv headers 014
@@ -30,7 +29,6 @@ node | transport006 | The Fetch layer owns Content-Encoding and the SDK adds no 
 node | errors042 | FORCED D-FORCED-1: the fetch layer owns Content-Encoding and node passes an unrecognised coding through untouched rather than raising ApiError (see the node AGENTS.md forced divergences)
 python | serializationobject015 | Python has no set order to keep: a uniqueItems array decodes to a set, which the SDK writes sorted (TestSetSanitization), so no insertion order exists to pin
 python | serializationobject032 | python enforces the declared minLength, maxLength, pattern and numeric bounds on decode (pydantic, shared rule S3), so an out-of-bounds slug, nickname or quantity is rejected; the nickname case is bhv serializationobject 030
-ruby | models009 | Ruby is dynamically typed: undeclared additionalProperties values are kept as the JSON type they arrive as (ADDITIONAL_PROPERTIES is true, extras are stored as-is), so there is no string type to assert; the captured string shape is covered by bhv models 001 and 004
 swift | serializationobject009 | Swift types a list of byte arrays and a map of byte arrays as different types, so they cannot be compared for equality at all
 swift | serializationobject015 | Swift Set members have no insertion order (S6, unspecified uniqueItems order) and Pet.photoUrls is a Set, so the schema promises no order
 swift | serializationobject044 | format: date maps to String in Swift, so a date-only value is written as the string it holds and no Date is turned into a date-only form
@@ -66,7 +64,6 @@ java | lifecycle014 | The Java client takes built authenticator objects and neve
 java | headers027 | HeaderSelector.selectAcceptHeader is private, so the empty string it returns for an empty list is not reachable from a test; the observable outcome, that no Accept header is sent, is bhv headers 004
 python | operations111 | the trackingId parameter is typed uuid.UUID, which refuses a malformed value when the caller builds it, so the SDK never receives one it must reject; a plain str bypasses that type and is sent unchecked
 dart | serializationobject002 | Dart decodes a bare type: number to double, a binary float (D83, FD-11), so it cannot be exact and written in plain notation the way the java, csharp and kotlin BigDecimal decoders are
-dart | models009 | Dart types additional properties as Map<String, dynamic> so each value keeps its JSON type (models001 round trip); a string-only additional-properties type is not the dart contract, as with rust
 go | authintegration013 | Go per-call request options (WithTimeout, WithHeaders, WithMaxRetries, WithRequestContentType) carry no authenticator, so there is no per-call :auth to override; a scheme credential replacing the client-level authenticator is bhv authintegration 003
 go | headers002 | HeaderSelector.selectHeaders takes a string content type, so a nil value cannot be passed; the empty-string default is bhv headers 001
 go | headers015 | HeaderSelector.isJSONMIME takes a string, so a nil value cannot be passed; the empty string is bhv headers 014

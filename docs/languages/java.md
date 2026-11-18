@@ -35,7 +35,7 @@ Java 21 is a long-term-support release, and it is the floor because the generate
 | `boolean` | `Boolean` | |
 | `array` | `java.util.List` | built as an `ArrayList`, copied into an unmodifiable list when the model is built |
 | `array` with `uniqueItems` | `java.util.Set` | built as a `LinkedHashSet`, so it keeps insertion order; the SDK does not sort it |
-| `object` with `additionalProperties` | `java.util.Map` | built as a `HashMap` |
+| `object` with `additionalProperties` | `java.util.Map` | built as a `HashMap`. `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object` | `Object` | whatever Jackson decodes: maps, lists and scalars |
 | nullable property | the boxed type | no separate "absent" state; a required and nullable property must be present when decoding and is always written, `null` included |
 | `enum` | nested Java `enum` | an unknown value fails with `SerializationException` |

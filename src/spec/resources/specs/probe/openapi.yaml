@@ -145,3 +145,13 @@ components:
           additionalProperties:
             type: string
             format: byte
+
+    Tally:
+      description: A model whose extra keys are typed integers (typed additionalProperties).
+      type: object
+      properties:
+        label:
+          type: string
+      additionalProperties:
+        type: integer
+        format: int32

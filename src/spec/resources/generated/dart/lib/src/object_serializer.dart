@@ -367,6 +367,11 @@ Map<String, T> deserializeMap<T>(
   );
 }
 
+/// Applies [deserializeValue] to [json], or returns null when [json] is null:
+/// the decoder of a value whose schema is nullable.
+T? deserializeNullable<T>(Object? json, T Function(dynamic) deserializeValue) =>
+    json == null ? null : deserializeValue(json);
+
 /// Parses a JSON string into a typed `Map<String, T>` at the response
 /// boundary, then applies [deserializeValue] to each value via
 /// [deserializeMap]. The String-input counterpart of [deserializeMap], used

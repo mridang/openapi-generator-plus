@@ -441,3 +441,5 @@ Test: `BetterPHPCodegenTest` (every-operation flag, which fields read the enviro
 - Date parameters need the `|date` marker at every `serializeStyled` call site (query, header, cookie, form); keep `format: date` fixture parameters for each. After any encoder change, `grep -rn "+profile\|scope=.*+" src/main/resources/templates/php`.
 
 - Trace context from the caller (#136): `Globals::propagator()->inject` uses the current context (`$span->activate()`); one request at a time, so no hand-off (D95).
+
+- **F15 (typed `additionalProperties`, #103).** PHP has no generics: the value type is the docblock `\Ds\Map<string, V>` and the protected `ADDITIONAL_PROPERTIES_TYPE` constant, read through reflection; `captureAdditionalProperties` decodes each extra through `deserializeInternal`, rejects a null unless `ADDITIONAL_PROPERTIES_NULLABLE`, and the encoder writes `byte` extras as base64.

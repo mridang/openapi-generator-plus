@@ -417,3 +417,5 @@ Recorded, not implemented here:
 - Never rely on a Java field default for names (`packageName = "petstore_client"` leaked the fixture name). Dart cannot skip brotli or zstd in pure Dart: skip those tests with a reason.
 
 - Trace context from the caller (#136): the hook runs in the operation's own zone, after the credential await, so a hook that reads the zone's context sees the caller's span; the base-api tests prove this with a zone value (D95).
+
+- **F15 (typed `additionalProperties`, #103).** The bucket is `Map<String, V>`; `fromJson` runs `deserializeMap` with the `deserialize_arg` decoder of the value type, and `toJson` writes date-time, uuid and byte values in their wire form.

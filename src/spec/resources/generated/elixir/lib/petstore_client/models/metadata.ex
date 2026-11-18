@@ -14,7 +14,7 @@ defmodule PetstoreClient.Models.Metadata do
 
   @type t :: %__MODULE__{
           created_at: DateTime.t() | nil,
-          additional_properties: %{String.t() => any()}
+          additional_properties: %{String.t() => String.t()}
         }
 
   defstruct [
@@ -82,4 +82,7 @@ defmodule PetstoreClient.Models.Metadata do
 
   @doc "Whether this model accepts additional properties."
   def additional_properties, do: true
+
+  @doc "The type of additional property values."
+  def additional_properties_type, do: "String.t()"
 end

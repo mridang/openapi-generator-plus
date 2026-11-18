@@ -428,3 +428,5 @@ Rule: `TransportOptions.user_agent: nil` removes the SDK's own default. Req adds
 Rule: Mint refuses a header value containing CR or LF before any byte is written, and the SDK surfaces that as a `NetworkError`. Where: nothing to change, Mint validates it. Test: `test/default_api_client_unit_test.mustache` (`bhv headers 031`).
 
 - Trace context from the caller (#136): `:otel_propagator_text_map.inject` reads the process's context; the headers are built in the calling process (`Tracer.with_span`) (D95).
+
+- **F15 (typed `additionalProperties`, #103).** The typespec is `%{String.t() => V}`, the model defines `additional_properties_type/0` (and `additional_properties_nullable/0`), and `capture_additional_properties` converts each extra through `convert_to_type` and raises on a null unless nullable.

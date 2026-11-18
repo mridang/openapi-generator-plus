@@ -17,14 +17,20 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Metadata
 {
+    /**
+     * The decode type of an additional property value: the serializer decodes each extra
+     * like the element of a map of this type.
+     */
+    protected const string ADDITIONAL_PROPERTIES_TYPE = 'string';
+
     #[SerializedName('createdAt')]
     public readonly ?\DateTime $createdAt;
 
-    /** @var \Ds\Map<string, mixed> */
+    /** @var \Ds\Map<string, string> */
     public readonly \Ds\Map $additionalProperties;
 
     /**
-     * @param \Ds\Map<string, mixed>|null $additionalProperties
+     * @param \Ds\Map<string, string>|null $additionalProperties
      */
     public function __construct(
         ?\DateTime $createdAt = null,
@@ -48,7 +54,7 @@ class Metadata
     /**
      * Returns a copy of this model with the additional properties replaced. This model is not changed.
      *
-     * @param \Ds\Map<string, mixed> $additionalProperties
+     * @param \Ds\Map<string, string> $additionalProperties
      */
     public function withAdditionalProperties(\Ds\Map $additionalProperties): self
     {

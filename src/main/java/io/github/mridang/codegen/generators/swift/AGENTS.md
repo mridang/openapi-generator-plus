@@ -348,3 +348,5 @@ Superseded: wave 2 F827 said the per-call settings come "ahead of `auth` in the 
 - Infrastructure flakes: `ServiceContextModule` or DocC plugin errors and `no such module` after a swiftc crash (rerun once, read the first compiler error); `--build-system swiftbuild` splits file names at `+` (use the default); the arm64 image on Apple Silicon (an x86 image ran 4x slower and OOMed); `rm -rf reports` must be retry-safe. Local `swift test` has no XCTest; call the toolchain binary directly, not through `devbox run`.
 
 - Trace context from the caller (#136): the hook runs in the operation's own task after the credential await, so a task-local context is intact; the base-api tests prove this with a test-owned `@TaskLocal` (D95).
+
+- **F15 (typed `additionalProperties`, #103).** The bucket is `[String: V]` (`V?` when nullable) and the decode loop uses `V.self`, so `Codable` rejects a wrong type and a null.

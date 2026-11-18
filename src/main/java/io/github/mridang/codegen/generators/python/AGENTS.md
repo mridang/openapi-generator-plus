@@ -456,3 +456,5 @@ The first command runs the Python specs end to end (client tests, ruff format, r
 - Run the whole existing Python suite after any change, not just the new test: a non-ASCII multipart field name broke `TestMultipartFieldNameUtf8`. Check `docker ps -q | wc -l` before a run; above 20 leaked chasm or squid containers cause exit 137 and `409 not running`.
 
 - Trace context from the caller (#136): `inject` reads the `ContextVar` context of the awaiting task (`use_span` or `context.attach`); headers are built in the coroutine, not offloaded (D95).
+
+- **F15 (typed `additionalProperties`, #103).** The bucket is `Dict[str, V]` (`Optional[V]` when nullable); pydantic validates the dict on decode, so the strict scalar names reject a wrong type and a null.

@@ -11,13 +11,14 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Metadata is a model class generated from the OpenAPI schema.
 type Metadata struct {
 	CreatedAt *DateTime `json:"createdAt,omitempty"`
 	/* AdditionalProperties holds any extra fields not defined in the schema. */
-	AdditionalProperties map[string]any `json:"-"`
+	AdditionalProperties map[string]string `json:"-"`
 }
 
 // Equal reports whether this Metadata is value-equal to other.
@@ -51,12 +52,12 @@ func (o Metadata) WithoutCreatedAt() Metadata {
 }
 
 // WithAdditionalProperties returns a copy of the model that carries a copy of the given extra properties; the receiver is unchanged.
-func (o Metadata) WithAdditionalProperties(value map[string]any) Metadata {
+func (o Metadata) WithAdditionalProperties(value map[string]string) Metadata {
 	if value == nil {
 		o.AdditionalProperties = nil
 		return o
 	}
-	o.AdditionalProperties = make(map[string]any, len(value))
+	o.AdditionalProperties = make(map[string]string, len(value))
 	for key, extra := range value {
 		o.AdditionalProperties[key] = extra
 	}
@@ -116,9 +117,14 @@ func (o *Metadata) UnmarshalJSON(data []byte) error {
 	for key, val := range raw {
 		if !knownFields[key] {
 			if o.AdditionalProperties == nil {
-				o.AdditionalProperties = make(map[string]any)
+				o.AdditionalProperties = make(map[string]string)
 			}
-			var v any
+			/* A typed extra decodes like an element of a map of the same type:
+			 * a null is rejected unless the value schema is nullable. */
+			if string(val) == "null" {
+				return fmt.Errorf("additional property '%s' must not be null in Metadata", key)
+			}
+			var v string
 			if err := json.Unmarshal(val, &v); err != nil {
 				return err
 			}

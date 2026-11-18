@@ -420,7 +420,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}})
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
-    additional_properties: Dict[str, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Any{{/additionalPropertiesType}}] = Field(default_factory=dict)
+    additional_properties: Dict[str, {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}Optional[{{/isNullable}}{{{dataType}}}{{#isNullable}}]{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}Any{{/vendorExtensions.additionalPropertiesValue}}] = Field(default_factory=dict)
 
     @model_validator(mode='before')
     @classmethod

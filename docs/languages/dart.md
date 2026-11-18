@@ -28,7 +28,7 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 | `string` with `format: byte`, `binary`, file upload and download | `Uint8List` | Bodies are held in memory. |
 | `array` | `List<T>` | |
 | `array` with `uniqueItems` | `Set<T>` | Order is not specified. |
-| `additionalProperties` map | `Map<String, T>` | |
+| `additionalProperties` map | `Map<String, T>` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form object | `Object` | |
 | nullable or optional | `T?` | |
 | `oneOf`, `anyOf` | a wrapper class | The caller-facing accessor is `actualInstance`, typed `Object?`. |

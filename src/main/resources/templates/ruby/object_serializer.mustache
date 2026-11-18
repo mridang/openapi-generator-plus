@@ -496,7 +496,14 @@ module {{moduleName}}
                   # same wire name is dropped, so no key is ever written twice.
                   next if value.nil? || hash.key?(json_key.to_s)
 
-                  hash[json_key] = sanitize_for_serialization(value, visited)
+                  extra_format = if object.class.const_defined?(:ADDITIONAL_PROPERTIES_FORMAT)
+                                   object.class::ADDITIONAL_PROPERTIES_FORMAT
+                                 end
+                  hash[json_key] = if extra_format
+                                     apply_format_on_serialize(value, extra_format)
+                                   else
+                                     sanitize_for_serialization(value, visited)
+                                   end
                 end
               end
             end
@@ -740,16 +747,32 @@ module {{moduleName}}
       if klass.const_defined?(:ADDITIONAL_PROPERTIES) && klass::ADDITIONAL_PROPERTIES
         declared_keys = klass::ATTRIBUTE_MAP.values
         extra_type = klass.const_defined?(:ADDITIONAL_PROPERTIES_TYPE) ? klass::ADDITIONAL_PROPERTIES_TYPE : nil
+        extra_format = klass.const_defined?(:ADDITIONAL_PROPERTIES_FORMAT) ? klass::ADDITIONAL_PROPERTIES_FORMAT : nil
+        extra_nullable = klass.const_defined?(:ADDITIONAL_PROPERTIES_NULLABLE)
         # @type var extras: Hash[untyped, untyped]
         extras = {}
         data.each do |json_key, value|
           next if declared_keys.include?(json_key)
 
-          extras[json_key] = if value.nil? || extra_type.nil?
-                               free_form_value(value)
-                             else
-                               convert_to_type(value, extra_type.to_s)
-                             end
+          if extra_type.nil?
+            extras[json_key] = value
+            next
+          end
+
+          # A typed bucket decodes each extra like the element of a map of the
+          # same type: a null is rejected unless the value schema is nullable.
+          if value.nil?
+            unless extra_nullable
+              raise Errors::SerializationError,
+                    "Null additional property #{json_key.inspect}: the value schema is not nullable"
+            end
+
+            extras[json_key] = nil
+            next
+          end
+
+          converted = convert_to_type(value, extra_type.to_s)
+          extras[json_key] = extra_format ? apply_format_on_deserialize(converted, extra_format) : converted
         end
         transformed[:additional_properties] = extras unless extras.empty?
       end

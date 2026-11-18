@@ -2027,10 +2027,10 @@ import Testing
   @Test func testBhvSerializationobject020AdditionalPropertiesCapturedAndReEmittedAtTopLevel()
     throws
   {
-    let json = "{\"extra\":\"kept\",\"count\":7}"
+    let json = "{\"extra\":\"kept\",\"count\":\"7\"}"
     let metadata = try ObjectSerializer.deserialize(json, as: Metadata.self)
     #expect(
-      metadata?.additionalProperties["extra"]?.value as? String == "kept",
+      metadata?.additionalProperties["extra"] == "kept",
       "unknown string key must be captured as an additional property")
 
     let reserialized = try ObjectSerializer.serialize(metadata!)
@@ -2038,8 +2038,8 @@ import Testing
       reserialized.contains("\"extra\":\"kept\""),
       "additional property must be re-emitted at the top level, got: \(reserialized)")
     #expect(
-      reserialized.contains("\"count\":7"),
-      "numeric additional property must be re-emitted at the top level, got: \(reserialized)")
+      reserialized.contains("\"count\":\"7\""),
+      "second additional property must be re-emitted at the top level, got: \(reserialized)")
     #expect(
       !reserialized.contains("additionalProperties")
         && !reserialized.contains("additional_properties"),

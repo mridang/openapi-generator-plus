@@ -672,6 +672,25 @@ module {{moduleName}}
 
       # The type of additional property values.
       ADDITIONAL_PROPERTIES_TYPE = '{{{additionalPropertiesType}}}'
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isByteArray}}
+
+      # The wire format of additional property values, applied like the
+      # format of a map property's elements.
+      ADDITIONAL_PROPERTIES_FORMAT = 'byte'
+{{/isByteArray}}
+{{#isUuid}}
+
+      # The wire format of additional property values, applied like the
+      # format of a map property's elements.
+      ADDITIONAL_PROPERTIES_FORMAT = 'uuid'
+{{/isUuid}}
+{{#isNullable}}
+
+      # The value schema is nullable, so a null extra is kept.
+      ADDITIONAL_PROPERTIES_NULLABLE = true
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
 {{/additionalPropertiesType}}
 
       # Undeclared JSON keys captured on deserialization and re-emitted

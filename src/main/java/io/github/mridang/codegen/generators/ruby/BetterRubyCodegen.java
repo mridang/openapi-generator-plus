@@ -857,12 +857,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 .toString();
     }
 
-    /** {@inheritDoc} */
-    @Override
-    protected boolean populatesAdditionalPropertiesType() {
-        return true;
-    }
-
     /**
      * Returns the Ruby default value literal for the given
      * schema. Numeric and boolean defaults use their string

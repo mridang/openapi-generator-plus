@@ -31,7 +31,7 @@ The crate forbids `unsafe` code (`unsafe_code = "forbid"`).
 | `boolean` | `bool` | |
 | `array` | `Vec<T>` | |
 | `array` with `uniqueItems` | `std::collections::HashSet<T>` | Written in sorted order by a serde adapter so the bytes are stable. |
-| `object` with `additionalProperties` | `std::collections::HashMap<String, T>` | |
+| `object` with `additionalProperties` | `std::collections::HashMap<String, T>` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object`, any type | `crate::json_value::JsonValue` | An SDK newtype over `serde_json::Value`, so `serde_json` types do not appear in public signatures. |
 | nullable | `Option<T>` | A required nullable property is handled by a dedicated serde adapter. |
 | `enum` | Rust `enum` with `serde` renames | Integer enums use `serde_repr` and variants named `Number1`, `NumberMinus1` and so on. |

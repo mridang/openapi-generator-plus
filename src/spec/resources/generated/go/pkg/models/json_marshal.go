@@ -41,7 +41,7 @@ func marshalJSON(value any) ([]byte, error) {
 // declared property's wire name, so a caller-built model never writes the same
 // JSON key twice: the declared property's value wins. The caller's map is not
 // modified; it is copied only when a colliding key is present.
-func withoutDeclaredKeys(extras map[string]any, declared ...string) map[string]any {
+func withoutDeclaredKeys[V any](extras map[string]V, declared ...string) map[string]V {
 	result := extras
 	copied := false
 	for _, key := range declared {
@@ -49,7 +49,7 @@ func withoutDeclaredKeys(extras map[string]any, declared ...string) map[string]a
 			continue
 		}
 		if !copied {
-			result = make(map[string]any, len(extras))
+			result = make(map[string]V, len(extras))
 			for k, v := range extras {
 				result[k] = v
 			}

@@ -1190,6 +1190,12 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      */
     @com.fasterxml.jackson.annotation.JsonAnySetter
     public Builder putAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
+{{#vendorExtensions.additionalPropertiesValue}}
+{{^isNullable}}
+      /* A null extra is rejected unless the value schema is nullable, like a null element of a map. */
+      java.util.Objects.requireNonNull(value, "additional property value must not be null");
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
       this.additionalProperties.put(key, value);
       return this;
     }

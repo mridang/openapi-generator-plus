@@ -235,7 +235,7 @@ type {{classname}} struct {
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 	/* AdditionalProperties holds any extra fields not defined in the schema. */
-	AdditionalProperties map[string]any `json:"-"`
+	AdditionalProperties map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}} `json:"-"`
 {{/isAdditionalPropertiesTrue}}
 }
 
@@ -330,12 +330,12 @@ func (o {{classname}}) Without{{name}}() {{classname}} {
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 // WithAdditionalProperties returns a copy of the model that carries a copy of the given extra properties; the receiver is unchanged.
-func (o {{classname}}) WithAdditionalProperties(value map[string]any) {{classname}} {
+func (o {{classname}}) WithAdditionalProperties(value map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}) {{classname}} {
 	if value == nil {
 		o.AdditionalProperties = nil
 		return o
 	}
-	o.AdditionalProperties = make(map[string]any, len(value))
+	o.AdditionalProperties = make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}, len(value))
 	for key, extra := range value {
 		o.AdditionalProperties[key] = extra
 	}
@@ -443,9 +443,18 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	for key, val := range raw {
 		if !knownFields[key] {
 			if o.AdditionalProperties == nil {
-				o.AdditionalProperties = make(map[string]any)
+				o.AdditionalProperties = make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}})
 			}
-			var v any
+{{#vendorExtensions.hasTypedAdditionalProperties}}
+{{^vendorExtensions.additionalPropertiesValue.isNullable}}
+			/* A typed extra decodes like an element of a map of the same type:
+			 * a null is rejected unless the value schema is nullable. */
+			if string(val) == "null" {
+				return fmt.Errorf("additional property '%s' must not be null in {{classname}}", key)
+			}
+{{/vendorExtensions.additionalPropertiesValue.isNullable}}
+{{/vendorExtensions.hasTypedAdditionalProperties}}
+			var v {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}
 			if err := json.Unmarshal(val, &v); err != nil {
 				return err
 			}

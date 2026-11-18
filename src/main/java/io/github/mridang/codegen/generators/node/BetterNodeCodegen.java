@@ -1854,11 +1854,16 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                                                 || Boolean.TRUE.equals(v.vendorExtensions.get("isDurationFormat")))) {
                     serializerImports.add("isTemporalValue");
                 }
-                if (Boolean.TRUE.equals(modelMap.get("hasBufferImport"))) {
+                if (Boolean.TRUE.equals(modelMap.get("hasBufferImport"))
+                        && model.vars.stream()
+                                .anyMatch(v -> v.dataType != null && v.dataType.contains("Buffer"))) {
                     serializerImports.add("decodeBase64");
                 }
                 if (nestsModel) {
                     serializerImports.add("reattachAdditionalProperties");
+                }
+                if (model.vendorExtensions.get("additionalPropertiesValue") != null) {
+                    serializerImports.add("ObjectSerializer");
                 }
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainNumberDecimal)) {
                     serializerImports.add("decodePlainNumber");

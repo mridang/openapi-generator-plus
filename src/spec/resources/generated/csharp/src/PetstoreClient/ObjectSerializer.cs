@@ -501,7 +501,7 @@ internal partial class ObjectSerializer
             TypeInfoResolver =
                 new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
                 {
-                    Modifiers = { DropExtensionDataCollisions },
+                    Modifiers = { TypedAdditionalProperties, DropExtensionDataCollisions },
                 },
         };
         /* No global JsonStringEnumConverter: every generated enum carries its
@@ -529,6 +529,116 @@ internal partial class ObjectSerializer
         options.Converters.Add(new LiteralStringConverter());
         options.Converters.Add(new FiniteDoubleConverter());
         return options;
+    }
+
+    /// <summary>
+    /// A model with a typed additionalProperties keeps its typed dictionary in a public
+    /// property ignored by System.Text.Json, because the library only fills an
+    /// extension-data dictionary of <see cref="JsonElement"/>. This modifier converts
+    /// that raw dictionary into the typed one after a payload is decoded, with the
+    /// converters of the options in use, and hands the writer the typed values in their
+    /// wire form. A wrong JSON type, or a null where the value schema is not nullable,
+    /// fails the decode with a <see cref="JsonException"/>.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075",
+        Justification = "The model members are preserved by the embedded ILLink.Descriptors.xml keep-list."
+    )]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "The serializer is pinned to the reflection resolver, and the models are kept."
+    )]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "The serializer is pinned to the reflection resolver."
+    )]
+    private static void TypedAdditionalProperties(
+        System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo
+    )
+    {
+        if (typeInfo.Kind != System.Text.Json.Serialization.Metadata.JsonTypeInfoKind.Object)
+        {
+            return;
+        }
+        System.Reflection.PropertyInfo? bucket = typeInfo.Type.GetProperty(
+            "AdditionalProperties",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance
+        );
+        if (
+            bucket is null
+            || !System.Attribute.IsDefined(bucket, typeof(JsonIgnoreAttribute))
+            || !bucket.PropertyType.IsGenericType
+            || bucket.PropertyType.GetGenericArguments() is not [_, Type valueType]
+        )
+        {
+            return;
+        }
+        System.Text.Json.Serialization.Metadata.JsonPropertyInfo? extension = null;
+        foreach (
+            System.Text.Json.Serialization.Metadata.JsonPropertyInfo property in typeInfo.Properties
+        )
+        {
+            if (property.IsExtensionData)
+            {
+                extension = property;
+            }
+        }
+        if (extension?.Get is not Func<object, object?> rawGetter)
+        {
+            return;
+        }
+        bool nullable =
+            new System.Reflection.NullabilityInfoContext()
+                .Create(bucket)
+                .GenericTypeArguments[1]
+                .ReadState == System.Reflection.NullabilityState.Nullable;
+        JsonSerializerOptions options = typeInfo.Options;
+        if (extension.Set is not Action<object, object?> rawSetter)
+        {
+            return;
+        }
+        /* Writing: the raw dictionary is replaced by a fresh one holding the typed values in
+         * their wire form, so a shared instance is never mutated while another thread
+         * writes it. */
+        Action<object>? existingSerializing = typeInfo.OnSerializing;
+        typeInfo.OnSerializing = owner =>
+        {
+            existingSerializing?.Invoke(owner);
+            Dictionary<string, JsonElement> wire = new(StringComparer.Ordinal);
+            foreach (DictionaryEntry entry in (IDictionary)bucket.GetValue(owner)!)
+            {
+                wire[(string)entry.Key] = JsonSerializer.SerializeToElement(
+                    entry.Value,
+                    valueType,
+                    options
+                );
+            }
+            rawSetter(owner, wire);
+        };
+        Action<object>? existing = typeInfo.OnDeserialized;
+        typeInfo.OnDeserialized = owner =>
+        {
+            existing?.Invoke(owner);
+            if (rawGetter(owner) is not Dictionary<string, JsonElement> raw)
+            {
+                return;
+            }
+            IDictionary typed = (IDictionary)bucket.GetValue(owner)!;
+            foreach (KeyValuePair<string, JsonElement> entry in raw)
+            {
+                if (entry.Value.ValueKind == JsonValueKind.Null && !nullable)
+                {
+                    throw new JsonException(
+                        $"Additional property '{entry.Key}' is null but its value schema is not nullable"
+                    );
+                }
+                typed[entry.Key] = entry.Value.Deserialize(valueType, options);
+            }
+            raw.Clear();
+        };
     }
 
     /// <summary>

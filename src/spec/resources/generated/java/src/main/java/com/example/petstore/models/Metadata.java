@@ -28,7 +28,7 @@ public class Metadata {
 
   /* Not a property itself: the entries are written flat by the any-getter. */
   @com.fasterxml.jackson.annotation.JsonIgnore
-  private final java.util.Map<String, Object> additionalProperties;
+  private final java.util.Map<String, String> additionalProperties;
 
   /**
    * Returns the additional, undeclared properties.
@@ -36,12 +36,12 @@ public class Metadata {
    * @return the additional properties, keyed by property name
    */
   @com.fasterxml.jackson.annotation.JsonAnyGetter
-  public java.util.Map<String, Object> getAdditionalProperties() {
+  public java.util.Map<String, String> getAdditionalProperties() {
     /* A key that equals a declared property's wire name is dropped here, so the
      * declared value wins and the serialised object never carries a duplicate
      * key. The copy is unmodifiable so callers cannot mutate internal state
      * through the accessor (SpotBugs EI_EXPOSE_REP-clean without a suppression). */
-    java.util.Map<String, Object> extras = new java.util.LinkedHashMap<>(this.additionalProperties);
+    java.util.Map<String, String> extras = new java.util.LinkedHashMap<>(this.additionalProperties);
     extras.keySet().removeAll(DECLARED_PROPERTY_NAMES);
     return java.util.Collections.unmodifiableMap(extras);
   }
@@ -92,7 +92,7 @@ public class Metadata {
       creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
   public static final class Builder {
     @Nullable private OffsetDateTime createdAt;
-    private final java.util.Map<String, Object> additionalProperties =
+    private final java.util.Map<String, String> additionalProperties =
         new java.util.LinkedHashMap<>();
 
     private Builder() {}
@@ -115,7 +115,7 @@ public class Metadata {
      * @param additionalProperties the additional properties, keyed by property name
      * @return this builder
      */
-    public Builder additionalProperties(java.util.Map<String, Object> additionalProperties) {
+    public Builder additionalProperties(java.util.Map<String, String> additionalProperties) {
       this.additionalProperties.clear();
       this.additionalProperties.putAll(additionalProperties);
       return this;
@@ -130,7 +130,9 @@ public class Metadata {
      * @return this builder
      */
     @com.fasterxml.jackson.annotation.JsonAnySetter
-    public Builder putAdditionalProperty(String key, Object value) {
+    public Builder putAdditionalProperty(String key, String value) {
+      /* A null extra is rejected unless the value schema is nullable, like a null element of a map. */
+      java.util.Objects.requireNonNull(value, "additional property value must not be null");
       this.additionalProperties.put(key, value);
       return this;
     }
@@ -141,7 +143,7 @@ public class Metadata {
      * @param additionalProperties the properties to add, keyed by property name
      * @return this builder
      */
-    public Builder putAllAdditionalProperties(java.util.Map<String, Object> additionalProperties) {
+    public Builder putAllAdditionalProperties(java.util.Map<String, String> additionalProperties) {
       this.additionalProperties.putAll(additionalProperties);
       return this;
     }

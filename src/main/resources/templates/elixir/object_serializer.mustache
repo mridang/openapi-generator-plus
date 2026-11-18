@@ -548,8 +548,19 @@ defmodule {{moduleName}}.ObjectSerializer do
       extras = Map.get(struct, :additional_properties)
 
       if is_map(extras) and map_size(extras) > 0 do
+        extra_type =
+          if function_exported?(module, :additional_properties_type, 0),
+            do: module.additional_properties_type(),
+            else: nil
+
         sanitized_extras =
-          Map.new(extras, fn {k, v} -> {to_string(k), sanitize_for_serialization(v)} end)
+          Map.new(extras, fn {k, v} ->
+            {to_string(k),
+             if(is_nil(extra_type),
+               do: sanitize_for_serialization(v),
+               else: sanitize_field_value(v, extra_type)
+             )}
+          end)
 
         Map.merge(sanitized_extras, declared)
       else
@@ -1325,15 +1336,29 @@ defmodule {{moduleName}}.ObjectSerializer do
           nil
         end
 
+      nullable =
+        function_exported?(module, :additional_properties_nullable, 0) and
+          module.additional_properties_nullable()
+
       extras =
         data
         |> Enum.reject(fn {key, _v} -> MapSet.member?(declared, key) end)
         |> Map.new(fn {key, value} ->
           converted =
-            if is_nil(value) or is_nil(value_type) do
-              value
-            else
-              convert_to_type(value, to_string(value_type))
+            cond do
+              is_nil(value_type) ->
+                value
+
+              is_nil(value) and nullable ->
+                nil
+
+              is_nil(value) ->
+                raise {{moduleName}}.Errors.SerializationError,
+                  message:
+                    "Null additional property '#{key}' for #{inspect(module)}: the value schema is not nullable"
+
+              true ->
+                convert_to_type(value, to_string(value_type))
             end
 
           {key, converted}

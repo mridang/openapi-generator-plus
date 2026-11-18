@@ -29,7 +29,7 @@ The policy behind the floor is the oldest Python release that still receives sec
 | `string` with `format: password` | `PasswordStr` (`SecretStr`) | The value is masked in `repr` but the real value is sent on the wire. |
 | `array` | `List[T]` | |
 | `array` with `uniqueItems` | `Set[T]` | |
-| `additionalProperties` map | `Dict[str, T]` | |
+| `additionalProperties` map | `Dict[str, T]` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form object | `object` | |
 | nullable or optional | `Optional[T]` | |
 | `enum` | a class derived from `str` and `Enum` | |

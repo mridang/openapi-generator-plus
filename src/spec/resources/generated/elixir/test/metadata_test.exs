@@ -23,11 +23,83 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert metadata.additional_properties["customField"] == "hello"
     end
 
-    test "bhv models 009 additional properties are typed as string" do
+    test "bhv models 009 additional properties are a string-keyed map of the value type" do
       json = ~s({"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"})
       metadata = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
 
+      assert is_map(metadata.additional_properties)
       assert is_binary(metadata.additional_properties["customField"])
+      assert PetstoreClient.Models.Metadata.additional_properties_type() == "String.t()"
+    end
+
+    test "bhv models 012 an additional property of the wrong JSON type fails the decode" do
+      for body <- [~s({"a":2.5}), ~s({"a":"2"})] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(body, "Counters")
+        end
+      end
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"a":3}), "Metadata")
+      end
+    end
+
+    test "bhv models 013 an additional property whose value type is a model decodes to that model" do
+      roster =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"label":"l","a":{"id":1,"name":"x"}}),
+          "Roster"
+        )
+
+      assert %PetstoreClient.Models.Category{id: 1, name: "x"} = roster.additional_properties["a"]
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"a":{"id":"x"}}), "Roster")
+      end
+    end
+
+    test "bhv models 014 a null additional property is rejected unless the value schema is nullable" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"a":null}), "Counters")
+      end
+
+      sparse = PetstoreClient.ObjectSerializer.deserialize(~s({"a":null}), "Sparse")
+
+      assert sparse.additional_properties == %{"a" => nil}
+    end
+
+    test "bhv models 015 a typed additional property is written flat in its wire form" do
+      {:ok, at, _} = DateTime.from_iso8601("2024-01-01T00:00:00Z")
+      moments = %PetstoreClient.Models.Moments{label: "l", additional_properties: %{"at" => at}}
+      data = moments |> PetstoreClient.ObjectSerializer.serialize() |> Jason.decode!()
+
+      assert data["label"] == "l"
+      assert data["at"] =~ "2024-01-01T00:00:00"
+
+      round_trip =
+        PetstoreClient.ObjectSerializer.deserialize(Jason.encode!(data), "Moments")
+
+      assert DateTime.compare(round_trip.additional_properties["at"], at) == :eq
+
+      blobs = %PetstoreClient.Models.Blobs{additional_properties: %{"b" => "hi"}}
+
+      assert PetstoreClient.ObjectSerializer.serialize(blobs) |> Jason.decode!() == %{
+               "b" => "aGk="
+             }
+
+      assert PetstoreClient.ObjectSerializer.deserialize(~s({"b":"aGk="}), "Blobs").additional_properties[
+               "b"
+             ] == "hi"
+    end
+
+    test "bhv models 016 a free-form additionalProperties keeps every JSON value as it arrives" do
+      freeform =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"a":1,"b":"x","c":[true],"d":null}),
+          "Freeform"
+        )
+
+      assert freeform.additional_properties == %{"a" => 1, "b" => "x", "c" => [true], "d" => nil}
     end
 
     test "bhv models 011 round-trip preserves known properties" do

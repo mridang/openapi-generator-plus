@@ -361,7 +361,6 @@ Test: `skills_test`.
 
 ### Not done in batch 7 (needs shared Java, another language, or an owner decision)
 - F860 (token and discovery requests still merge transport default headers): needs a change to the `ApiClient#send_request` contract in all twelve.
-- F865 (a typed `additionalProperties` schema does not check the extra values): the model never receives `additionalPropertiesType`, which the shared Java has to supply; the extras are captured and round-tripped untyped (#103).
 - F1152, F1153, F1174, F1161: gates and fixtures outside the ruby tree.
 
 ## Decisions taken in batch 9
@@ -498,3 +497,5 @@ Every item of the wave-2 work list and of the owner decisions of 2026-11-17, wit
 - Check `docker ps -q | wc -l` before a run; leaked chasm or squid containers cause exit 137 and setup flakes. A flake (`apk add`, `bundle install`) is rerun, not patched.
 
 - Trace context from the caller (#136): `OpenTelemetry.propagation.inject` reads `OpenTelemetry::Context.current` on the caller's thread (`Context.with_current`); no thread or fiber is created on the header path (D95).
+
+- **F865 (typed `additionalProperties`, #103), done.** The model gets `ADDITIONAL_PROPERTIES_TYPE`, and `ADDITIONAL_PROPERTIES_FORMAT` (`byte`, `uuid`) and `ADDITIONAL_PROPERTIES_NULLABLE` when the value schema needs them; `ObjectSerializer.deserialize_model` decodes each extra through `convert_to_type`, rejects a null unless nullable, and `sanitize_for_serialization` writes bytes as base64. The RBS is `Hash[String, V]?`.

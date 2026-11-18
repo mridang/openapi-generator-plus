@@ -1,0 +1,17 @@
+module Petstore::Client::Models
+  class Blobs < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
+    def with: (**untyped) -> Blobs
+    ADDITIONAL_PROPERTIES: bool
+    ADDITIONAL_PROPERTIES_TYPE: String
+    ADDITIONAL_PROPERTIES_FORMAT: String
+    attr_reader additional_properties: Hash[String, String]?
+    attr_reader label: String?
+  end
+end

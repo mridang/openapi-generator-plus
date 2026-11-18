@@ -68,12 +68,68 @@ test('bhv models 011 round trip preserves additional properties', function (): v
     expect($deserialized)->toBeInstanceOf(Metadata::class);
 });
 
-test('bhv models 009 additional properties field is Ds\\Map typed', function (): void {
-    /** @var \Ds\Map<string, mixed> $additionalProperties */
-    $additionalProperties = new \Ds\Map(['key' => 'value']);
-    $metadata = (new Metadata())->withAdditionalProperties($additionalProperties);
+test('bhv models 009 additional properties are a string-keyed map of the value type', function (): void {
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize('{"customField":"hello"}', Metadata::class);
+
     expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
-    expect($metadata->additionalProperties->get('key'))->toBe('value');
+    expect($metadata->additionalProperties->get('customField'))->toBeString();
+    expect(array_keys($metadata->additionalProperties->toArray()))->each->toBeString();
+    $source = file_get_contents((new \ReflectionClass(Metadata::class))->getFileName() ?: '');
+    expect($source)->toContain('\Ds\Map<string, string>');
+});
+
+test('bhv models 012 an additional property of the wrong JSON type fails the decode', function (): void {
+    foreach (['{"a":2.5}', '{"a":"2"}', '{"a":3000000000}'] as $body) {
+        expect(fn () => ObjectSerializer::deserialize($body, \PetstoreClient\Models\Counters::class))
+            ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    }
+    expect(fn () => ObjectSerializer::deserialize('{"a":3}', Metadata::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv models 013 an additional property whose value type is a model decodes to that model', function (): void {
+    /** @var \PetstoreClient\Models\Roster $roster */
+    $roster = ObjectSerializer::deserialize('{"label":"l","a":{"id":1,"name":"x"}}', \PetstoreClient\Models\Roster::class);
+    $category = $roster->additionalProperties->get('a');
+
+    expect($category)->toBeInstanceOf(\PetstoreClient\Models\Category::class);
+    expect($category->id)->toBe(1);
+    expect($category->name)->toBe('x');
+    expect(fn () => ObjectSerializer::deserialize('{"a":{"id":"x"}}', \PetstoreClient\Models\Roster::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv models 014 a null additional property is rejected unless the value schema is nullable', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"a":null}', \PetstoreClient\Models\Counters::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    /** @var \PetstoreClient\Models\Sparse $sparse */
+    $sparse = ObjectSerializer::deserialize('{"a":null}', \PetstoreClient\Models\Sparse::class);
+
+    expect($sparse->additionalProperties->hasKey('a'))->toBeTrue();
+    expect($sparse->additionalProperties->get('a'))->toBeNull();
+});
+
+test('bhv models 015 a typed additional property is written flat in its wire form', function (): void {
+    /** @var \PetstoreClient\Models\Moments $moments */
+    $moments = ObjectSerializer::deserialize('{"label":"l","at":"2024-01-01T00:00:00+00:00"}', \PetstoreClient\Models\Moments::class);
+
+    expect($moments->additionalProperties->get('at'))->toBeInstanceOf(\DateTimeInterface::class);
+    $json = ObjectSerializer::serialize($moments);
+    expect(array_keys(json_decode($json, true)))->toBe(['label', 'at']);
+    expect($json)->toContain('2024-01-01T00:00:00');
+
+    /** @var \PetstoreClient\Models\Blobs $blobs */
+    $blobs = ObjectSerializer::deserialize('{"b":"aGk="}', \PetstoreClient\Models\Blobs::class);
+    expect($blobs->additionalProperties->get('b'))->toBe('hi');
+    expect(ObjectSerializer::serialize($blobs))->toBe('{"b":"aGk="}');
+});
+
+test('bhv models 016 a free-form additionalProperties keeps every JSON value as it arrives', function (): void {
+    /** @var \PetstoreClient\Models\Freeform $freeform */
+    $freeform = ObjectSerializer::deserialize('{"a":1,"b":"x","c":[true],"d":null}', \PetstoreClient\Models\Freeform::class);
+
+    expect($freeform->additionalProperties->toArray())->toBe(['a' => 1, 'b' => 'x', 'c' => [true], 'd' => null]);
 });
 
 test('composer manifest has a valid name', function (): void {

@@ -30,7 +30,7 @@ The package runs on Node and on runtimes that have only `fetch`: Deno, Bun, Clou
 | `string` with `format: binary`, file upload and download | `Buffer` | Uploads also accept a `Blob`. Downloads are fully buffered. |
 | `array` | `Array<T>` | |
 | `array` with `uniqueItems` | `Set<T>` | Written in insertion order. |
-| `additionalProperties` map | `{ [key: string]: T }` | |
+| `additionalProperties` map | `{ [key: string]: T }` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form object | `unknown` | |
 | nullable | `T \| null` | A property that is required and nullable is always sent, as `null` when empty. |
 | `enum` | a `const` object plus a string-literal union | No TypeScript `enum`. |

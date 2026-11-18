@@ -1,5 +1,6 @@
 from typing import Any, cast
 import ast
+import datetime
 import dataclasses
 import importlib
 import inspect
@@ -14,6 +15,7 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
+from petstore_client.errors import SerializationException
 from petstore_client.object_serializer import ObjectSerializer
 
 
@@ -43,11 +45,81 @@ class TestMetadataTypedAdditionalProperties:
         data = json.loads(serialized)
         assert data.get("createdAt") is not None
 
-    def test_bhv_models_009_additional_properties_field_exists(self) -> None:
-        json_str = '{"createdAt":"2024-01-01T00:00:00Z"}'
-        metadata = ObjectSerializer().deserialize(json_str, "Metadata")
+    def test_bhv_models_009_additional_properties_are_a_string_keyed_map_of_the_value_type(
+        self,
+    ) -> None:
+        metadata = ObjectSerializer().deserialize('{"customField":"hello"}', "Metadata")
         assert metadata is not None
-        assert hasattr(metadata, "additional_properties")
+        assert isinstance(metadata.additional_properties, dict)
+        assert isinstance(metadata.additional_properties["customField"], str)
+
+    def test_bhv_models_012_an_additional_property_of_the_wrong_json_type_fails_the_decode(
+        self,
+    ) -> None:
+        for body in ('{"a":2.5}', '{"a":"2"}'):
+            with pytest.raises(SerializationException):
+                ObjectSerializer().deserialize(body, "Counters")
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":3}', "Metadata")
+
+    def test_bhv_models_013_an_additional_property_whose_value_type_is_a_model_decodes_to_that_model(
+        self,
+    ) -> None:
+        from petstore_client.models import Category
+
+        roster = ObjectSerializer().deserialize(
+            '{"label":"l","a":{"id":1,"name":"x"}}', "Roster"
+        )
+        assert roster is not None
+        assert isinstance(roster.additional_properties["a"], Category)
+        assert roster.additional_properties["a"].id == 1
+        assert roster.additional_properties["a"].name == "x"
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":{"id":"x"}}', "Roster")
+
+    def test_bhv_models_014_a_null_additional_property_is_rejected_unless_the_value_schema_is_nullable(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":null}', "Counters")
+        sparse = ObjectSerializer().deserialize('{"a":null}', "Sparse")
+        assert sparse is not None
+        assert sparse.additional_properties == {"a": None}
+
+    def test_bhv_models_015_a_typed_additional_property_is_written_flat_in_its_wire_form(
+        self,
+    ) -> None:
+        from petstore_client.models import Blobs
+
+        moments = ObjectSerializer().deserialize(
+            '{"label":"l","at":"2024-01-01T00:00:00Z"}', "Moments"
+        )
+        assert moments is not None
+        assert isinstance(moments.additional_properties["at"], datetime.datetime)
+        data = json.loads(ObjectSerializer().serialize(moments))
+        assert list(data) == ["label", "at"]
+        assert data["at"].startswith("2024-01-01T00:00:00")
+        assert ObjectSerializer().deserialize(json.dumps(data), "Moments") == moments
+        blobs = ObjectSerializer().deserialize('{"b":"aGk="}', "Blobs")
+        assert blobs is not None
+        assert blobs.additional_properties["b"] == b"hi"
+        assert json.loads(
+            ObjectSerializer().serialize(Blobs(additional_properties={"b": b"hi"}))
+        ) == {"b": "aGk="}
+
+    def test_bhv_models_016_a_free_form_additional_properties_keeps_every_json_value_as_it_arrives(
+        self,
+    ) -> None:
+        freeform = ObjectSerializer().deserialize(
+            '{"a":1,"b":"x","c":[true],"d":null}', "Freeform"
+        )
+        assert freeform is not None
+        assert freeform.additional_properties == {
+            "a": 1,
+            "b": "x",
+            "c": [True],
+            "d": None,
+        }
 
     def test_bhv_models_023_wire_key_named_additional_properties_with_dict_value_preserved(
         self,
@@ -63,25 +135,25 @@ class TestMetadataTypedAdditionalProperties:
 
         wire = {
             "createdAt": "2024-01-01T00:00:00Z",
-            "additional_properties": {"foo": "bar"},
+            "additional_properties": "bar",
         }
         metadata = Metadata.model_validate(wire)
         assert metadata.additional_properties == {
-            "additional_properties": {"foo": "bar"},
+            "additional_properties": "bar",
         }
 
     def test_wire_key_named_additional_properties_alongside_other_extras(self) -> None:
-        # The dict-valued `additional_properties` wire key coexists with other
+        # The string-valued `additional_properties` wire key coexists with other
         # genuine extras; none are lost.
         from petstore_client.models import Metadata
 
         wire = {
             "createdAt": "2024-01-01T00:00:00Z",
-            "additional_properties": {"foo": "bar"},
+            "additional_properties": "bar",
             "region": "eu",
         }
         metadata = Metadata.model_validate(wire)
-        assert metadata.additional_properties["additional_properties"] == {"foo": "bar"}
+        assert metadata.additional_properties["additional_properties"] == "bar"
         assert metadata.additional_properties["region"] == "eu"
 
     def test_field_name_kwargs_bucket_is_spread_not_nested(self) -> None:
@@ -94,14 +166,11 @@ class TestMetadataTypedAdditionalProperties:
 
     def test_dict_valued_wire_key_survives_full_round_trip(self) -> None:
         # End-to-end: deserialize -> serialize -> deserialize keeps the
-        # dict-valued `additional_properties` wire property intact. The
+        # string-valued `additional_properties` wire property intact. The
         # deserializing convenience method is wrapped so an unexpected
         # SerializationException surfaces as a clear test failure.
         try:
-            wire = (
-                '{"createdAt":"2024-01-01T00:00:00Z",'
-                '"additional_properties":{"foo":"bar"}}'
-            )
+            wire = '{"createdAt":"2024-01-01T00:00:00Z","additional_properties":"bar"}'
             metadata = ObjectSerializer().deserialize(wire, "Metadata")
             assert metadata is not None
             restored = ObjectSerializer().deserialize(
@@ -109,7 +178,7 @@ class TestMetadataTypedAdditionalProperties:
             )
         except Exception as exc:  # pragma: no cover - defensive surface
             pytest.fail(f"round-trip raised unexpectedly: {exc}")
-        assert restored.additional_properties["additional_properties"] == {"foo": "bar"}
+        assert restored.additional_properties["additional_properties"] == "bar"
 
     def test_bhv_models_001_undeclared_wire_keys_are_captured_into_additional_properties(
         self,
@@ -139,14 +208,14 @@ class TestMetadataTypedAdditionalProperties:
         colliding = Metadata.model_validate(
             {
                 "created_at": stamp,
-                "additional_properties": {"createdAt": "x", "extra": 1},
+                "additional_properties": {"createdAt": "x", "extra": "y"},
             }
         )
 
         data = json.loads(ObjectSerializer().serialize(colliding))
 
         assert data["createdAt"] == declared_only["createdAt"]
-        assert data["extra"] == 1
+        assert data["extra"] == "y"
 
 
 class TestModelDocstringNoExampleNull:

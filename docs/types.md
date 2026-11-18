@@ -92,6 +92,8 @@ PHP, Dart, Go, Rust, Swift and Elixir use their native float, because their stan
 
 Arrays, sets and maps use the language's own collection type, except in PHP where they use the `php-ds` types (`\Ds\Vector`, `\Ds\Set`, `\Ds\Map`), and in Go, where a set is an SDK type (`models.Set[T]`) because Go has no set. `uniqueItems` arrays are written in each language's natural collection order, which is not sorted and not specified.
 
+A schema whose `additionalProperties` declares a value type uses that type for the extra keys: `Metadata` with `additionalProperties: {type: string}` exposes a map of strings, a model value gives a map of that model, and an array or map value keeps its element type. The `T` in the `object` with `additionalProperties` row is that value type. A `null` extra is rejected unless the value schema is nullable. A free-form `additionalProperties` (`true`, an empty schema or no `type`) keeps the any-type listed below, so every JSON value is accepted and returned as it arrived.
+
 Free-form objects and the `AnyType` schema map to the most open type the language has. Java uses `Object`, Kotlin `Any`, C# `object`, Node `unknown`, Dart `Object?`, Go `any`, Python and Ruby `object`. Rust and Swift ship their own value type (`JsonValue`, `AnyCodable`) because their standard libraries have none. Elixir uses a map for an object and `any()` for `AnyType`.
 
 ## Unions

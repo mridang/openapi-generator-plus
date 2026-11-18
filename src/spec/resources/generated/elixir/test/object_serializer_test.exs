@@ -1577,11 +1577,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # additional_properties/0 == true with a single declared field createdAt.
   describe "additionalProperties round-trip at the top level" do
     test "bhv serializationobject 058 deserialize captures an undeclared key into additional_properties" do
-      json = ~s({"createdAt":"2024-01-01T00:00:00Z","region":"eu","weight":42})
+      json = ~s({"createdAt":"2024-01-01T00:00:00Z","region":"eu","weight":"42"})
       meta = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
       assert %PetstoreClient.Models.Metadata{} = meta
       assert meta.additional_properties["region"] == "eu"
-      assert meta.additional_properties["weight"] == 42
+      assert meta.additional_properties["weight"] == "42"
     end
 
     test "bhv serializationobject 020 serialize re-emits the extra key at the top level" do

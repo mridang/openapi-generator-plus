@@ -626,8 +626,28 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
     {{/vendorExtensions.x-inherited}}{{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
+{{#vendorExtensions.additionalPropertiesValue}}
+    /// <summary>
+    /// The additional, undeclared properties. They are decoded and encoded through the
+    /// same converters as a declared property, so a value of the wrong JSON type, or a
+    /// null where the value schema is not nullable, fails the decode.
+    /// </summary>
+    [JsonIgnore]
+    public Dictionary<string, {{{dataType}}}{{#isNullable}}?{{/isNullable}}> AdditionalProperties { get; init; } = new();
+
+    /// <summary>
+    /// The raw undeclared properties as they arrive on the wire. System.Text.Json only
+    /// fills an extension-data dictionary of <see cref="global::System.Text.Json.JsonElement"/>; the serializer
+    /// converts it to and from <see cref="AdditionalProperties"/>.
+    /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; init; } = new();
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public Dictionary<string, global::System.Text.Json.JsonElement> AdditionalPropertiesWire { get; init; } = new();
+{{/vendorExtensions.additionalPropertiesValue}}
+{{^vendorExtensions.additionalPropertiesValue}}
+    [JsonExtensionData]
+    public Dictionary<string, object> AdditionalProperties { get; init; } = new();
+{{/vendorExtensions.additionalPropertiesValue}}
 {{/isAdditionalPropertiesTrue}}
 
 {{#vendorExtensions.x-allof-base}}
@@ -869,8 +889,28 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
     {{/vendorExtensions.x-inherited}}{{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
+{{#vendorExtensions.additionalPropertiesValue}}
+    /// <summary>
+    /// The additional, undeclared properties. They are decoded and encoded through the
+    /// same converters as a declared property, so a value of the wrong JSON type, or a
+    /// null where the value schema is not nullable, fails the decode.
+    /// </summary>
+    [JsonIgnore]
+    public Dictionary<string, {{{dataType}}}{{#isNullable}}?{{/isNullable}}> AdditionalProperties { get; init; } = new();
+
+    /// <summary>
+    /// The raw undeclared properties as they arrive on the wire. System.Text.Json only
+    /// fills an extension-data dictionary of <see cref="global::System.Text.Json.JsonElement"/>; the serializer
+    /// converts it to and from <see cref="AdditionalProperties"/>.
+    /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; init; } = new();
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public Dictionary<string, global::System.Text.Json.JsonElement> AdditionalPropertiesWire { get; init; } = new();
+{{/vendorExtensions.additionalPropertiesValue}}
+{{^vendorExtensions.additionalPropertiesValue}}
+    [JsonExtensionData]
+    public Dictionary<string, object> AdditionalProperties { get; init; } = new();
+{{/vendorExtensions.additionalPropertiesValue}}
 {{/isAdditionalPropertiesTrue}}
 
 {{#vendorExtensions.x-allof-base}}

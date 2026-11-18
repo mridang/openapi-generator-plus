@@ -410,3 +410,5 @@ Generated Kotlin is verified only by the Docker specs (`KotlinBuildSpec`, `Kotli
 - **F1085 not done, needs a shared change** (kotlin's `ChasmContainer` mounts the committed `certs/server-key.pem` that the shared Chasm fixture ships, so removing the keys needs the shared fixture to generate them).
 
 - Trace context from the caller (#136): reads the thread-local `Context.current()`; across a coroutine thread change the caller must install the span with a `ThreadContextElement` (`Context.asContextElement()`); the base-api test defines its own element, so no dependency is added (D95).
+
+- **F15 (typed `additionalProperties`, #103).** The `@Transient` bucket is `MutableMap<String, V>`. `ObjectSerializer` reads the value type from the getter's generic return type, decodes each undeclared key through the strict scalar serializers and the configured module (`additionalValueSerializer`), and encodes it the same way; a companion `ADDITIONAL_PROPERTIES_NULLABLE` marks a nullable value schema.
