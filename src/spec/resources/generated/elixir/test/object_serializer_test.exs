@@ -424,6 +424,14 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "stringify/1" do
+    test "bhv serialization 012 keys of a map are written in ascending order, so equal data gives identical output" do
+      first = PetstoreClient.ObjectSerializer.serialize(%{"zeta" => 1, "alpha" => 2, "mid" => 3})
+      second = PetstoreClient.ObjectSerializer.serialize(%{"mid" => 3, "zeta" => 1, "alpha" => 2})
+
+      assert first == ~s({"alpha":2,"mid":3,"zeta":1})
+      assert first == second
+    end
+
     test "bhv serializationobject 190 a long is stringified to its exact decimal digits" do
       assert PetstoreClient.ObjectSerializer.stringify(9_223_372_036_854_775_807) ==
                "9223372036854775807"
@@ -2118,7 +2126,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "the Separator enum members round-trip through their wire strings" do
+    test "bhv serialization 002 the Separator enum members round-trip through their wire strings" do
       for {atom, wire} <- [space_1: " ", value_0040_0040: "@@", a_b: "a-b", a_b_2: "a_b"] do
         assert PetstoreClient.Models.Separator.value(atom) == wire
         assert PetstoreClient.Models.Separator.from_value(wire) == atom
@@ -2139,6 +2147,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "inline enum modules" do
+    test "bhv serialization 001 the text form of an enum member is exactly its declared wire value" do
+      phase = PetstoreClient.Models.EdgeCases.PhaseEnum
+      assert phase.value(:on_hold) == "on-hold"
+      assert phase.value(:out_of_stock) == "OUT_OF_STOCK"
+    end
+
     test "Defaults.ModeEnum exposes its members" do
       mode = PetstoreClient.Models.Defaults.ModeEnum
       assert mode.all_values() == [:low, :medium, :high]
@@ -2158,7 +2172,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded.phase == :on_hold
     end
 
-    test "Order.StatusEnum exposes its members and still decodes the field" do
+    test "bhv serialization 004 Order.StatusEnum exposes its members and still decodes the field" do
       status = PetstoreClient.Models.Order.StatusEnum
       assert status.all_values() == [:placed, :approved, :delivered]
       assert status.value(:placed) == "placed"

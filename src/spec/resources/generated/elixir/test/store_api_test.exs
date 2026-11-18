@@ -551,6 +551,27 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
+  test "bhv serialization 008 a content-typed query parameter is JSON-encoded exactly once" do
+    {:ok, name} = StubApiClient.start("")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    photo = %PetstoreClient.Models.PhotoMetadata{
+      caption: "a<b",
+      taken_at: ~U[2024-01-15 10:30:00Z]
+    }
+
+    options = %PetstoreClient.Api.Options.SearchStoreOptions{q: photo}
+
+    _result = PetstoreClient.Api.StoreApi.search_store(api, options)
+
+    captured = StubApiClient.captured(name)
+    query = captured.url |> String.split("?") |> List.last() |> URI.decode_query()
+    assert query["q"] == PetstoreClient.ObjectSerializer.serialize(photo)
+
+    Agent.stop(name)
+  end
+
   test "bhv operations 128 a content query parameter that cannot be serialized raises a serialization error and sends no request" do
     {:ok, name} = StubApiClient.start("")
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")

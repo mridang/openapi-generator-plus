@@ -2317,6 +2317,124 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv serialization 006 query parameter names and values percent-encode reserved and space characters so a value cannot add a parameter" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"a&b" => "x&y=z w#f"},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+
+    assert String.ends_with?(url, "/test/echo?a%26b=x%26y%3Dz%20w%23f"),
+           "Expected the reserved characters to stay inside one parameter, got: #{url}"
+
+    Agent.stop(name)
+  end
+
+  test "bhv serialization 007 a literal plus sign is sent as %2B and non-ASCII query text as percent-encoded UTF-8" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"q" => "a+bé"},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+
+    assert String.ends_with?(url, "/test/echo?q=a%2Bb%C3%A9"),
+           "Expected %2B and UTF-8 percent-encoding, got: #{url}"
+
+    Agent.stop(name)
+  end
+
+  test "bhv serialization 014 a query parameter whose value is unset or an empty list produces no query entry" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"unset" => nil, "tags" => [], "kept" => "x"},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+
+    assert String.ends_with?(url, "/test/echo?kept=x"),
+           "Only the kept parameter may appear, got: #{url}"
+
+    Agent.stop(name)
+  end
+
+  test "bhv serialization 009 a value that cannot be serialized raises the serialization error before any request is sent" do
+    state = retry_state([200])
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/things",
+        %{},
+        %{},
+        %{"bad" => fn -> :ok end},
+        ["application/json"],
+        "application/json",
+        nil
+      )
+    end
+
+    assert attempts() == []
+  end
+
+  test "bhv serialization 010 a body is sent with exactly the content type the caller declared, with no charset added" do
+    state = retry_state([200])
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/things",
+        %{},
+        %{},
+        "hello",
+        ["text/plain"],
+        "text/plain",
+        nil
+      )
+
+    assert [request] = attempts()
+    assert Req.Request.get_header(request, "content-type") == ["text/plain"]
+  end
+
   # Empty array in query is omitted (item #20)
 
   test "bhv serializationwire 010 empty array query param is omitted entirely" do
@@ -2976,6 +3094,32 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert length(api_requests(client)) == 2
     assert token_requests(client) == []
+  end
+
+  test "bhv retries 043 an unauthorized response is not replayed when no authenticator can supply fresh credentials" do
+    api_key =
+      PetstoreClient.Auth.ApiKeyAuthenticator.new(
+        "http://retry.invalid",
+        "X-Api-Key",
+        "static-key",
+        PetstoreClient.Auth.ApiKeyLocation.header()
+      )
+
+    state = retry_state([401], [], api_key)
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{}} = get_thing(state)
+    assert length(attempts()) == 1
+  end
+
+  test "bhv retries 044 with request ids supplied, every retry is sent with an identifier that differs from the attempts before it" do
+    state = retry_state([503, 503, 200], inject_request_id: true)
+
+    assert {:ok, _} = get_thing(state)
+
+    ids = Enum.map(attempts(), &Req.Request.get_header(&1, "x-request-id"))
+    assert length(ids) == 3
+    assert Enum.all?(ids, &match?([_], &1))
+    assert length(Enum.uniq(ids)) == 3
   end
 
   test "bhv retries 006 a body that cannot be sent twice is not replayed after a 401" do
