@@ -200,6 +200,15 @@ import Testing
     #expect(!String(describing: auth).contains("provided-1"))
   }
 
+  /* The credentials provider is asked again for each request, so the value it returns now is the one sent. */
+  @Test func testBhvAuth037TokenProviderIsAskedAgainForEachRequest() async throws {
+    let box = TokenBox()
+    let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { box.next() })
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-3"])
+  }
+
   @Test
   func
     testBhvAuthbearer010PetStoreBearerAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()

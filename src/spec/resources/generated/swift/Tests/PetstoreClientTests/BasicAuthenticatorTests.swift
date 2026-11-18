@@ -364,4 +364,12 @@ import Testing
     #expect(username == "alice")
     #expect(password == "s3cret")
   }
+
+  /* A Basic username may not contain a colon, because the colon separates it from the password. */
+  @Test func testBhvAuth036BasicRejectsAUsernameContainingAColon() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try BasicAuthenticator(
+        host: "https://api.example.com", username: "ali:ce", password: "s3cret")
+    }
+  }
 }

@@ -377,7 +377,26 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(value == "env-value")
   }
 
-  @Test func testBhvAuth023AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
+  /* An explicitly passed value wins over the environment variable of the same name. */
+  @Test func testBhvAuth041AnExplicitCredentialTakesPrecedenceOverTheEnvironment() throws {
+    let value = try BaseAuthenticator.credential(
+      "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+      environment: ["EXAMPLE_TOKEN": "env-value"])
+    #expect(value == "explicit-value")
+  }
+
+  /* An environment variable that is set but empty counts as unset, so the missing-credential error is raised. */
+  @Test func testBhvAuth040AnEmptyEnvironmentVariableIsTreatedAsUnset() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Missing the credential 'token': pass it, or set the EXAMPLE_TOKEN environment variable")
+    ) {
+      _ = try BaseAuthenticator.credential(
+        nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
+    }
+  }
+
+  @Test func testBhvAuth042AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
     let value = try BaseAuthenticator.credential(
       "", name: "token", variable: "EXAMPLE_TOKEN",
       environment: ["EXAMPLE_TOKEN": "env-value"])
@@ -1085,7 +1104,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       transportOptions: transport)
   }
 
-  @Test func testASchemeCredentialIsSentToTheOperationThatNamesItsScheme() async throws {
+  @Test func testBhvAuth043ASchemeCredentialIsSentToTheOperationThatNamesItsScheme() async throws {
     let host = "https://named-scheme.example.com"
     let client = try schemeClient(
       host: host, petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"))
@@ -1131,7 +1150,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   /* An operation declared without security never carries a credential, even
      when the client holds one for every scheme. */
-  @Test func testBhvAuth021AnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
+  @Test func testBhvAuth044AnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
     let host = "https://unauthenticated.example.com"
     let client = try schemeClient(
       host: host,
