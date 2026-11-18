@@ -249,7 +249,7 @@ public abstract class BaseApi
             if (effectiveAuth is not null)
             {
                 Dictionary<string, string> authHeaders = await effectiveAuth
-                    .GetAuthHeadersAsync()
+                    .GetAuthHeadersAsync(cancellationToken)
                     .ConfigureAwait(false);
                 foreach (KeyValuePair<string, string> header in authHeaders)
                 {

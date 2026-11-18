@@ -359,10 +359,12 @@ public partial class OpenIdConnectAuthenticator
     }
 
     /// <inheritdoc/>
-    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync(
+        CancellationToken cancellationToken
+    )
     {
         OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
-        return await d.GetAuthHeadersAsync().ConfigureAwait(false);
+        return await d.GetAuthHeadersAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

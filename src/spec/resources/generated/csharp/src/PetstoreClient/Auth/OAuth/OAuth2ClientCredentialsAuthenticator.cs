@@ -93,7 +93,9 @@ public class OAuth2ClientCredentialsAuthenticator
     }
 
     /// <inheritdoc/>
-    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync(
+        CancellationToken cancellationToken
+    )
     {
         Dictionary<string, string> parameters = new() { ["grant_type"] = "client_credentials" };
         Dictionary<string, string>? extraHeaders = null;
@@ -121,7 +123,7 @@ public class OAuth2ClientCredentialsAuthenticator
         }
 
         string token = await _tokenManager
-            .GetAccessTokenAsync(_tokenUrl, parameters, extraHeaders)
+            .GetAccessTokenAsync(_tokenUrl, parameters, extraHeaders, null, cancellationToken)
             .ConfigureAwait(false);
         return new() { ["Authorization"] = "Bearer " + token };
     }

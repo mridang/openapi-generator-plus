@@ -261,7 +261,9 @@ public class OAuth2AuthorizationCodeAuthenticator
     }
 
     /// <inheritdoc/>
-    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync(
+        CancellationToken cancellationToken
+    )
     {
         if (!_tokenExchanged)
         {
@@ -278,7 +280,7 @@ public class OAuth2AuthorizationCodeAuthenticator
             ["client_secret"] = _clientSecret,
         };
         string token = await _tokenManager
-            .GetAccessTokenAsync(_refreshUrl, parameters)
+            .GetAccessTokenAsync(_refreshUrl, parameters, null, null, cancellationToken)
             .ConfigureAwait(false);
         return new() { ["Authorization"] = "Bearer " + token };
     }

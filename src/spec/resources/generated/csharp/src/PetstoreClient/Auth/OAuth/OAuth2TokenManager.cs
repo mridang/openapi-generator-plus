@@ -84,6 +84,11 @@ public sealed class OAuth2TokenManager
     /// Endpoint for the internal refresh_token grant. Defaults to
     /// <paramref name="tokenUrl"/> when null.
     /// </param>
+    /// <param name="cancellationToken">
+    /// Cancels the token request this call starts. A cancelled call stops that
+    /// request and raises <see cref="OperationCanceledException"/> without waiting
+    /// for the token endpoint to answer.
+    /// </param>
     /// <returns>A valid access token.</returns>
     /// <remarks>
     /// When a refresh token is held and <paramref name="parameters"/> is not
@@ -100,7 +105,8 @@ public sealed class OAuth2TokenManager
         Uri tokenUrl,
         Dictionary<string, string> parameters,
         Dictionary<string, string>? extraHeaders = null,
-        Uri? refreshUrl = null
+        Uri? refreshUrl = null,
+        CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
@@ -123,7 +129,8 @@ public sealed class OAuth2TokenManager
                 tokenUrl,
                 refreshUrl ?? tokenUrl,
                 parameters,
-                extraHeaders
+                extraHeaders,
+                cancellationToken
             );
         }
 
@@ -220,7 +227,8 @@ public sealed class OAuth2TokenManager
         Uri tokenUrl,
         Uri refreshUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders
+        Dictionary<string, string>? extraHeaders,
+        CancellationToken cancellationToken
     )
     {
         bool isRefreshGrant =
@@ -243,7 +251,12 @@ public sealed class OAuth2TokenManager
             }
             try
             {
-                return await FetchTokenAsync(refreshUrl, refreshParams, extraHeaders)
+                return await FetchTokenAsync(
+                        refreshUrl,
+                        refreshParams,
+                        extraHeaders,
+                        cancellationToken
+                    )
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -269,7 +282,8 @@ public sealed class OAuth2TokenManager
             }
         }
 
-        return await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
+        return await FetchTokenAsync(tokenUrl, parameters, extraHeaders, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -297,7 +311,8 @@ public sealed class OAuth2TokenManager
     private async Task<string> FetchTokenAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders
+        Dictionary<string, string>? extraHeaders,
+        CancellationToken cancellationToken
     )
     {
         if (_apiClient is null)
@@ -343,7 +358,14 @@ public sealed class OAuth2TokenManager
          * A transport failure propagates unchanged as NetworkException /
          * NetworkTimeoutException. */
         ApiHttpResponse response = await _apiClient
-            .SendRequestAsync("POST", tokenUrl, headers, body, noRedirect: true)
+            .SendRequestAsync(
+                "POST",
+                tokenUrl,
+                headers,
+                body,
+                noRedirect: true,
+                cancellationToken: cancellationToken
+            )
             .ConfigureAwait(false);
 
         if (response.StatusCode is < 200 or >= 300)

@@ -869,6 +869,74 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task BhvAuth013CancellingTheCallStopsTheTokenRequestWithoutWaitingForTheEndpoint()
+    {
+        // A token endpoint that never answers. The call's cancellation must reach the
+        // token POST and stop it, so the call reports the cancellation at once.
+        var client = new HangingApiClient();
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        Task<string> call = manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            null,
+            cts.Token
+        );
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            call.WaitAsync(TimeSpan.FromSeconds(10))
+        );
+        Assert.True(client.TokenRequestCancelled);
+    }
+
+    private sealed class HangingApiClient : IApiClient
+    {
+        public bool TokenRequestCancelled { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        ) =>
+            SendRequestAsync(method, url, headers, body, noRedirect: false, CancellationToken.None);
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect
+        ) => SendRequestAsync(method, url, headers, body, noRedirect, CancellationToken.None);
+
+        public async Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect,
+            CancellationToken cancellationToken
+        )
+        {
+            try
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                TokenRequestCancelled = true;
+                throw;
+            }
+            return new ApiHttpResponse(200, "{}", new Dictionary<string, string>());
+        }
+    }
+
+    [Fact]
     public async Task BhvAuthoauthtwotokenmgr037TokenTransportFailurePropagatesNetworkException()
     {
         // A transport failure on the token POST reaches the caller unchanged.
