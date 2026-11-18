@@ -8,6 +8,7 @@
  */
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
@@ -842,5 +843,171 @@ impl ProblemsApi {
         };
 
         self.base.invoke_api_for_result::<ModelResult>(params).await
+    }
+}
+
+/// The contract of [`ProblemsApi`]: every operation of the Problems API group and its
+/// `_with_http_info` variant. Depend on it (`fn f<A: ProblemsApiTrait>(api: &A)`) to substitute a
+/// hand-written fake in your own tests. The futures are not required to be `Send`, because the
+/// per-operation server traits are not.
+pub trait ProblemsApiTrait {
+    fn get_fallback(
+        &self,
+        fallback_id: String,
+        options: Option<&GetFallbackOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_fallback_with_http_info(
+        &self,
+        fallback_id: String,
+        options: Option<&GetFallbackOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_member(
+        &self,
+        member_id: String,
+        options: Option<&GetMemberOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_member_with_http_info(
+        &self,
+        member_id: String,
+        options: Option<&GetMemberOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_project(
+        &self,
+        project_id: String,
+        options: Option<&GetProjectOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_project_with_http_info(
+        &self,
+        project_id: String,
+        options: Option<&GetProjectOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_range(
+        &self,
+        range_id: String,
+        options: Option<&GetRangeOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_range_with_http_info(
+        &self,
+        range_id: String,
+        options: Option<&GetRangeOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_upstream(
+        &self,
+        upstream_id: String,
+        options: Option<&GetUpstreamOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_upstream_with_http_info(
+        &self,
+        upstream_id: String,
+        options: Option<&GetUpstreamOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn take_lock(
+        &self,
+        lock_id: String,
+        options: Option<&TakeLockOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    fn take_lock_with_http_info(
+        &self,
+        lock_id: String,
+        options: Option<&TakeLockOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+}
+
+impl ProblemsApiTrait for ProblemsApi {
+    fn get_fallback(
+        &self,
+        fallback_id: String,
+        options: Option<&GetFallbackOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+        ProblemsApi::get_fallback(self, fallback_id, options)
+    }
+
+    fn get_fallback_with_http_info(
+        &self,
+        fallback_id: String,
+        options: Option<&GetFallbackOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        ProblemsApi::get_fallback_with_http_info(self, fallback_id, options)
+    }
+    fn get_member(
+        &self,
+        member_id: String,
+        options: Option<&GetMemberOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+        ProblemsApi::get_member(self, member_id, options)
+    }
+
+    fn get_member_with_http_info(
+        &self,
+        member_id: String,
+        options: Option<&GetMemberOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        ProblemsApi::get_member_with_http_info(self, member_id, options)
+    }
+    fn get_project(
+        &self,
+        project_id: String,
+        options: Option<&GetProjectOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+        ProblemsApi::get_project(self, project_id, options)
+    }
+
+    fn get_project_with_http_info(
+        &self,
+        project_id: String,
+        options: Option<&GetProjectOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        ProblemsApi::get_project_with_http_info(self, project_id, options)
+    }
+    fn get_range(
+        &self,
+        range_id: String,
+        options: Option<&GetRangeOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+        ProblemsApi::get_range(self, range_id, options)
+    }
+
+    fn get_range_with_http_info(
+        &self,
+        range_id: String,
+        options: Option<&GetRangeOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        ProblemsApi::get_range_with_http_info(self, range_id, options)
+    }
+    fn get_upstream(
+        &self,
+        upstream_id: String,
+        options: Option<&GetUpstreamOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+        ProblemsApi::get_upstream(self, upstream_id, options)
+    }
+
+    fn get_upstream_with_http_info(
+        &self,
+        upstream_id: String,
+        options: Option<&GetUpstreamOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        ProblemsApi::get_upstream_with_http_info(self, upstream_id, options)
+    }
+    fn take_lock(
+        &self,
+        lock_id: String,
+        options: Option<&TakeLockOptions>,
+    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+        ProblemsApi::take_lock(self, lock_id, options)
+    }
+
+    fn take_lock_with_http_info(
+        &self,
+        lock_id: String,
+        options: Option<&TakeLockOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        ProblemsApi::take_lock_with_http_info(self, lock_id, options)
     }
 }

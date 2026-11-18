@@ -104,6 +104,22 @@ shuts it down. Setting a proxy, a CA certificate or `verify_ssl(false)` on
 `ConfigurationError::InvalidArgument`, because those belong to the client you
 built.
 
+### Testing your code
+
+Every API group has an interface (`PetApiTrait`) and the client has one (`ClientTrait`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```rust
+use petstore::api::PetApiTrait;
+
+// Code under test takes the group trait, never the generated struct.
+fn use_group<A: PetApiTrait>(_api: &A) {}
+
+// A fake implements the trait; the compiler lists the operations it still has to implement.
+// use_group(&MyFake);
+```
+
+A new operation in the API adds a method to the trait, so a fake that implements the whole trait stops compiling after you regenerate; keep the fake in one place, or wrap the generated type and forward the operations you do not fake, so only the operation you fake is written.
+
 ### Credentials
 
 `Client::with_token(host, access_token, transport_options)` takes both

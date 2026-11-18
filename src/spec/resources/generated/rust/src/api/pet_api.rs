@@ -8,6 +8,7 @@
  */
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
@@ -3665,5 +3666,709 @@ impl PetApi {
         };
 
         self.base.invoke_api_for_result::<ApiResponse>(params).await
+    }
+}
+
+/// The contract of [`PetApi`]: every operation of the Pet API group and its
+/// `_with_http_info` variant. Depend on it (`fn f<A: PetApiTrait>(api: &A)`) to substitute a
+/// hand-written fake in your own tests. The futures are not required to be `Send`, because the
+/// per-operation server traits are not.
+pub trait PetApiTrait {
+    fn add_pet(
+        &self,
+        pet: Pet,
+        options: Option<&AddPetOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    fn add_pet_with_http_info(
+        &self,
+        pet: Pet,
+        options: Option<&AddPetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn add_pet_photos(
+        &self,
+        pet_id: i64,
+        options: Option<&AddPetPhotosOptions>,
+    ) -> impl Future<Output = Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn add_pet_photos_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AddPetPhotosOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn add_pet_treatment(
+        &self,
+        pet_id: i64,
+        pet_treatment: PetTreatment,
+        options: Option<&AddPetTreatmentOptions>,
+    ) -> impl Future<Output = Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>>>;
+    fn add_pet_treatment_with_http_info(
+        &self,
+        pet_id: i64,
+        pet_treatment: PetTreatment,
+        options: Option<&AddPetTreatmentOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn delete_pet(
+        &self,
+        pet_id: i64,
+        options: Option<&DeletePetOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    fn delete_pet_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&DeletePetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn download_pet_document(
+        &self,
+        pet_id: i64,
+        document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn download_pet_document_with_http_info(
+        &self,
+        pet_id: i64,
+        document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn find_pets_born_on(
+        &self,
+        born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn find_pets_born_on_with_http_info(
+        &self,
+        born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>;
+    #[deprecated]
+    fn find_pets_by_status(
+        &self,
+        options: Option<&FindPetsByStatusOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    #[deprecated]
+    fn find_pets_by_status_with_http_info(
+        &self,
+        options: Option<&FindPetsByStatusOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_external_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_external_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_multi_server_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_multi_server_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_avatar(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_avatar_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_avatar_thumbnail(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_avatar_thumbnail_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    #[deprecated]
+    fn get_pet_by_id(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    #[deprecated]
+    fn get_pet_by_id_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_by_name(
+        &self,
+        name: String,
+        options: Option<&GetPetByNameOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_by_name_with_http_info(
+        &self,
+        name: String,
+        options: Option<&GetPetByNameOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_passport(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
+    ) -> impl Future<Output = Result<PetPassport, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_passport_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_photo(
+        &self,
+        pet_id: i64,
+        photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_photo_with_http_info(
+        &self,
+        pet_id: i64,
+        photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_summary(
+        &self,
+        pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
+    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_summary_with_http_info(
+        &self,
+        pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
+    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_tag(
+        &self,
+        pet_id: i64,
+        tag_name: String,
+        options: Option<&GetPetTagOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_tag_with_http_info(
+        &self,
+        pet_id: i64,
+        tag_name: String,
+        options: Option<&GetPetTagOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_staging_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_staging_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn set_pet_avatar(
+        &self,
+        pet_id: i64,
+        body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    fn set_pet_avatar_with_http_info(
+        &self,
+        pet_id: i64,
+        body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn set_pet_avatar_thumbnail(
+        &self,
+        pet_id: i64,
+        set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    fn set_pet_avatar_thumbnail_with_http_info(
+        &self,
+        pet_id: i64,
+        set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn set_pet_preferences(
+        &self,
+        pet_id: i64,
+        options: Option<&SetPetPreferencesOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    fn set_pet_preferences_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&SetPetPreferencesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn update_pet(
+        &self,
+        pet_id: i64,
+        pet: Pet,
+        options: Option<&UpdatePetOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    fn update_pet_with_http_info(
+        &self,
+        pet_id: i64,
+        pet: Pet,
+        options: Option<&UpdatePetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn upload_pet_certificate(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetCertificateOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    fn upload_pet_certificate_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetCertificateOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn upload_pet_document(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetDocumentOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    fn upload_pet_document_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetDocumentOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
+}
+
+impl PetApiTrait for PetApi {
+    fn add_pet(
+        &self,
+        pet: Pet,
+        options: Option<&AddPetOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::add_pet(self, pet, options)
+    }
+
+    fn add_pet_with_http_info(
+        &self,
+        pet: Pet,
+        options: Option<&AddPetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::add_pet_with_http_info(self, pet, options)
+    }
+    fn add_pet_photos(
+        &self,
+        pet_id: i64,
+        options: Option<&AddPetPhotosOptions>,
+    ) -> impl Future<Output = Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::add_pet_photos(self, pet_id, options)
+    }
+
+    fn add_pet_photos_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AddPetPhotosOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::add_pet_photos_with_http_info(self, pet_id, options)
+    }
+    fn add_pet_treatment(
+        &self,
+        pet_id: i64,
+        pet_treatment: PetTreatment,
+        options: Option<&AddPetTreatmentOptions>,
+    ) -> impl Future<Output = Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::add_pet_treatment(self, pet_id, pet_treatment, options)
+    }
+
+    fn add_pet_treatment_with_http_info(
+        &self,
+        pet_id: i64,
+        pet_treatment: PetTreatment,
+        options: Option<&AddPetTreatmentOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::add_pet_treatment_with_http_info(self, pet_id, pet_treatment, options)
+    }
+    fn delete_pet(
+        &self,
+        pet_id: i64,
+        options: Option<&DeletePetOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::delete_pet(self, pet_id, options)
+    }
+
+    fn delete_pet_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&DeletePetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::delete_pet_with_http_info(self, pet_id, options)
+    }
+    fn download_pet_document(
+        &self,
+        pet_id: i64,
+        document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::download_pet_document(self, pet_id, document_id, options)
+    }
+
+    fn download_pet_document_with_http_info(
+        &self,
+        pet_id: i64,
+        document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::download_pet_document_with_http_info(self, pet_id, document_id, options)
+    }
+    fn find_pets_born_on(
+        &self,
+        born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::find_pets_born_on(self, born_on, options)
+    }
+
+    fn find_pets_born_on_with_http_info(
+        &self,
+        born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::find_pets_born_on_with_http_info(self, born_on, options)
+    }
+    #[allow(deprecated)]
+    fn find_pets_by_status(
+        &self,
+        options: Option<&FindPetsByStatusOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::find_pets_by_status(self, options)
+    }
+
+    #[allow(deprecated)]
+    fn find_pets_by_status_with_http_info(
+        &self,
+        options: Option<&FindPetsByStatusOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::find_pets_by_status_with_http_info(self, options)
+    }
+    fn get_external_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_external_pet_info(self, pet_id, server, options)
+    }
+
+    fn get_external_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_external_pet_info_with_http_info(self, pet_id, server, options)
+    }
+    fn get_multi_server_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_multi_server_pet_info(self, pet_id, server, options)
+    }
+
+    fn get_multi_server_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_multi_server_pet_info_with_http_info(self, pet_id, server, options)
+    }
+    fn get_pet_avatar(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_avatar(self, pet_id, options)
+    }
+
+    fn get_pet_avatar_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_avatar_with_http_info(self, pet_id, options)
+    }
+    fn get_pet_avatar_thumbnail(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_avatar_thumbnail(self, pet_id, options)
+    }
+
+    fn get_pet_avatar_thumbnail_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_avatar_thumbnail_with_http_info(self, pet_id, options)
+    }
+    #[allow(deprecated)]
+    fn get_pet_by_id(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_by_id(self, pet_id, server, options)
+    }
+
+    #[allow(deprecated)]
+    fn get_pet_by_id_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_by_id_with_http_info(self, pet_id, server, options)
+    }
+    fn get_pet_by_name(
+        &self,
+        name: String,
+        options: Option<&GetPetByNameOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_by_name(self, name, options)
+    }
+
+    fn get_pet_by_name_with_http_info(
+        &self,
+        name: String,
+        options: Option<&GetPetByNameOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_by_name_with_http_info(self, name, options)
+    }
+    fn get_pet_passport(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
+    ) -> impl Future<Output = Result<PetPassport, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_passport(self, pet_id, options)
+    }
+
+    fn get_pet_passport_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_passport_with_http_info(self, pet_id, options)
+    }
+    fn get_pet_photo(
+        &self,
+        pet_id: i64,
+        photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_photo(self, pet_id, photo_id, options)
+    }
+
+    fn get_pet_photo_with_http_info(
+        &self,
+        pet_id: i64,
+        photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_photo_with_http_info(self, pet_id, photo_id, options)
+    }
+    fn get_pet_summary(
+        &self,
+        pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
+    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_summary(self, pet_id, as_of, options)
+    }
+
+    fn get_pet_summary_with_http_info(
+        &self,
+        pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
+    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_summary_with_http_info(self, pet_id, as_of, options)
+    }
+    fn get_pet_tag(
+        &self,
+        pet_id: i64,
+        tag_name: String,
+        options: Option<&GetPetTagOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_tag(self, pet_id, tag_name, options)
+    }
+
+    fn get_pet_tag_with_http_info(
+        &self,
+        pet_id: i64,
+        tag_name: String,
+        options: Option<&GetPetTagOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_tag_with_http_info(self, pet_id, tag_name, options)
+    }
+    fn get_staging_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_staging_pet_info(self, pet_id, server, options)
+    }
+
+    fn get_staging_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_staging_pet_info_with_http_info(self, pet_id, server, options)
+    }
+    fn set_pet_avatar(
+        &self,
+        pet_id: i64,
+        body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::set_pet_avatar(self, pet_id, body, options, request_content_type)
+    }
+
+    fn set_pet_avatar_with_http_info(
+        &self,
+        pet_id: i64,
+        body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::set_pet_avatar_with_http_info(self, pet_id, body, options, request_content_type)
+    }
+    fn set_pet_avatar_thumbnail(
+        &self,
+        pet_id: i64,
+        set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::set_pet_avatar_thumbnail(self, pet_id, set_pet_avatar_thumbnail_request, options)
+    }
+
+    fn set_pet_avatar_thumbnail_with_http_info(
+        &self,
+        pet_id: i64,
+        set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::set_pet_avatar_thumbnail_with_http_info(
+            self,
+            pet_id,
+            set_pet_avatar_thumbnail_request,
+            options,
+        )
+    }
+    fn set_pet_preferences(
+        &self,
+        pet_id: i64,
+        options: Option<&SetPetPreferencesOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::set_pet_preferences(self, pet_id, options)
+    }
+
+    fn set_pet_preferences_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&SetPetPreferencesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::set_pet_preferences_with_http_info(self, pet_id, options)
+    }
+    fn update_pet(
+        &self,
+        pet_id: i64,
+        pet: Pet,
+        options: Option<&UpdatePetOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::update_pet(self, pet_id, pet, options)
+    }
+
+    fn update_pet_with_http_info(
+        &self,
+        pet_id: i64,
+        pet: Pet,
+        options: Option<&UpdatePetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::update_pet_with_http_info(self, pet_id, pet, options)
+    }
+    fn upload_pet_certificate(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetCertificateOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::upload_pet_certificate(self, pet_id, options)
+    }
+
+    fn upload_pet_certificate_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetCertificateOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::upload_pet_certificate_with_http_info(self, pet_id, options)
+    }
+    fn upload_pet_document(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetDocumentOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::upload_pet_document(self, pet_id, options, request_content_type)
+    }
+
+    fn upload_pet_document_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetDocumentOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::upload_pet_document_with_http_info(self, pet_id, options, request_content_type)
     }
 }
