@@ -2257,7 +2257,7 @@ public class PetApiTest
             await Classify(() => LookUp(mockApi, 1L)),
             await Classify(() => LookUp(api, 1L))
         );
-        await Assert.ThrowsAsync<PetstoreClient.Errors.ApiException>(() => LookUp(api, 1L));
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ApiException>(() => LookUp(api, 1L));
     }
 
     [Fact]

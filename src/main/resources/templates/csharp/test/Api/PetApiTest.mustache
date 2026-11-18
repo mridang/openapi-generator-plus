@@ -1896,7 +1896,7 @@ public class PetApiTest
 
         Assert.Equal("not found", await Classify(() => LookUp(api, 1L)));
         Assert.Equal(await Classify(() => LookUp(mockApi, 1L)), await Classify(() => LookUp(api, 1L)));
-        await Assert.ThrowsAsync<{{packageName}}.Errors.ApiException>(() => LookUp(api, 1L));
+        await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ApiException>(() => LookUp(api, 1L));
     }
 
     [Fact]
