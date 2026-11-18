@@ -729,17 +729,12 @@ php | misc068 | php takes credentials only as constructor arguments and never re
 php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
 dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
+kotlin | misc139 | Kotlin model data classes keep the List or Map the caller passed, the settled decision of kotlin | servers024: a frozen copy would turn each data class into a regular class with hand-written equals, hashCode, copy and componentN, a public API change (misc051 pins the typed arguments)
 node | retries045 | node has no streamed request body: sendRequest accepts only a string, Buffer, record or null, all held in memory, so a 401 replay never has a stream to consume
 java | misc267 | java.net.http.HttpClient has no per-client default headers API, so headers set on a caller-supplied client cannot be sent on the wire by the SDK
 java | misc283 | Java has no package root that re-exports types, so the error types are reached only through the errors package and no root re-export can exist
-elixir | transport083 | Elixir has no client-level cancellation: a call is cancelled only by its own process exiting (S7), so no client setting can abort a request already in flight
-elixir | transport084 | Elixir has no cancellation handle on a call, so cancelling through a handle cannot exist here; dropping an in-flight call is asserted by bhv transport 060
-elixir | transport085 | Elixir has no cancellation token or signal argument (S7), so there is no unfired token to supply; the timeout error itself is asserted by bhv transport 086
-elixir | serialization129 | Elixir Duration holds microseconds only, so a nanosecond fraction cannot be held: the formatter writes at most six digits and the parser truncates digits past microseconds (bhv serializationobject 054)
-elixir | transport091 | Elixir has no caller-supplied stream: a file or upload part is an in-memory binary the SDK never opens, so there is no handle for it to leave open (the same reason as transport061)
 dart | retries045 | Dart has no streamed request body: the body is an in-memory byte list, so there is no one-shot stream that a replay could exhaust
 dart | serialization078 | Dart has no time-of-day type: a format: time property is a String that the SDK passes through unchanged (serializationobject114), so there is no HH:mm:ss or .SSS format
-php | misc283 | PHP has no package root module that could re-export names; each error class is declared once in the Errors namespace.
 php | misc088 | php has no decimal type: a decimal decodes to a float, which cannot keep the places it was written with
 php | misc091 | the php generator emits no length, pattern or range constraints for a property, so decoding has no constraint to refuse a value by
 php | misc095 | php's charset conversion replaces invalid bytes with the mbstring substitute character, which is '?' and not U+FFFD, and the SDK does not set U+FFFD
@@ -750,4 +745,10 @@ dart | misc256 | Dart date-times are written with a fixed three-digit millisecon
 dart | misc260 | url takes its overrides as Map<String, String>, so a null value for an enum variable cannot be passed and the compiler refuses it before any run-time check
 dart | misc262 | The SDK always wraps an http.ClientException from a cancelled request in NetworkException (abstract_api_client), so a cancellation is never surfaced to the caller unwrapped
 node | serialization102 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
+ruby | misc185 | The Ruby OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be expressed
+||||||| d5598957c
 kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: the SDK defines no package-root module that re-exports the error types, so each one is named by its errors import
+kotlin | misc291 | Kotlin decodes a oneOf by its discriminator value, which names exactly one variant, so a payload cannot match two variants and there is no first-declared match to choose
+kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by trying the candidates in order and taking the first that decodes, so it cannot return every matching variant
+kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
+||||||| e442aeefb

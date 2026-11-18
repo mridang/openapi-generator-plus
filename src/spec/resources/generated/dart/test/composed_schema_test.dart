@@ -1006,5 +1006,25 @@ void main() {
         );
       },
     );
+
+    test(
+      'bhv unions 047 a discriminator value outside the mapping, including an empty one, raises an error',
+      () {
+        expect(
+          () => PetFood.fromJson(<String, dynamic>{'foodType': ''}),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => PetFood.fromJson(<String, dynamic>{'foodType': 'fish'}),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              contains('fish'),
+            ),
+          ),
+        );
+      },
+    );
   });
 }

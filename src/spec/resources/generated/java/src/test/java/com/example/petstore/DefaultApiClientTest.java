@@ -1291,4 +1291,82 @@ class DefaultApiClientTest {
       assertNotNull(ex.getCause());
     }
   }
+
+  @Test
+  @DisplayName("bhvMisc285 an undecodable content encoding is refused with the exact message")
+  void bhvMisc285AnUndecodableContentEncodingIsRefusedWithTheExactMessage() throws Exception {
+    String message = "Unsupported Content-Encoding 'x-unknown'";
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          exchange.getResponseHeaders().add("Content-Encoding", "x-unknown");
+          exchange.sendResponseHeaders(200, 2);
+          exchange.getResponseBody().write("hi".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+          exchange.close();
+        });
+    server.start();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/x";
+      Throwable cause =
+          assertThrows(
+              RuntimeException.class, () -> client.sendRequest("GET", url, new HashMap<>(), null));
+      while (cause != null && !message.equals(cause.getMessage())) {
+        cause = cause.getCause();
+      }
+      assertNotNull(cause, "no exception in the chain carries: " + message);
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "bhvMisc296 by default a failed request is retried twice so three requests reach the wire")
+  void bhvMisc296ByDefaultAFailedRequestIsRetriedTwiceSoThreeRequestsReachTheWire()
+      throws Exception {
+    java.util.concurrent.atomic.AtomicInteger hits =
+        new java.util.concurrent.atomic.AtomicInteger();
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          hits.incrementAndGet();
+          exchange.sendResponseHeaders(500, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+      String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/x";
+      try {
+        client.sendRequest("GET", url, new HashMap<>(), null);
+      } catch (RuntimeException expected) {
+        // a persistent 5xx may surface as a typed error once retries are spent
+      }
+      assertEquals(3, hits.get());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  @DisplayName("bhvMisc299 a caller header overrides the transport default of the same role")
+  void bhvMisc299ACallerHeaderOverridesTheTransportDefaultOfTheSameRole() throws Exception {
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().defaultHeader("User-Agent", "transport-agent").build());
+    Map<String, String> headers = new HashMap<>();
+    headers.put("User-Agent", "caller-agent");
+
+    ApiHttpResponse response =
+        client.sendRequest("GET", ChasmContainer.getBaseUrl() + "/test/echo", headers, null);
+
+    JsonNode echoed = new ObjectMapper().readTree(response.body()).get("headers");
+    assertEquals("caller-agent", echoed.get("user-agent").asText());
+  }
 }

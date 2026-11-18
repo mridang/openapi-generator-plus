@@ -802,4 +802,20 @@ class ComposedSchemaTest {
             assertNull(union.asReservationReceipt())
         }
     }
+
+    @Test
+    fun bhvMisc292OneOfWrapperWritesTheBarePayloadAndReadsItBack() =
+        runBlocking<Unit> {
+            val food = PetFood.fromDryFood(DryFood(weightKg = 2.5))
+            val wire = Json { encodeDefaults = true }.encodeToString(food)
+            assertEquals("""{"foodType":"dry","weightKg":2.5}""", wire)
+            assertEquals(2.5, json.decodeFromString<PetFood>(wire).asDryFood()?.weightKg)
+        }
+
+    @Test
+    fun bhvMisc294SubtypeWithoutItsDiscriminatorDecodesAsTheMappedVariant() =
+        runBlocking<Unit> {
+            val result = json.decodeFromString<DryFood>("""{"weightKg":2.5}""")
+            assertEquals("dry", result.foodType)
+        }
 }
