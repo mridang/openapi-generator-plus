@@ -2854,6 +2854,65 @@ class TestRedirectHopsAndStatuses:
         assert pool.calls[1][2].get("Authorization") is None
         assert {k.lower() for k in pool.calls[2][2]}.isdisjoint({"authorization"})
 
+    def test_bhv_misc_131_a_supplied_session_follows_redirects_under_the_sdk_rules(
+        self,
+    ) -> None:
+        pool = _ScriptedPool((302, "https://example.com/landing"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 2
+        assert response.status == 200
+
+    def test_bhv_misc_132_a_per_call_header_with_a_credential_word_is_dropped_on_cross_origin_redirect(
+        self,
+    ) -> None:
+        pool = _ScriptedPool((302, "https://other.example.com/end"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request(
+            "GET", "https://example.com/start", {"X-Call-Token": "abc"}, None
+        )
+        assert pool.calls[0][2].get("X-Call-Token") == "abc"
+        assert {k.lower() for k in pool.calls[1][2]}.isdisjoint({"x-call-token"})
+
+    def test_bhv_misc_128_a_cross_origin_redirect_keeps_the_proxy_credential_on_the_shared_transport(
+        self,
+    ) -> None:
+        client = DefaultApiClient(
+            TransportOptions.builder()
+            .proxy("http://user:pass@proxy.example.com:3128")
+            .follow_redirects(True)
+            .build()
+        )
+        scripted = _ScriptedPool((302, "https://other.example.com/hop"))
+        client._pool_manager.request = scripted.request
+        client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(scripted.calls) == 2
+        assert (
+            client._pool_manager.proxy_headers["proxy-authorization"]
+            == "Basic dXNlcjpwYXNz"
+        )
+
+    def test_bhv_misc_129_a_proxy_credential_the_sdk_adds_is_not_resent_on_a_cross_origin_hop(
+        self,
+    ) -> None:
+        client = DefaultApiClient(
+            TransportOptions.builder()
+            .proxy("http://user:pass@proxy.example.com:3128")
+            .follow_redirects(True)
+            .build()
+        )
+        scripted = _ScriptedPool((302, "https://other.example.com/hop"))
+        client._pool_manager.request = scripted.request
+        client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(scripted.calls) == 2
+        assert {k.lower() for k in scripted.calls[1][2]}.isdisjoint(
+            {"proxy-authorization"}
+        )
+
 
 class TestGarbageCaCertPath:
     def test_bhv_errors_039_unparseable_ca_file_raises_value_error_naming_the_path(

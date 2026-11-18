@@ -16,6 +16,48 @@ import 'package:petstore_client/src/object_serializer.dart';
 void main() {
   group('ObjectSerializer', () {
     test(
+      'bhv misc 089 a date-time in a container is written in canonical form',
+      () {
+        final at = DateTime.utc(2026, 1, 2, 3, 4, 5);
+        expect(
+          jsonDecode(serialize([at])),
+          equals(['2026-01-02T03:04:05.000+00:00']),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 090 a duration field writes its fractional seconds in the wire form',
+      () {
+        final model = EdgeCases(
+          retryAfter: const Duration(seconds: 3600, microseconds: 1),
+        );
+        expect(serialize(model), contains('"3600.000001s"'));
+      },
+    );
+
+    test('bhv misc 092 a property is matched only by its wire name', () {
+      final decoded = deserialize<EdgeCases>(
+        '{"retry_after":"3600s"}',
+        EdgeCases.fromJson,
+      );
+      expect(decoded?.retryAfter, isNull);
+    });
+
+    test(
+      'bhv misc 093 numeric additional property names are written as object members',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"404":"missing","7":"seven"}',
+          Metadata.fromJson,
+        );
+        final wire = jsonDecode(serialize(metadata)) as Map<String, dynamic>;
+        expect(wire['404'], equals('missing'));
+        expect(wire['7'], equals('seven'));
+      },
+    );
+
+    test(
       'bhv serializationobject 200 a serialize failure carries the canonical prefix and names the detail',
       () {
         const prefix = 'Failed to serialize object to JSON: ';
