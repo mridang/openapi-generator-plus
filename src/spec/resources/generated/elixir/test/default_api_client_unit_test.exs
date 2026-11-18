@@ -1478,10 +1478,6 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
-  # Every deadline this client is allowed to set is armed from the single
-  # `:timeout` option: the idle timer and the connect handshake. Leaving one of
-  # them at the library's own default is what makes the same expired budget
-  # surface under two different types.
   test "bhv transport 065 a configured CA bundle replaces the system trust store instead of adding to it" do
     ca_cert_path = System.fetch_env!("CA_CERT_PATH")
     transport = PetstoreClient.TransportOptions.new(ca_cert_path: ca_cert_path)
@@ -1499,6 +1495,10 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute Keyword.has_key?(transport_opts, :cacerts)
   end
 
+  # Every deadline this client is allowed to set is armed from the single
+  # `:timeout` option: the idle timer and the connect handshake. Leaving one of
+  # them at the library's own default is what makes the same expired budget
+  # surface under two different types.
   test "the timeout option arms every deadline the stack has" do
     transport = PetstoreClient.TransportOptions.new(timeout: 3_000)
     opts = PetstoreClient.DefaultApiClient.request_options(transport)
