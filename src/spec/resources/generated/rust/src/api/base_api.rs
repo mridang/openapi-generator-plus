@@ -210,8 +210,21 @@ impl BaseApi {
         request_path: &str,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(timeout) = params.call.timeout {
-            if timeout.is_zero() {
+            if timeout.as_millis() == 0 {
                 return Err(Box::new(ConfigurationError::InvalidTimeout(0)));
+            }
+        }
+        /* A header value with a CR or LF would split the request head; refuse it before anything is sent. */
+        for (name, value) in params
+            .header_params
+            .iter()
+            .chain(params.call.headers.iter())
+        {
+            if value.contains(['\r', '\n']) {
+                return Err(Box::new(ConfigurationError::InvalidArgument(format!(
+                    "header '{}' must not contain CR or LF characters",
+                    name
+                ))));
             }
         }
         let mut request_url = params.path.to_string();
@@ -1711,6 +1724,81 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_bhv_retries_043_an_unauthorized_response_is_not_replayed_without_a_fresh_credential(
+    ) {
+        let client = ScriptedClient::new(401);
+        let api = api_for(client.clone());
+
+        let result = api.invoke_api(call_params(CallOptions::default())).await;
+
+        assert!(result.is_err(), "the 401 must reach the caller");
+        assert_eq!(
+            1,
+            client.calls(),
+            "no authenticator can refresh the credential, so it is not replayed"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_headers_031_a_header_value_with_a_line_break_is_refused_before_sending() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let mut params = call_params(CallOptions::default());
+        params
+            .header_params
+            .insert("X-Bad".to_string(), "a\r\nInjected: yes".to_string());
+
+        let result = api.invoke_api(params).await;
+
+        assert!(
+            result.is_err(),
+            "a CR or LF in a header value must be refused"
+        );
+        assert_eq!(0, client.calls(), "nothing may be sent");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_transport_070_a_per_call_timeout_bounds_the_deadline_the_transport_receives()
+    {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let before = std::time::Instant::now();
+
+        api.invoke_api(call_params(CallOptions {
+            timeout: Some(std::time::Duration::from_secs(30)),
+            ..CallOptions::default()
+        }))
+        .await
+        .expect("a 200 response must succeed");
+
+        let deadline = client.last_deadline.lock().unwrap().expect("a deadline");
+        assert!(
+            deadline
+                >= before + std::time::Duration::from_secs(30)
+                    - std::time::Duration::from_millis(50)
+        );
+        assert!(deadline <= std::time::Instant::now() + std::time::Duration::from_secs(30));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_options_057_a_sub_millisecond_per_call_timeout_is_refused_before_anything_is_sent(
+    ) {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions {
+                timeout: Some(std::time::Duration::from_micros(500)),
+                ..CallOptions::default()
+            }))
+            .await
+            .expect_err("a timeout under one millisecond must be refused");
+
+        assert!(err.to_string().contains("Invalid timeout"), "{err}");
+        assert_eq!(0, client.calls());
+    }
+
+    #[tokio::test]
     async fn test_bhv_retries_009_a_zero_per_call_timeout_is_refused_before_anything_is_sent() {
         let client = ScriptedClient::new(200);
         let api = api_for(client.clone());
@@ -2160,5 +2248,18 @@ mod tests {
 
         assert_eq!(Some("b".to_string()), host_for(&["a", "b", "c"]));
         assert_eq!(Some("c".to_string()), host_for(&["a", "c", "b"]));
+    }
+
+    #[test]
+    fn test_bhv_serialization_006_query_names_and_values_encode_reserved_and_space_characters() {
+        let query = super::build_query_string(&[("a&b=c".to_string(), "x&y z".to_string(), false)]);
+        assert_eq!(query, "a%26b%3Dc=x%26y%20z");
+    }
+
+    #[test]
+    fn test_bhv_serialization_007_a_plus_sign_is_sent_as_percent_2b_and_non_ascii_as_utf8_bytes() {
+        let query =
+            super::build_query_string(&[("q".to_string(), "1+2 \u{e9}".to_string(), false)]);
+        assert_eq!(query, "q=1%2B2%20%C3%A9");
     }
 }

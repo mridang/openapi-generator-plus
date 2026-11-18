@@ -1048,14 +1048,11 @@ pub fn mime_for_filename(filename: &str) -> &'static str {
 /// Returns `None` when no charset is present.
 pub fn parse_charset(content_type: &str) -> Option<String> {
     for part in content_type.split(';').skip(1) {
-        let trimmed = part.trim();
-        if let Some(rest) = trimmed.strip_prefix("charset=") {
-            let value = rest.trim().trim_matches('"');
-            if !value.is_empty() {
-                return Some(value.to_string());
-            }
-        } else if let Some(rest) = trimmed.strip_prefix("CHARSET=") {
-            let value = rest.trim().trim_matches('"');
+        let Some((name, value)) = part.split_once('=') else {
+            continue;
+        };
+        if name.trim().eq_ignore_ascii_case("charset") {
+            let value = value.trim().trim_matches('"');
             if !value.is_empty() {
                 return Some(value.to_string());
             }
@@ -1381,14 +1378,14 @@ mod tests {
     /* F861: a query-parameter API key must not reach a redirect refusal
      * message, so the query and fragment are dropped from the URLs it names. */
     #[test]
-    fn test_redacted_url_drops_the_query_and_fragment() {
+    fn test_bhv_errors_077_redacted_url_drops_the_query_and_fragment() {
         let url = reqwest::Url::parse("https://api.example.com/items?api_key=SECRET&x=1#frag")
             .expect("valid url");
         assert_eq!("https://api.example.com/items", redacted_url(&url));
     }
 
     #[tokio::test]
-    async fn test_transport_error_does_not_carry_the_request_url() {
+    async fn test_bhv_errors_078_transport_error_does_not_carry_the_request_url() {
         let err = reqwest::Client::new()
             .get("http://127.0.0.1:1/items?api_key=SECRET")
             .send()
@@ -1797,6 +1794,101 @@ mod tests {
             body_str.contains("Content-Type: application/json\r\n"),
             "JSON object part must carry a `Content-Type: application/json` header, body: {}",
             body_str
+        );
+    }
+    #[test]
+    fn test_bhv_serialization_055_the_charset_parameter_is_matched_by_name_ignoring_case_and_spacing(
+    ) {
+        assert_eq!(
+            parse_charset("text/plain; Charset=ISO-8859-1").as_deref(),
+            Some("ISO-8859-1")
+        );
+        assert_eq!(
+            parse_charset("text/plain; charset = utf-8").as_deref(),
+            Some("utf-8")
+        );
+        assert_eq!(
+            parse_charset("text/plain; CHARSET=utf-8").as_deref(),
+            Some("utf-8")
+        );
+        assert_eq!(
+            parse_charset("text/plain; xcharset=utf-8"),
+            None,
+            "a suffix must not match"
+        );
+        assert_eq!(
+            parse_charset("text/plain; mycharset=utf-8"),
+            None,
+            "a suffix must not match"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_056_quotes_and_backslashes_in_multipart_names_are_escaped() {
+        assert_eq!(super::escape_multipart_field_name(r#"a"b\c"#), r#"a\"b\\c"#);
+        let fields = [(r#"x"y"#.to_string(), MultipartValue::Text("v".to_string()))];
+        let body =
+            String::from_utf8_lossy(&serialize_multipart_body(&fields, "B").unwrap()).to_string();
+        assert!(
+            body.contains(r#"name="x\"y""#),
+            "the part header must stay well formed: {}",
+            body
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_057_a_multipart_name_with_nul_or_a_line_break_is_refused() {
+        assert!(validate_multipart_field_name("bad\0name").is_err());
+        assert!(validate_multipart_field_name("bad\r\nname").is_err());
+        assert!(validate_multipart_filename("file\nname.txt").is_err());
+        let fields = [("upload\0.bin".to_string(), MultipartValue::Bytes(vec![1]))];
+        assert!(
+            serialize_multipart_body(&fields, "B").is_err(),
+            "no body may be produced"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_058_a_multipart_part_with_no_filename_is_sent_as_octet_stream() {
+        let fields = [("blob".to_string(), MultipartValue::Bytes(vec![1, 2, 3]))];
+        let body = serialize_multipart_body(&fields, "B").unwrap();
+        let text = String::from_utf8_lossy(&body);
+        assert!(
+            text.contains("Content-Type: application/octet-stream\r\n"),
+            "{}",
+            text
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_059_a_raw_byte_part_is_sent_as_a_file_part_with_exactly_its_bytes() {
+        let bytes = vec![0u8, 255, 10, 13, 0x41];
+        let fields = [(
+            "upload.bin".to_string(),
+            MultipartValue::Bytes(bytes.clone()),
+        )];
+        let body = serialize_multipart_body(&fields, "B").unwrap();
+        assert!(
+            body.windows(bytes.len())
+                .any(|window| window == bytes.as_slice()),
+            "the part must carry its bytes unchanged"
+        );
+        let text = String::from_utf8_lossy(&body);
+        assert!(text.contains("filename=\"upload.bin\""), "{}", text);
+    }
+
+    #[test]
+    fn test_bhv_serialization_060_a_model_sent_as_a_multipart_part_declares_application_json() {
+        let fields = [(
+            "meta".to_string(),
+            MultipartValue::Json("{\"a\":1}".to_string()),
+        )];
+        let body = serialize_multipart_body(&fields, "B").unwrap();
+        let text = String::from_utf8_lossy(&body);
+        assert!(
+            text.contains("Content-Type: application/json\r\n"),
+            "{}",
+            text
         );
     }
 

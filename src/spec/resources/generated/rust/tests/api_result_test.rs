@@ -80,3 +80,15 @@ fn test_bhv_results_002_exposes_headers() {
         Some("application/json")
     );
 }
+
+#[test]
+fn test_bhv_results_006_the_headers_of_a_result_are_a_copy_taken_when_it_is_built() {
+    let mut source = HashMap::new();
+    source.insert("X-Trace".to_string(), "one".to_string());
+    let result: ApiResult<String> = ApiResult::new(200, None, String::new(), source.clone());
+    source.insert("X-Trace".to_string(), "two".to_string());
+    assert_eq!(
+        result.headers().get("X-Trace").map(|s| s.as_str()),
+        Some("one")
+    );
+}

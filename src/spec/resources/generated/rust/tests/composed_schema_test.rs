@@ -14,7 +14,7 @@ use petstore::models::*;
 // -- String enums render as their wire value (F869) --
 
 #[test]
-fn test_string_enum_displays_its_wire_value() {
+fn test_bhv_serialization_001_string_enum_displays_its_wire_value() {
     assert_eq!("green", Color::Green.to_string());
     assert_eq!("a-b", Separator::AB.to_string());
     assert_eq!("a_b", Separator::AB2.to_string());
@@ -1385,4 +1385,46 @@ fn test_bhv_serializationobject_052_strict_model_accepts_every_declared_key() {
         serde_json::from_str(r#"{"id":1,"name":"x"}"#).expect("the declared keys are accepted");
     assert_eq!(Some(1), tag.id);
     assert!(tag.name.is_some());
+}
+
+#[test]
+fn test_bhv_unions_038_an_undecodable_union_body_raises_a_decode_error() {
+    use petstore::models::PetFood;
+    assert!(
+        serde_json::from_str::<PetFood>(r#"{"foodType":5,"weightKg":1.0}"#).is_err(),
+        "a discriminator that is not a string is refused"
+    );
+    assert!(
+        serde_json::from_str::<PetFood>(r#"{"FoodType":"dry","weightKg":1.0}"#).is_err(),
+        "a discriminator key of another case is missing and refused"
+    );
+    assert!(
+        serde_json::from_str::<PetFood>(r#"{"foodType":"laser","weightKg":1.0}"#).is_err(),
+        "a discriminator value with no model is refused"
+    );
+}
+
+#[test]
+fn test_bhv_unions_041_an_untagged_one_of_decodes_each_json_shape_to_its_variant() {
+    use petstore::models::SetPetAvatarThumbnailRequest;
+    let scalar: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(r#""AQI=""#).expect("a string decodes");
+    assert!(
+        matches!(scalar, SetPetAvatarThumbnailRequest::VecU8(ref bytes) if bytes == &vec![1, 2])
+    );
+    let nested: SetPetAvatarThumbnailRequest =
+        serde_json::from_str(r#"["AQI=","BA=="]"#).expect("an array decodes");
+    assert!(matches!(nested, SetPetAvatarThumbnailRequest::VecVecU8(_)));
+}
+
+#[test]
+fn test_bhv_unions_043_a_discriminator_set_on_a_subtype_is_written_as_given() {
+    use petstore::models::{DryFood, PetFood};
+    let food = DryFood {
+        food_type: "custom".to_string(),
+        weight_kg: 2.5,
+        ..Default::default()
+    };
+    let wire = serde_json::to_value(PetFood::DryFood(food)).expect("serializes");
+    assert_eq!(wire["foodType"], serde_json::json!("custom"));
 }

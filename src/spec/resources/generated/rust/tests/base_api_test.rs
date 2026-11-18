@@ -182,7 +182,7 @@ async fn test_bhv_errors_034_base_api_parses_json_error_body() {
 // -- Empty 200 response --
 
 #[tokio::test]
-async fn test_base_api_handles_empty_200_response() {
+async fn test_bhv_transport_067_base_api_handles_empty_200_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
@@ -691,7 +691,7 @@ async fn test_bhv_errors_037_base_api_auth_code_not_exchanged_fails_the_call() {
 }
 
 #[tokio::test]
-async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
+async fn test_bhv_auth_021_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
     /* Passing None for both the op auth and the client authenticator is
      * permitted for endpoints that don't strictly require credentials. */
     let client = Arc::new(CapturingApiClient::new());
@@ -3164,5 +3164,93 @@ async fn test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_
         !headers.contains_key("Cookie"),
         "got: {:?}",
         headers.get("Cookie")
+    );
+}
+
+// operations155: an operation sends its query parameters in the order the specification declares them.
+#[tokio::test]
+async fn test_bhv_operations_155_an_operation_sends_its_query_parameters_in_spec_order() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = FindPetsByStatusOptions::new()
+        .n2nd_page(2)
+        .born_after(chrono::NaiveDate::from_ymd_opt(2020, 1, 2).expect("a valid date"))
+        .status("available".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+
+    let url = client.captured_url.lock().unwrap().clone();
+    let status = url.find("status=").expect("status is sent");
+    let born = url.find("bornAfter=").expect("bornAfter is sent");
+    let page = url.find("2ndPage=").expect("2ndPage is sent");
+    assert!(
+        status < born && born < page,
+        "query parameters must follow the spec order: {}",
+        url
+    );
+}
+
+// operations156: an operation sends its form-encoded body fields in the order the specification declares them.
+#[tokio::test]
+async fn test_bhv_operations_156_an_operation_sends_its_form_body_fields_in_spec_order() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = SetPetPreferencesOptions::new("Good Boy".to_string())
+        .reminder(petstore::date_time::DateTime::new(
+            chrono::DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z").expect("a valid instant"),
+        ))
+        .note("quiet".to_string())
+        .tags(vec!["fluffy".to_string()])
+        .renewal_date(chrono::NaiveDate::from_ymd_opt(2024, 3, 4).expect("a valid date"));
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    let at = |key: &str| {
+        body_str
+            .find(key)
+            .unwrap_or_else(|| panic!("{} missing: {}", key, body_str))
+    };
+    assert!(
+        at("nickname=") < at("tags=")
+            && at("tags=") < at("note=")
+            && at("note=") < at("renewalDate=")
+            && at("renewalDate=") < at("reminder="),
+        "form fields must follow the spec order: {}",
+        body_str
+    );
+}
+
+// serialization040: a form-encoded body writes each date, date-time and boolean in its canonical wire text.
+#[tokio::test]
+async fn test_bhv_serialization_040_a_form_body_writes_dates_and_date_times_in_canonical_text() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let instant =
+        chrono::DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z").expect("a valid instant");
+    let opts = SetPetPreferencesOptions::new("Good Boy".to_string())
+        .renewal_date(chrono::NaiveDate::from_ymd_opt(2024, 3, 4).expect("a valid date"))
+        .reminder(petstore::date_time::DateTime::new(instant));
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    assert!(
+        body_str.contains("renewalDate=2024-03-04"),
+        "a date is written as its calendar day: {}",
+        body_str
+    );
+    assert!(
+        body_str.contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00"),
+        "a date-time is written in its canonical text: {}",
+        body_str
     );
 }

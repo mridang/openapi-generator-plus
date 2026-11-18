@@ -667,3 +667,153 @@ async fn test_bhv_operations_139_store_api_time_query_keeps_non_zero_fractional_
         url
     );
 }
+
+/* options053: a per-call header is sent on the call that carries it and never on the next call. */
+#[tokio::test]
+async fn test_bhv_options_053_store_api_per_call_options_apply_to_that_call_only() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = PlaceOrderOptions::new()
+        .header("X-Trace-Id", "one-call")
+        .timeout(std::time::Duration::from_secs(3))
+        .max_retries(0);
+
+    let _ = api.place_order(Some(Order::new()), Some(&opts)).await;
+    assert_eq!(
+        client.headers.lock().unwrap().get("X-Trace-Id").map(|s| s.as_str()),
+        Some("one-call"),
+        "the per-call header must reach the call it was set on"
+    );
+
+    let _ = api.place_order(Some(Order::new()), None).await;
+    assert!(
+        !client.headers.lock().unwrap().contains_key("X-Trace-Id"),
+        "a later call without options must not carry the earlier call's header"
+    );
+}
+
+/* options054: an operation takes its per-call options as one argument next to its own arguments. */
+#[tokio::test]
+async fn test_bhv_options_054_store_api_accepts_per_call_options_alongside_its_arguments() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = PlaceOrderOptions::new()
+        .header("X-Trace-Id", "alongside")
+        .timeout(std::time::Duration::from_secs(5))
+        .max_retries(1);
+
+    let _ = api.place_order(Some(Order::new()), Some(&opts)).await;
+
+    assert_eq!(client.url.lock().unwrap().as_str(), "http://localhost/store/order");
+    assert_eq!(
+        client.headers.lock().unwrap().get("X-Trace-Id").map(|s| s.as_str()),
+        Some("alongside")
+    );
+}
+
+/* options055: a call without per-call options leaves the client's timeout and retry limit in force. */
+#[tokio::test]
+async fn test_bhv_options_055_store_api_call_without_options_keeps_the_client_settings() {
+    let transport = TransportOptions::builder()
+        .timeout(Some(4_000))
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let client = Arc::new(DefaultApiClient::new(Some(transport)));
+    let config = ConfigurationBuilder::new().base_url("http://127.0.0.1:1").build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    let _ = api.place_order(Some(Order::new()), None).await;
+
+    assert_eq!(ApiClient::request_timeout(client.as_ref()), Some(std::time::Duration::from_millis(4_000)));
+    assert_eq!(ApiClient::max_retries(client.as_ref()), 0);
+}
+
+/* options056: a zero per-call timeout is refused before any request is sent. */
+#[tokio::test]
+async fn test_bhv_options_056_store_api_zero_per_call_timeout_is_refused_before_anything_is_sent() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = PlaceOrderOptions::new().timeout(std::time::Duration::ZERO);
+
+    let result = api.place_order(Some(Order::new()), Some(&opts)).await;
+
+    assert!(result.is_err(), "a zero per-call timeout must be refused");
+    assert!(client.url.lock().unwrap().is_empty(), "no request may be sent");
+}
+
+/* serialization010: a body is sent with exactly the content type the caller declared, with no charset added. */
+#[tokio::test]
+async fn test_bhv_serialization_010_a_body_is_sent_with_exactly_the_declared_content_type() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    let _ = api.place_order(Some(Order::new()), None).await;
+
+    assert_eq!(
+        client.headers.lock().unwrap().get("Content-Type").map(|s| s.as_str()),
+        Some("application/json"),
+        "the declared media type is sent as given, with no charset parameter"
+    );
+}
+
+/* serialization014: an optional query parameter left unset produces no query entry at all. */
+#[tokio::test]
+async fn test_bhv_serialization_014_an_unset_query_parameter_produces_no_query_entry() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    api.get_by_swatch(Swatch::Red, Some(&GetBySwatchOptions::new()))
+        .await
+        .expect("get_by_swatch failed");
+
+    let url = client.url.lock().unwrap().clone();
+    assert!(!url.contains('?'), "no query entry may be written for an unset parameter: {}", url);
+}
+
+/* serialization008: a content-typed parameter is JSON-encoded once, then percent-encoded once for its location. */
+#[tokio::test]
+async fn test_bhv_serialization_008_a_content_typed_parameter_is_json_encoded_exactly_once() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let q = PhotoMetadata { caption: Some("a".to_string()), ..PhotoMetadata::new() };
+
+    let _ = api.search_store(Some(&SearchStoreOptions::new().q(q))).await;
+
+    let url = client.url.lock().unwrap().clone();
+    assert!(url.contains("q=%7B%22caption%22%3A%22a%22%7D"), "expected one JSON encoding: {}", url);
+    assert!(!url.contains("%257B"), "the JSON must not be percent-encoded twice: {}", url);
+}
+
+/* headers032: the Accept header lists media types without quality weights. */
+#[tokio::test]
+async fn test_bhv_headers_032_the_accept_header_lists_media_types_without_quality_weights() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    let _ = api.get_inventory(None).await;
+
+    let accept = client.headers.lock().unwrap().get("Accept").cloned().unwrap_or_default();
+    assert!(!accept.is_empty(), "an Accept header must be sent");
+    assert!(!accept.contains("q="), "quality weights must not be sent: {}", accept);
+}
+
+/* transport068: a call that is dropped before it runs sends no request. */
+#[tokio::test]
+async fn test_bhv_transport_068_a_call_dropped_before_it_runs_sends_no_request() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    let call = api.place_order(Some(Order::new()), None);
+    drop(call);
+
+    assert!(client.url.lock().unwrap().is_empty(), "no request may be sent for a call that never ran");
+}

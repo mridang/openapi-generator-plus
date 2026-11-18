@@ -73,7 +73,7 @@ fn test_bhv_authapikey_009_query_accepts_non_ascii() {
 /// a header key. Every rejection is `ConfigurationError::InvalidArgument`,
 /// never a panic.
 #[test]
-fn test_invalid_keys_are_invalid_arguments() {
+fn test_bhv_auth_009_invalid_keys_are_invalid_arguments() {
     for (key, location, expected) in [
         ("", ApiKeyLocation::Header, "must not be empty"),
         ("", ApiKeyLocation::Query, "must not be empty"),

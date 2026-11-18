@@ -13,6 +13,7 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use petstore::api::PetApi;
 use petstore::api_client::{RequestBody, RequestOptions};
 use petstore::*;
 // The `default_api_client` module is crate-private, so its free helpers
@@ -151,7 +152,8 @@ fn start_redirect_server(status: u16) -> (String, std::sync::mpsc::Receiver<Stri
 }
 
 #[tokio::test]
-async fn test_redirect_demoting_a_bodyless_post_to_get_drops_the_entity_headers() {
+async fn test_bhv_redirects_041_redirect_demoting_a_bodyless_post_to_get_drops_the_entity_headers()
+{
     for status in [301u16, 302, 303] {
         let (base_url, head) = start_redirect_server(status);
         let transport = TransportOptionsBuilder::new()
@@ -274,7 +276,8 @@ async fn test_bhv_redirects_036_a_303_turns_every_method_except_head_into_get() 
 }
 
 #[tokio::test]
-async fn test_redirect_preserving_a_bodyless_post_keeps_the_zero_content_length() {
+async fn test_bhv_redirects_042_redirect_preserving_a_bodyless_post_keeps_the_zero_content_length()
+{
     let (base_url, head) = start_redirect_server(307);
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -572,7 +575,7 @@ async fn test_bhv_transport_041_default_api_client_injects_custom_user_agent() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_succeeds_without_transport_options() {
+async fn test_bhv_transport_082_default_api_client_succeeds_without_transport_options() {
     let base_url = start_echo_server();
 
     let client = DefaultApiClient::new(None);
@@ -3105,4 +3108,206 @@ async fn test_bhv_lifecycle_022_idle_close_releases_the_transport_and_a_second_c
     assert!(client.is_closed());
     client.close();
     assert!(client.is_closed());
+}
+
+/// Answers the first `failures` connections with 503 and every later one with 200,
+/// recording the X-Request-Id header of each connection in arrival order.
+fn start_flaky_request_id_server(failures: usize) -> (String, Arc<Mutex<Vec<String>>>) {
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let captured_clone = captured.clone();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+
+    thread::spawn(move || {
+        for (i, stream) in listener.incoming().enumerate() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 8192];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let text = String::from_utf8_lossy(&buf[..n]).to_string();
+            if let Some(line) = text
+                .lines()
+                .find(|l| l.to_ascii_lowercase().starts_with("x-request-id:"))
+            {
+                let value = line
+                    .split_once(':')
+                    .map(|(_, v)| v.trim().to_string())
+                    .unwrap_or_default();
+                captured_clone.lock().unwrap().push(value);
+            }
+            let response = if i < failures {
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            } else {
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}"
+            };
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    (base_url, captured)
+}
+
+#[tokio::test]
+async fn test_bhv_retries_044_every_retry_carries_a_request_id_that_differs_from_the_attempts_before(
+) {
+    let (base_url, captured) = start_flaky_request_id_server(2);
+    let transport = TransportOptions::builder()
+        .inject_request_id(true)
+        .max_retries(2)
+        .build()
+        .expect("valid transport options");
+    let client = Arc::new(DefaultApiClient::new(Some(transport)));
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let api = PetApi::new(client, config, None);
+
+    let _ = api.get_pet_by_id(1, None, None).await;
+
+    let ids = captured.lock().unwrap().clone();
+    assert_eq!(
+        ids.len(),
+        3,
+        "two retries after two 503 responses: {:?}",
+        ids
+    );
+    assert!(
+        ids.iter().all(|id| !id.is_empty()),
+        "every attempt carries an id: {:?}",
+        ids
+    );
+    let mut unique = ids.clone();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(
+        unique.len(),
+        ids.len(),
+        "each attempt must carry a new id: {:?}",
+        ids
+    );
+}
+
+#[test]
+fn test_bhv_lifecycle_036_closing_a_client_a_second_time_raises_nothing() {
+    let client = DefaultApiClient::new(None);
+    ApiClient::close(&client);
+    ApiClient::close(&client);
+    assert!(client.is_closed());
+}
+
+/// Accepts connections and never answers, holding each one open for a while.
+fn start_never_answering_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        for stream in listener.incoming().flatten() {
+            thread::spawn(move || {
+                thread::sleep(std::time::Duration::from_secs(5));
+                drop(stream);
+            });
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+#[tokio::test]
+async fn test_bhv_transport_071_one_timeout_bounds_the_connection_and_the_response_receipt() {
+    let base_url = start_never_answering_server();
+    let transport = TransportOptions::builder()
+        .timeout(Some(300))
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let started = std::time::Instant::now();
+
+    let result = ApiClient::send_request(
+        &client,
+        "GET",
+        &format!("{}/slow", base_url),
+        &HashMap::new(),
+        None,
+    )
+    .await;
+
+    assert!(
+        result.is_err(),
+        "a server that never answers must hit the timeout"
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(3),
+        "the timeout must bound the wait"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_transport_072_an_unrelated_connection_failure_is_not_reported_as_a_timeout() {
+    let transport = TransportOptions::builder()
+        .timeout(Some(5_000))
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let result = ApiClient::send_request(
+        &client,
+        "GET",
+        "http://127.0.0.1:1/refused",
+        &HashMap::new(),
+        None,
+    )
+    .await;
+
+    let err = result.expect_err("a refused connection must fail");
+    assert!(
+        err.downcast_ref::<petstore::errors::NetworkTimeoutError>()
+            .is_none(),
+        "a refused connection is not a timeout: {}",
+        err
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_transport_073_a_corrupt_compressed_body_raises_an_error_instead_of_raw_bytes() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: 4\r\nConnection: close\r\n\r\nnot!",
+    );
+    let client = DefaultApiClient::new(None);
+
+    let result = ApiClient::send_request(
+        &client,
+        "GET",
+        &format!("{}/corrupt", base_url),
+        &HashMap::new(),
+        None,
+    )
+    .await;
+
+    assert!(
+        result.is_err(),
+        "a corrupt gzip stream must not be returned as raw bytes"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_transport_081_the_caller_supplied_client_sends_the_url_and_headers_unchanged() {
+    let (base_url, heads) = start_head_capture_server();
+    let client = DefaultApiClient::with_client(reqwest::Client::new(), None)
+        .expect("a plain client is accepted");
+    let mut headers = HashMap::new();
+    headers.insert("X-Probe".to_string(), "1".to_string());
+
+    let _ = ApiClient::send_request(
+        &client,
+        "GET",
+        &format!("{}/probe?x=1", base_url),
+        &headers,
+        None,
+    )
+    .await;
+
+    let head = heads
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("the request reached the server");
+    assert!(head.starts_with("GET /probe?x=1 "), "{}", head);
+    assert!(head.to_ascii_lowercase().contains("x-probe: 1"), "{}", head);
 }

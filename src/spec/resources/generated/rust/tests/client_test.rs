@@ -227,7 +227,7 @@ fn test_bhv_lifecycle_013_client_with_token_names_the_missing_host_and_token() {
 }
 
 #[test]
-fn test_client_with_token_treats_an_empty_variable_as_unset() {
+fn test_bhv_config_025_client_with_token_treats_an_empty_variable_as_unset() {
     with_environment(Some(""), Some("env-token"), || {
         let text = invalid_argument_text(Client::with_token(None, None, None));
         assert!(text.contains("PETSTORE_BASE_URL"), "{}", text);
@@ -312,4 +312,19 @@ fn test_bhv_lifecycle_015_takes_one_optional_keyword_credential_per_security_sch
         .with_pet_store_basic(BearerAuthenticator::new(host, "test-token").unwrap());
     let client = Client::with_credentials(host, credentials, None);
     let _ = &client;
+}
+#[test]
+fn test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_at_construction() {
+    let no_host = Client::with_token(None, Some("token"), None);
+    assert!(
+        no_host.is_err(),
+        "a client without a host must not be built"
+    );
+    let empty_token = Client::with_token(Some("http://localhost"), Some(""), None);
+    assert!(
+        empty_token.is_err(),
+        "an empty token must not build a client"
+    );
+    let valid = Client::with_token(Some("http://localhost"), Some("token"), None);
+    assert!(valid.is_ok(), "a host and a token build a client");
 }

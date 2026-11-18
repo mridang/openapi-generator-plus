@@ -1555,4 +1555,15 @@ mod tests {
             ":/?@!$&'()*+,;=~"
         );
     }
+
+    #[test]
+    fn test_bhv_serialization_005_a_path_value_keeps_unreserved_and_sub_delimiters_and_encodes_the_rest(
+    ) {
+        let literal = ";=,:@!$&'()*+~-._";
+        assert_eq!(super::encode_path_segment(literal), literal);
+        assert_eq!(
+            super::encode_path_segment("a/b c?d#e%f"),
+            "a%2Fb%20c%3Fd%23e%25f"
+        );
+    }
 }
