@@ -2380,9 +2380,17 @@ langphp030 | A required cookie parameter is sent when a value is supplied.
 langphp031 | The password authenticator masks its client secret and password in debug output.
 langphp032 | The OpenID Connect authenticator masks its client secret in debug output.
 langphp033 | A third global server keeps its URL, description and variable through a round trip.
+<<<<<<< HEAD
 >>>>>>> origin/test/fail-on-untagged
 langnode094 | A discovery URL that is not https is refused before any request
 langnode095 | The openid scope is always requested
 langnode096 | A non-2xx discovery response raises an error rather than being parsed
 langnode097 | A discovery issuer that differs only by a trailing slash is accepted
 langnode098 | Discovery accepts loopback endpoints
+||||||| 7c38cba0a
+=======
+langphp034 | A multipart text part carries only a Content-Disposition header.
+langphp035 | The retry backoff doubles from half a second up to a cap of eight seconds.
+>>>>>>> origin/test/fail-on-untagged
+langnode099 | A scheme wrapper fails when built with a variable unset
+langnode100 | A scheme class is exported from the package entry point and extends its base

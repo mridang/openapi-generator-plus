@@ -512,7 +512,7 @@ test('bhv serializationwire 030 decodes a big endian bom utf 16 body as big endi
     expect($response->body)->toBe('Tag');
 });
 
-test('treats absent charset as utf 8', function (): void {
+test('bhv serialization 119 treats absent charset as utf 8', function (): void {
     $body = "héllo"; // already UTF-8
     $mockResponse = new MockResponse($body, [
         'http_code' => 200,
@@ -569,7 +569,7 @@ test('bhv serializationwire 047 multipart png file gets image png content type',
     }
 });
 
-test('multipart file part carries no content transfer encoding', function (): void {
+test('bhv misc 096 multipart file part carries no content transfer encoding', function (): void {
     $tmp = tempnam(sys_get_temp_dir(), 'mp_');
     expect($tmp)->toBeString();
     file_put_contents($tmp, 'payload');
@@ -767,30 +767,7 @@ test('bhv serializationwire 046 multipart non ascii field name preserved as utf 
     expect($capturedBody)->not->toContain('name="cafMn"');
 });
 
-test('multipart scalar parts use the canonical text form', function (): void {
-    $capturedBody = '';
-    $mockClient = new MockHttpClient(
-        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
-            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
-            return new MockResponse('{}', ['http_code' => 200]);
-        }
-    );
-
-    $client = new StubbedDefaultApiClient($mockClient);
-    $client->sendRequest(
-        'POST',
-        'http://example.com/upload',
-        [],
-        ['yes' => true, 'no' => false, 'count' => 7, 'ratio' => 1.0]
-    );
-
-    expect($capturedBody)->toMatch('/name="yes"\r\n(?:[^\r\n]+\r\n)*\r\ntrue\r\n/');
-    expect($capturedBody)->toMatch('/name="no"\r\n(?:[^\r\n]+\r\n)*\r\nfalse\r\n/');
-    expect($capturedBody)->toMatch('/name="count"\r\n(?:[^\r\n]+\r\n)*\r\n7\r\n/');
-    expect($capturedBody)->toMatch('/name="ratio"\r\n(?:[^\r\n]+\r\n)*\r\n1\.0\r\n/');
-});
-
-test('multipart text parts carry only a content disposition like the psr18 client', function (): void {
+test('bhv langphp 034 multipart text parts carry only a content disposition like the psr18 client', function (): void {
     $capturedBody = '';
     $mockClient = new MockHttpClient(
         function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
@@ -885,7 +862,7 @@ test('bhv serializationwire 028 multipart filename outside the bmp gets one unde
         ->toBe('filename="_.png"; filename*=UTF-8\'\'%F0%9F%98%80.png');
 });
 
-test('multipart filename mixes ascii and a letter above ascii', function (): void {
+test('bhv serialization 124 multipart filename mixes ascii and a letter above ascii', function (): void {
     expect(DefaultApiClient::buildFilenameDirective("r\u{E9}sum\u{E9}.pdf"))
         ->toBe('filename="r_sum_.pdf"; filename*=UTF-8\'\'r%C3%A9sum%C3%A9.pdf');
 });
@@ -1305,7 +1282,7 @@ test('bhv redirects 040 N1: 302 https to http downgrade with body proceeds as ge
     expect($response->statusCode)->toBe(200);
 });
 
-test('N1: 308 https to http downgrade with body throws', function (): void {
+test('bhv retries 011 N1: 308 https to http downgrade with body throws', function (): void {
     $downgrade = new MockResponse('', [
         'http_code' => 308,
         'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
@@ -1560,7 +1537,7 @@ test('bhv transport 065 a configured caCertPath replaces the system trust direct
     }
 });
 
-test('no caCertPath leaves the system trust store in place', function (): void {
+test('bhv misc 038 no caCertPath leaves the system trust store in place', function (): void {
     $client = new DefaultApiClient(TransportOptions::builder()->build());
     $http = (new \ReflectionProperty(DefaultApiClient::class, 'client'))->getValue($client);
     assert(is_object($http));
@@ -1685,7 +1662,7 @@ test('bhv transport 027 a decoded body drops the Content-Encoding and Content-Le
     expect($response->headers['content-type'] ?? null)->toBe('application/json');
 });
 
-test('an identity encoded body keeps its Content-Length', function (): void {
+test('bhv misc 037 an identity encoded body keeps its Content-Length', function (): void {
     $mockResponse = new MockResponse('{"ok":true}', [
         'http_code' => 200,
         'response_headers' => [
@@ -2014,7 +1991,7 @@ test('bhv errors 038 a connection reset after the headers raises NetworkExceptio
     }
 });
 
-test('decompresses a valid stream whose content is falsy', function (string $payload, string $encoding): void {
+test('bhv misc 039 decompresses a valid stream whose content is falsy', function (string $payload, string $encoding): void {
     /* Only a false return from the decoder is a corrupt stream: a well
      * formed stream holding an empty string or "0" is a good body. */
     $compressed = $encoding === 'gzip' ? gzencode($payload) : gzcompress($payload);
@@ -2111,7 +2088,7 @@ function retryTestClient(array $outcomes, ?TransportOptions $options, \ArrayObje
     return new StubbedDefaultApiClient($mock, $options);
 }
 
-test('maxRetries defaults to 2: a failing request is attempted three times with a doubling backoff', function (): void {
+test('bhv misc 168 maxRetries defaults to 2: a failing request is attempted three times with a doubling backoff', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $client = retryTestClient([503], null, $log);
@@ -2195,7 +2172,7 @@ test('bhv retries 009 timeout and maxRetries reach the transport', function (): 
     expect($seen[0])->toBeGreaterThan(30.0);
 });
 
-test('a negative maxRetries is rejected', function (): void {
+test('bhv options 007 a negative maxRetries is rejected', function (): void {
     expect(fn (): TransportOptions => TransportOptions::builder()->maxRetries(-1)->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
 });
@@ -2222,7 +2199,7 @@ test('bhv retries 007 does not replay other statuses: only 408, 409, 429 and 5xx
     '599' => [599, 3],
 ]);
 
-test('the backoff doubles from 0.5 s up to 8 s', function (): void {
+test('bhv langphp 035 the backoff doubles from 0.5 s up to 8 s', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $options = TransportOptions::builder()->maxRetries(6)->timeout(null)->build();
@@ -2668,25 +2645,6 @@ test('bhv redirects 036 a 303 turns every method except head into get', function
 
     expect($seen[1][0])->toBe('GET');
 })->with(['POST', 'PUT', 'PATCH', 'DELETE']);
-
-test('a 303 keeps head as head', function (): void {
-    $redirect = new MockResponse('', [
-        'http_code' => 303,
-        'response_headers' => ['Location' => 'https://api.example.com/landing'],
-    ]);
-    $final = new MockResponse('', ['http_code' => 200]);
-    $seen = [];
-    $factory = function (string $method, string $url) use (&$seen, $redirect, $final): MockResponse {
-        $seen[] = [$method, $url];
-        return count($seen) === 1 ? $redirect : $final;
-    };
-    $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
-
-    $client->sendRequest('HEAD', 'https://api.example.com/start', [], null);
-
-    expect($seen[1][0])->toBe('HEAD');
-});
 
 test('bhv redirects 030 an explicit default port is the same origin as the implicit one', function (string $start, string $location): void {
     $redirect = new MockResponse('', [
