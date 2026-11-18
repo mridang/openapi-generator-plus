@@ -677,6 +677,27 @@ void main() {
     );
 
     test(
+      'bhv unions 041 a oneOf without a discriminator decodes each JSON shape to the variant that describes it',
+      () {
+        final byString = SetPetAvatarThumbnailRequest.fromJson(
+          base64Encode(<int>[104, 105]),
+        );
+        expect(byString.actualInstance, isA<Uint8List>());
+        expect(
+          byString.actualInstance,
+          equals(Uint8List.fromList(<int>[104, 105])),
+        );
+
+        final byArray = SetPetAvatarThumbnailRequest.fromJson(<String>[
+          base64Encode(<int>[104, 105]),
+        ]);
+        expect(byArray.actualInstance, isA<List>());
+        expect(byArray.actualInstance, isNot(isA<Uint8List>()));
+        expect((byArray.actualInstance as List).single, isA<Uint8List>());
+      },
+    );
+
+    test(
       'bhv unions 042 a union wrapper built with a null variant holds no instance',
       () {
         const food = PetFood(null);
