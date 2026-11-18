@@ -85,6 +85,7 @@ public final class ParityIdComparison {
       base = base.substring(0, dataSet);
     }
     base = base.replaceAll("\\s+#\\d+$", "");
+    base = base.replaceFirst("^(test_\\w+)\\[.*]$", "$1");
     base = base.replaceFirst("^([^/\\s]*Test[^/\\s]*)/.*$", "$1");
     base = base.replaceFirst("(?<=\\S)\\[\\d+]$", "");
     base = base.replaceFirst("(?<=\\S)\\[[^\\[\\]]*]$", "");

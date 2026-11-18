@@ -93,6 +93,7 @@ class ParityIdComparisonTest {
             "python",
             "test_bhv_transport_014_retries_on_503[a-b-c]",
             "test_bhv_transport_014_retries_on_503[d-e-f]",
+            "test_bhv_transport_014_retries_on_503[a[b]-a%5Bb%5D]",
             "bhvRetries007BacksOff",
             "bhvAuthoauth031Refreshes"));
 
