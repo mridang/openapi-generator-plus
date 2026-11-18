@@ -174,7 +174,7 @@ func TestBhvUnions032_ComposedSchema_PetFood_ConstructedFromVariantSerializesWit
 	}
 }
 
-func TestComposedSchema_PetFood_DiscriminatorKeyMatchesCaseSensitively(t *testing.T) {
+func TestBhvUnions038_ComposedSchema_PetFood_DiscriminatorKeyMatchesCaseSensitively(t *testing.T) {
 	t.Parallel()
 	var food models.PetFood
 	err := json.Unmarshal([]byte(`{"FOODTYPE":"dry","weightKg":2.5}`), &food)
@@ -809,7 +809,7 @@ func TestComposedSchema_Model_WithReturnsACopyAndLeavesTheReceiverAlone(t *testi
 	}
 }
 
-func TestComposedSchema_Model_WithAndWithoutSetAndClearAnOptionalField(t *testing.T) {
+func TestBhvModels017_ComposedSchema_Model_WithAndWithoutSetAndClearAnOptionalField(t *testing.T) {
 	t.Parallel()
 	original := models.Medication{DrugName: "Amoxicillin"}
 	with := original.WithDosage("250mg")
@@ -822,5 +822,78 @@ func TestComposedSchema_Model_WithAndWithoutSetAndClearAnOptionalField(t *testin
 	}
 	if without := with.WithoutDosage(); without.Dosage != nil || with.Dosage == nil {
 		t.Error("expected WithoutDosage to clear the copy only")
+	}
+}
+
+func TestBhvUnions037_ComposedSchema_PetFood_WrapperHoldsTheExactVariant(t *testing.T) {
+	t.Parallel()
+	dry := models.NewDryFood(2.5)
+	union := models.NewDryFoodPetFood(*dry)
+	got, ok := union.AsDryFood()
+	if !ok || !reflect.DeepEqual(got, *dry) {
+		t.Errorf("expected the held variant back unchanged, got %+v (found %v)", got, ok)
+	}
+	if !reflect.DeepEqual(union.ActualInstance(), *dry) {
+		t.Errorf("expected ActualInstance to hold the same variant, got %+v", union.ActualInstance())
+	}
+}
+
+func TestBhvUnions039_ComposedSchema_PetFood_BuildingNeverValidatesOrPanics(t *testing.T) {
+	t.Parallel()
+	for _, value := range []any{nil, "not a variant", 42} {
+		union := models.NewPetFood(value)
+		if union.IsDryFood() || union.IsWetFood() {
+			t.Errorf("expected no variant to match %v", value)
+		}
+	}
+}
+
+func TestBhvUnions040_ComposedSchema_PetFood_AccessorReturnsOnlyTheHeldVariant(t *testing.T) {
+	t.Parallel()
+	var union models.PetFood
+	if err := json.Unmarshal([]byte(`{"foodType":"wet","volumeMl":250}`), &union); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := union.AsDryFood(); ok {
+		t.Error("expected no dry food variant for a wet food union")
+	}
+	if _, ok := union.AsWetFood(); !ok {
+		t.Error("expected the wet food variant")
+	}
+}
+
+func TestBhvUnions041_ComposedSchema_SetPetAvatarThumbnailRequest_OneOfWithoutDiscriminatorDecodesByShape(t *testing.T) {
+	t.Parallel()
+	var byString models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal([]byte(`"aGVsbG8="`), &byString); err != nil {
+		t.Fatalf("unexpected error decoding a string: %v", err)
+	}
+	if raw, ok := byString.AsByteSlice(); !ok || string(raw) != "hello" {
+		t.Errorf("expected the string shape to decode to the byte variant, got %q (found %v)", raw, ok)
+	}
+	var byArray models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal([]byte(`["aGVsbG8="]`), &byArray); err != nil {
+		t.Fatalf("unexpected error decoding an array: %v", err)
+	}
+	if _, ok := byArray.AsByteSliceSlice(); !ok {
+		t.Error("expected the array shape to decode to the byte slice variant")
+	}
+}
+
+func TestBhvUnions042_ComposedSchema_PetFood_EmptyWrapperHoldsNoInstance(t *testing.T) {
+	t.Parallel()
+	for name, union := range map[string]models.PetFood{"zero value": {}, "nil variant": models.NewPetFood(nil)} {
+		if union.IsDryFood() || union.IsWetFood() {
+			t.Errorf("%s: expected no variant to match", name)
+		}
+		if _, ok := union.AsDryFood(); ok {
+			t.Errorf("%s: expected no dry food", name)
+		}
+		if _, ok := union.AsWetFood(); ok {
+			t.Errorf("%s: expected no wet food", name)
+		}
+		if union.ActualInstance() != nil {
+			t.Errorf("%s: expected a nil instance, got %v", name, union.ActualInstance())
+		}
 	}
 }

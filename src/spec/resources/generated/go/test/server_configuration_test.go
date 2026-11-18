@@ -11,6 +11,7 @@ package petstore_test
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	petstore "petstore/pkg"
@@ -429,5 +430,36 @@ func TestBhvServers023_ServerConfiguration_URLSubstitutesReplacementPatternsLite
 	}
 	if want := "https://" + value + ".example.com"; got != want {
 		t.Errorf("expected the value substituted literally, want %q, got %q", want, got)
+	}
+}
+
+func TestBhvServers025_ServerConfiguration_ChangingTheVariablesMapAfterBuildDoesNotChangeIt(t *testing.T) {
+	t.Parallel()
+	variables := map[string]petstore.ServerVariable{
+		"env": petstore.NewServerVariable("prod", "environment", []string{"prod", "dev"}),
+	}
+	config := petstore.NewServerConfiguration("https://{env}.example.com", "server", variables)
+	variables["env"] = petstore.NewServerVariable("changed", "changed", []string{"changed"})
+	if got := config.Variables()["env"].DefaultValue(); got != "prod" {
+		t.Errorf("expected the built default kept, got %q", got)
+	}
+}
+
+func TestBhvServers026_ServerVariable_ChangingTheAllowedValuesListAfterBuildDoesNotChangeThem(t *testing.T) {
+	t.Parallel()
+	enum := []string{"prod", "dev"}
+	variable := petstore.NewServerVariable("prod", "environment", enum)
+	enum[0] = "changed"
+	if got := variable.EnumValues(); len(got) != 2 || got[0] != "prod" {
+		t.Errorf("expected the built allowed values kept, got %v", got)
+	}
+}
+
+func TestBhvServers027_ServerVariable_EqualDefaultDescriptionAndValuesAreEqual(t *testing.T) {
+	t.Parallel()
+	first := petstore.NewServerVariable("prod", "environment", []string{"prod", "dev"})
+	second := petstore.NewServerVariable("prod", "environment", []string{"prod", "dev"})
+	if !reflect.DeepEqual(first, second) {
+		t.Errorf("expected equal server variables, got %+v and %+v", first, second)
 	}
 }

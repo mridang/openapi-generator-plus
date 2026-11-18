@@ -920,3 +920,22 @@ func TestBhvAuthoidc015_OpenIdConnectAuthenticator_InvalidateAccessTokenKeepsThe
 		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
 	}
 }
+
+// The discovery document is cached for the default lifetime when its response has no max-age, so a second use does not fetch it again.
+func TestBhvAuth011_OpenIdConnectAuthenticator_DiscoveryWithoutMaxAgeIsCachedForTheDefaultLifetime(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	for i := 0; i < 2; i++ {
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			t.Fatalf("unexpected error on call %d: %v", i+1, err)
+		}
+	}
+	if got := atomic.LoadInt32(&client.getCount); got != 1 {
+		t.Errorf("expected one discovery fetch within the default lifetime, got %d", got)
+	}
+}

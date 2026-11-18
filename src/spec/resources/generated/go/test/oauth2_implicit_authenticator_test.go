@@ -67,7 +67,7 @@ func TestBhvAuthoauthtwoimplicit004_OAuth2ImplicitAuthenticator_BuildsAuthorizat
 // SetAccessToken runs on a callback goroutine while requests read the token on
 // others. Run under the race detector (make test), this fails when the token is
 // an unguarded field.
-func TestOAuth2ImplicitAuthenticator_SetAccessTokenIsSafeAgainstConcurrentRequests(t *testing.T) {
+func TestBhvMisc001_OAuth2ImplicitAuthenticator_SetAccessTokenIsSafeAgainstConcurrentRequests(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 
@@ -285,7 +285,7 @@ func TestBhvAuthoauthtwoimplicit011_OAuth2ImplicitAuthenticator_ReprShowsTheNonS
 }
 
 // The authorize URL carries its parameters in the one order every SDK shares.
-func TestOAuth2ImplicitAuthenticator_AuthorizeUrlUsesTheSharedParameterOrder(t *testing.T) {
+func TestBhvAuth019_OAuth2ImplicitAuthenticator_AuthorizeUrlUsesTheSharedParameterOrder(t *testing.T) {
 	t.Parallel()
 	url := createImplicitAuthenticator().BuildAuthorizationURL("s")
 

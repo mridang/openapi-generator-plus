@@ -1327,3 +1327,13 @@ func TestBhvSerializationparam017_ValueSerializer_SerializeDeepObject_ModelBecom
 		t.Errorf("expected criteriaDeep[breed]=lab and criteriaDeep[min_age]=3, got %v", got)
 	}
 }
+
+func TestBhvSerialization005_ValueSerializer_PathSegmentPercentEncodesEverythingButUnreservedCharacters(t *testing.T) {
+	t.Parallel()
+	if got := encodePathSegment("a-._~b"); got != "a-._~b" {
+		t.Errorf("expected unreserved characters literal, got %q", got)
+	}
+	if got := encodePathSegment("a b/c?d#e"); got != "a%20b%2Fc%3Fd%23e" {
+		t.Errorf("expected space, slash, question mark and hash percent-encoded, got %q", got)
+	}
+}

@@ -306,3 +306,31 @@ func TestBhvAuthbearer027_BearerAuthenticator_RejectsALineBreakOnlyToken(t *test
 		}
 	}
 }
+
+func TestBhvAuth022_BearerAuthenticator_ExplicitTokenAndProviderEachSupplyTheirOwnHeader(t *testing.T) {
+	t.Parallel()
+	explicit, err := auth.NewBearerAuthenticator("https://api.example.com", "explicit-token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := explicit.AuthHeaders()["Authorization"]; got != "Bearer explicit-token" {
+		t.Errorf("expected the explicit token, got %q", got)
+	}
+	viaProvider, err := auth.NewBearerAuthenticatorWithProvider("https://api.example.com", func(context.Context) (string, error) {
+		return "provider-token", nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := viaProvider.AuthHeaders()["Authorization"]; got != "Bearer provider-token" {
+		t.Errorf("expected the provider token when no explicit token is given, got %q", got)
+	}
+}
+
+func TestBhvAuth023_BearerAuthenticator_AnExplicitEmptyTokenIsRefused(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewBearerAuthenticator("https://api.example.com", "")
+	if err == nil {
+		t.Errorf("expected an explicit empty token to be refused, got %v", a)
+	}
+}

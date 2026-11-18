@@ -177,3 +177,15 @@ func TestBhvAuthbasic020_BasicAuthenticator_PasswordIsMaskedInEveryDebugForm(t *
 		}
 	}
 }
+
+func TestBhvErrors081_BasicAuthenticator_RefusalNamesTheFaultyField(t *testing.T) {
+	t.Parallel()
+	_, userErr := auth.NewBasicAuthenticator("https://api.example.com", "bad:user", "secret")
+	if userErr == nil || !strings.Contains(userErr.Error(), "username") || strings.Contains(userErr.Error(), "password") {
+		t.Errorf("expected a refusal naming the username only, got %v", userErr)
+	}
+	_, passErr := auth.NewBasicAuthenticator("https://api.example.com", "user", "pass\nword")
+	if passErr == nil || !strings.Contains(passErr.Error(), "password") || strings.Contains(passErr.Error(), "username") {
+		t.Errorf("expected a refusal naming the password only, got %v", passErr)
+	}
+}

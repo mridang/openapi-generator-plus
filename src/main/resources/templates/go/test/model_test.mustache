@@ -120,7 +120,7 @@ func TestModel_EnumsExposeTheirAllowedValues(t *testing.T) {
 }
 
 /* An integer enum member is PascalCase like every other enum member. */
-func TestModel_IntegerEnumMembersFollowTheEnumCasing(t *testing.T) {
+func TestBhvModels021_Model_IntegerEnumMembersFollowTheEnumCasing(t *testing.T) {
 	t.Parallel()
 	if models.PriorityNumber1 != 1 || models.PriorityNumber2 != 2 || models.PriorityNumber3 != 3 {
 		t.Errorf("expected Number1 to Number3 to carry 1 to 3, got %d %d %d", models.PriorityNumber1, models.PriorityNumber2, models.PriorityNumber3)

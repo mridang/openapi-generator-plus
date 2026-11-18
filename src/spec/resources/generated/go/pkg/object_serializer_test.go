@@ -1636,7 +1636,7 @@ func TestBhvSerializationobject178_ObjectSerializer_Discriminator_WetSubtypeAuto
 	}
 }
 
-func TestObjectSerializer_Discriminator_CallerCanOverrideDefault(t *testing.T) {
+func TestBhvUnions043_ObjectSerializer_Discriminator_CallerCanOverrideDefault(t *testing.T) {
 	t.Parallel()
 	dry := models.NewDryFood(1)
 	dry.FoodType = "custom"
@@ -3540,5 +3540,118 @@ func TestBhvSerializationobject224_ObjectSerializer_EncodeContentCookieValue_IsT
 	}
 	if got := encodeContentCookieValue(raw); got != "%7B%22name%22%3A%22a%20b%22%7D" {
 		t.Errorf("expected the JSON percent encoded, got %s", got)
+	}
+}
+
+func TestBhvSerialization012_ObjectSerializer_MapKeysAreWrittenInAscendingOrder(t *testing.T) {
+	t.Parallel()
+	out, err := serialize(map[string]any{"b": 1, "a": 2, "c": 3})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := string(out); got != `{"a":2,"b":1,"c":3}` {
+		t.Errorf("expected ascending keys, got %s", got)
+	}
+}
+
+func TestBhvSerialization022_ObjectSerializer_TopLevelScalarDecodesToItsOwnType(t *testing.T) {
+	t.Parallel()
+	var n int
+	if err := deserialize([]byte("42"), &n); err != nil || n != 42 {
+		t.Errorf("expected the number 42, got %d (error %v)", n, err)
+	}
+	var s string
+	if err := deserialize([]byte(`"text"`), &s); err != nil || s != "text" {
+		t.Errorf("expected the string text, got %q (error %v)", s, err)
+	}
+}
+
+func TestBhvSerialization023_ObjectSerializer_MalformedJsonIncludingTrailingContentIsRefused(t *testing.T) {
+	t.Parallel()
+	var m map[string]any
+	if err := deserialize([]byte(`{"a":1} trailing`), &m); err == nil {
+		t.Error("expected trailing content after the document to be refused")
+	}
+	if err := deserialize([]byte(`{"a":`), &m); err == nil {
+		t.Error("expected a truncated document to be refused")
+	}
+}
+
+func TestBhvSerialization027_ObjectSerializer_EmptyArrayDecodesToAnEmptyCollection(t *testing.T) {
+	t.Parallel()
+	var items []int
+	if err := deserialize([]byte("[]"), &items); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if items == nil || len(items) != 0 {
+		t.Errorf("expected an empty, non-nil collection, got %v", items)
+	}
+}
+
+func TestBhvSerialization028_ObjectSerializer_WrongKindForAListIsRefused(t *testing.T) {
+	t.Parallel()
+	var items []int
+	if err := deserialize([]byte(`"not a list"`), &items); err == nil {
+		t.Error("expected a JSON string for a list to be refused")
+	}
+}
+
+func TestBhvSerialization029_ObjectSerializer_QuotedNumberForAnIntegerIsRefused(t *testing.T) {
+	t.Parallel()
+	var n int
+	if err := deserialize([]byte(`"5"`), &n); err == nil {
+		t.Error("expected a quoted number to be refused for an integer field")
+	}
+}
+
+func TestBhvSerialization031_ObjectSerializer_IntegersAtTheLargestRangesDecodeExactly(t *testing.T) {
+	t.Parallel()
+	var small int32
+	if err := deserialize([]byte("2147483647"), &small); err != nil || small != 2147483647 {
+		t.Errorf("expected the largest int32, got %d (error %v)", small, err)
+	}
+	var large int64
+	if err := deserialize([]byte("9223372036854775807"), &large); err != nil || large != 9223372036854775807 {
+		t.Errorf("expected the largest int64, got %d (error %v)", large, err)
+	}
+}
+
+func TestBhvSerialization032_ObjectSerializer_IntegerRefusesFractionsAndExponents(t *testing.T) {
+	t.Parallel()
+	for _, payload := range []string{"1.0", "1e2"} {
+		var n int
+		if err := deserialize([]byte(payload), &n); err == nil {
+			t.Errorf("expected %s to be refused for an integer field", payload)
+		}
+	}
+}
+
+func TestBhvSerialization034_ObjectSerializer_FloatDecodesAnyFiniteNumberExactly(t *testing.T) {
+	t.Parallel()
+	var f float64
+	if err := deserialize([]byte("1.5"), &f); err != nil || f != 1.5 {
+		t.Errorf("expected 1.5, got %v (error %v)", f, err)
+	}
+}
+
+func TestBhvSerialization035_ObjectSerializer_NaNAndInfinityLiteralsAreRefused(t *testing.T) {
+	t.Parallel()
+	for _, payload := range []string{"NaN", "Infinity", "-Infinity"} {
+		var f float64
+		if err := deserialize([]byte(payload), &f); err == nil {
+			t.Errorf("expected the literal %s to be refused", payload)
+		}
+	}
+}
+
+func TestBhvSerialization054_ObjectSerializer_FreeFormValueKeepsItsJsonType(t *testing.T) {
+	t.Parallel()
+	var value any
+	if err := deserialize([]byte(`"text"`), &value); err != nil || value != "text" {
+		t.Errorf("expected the string to stay a string, got %#v (error %v)", value, err)
+	}
+	var nothing any = "set"
+	if err := deserialize([]byte("null"), &nothing); err != nil || nothing != nil {
+		t.Errorf("expected null to stay null, got %#v (error %v)", nothing, err)
 	}
 }

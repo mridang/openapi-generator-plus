@@ -148,8 +148,17 @@ func (m *OAuth2TokenManager) GetAccessTokenWithRefreshContext(ctx context.Contex
 		if v, ok := params["client_secret"]; ok {
 			refreshParams["client_secret"] = v
 		}
-		if err := m.fetchToken(ctx, refreshURL, refreshParams, extraHeaders); err == nil && m.accessToken != "" {
+		err := m.fetchToken(ctx, refreshURL, refreshParams, extraHeaders)
+		if err == nil && m.accessToken != "" {
 			return m.accessToken, nil
+		}
+		/* A cancelled call is rethrown: the caller has stopped waiting, so the
+		 * original grant is not run as a fallback. */
+		if ctx.Err() != nil {
+			if err == nil {
+				err = ctx.Err()
+			}
+			return "", err
 		}
 		/* Refresh failed (e.g. refresh token revoked or expired).
 		 * Fall back to re-running the original grant below. */

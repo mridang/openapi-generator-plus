@@ -484,7 +484,7 @@ func TestBhvOperations093_PetApi_UploadPetDocumentRejectsUnknownContentType(t *t
 }
 
 // An invalid per-call option is reported before any request is built.
-func TestPetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.T) {
+func TestBhvOptions056_PetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
@@ -492,6 +492,10 @@ func TestPetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.T) {
 	err := api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithTimeout(0))
 	if !errors.Is(err, petstore.ErrInvalidTimeout) {
 		t.Errorf("expected ErrInvalidTimeout, got %v", err)
+	}
+	err = api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithMaxRetries(-1))
+	if !errors.Is(err, petstore.ErrInvalidMaxRetries) {
+		t.Errorf("expected ErrInvalidMaxRetries, got %v", err)
 	}
 }
 
@@ -1842,7 +1846,7 @@ func TestPetApi_AnOperationWithoutSecuritySendsNoCredential(t *testing.T) {
 
 // F857: the host of a credentials client resolves like every credential: the
 // argument, then the environment variable, then ErrMissingCredential.
-func TestPetApi_CredentialsClientNeedsAHost(t *testing.T) {
+func TestBhvLifecycle039_PetApi_CredentialsClientNeedsAHost(t *testing.T) {
 	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
 	client, err := petstore.NewClientWithCredentials("", petstore.Credentials{}, nil)
 	if !errors.Is(err, petstore.ErrMissingCredential) || client != nil {
@@ -2332,5 +2336,28 @@ func TestBhvOperations148_PetApi_AddPetUsesTheFirstHeldSchemeOfItsRequirement(t 
 	}
 	if gotAuth != "Bearer bearer-token" || gotKey != "" {
 		t.Errorf("expected the held bearer scheme only, got authorization %q and key %q", gotAuth, gotKey)
+	}
+}
+
+func TestBhvOptions054_PetApi_OperationAcceptsPerCallOptionsAlongsideItsArguments(t *testing.T) {
+	t.Parallel()
+	api := newPetApiForIntegration(t)
+
+	result, err := api.GetPetById(context.Background(), int64(1), nil,
+		petstore.WithTimeout(5*time.Second),
+		petstore.WithHeaders(map[string]string{"X-Call-Option": "one"}))
+	if err != nil {
+		t.Fatalf("GetPetById with call options failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected a result when call options are given")
+	}
+}
+
+func TestBhvConfig025_PetApi_EmptyBaseUrlEnvironmentValueIsTreatedAsUnset(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+	client, err := petstore.NewClientWithCredentials("", petstore.Credentials{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL") || client != nil {
+		t.Errorf("expected construction to fail naming the missing variable, got %v %v", client, err)
 	}
 }

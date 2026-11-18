@@ -1908,7 +1908,7 @@ type ctxKey struct{}
 
 // Every operation takes the caller's context first and hands it to the
 // transport, so cancelling it can abort the request.
-func TestBaseApi_OperationPassesTheCallContextToTheTransport(t *testing.T) {
+func TestBhvTransport069_BaseApi_OperationPassesTheCallContextToTheTransport(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -2499,7 +2499,7 @@ func TestBaseApi_AnAuthenticatorThatNeedsRequestsReceivesTheCallContext(t *testi
 	}
 }
 
-func TestBaseApi_CancellingTheCallAbortsTheTokenRequest(t *testing.T) {
+func TestBhvAuth013_BaseApi_CancellingTheCallAbortsTheTokenRequest(t *testing.T) {
 	t.Parallel()
 	release := make(chan struct{})
 	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2545,7 +2545,7 @@ func TestBhvOperations001_BaseApi_PerCallHeadersReachTheTransportAndReplaceADefa
 	}
 }
 
-func TestBaseApi_PerCallTimeoutIsHandedToTheTransportAndBoundsTheContext(t *testing.T) {
+func TestBhvTransport070_BaseApi_PerCallTimeoutIsHandedToTheTransportAndBoundsTheContext(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -2929,5 +2929,37 @@ func TestBhvOperations153_BaseApi_OperationWithNoChosenServerUsesTheBaseURL(t *t
 	_, _ = api.GetStagingPetInfo(context.Background(), 1, nil)
 	if want := "https://base.example.com/api"; !strings.HasPrefix(client.capturedURL, want) {
 		t.Errorf("expected the request URL to start with %q, got %q", want, client.capturedURL)
+	}
+}
+
+func TestBhvRetries044_BaseApi_EveryRetryCarriesADifferentRequestId(t *testing.T) {
+	t.Parallel()
+	ids := make(chan string, 10)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ids <- r.Header.Get("X-Request-ID")
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	transport, err := petstore.NewTransportOptionsBuilder().InjectRequestID(true).MaxRetries(2).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil, petstore.Credentials{})
+	_ = addPetCall(api)
+	close(ids)
+
+	seen := map[string]bool{}
+	attempts := 0
+	for id := range ids {
+		attempts++
+		if id == "" || seen[id] {
+			t.Errorf("expected a distinct request id per attempt, got %q on attempt %d", id, attempts)
+		}
+		seen[id] = true
+	}
+	if attempts != 3 {
+		t.Errorf("expected the first attempt and two retries, got %d attempts", attempts)
 	}
 }
