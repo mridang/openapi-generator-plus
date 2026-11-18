@@ -311,7 +311,7 @@ module Petstore::Client
       end
 
       # Set the end-to-end request timeout in milliseconds.
-      # @param val [Integer, nil] timeout in milliseconds, or +nil+ for no timeout
+      # @param val [Numeric, nil] timeout in milliseconds, or +nil+ for no timeout
       # @return [self]
       def timeout(val)
         raise ArgumentError, "Invalid timeout: must be at least one millisecond (got #{val})" if val && (!val.is_a?(Numeric) || val < 1)
