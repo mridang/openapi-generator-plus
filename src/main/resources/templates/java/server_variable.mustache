@@ -102,10 +102,9 @@ public final class ServerVariable {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ServerVariable)) {
+        if (!(o instanceof ServerVariable other)) {
             return false;
         }
-        ServerVariable other = (ServerVariable) o;
         return defaultValue.equals(other.defaultValue)
                 && Objects.equals(description, other.description)
                 && enumValues.equals(other.enumValues);
