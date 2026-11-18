@@ -3107,8 +3107,8 @@ public static class ObjectSerializerTest
             var source = ModelSource("Rank").Replace("\r\n", "\n", StringComparison.Ordinal);
             var between = source.Substring(source.IndexOf("LOW = 1,", StringComparison.Ordinal), source.IndexOf("MEDIUM = 2,", StringComparison.Ordinal) - source.IndexOf("LOW = 1,", StringComparison.Ordinal));
             Assert.DoesNotContain("<summary>", between, StringComparison.Ordinal);
-            var after = source.Substring(source.IndexOf("MEDIUM = 2,", StringComparison.Ordinal));
-            Assert.DoesNotContain("<summary>", after.Substring(0, after.IndexOf("HIGH", StringComparison.Ordinal)), StringComparison.Ordinal);
+            var members = source.Substring(source.IndexOf("LOW = 1,", StringComparison.Ordinal), source.IndexOf("HIGH = 3,", StringComparison.Ordinal) - source.IndexOf("LOW = 1,", StringComparison.Ordinal));
+            Assert.Equal(1, members.Split("<summary>").Length - 1);
         }
 
         [Fact]
