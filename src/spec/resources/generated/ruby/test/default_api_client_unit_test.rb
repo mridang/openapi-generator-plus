@@ -3249,4 +3249,107 @@ describe 'DefaultApiClientUnit' do
       }).must_raise Petstore::Client::Errors::ApiError
     end
   end
+
+  it 'bhv_misc_125 follows a 307 with the same method and body' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/redirect') { [307, { 'location' => '/final' }, ''] }
+      stub.post('/final') { [200, {}, 'final'] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:POST, 'http://localhost/redirect', {}, 'body')
+      _(resp.status_code).must_equal 200
+    end
+  end
+
+  it 'bhv_misc_126 follows a 303 to a HEAD request as HEAD rather than GET' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.head('/see') { [303, { 'location' => '/other' }, ''] }
+      stub.head('/other') { [200, {}, ''] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:HEAD, 'http://localhost/see', {}, nil)
+      _(resp.status_code).must_equal 200
+    end
+  end
+
+  it 'bhv_misc_127 a redirect that holds only a query keeps the path and replaces the query' do
+    queries = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/a/b') do |env|
+        queries << env.url.query
+        env.url.query == 'x=1' ? [302, { 'location' => '?y=2' }, ''] : [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/a/b?x=1', {}, nil)
+      _(resp.status_code).must_equal 200
+    end
+    _(queries).must_equal ['x=1', 'y=2']
+  end
+
+  it 'bhv_misc_130 a credential removed by a cross-origin hop is not restored when a later hop returns to the origin' do
+    seen = :unset
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://other.example.com/mid' }, ''] }
+      stub.get('/mid') { [302, { 'location' => 'http://localhost/end' }, ''] }
+      stub.get('/end') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)['authorization']
+        [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', { 'Authorization' => 'Bearer abc' }, nil)
+    end
+    _(seen).must_be_nil
+  end
+
+  it 'bhv_misc_131 a supplied session follows redirects under the SDK redirect rules' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => '/landing' }, ''] }
+      stub.get('/landing') { [200, {}, 'landed'] }
+    end
+    supplied = Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).connection(supplied).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    resp = client.send_request(:GET, 'http://localhost/start', {}, nil)
+    _(resp.status_code).must_equal 200
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_132 a per-call header whose name holds a credential word is dropped on a cross-origin redirect' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://other.example.com/end' }, ''] }
+      stub.get('/end') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)
+        [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', { 'X-Call-Token' => 'abc' }, nil)
+    end
+    _(seen.keys).wont_include 'x-call-token'
+  end
+
+  it 'bhv_misc_133 a 300 response is returned as it is even when it carries a Location header' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/multi') { [300, { 'location' => '/elsewhere' }, ''] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/multi', {}, nil)
+      _(resp.status_code).must_equal 300
+    end
+  end
 end

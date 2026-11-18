@@ -315,4 +315,17 @@ describe {{moduleName}}::Configuration do
     _(config.inspect).wont_include 'secret-hook-name'
     _(config.inspect).wont_include 'RecordingCallHook'
   end
+
+  it 'bhv_misc_136 the configuration text shows the base URL and the non-sensitive default headers only' do
+    config = {{moduleName}}::Configuration.builder
+      .base_url('http://api.example.com')
+      .default_header('X-Public', 'shown')
+      .default_header('Authorization', 'Bearer secret-token')
+      .build
+    text = config.inspect
+    _(text).must_include 'http://api.example.com'
+    _(text).must_include 'X-Public'
+    _(text).wont_include 'secret-token'
+  end
+
 end

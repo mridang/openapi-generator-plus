@@ -548,6 +548,9 @@ ruby | misc108 | The test fixture declares no integer-valued enum, so no model e
 ruby | misc114 | The test fixture declares no operation with more than one success response, so no status code selects between two success decoders
 ruby | misc116 | The Ruby client sends int32 query values as given and does no int32 range or fraction check on them, so there is no refusal to test
 ruby | misc122 | The test models declare no string default containing quotes, backslashes or control characters, so the literal default value cannot be observed
+ruby | misc128 | the proxy credential is applied by the connection to the proxy (Faraday reads the proxy userinfo), below the request headers the redirect loop controls, and the test adapter never opens a proxy connection, so the credential cannot be observed on a redirected request
+ruby | misc129 | the SDK adds no proxy credential header of its own (the proxy userinfo is applied by the connection), so a redirect has no SDK-added proxy header to re-send, and the test adapter never opens a proxy connection to observe one
+ruby | misc135 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so the builder never receives or stores a client-level cancellation handle
 ||||||| a47a9b89b
 php | misc030 | PHP sends the request even when the remaining budget is zero; the deadline is only checked on redirects (known difference)
 php | misc044 | PHP raises a RuntimeException for a gzip-declared body without a valid signature instead of returning it plain (contradicts transport030)
