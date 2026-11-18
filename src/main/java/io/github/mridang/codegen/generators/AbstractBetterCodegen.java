@@ -607,9 +607,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     /**
      * Hands the templates the example operation: the first operation, in the order the
      * documents are generated, that needs no path, query, header, cookie or body parameter and
-     * no security. It is exposed as {@code exampleOperation} (the operation itself, so a
+     * no security, and is not deprecated (an example must not teach a deprecated call, and the
+     * deprecation linters of several languages reject one). It is exposed as {@code exampleOperation} (the operation itself, so a
      * template reads {@code operationId} and {@code vendorExtensions.op.signatureArgs} from it),
-     * {@code exampleOperationApi} (the name of its API group) and {@code hasExampleOperation}.
+     * {@code exampleOperationApi} (the name of its API group), {@code exampleOperationGroup} (the
+     * operations map of that group, for a template that needs a per-language field of it) and {@code hasExampleOperation}.
      * When no operation qualifies, {@code hasExampleOperation} is false and the quickstart
      * builds the client and closes it.
      */
@@ -618,6 +620,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
         CodegenOperation example = null;
         String exampleApi = null;
+        Object exampleGroup = null;
         final Object apiInfo = objs.get("apiInfo");
         if (apiInfo instanceof Map) {
             final Object apis = ((Map<String, Object>) apiInfo).get("apis");
@@ -635,8 +638,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         final CodegenOperation op = (CodegenOperation) candidate;
                         if (example == null && needsNoInput(op)) {
                             example = op;
+                            exampleGroup = operations;
                             exampleApi = String.valueOf(((Map<String, Object>) operations).get("baseName"));
-                            if (exampleApi == null || "null".equals(exampleApi)) {
+                            if ("null".equals(exampleApi)) {
                                 exampleApi = String.valueOf(((Map<String, Object>) api).get("baseName"));
                             }
                         }
@@ -648,6 +652,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (example != null) {
             objs.put("exampleOperation", example);
             objs.put("exampleOperationApi", exampleApi);
+            objs.put("exampleOperationGroup", exampleGroup);
         }
         return super.postProcessSupportingFileData(objs);
     }
@@ -655,7 +660,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     private static boolean needsNoInput(final CodegenOperation op) {
         final boolean security = op.authMethods != null && !op.authMethods.isEmpty();
         final boolean required = op.requiredParams != null && !op.requiredParams.isEmpty();
-        return !security && !required && op.bodyParam == null;
+        return !security && !required && op.bodyParam == null && !op.isDeprecated;
     }
 
     /**

@@ -59,7 +59,7 @@ func TestBhvSkills001_Skills_ErrorHandlingNamesTheRootAndTheSiblingsOfApiError(t
 func TestBhvSkills002_Skills_ConfigurationDocumentsTheRetries(t *testing.T) {
 	t.Parallel()
 	skills := readSourceFile(t, "../SKILLS.md")
-	for _, want := range []string{"### Retries", "`MaxRetries(0)` disables retries", "NewTransportOptionsBuilder().\n    MaxRetries(0)", "`Retry-After`", "`InvalidateAccessToken`"} {
+	for _, want := range []string{"### Retries", "`MaxRetries(0)` disables retries", "NewTransportOptionsBuilder().\n\t\tMaxRetries(0)", "`Retry-After`", "`InvalidateAccessToken`"} {
 		if !strings.Contains(skills, want) {
 			t.Errorf("expected SKILLS.md to contain %q", want)
 		}

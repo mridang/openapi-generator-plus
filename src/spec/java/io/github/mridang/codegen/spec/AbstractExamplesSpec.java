@@ -11,10 +11,13 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 /**
- * Base class for the fence gate. Reads {@code README.md} and {@code SKILLS.md} from the golden,
+ * Base class for the examples gate. Three tests: {@code make examples} builds the shipped
+ * quickstart, {@code make examples-run} runs it against the shared mock server, and the fence gate
+ * below. The fence gate reads {@code README.md} and {@code SKILLS.md} from the golden,
  * takes every fence tagged with the SDK language, checks that each declares its kind ({@code
  * file} or {@code statements}), wraps them with the language's harness, writes the wrapped files
  * under the SDK root inside the runtime container and builds them with the language's own
@@ -23,7 +26,7 @@ import org.junit.jupiter.api.Test;
  * what it uses fails the build. Subclasses name the language tag, the wrapping and the build
  * commands.
  */
-public abstract class AbstractFencesSpec extends AbstractIntegrationSpec {
+public abstract class AbstractExamplesSpec extends AbstractIntegrationSpec {
 
   /** The info-string language word of the SDK, such as {@code go} or {@code typescript}. */
   protected abstract String getFenceLanguage();
@@ -40,6 +43,40 @@ public abstract class AbstractFencesSpec extends AbstractIntegrationSpec {
   @Override
   protected final String[] getBuildCommands() {
     return getFenceBuildCommands();
+  }
+
+  /** A file-system name for a fence, such as {@code readme_03}, unique among the fences. */
+  protected static String fenceName(Fence fence) {
+    String stem = fence.file().substring(0, fence.file().indexOf('.')).toLowerCase(Locale.ROOT);
+    return stem + "_" + String.format(Locale.ROOT, "%02d", fence.number());
+  }
+
+  /** The command that builds every file under {@code examples}. */
+  protected String[] getExamplesBuildCommands() {
+    return new String[] {"make examples"};
+  }
+
+  /** The command that runs the quickstart against the mock server. */
+  protected String[] getExamplesRunCommands() {
+    return new String[] {"make examples-run"};
+  }
+
+  @Test
+  void generatedExamplesShouldBuild() {
+    ExecResult result = executeInRuntimeContainer(getExamplesBuildCommands());
+
+    assertThat(result.isSuccess())
+        .withFailMessage("The examples do not build:\n%s", result.output())
+        .isTrue();
+  }
+
+  @Test
+  void quickstartShouldRunAgainstTheMockServer() {
+    ExecResult result = executeInRuntimeContainer(getExamplesRunCommands());
+
+    assertThat(result.isSuccess())
+        .withFailMessage("The quickstart does not run against the mock server:\n%s", result.output())
+        .isTrue();
   }
 
   private List<Fence> readFences() throws IOException {

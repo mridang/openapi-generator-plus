@@ -1,4 +1,4 @@
-.PHONY: all build test lint format format-check fmt gofumpt vet staticcheck docs clean
+.PHONY: all build test lint format format-check fmt gofumpt vet staticcheck docs examples examples-run clean
 
 all: build
 
@@ -34,7 +34,15 @@ staticcheck:
 docs:
 	go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0
 	mkdir -p .out/docs
-	gomarkdoc --exclude-dirs ./test/... --output '.out/docs/{{.Dir}}.md' ./...
+	gomarkdoc --exclude-dirs ./test/...,./examples/... --output '.out/docs/{{.Dir}}.md' ./...
+
+examples:
+	go vet ./examples/...
+	mkdir -p .out/examples
+	go build -o .out/examples/ ./examples/...
+
+examples-run: examples
+	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN=placeholder .out/examples/quickstart
 
 clean:
 	go clean ./...

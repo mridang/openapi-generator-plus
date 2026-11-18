@@ -491,6 +491,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         additionalProperties.put("credentialSchemes", credentialSchemes);
         supportingFiles.add(new SupportingFile("credentials.mustache", "pkg", "credentials.go"));
 
+        if (generateExamples) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "examples/quickstart.mustache", "examples/quickstart", "main.go"));
+        }
+
         if (generateTests) {
             supportingFiles.add(
                     new SupportingFile(

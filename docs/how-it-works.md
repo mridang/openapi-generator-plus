@@ -70,7 +70,7 @@ Each language has a set of specs under `src/spec/java/io/github/mridang/codegen/
 
 ### Compiled examples
 
-`AbstractFencesSpec` reads `README.md` and `SKILLS.md` from the golden, takes every fence tagged with the SDK language, checks that each declares its kind, wraps them with the language's harness and builds them in the runtime container. The same golden ships `examples/quickstart`, built by `make examples` and run by `make examples-run`. A language that declares a minimum runtime also has a `<Lang>MinRuntimeSpec` that runs its client spec in the image of that runtime.
+`AbstractExamplesSpec` reads `README.md` and `SKILLS.md` from the golden, takes every fence tagged with the SDK language, checks that each declares its kind, wraps them with the language's harness and builds them in the runtime container. The same golden ships `examples/quickstart`, built by `make examples` and run by `make examples-run`; it calls the example operation, the first operation that needs no parameter, body or security and is not deprecated, or only builds and closes the client when the spec has none. A language that declares a minimum runtime also has a `<Lang>MinRuntimeSpec` that runs its client spec in the image of that runtime.
 
 ### Shared helper containers
 
