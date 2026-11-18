@@ -633,6 +633,24 @@ void main() {
       );
     });
 
+    test('bhv misc 018 a non-JSON token error body exposes the status, no code and the raw text', () async {
+      final client = _FakeApiClient();
+      client.enqueue('plain text failure', statusCode: 400);
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await expectLater(
+        manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(isA<OAuth2ServerException>()
+            .having((e) => e.statusCode, 'statusCode', equals(400))
+            .having((e) => e.code, 'code', isNull)
+            .having((e) => e.rawBody, 'rawBody', equals('plain text failure'))),
+      );
+    });
+
     test('bhv authoauthtwotokenmgr 042 a token error response names the status, the code and the description', () async {
       final client = _FakeApiClient();
       client.enqueue(
