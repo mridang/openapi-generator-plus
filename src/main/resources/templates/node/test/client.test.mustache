@@ -243,7 +243,7 @@ describe('{{clientClassName}}', () => {
       expect(() => new {{clientClassName}}({})).toThrow(new TypeError('At least one credential is required'));
     });
 
-    test('an OAuth2 scheme credential shares the transport of the client', async () => {
+    test('bhv auth 025 an OAuth2 scheme credential shares the transport of the client', async () => {
       const { transport, seen } = recordingTransport();
       const client = new {{clientClassName}}(
         { machineAuth: new MachineAuthClientCredentialsAuthenticator(host, 'cid', 'csecret') },
@@ -309,7 +309,7 @@ describe('{{clientClassName}}', () => {
       expect(calls()).toBe(0);
     });
 
-    test('a second close() is a no-op', async () => {
+    test('bhv lifecycle 036 a second close() is a no-op', async () => {
       const client = new {{clientClassName}}(closable);
 
       await client.close();
@@ -342,7 +342,7 @@ describe('{{clientClassName}}', () => {
     );
   });
 
-  test('Symbol.asyncDispose closes the client', async () => {
+  test('bhv lifecycle 040 Symbol.asyncDispose closes the client', async () => {
     const client = new {{clientClassName}}(authenticator);
 
     await client[Symbol.asyncDispose]();

@@ -631,7 +631,7 @@ describe('DefaultApiClient transport-failure responseHeaders', () => {
     expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
   });
 
-  it('a header value with CR/LF throws TypeError, not NetworkError', async () => {
+  it('bhv headers 031 a header value with CR/LF throws TypeError, not NetworkError', async () => {
     const client = new DefaultApiClient();
     let caught: unknown;
     try {
@@ -1501,7 +1501,7 @@ describe('HTTPS -> HTTP body replay guard', () => {
     expect(call).toBe(2);
   });
 
-  it('allows HTTPS -> HTTP when the redirect status forces an empty body (303)', async () => {
+  it('bhv redirects 040 allows HTTPS -> HTTP when the redirect status forces an empty body (303)', async () => {
     let call = 0;
     global.fetch = (async (): Promise<Response> => {
       call++;

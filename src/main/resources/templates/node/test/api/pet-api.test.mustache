@@ -299,7 +299,7 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
-  test('the per-call request options follow the server argument', async () => {
+  test('bhv options 054 the per-call request options follow the server argument', async () => {
     class MockServer extends GetExternalPetInfoServer {
       getUrl(): string {
         return baseUrl;
@@ -615,7 +615,7 @@ describe('PetApi', () => {
   // multipart op's params) and reads each back, which compiles under tsc
   // precisely because readonly members are still assignable via object
   // literals; only post-construction mutation is rejected.
-  test('Options object literals are constructible and readable', () => {
+  test('bhv options 062 Options object literals are constructible and readable', () => {
     const uploadOptions: UploadPetDocumentOptions = {
       file: Buffer.from('doc'),
       documentType: 'invoice',
