@@ -85,6 +85,84 @@ class ParityIdComparisonTest {
   }
 
   @Test
+  void shouldCountTheRowsOfAPytestParameterisedTestAsOneTest() {
+    Map<String, ParitySummary> present = new TreeMap<>();
+    present.put(
+        "python",
+        summary(
+            "python",
+            "test_bhv_transport_014_retries_on_503[a-b-c]",
+            "test_bhv_transport_014_retries_on_503[d-e-f]",
+            "bhvRetries007BacksOff",
+            "bhvAuthoauth031Refreshes"));
+
+    assertThat(compare(present, TestCatalogueExceptions.empty())).isEmpty();
+  }
+
+  @Test
+  void shouldCountTheRowsOfAJavaInvocationParameterisedTestAsOneTest() {
+    Map<String, ParitySummary> present = new TreeMap<>();
+    present.put(
+        "java",
+        summary(
+            "java",
+            "bhvTransport014RetriesOn503(String)[1]",
+            "bhvTransport014RetriesOn503(String)[2]",
+            "bhvRetries007BacksOff",
+            "bhvAuthoauth031Refreshes"));
+
+    assertThat(compare(present, TestCatalogueExceptions.empty())).isEmpty();
+  }
+
+  @Test
+  void shouldCountTheRowsOfAGoSubtestParameterisedTestAsOneTest() {
+    Map<String, ParitySummary> present = new TreeMap<>();
+    present.put(
+        "go",
+        summary(
+            "go",
+            "TestBhvTransport014_RetriesOn503/sub_one",
+            "TestBhvTransport014_RetriesOn503/sub_two",
+            "bhvRetries007BacksOff",
+            "bhvAuthoauth031Refreshes"));
+
+    assertThat(compare(present, TestCatalogueExceptions.empty())).isEmpty();
+  }
+
+  @Test
+  void shouldCountTheRowsOfARubyNumberParameterisedTestAsOneTest() {
+    Map<String, ParitySummary> present = new TreeMap<>();
+    present.put(
+        "ruby",
+        summary(
+            "ruby",
+            "test_0005_bhv transport 014 retries on 503",
+            "test_0006_bhv transport 014 retries on 503",
+            "bhvRetries007BacksOff",
+            "bhvAuthoauth031Refreshes"));
+
+    assertThat(compare(present, TestCatalogueExceptions.empty())).isEmpty();
+  }
+
+  @Test
+  void shouldKeepRowsThatDifferAfterTheTokenAsSeparateTests() {
+    Map<String, ParitySummary> present = new TreeMap<>();
+    present.put(
+        "dart",
+        summary(
+            "dart",
+            "bhv transport 014 retries on 503",
+            "bhv transport 014 retries on 502",
+            "bhv retries 007 backs off",
+            "bhv authoauth 031 refreshes"));
+
+    assertThat(compare(present, TestCatalogueExceptions.empty()))
+        .singleElement()
+        .asString()
+        .contains("dart: duplicate ids");
+  }
+
+  @Test
   void shouldStillReportTwoDifferentTestsForTheSameBehaviour() {
     Map<String, ParitySummary> present = new TreeMap<>();
     present.put(
