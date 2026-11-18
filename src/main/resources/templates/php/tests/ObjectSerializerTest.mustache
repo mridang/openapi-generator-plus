@@ -1603,6 +1603,28 @@ test('bhv serializationobject 090 pets holding equal content are equal though th
     expect(ObjectSerializer::serialize($left))->toBe(ObjectSerializer::serialize($right));
 });
 
+test('bhv equality 001 two models built from the same values are equal and a change in any nested value makes them unequal', function (): void {
+    $build = static fn (string $label, string $when): Pet => new Pet(
+        name: 'Rex',
+        photoUrls: new \Ds\Set(['a.png']),
+        category: new Category(id: 1, name: $label),
+        tags: new \Ds\Vector([$when]),
+    );
+
+    $left = $build('Dogs', 'morning');
+    $right = $build('Dogs', 'morning');
+
+    expect($left->equals($right))->toBeTrue();
+    expect($left->equals($build('Cats', 'morning')))->toBeFalse();
+    expect($left->equals($build('Dogs', 'evening')))->toBeFalse();
+    expect($left->equals(null))->toBeFalse();
+    expect(ObjectSerializer::valuesEqual($left, new Category(id: 1, name: 'Dogs')))->toBeFalse();
+    expect(ObjectSerializer::valuesEqual(
+        new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
+        new \DateTime('2026-01-01T01:00:00+01:00'),
+    ))->toBeTrue();
+});
+
 test('bhv serializationobject 005 vaults differing in one byte array are told apart on every shape', function (): void {
     $base = ObjectSerializer::serialize(
         new BinaryVault(seal: "\x01", shards: new \Ds\Vector(["\x02"]), labels: new \Ds\Map(['a' => "\x03"]))

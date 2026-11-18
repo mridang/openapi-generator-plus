@@ -1842,6 +1842,83 @@ class ObjectSerializer
     }
 
     /**
+     * Structural equality of two decoded values, used by every generated equals() method.
+     *
+     * Scalars and null compare by value, arrays entry by entry under the same key, date-times by
+     * the instant they name (whatever their zone), sets as unordered members, vectors and maps by
+     * content, enums by case, and models and unions through their own equals(). Values of
+     * different classes are never equal, and nothing here throws.
+     */
+    public static function valuesEqual(mixed $left, mixed $right): bool
+    {
+        if ($left instanceof \DateTimeInterface) {
+            return $right instanceof \DateTimeInterface && $left == $right;
+        }
+        if ($left instanceof \Ds\Set) {
+            return $right instanceof \Ds\Set
+                && $left->count() === $right->count()
+                && self::sameMembers($left->toArray(), $right->toArray());
+        }
+        if ($left instanceof \Ds\Collection) {
+            return $right instanceof \Ds\Collection
+                && $left::class === $right::class
+                && self::valuesEqual($left->toArray(), $right->toArray());
+        }
+        if (is_array($left)) {
+            if (!is_array($right) || count($left) !== count($right)) {
+                return false;
+            }
+            foreach ($left as $key => $value) {
+                if (!array_key_exists($key, $right) || !self::valuesEqual($value, $right[$key])) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        if (is_object($left)) {
+            if (!is_object($right) || $left::class !== $right::class) {
+                return false;
+            }
+            if ($left instanceof \UnitEnum) {
+                return $left === $right;
+            }
+            if (method_exists($left, 'equals')) {
+                return (bool) $left->equals($right);
+            }
+
+            return $left == $right;
+        }
+
+        return $left === $right;
+    }
+
+    /**
+     * Whether every member of $left has an equal member in $right, each matched once.
+     *
+     * @param array<array-key, mixed> $left
+     * @param array<array-key, mixed> $right
+     */
+    private static function sameMembers(array $left, array $right): bool
+    {
+        foreach ($left as $member) {
+            $matched = null;
+            foreach ($right as $key => $candidate) {
+                if (self::valuesEqual($member, $candidate)) {
+                    $matched = $key;
+                    break;
+                }
+            }
+            if ($matched === null) {
+                return false;
+            }
+            unset($right[$matched]);
+        }
+
+        return true;
+    }
+
+    /**
      * Qualify an unqualified model class name with the model namespace.
      * Primitive types (string, int, etc.) and already-qualified names are returned as-is.
      */

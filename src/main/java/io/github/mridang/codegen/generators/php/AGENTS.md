@@ -255,9 +255,9 @@ Where: `server_configuration.mustache`, `api/api.mustache`.
 Test: `ServerConfigurationTest`, per-tag API tests.
 
 ### Value semantics and string forms (D23, D24, D27)
-Rule: every model has a field-dumping string form and union wrappers get the same equality; `ApiResult::headers` is a defensive copy.
-Why: identical diagnostic and equality behaviour; php was already canonical.
-Where: `models/model.mustache`, `api_result.mustache`.
+Rule: every model has a field-dumping string form and union wrappers get the same equality; `ApiResult::headers` is a defensive copy. Equality (issue #154) is `equals(?self $other): bool` on every model and union wrapper, comparing all properties through `ObjectSerializer::valuesEqual`: nested models by their own `equals`, lists and maps by content, sets as unordered members, date-times by instant, enums by case; a different class or null is never equal and nothing throws.
+Why: identical diagnostic and equality behaviour; php had no equality before #154, so `==` on the readonly objects was the only comparison.
+Where: `models/model.mustache`, `model_equals.mustache`, `object_serializer.mustache` (`valuesEqual`).
 Test: `ApiResultTest`, `ComposedSchemaTest`.
 
 ### Typed defaults (R-defaults, forced)
