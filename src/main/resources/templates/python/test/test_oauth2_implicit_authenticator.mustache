@@ -124,7 +124,7 @@ class TestOAuth2ImplicitAuthenticator:
 
 
 class TestImplicitAuthorizationUrl:
-    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+    def test_bhv_auth_049_authorize_url_separates_scopes_with_percent_20(self) -> None:
         url = _create_authenticator().build_authorization_url(state="a b")
 
         assert url == (

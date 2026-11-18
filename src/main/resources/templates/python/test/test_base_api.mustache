@@ -842,6 +842,16 @@ class TestSecurityNoneAuthSuppression:
         assert 'api_key=' not in client.captured_url, \
             f'security:[] op must not send an api-key query param, got: {client.captured_url}'
 
+    async def test_bhv_auth_044_an_operation_with_no_security_sends_no_credential(self) -> None:
+        client = CapturingApiClient()
+        client_auth = StubAuthenticator(headers={'Authorization': 'Bearer client-token'})
+        api = StoreApi(api_client=client, config=Configuration(base_url='http://localhost'), authenticator=client_auth)
+        try:
+            await api.get_inventory()
+        except Exception:
+            pass  # Response deserialization may fail; we only inspect the request
+        assert 'Authorization' not in client.captured_headers
+
     async def test_bhv_authintegration_012_inherited_security_op_applies_client_credential(self) -> None:
         # get_pet_by_id declares no security of its own, so it inherits the
         # global requirement. This generator strips the inherited auth methods
@@ -903,6 +913,17 @@ class TestSchemeCredentials:
 
         await api.delete_pet(1)
         assert client.captured_headers['Authorization'] == 'Basic a'
+
+    async def test_bhv_auth_047_several_listed_schemes_use_the_first_held_and_none_held_sends_no_scheme_credential(
+        self,
+    ) -> None:
+        client = JsonReplyApiClient(_PET_REPLY)
+        await self._api(client, scheme_authenticators={'petStoreBearer': self._token('Bearer b')}).add_pet(self._pet())
+        assert client.captured_headers['Authorization'] == 'Bearer b'
+
+        bare = JsonReplyApiClient(_PET_REPLY)
+        await self._api(bare, scheme_authenticators={}).add_pet(self._pet())
+        assert 'Authorization' not in bare.captured_headers
 
     async def test_bhv_authintegration_014_the_first_scheme_the_operation_lists_wins(self) -> None:
         # add_pet lists apiKeyHeader before petStoreBearer; the order of the

@@ -53,6 +53,17 @@ class TestBearerAuthenticator:
         )
         assert lookalike.get_auth_headers()["Authorization"] == "Bearer bearerxyz"
 
+    def test_bhv_auth_037_a_token_provider_is_asked_again_for_each_request(
+        self,
+    ) -> None:
+        tokens = iter(["first", "second"])
+        auth = BearerAuthenticator(
+            host="https://api.example.com", token_provider=lambda: next(tokens)
+        )
+
+        assert auth.get_auth_headers()["Authorization"] == "Bearer first"
+        assert auth.get_auth_headers()["Authorization"] == "Bearer second"
+
     def test_bhv_authbearer_005_rejects_empty_token(self) -> None:
         # bearer-no-empty-token-guard: an empty token would emit a bare
         # "Authorization: Bearer " header and send the request unauthenticated,
@@ -87,7 +98,7 @@ class TestBearerAuthenticator:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="ñoño")
 
-    def test_token_is_not_leaked_in_repr(self) -> None:
+    def test_bhv_auth_033_token_is_not_leaked_in_repr(self) -> None:
         auth = BearerAuthenticator(host="https://api.example.com", token="supersecret")
         assert "supersecret" not in repr(auth)
         assert "supersecret" not in str(auth)

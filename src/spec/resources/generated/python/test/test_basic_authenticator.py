@@ -88,6 +88,14 @@ class TestBearerAuthenticator:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="   ")
 
+    def test_bhv_auth_036_username_containing_a_colon_is_rejected_with_an_error(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError, match="must not contain ':'"):
+            BasicAuthenticator(
+                host="https://api.example.com", username="ali:ce", password="pw"
+            )
+
     def test_token_is_not_leaked_in_repr(self) -> None:
         auth = BearerAuthenticator(host="https://api.example.com", token="supersecret")
         assert "supersecret" not in repr(auth)

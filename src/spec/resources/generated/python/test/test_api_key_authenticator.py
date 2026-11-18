@@ -14,6 +14,50 @@ from petstore_client.auth.api_key_location import ApiKeyLocation
 
 
 class TestApiKeyAuthenticator:
+    def test_bhv_auth_031_header_key_is_sent_under_its_fixed_name_and_value(
+        self,
+    ) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="X-API-Key",
+            api_key="abc123",
+            location=ApiKeyLocation.HEADER,
+        )
+        assert auth.get_auth_headers() == {"X-API-Key": "abc123"}
+
+    def test_bhv_auth_032_session_cookie_is_sent_as_session_id(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="SESSION_ID",
+            api_key="abc123",
+            location=ApiKeyLocation.COOKIE,
+        )
+        assert auth.get_cookie_params() == {"SESSION_ID": "abc123"}
+
+    @pytest.mark.parametrize("blank", ["", " ", "\t"])
+    def test_bhv_auth_034_empty_or_blank_key_is_rejected_at_construction_with_an_error(
+        self, blank: str
+    ) -> None:
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host="https://api.example.com",
+                key_param_name="X-API-Key",
+                api_key=blank,
+                location=ApiKeyLocation.HEADER,
+            )
+
+    @pytest.mark.parametrize("bad", ["abc\x00", "ab\x01c", "\u00f1"])
+    def test_bhv_auth_035_control_nul_or_non_ascii_header_value_is_rejected(
+        self, bad: str
+    ) -> None:
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host="https://api.example.com",
+                key_param_name="X-API-Key",
+                api_key=bad,
+                location=ApiKeyLocation.HEADER,
+            )
+
     def test_bhv_authapikey_014_valid_header_key_passes(self) -> None:
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",

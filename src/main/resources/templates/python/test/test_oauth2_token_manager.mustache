@@ -1180,7 +1180,7 @@ class TestExchange:
         assert manager.refresh_token == "r2"
         assert manager.exchanged is True
 
-    def test_exchange_without_a_refresh_token_drops_the_old_one(self) -> None:
+    def test_bhv_auth_053_exchange_without_a_refresh_token_drops_the_old_one(self) -> None:
         manager, _ = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=3600),
             _token_reply(access_token="a2"),
@@ -1260,7 +1260,7 @@ class TestTokenTransportFailure:
 
         assert excinfo.value is failure
 
-    def test_a_network_failure_on_the_fallback_grant_is_not_rewrapped(self) -> None:
+    def test_bhv_auth_055_a_network_failure_on_the_fallback_grant_is_not_rewrapped(self) -> None:
         from {{packageName}}.errors import NetworkException
 
         refresh_failure = NetworkException(message="reset during refresh")

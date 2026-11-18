@@ -375,7 +375,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()["Authorization"] == "Bearer first"
 
-    def test_a_token_provider_wins_over_the_environment(
+    def test_bhv_auth_038_a_token_provider_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -401,7 +401,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()["Authorization"] == "Bearer live"
 
-    def test_a_token_and_a_token_provider_together_are_rejected(
+    def test_bhv_auth_039_a_token_and_a_token_provider_together_are_rejected(
         self, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
         with pytest.raises(ValueError, match="not both"):

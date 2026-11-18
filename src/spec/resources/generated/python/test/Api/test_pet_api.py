@@ -1279,7 +1279,9 @@ class TestPetApiErrorHandling:
         )
         assert result is not None
 
-    async def test_add_pet_scheme_credential_wins_over_the_default_header(self) -> None:
+    async def test_bhv_auth_045_add_pet_scheme_credential_wins_over_the_default_header(
+        self,
+    ) -> None:
         # add_pet accepts the petStoreBearer scheme. The default header carries
         # one token; the credential the API holds for that scheme carries a
         # different one and must win on the wire.
@@ -1320,7 +1322,9 @@ class TestPetApiErrorHandling:
 
         assert captured.get("Authorization") == "Bearer scheme-token"
 
-    async def test_apikey_authenticator_is_applied_to_secured_request(self) -> None:
+    async def test_bhv_auth_043_apikey_authenticator_is_applied_to_secured_request(
+        self,
+    ) -> None:
         # WAVE A1 AUTH-APPLIED: a configured apiKey authenticator must actually
         # reach the wire on a secured operation. add_pet accepts the apiKeyHeader
         # scheme (X-API-Key). Construct an ApiKeyAuthenticator, hand it over as
@@ -1572,7 +1576,9 @@ class TestPetApiErrorHandling:
             ":param as_of: Summary date, sent as a matrix-style path segment (required)"
         ]
 
-    async def test_inherited_security_op_applies_client_authenticator(self) -> None:
+    async def test_bhv_auth_046_inherited_security_op_applies_client_authenticator(
+        self,
+    ) -> None:
         # INHERITED GLOBAL SECURITY: get_pet_by_id declares no security of its
         # own, so it inherits the global requirement. This generator strips the
         # inherited auth methods off such an operation, so the api method passes
