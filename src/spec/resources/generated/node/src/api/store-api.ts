@@ -108,6 +108,9 @@ export class StoreApi extends BaseApi {
       "model",
       "createAccount",
       requestOptions,
+      undefined,
+      "createAccount",
+      "/store/account",
     );
   }
 
@@ -172,6 +175,9 @@ export class StoreApi extends BaseApi {
       undefined,
       "deleteOrder",
       requestOptions,
+      undefined,
+      "deleteOrder",
+      "/store/order/{orderId}",
     );
   }
 
@@ -280,6 +286,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getBySwatch",
       requestOptions,
+      undefined,
+      "getBySwatch",
+      "/store/by-swatch/{pathSwatch}",
     );
   }
 
@@ -332,6 +341,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getDefaults",
       requestOptions,
+      undefined,
+      "getDefaults",
+      "/store/defaults",
     );
   }
 
@@ -384,6 +396,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getDepartment",
       requestOptions,
+      undefined,
+      "getDepartment",
+      "/store/department",
     );
   }
 
@@ -443,6 +458,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getGroupedCategories",
       requestOptions,
+      undefined,
+      "getGroupedCategories",
+      "/store/grouped-categories",
     );
   }
 
@@ -500,6 +518,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getInventory",
       requestOptions,
+      undefined,
+      "getInventory",
+      "/store/inventory",
     );
   }
 
@@ -558,6 +579,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getMatrix",
       requestOptions,
+      undefined,
+      "getMatrix",
+      "/store/matrix",
     );
   }
 
@@ -639,6 +663,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getOrderById",
       requestOptions,
+      undefined,
+      "getOrderById",
+      "/store/order/{orderId}",
     );
   }
 
@@ -714,6 +741,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getOrderByTrackingId",
       requestOptions,
+      undefined,
+      "getOrderByTrackingId",
+      "/store/order/by-tracking/{trackingId}",
     );
   }
 
@@ -788,6 +818,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getStockItem",
       requestOptions,
+      undefined,
+      "getStockItem",
+      "/store/stock-item",
     );
   }
 
@@ -843,6 +876,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getSwatch",
       requestOptions,
+      undefined,
+      "getSwatch",
+      "/store/swatch",
     );
   }
 
@@ -905,6 +941,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getSwatchGroups",
       requestOptions,
+      undefined,
+      "getSwatchGroups",
+      "/store/swatch-groups",
     );
   }
 
@@ -964,6 +1003,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getTimestampGroups",
       requestOptions,
+      undefined,
+      "getTimestampGroups",
+      "/store/timestamp-groups",
     );
   }
 
@@ -1015,6 +1057,9 @@ export class StoreApi extends BaseApi {
       "model",
       "getTree",
       requestOptions,
+      undefined,
+      "getTree",
+      "/store/tree",
     );
   }
 
@@ -1076,6 +1121,9 @@ export class StoreApi extends BaseApi {
       "model",
       "placeOrder",
       requestOptions,
+      undefined,
+      "placeOrder",
+      "/store/order",
     );
   }
 
@@ -1139,6 +1187,9 @@ export class StoreApi extends BaseApi {
       "model",
       "reserveStock",
       requestOptions,
+      undefined,
+      "reserveStock",
+      "/store/reservation",
     );
   }
 
@@ -1236,6 +1287,9 @@ export class StoreApi extends BaseApi {
       "model",
       "searchStore",
       requestOptions,
+      undefined,
+      "searchStore",
+      "/store/search",
     );
   }
 }

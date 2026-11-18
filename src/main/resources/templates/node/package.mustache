@@ -32,6 +32,10 @@
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     },
+    "./opentelemetry": {
+      "types": "./dist/src/opentelemetry-call-hook.d.ts",
+      "default": "./dist/src/opentelemetry-call-hook.js"
+    },
     "./package.json": "./package.json"
   },
   "imports": {
@@ -76,6 +80,7 @@
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^2.0.0",
     "@opentelemetry/core": "^2.0.0",
+    "@opentelemetry/sdk-metrics": "^2.0.0",
     "@opentelemetry/sdk-trace-base": "^2.0.0",
     "typescript": "^5.7",
     "jest": "^30.0",

@@ -123,6 +123,8 @@ export class ProblemsApi extends BaseApi {
             request,
           ),
       },
+      "getFallback",
+      "/fallbacks/{fallbackId}",
     );
   }
 
@@ -211,6 +213,8 @@ export class ProblemsApi extends BaseApi {
             request,
           ),
       },
+      "getMember",
+      "/members/{memberId}",
     );
   }
 
@@ -299,6 +303,8 @@ export class ProblemsApi extends BaseApi {
             request,
           ),
       },
+      "getProject",
+      "/projects/{projectId}",
     );
   }
 
@@ -387,6 +393,8 @@ export class ProblemsApi extends BaseApi {
             request,
           ),
       },
+      "getRange",
+      "/ranges/{rangeId}",
     );
   }
 
@@ -475,6 +483,8 @@ export class ProblemsApi extends BaseApi {
             request,
           ),
       },
+      "getUpstream",
+      "/upstreams/{upstreamId}",
     );
   }
 
@@ -572,6 +582,8 @@ export class ProblemsApi extends BaseApi {
             request,
           ),
       },
+      "takeLock",
+      "/locks/{lockId}",
     );
   }
 }

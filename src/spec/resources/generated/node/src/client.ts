@@ -8,6 +8,7 @@
 import type { Authenticator } from "./auth/authenticator.js";
 import { isHttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
 import { BearerAuthenticator } from "./auth/bearer-authenticator.js";
+import type { CallHook } from "./call-hook.js";
 import type { CredentialProvider } from "./auth/credentials.js";
 import { Configuration } from "./configuration.js";
 import { DefaultApiClient } from "#transport";
@@ -23,9 +24,13 @@ import { StoreApi } from "./api/store-api.js";
  *   is merged with the per-call `signal` of each operation (either one
  *   cancels the call) and raises the signal's reason (an `AbortError` by
  *   default), never a timeout error.
+ * - `callHook` -- a hook that runs around every operation call: it can edit
+ *   the request headers before the send and observe the status or the error
+ *   afterwards. Use `chain` to combine several hooks.
  */
 export interface ClientOptions {
   readonly signal?: AbortSignal;
+  readonly callHook?: CallHook;
 }
 
 /**
@@ -247,6 +252,7 @@ export class Client {
     const config = Configuration.builder()
       .baseUrl(host.getHost())
       .signal(clientOptions?.signal)
+      .callHook(clientOptions?.callHook)
       .build();
     this.pet = new PetApi(apiClient, config, authenticator, schemes);
     this.problems = new ProblemsApi(apiClient, config, authenticator, schemes);
