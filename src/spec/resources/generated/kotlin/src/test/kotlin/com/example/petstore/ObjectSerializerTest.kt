@@ -2942,8 +2942,11 @@ class ObjectSerializerTest {
         @DisplayName("bhvSerialization002 an enum member held by a model is written as its exact wire string")
         fun enumMemberHeldByModelIsWrittenAsWireString() {
             val pet =
-                com.example.petstore.models
-                    .Pet(name = "dog", status = com.example.petstore.models.Pet.StatusEnum.PENDING)
+                com.example.petstore.models.Pet(
+                    name = "dog",
+                    photoUrls = emptySet(),
+                    status = com.example.petstore.models.Pet.StatusEnum.PENDING,
+                )
             assertTrue(serializer.serialize(pet).contains("\"status\":\"pending\""), serializer.serialize(pet))
         }
 
@@ -2966,17 +2969,26 @@ class ObjectSerializerTest {
         @DisplayName("bhvSerialization021 equal content compares equal and hashes alike, and different content is distinct")
         fun equalContentComparesEqualAndDistinctContentDoesNot() {
             val a =
-                com.example.petstore.models
-                    .Pet(name = "dog", status = com.example.petstore.models.Pet.StatusEnum.SOLD)
+                com.example.petstore.models.Pet(
+                    name = "dog",
+                    photoUrls = emptySet(),
+                    status = com.example.petstore.models.Pet.StatusEnum.SOLD,
+                )
             val b =
-                com.example.petstore.models
-                    .Pet(name = "dog", status = com.example.petstore.models.Pet.StatusEnum.SOLD)
+                com.example.petstore.models.Pet(
+                    name = "dog",
+                    photoUrls = emptySet(),
+                    status = com.example.petstore.models.Pet.StatusEnum.SOLD,
+                )
             assertEquals(a, b)
             assertEquals(a.hashCode(), b.hashCode())
             assertNotEquals(
                 a,
-                com.example.petstore.models
-                    .Pet(name = "cat", status = com.example.petstore.models.Pet.StatusEnum.SOLD),
+                com.example.petstore.models.Pet(
+                    name = "cat",
+                    photoUrls = emptySet(),
+                    status = com.example.petstore.models.Pet.StatusEnum.SOLD,
+                ),
             )
         }
 

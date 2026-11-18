@@ -170,16 +170,6 @@ class SetPetAvatarThumbnailRequest(
             try {
                 return SetPetAvatarThumbnailRequest(
                     strictJson.decodeFromJsonElement(
-                        kotlinx.serialization.serializer<ByteArray>(),
-                        element,
-                    ),
-                )
-            } catch (_: Exception) {
-                // variant did not match; fall through to the next
-            }
-            try {
-                return SetPetAvatarThumbnailRequest(
-                    strictJson.decodeFromJsonElement(
                         kotlinx.serialization.serializer<List<ByteArray>>(),
                         element,
                     ),

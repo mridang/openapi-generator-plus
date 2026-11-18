@@ -292,7 +292,8 @@ class ClientTest {
             reached += 1
             respond("{}")
         }
-        val client = {{clientClassName}}(authenticator, TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build())
+        val transport = HttpClient(engine) { followRedirects = false }
+        val client = {{clientClassName}}(authenticator, TransportOptions.builder().httpClient(transport).build())
         client.close()
 
         val ex = assertThrows(IllegalStateException::class.java) {
@@ -457,7 +458,7 @@ class ClientTest {
         val client = {{clientClassName}}(
             "https://api.example.com",
             machineAuth = credential,
-            transportOptions = TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+            transportOptions = TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
         )
         assertEquals("Bearer tok", runBlocking { credential.getAuthHeaders()["Authorization"] })
         assertEquals(listOf("https://auth.example.com/oauth/token"), requested)

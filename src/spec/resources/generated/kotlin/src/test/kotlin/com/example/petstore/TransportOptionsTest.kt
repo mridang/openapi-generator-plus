@@ -671,7 +671,7 @@ class TransportOptionsTest {
             val built = TransportOptions.builder().build()
             assertTrue(built.verifySsl)
             assertNull(built.proxy)
-            assertNull(built.userAgent)
+            assertEquals("petstore-client/1.0.0 (kotlin)", built.userAgent)
         }
 
         @Test

@@ -557,7 +557,7 @@ class TransportOptionsTest {
             val built = TransportOptions.builder().build()
             assertTrue(built.verifySsl)
             assertNull(built.proxy)
-            assertNull(built.userAgent)
+            assertEquals("{{{artifactId}}}/{{{artifactVersion}}} (kotlin)", built.userAgent)
         }
 
         @Test
