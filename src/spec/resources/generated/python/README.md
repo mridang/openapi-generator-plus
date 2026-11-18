@@ -15,18 +15,16 @@ pip install petstore-client
 
 ## Usage
 
-```python
-import asyncio
+```python statements
+import os
 
 from petstore_client.client import Client
-from petstore_client.models import Pet
 
-async def main() -> None:
-    with Client.with_token("https://api.example.com", "your-token") as client:
-        result = await client.pet.add_pet(Pet.model_construct())
-        print(result)
-
-asyncio.run(main())
+host = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"]
+token = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"]
+with Client.with_token(host, token) as client:
+    result = await client.store.get_defaults()
+    print(result)
 ```
 
 See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
@@ -49,8 +47,11 @@ settings belong to the pool manager you built.
 
 A request that fails with a transient error is retried by the SDK. `TransportOptions.builder().max_retries(n)` sets how many times (default 2, so up to three attempts); `max_retries(0)` disables retrying.
 
-```python
-transport = TransportOptions.builder().max_retries(4).build()
+```python file
+from petstore_client.transport_options import TransportOptions
+
+def make_transport() -> TransportOptions:
+    return TransportOptions.builder().max_retries(4).build()
 ```
 
 A request is retried after a network error that happened before a response arrived, and after a 408, 409, 429 or 5xx response (not 501). The wait starts at 0.5 s, doubles up to 8 s and is shortened by up to 25% at random; a `Retry-After` header (seconds or an HTTP date, at most 60 s) replaces it. Retries never extend the request timeout: when the next wait would outlast what is left of it, the last failure is reported, and a timeout itself is not retried. A stream or multipart body is never retried, and every retry is a new request with freshly built authentication headers.
@@ -126,8 +127,12 @@ Set `envVarPrefix` when generating to change the `SWAGGER_PETSTORE_OPEN_API_3_0`
 
 `Client` takes one optional credential for each security scheme of the API, as a keyword argument named after the scheme: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. Each operation uses the credential of the first scheme its spec lists that you configured; there is no per-call override. A single `authenticator` is the default for an operation none of whose schemes you configured, and a call with no matching credential and no default sends none. The base URL comes from the first credential given, `authenticator` first, and a client built with no credential at all raises `ValueError`.
 
-```python
-client = Client(pet_store_basic=PetStoreBasicAuthenticator())
+```python file
+from petstore_client.client import Client
+from petstore_client.auth.pet_store_basic_authenticator import PetStoreBasicAuthenticator
+
+def make_client() -> Client:
+    return Client(pet_store_basic=PetStoreBasicAuthenticator("https://api.example.com"))
 ```
 
 ### Cookie parameters
@@ -138,8 +143,12 @@ A cookie parameter is sent exactly as you give it when every character is a lega
 
 Every operation takes an optional `options` argument, an Options object that also carries three settings for that one call: `timeout` (milliseconds, one end-to-end budget of at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off). `None` keeps the client's setting.
 
-```python
-await client.pet.add_pet(Pet.model_construct(), options=AddPetOptions(timeout=2000, max_retries=0))
+```python file
+from petstore_client.api.options import GetDefaultsOptions
+from petstore_client.client import Client
+
+async def call(client: Client) -> object:
+    return await client.store.get_defaults(options=GetDefaultsOptions(timeout=2000, max_retries=0))
 ```
 
 A custom `ApiClient` owns its own timeout, so only the headers and the retry budget reach it.

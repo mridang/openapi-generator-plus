@@ -1,0 +1,10 @@
+host = os.environ["{{envPrefix}}_BASE_URL"]
+token = os.environ["{{envPrefix}}_ACCESS_TOKEN"]
+with {{clientClassName}}.with_token(host, token) as client:
+{{#hasExampleOperation}}
+    result = await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{#exampleOperation}}{{operationId}}(){{/exampleOperation}}
+    print(result)
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+    pass
+{{/hasExampleOperation}}
