@@ -222,7 +222,7 @@ func TestBhvAuthoauthtwoimplicit008_OAuth2ImplicitAuthenticator_GetHostReturnsCo
 
 // The authorize URL is a URL, not a form body: a space between scopes is %20,
 // never a plus, which a strict server reads as a literal plus.
-func TestOAuth2ImplicitAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
+func TestBhvLanggo061_OAuth2ImplicitAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
 	t.Parallel()
 	url := createImplicitAuthenticator().BuildAuthorizationURL("")
 
