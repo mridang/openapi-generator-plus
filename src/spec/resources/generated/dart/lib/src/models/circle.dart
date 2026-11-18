@@ -7,15 +7,13 @@
 
 import '../object_serializer.dart';
 
+import 'shape.dart';
+
 /// Circle is a model class generated from the OpenAPI schema.
-class Circle {
-  final String shapeType;
-
-  final String? label;
-
+class Circle extends Shape {
   final double radius;
 
-  const Circle({this.shapeType = 'Circle', this.label, required this.radius});
+  const Circle({super.shapeType = 'Circle', super.label, required this.radius});
 
   /// Creates a [Circle] from a JSON map.
   factory Circle.fromJson(Map<String, dynamic> json) {
@@ -56,6 +54,7 @@ class Circle {
   }
 
   /// Converts this [Circle] to a JSON map.
+  @override
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
 

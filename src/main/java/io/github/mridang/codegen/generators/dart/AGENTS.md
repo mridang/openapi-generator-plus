@@ -103,7 +103,9 @@ Where: `readme.mustache`.
 Test: `metadata_test.mustache` (README and model surface).
 
 ### allOf with a discriminator uses inheritance (S4)
-Rule: intended: the allOf parent is a base class and subtypes extend it; a model reused in two unions is not re-parented, unions use wrapper classes. The golden has no `extends` in `lib/src/models/` yet, so it has not landed.
+Rule: the allOf parent is an `abstract class` and each subtype `extends` it. The base's `fromJson` dispatches on the discriminator to the subtype its mapping names (explicit mapping or implicit schema name), throws `SerializationException` naming a value no mapping lists, and throws when the discriminator is missing or null. A subtype's `toJson` overrides the base's and writes its discriminator value (defaulted through `Gap K`). The base has no `copyWith`. Only children that compose the base are dispatched to, so a mapping to an unrelated schema never becomes a wrong return type. A child's inherited property is bound through `super.`; an inherited enum keeps the base's enum type (`dartOwner`), and only the base declares it. The shared pass's `x-allof-*` markers are copied to `dartAllOfBase`, `dartAllOfChild`, `dartAllOfParent`, `dartInherited`, `dartSubtypes` and `dartOwner` in `BetterDartCodegen.postProcessAllModels`, so the template reads no `x-` key. Imports go both ways (the base imports its subtypes, a subtype imports its base), which Dart allows.
+Why: dart classes have single inheritance, so a model reused in two unions still is not re-parented, and unions keep their wrappers.
+Test: `composed_schema_test.mustache` (bhv unions 301-304, bhv serializationobject 301).
 Why: dart classes have single inheritance and one parent only, as in java, csharp, node, python, ruby and php.
 Where: `models/model.mustache`.
 Test: `composed_schema_test.mustache`.
@@ -300,7 +302,7 @@ Why: Dart's lack of reflection, protected visibility and overloads forces each o
 
 ## Known limitations and out of scope
 
-Cancellation has no per-call handle in dart today (see S7 above). Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only; `shift_jis` and the other multi-byte or iso-8859-x labels fall back to lenient UTF-8, because dart has no multi-charset stdlib (partial). Repeated multipart scalar parts carry `content-type: text/plain; charset=utf-8` (deferred, low priority). Bare `number` is a lossy `double`. `format: byte` and `binary` map to `Uint8List`. SOCKS proxies are rejected. The warnings-fatal `make docs` target exists in the generated Makefile but no spec runs it (deferred). Model reuse across oneOf unions and allOf inheritance are under S4 (intended, not landed).
+Cancellation has no per-call handle in dart today (see S7 above). Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only; `shift_jis` and the other multi-byte or iso-8859-x labels fall back to lenient UTF-8, because dart has no multi-charset stdlib (partial). Repeated multipart scalar parts carry `content-type: text/plain; charset=utf-8` (deferred, low priority). Bare `number` is a lossy `double`. `format: byte` and `binary` map to `Uint8List`. SOCKS proxies are rejected. The warnings-fatal `make docs` target exists in the generated Makefile but no spec runs it (deferred). Model reuse across oneOf unions is under S4 (intended, not landed); allOf inheritance has landed.
 
 Out of scope, per the closed backlog issues #53, #70, #78, #88 and #90 (S11): callbacks and webhooks, XML bodies and XML `nodeType`, Link Objects, mutual TLS; the README says so under "Not supported". OpenAPI 3.2 and 3.1 support is tracked in epics #49 (3.2) and #96 (3.1) with sub-issues in #50-#100; loading 3.2 documents is #50, because the pinned swagger-parser rejects 3.2.
 

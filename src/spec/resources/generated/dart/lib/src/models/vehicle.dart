@@ -7,41 +7,36 @@
 
 import '../object_serializer.dart';
 
+import 'car.dart';
+import 'truck.dart';
+
 /// Vehicle is a model class generated from the OpenAPI schema.
-class Vehicle {
+abstract class Vehicle {
   final String vehicleType;
 
   final String plate;
 
   const Vehicle({required this.vehicleType, required this.plate});
 
-  /// Creates a [Vehicle] from a JSON map.
+  /// Decodes the subtype that the discriminator value names. A payload without the
+  /// discriminator, or with a value no mapping lists, is a [SerializationException].
   factory Vehicle.fromJson(Map<String, dynamic> json) {
-    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
-       non-null on the wire. An absent key reads as null in Dart, so this
-       single guard covers both the missing and explicitly-null cases. We
-       raise the SDK's own SerializationException (not an incidental cast/TypeError)
-       so callers see a uniform, catchable wire-shape failure. */
-    if (json['vehicleType'] == null) {
+    final disc = json['vehicleType'];
+    if (disc == null) {
       throw SerializationException(
-        "Missing required field 'vehicleType' for Vehicle",
+        "Missing discriminator property 'vehicleType' in payload for Vehicle",
       );
     }
-    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
-       non-null on the wire. An absent key reads as null in Dart, so this
-       single guard covers both the missing and explicitly-null cases. We
-       raise the SDK's own SerializationException (not an incidental cast/TypeError)
-       so callers see a uniform, catchable wire-shape failure. */
-    if (json['plate'] == null) {
-      throw SerializationException(
-        "Missing required field 'plate' for Vehicle",
-      );
+    switch (disc) {
+      case 'car':
+        return Car.fromJson(json);
+      case 'truck':
+        return Truck.fromJson(json);
+      default:
+        throw SerializationException(
+          "Discriminator value '$disc' on 'vehicleType' is not listed in the schema mapping for Vehicle",
+        );
     }
-    return Vehicle(
-      vehicleType: json['vehicleType'] as String,
-
-      plate: json['plate'] as String,
-    );
   }
 
   /// Converts this [Vehicle] to a JSON map.
@@ -53,18 +48,6 @@ class Vehicle {
     json['plate'] = plate;
 
     return json;
-  }
-
-  /// Returns a copy of this [Vehicle] with the given fields replaced.
-  ///
-  /// The model is immutable: a field that is left out keeps its current value
-  /// and this instance never changes. A nullable field is set to `null` by
-  /// passing `null` explicitly.
-  Vehicle copyWith({String? vehicleType, String? plate}) {
-    return Vehicle(
-      vehicleType: vehicleType ?? this.vehicleType,
-      plate: plate ?? this.plate,
-    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List

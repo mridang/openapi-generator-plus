@@ -7,31 +7,36 @@
 
 import '../object_serializer.dart';
 
+import 'circle.dart';
+import 'square.dart';
+
 /// Shape is a model class generated from the OpenAPI schema.
-class Shape {
+abstract class Shape {
   final String shapeType;
 
   final String? label;
 
   const Shape({required this.shapeType, this.label});
 
-  /// Creates a [Shape] from a JSON map.
+  /// Decodes the subtype that the discriminator value names. A payload without the
+  /// discriminator, or with a value no mapping lists, is a [SerializationException].
   factory Shape.fromJson(Map<String, dynamic> json) {
-    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
-       non-null on the wire. An absent key reads as null in Dart, so this
-       single guard covers both the missing and explicitly-null cases. We
-       raise the SDK's own SerializationException (not an incidental cast/TypeError)
-       so callers see a uniform, catchable wire-shape failure. */
-    if (json['shapeType'] == null) {
+    final disc = json['shapeType'];
+    if (disc == null) {
       throw SerializationException(
-        "Missing required field 'shapeType' for Shape",
+        "Missing discriminator property 'shapeType' in payload for Shape",
       );
     }
-    return Shape(
-      shapeType: json['shapeType'] as String,
-
-      label: json['label'] as String?,
-    );
+    switch (disc) {
+      case 'Circle':
+        return Circle.fromJson(json);
+      case 'Square':
+        return Square.fromJson(json);
+      default:
+        throw SerializationException(
+          "Discriminator value '$disc' on 'shapeType' is not listed in the schema mapping for Shape",
+        );
+    }
   }
 
   /// Converts this [Shape] to a JSON map.
@@ -44,18 +49,6 @@ class Shape {
       json['label'] = label;
     }
     return json;
-  }
-
-  /// Returns a copy of this [Shape] with the given fields replaced.
-  ///
-  /// The model is immutable: a field that is left out keeps its current value
-  /// and this instance never changes. A nullable field is set to `null` by
-  /// passing `null` explicitly.
-  Shape copyWith({String? shapeType, Object? label = copyUnset}) {
-    return Shape(
-      shapeType: shapeType ?? this.shapeType,
-      label: copyField<String>(label, this.label),
-    );
   }
 
   /// Value-equality based on all declared fields. List, Map and Uint8List
