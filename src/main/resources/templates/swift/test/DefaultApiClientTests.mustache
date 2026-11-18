@@ -1483,6 +1483,24 @@ private final class RedirectStubURLProtocol: URLProtocol {
         #expect(error?.underlyingError != nil)
     }
 
+    /* A call whose task is already cancelled before it starts is rejected as a cancellation, never as a timeout. */
+    @Test func testBhvMisc035AnAlreadyCancelledCallIsACancellationNotATimeout() async throws {
+        let client = DefaultApiClient()
+        let task = Task { () -> ApiHttpResponse in
+            try await client.sendRequest(
+                method: "GET", url: "http://127.0.0.1:9/already-cancelled", headers: [:], body: nil)
+        }
+        task.cancel()
+        do {
+            _ = try await task.value
+            Issue.record("expected CancellationError")
+        } catch is CancellationError {
+            // expected: a cancellation is not a timeout
+        } catch {
+            Issue.record("expected CancellationError, got \(error)")
+        }
+    }
+
     /* A cancellation the caller makes surfaces as CancellationError and is never wrapped in the SDK's ApiError. */
     @Test func testBhvMisc029ACallerCancellationIsNotWrappedInTheSdkError() async throws {
         let client = DefaultApiClient()

@@ -243,12 +243,19 @@ defmodule {{moduleName}}.TransportOptions do
               "the SDK follows redirects itself (see follow_redirects and max_redirects)"
     end
 
-    own_pool_settings? = result.proxy != nil or result.ca_cert_path != nil or result.verify_ssl == false
+    own_pool_settings =
+      [
+        proxy: result.proxy != nil,
+        ca_cert_path: result.ca_cert_path != nil,
+        verify_ssl: result.verify_ssl == false
+      ]
+      |> Enum.filter(fn {_setting, set?} -> set? end)
+      |> Keyword.keys()
 
-    if own_pool_settings? and (Keyword.has_key?(req_options, :connect_options) or Keyword.has_key?(req_options, :finch)) do
+    if own_pool_settings != [] and (Keyword.has_key?(req_options, :connect_options) or Keyword.has_key?(req_options, :finch)) do
       raise ArgumentError,
-            "req_options :connect_options/:finch conflicts with the SDK's own proxy/TLS settings; " <>
-              "configure the connection pool in one place"
+            "req_options :connect_options/:finch conflicts with the SDK's own proxy/TLS settings " <>
+              "(#{Enum.join(own_pool_settings, ", ")}); configure the connection pool in one place"
     end
 
     :ok
