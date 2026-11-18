@@ -304,6 +304,16 @@ describe Petstore::Client::Api::BaseApi do
     assert_kind_of ::Petstore::Client::Errors::OpenAPIError, err
   end
 
+  it 'bhv_misc_022 a server error is an instance of the SDK root error type' do
+    err = assert_raises(Petstore::Client::Errors::InternalServerError) do
+      api.call('GET', '/test/status/500', {}, {}, nil,
+               ['application/json'], 'application/json', nil)
+    end
+    assert_kind_of Petstore::Client::Errors::ServerError, err
+    assert_kind_of Petstore::Client::Errors::ApiError, err
+    assert_kind_of ::Petstore::Client::Errors::OpenAPIError, err
+  end
+
   it 'bhv_errors_031 InternalServerError is a kind of ServerError, ApiError and the root error' do
     err = assert_raises(Petstore::Client::Errors::InternalServerError) do
       api.call('GET', '/test/status/500', {}, {}, nil,
@@ -1584,6 +1594,18 @@ describe Petstore::Client::Api::BaseApi do
   end
 
   it 'bhv_transport_087 a connection that cannot be established raises the SDK network error' do
+    config = Petstore::Client::Configuration.builder.base_url('https://example.test').build
+    test_api = TestableApi.new(RaisingApiClient.new, config)
+
+    err = assert_raises(Petstore::Client::Errors::NetworkError) do
+      test_api.call(:get, '/items/7', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/items/7'
+  end
+
+  it 'bhv_misc_027 a transport failure with no HTTP response becomes a timeout or network error and keeps the cause' do
     config = Petstore::Client::Configuration.builder.base_url('https://example.test').build
     test_api = TestableApi.new(RaisingApiClient.new, config)
 

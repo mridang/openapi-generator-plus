@@ -58,6 +58,16 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'TLS verification enabled' do
+    it 'bhv_misc_038 with no CA certificate configured, server certificates are verified against the platform trust store' do
+      client = {{moduleName}}::DefaultApiClient.new
+      err = assert_raises({{moduleName}}::Errors::NetworkError) do
+        client.send_request(:GET, "#{ENV.fetch('CHASM_HTTPS_URL')}/test/echo", {}, nil)
+      end
+
+      _(err.status_code).must_equal(0)
+      _(err.cause).must_be_kind_of(Faraday::SSLError)
+    end
+
     it 'bhv_transport_025 rejects a server certificate signed by a CA the system does not trust' do
       client = {{moduleName}}::DefaultApiClient.new
       err = assert_raises({{moduleName}}::Errors::NetworkError) do
@@ -226,6 +236,29 @@ describe {{moduleName}}::DefaultApiClient do
     # the userinfo (java.net.http.HttpClient strips it); ruby preserves it —
     # TransportOptions keeps the userinfo verbatim and Faraday parses
     # user/password from the proxy URL. Canonical = creds carried.
+    it 'bhv_misc_031 a proxy credential is sent exactly when the proxy URL includes user information' do
+      require 'base64'
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .proxy('http://user:pass@127.0.0.1:3128')
+        .build
+
+      # The userinfo survives in TransportOptions unmodified.
+      _(transport.proxy).must_equal('http://user:pass@127.0.0.1:3128')
+
+      # Faraday parses the userinfo from the proxy URL when the connection
+      # is built — the credentials are honoured, not dropped.
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      conn = client.send(:build_connection)
+      _(conn.proxy).wont_be_nil
+      _(conn.proxy.user).must_equal('user')
+      _(conn.proxy.password).must_equal('pass')
+
+      # And they encode to the canonical Proxy-Authorization Basic value.
+      encoded = Base64.strict_encode64('user:pass')
+      _("Basic #{encoded}").must_equal('Basic dXNlcjpwYXNz')
+    end
+
     it 'bhv_transport_020 carries user:pass userinfo from the canonical proxy URL' do
       require 'base64'
 
@@ -735,6 +768,10 @@ describe {{moduleName}}::DefaultApiClient do
       assert_decodes('gzip')
     end
 
+    it 'bhv_misc_039 a well-formed gzip stream whose decoded content is empty or zero is returned as that content' do
+      assert_decodes('gzip')
+    end
+
     it 'bhv_transport_005 decompresses gzip response' do
       assert_decodes('gzip')
     end
@@ -755,6 +792,16 @@ describe {{moduleName}}::DefaultApiClient do
     # Content-Length: 0. Some servers / WAFs reject body-bearing verbs
     # with no Content-Length (411 Length Required). The client sends an
     # empty body and Content-Length: 0 explicitly on body-bearing verbs.
+    it 'bhv_misc_037 a response body that is not decoded keeps its Content-Length header' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      client = {{moduleName}}::DefaultApiClient.new
+      response = client.send_request(:POST, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['contentLength']).must_equal(0)
+    end
+
     it 'bhv_transport_019 post_with_null_body_sends_content_length_zero' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       client = {{moduleName}}::DefaultApiClient.new

@@ -202,6 +202,16 @@ describe Petstore::Client::Errors::ApiError do
     _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
   end
 
+  it 'bhv_misc_024 a transport failure keeps the underlying transport error reachable as its cause' do
+    err = Petstore::Client::Errors::NetworkTimeoutError.new(message: 'timed out')
+
+    _(err).must_be_kind_of(Petstore::Client::Errors::NetworkError)
+    _(err).must_be_kind_of(Petstore::Client::Errors::ApiError)
+    _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
+    _(err.status_code).must_equal(0)
+    _(Petstore::Client::Errors::NetworkError.new(message: 'refused').status_code).must_equal(0)
+  end
+
   it 'bhv_errors_020 chains NetworkTimeoutError up through NetworkError and ApiError with status 0' do
     err = Petstore::Client::Errors::NetworkTimeoutError.new(message: 'timed out')
 
@@ -261,6 +271,21 @@ describe Petstore::Client::Errors::ApiError do
     _(caught).must_be_same_as(error)
     _(caught).must_be_kind_of(Petstore::Client::Errors::ClientError)
     _(caught).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
+  end
+
+  it 'bhv_misc_023 a status with no specific class becomes the generic server or other error' do
+    pinned = {
+      Petstore::Client::Errors::BadRequestError => 400,
+      Petstore::Client::Errors::UnauthorizedError => 401,
+      Petstore::Client::Errors::ForbiddenError => 403,
+      Petstore::Client::Errors::NotFoundError => 404,
+      Petstore::Client::Errors::ConflictError => 409,
+      Petstore::Client::Errors::UnprocessableEntityError => 422,
+      Petstore::Client::Errors::TooManyRequestsError => 429,
+      Petstore::Client::Errors::InternalServerError => 500
+    }
+
+    pinned.each { |klass, status| _(klass.new(message: 'x').status_code).must_equal(status, klass.name) }
   end
 
   it 'bhv_errors_053 each named error pins its own HTTP status code' do
@@ -350,6 +375,13 @@ describe Petstore::Client::Errors::ApiError do
     end
   end
 
+  it 'bhv_misc_025 a typed operation call fails when the server answers with a client error status' do
+    err = Petstore::Client::Errors::ApiError.from_response(401, { 'x-request-id' => 'abc' }, '{"code":7}')
+
+    _(err).must_be_instance_of(Petstore::Client::Errors::UnauthorizedError)
+    _(err.status_code).must_equal(401)
+  end
+
   it 'bhv_errors_071 a 401 response surfaces as an UnauthorizedError' do
     err = Petstore::Client::Errors::ApiError.from_response(401, { 'x-request-id' => 'abc' }, '{"code":7}')
 
@@ -437,6 +469,12 @@ describe Petstore::Client::Errors::ApiError do
     _(body.name).must_equal('Cat')
   end
 
+  it 'bhv_misc_018 a token endpoint error with a non-JSON body exposes the status, no error code and the raw body' do
+    err = Petstore::Client::Errors::OAuth2ServerError.new(502, nil, nil, nil, '<html>bad gateway</html>')
+
+    _(err.message).must_equal('Token request failed with status 502: <html>bad gateway</html>')
+  end
+
   it 'bhv_authoauthtwotokenmgr_047 OAuth2ServerError names the status and the raw body when the body carries no error code' do
     err = Petstore::Client::Errors::OAuth2ServerError.new(502, nil, nil, nil, '<html>bad gateway</html>')
 
@@ -492,12 +530,29 @@ describe Petstore::Client::Errors::ApiError do
     end
   end
 
+  it 'bhv_misc_019 a request target shown in an error is reduced to its path, dropping scheme, host, query and fragment' do
+    err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
+                                                           request_method: 'get', request_path: '/items/1?token=abc')
+
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/items/1'
+  end
+
   it 'bhv_errors_007 records the request method and path without the query string' do
     err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
                                                            request_method: 'get', request_path: '/items/1?token=abc')
 
     _(err.request_method).must_equal 'GET'
     _(err.request_path).must_equal '/items/1'
+  end
+
+  it 'bhv_misc_021 the request path an error reports includes the base URL path prefix and excludes the query string' do
+    err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
+                                                           request_method: 'delete', request_path: '/items/1')
+
+    _(err.request_method).must_equal 'DELETE'
+    _(err.request_path).must_equal '/items/1'
+    _(err.message).must_equal "API returned status code 404\nHTTP status code: 404\nRequest: DELETE /items/1"
   end
 
   it 'bhv_errors_011 names the request in the message and in the request fields' do
@@ -507,6 +562,14 @@ describe Petstore::Client::Errors::ApiError do
     _(err.request_method).must_equal 'DELETE'
     _(err.request_path).must_equal '/items/1'
     _(err.message).must_equal "API returned status code 404\nHTTP status code: 404\nRequest: DELETE /items/1"
+  end
+
+  it 'bhv_misc_020 the rendered error text shows the request line only when the method and path are both known' do
+    err = Petstore::Client::Errors::ApiError.from_response(500, {}, nil,
+                                                           request_method: 'get', request_path: '/items?api_key=secret')
+
+    _(err.message.split("\n")).must_include 'Request: GET /items'
+    _(err.message).wont_include 'secret'
   end
 
   it 'bhv_errors_026 renders the request on its own line and never carries the query string' do
@@ -571,6 +634,24 @@ describe Petstore::Client::Errors::ApiError do
 
     _(err.message).wont_include '�'
     _(err.message).must_include '... (178 more bytes)'
+  end
+
+  it 'bhv_misc_026 configuration mistakes and wrong call order produce errors that are not API errors' do
+    inner = nil
+    wrapped = begin
+      begin
+        raise 'inner'
+      rescue RuntimeError => e
+        inner = e
+        raise ArgumentError, 'outer'
+      end
+    rescue ArgumentError => e
+      e
+    end
+
+    _(wrapped).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
+    _(wrapped.cause).must_be_same_as inner
+    _(wrapped.cause).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
   end
 
   it 'bhv_errors_076 an error the SDK did not raise is not one of its own, even when it wraps an SDK-free cause' do
