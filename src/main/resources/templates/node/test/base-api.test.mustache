@@ -769,7 +769,7 @@ describe('BaseApi', () => {
     expect(client.capturedBody).not.toContain('%20');
   });
 
-  test('form-urlencoded body keeps ~ literal and escapes * ! \' ( )', async () => {
+  test('bhv serializationwire 057 form-urlencoded body keeps ~ literal and escapes * ! \' ( )', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
@@ -1062,6 +1062,19 @@ describe('BaseApi', () => {
 });
 
 describe('BaseApi', () => {
+  test('bhv serializationwire 060 a binary return type gets the raw bytes of a JSON body', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"id":7,"name":"photo"}';
+    client.responseHeaders = { 'content-type': 'application/json' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call('GET', '/test/echo', {}, {}, null,
+      ['image/jpeg', 'application/json'], 'application/json',
+      (json) => json, undefined, 'binary');
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect((result as Buffer).toString('utf-8')).toBe('{"id":7,"name":"photo"}');
+  });
+
   test('bhv serializationwire 018 an octet-stream response is carried as base64 and decodes to its bytes', async () => {
     const original = new Uint8Array([0xDE, 0xAD, 0xBE, 0xEF]);
     const client = new CapturingApiClient();

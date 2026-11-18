@@ -370,7 +370,12 @@ export abstract class BaseApi {
       const isJson =
         respContentType === "" ||
         this.headerSelector.isJsonMime(respContentType);
-      if (!isJson) {
+      if (returnKind === "binary" && isJson) {
+        /* A binary return takes the body bytes even when the server answered
+         * with a JSON document (content negotiation): the transport keeps JSON
+         * text verbatim, so its UTF-8 bytes are the body, never a parsed value. */
+        data = Buffer.from(response.body, "utf8") as unknown as T;
+      } else if (!isJson) {
         /* The transport stores text bodies verbatim but base64-encodes
          * binary bodies (DefaultApiClient.isTextContentType decides which).
          * A string return accepts a text payload (text/*, application/xml,

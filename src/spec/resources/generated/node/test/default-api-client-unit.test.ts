@@ -1044,6 +1044,23 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     }
   });
 
+  it("bhv serializationwire 061 a multipart filename with an embedded quote is backslash-escaped", async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest(
+        "POST",
+        url,
+        {},
+        { 'a"b.png': Buffer.from([0x89, 0x50, 0x4e, 0x47]) },
+      );
+      const body = getBody().toString("binary");
+      expect(body).toContain('filename="a\\"b.png"');
+    } finally {
+      close();
+    }
+  });
+
   it("bhv serializationwire 045 a model part is written with wire property names and the date-time format", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
