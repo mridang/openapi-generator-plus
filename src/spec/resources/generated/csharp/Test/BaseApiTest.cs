@@ -1675,6 +1675,18 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvMisc159A401IsReplayedOnceEvenWithRetriesOffWhenTheAuthenticatorCanRefresh()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        _ = await CallWithAuth(client, auth, "{}");
+
+        Assert.Equal(1, auth.Invalidations);
+        Assert.Equal(2, client.Authorizations.Count);
+    }
+
+    [Fact]
     public async Task BhvRetries002AnAuthenticatorWithoutATokenCacheNeverReplaysA401()
     {
         var client = new StatusSequenceApiClient(401, 200);
@@ -3417,5 +3429,89 @@ public class BaseApiTest
         _ = await api.CallAsync<object>("/items/7", auth: auth);
 
         Assert.Equal("session=a%20b=c", client.CapturedHeaders["Cookie"]);
+    }
+
+    private sealed class RawBodyApiClient(string payload, string contentType) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromResult(
+                new ApiHttpResponse(
+                    200,
+                    payload,
+                    new Dictionary<string, string> { { "Content-Type", contentType } }
+                )
+            );
+        }
+    }
+
+    [Fact]
+    public async Task BhvSerialization122AFormArrayRepeatsItsKeyInOrder()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>
+            {
+                { "name", "alice" },
+                {
+                    "tags",
+                    new List<string> { "a", "b" }
+                },
+            },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.Equal("name=alice&tags=a&tags=b", client.CapturedBody?.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerialization125FormValuesPercentEncodeAPlusSign()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "q", "a+b" } },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.Equal("q=a%2Bb", client.CapturedBody?.ToString());
+    }
+
+    [Theory]
+    [InlineData("application/octet-stream")]
+    [InlineData("text/plain")]
+    [InlineData("application/json")]
+    public async Task BhvSerialization128AStringResponseIsReturnedUnchangedWhateverItsContentType(
+        string contentType
+    )
+    {
+        var testApi = new TestableApi(
+            new RawBodyApiClient("{\"a\":1}", contentType),
+            "http://localhost"
+        );
+        var result = await testApi.CallAsync<string>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["*/*"],
+            "application/json"
+        );
+        Assert.Equal("{\"a\":1}", result);
     }
 }

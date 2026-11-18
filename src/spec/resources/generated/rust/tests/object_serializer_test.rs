@@ -1578,7 +1578,8 @@ fn test_bhv_misc_094_a_free_form_json_object_is_written_with_its_members_unchang
     );
 }
 
-use petstore::models::{BinaryVault, Category, Counters, Metadata, Rank, StrictTag};
+use petstore::json_value::JsonValue;
+use petstore::models::{BinaryVault, Category, Counters, Defaults, Metadata, Rank, StrictTag};
 
 #[test]
 fn test_bhv_misc_102_a_binary_field_keeps_the_bytes_it_was_given_through_copying() {
@@ -1668,4 +1669,22 @@ fn test_bhv_misc_118_the_exact_case_value_is_the_one_decoded() {
     let category: Category =
         serde_json::from_str(r#"{"NAME":"Other","name":"Exact"}"#).expect("decodes");
     assert_eq!(category.name.as_deref(), Some("Exact"));
+}
+
+#[test]
+fn test_bhv_misc_121_an_object_with_no_declared_schema_is_written_as_a_json_object() {
+    let value = JsonValue::new(serde_json::json!({"a": 1, "b": "x"}));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&serde_json::to_string(&value).expect("serializes"))
+            .expect("valid JSON");
+    assert_eq!(parsed, serde_json::json!({"a": 1, "b": "x"}));
+}
+
+#[test]
+fn test_bhv_misc_122_a_string_default_is_applied_as_the_exact_literal() {
+    let filled: Defaults = serde_json::from_str("{}").expect("decodes");
+    assert_eq!(
+        filled.greeting.as_deref(),
+        Some("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b")
+    );
 }

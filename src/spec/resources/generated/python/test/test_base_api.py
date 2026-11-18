@@ -278,6 +278,46 @@ class TestExceptionDispatch:
 
         assert result.status_code == 404
 
+    async def test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_listed_status(
+        self,
+    ) -> None:
+        from petstore_client.errors import (
+            BadRequestException,
+            ForbiddenException,
+            NotFoundException,
+            ConflictException,
+            UnprocessableEntityException,
+            TooManyRequestsException,
+            InternalServerErrorException,
+        )
+
+        cases = [
+            (400, BadRequestException),
+            (403, ForbiddenException),
+            (404, NotFoundException),
+            (409, ConflictException),
+            (422, UnprocessableEntityException),
+            (429, TooManyRequestsException),
+            (500, InternalServerErrorException),
+            (502, BadGatewayException),
+        ]
+        for status, expected in cases:
+            client = _ScriptedApiClient(_json(status, "{}"))
+            api = StubApi(
+                api_client=client, config=Configuration(base_url="https://example.test")
+            )
+            with pytest.raises(expected):
+                await api.call(
+                    "GET",
+                    "/items",
+                    {},
+                    {},
+                    None,
+                    ["application/json"],
+                    "application/json",
+                    None,
+                )
+
 
 class TestErrorBodyParsing:
     async def test_bhv_errors_034_parses_json_error_body(self, api: Any) -> None:
@@ -4142,6 +4182,15 @@ class TestAutomaticRetries:
             await task
 
         assert len(server.requests) == 1
+
+    async def test_bhv_misc_296_by_default_a_failed_request_is_retried_twice_so_three_requests_reach_the_wire(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(None, None, _OK)
+
+        await _get(_retry_api(server))
+
+        assert len(server.requests) == 3
 
 
 class OAuthStubAuthenticator(StubAuthenticator):
