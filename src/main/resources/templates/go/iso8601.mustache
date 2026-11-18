@@ -64,5 +64,5 @@ func ParseTimeOfDay(s string) (time.Time, error) {
 			return t, nil
 		}
 	}
-	return time.Time{}, fmt.Errorf("ISO-8601 time: cannot parse %q (expected HH:MM:SS[.fff])", s)
+	return time.Time{}, newSerializationError(fmt.Sprintf("ISO-8601 time: cannot parse %q (expected HH:MM:SS[.fff])", s), nil)
 }

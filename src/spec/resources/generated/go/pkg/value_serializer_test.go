@@ -923,10 +923,13 @@ func TestBhvSerializationparam122_ValueSerializer_EncodeQueryValue_AllowReserved
 
 func TestBhvSerializationparam111_ValueSerializer_SerializeDeepObject(t *testing.T) {
 	t.Parallel()
-	result := serializeDeepObject("filter", map[string]any{
+	result, err := serializeDeepObject("filter", map[string]any{
 		"status": "active",
 		"type":   "dog",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if result["filter[status]"] != "active" {
 		t.Errorf("expected filter[status]='active', got %q", result["filter[status]"])
@@ -938,8 +941,8 @@ func TestBhvSerializationparam111_ValueSerializer_SerializeDeepObject(t *testing
 
 func TestBhvSerializationparam061_ValueSerializer_SerializeDeepObject_Nil(t *testing.T) {
 	t.Parallel()
-	result := serializeDeepObject("filter", nil)
-	if len(result) != 0 {
+	result, err := serializeDeepObject("filter", nil)
+	if err != nil || len(result) != 0 {
 		t.Errorf("expected empty map for nil, got %v", result)
 	}
 }
@@ -1287,7 +1290,7 @@ type styledCriteria struct {
 
 // D47/F1143: an object-valued parameter is encoded property by property, in the
 // model's declaration order, whatever its wire names (min_age is snake case).
-func TestValueSerializer_SerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
+func TestBhvSerialization015_ValueSerializer_SerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
 	t.Parallel()
 	breed := "lab"
 	minAge := int32(3)
@@ -1329,7 +1332,10 @@ func TestBhvSerializationparam017_ValueSerializer_SerializeDeepObject_ModelBecom
 	t.Parallel()
 	breed := "lab"
 	minAge := int32(3)
-	got := serializeDeepObject("criteriaDeep", &styledCriteria{Breed: &breed, MinAge: &minAge})
+	got, err := serializeDeepObject("criteriaDeep", &styledCriteria{Breed: &breed, MinAge: &minAge})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if len(got) != 2 || got["criteriaDeep[breed]"] != "lab" || got["criteriaDeep[min_age]"] != "3" {
 		t.Errorf("expected criteriaDeep[breed]=lab and criteriaDeep[min_age]=3, got %v", got)
 	}
@@ -1342,5 +1348,82 @@ func TestBhvSerialization005_ValueSerializer_PathSegmentPercentEncodesEverything
 	}
 	if got := encodePathSegment("a b/c?d#e"); got != "a%20b%2Fc%3Fd%23e" {
 		t.Errorf("expected space, slash, question mark and hash percent-encoded, got %q", got)
+	}
+}
+
+// wireOrderedCriteria declares its fields in the reverse of their wire-name order,
+// so a sorted walk would write the wrong sequence.
+type wireOrderedCriteria struct {
+	Zeta  *int32  `json:"zeta_value,omitempty"`
+	Alpha *string `json:"alpha,omitempty"`
+}
+
+// An object-valued parameter in a delimited style alternates keys and values, joined
+// by the style's own delimiter, whether the value is a map or a model.
+func TestBhvSerialization016_ValueSerializer_SerializeStyled_DelimitedObjectAlternatesKeysAndValues(t *testing.T) {
+	t.Parallel()
+	criteria := map[string]any{"min_age": int32(3), "breed": "lab"}
+	if got := serializeStyled("criteria", criteria, "query", "styledCriteria", "", "spaceDelimited", true); got != "breed lab min_age 3" {
+		t.Errorf("expected space-joined pairs, got %v", got)
+	}
+	if got := serializeStyled("criteria", criteria, "query", "styledCriteria", "", "pipeDelimited", false); got != "breed|lab|min_age|3" {
+		t.Errorf("expected pipe-joined pairs, got %v", got)
+	}
+}
+
+// A model object-valued parameter is written under each property's wire name, in
+// declaration order, in every style.
+func TestBhvSerialization017_ValueSerializer_SerializeStyled_ModelWritesWireNamesInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	zeta := int32(7)
+	alpha := "x"
+	criteria := &wireOrderedCriteria{Zeta: &zeta, Alpha: &alpha}
+	cases := []struct {
+		name     string
+		location string
+		style    string
+		explode  bool
+		want     any
+	}{
+		{"form csv", "query", "form", false, "zeta_value,7,alpha,x"},
+		{"simple header", "header", "simple", false, "zeta_value,7,alpha,x"},
+		{"label", "path", "label", false, ".zeta_value,7,alpha,x"},
+		{"matrix", "path", "matrix", false, ";criteria=zeta_value,7,alpha,x"},
+		{"matrix exploded", "path", "matrix", true, ";zeta_value=7;alpha=x"},
+		{"space delimited", "query", "spaceDelimited", false, "zeta_value 7 alpha x"},
+		{"pipe delimited", "query", "pipeDelimited", false, "zeta_value|7|alpha|x"},
+	}
+	for _, tc := range cases {
+		if got := serializeStyled("criteria", criteria, tc.location, "wireOrderedCriteria", "", tc.style, tc.explode); got != tc.want {
+			t.Errorf("%s: expected %v, got %v", tc.name, tc.want, got)
+		}
+	}
+}
+
+// A deepObject value holding a nested object or array is refused with a serialization error.
+func TestBhvSerialization018_ValueSerializer_SerializeDeepObject_NestedObjectIsRefused(t *testing.T) {
+	t.Parallel()
+	_, err := serializeDeepObject("filter", map[string]any{"outer": map[string]any{"inner": "1"}})
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a nested object, got %T: %v", err, err)
+	}
+	_, err = serializeDeepObject("filter", map[string]any{"tags": []string{"a"}})
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a nested array, got %T: %v", err, err)
+	}
+}
+
+// An unset property of a model, or a null entry in a parameter map, is left out of the output.
+func TestBhvSerialization019_ValueSerializer_SerializeStyled_UnsetPropertyAndNullEntryAreLeftOut(t *testing.T) {
+	t.Parallel()
+	minAge := int32(3)
+	exploded, ok := serializeStyled("criteria", &styledCriteria{MinAge: &minAge}, "query", "styledCriteria", "", "form", true).(queryPairs)
+	if !ok || len(exploded) != 1 || exploded[0] != [2]string{"min_age", "3"} {
+		t.Errorf("expected only min_age=3 for a model with one set property, got %v", exploded)
+	}
+	mapped, ok := serializeStyled("criteria", map[string]any{"breed": nil, "min_age": int32(3)}, "query", "styledCriteria", "", "form", true).(queryPairs)
+	if !ok || len(mapped) != 1 || mapped[0] != [2]string{"min_age", "3"} {
+		t.Errorf("expected only min_age=3 for a map with a null entry, got %v", mapped)
 	}
 }

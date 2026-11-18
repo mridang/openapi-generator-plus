@@ -315,7 +315,11 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}
 	if options != nil && options.{{nameInPascalCase}} != nil {
-		for k, v := range serializeDeepObject("{{baseName}}", options.{{nameInPascalCase}}) {
+		deepParams, err := serializeDeepObject("{{baseName}}", options.{{nameInPascalCase}})
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range deepParams {
 			queryParams[k] = v
 		}
 	}
