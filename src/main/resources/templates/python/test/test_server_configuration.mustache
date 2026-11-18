@@ -304,6 +304,17 @@ class TestServerVariableOrderAndResolution:
 
         assert config.get_url({'path': 'a\\b\\n'}) == 'https://example.com/a\\b\\n'
 
+    def test_bhv_misc_278_a_templated_server_url_resolves_each_default_when_no_overrides_are_given(self) -> None:
+        config = ServerConfiguration(
+            url_template='https://{env}.example.com/v{version}',
+            variables={
+                'env': ServerVariable(default_value='prod'),
+                'version': ServerVariable(default_value='2'),
+            },
+        )
+
+        assert config.get_url() == 'https://prod.example.com/v2'
+
 
 class TestFixedServerUrl:
     def test_bhv_misc_158_a_server_with_a_fixed_url_reports_that_url_unchanged(self) -> None:

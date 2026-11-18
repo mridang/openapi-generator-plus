@@ -29,6 +29,28 @@ class TestConfigurationDefaults:
 
         assert isinstance(builder, ConfigurationBuilder)
 
+    def test_bhv_misc_276_the_default_configuration_and_builder_use_the_spec_base_url(
+        self,
+    ) -> None:
+        assert Configuration.builder().build().base_url == "/api/v3"
+
+    def test_bhv_misc_277_each_call_to_the_default_configuration_returns_a_distinct_object(
+        self,
+    ) -> None:
+        assert Configuration() is not Configuration()
+
+    def test_bhv_misc_279_changing_headers_returned_from_a_configuration_leaves_its_own_headers_unchanged(
+        self,
+    ) -> None:
+        config = Configuration(
+            base_url="https://example.com", default_headers={"X-Keep": "yes"}
+        )
+
+        headers = config.default_headers
+        headers["X-New"] = "no"
+
+        assert "X-New" not in config.default_headers
+
 
 class TestConfigurationBuilder:
     def test_bhv_config_011_builder_sets_base_url(self) -> None:
