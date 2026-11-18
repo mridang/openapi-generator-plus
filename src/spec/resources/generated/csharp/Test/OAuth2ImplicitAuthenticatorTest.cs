@@ -41,7 +41,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void AccessTokenFieldIsVolatile()
+    public void BhvLangcsharp061AccessTokenFieldIsVolatile()
     {
         FieldInfo field = typeof(OAuth2ImplicitAuthenticator).GetField(
             "_accessToken",
@@ -64,7 +64,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void AuthorizationUrlKeepsConfiguredEndpointVerbatim()
+    public void BhvLangcsharp062AuthorizationUrlKeepsConfiguredEndpointVerbatim()
     {
         var auth = new OAuth2ImplicitAuthenticator(
             "https://api.example.com",
