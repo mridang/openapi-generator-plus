@@ -97,6 +97,29 @@ describe Petstore::Client::Api::PetApi do
     end
   end
 
+  describe '#find_pets_by_status with no options' do
+    it 'bhv_misc_003 an all-optional operation sends no omitted parameter' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status
+        _(captured.pop[:request_line]).wont_include '?'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_misc_005 a bare null list body raises an API error' do
+      api, server, thread, captured = capture_wire_request('null')
+      begin
+        _(-> { api.find_pets_by_status }).must_raise Petstore::Client::Errors::ApiError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe '#find_pets_by_status' do
     it 'bhv_operations_039 find_pets_by_status' do
       result = @api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
@@ -217,6 +240,22 @@ describe Petstore::Client::Api::PetApi do
         server.close
         thread.join(2)
       end
+    end
+  end
+
+  describe '#get_pet_by_name without its positional argument or options' do
+    it 'bhv_misc_007 a missing path parameter is named and no request is sent' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+
+      err = assert_raises(ArgumentError) { api.get_pet_by_name(nil, nil) }
+      _(err.message).must_include "'name'"
+      _(client.calls).must_equal(0)
+    end
+
+    it 'bhv_misc_010 an operation with required options refuses a call that omits them' do
+      _(-> { @api.get_pet_by_name('Rex') }).must_raise ArgumentError
     end
   end
 

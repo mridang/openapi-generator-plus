@@ -396,6 +396,98 @@ void main() {
       expect(result.data, isNotNull);
     });
 
+    test(
+      'bhv misc 009 a call without an options object sends none of the per-call headers',
+      () async {
+        String? perCall;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          perCall = request.headers.value('X-Per-Call');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"available":1}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getInventory(null);
+
+          expect(perCall, isNull);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 011 a no-parameter operation accepts the call settings and applies them',
+      () async {
+        String? perCall;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          perCall = request.headers.value('X-Per-Call');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"available":1}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          final inventory = await api.getInventory(
+            GetInventoryOptions(
+              timeout: 1000,
+              headers: {'X-Per-Call': 'yes'},
+              maxRetries: 0,
+            ),
+          );
+
+          expect(perCall, equals('yes'));
+          expect(inventory['available'], equals(1));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 013 a no-parameter operation called without options returns its result',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"available":3}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          final inventory = await api.getInventory(null);
+
+          expect(inventory['available'], equals(3));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('bhv operations 104 getOrderById', () async {
       final api = _newStoreApiForIntegration();
 

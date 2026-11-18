@@ -16,6 +16,7 @@ class _FakeApiClient implements ApiClient {
   String? lastUrl;
   final List<String> urls = [];
   final List<String> bodies = [];
+  Object? failure;
 
   void enqueue(String body, {int statusCode = 200}) {
     _responses.add(
@@ -33,6 +34,8 @@ class _FakeApiClient implements ApiClient {
     int? timeout,
     bool noDefaultHeaders = false,
   }) async {
+    final failed = failure;
+    if (failed != null) throw failed;
     lastUrl = url;
     urls.add(url);
     if (body != null) {
@@ -259,6 +262,19 @@ void main() {
                 .having((e) => e.code, 'code', equals('invalid_grant')),
           ),
         );
+      },
+    );
+
+    test(
+      'bhv misc 028 a transport failure during the code exchange reaches the caller unchanged',
+      () async {
+        final cause = StateError('connection reset');
+        final client = _FakeApiClient();
+        client.failure = cause;
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(auth.exchangeCode('the-code'), throwsA(same(cause)));
       },
     );
 
