@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -2909,5 +2910,219 @@ func TestBhvTransport092_DefaultApiClient_ACallerSuppliedClientReceivesTheReques
 	}
 	if got := doer.hits.Load(); got != 1 {
 		t.Errorf("expected the caller's client to receive 1 request, got %d", got)
+	}
+}
+
+// A transport error reports the request target reduced to its path, without the scheme, host or query.
+func TestBhvMisc019_DefaultApiClient_ATargetInAnErrorIsReducedToItsPath(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := server.URL
+	server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	_, err = client.SendRequest("GET", url+"/items/7?token=secret", nil, nil)
+	if err == nil || strings.Contains(err.Error(), url) || strings.Contains(err.Error(), "secret") || !strings.Contains(err.Error(), "/items/7") {
+		t.Errorf("expected only the path in the message, got %v", err)
+	}
+}
+
+// A proxy credential is sent to the proxy exactly when the proxy URL includes user information.
+func TestBhvMisc031_DefaultApiClient_ProxyCredentialIsSentOnlyWithUserInfo(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Proxy-Authorization")
+		w.WriteHeader(200)
+	}))
+	defer proxy.Close()
+	addr := strings.TrimPrefix(proxy.URL, "http://")
+
+	send := func(proxyURL string) string {
+		gotAuth = ""
+		opts, err := NewTransportOptionsBuilder().Proxy(proxyURL).Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+		client := NewDefaultApiClient(opts)
+		defer func() { _ = client.Close() }()
+		_, _ = client.SendRequest("GET", "http://api.example.com/x", nil, nil)
+		return gotAuth
+	}
+	if got := send("http://user:pass@" + addr); got == "" {
+		t.Errorf("expected the proxy credential sent with user information, got none")
+	}
+	if got := send("http://" + addr); got != "" {
+		t.Errorf("expected no proxy credential without user information, got %q", got)
+	}
+}
+
+// Response header names are returned in lower case.
+func TestBhvMisc040_DefaultApiClient_ResponseHeaderNamesAreLowerCase(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Custom-Thing", "v")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	resp, err := client.SendRequest("GET", server.URL, nil, nil)
+	if err != nil || resp.Headers["x-custom-thing"] != "v" {
+		t.Errorf("expected the lower-case header name, got %v %v", resp.Headers, err)
+	}
+}
+
+// A request with an HTTP method outside the standard set is sent with its body intact.
+func TestBhvMisc041_DefaultApiClient_ANonStandardMethodKeepsItsBody(t *testing.T) {
+	t.Parallel()
+	var gotMethod, gotBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("PURGE", server.URL, map[string]string{"Content-Type": "text/plain"}, []byte("payload")); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotMethod != "PURGE" || gotBody != "payload" {
+		t.Errorf("expected PURGE with the body intact, got %s %q", gotMethod, gotBody)
+	}
+}
+
+// The raw HTTP response returned to the caller exposes its status code, body and headers under public names.
+func TestBhvMisc032_DefaultApiClient_TheRawResponseHasPublicFields(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Raw", "yes")
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte("raw-body"))
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	resp, err := client.SendRequest("GET", server.URL, nil, nil)
+	if err != nil || resp.StatusCode != 201 || resp.Body != "raw-body" || resp.Headers["x-raw"] != "yes" {
+		t.Errorf("expected the status, body and headers public, got %+v %v", resp, err)
+	}
+}
+
+// A caller's body part remains readable after the request it was sent with fails.
+func TestBhvMisc036_DefaultApiClient_ACallerBodyPartStaysReadableAfterAFailure(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := server.URL
+	server.Close()
+	path := t.TempDir() + "/part.txt"
+	if err := os.WriteFile(path, []byte("content"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("POST", url, nil, map[string]any{"doc": f}); err == nil {
+		t.Fatal("expected the request to fail against a closed server")
+	}
+	if _, err := f.Stat(); err != nil {
+		t.Errorf("expected the caller's part still open, got %v", err)
+	}
+}
+
+// A response body that is not decoded keeps its Content-Length header.
+func TestBhvMisc037_DefaultApiClient_AnUndecodedBodyKeepsItsContentLength(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "5")
+		_, _ = w.Write([]byte("hello"))
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	resp, err := client.SendRequest("GET", server.URL, nil, nil)
+	if err != nil || resp.Headers["content-length"] != "5" {
+		t.Errorf("expected Content-Length kept, got %v %v", resp.Headers, err)
+	}
+}
+
+// With no CA certificate configured, server certificates are verified against the platform's default trust store.
+func TestBhvMisc038_DefaultApiClient_NoCaMeansThePlatformTrustStore(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", server.URL, nil, nil); err == nil {
+		t.Error("expected the self-signed test certificate refused by the platform trust store")
+	}
+}
+
+// A well-formed gzip stream whose decoded content is an empty string or zero is returned as that content.
+func TestBhvMisc039_DefaultApiClient_AGzipOfAnEmptyOrZeroValueIsNotCorrupt(t *testing.T) {
+	t.Parallel()
+	for _, content := range []string{"", "0"} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var buf bytes.Buffer
+			zw := gzip.NewWriter(&buf)
+			_, _ = zw.Write([]byte(content))
+			_ = zw.Close()
+			w.Header().Set("Content-Encoding", "gzip")
+			_, _ = w.Write(buf.Bytes())
+		}))
+		opts, err := NewTransportOptionsBuilder().Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+		client := NewDefaultApiClient(opts)
+		resp, err := client.SendRequest("GET", server.URL, nil, nil)
+		if err != nil || resp.Body != content {
+			t.Errorf("content %q: expected it returned unchanged, got %q %v", content, resp.Body, err)
+		}
+		_ = client.Close()
+		server.Close()
 	}
 }

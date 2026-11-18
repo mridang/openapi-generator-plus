@@ -10,8 +10,11 @@
 package petstore_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -1664,5 +1667,63 @@ func TestBhvMisc016_ApiError_ALongBodyIsTruncatedWithTheOmittedCount(t *testing.
 	rendered := apierrors.NewApiError(500, "boom", body, nil, nil, nil).Error()
 	if len(rendered) >= 2000 || !strings.Contains(rendered, "more bytes") {
 		t.Errorf("expected a bounded rendering that states the omitted bytes, got %d characters", len(rendered))
+	}
+}
+
+// The rendered error text shows the request line only when both the request method and the request path are known.
+func TestBhvMisc020_ApiError_TheRequestLineNeedsBothMethodAndPath(t *testing.T) {
+	t.Parallel()
+	bare := apierrors.NewApiError(404, "missing", "", nil, nil, nil)
+	if strings.Contains(bare.Error(), "Request:") {
+		t.Errorf("expected no request line without a method and path, got %q", bare.Error())
+	}
+	withPath := apierrors.NewApiError(404, "missing", "", nil, nil, nil)
+	withPath.AttachRequest("GET", "/items/7")
+	if !strings.Contains(withPath.Error(), "Request: GET /items/7") {
+		t.Errorf("expected the request line with method and path, got %q", withPath.Error())
+	}
+}
+
+// A server error is an instance of the SDK root error type and of the server class it wraps.
+func TestBhvMisc022_ApiError_AServerErrorIsTheRootAndTheServerClass(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(503, map[string]string{}, "{}")
+	var root apierrors.OpenAPIError
+	var server *apierrors.ServerError
+	if !errors.As(err, &root) || !errors.As(err, &server) {
+		t.Errorf("expected the root error and the server class, got %T: %v", err, err)
+	}
+}
+
+// A status code with no specific error class becomes the generic server error for a 5xx, or the generic API error otherwise.
+func TestBhvMisc023_ApiError_AnUnmappedStatusFallsToItsGenericClass(t *testing.T) {
+	t.Parallel()
+	var server *apierrors.ServerError
+	if err := apierrors.FromResponse(599, map[string]string{}, "{}"); !errors.As(err, &server) {
+		t.Errorf("expected the generic server error for an unmapped 5xx, got %T: %v", err, err)
+	}
+	var apiErr *apierrors.ApiError
+	if err := apierrors.FromResponse(399, map[string]string{}, "{}"); !errors.As(err, &apiErr) || errors.As(err, &server) {
+		t.Errorf("expected the generic API error for an unmapped non-5xx, got %T: %v", err, err)
+	}
+}
+
+// A typed operation call fails when the server answers with a client error status.
+func TestBhvMisc025_PetApi_AClientErrorStatusFailsTheCall(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode() != 404 {
+		t.Errorf("expected the call to fail with the 404 API error, got %T: %v", err, err)
 	}
 }

@@ -913,3 +913,16 @@ func TestBhvAuth052_OAuth2AuthorizationCodeAuthenticator_RefusesHeadersBeforeAnE
 		t.Errorf("expected no headers before an exchange, got %v", headers)
 	}
 }
+
+// A transport failure during the authorization code exchange reaches the caller as the same error.
+func TestBhvMisc028_OAuth2AuthorizationCodeAuthenticator_AnExchangeFailureIsReturnedUnchanged(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("connection reset")
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(unreachableTokenClient{cause: cause})
+	_ = authObj.BuildAuthorizationURL("state")
+
+	if err := authObj.ExchangeCode("the-code"); err != cause {
+		t.Errorf("expected the transport error unchanged, got %T: %v", err, err)
+	}
+}

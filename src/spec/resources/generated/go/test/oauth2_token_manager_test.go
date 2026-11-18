@@ -1775,3 +1775,19 @@ func TestBhvAuth058_OAuth2TokenManager_RefreshGrantComesFirstWhenARefreshTokenIs
 		t.Errorf("expected the refresh grant at refreshURL first, got %q %q", second.url, second.body)
 	}
 }
+
+// A token endpoint error with a non-JSON body exposes the status, no error code, and the raw body text.
+func TestBhvMisc018_OAuth2TokenManager_ANonJsonTokenErrorKeepsTheRawBody(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: "plain text failure", statusCode: 400},
+	}}
+	m := oauth.NewOAuth2TokenManager()
+	m.SetApiClient(client)
+
+	_, err := m.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"})
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) || serverErr.StatusCode() != 400 || serverErr.Code() != "" || !strings.Contains(err.Error(), "plain text failure") {
+		t.Errorf("expected the status, no code and the raw body, got %T: %v", err, err)
+	}
+}

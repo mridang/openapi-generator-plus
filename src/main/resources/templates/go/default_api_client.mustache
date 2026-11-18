@@ -190,10 +190,11 @@ func redactedTransportMessage(err error) string {
 		return err.Error()
 	}
 	parsed, perr := url.Parse(urlErr.URL)
-	if perr != nil || parsed.RawQuery == "" {
+	if perr != nil {
 		return err.Error()
 	}
-	return fmt.Sprintf("%s %q: %v", urlErr.Op, redactURL(parsed), urlErr.Err)
+	/* The request target is shown as its path only: no scheme, host, query or fragment. */
+	return fmt.Sprintf("%s %q: %v", urlErr.Op, parsed.EscapedPath(), urlErr.Err)
 }
 
 // redirectRefusalMessage is the text of a refused redirect: the CheckRedirect

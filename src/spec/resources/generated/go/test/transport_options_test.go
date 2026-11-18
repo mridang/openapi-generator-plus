@@ -1029,3 +1029,21 @@ func TestBhvErrors098_TransportOptions_AMissingCaCertificateNamesThePathAndWraps
 		t.Errorf("expected an error naming the path and wrapping not-found, got %v", err)
 	}
 }
+
+// Supplying both a caller HTTP client and a caller transport is refused when the client is built.
+func TestBhvMisc034_TransportOptions_AClientAndATransportTogetherAreRefused(t *testing.T) {
+	t.Parallel()
+	_, err := petstore.NewTransportOptionsBuilder().HttpClient(&http.Client{}).RoundTripper(http.DefaultTransport).Build()
+	if !errors.Is(err, petstore.ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict for a client and a transport, got %v", err)
+	}
+}
+
+// Supplying a custom HTTP connection with disabled TLS verification is refused, and the error names the verification setting.
+func TestBhvMisc042_TransportOptions_DisabledVerificationRefusalNamesTheSetting(t *testing.T) {
+	t.Parallel()
+	_, err := petstore.NewTransportOptionsBuilder().HttpClient(&http.Client{}).VerifySsl(false).Build()
+	if !errors.Is(err, petstore.ErrTransportConflict) || !strings.Contains(err.Error(), "VerifySsl") {
+		t.Errorf("expected a conflict naming VerifySsl, got %v", err)
+	}
+}

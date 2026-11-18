@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -656,5 +657,142 @@ func TestBhvErrors092_Client_ANetworkErrorCarriesTheRequestMethodAndPath(t *test
 	var netErr *apierrors.NetworkError
 	if !errors.As(err, &netErr) || netErr.RequestMethod() != "GET" || netErr.RequestPath() != "/pet/1" {
 		t.Errorf("expected the request method and path on the network error, got %T: %v", err, err)
+	}
+}
+
+// A path prefix on a relative base URL is part of the request path an error reports, and the query is not.
+func TestBhvMisc021_Client_ErrorPathKeepsThePrefixAndDropsTheQuery(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL+"/v1", "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	var pathed interface{ RequestPath() string }
+	if !errors.As(err, &pathed) || pathed.RequestPath() != "/v1/pet/1" {
+		t.Errorf("expected the request path with the prefix, got %v", err)
+	}
+}
+
+// A transport failure keeps the underlying transport error reachable as its cause, not only its status.
+func TestBhvMisc024_Client_ATransportFailureKeepsItsCause(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := server.URL
+	server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(url, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	var opErr *net.OpError
+	if !errors.As(err, &opErr) {
+		t.Errorf("expected the underlying network operation error reachable, got %T: %v", err, err)
+	}
+}
+
+// A transport failure with no HTTP response becomes a network error that keeps its underlying cause.
+func TestBhvMisc027_Client_ATransportFailureIsANetworkErrorWithACause(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := server.URL
+	server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(url, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	var netErr *apierrors.NetworkError
+	if !errors.As(err, &netErr) || errors.Unwrap(netErr) == nil {
+		t.Errorf("expected a NetworkError with a cause, got %T: %v", err, err)
+	}
+}
+
+// A cancellation set by the caller surfaces as the caller's own cancellation error, never wrapped in the SDK's error type.
+func TestBhvMisc029_Client_ACallerCancellationIsNotWrappedInTheSdkError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(2 * time.Second):
+		}
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(50*time.Millisecond, cancel)
+	_, err = client.Pet.GetPetById(ctx, int64(1), nil)
+	var apiErr *apierrors.ApiError
+	if !errors.Is(err, context.Canceled) || errors.As(err, &apiErr) {
+		t.Errorf("expected the caller's own cancellation, got %T: %v", err, err)
+	}
+}
+
+// A request whose deadline has already passed raises a timeout error and never reaches the transport.
+func TestBhvMisc030_Client_APastDeadlineIsATimeoutAndSendsNothing(t *testing.T) {
+	t.Parallel()
+	hits := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case hits <- struct{}{}:
+		default:
+		}
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	_, err = client.Pet.GetPetById(ctx, int64(1), nil)
+	var timeoutErr *apierrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Errorf("expected a NetworkTimeoutError for a passed deadline, got %T: %v", err, err)
+	}
+	select {
+	case <-hits:
+		t.Error("expected no request to reach the transport")
+	default:
+	}
+}
+
+// A call whose context is already cancelled before it starts is rejected with a cancellation error, not a timeout error.
+func TestBhvMisc035_Client_AnAlreadyCancelledCallIsACancellationNotATimeout(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = client.Pet.GetPetById(ctx, int64(1), nil)
+	var timeoutErr *apierrors.NetworkTimeoutError
+	if !errors.Is(err, context.Canceled) || errors.As(err, &timeoutErr) {
+		t.Errorf("expected a cancellation error, got %T: %v", err, err)
 	}
 }

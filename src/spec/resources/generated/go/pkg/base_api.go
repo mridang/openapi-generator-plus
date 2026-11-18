@@ -189,7 +189,8 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	if params.settings != nil {
 		callTimeout, callMaxRetries, callHeaders = params.settings.timeout, params.settings.maxRetries, params.settings.headers
 	}
-	requestPath := requestPathOf(params.path)
+	/* The path of the full request URL: a relative base URL's path prefix is part of it. */
+	requestPath := requestPathOf(requestURL)
 
 	/* Everything from here on is rebuilt for every attempt: a replayed or
 	 * retried request is a fresh request, so its authentication headers, query
