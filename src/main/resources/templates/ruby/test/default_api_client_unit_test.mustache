@@ -507,6 +507,23 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_misc_299 a caller header replaces the transport default header of the same name on the wire' do
+    seen = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        seen << env.request_headers['Accept-Language']
+        [200, {}, '{}']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.default_header('Accept-Language', 'en').build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', { 'Accept-Language' => 'fr' }, nil)
+    end
+    _(seen).must_equal ['fr']
+    stubs.verify_stubbed_calls
+  end
+
   # ── Multipart filename sanitization (Gap F) ──
 
   it 'bhv_serialization_123 multipart field names and filenames with CR, LF, NUL or quote characters are rejected' do
@@ -2590,6 +2607,14 @@ describe 'DefaultApiClientUnit' do
     _outcome, envs, = run_retry_probe(options: options) { [503, {}, 'busy'] }
 
     _(envs.length).must_equal 2
+  end
+
+  it 'bhv_misc_296 by default a failed request is retried twice with backoff, so three requests reach the wire' do
+    _outcome, envs, delays = run_retry_probe { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 3
+    _(delays.length).must_equal 2
+    _(delays[1]).must_be :>, delays[0]
   end
 
   it 'bhv_retries_026 waits as long as a Retry-After header in seconds says' do

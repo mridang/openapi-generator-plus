@@ -507,6 +507,23 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_misc_299 a caller header replaces the transport default header of the same name on the wire' do
+    seen = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        seen << env.request_headers['Accept-Language']
+        [200, {}, '{}']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.default_header('Accept-Language', 'en').build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', { 'Accept-Language' => 'fr' }, nil)
+    end
+    _(seen).must_equal ['fr']
+    stubs.verify_stubbed_calls
+  end
+
   # ── Multipart filename sanitization (Gap F) ──
 
   it 'bhv_serialization_123 multipart field names and filenames with CR, LF, NUL or quote characters are rejected' do
@@ -1792,7 +1809,7 @@ describe 'DefaultApiClientUnit' do
     client = Petstore::Client::DefaultApiClient.new(transport)
     headers = {
       'X-API-Key' => 'secret-api-key-value',
-      'X-Internal-Key' => 'secret-api-key-value'
+      'X-Internal-Key' => 'secret-api-key-value',
     }
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request(:GET, 'http://localhost/start', headers, nil)
@@ -1917,9 +1934,11 @@ describe 'DefaultApiClientUnit' do
     # Faraday's net_http adapter wraps Net::OpenTimeout in ConnectionFailed.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/connect-timeout') do
-        raise Net::OpenTimeout, 'execution expired'
-      rescue Net::OpenTimeout => e
-        raise Faraday::ConnectionFailed, e
+        begin
+          raise Net::OpenTimeout, 'execution expired'
+        rescue Net::OpenTimeout => e
+          raise Faraday::ConnectionFailed, e
+        end
       end
     end
     client = Petstore::Client::DefaultApiClient.new(single_attempt)
@@ -1937,9 +1956,11 @@ describe 'DefaultApiClientUnit' do
     # same budget as the connect and read ones, so it is the same error type.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/write-timeout') do
-        raise Net::WriteTimeout, 'execution expired'
-      rescue Net::WriteTimeout => e
-        raise Faraday::TimeoutError, e
+        begin
+          raise Net::WriteTimeout, 'execution expired'
+        rescue Net::WriteTimeout => e
+          raise Faraday::TimeoutError, e
+        end
       end
     end
     client = Petstore::Client::DefaultApiClient.new(single_attempt)
@@ -2578,6 +2599,14 @@ describe 'DefaultApiClientUnit' do
     _outcome, envs, = run_retry_probe(options: options) { [503, {}, 'busy'] }
 
     _(envs.length).must_equal 2
+  end
+
+  it 'bhv_misc_296 by default a failed request is retried twice with backoff, so three requests reach the wire' do
+    _outcome, envs, delays = run_retry_probe { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 3
+    _(delays.length).must_equal 2
+    _(delays[1]).must_be :>, delays[0]
   end
 
   it 'bhv_retries_026 waits as long as a Retry-After header in seconds says' do

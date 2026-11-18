@@ -154,6 +154,13 @@ describe Petstore::Client::TransportOptions do
     _(error).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
   end
 
+  it 'bhv_misc_298 a malformed proxy URL fails with the invalid proxy URL error' do
+    error = assert_raises(ArgumentError) do
+      Petstore::Client::TransportOptions.builder.proxy('not-a-url').build
+    end
+    _(error.message).must_match(/\AInvalid proxy URL/)
+  end
+
   it 'bhv_options_013 unparseable proxy URL raises ArgumentError, not URI::InvalidURIError' do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[bad').build
@@ -170,7 +177,7 @@ describe Petstore::Client::TransportOptions do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[::1:3128').build
     end
-    _(error.message).must_match(%r{\AInvalid proxy URL \(.*\): http://\[::1:3128\z}m)
+    _(error.message).must_match(/\AInvalid proxy URL \(.*\): http:\/\/\[::1:3128\z/m)
   end
 
   it 'bhv_options_046 constructing directly with a non-http proxy scheme raises ArgumentError' do
