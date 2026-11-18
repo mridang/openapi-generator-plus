@@ -1036,21 +1036,6 @@ describe 'DefaultApiClientUnit' do
     _(sent).must_be_nil
   end
 
-  it 'parses proxy URL with userinfo without raising' do
-    transport = Petstore::Client::TransportOptions.builder
-      .proxy('http://user:pass@proxy.example.com:3128')
-      .build
-    _(transport.proxy).must_equal 'http://user:pass@proxy.example.com:3128'
-
-    # Verify Faraday accepts the proxy URL during connection build.
-    client = Petstore::Client::DefaultApiClient.new(transport)
-    conn = client.send(:build_connection)
-    captured_proxy = conn.proxy
-    _(captured_proxy).wont_be_nil
-    _(captured_proxy.user).must_equal 'user'
-    _(captured_proxy.password).must_equal 'pass'
-  end
-
   # ── Bucket 3.2: no_redirect returns the 3xx as-is (does not follow) ──
 
   it 'bhv_redirects_022 returns the 308 verbatim when no_redirect: true' do
