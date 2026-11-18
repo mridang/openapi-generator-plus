@@ -34,7 +34,7 @@ describe("credentials", () => {
     expect(readEnvCredential(TOKEN_VARIABLE)).toBeUndefined();
   });
 
-  it("treats an empty variable as unset", () => {
+  it("bhv auth 040 treats an empty variable as unset", () => {
     process.env[TOKEN_VARIABLE] = "";
     expect(readEnvCredential(TOKEN_VARIABLE)).toBeUndefined();
   });

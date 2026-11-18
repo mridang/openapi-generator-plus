@@ -386,6 +386,36 @@ describe("OAuth2TokenManager", () => {
     expect(n).toBe(2);
   });
 
+  test("bhv auth 054 a non-success token response surfaces as OAuth2ServerError naming the status and the body", async () => {
+    mockClient.responseStatus = 500;
+    mockClient.responseBody = "upstream exploded";
+
+    const error = await tokenManager
+      .getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(OAuth2ServerError);
+    expect((error as Error).message).toContain("500");
+    expect((error as Error).message).toContain("upstream exploded");
+  });
+
+  test("bhv auth 055 a network failure during a token request reaches the caller unchanged", async () => {
+    const failure = new Error("socket hang up");
+    tokenManager.setApiClient({
+      sendRequest: async () => {
+        throw failure;
+      },
+    } as unknown as ApiClient);
+
+    await expect(
+      tokenManager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      }),
+    ).rejects.toBe(failure);
+  });
+
   test("bhv authoauthtwotokenmgr 031 throws when token request fails", async () => {
     mockClient.responseStatus = 401;
     mockClient.responseBody = JSON.stringify({ error: "invalid_client" });

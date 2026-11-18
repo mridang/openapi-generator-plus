@@ -56,10 +56,11 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     authenticator.setApiClient(mockClient);
   });
 
-  test('the synchronous getAuthHeaders throws instead of returning unauthenticated headers', () => {
+  test('bhv auth 052 an OAuth authenticator that holds no token refuses to produce auth headers, sync and async', async () => {
     expect(() => authenticator.getAuthHeaders()).toThrow(
       'OAuth2 authenticators require async token exchange; use getAuthHeadersAsync() instead.'
     );
+    await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow('Must call exchangeCode() before making API requests');
   });
 
   it('bhv authoauthtwoauthcode 019 redacts secret', () => {
@@ -239,6 +240,39 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow(
       'Must call exchangeCode() before making API requests'
     );
+  });
+
+  test('bhv auth 048 the authorize URL is exact and the code exchange posts to the declared token URL', async () => {
+    expect(authenticator.buildAuthorizationUrl()).toMatch(
+      /^https:\/\/auth\.example\.com\/authorize\?response_type=code&client_id=my-client-id&redirect_uri=https%3A%2F%2Fmyapp\.example\.com%2Fcallback&scope=read%20write&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256$/
+    );
+    mockClient.responseBody = JSON.stringify({ access_token: 'access-token-123', expires_in: 3600 });
+
+    await authenticator.exchangeCode('auth-code-1');
+
+    expect(mockClient.lastUrl).toBe('https://auth.example.com/token');
+    expect(mockClient.lastBody).toContain('grant_type=authorization_code');
+  });
+
+  test('bhv auth 053 exchanging a code discards the refresh token previously held', async () => {
+    mockClient.queued = [
+      { status: 200, body: { access_token: 'tok1', refresh_token: 'ref1', expires_in: 0 } },
+      { status: 200, body: { access_token: 'tok2', expires_in: 0 } },
+      { status: 200, body: { access_token: 'tok3', expires_in: 3600 } }
+    ];
+
+    await authenticator.exchangeCode('code-a');
+    await authenticator.exchangeCode('code-b');
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 120_000;
+    try {
+      await authenticator.getAuthHeadersAsync();
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect(mockClient.calls[2]!.params.get('grant_type')).not.toBe('refresh_token');
+    expect(mockClient.calls[2]!.params.get('refresh_token')).toBe('');
   });
 
   test('bhv authoauthtwoauthcode 032 the code exchange body uses a fixed parameter order', async () => {

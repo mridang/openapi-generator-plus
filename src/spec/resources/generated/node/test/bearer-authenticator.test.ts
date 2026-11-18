@@ -315,7 +315,7 @@ describe("BearerAuthenticator", () => {
       );
     });
 
-    it("does not print the provider or the token", () => {
+    it("bhv auth 033 does not print the provider or the token", () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         () => "provider-secret",
@@ -419,5 +419,37 @@ describe("BearerAuthenticator", () => {
     expect(error).toBeInstanceOf(TypeError);
     expect((error as Error).message).not.toContain("secret-value-018");
     expect((error as Error).stack ?? "").not.toContain("secret-value-018");
+  });
+
+  it("bhv auth 037 a token provider is asked again for each request and its current value is sent", () => {
+    let current = "first";
+    const auth = new BearerAuthenticator(
+      "https://api.example.com",
+      () => current,
+    );
+    expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer first" });
+    current = "second";
+    expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer second" });
+  });
+
+  it("bhv auth 038 a token provider takes precedence over the same token read from the environment", () => {
+    const variable = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
+    const saved = process.env[variable];
+    process.env[variable] = "from-env";
+    try {
+      const auth = new BearerAuthenticator(
+        "https://api.example.com",
+        () => "from-provider",
+      );
+      expect(auth.getAuthHeaders()).toEqual({
+        Authorization: "Bearer from-provider",
+      });
+    } finally {
+      if (saved === undefined) {
+        delete process.env[variable];
+      } else {
+        process.env[variable] = saved;
+      }
+    }
   });
 });
