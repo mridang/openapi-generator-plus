@@ -137,15 +137,16 @@ The gem follows semantic versioning (`1.0.0` today). The supported Ruby versions
 
 ### Decimal / `format: number` precision
 
-Ruby's stdlib `JSON.parse` returns `Float` for JSON numbers with a
-decimal point. `format: decimal` / `format: number` values are
-therefore stored as `Float`, so monetary values lose exact decimal
-representation. `0.1 + 0.2` in Ruby is `0.30000000000000004`.
-
-Do not do arithmetic on prices, balances, or other money-typed
-fields. If you need exact decimal arithmetic, parse the raw response
-body via `JSON.parse(body, decimal_class: BigDecimal)` and use
-`BigDecimal` (stdlib `bigdecimal`) for the math.
+`format: decimal` / `format: number` values are typed as `BigDecimal`
+(stdlib `bigdecimal`). A typed field is read from the JSON text with
+`decimal_class: BigDecimal`, so no digit passes through a binary float, and it
+is written back as a bare JSON number in plain notation with no exponent. A
+`BigDecimal` keeps no trailing zero, so `12.50` is written as `12.5`. A
+`type: string` decimal is read from a JSON string only and written as a JSON
+string. A number in an untyped or free-form value is still a `Float`, and
+`format: float` / `format: double` map to `Float`, which **cannot** represent
+every decimal fraction exactly (`0.1 + 0.2` is `0.30000000000000004`): do not
+use a `Float`-typed field for money.
 
 `format: int64` is unaffected — Ruby's `Integer` is arbitrary-
 precision (`Bignum`) and represents the full 64-bit range without

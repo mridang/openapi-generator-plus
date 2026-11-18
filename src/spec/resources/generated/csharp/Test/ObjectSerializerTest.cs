@@ -2078,6 +2078,167 @@ public static class ObjectSerializerTest
         }
     }
 
+    public class NativeValueFormatTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void BhvSerializationobject403DurationIsTheNativeTimeSpan()
+        {
+            NativeValues? decoded = _serializer.Deserialize<NativeValues>("{\"wait\":\"3600s\"}");
+            TimeSpan? wait = decoded!.Wait;
+            Assert.Equal(TimeSpan.FromHours(1), wait);
+        }
+
+        [Fact]
+        public void BhvSerializationobject404DurationFinerThanATickTruncatesTowardZero()
+        {
+            NativeValues? positive = _serializer.Deserialize<NativeValues>(
+                "{\"wait\":\"1.123456789s\"}"
+            );
+            NativeValues? negative = _serializer.Deserialize<NativeValues>(
+                "{\"wait\":\"-1.123456789s\"}"
+            );
+            Assert.Equal(TimeSpan.FromTicks(11234567), positive!.Wait);
+            Assert.Equal(TimeSpan.FromTicks(-11234567), negative!.Wait);
+        }
+
+        [Fact]
+        public void BhvSerializationobject405Ipv4IsTheNativeAddressAndRoundTrips()
+        {
+            NativeValues? decoded = _serializer.Deserialize<NativeValues>(
+                "{\"address4\":\"192.0.2.1\"}"
+            );
+            System.Net.IPAddress? address = decoded!.Address4;
+            Assert.Equal(System.Net.Sockets.AddressFamily.InterNetwork, address!.AddressFamily);
+            Assert.Equal("{\"address4\":\"192.0.2.1\"}", _serializer.Serialize(decoded));
+        }
+
+        [Theory]
+        [InlineData("2001:0DB8:0:0:0:0:0:1", "2001:db8::1")]
+        [InlineData("2001:db8::1", "2001:db8::1")]
+        [InlineData("::1", "::1")]
+        [InlineData("2001:db8:0:1:1:1:1:1", "2001:db8:0:1:1:1:1:1")]
+        public void BhvSerializationobject406Ipv6IsWrittenInTheCanonicalForm(
+            string given,
+            string expected
+        )
+        {
+            NativeValues? decoded = _serializer.Deserialize<NativeValues>(
+                "{\"address6\":\"" + given + "\"}"
+            );
+            Assert.Equal(
+                System.Net.Sockets.AddressFamily.InterNetworkV6,
+                decoded!.Address6!.AddressFamily
+            );
+            Assert.Equal("{\"address6\":\"" + expected + "\"}", _serializer.Serialize(decoded));
+        }
+
+        [Theory]
+        [InlineData("address4", "01.2.3.4")]
+        [InlineData("address4", "192.0.2.1/24")]
+        [InlineData("address4", " 192.0.2.1")]
+        [InlineData("address4", "[::1]")]
+        [InlineData("address4", "1")]
+        [InlineData("address4", "2001:db8::1")]
+        [InlineData("address6", "fe80::1%eth0")]
+        [InlineData("address6", "[::1]")]
+        [InlineData("address6", "2001:db8::/64")]
+        [InlineData("address6", " ::1")]
+        [InlineData("address6", "192.0.2.1")]
+        public void BhvSerializationobject407AMalformedAddressFailsWithTheSerializationError(
+            string field,
+            string text
+        )
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<NativeValues>("{\"" + field + "\":\"" + text + "\"}")
+            );
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
+        }
+
+        [Theory]
+        [InlineData("https://example.com")]
+        [InlineData("HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag")]
+        [InlineData("mailto:a@b.c")]
+        [InlineData("urn:isbn:0451450523")]
+        [InlineData("https://example.com/[x]?q='a'")]
+        [InlineData("https://example.com?")]
+        [InlineData("https://example.com/%7euser")]
+        [InlineData("https://[2001:db8::1]:8443/")]
+        public void BhvSerializationobject408EveryAbsoluteUriRoundTripsByteForByte(string text)
+        {
+            string json = "{\"homepage\":\"" + text + "\"}";
+            Assert.Equal(json, _serializer.Serialize(_serializer.Deserialize<NativeValues>(json)));
+        }
+
+        [Fact]
+        public void BhvSerializationobject409HostnameAndEmailAreKeptAsGiven()
+        {
+            string json = "{\"host\":\"not a host!\",\"contact\":\"x@\"}";
+            NativeValues? decoded = _serializer.Deserialize<NativeValues>(json);
+            Assert.Equal("not a host!", decoded!.Host);
+            Assert.Equal(json, _serializer.Serialize(decoded));
+        }
+
+        [Fact]
+        public void BhvSerializationobject410NumberKeepsEveryDigitInPlainNotation()
+        {
+            string json = "{\"amount\":12.345678901234567890123}";
+            NativeValues? decoded = _serializer.Deserialize<NativeValues>(json);
+            Assert.Equal(12.345678901234567890123m, decoded!.Amount);
+            Assert.Equal(json, _serializer.Serialize(decoded));
+        }
+
+        [Fact]
+        public void BhvSerializationobject411StringDecimalIsWrittenAsAJsonStringAndRejectsANumber()
+        {
+            NativeValues? decoded = _serializer.Deserialize<NativeValues>("{\"ledger\":\"12.50\"}");
+            Assert.Equal(12.50m, decoded!.Ledger);
+            Assert.Equal("{\"ledger\":\"12.50\"}", _serializer.Serialize(decoded));
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<NativeValues>("{\"ledger\":12.50}")
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationobject412ANumberTheDecimalCannotHoldFailsAndIsNeverRounded()
+        {
+            string forty = "1234567890123456789012345678901234567890";
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<NativeValues>("{\"amount\":" + forty + "}")
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationparam104DurationParameterIsTheProtobufForm()
+        {
+            Assert.Equal("3600s", ObjectSerializer.Stringify(TimeSpan.FromHours(1)));
+        }
+
+        [Fact]
+        public void BhvSerializationparam105AddressParameterIsTheCanonicalText()
+        {
+            Assert.Equal(
+                "192.0.2.1",
+                ObjectSerializer.Stringify(System.Net.IPAddress.Parse("192.0.2.1"))
+            );
+            Assert.Equal(
+                "2001:db8::1",
+                ObjectSerializer.Stringify(System.Net.IPAddress.Parse("2001:0DB8::1"))
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationparam106DecimalParameterIsPlainNotation()
+        {
+            Assert.Equal(
+                "12.345678901234567890123",
+                ObjectSerializer.Stringify(12.345678901234567890123m)
+            );
+        }
+    }
+
     public class ByteArrayEqualityTests
     {
         // Built fresh on every call, so each invocation hands back a vault

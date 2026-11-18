@@ -1413,3 +1413,16 @@ unions302 | An allOf base decodes to the subtype its implicit schema name mappin
 unions303 | An unknown allOf discriminator value fails and the error names the value
 unions304 | An allOf base payload without its discriminator fails
 errors205 | A decode failure of a response carries the status, the headers and the raw body
+serializationobject403 | A format: duration field is the language's native duration type, or the documented fallback, and never a wrapper where the standard library has a type | multi
+serializationobject404 | A duration finer than the native type holds keeps every digit the type can hold and truncates the rest toward zero, never rounding and never rejecting | multi
+serializationobject405 | An ipv4 field decodes a dotted-decimal address into the native address type and writes it back as dotted decimal | multi
+serializationobject406 | An ipv6 field accepts any RFC 4291 text and writes the RFC 5952 form: lowercase, the longest run of zero groups compressed | multi
+serializationobject407 | An ipv4 or ipv6 value with a leading zero, a prefix length, a zone id, brackets, surrounding whitespace or the wrong address family fails decode with the SDK serialization error | multi
+serializationobject408 | Every absolute URI of the shared corpus round-trips byte for byte through a format: uri field | multi
+serializationobject409 | A format: hostname or email value is kept as given and never rejected | multi
+serializationobject410 | A type: number field keeps all 25 digits of 12.345678901234567890123 from decode to encode and writes them as a bare JSON number in plain notation where the language has an exact decimal | multi
+serializationobject411 | A type: string field with format decimal decodes a quoted number into the native decimal, writes it back as a JSON string, and rejects a bare JSON number | multi
+serializationobject412 | A type: number value the native decimal cannot hold fails with the SDK serialization error and is never rounded | multi
+serializationparam104 | A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s | multi
+serializationparam105 | An ipv4 or ipv6 query, header and path parameter is written in the same canonical text as a body field | multi
+serializationparam106 | A type: number parameter given as the language's exact decimal is written in plain notation with no exponent and no float widening | multi

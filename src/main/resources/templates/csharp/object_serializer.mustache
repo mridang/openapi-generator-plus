@@ -260,6 +260,7 @@ internal partial class ObjectSerializer
             DateOnly d => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             TimeOnly t => FormatTime(t),
             TimeSpan ts => ProtobufDurationConverter.Format(ts),
+            System.Net.IPAddress ip => IPAddressConverter.Format(ip),
             DateTimeOffset dto => dto.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", System.Globalization.CultureInfo.InvariantCulture),
             DateTime dt => new DateTimeOffset(dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", System.Globalization.CultureInfo.InvariantCulture),
             Enum e => StringifyEnum(e),
@@ -501,6 +502,7 @@ internal partial class ObjectSerializer
          * an absolute URI; both replace the lenient System.Text.Json defaults. */
         options.Converters.Add(new StrictBase64Converter());
         options.Converters.Add(new AbsoluteUriConverter());
+        options.Converters.Add(new IPAddressConverter());
         options.Converters.Add(new LiteralStringConverter());
         options.Converters.Add(new FiniteDoubleConverter());
         return options;
@@ -1136,6 +1138,168 @@ internal sealed partial class AbsoluteUriConverter : JsonConverter<Uri>
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteStringValue(value.OriginalString);
+    }
+}
+
+/// <summary>
+/// Decodes <c>format: ipv4</c> and <c>format: ipv6</c> values into
+/// <see cref="System.Net.IPAddress"/> from the plain address text only: dotted
+/// decimal without leading zeros for IPv4, hexadecimal groups for IPv6. A prefix
+/// length, a zone id, brackets, whitespace or shorthand such as <c>1</c> is
+/// rejected, because <see cref="System.Net.IPAddress.TryParse(string, out System.Net.IPAddress)"/>
+/// alone accepts them. Encoding writes dotted decimal for IPv4 and the RFC 5952
+/// form (lowercase, the longest run of zero groups compressed) for IPv6.
+/// </summary>
+internal partial class IPAddressConverter : JsonConverter<System.Net.IPAddress>
+{
+    [System.Text.RegularExpressions.GeneratedRegex(@"\A(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(?:\.(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}\z")]
+    private static partial System.Text.RegularExpressions.Regex Ipv4Pattern();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\A[0-9A-Fa-f:.]+\z")]
+    private static partial System.Text.RegularExpressions.Regex Ipv6Pattern();
+
+    /// <summary>The address family this converter accepts, or none for either.</summary>
+    protected virtual System.Net.Sockets.AddressFamily? Family => null;
+
+    public override System.Net.IPAddress Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected an IP address JSON string but got {reader.TokenType}.");
+        }
+        string text = reader.GetString()!;
+        return Parse(text, Family);
+    }
+
+    public override void Write(Utf8JsonWriter writer, System.Net.IPAddress value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteStringValue(Format(value));
+    }
+
+    /// <summary>
+    /// Parses the plain text of an address of the given family (either, when null).
+    /// Throws <see cref="JsonException"/> on anything else.
+    /// </summary>
+    public static System.Net.IPAddress Parse(string text, System.Net.Sockets.AddressFamily? family)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        bool v4 = Ipv4Pattern().IsMatch(text);
+        bool v6 = !v4 && Ipv6Pattern().IsMatch(text);
+        if ((!v4 && !v6)
+            || (family == System.Net.Sockets.AddressFamily.InterNetwork && !v4)
+            || (family == System.Net.Sockets.AddressFamily.InterNetworkV6 && !v6)
+            || !System.Net.IPAddress.TryParse(text, out System.Net.IPAddress? address)
+            || address.AddressFamily != (v4 ? System.Net.Sockets.AddressFamily.InterNetwork : System.Net.Sockets.AddressFamily.InterNetworkV6))
+        {
+            throw new JsonException($"Invalid IP address: {text}");
+        }
+        return address;
+    }
+
+    /// <summary>Formats an address as dotted decimal (IPv4) or RFC 5952 text (IPv6).</summary>
+    public static string Format(System.Net.IPAddress value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        byte[] bytes = value.GetAddressBytes();
+        if (bytes.Length == 4)
+        {
+            return $"{bytes[0]}.{bytes[1]}.{bytes[2]}.{bytes[3]}";
+        }
+
+        int[] groups = new int[8];
+        for (int i = 0; i < 8; i++)
+        {
+            groups[i] = (bytes[2 * i] << 8) | bytes[(2 * i) + 1];
+        }
+
+        int bestStart = -1;
+        int bestLength = 0;
+        for (int i = 0; i < 8;)
+        {
+            if (groups[i] != 0)
+            {
+                i++;
+                continue;
+            }
+            int j = i;
+            while (j < 8 && groups[j] == 0)
+            {
+                j++;
+            }
+            if (j - i > bestLength)
+            {
+                bestStart = i;
+                bestLength = j - i;
+            }
+            i = j;
+        }
+        if (bestLength < 2)
+        {
+            bestStart = -1;
+        }
+
+        var text = new System.Text.StringBuilder();
+        for (int i = 0; i < 8; i++)
+        {
+            if (i == bestStart)
+            {
+                text.Append("::");
+                i += bestLength - 1;
+                continue;
+            }
+            if (text.Length > 0 && text[^1] != ':')
+            {
+                text.Append(':');
+            }
+            text.Append(groups[i].ToString("x", System.Globalization.CultureInfo.InvariantCulture));
+        }
+        return text.ToString();
+    }
+}
+
+/// <summary>An <c>ipv4</c> property: only an IPv4 address text is accepted.</summary>
+internal sealed class Ipv4AddressConverter : IPAddressConverter
+{
+    protected override System.Net.Sockets.AddressFamily? Family => System.Net.Sockets.AddressFamily.InterNetwork;
+}
+
+/// <summary>An <c>ipv6</c> property: only an IPv6 address text is accepted.</summary>
+internal sealed class Ipv6AddressConverter : IPAddressConverter
+{
+    protected override System.Net.Sockets.AddressFamily? Family => System.Net.Sockets.AddressFamily.InterNetworkV6;
+}
+
+/// <summary>
+/// Reads a <c>type: string</c> with <c>format: decimal</c> from a JSON string only and
+/// writes it back as a JSON string with the digits it was read with (<c>12.50</c> keeps
+/// its trailing zero). A bare JSON number is rejected.
+/// </summary>
+internal sealed class DecimalStringConverter : JsonConverter<decimal>
+{
+    public override decimal Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected a decimal JSON string but got {reader.TokenType}.");
+        }
+        string text = reader.GetString()!;
+        if (!decimal.TryParse(
+                text,
+                System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out decimal value))
+        {
+            throw new JsonException($"Invalid decimal: {text}");
+        }
+        return value;
+    }
+
+    public override void Write(Utf8JsonWriter writer, decimal value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteStringValue(value.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 }
 

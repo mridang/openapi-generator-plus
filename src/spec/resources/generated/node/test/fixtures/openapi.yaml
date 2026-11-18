@@ -1507,6 +1507,44 @@ paths:
                 items:
                   $ref: '#/components/schemas/Order'
 
+  # Native-type formats: duration, ipv4, ipv6, uri, decimal (number and string
+  # shaped), date, hostname and email as body fields and as parameters.
+  /store/native-values:
+    get:
+      tags:
+        - store
+      summary: Reads values of the formats the SDKs type natively.
+      operationId: getNativeValues
+      security: []
+      parameters:
+        - name: address4
+          in: query
+          schema:
+            type: string
+            format: ipv4
+        - name: delay
+          in: query
+          schema:
+            type: string
+            format: duration
+        - name: X-Address6
+          in: header
+          schema:
+            type: string
+            format: ipv6
+        - name: amount
+          in: query
+          schema:
+            type: number
+            format: decimal
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NativeValues'
+
   # ─── Transport-test endpoints ─────────────────────────────────────────────
   # Served by chasm; filtered out of SDK generation by DropInternalOperationsRule
   # (each operation carries x-internal: true). Echo, delay, compression,
@@ -2514,6 +2552,51 @@ components:
 
     # Collected real-world shapes that the petstore previously lacked, each of
     # which broke at least one generator against a real protobuf-derived spec.
+    NativeValues:
+      type: object
+      properties:
+        address4:
+          type: string
+          format: ipv4
+          example: 192.0.2.1
+        address6:
+          type: string
+          format: ipv6
+          example: 2001:db8::1
+        addresses:
+          type: array
+          items:
+            type: string
+            format: ipv6
+        homepage:
+          type: string
+          format: uri
+          example: https://example.com/a
+        amount:
+          type: number
+          format: decimal
+          example: 12.345678901234567890123
+        ledger:
+          type: string
+          format: decimal
+          example: '12.50'
+        wait:
+          type: string
+          format: duration
+          example: 3600s
+        since:
+          type: string
+          format: date
+          example: '2024-02-29'
+        host:
+          type: string
+          format: hostname
+          example: example.com
+        contact:
+          type: string
+          format: email
+          example: a@example.com
+
     EdgeCases:
       type: object
       description: >-

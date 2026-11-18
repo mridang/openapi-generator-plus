@@ -23,6 +23,7 @@ from petstore_client.models.error import Error as Error
 from petstore_client.models.medication import Medication as Medication
 from petstore_client.models.member_not_found import MemberNotFound as MemberNotFound
 from petstore_client.models.metadata import Metadata as Metadata
+from petstore_client.models.native_values import NativeValues as NativeValues
 from petstore_client.models.order import Order as Order
 from petstore_client.models.pet import Pet as Pet
 from petstore_client.models.pet_criteria import PetCriteria as PetCriteria

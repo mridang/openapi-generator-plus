@@ -40,7 +40,7 @@ The codegen class `BetterKotlinCodegen.java` owns type mapping, reserved words, 
 | allOf with a discriminator | sealed interface plus flattened data classes | a data class cannot be `open`; see S4 |
 | Required and nullable | `T?` with no default | the absence of a default is what makes the key required; see S5 |
 | Decimals | bare `format: number` is `java.math.BigDecimal`, precision-preserving | root AGENTS.md "format: number" entry; java and csharp do the same |
-| Dates and ids | `OffsetDateTime`, `LocalDate`, `LocalTime`, `Duration`, `kotlin.uuid.Uuid`, `io.ktor.http.Url` through contextual serializers | the platform types; only absolute `format: uri` maps to `Url`, `uri-reference` and `uri-template` stay `String` |
+| Dates and ids | `OffsetDateTime`, `LocalDate`, `LocalTime`, `Duration`, `kotlin.uuid.Uuid`, `java.net.URI` through contextual serializers (D97) | the platform types; only absolute `format: uri` maps to `Url`, `uri-reference` and `uri-template` stay `String` |
 | Exceptions | unchecked, cause supported natively | `Throwable.cause` is the platform mechanism, so `SerializationError.cause` and `OAuth2TokenError` constructors are allowed to differ in the API surface check |
 | Free-form `Any` | `@Contextual Any` | kotlinx-serialization has no built-in serializer for `Any`; the codegen annotates it |
 | Soft keywords | `file` is escaped to `_file` | repository policy, see AGENTS:file-keyword |

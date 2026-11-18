@@ -115,6 +115,8 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         typeMapping.put("duration", "TimeSpan");
         typeMapping.put("UUID", "Guid");
         typeMapping.put("URI", "Uri");
+        typeMapping.put("ipv4", "System.Net.IPAddress");
+        typeMapping.put("ipv6", "System.Net.IPAddress");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "object");
         typeMapping.put("array", "List");

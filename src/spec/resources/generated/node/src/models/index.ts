@@ -23,6 +23,7 @@ export * from "./member-not-found.js";
 export * from "./metadata.js";
 export * from "./model-error.js";
 export * from "./model-result.js";
+export * from "./native-values.js";
 export * from "./order.js";
 export * from "./pet.js";
 export * from "./pet-criteria.js";

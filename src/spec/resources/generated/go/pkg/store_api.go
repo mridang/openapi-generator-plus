@@ -57,6 +57,8 @@ type StoreApiInterface interface {
 	GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[map[string]int32], error)
 	GetMatrix(ctx context.Context, callOptions ...RequestOption) ([][]int32, error)
 	GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[][]int32], error)
+	GetNativeValues(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*NativeValues, error)
+	GetNativeValuesWithHTTPInfo(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*ApiResult[NativeValues], error)
 	GetOrderById(ctx context.Context, orderId int64, callOptions ...RequestOption) (*Order, error)
 	GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, callOptions ...RequestOption) (*ApiResult[Order], error)
 	GetOrderByTrackingId(ctx context.Context, trackingId uuid.UUID, callOptions ...RequestOption) (*Order, error)
@@ -974,6 +976,135 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 	}
 
 	return &ApiResult[[][]int32]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// GetNativeValues Reads values of the formats the SDKs type natively.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /store/native-values
+func (a *StoreApi) GetNativeValues(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*NativeValues, error) {
+	result, err := a.GetNativeValuesWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetNativeValues", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetNativeValuesWithHTTPInfo performs the GetNativeValues operation and returns the full API result.
+func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*ApiResult[NativeValues], error) {
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/store/native-values"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Address4 != nil {
+		queryParams["address4"] = maybeAllowReserved(serializeStyled("address4", options.Address4, "query", "netip.Addr", "", "form", true), false)
+	}
+	if options != nil && options.Delay != nil {
+		queryParams["delay"] = maybeAllowReserved(serializeStyled("delay", options.Delay, "query", "Duration", "", "form", true), false)
+	}
+	if options != nil && options.Amount != nil {
+		queryParams["amount"] = maybeAllowReserved(serializeStyled("amount", options.Amount, "query", "float64", "", "form", true), false)
+	}
+
+	headerParams := make(map[string]string)
+	if options != nil && options.XAddress6 != nil {
+		headerParams["X-Address6"] = fmt.Sprintf("%v", serializeStyled("X-Address6", options.XAddress6, "header", "netip.Addr", "", "simple", false))
+	}
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		order:        []string{"address4", "delay", "amount"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "NativeValues",
+		auth:         noAuth,
+		schemes:      []string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data NativeValues
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *NativeValues
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[NativeValues]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetNativeValues: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[NativeValues]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
 		RawBody:    response.Body,

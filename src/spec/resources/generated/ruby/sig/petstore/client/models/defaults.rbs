@@ -21,7 +21,7 @@ module Petstore::Client::Models
     attr_reader label: String?
     attr_reader greeting: String?
     attr_reader swatch: Swatch?
-    attr_reader ratio: Float?
+    attr_reader ratio: BigDecimal?
     attr_reader scale: Float?
     attr_reader weight: Float?
     attr_reader ceiling: Integer?

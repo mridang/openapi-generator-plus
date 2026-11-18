@@ -724,7 +724,7 @@ abstract class BaseApi {
             value is String || value is Number || value is Boolean || value is Char ||
                 value is Enum<*> || value is java.time.temporal.TemporalAccessor ||
                 value is java.time.Duration || value::class.qualifiedName == "kotlin.uuid.Uuid" ||
-                value is io.ktor.http.Url || value is ByteArray
+                value is java.net.URI || value is ByteArray
         if (!scalar) {
             throw {{invokerPackage}}.errors.SerializationException(
                 "form-urlencoded field $key must be a scalar or array of scalars",

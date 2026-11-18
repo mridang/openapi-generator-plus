@@ -29,6 +29,7 @@
         <type fullname="PetstoreClient.Models.Medication" preserve="all" />
         <type fullname="PetstoreClient.Models.MemberNotFound" preserve="all" />
         <type fullname="PetstoreClient.Models.Metadata" preserve="all" />
+        <type fullname="PetstoreClient.Models.NativeValues" preserve="all" />
         <type fullname="PetstoreClient.Models.Order" preserve="all" />
         <type fullname="PetstoreClient.Models.Pet" preserve="all" />
         <type fullname="PetstoreClient.Models.PetCriteria" preserve="all" />

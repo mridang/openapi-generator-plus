@@ -88,7 +88,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         typeMapping.put("time", "LocalTime");
         typeMapping.put("duration", "Duration");
         typeMapping.put("UUID", "Uuid");
-        typeMapping.put("URI", "Url");
+        typeMapping.put("URI", "URI");
         typeMapping.put("BigDecimal", "BigDecimal");
 
         importMapping.put("List", "kotlin.collections.List");
@@ -103,7 +103,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         importMapping.put("Duration", "java.time.Duration");
         importMapping.put("BigDecimal", "java.math.BigDecimal");
         importMapping.put("Uuid", "kotlin.uuid.Uuid");
-        importMapping.put("Url", "io.ktor.http.Url");
+        importMapping.put("URI", "java.net.URI");
 
         languageSpecificPrimitives =
                 new HashSet<>(

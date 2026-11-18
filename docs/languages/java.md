@@ -24,7 +24,8 @@ Java 21 is a long-term-support release, and it is the floor because the generate
 | `string`, `format: byte` | `byte[]` | base64 on the wire |
 | `string`, `format: binary` | `java.io.InputStream` | request and response; the body is still read whole into memory |
 | `string`, `format: uri` | `java.net.URI` | `uri-reference` and `uri-template` stay `String` |
-| `string`, `format: email`, `hostname`, `ipv4`, `ipv6`, and plain `string` | `String` | no dedicated type |
+| `string`, `format: email`, `hostname`, `ipv4`, `ipv6`, and plain `string` | `String` | no dedicated type; the JDK has no address parser that accepts only a literal before Java 22 |
+| `string`, `format: decimal` | `BigDecimal` | read from a JSON string only and written as a JSON string |
 | `integer`, `format: int32` | `Integer` | |
 | `integer`, `format: int64` | `Long` | |
 | `integer`, no format | `Integer` | 32 bits; see Under review |

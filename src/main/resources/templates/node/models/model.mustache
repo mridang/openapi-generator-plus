@@ -357,9 +357,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([
 {{#vars}}
-{{#vendorExtensions.isDecimalFormat}}
+{{#vendorExtensions.isPlainNumberDecimal}}
     '{{name}}',
-{{/vendorExtensions.isDecimalFormat}}
+{{/vendorExtensions.isPlainNumberDecimal}}
 {{/vars}}
   ]);
 
@@ -519,6 +519,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * float coercion) and rejects a quoted string. */
   @Transform(({ obj }) => decodePlainNumber(obj, '{{baseName}}'), { toClassOnly: true })
 {{/vendorExtensions.isPlainNumberDecimal}}
+{{#vendorExtensions.isStringDecimal}}
+  /* A `type: string` decimal is a JSON string: decode keeps its text and
+   * rejects a bare number. */
+  @Transform(({ obj }) => decodeStringDecimal(obj, '{{baseName}}'), { toClassOnly: true })
+{{/vendorExtensions.isStringDecimal}}
 {{#vendorExtensions.isTimeFormat}}
   /* 4.8 — `format: time` round-trips via Temporal.PlainTime. */
   @Transform(({ value }) => (typeof value === 'string' ? Temporal.PlainTime.from(value) : value), { toClassOnly: true })

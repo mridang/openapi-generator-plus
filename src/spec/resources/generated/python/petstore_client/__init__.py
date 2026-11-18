@@ -64,6 +64,7 @@ __all__ = [
     "Medication",
     "MemberNotFound",
     "Metadata",
+    "NativeValues",
     "Order",
     "Pet",
     "PetCriteria",
@@ -207,6 +208,9 @@ from petstore_client.models.member_not_found import (
 )
 from petstore_client.models.metadata import (
     Metadata as Metadata,
+)
+from petstore_client.models.native_values import (
+    NativeValues as NativeValues,
 )
 from petstore_client.models.order import (
     Order as Order,

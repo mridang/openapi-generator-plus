@@ -100,8 +100,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         typeMapping.put("short", "Integer");
         typeMapping.put("float", "Float");
         typeMapping.put("double", "Float");
-        typeMapping.put("number", "Float");
-        typeMapping.put("decimal", "Float");
+        typeMapping.put("number", "BigDecimal");
+        typeMapping.put("decimal", "BigDecimal");
+        typeMapping.put("ipv4", "IPAddr");
+        typeMapping.put("ipv6", "IPAddr");
         typeMapping.put("date", "Date");
         typeMapping.put("DateTime", "Time");
         // 4.8: format: time → tod gem (Tod::TimeOfDay) — no native
@@ -128,7 +130,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         languageSpecificPrimitives =
                 new HashSet<>(
                         Arrays.asList(
-                                "String", "Boolean", "Integer", "Float", "Date", "Time",
+                                "String", "Boolean", "Integer", "Float", "BigDecimal", "IPAddr", "Date", "Time",
                                 "Tod::TimeOfDay", "ISO8601::Duration",
                                 "Array", "Set", "Hash", "File", "Object"));
 
@@ -932,7 +934,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     /** {@inheritDoc} */
     @Override
     protected Set<String> getNumericDataTypes() {
-        return Set.of("Integer", "Float");
+        return Set.of("Integer", "Float", "BigDecimal");
     }
 
     /** {@inheritDoc} */

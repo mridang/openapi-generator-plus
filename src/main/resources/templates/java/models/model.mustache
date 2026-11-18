@@ -919,7 +919,8 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @Deprecated
   {{/deprecated}}
   @JsonProperty("{{baseName}}")
-  {{^required}}@Nullable{{/required}}{{#required}}{{#isNullable}}@Nullable
+  {{#vendorExtensions.isDecimalString}}@com.fasterxml.jackson.databind.annotation.JsonSerialize(using = {{invokerPackage}}.ObjectSerializer.StringDecimalSerializer.class)
+  {{/vendorExtensions.isDecimalString}}{{^required}}@Nullable{{/required}}{{#required}}{{#isNullable}}@Nullable
   @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS){{/isNullable}}{{/required}}
   public final {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
 
@@ -1119,6 +1120,9 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     @Deprecated
 {{/deprecated}}
     @JsonProperty("{{baseName}}")
+{{#vendorExtensions.isDecimalString}}
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = {{invokerPackage}}.ObjectSerializer.StringDecimalDeserializer.class)
+{{/vendorExtensions.isDecimalString}}
     public Builder {{vendorExtensions.builderName}}({{^required}}@Nullable {{/required}}{{#required}}{{#isNullable}}@Nullable {{/isNullable}}{{/required}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{vendorExtensions.builderName}}) {
       this.{{name}} = {{#isByteArray}}{{vendorExtensions.builderName}} == null ? null : {{vendorExtensions.builderName}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}{{vendorExtensions.builderName}} == null
           ? null

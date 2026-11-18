@@ -31,6 +31,7 @@ Gem::Specification.new do |s|
   # time-of-day values Ruby has no native type for. One alphabetical
   # run, which is what Gemspec/OrderedDependencies asks for.
   s.add_dependency 'base64', '~> 0.3'
+  s.add_dependency 'bigdecimal', '~> 3.1'
   s.add_dependency 'dry-struct', '~> 1.6'
   s.add_dependency 'dry-types', '~> 1.7'
   s.add_dependency 'faraday', '~> 2.0'

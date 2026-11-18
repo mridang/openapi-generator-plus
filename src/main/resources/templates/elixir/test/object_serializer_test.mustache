@@ -2315,5 +2315,91 @@ defmodule {{moduleName}}.ObjectSerializerTest do
     end
   end
 
+
+  describe "native value formats" do
+    defp native_values(json), do: {{moduleName}}.ObjectSerializer.deserialize(json, "NativeValues")
+
+    test "bhv serializationobject 403 a duration field is the native Duration" do
+      assert %Duration{} = native_values(~s({"wait":"3600s"})).wait
+      assert native_values(~s({"wait":"3600s"})).wait.second == 3600
+    end
+
+    test "bhv serializationobject 404 a duration keeps every microsecond and truncates the rest toward zero" do
+      assert native_values(~s({"wait":"1.123456789s"})).wait.microsecond == {123_456, 6}
+      assert native_values(~s({"wait":"-1.123456789s"})).wait.microsecond == {-123_456, 6}
+    end
+
+    test "bhv serializationobject 405 an ipv4 field is the native address tuple and round-trips" do
+      values = native_values(~s({"address4":"192.0.2.1"}))
+
+      assert values.address4 == {192, 0, 2, 1}
+      assert {{moduleName}}.ObjectSerializer.serialize(values) == ~s({"address4":"192.0.2.1"})
+    end
+
+    test "bhv serializationobject 406 an ipv6 field is written in the canonical form" do
+      for {given, expected} <- [
+            {"2001:0DB8:0:0:0:0:0:1", "2001:db8::1"},
+            {"2001:db8::1", "2001:db8::1"},
+            {"::1", "::1"},
+            {"2001:db8:0:1:1:1:1:1", "2001:db8:0:1:1:1:1:1"}
+          ] do
+        values = native_values(~s({"address6":"#{given}"}))
+
+        assert tuple_size(values.address6) == 8
+        assert {{moduleName}}.ObjectSerializer.serialize(values) == ~s({"address6":"#{expected}"})
+      end
+    end
+
+    test "bhv serializationobject 407 a malformed address fails with the serialization error" do
+      for {field, text} <- [
+            {"address4", "01.2.3.4"},
+            {"address4", "192.0.2.1/24"},
+            {"address4", " 192.0.2.1"},
+            {"address4", "[::1]"},
+            {"address4", "2001:db8::1"},
+            {"address6", "fe80::1%eth0"},
+            {"address6", "[::1]"},
+            {"address6", "2001:db8::/64"},
+            {"address6", " ::1"},
+            {"address6", "192.0.2.1"}
+          ] do
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          native_values(~s({"#{field}":"#{text}"}))
+        end
+      end
+    end
+
+    test "bhv serializationobject 408 every absolute URI of the corpus round-trips byte for byte" do
+      for text <- [
+            "https://example.com",
+            "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+            "mailto:a@b.c",
+            "urn:isbn:0451450523",
+            "https://example.com/[x]?q='a'",
+            "https://example.com?",
+            "https://example.com/%7euser",
+            "https://[2001:db8::1]:8443/"
+          ] do
+        json = Jason.encode!(%{"homepage" => text})
+
+        assert {{moduleName}}.ObjectSerializer.serialize(native_values(json)) == json
+      end
+    end
+
+    test "bhv serializationobject 409 a hostname and an email are kept as given" do
+      json = ~s({"host":"not a host!","contact":"x@"})
+
+      assert {{moduleName}}.ObjectSerializer.serialize(native_values(json)) == json
+    end
+
+    test "bhv serializationparam 104 a duration parameter is written in the protobuf form" do
+      assert {{moduleName}}.ObjectSerializer.stringify(Duration.new!(second: 3600, microsecond: {0, 6})) == "3600s"
+    end
+
+    test "bhv serializationparam 105 an address parameter is its canonical text" do
+      assert {{moduleName}}.ObjectSerializer.stringify({192, 0, 2, 1}) == "192.0.2.1"
+      assert {{moduleName}}.ObjectSerializer.stringify({0x2001, 0xDB8, 0, 0, 0, 0, 0, 1}) == "2001:db8::1"
+    end
+  end
 end
 {{/generateTests}}

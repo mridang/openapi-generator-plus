@@ -565,6 +565,41 @@ public final class ObjectSerializer {
           "(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
 
   /**
+   * Writes a {@code type: string} with {@code format: decimal} as a JSON string in plain notation,
+   * keeping the digits it was read with.
+   */
+  public static final class StringDecimalSerializer extends JsonSerializer<java.math.BigDecimal> {
+    @Override
+    public void serialize(
+        java.math.BigDecimal value, JsonGenerator generator, SerializerProvider provider)
+        throws IOException {
+      generator.writeString(value.toPlainString());
+    }
+  }
+
+  /**
+   * Reads a {@code type: string} with {@code format: decimal} from a JSON string only; a bare JSON
+   * number is refused.
+   */
+  public static final class StringDecimalDeserializer
+      extends JsonDeserializer<java.math.BigDecimal> {
+    @Override
+    public java.math.BigDecimal deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      if (!parser.hasToken(JsonToken.VALUE_STRING)) {
+        return (java.math.BigDecimal)
+            context.handleUnexpectedToken(java.math.BigDecimal.class, parser);
+      }
+      String text = parser.getText();
+      try {
+        return new java.math.BigDecimal(text);
+      } catch (NumberFormatException e) {
+        throw context.weirdStringException(text, java.math.BigDecimal.class, "not a decimal");
+      }
+    }
+  }
+
+  /**
    * An absolute RFC 3986 URI: a scheme, a colon, then no whitespace or control characters. Any
    * scheme is accepted (http, ftp, mailto, urn).
    */

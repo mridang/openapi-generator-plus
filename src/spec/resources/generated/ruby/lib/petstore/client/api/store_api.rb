@@ -379,6 +379,73 @@ module Petstore::Client
         )
       end
 
+      # Reads values of the formats the SDKs type natively.
+      # @param options [GetNativeValuesOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [NativeValues]
+      # @raise [ApiError] if fails to make API call
+      def get_native_values(options = nil)
+        result = get_native_values_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for get_native_values but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_native_values_with_http_info(options = nil)
+        path = '/store/native-values'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        unless options.nil? || options.address4.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'address4', options.address4, 'IPAddr', nil, 'form', true,
+              false
+            )
+          )
+        end
+        unless options.nil? || options.delay.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'delay', options.delay, 'ISO8601::Duration', nil, 'form', true,
+              false
+            )
+          )
+        end
+        unless options.nil? || options.amount.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'amount', options.amount, 'BigDecimal', nil, 'form', true,
+              false
+            )
+          )
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        header_params['X-Address6'] = ::Petstore::Client::ValueSerializer.serialize_styled('X-Address6', options.x_address6, :header, 'IPAddr', nil, 'simple', false).to_s unless options.nil? || options.x_address6.nil?
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'NativeValues',
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_native_values',
+          request_options: options
+        )
+      end
+
       # Find purchase order by ID
       # @param order_id [Integer] ID of order to return
       # @param options [GetOrderByIdOptions] per-call options: the optional timeout, headers and max_retries

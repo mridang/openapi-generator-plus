@@ -11,7 +11,6 @@ package com.example.petstore
 
 import com.example.petstore.errors.OpenAPIException
 import com.example.petstore.errors.SerializationException
-import io.ktor.http.Url
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialInfo
@@ -170,6 +169,30 @@ internal object StrictDoubleSerializer : KSerializer<Double> {
         // A literal that overflows (1e400) parses to Infinity, which has no JSON form: refuse it.
         return p.content.toDoubleOrNull()?.takeIf { it.isFinite() }
             ?: throw kotlinx.serialization.SerializationException("Invalid Double: ${p.content}")
+    }
+}
+
+/* A `type: string` with `format: decimal` is a BigDecimal that travels as a JSON string: it is
+ * read only from a string, never from a bare number, and written back with the digits it was
+ * read with (`12.50` keeps its trailing zero) in plain notation. */
+internal object StringDecimalSerializer : KSerializer<BigDecimal> {
+    override val descriptor = PrimitiveSerialDescriptor("StringDecimal", PrimitiveKind.STRING)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: BigDecimal,
+    ) = encoder.encodeString(value.toPlainString())
+
+    override fun deserialize(decoder: Decoder): BigDecimal {
+        if (decoder is JsonDecoder) {
+            val element = decoder.decodeJsonElement()
+            if (element !is JsonPrimitive || !element.isString) {
+                throw kotlinx.serialization.SerializationException("Expected a decimal JSON string")
+            }
+            return element.content.toBigDecimalOrNull()
+                ?: throw kotlinx.serialization.SerializationException("Invalid decimal: ${element.content}")
+        }
+        return BigDecimal(decoder.decodeString())
     }
 }
 
@@ -863,7 +886,8 @@ internal class ObjectSerializer(
             // never emits the "Z" designator.
             is TemporalAccessor -> DATE_TIME_FORMATTER.format(value)
             is Uuid -> value.toString()
-            is Url -> value.toString()
+            is java.net.URI -> value.toString()
+            is BigDecimal -> value.toPlainString()
             is Enum<*> -> {
                 try {
                     val method = value::class.java.getMethod("getValue")
@@ -1155,31 +1179,32 @@ internal class ObjectSerializer(
         }
 
         /* OpenAPI `format: uri` (absolute URIs only — `uri-reference` and
-         * `uri-template` stay as plain String) is represented as
-         * io.ktor.http.Url. Ktor's Url constructor parses any RFC 3986
-         * absolute URI and round-trips via toString(). Note that Ktor
-         * normalises some URIs (e.g. appends a trailing `/` to the
-         * authority-only form `https://example.com`). */
-        private object KtorUrlSerializer : KSerializer<Url> {
-            override val descriptor = PrimitiveSerialDescriptor("KtorUrl", PrimitiveKind.STRING)
+         * `uri-template` stay as plain String) is represented as java.net.URI,
+         * which keeps the text it was built from: toString() returns the
+         * original string, so the value is written back byte for byte. */
+        private object UriSerializer : KSerializer<java.net.URI> {
+            override val descriptor = PrimitiveSerialDescriptor("URI", PrimitiveKind.STRING)
 
             override fun serialize(
                 encoder: Encoder,
-                value: Url,
+                value: java.net.URI,
             ) = encoder.encodeString(value.toString())
 
             // format: uri is an absolute RFC 3986 URI of any scheme: a scheme,
             // a colon, then no whitespace or control characters. Relative
-            // references and empty strings are rejected; Url(...) alone accepts
-            // almost anything.
+            // references and empty strings are rejected before URI parses it.
             private val absoluteUri = Regex("^[A-Za-z][A-Za-z0-9+.-]*:[^\\s\\p{Cntrl}]*$")
 
-            override fun deserialize(decoder: Decoder): Url {
+            override fun deserialize(decoder: Decoder): java.net.URI {
                 val text = decoder.decodeString()
                 if (!absoluteUri.matches(text)) {
                     throw kotlinx.serialization.SerializationException("Invalid absolute URI for a format: uri field")
                 }
-                return Url(text)
+                try {
+                    return java.net.URI(text)
+                } catch (e: java.net.URISyntaxException) {
+                    throw kotlinx.serialization.SerializationException("Invalid absolute URI for a format: uri field", e)
+                }
             }
         }
 
@@ -1388,7 +1413,7 @@ internal class ObjectSerializer(
                 contextual(LocalTimeSerializer)
                 contextual(BigDecimalSerializer)
                 contextual(UuidSerializer)
-                contextual(KtorUrlSerializer)
+                contextual(UriSerializer)
                 contextual(DurationSerializer)
                 contextual(Any::class, AnySerializer)
             }

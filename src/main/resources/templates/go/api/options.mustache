@@ -9,6 +9,9 @@ import (
 {{#hasIoImport}}
 	"io"
 {{/hasIoImport}}
+{{#hasNetipImport}}
+	"net/netip"
+{{/hasNetipImport}}
 {{#hasModelImport}}
 	. "{{moduleName}}/pkg/models"
 {{/hasModelImport}}

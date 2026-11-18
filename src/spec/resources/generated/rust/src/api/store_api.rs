@@ -808,6 +808,193 @@ impl StoreApi {
             .await
     }
 
+    /// Reads values of the formats the SDKs type natively.
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn get_native_values(
+        &self,
+        options: Option<&GetNativeValuesOptions>,
+    ) -> Result<NativeValues, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_native_values_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for get_native_values but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_native_values operation and returns the full API result.
+    pub async fn get_native_values_with_http_info(
+        &self,
+        options: Option<&GetNativeValuesOptions>,
+    ) -> Result<ApiResult<NativeValues>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.get_native_values_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_native_values operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_native_values_invoke(
+        &self,
+        options: Option<&GetNativeValuesOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<NativeValues>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/native-values".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.address4 {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "address4",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "std::net::Ipv4Addr",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("address4".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("address4".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.delay {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "delay",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "chrono::TimeDelta",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("delay".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("delay".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.amount {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "amount",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "f64",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("amount".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("amount".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.x_address6 {
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+                    "X-Address6",
+                    Some(&object_serializer::stringify_param(val, "simple", false)?),
+                    None,
+                    "header",
+                    "std::net::Ipv6Addr",
+                    "",
+                    "simple",
+                    false,
+                ) {
+                    header_params.insert("X-Address6".to_string(), v);
+                }
+            }
+        }
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "NativeValues",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base
+            .invoke_api_for_result::<NativeValues>(params)
+            .await
+    }
+
     /// Find purchase order by ID
     /// * `order_id`: ID of order to return
     /// * `options`: Options for query, header, form, and cookie parameters.

@@ -896,15 +896,16 @@ data class {{classname}}(
 {{/isByte}}{{/isShort}}{{/isInteger}}{{/isLong}}{{#isFloat}}  @Serializable(with = {{invokerPackage}}.StrictFloatSerializer::class)
 {{/isFloat}}{{^isFloat}}{{#isDouble}}  @Serializable(with = {{invokerPackage}}.StrictDoubleSerializer::class)
 {{/isDouble}}{{/isFloat}}{{#isBoolean}}  @Serializable(with = {{invokerPackage}}.StrictBooleanSerializer::class)
-{{/isBoolean}}{{/isEnum}}{{#isDateTime}}  @Contextual
+{{/isBoolean}}{{/isEnum}}{{#vendorExtensions.isDecimalString}}  @Serializable(with = {{invokerPackage}}.StringDecimalSerializer::class)
+{{/vendorExtensions.isDecimalString}}{{#isDateTime}}  @Contextual
 {{/isDateTime}}{{#isDate}}  @Contextual
 {{/isDate}}{{#isUuid}}  @Contextual
 {{/isUuid}}{{#isUri}}  @Contextual
 {{/isUri}}{{#vendorExtensions.isLocalTime}}  @Contextual
 {{/vendorExtensions.isLocalTime}}{{#vendorExtensions.isDuration}}  @Contextual
-{{/vendorExtensions.isDuration}}{{#isDecimal}}  @Contextual
+{{/vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}{{#isDecimal}}  @Contextual
 {{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
-{{/isNumber}}{{/isDecimal}}  {{#vendorExtensions.overridesBase}}override {{/vendorExtensions.overridesBase}}val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}{{^vendorExtensions.siblingDefaultIsEnum}}null{{/vendorExtensions.siblingDefaultIsEnum}}{{#vendorExtensions.siblingDefaultIsEnum}}{{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/isContainer}}{{/required}},
+{{/isNumber}}{{/isDecimal}}{{/vendorExtensions.isDecimalString}}  {{#vendorExtensions.overridesBase}}override {{/vendorExtensions.overridesBase}}val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}{{^vendorExtensions.siblingDefaultIsEnum}}null{{/vendorExtensions.siblingDefaultIsEnum}}{{#vendorExtensions.siblingDefaultIsEnum}}{{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/isContainer}}{{/required}},
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
   {{! The overflow bucket is a constructor parameter so that copy() carries it and

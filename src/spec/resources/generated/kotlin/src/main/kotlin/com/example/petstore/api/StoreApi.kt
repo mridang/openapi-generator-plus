@@ -21,6 +21,7 @@ import com.example.petstore.api.options.GetDepartmentOptions
 import com.example.petstore.api.options.GetGroupedCategoriesOptions
 import com.example.petstore.api.options.GetInventoryOptions
 import com.example.petstore.api.options.GetMatrixOptions
+import com.example.petstore.api.options.GetNativeValuesOptions
 import com.example.petstore.api.options.GetOrderByIdOptions
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions
 import com.example.petstore.api.options.GetStockItemOptions
@@ -38,6 +39,7 @@ import com.example.petstore.models.Account
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
+import com.example.petstore.models.NativeValues
 import com.example.petstore.models.Order
 import com.example.petstore.models.Reservation
 import com.example.petstore.models.ReservationReceipt
@@ -453,6 +455,76 @@ class StoreApi : BaseApi {
             "application/json",
             NoAuth,
             "StoreApi.getMatrix",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+        )
+    }
+
+    /**
+     * Reads values of the formats the SDKs type natively.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return NativeValues
+     * @throws ApiException if fails to make API call
+     */
+    suspend fun getNativeValues(options: GetNativeValuesOptions? = null): NativeValues =
+        getNativeValuesWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getNativeValues but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [getNativeValues] but returns the full [ApiResult] (status code, headers and body). */
+    suspend fun getNativeValuesWithHttpInfo(options: GetNativeValuesOptions? = null): ApiResult<NativeValues> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/store/native-values"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.address4 != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "address4",
+                ValueSerializer.serializeStyled("address4", options!!.address4, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        if (options?.delay != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "delay",
+                ValueSerializer.serializeStyled("delay", options!!.delay, "query", "Duration", null, "form", true),
+                false,
+            )
+        }
+        if (options?.amount != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "amount",
+                ValueSerializer.serializeStyled("amount", options!!.amount, "query", "BigDecimal", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+        if (options?.xAddress6 != null) {
+            headerParams["X-Address6"] =
+                ValueSerializer.serializeStyled("X-Address6", options!!.xAddress6, "header", "String", null, "simple", false) as String
+        }
+
+        return invokeApiForResult<NativeValues>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            NoAuth,
+            "StoreApi.getNativeValues",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,

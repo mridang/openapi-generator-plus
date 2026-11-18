@@ -24,7 +24,7 @@ The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, 
 | `string`, `format: uuid` | `kotlin.uuid.Uuid` | experimental in Kotlin 2.2, so generated files opt in with `ExperimentalUuidApi` |
 | `string`, `format: byte` | `ByteArray` | base64 on the wire |
 | `string`, `format: binary` | `ByteArray` | the whole body is held in memory |
-| `string`, `format: uri` | `io.ktor.http.Url` | Ktor's parser normalises some input, for example `https://example.com` becomes `https://example.com/`; `uri-reference` and `uri-template` stay `String` |
+| `string`, `format: uri` | `java.net.URI` | Keeps the text it was built from, so a value is written back byte for byte; it rejects a square bracket in a path, as RFC 3986 does; `uri-reference` and `uri-template` stay `String` |
 | `string`, `format: email`, `hostname`, `ipv4`, `ipv6`, and plain `string` | `String` | no dedicated type |
 | `integer`, `format: int32` | `Int` | |
 | `integer`, `format: int64` | `Long` | |

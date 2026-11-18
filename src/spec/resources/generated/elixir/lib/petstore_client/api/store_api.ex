@@ -1012,6 +1012,205 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
+  Reads values of the formats the SDKs type natively.
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, NativeValues}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_native_values(
+          t(),
+          PetstoreClient.Api.Options.GetNativeValuesOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.NativeValues.t()} | {:error, Exception.t()}
+  def get_native_values(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_native_values_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for get_native_values but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_native_values`. Raises on error.
+  """
+  @spec get_native_values!(
+          t(),
+          PetstoreClient.Api.Options.GetNativeValuesOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Models.NativeValues.t()
+  def get_native_values!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_native_values(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_native_values` but returns the full `ApiResult`.
+  """
+  @spec get_native_values_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetNativeValuesOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  def get_native_values_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
+    path = "/store/native-values"
+    query_params = []
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.address4) and options.address4 != [] do
+        query_params ++
+          [
+            {"address4",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "address4",
+                 options.address4,
+                 :query,
+                 ":inet.ip4_address()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.delay) and options.delay != [] do
+        query_params ++
+          [
+            {"delay",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "delay",
+                 options.delay,
+                 :query,
+                 "Duration.t()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.amount) and options.amount != [] do
+        query_params ++
+          [
+            {"amount",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "amount",
+                 options.amount,
+                 :query,
+                 "float()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    header_params = %{}
+
+    header_params =
+      if not is_nil(options) and not is_nil(options.x_address6) do
+        Map.put(
+          header_params,
+          "X-Address6",
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "X-Address6",
+            options.x_address6,
+            :header,
+            ":inet.ip6_address()",
+            nil,
+            "simple",
+            false
+          )
+          |> to_string()
+        )
+      else
+        header_params
+      end
+
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "NativeValues",
+      auth,
+      call,
+      %{}
+    )
+  end
+
+  @doc """
   Find purchase order by ID
 
   ## Parameters

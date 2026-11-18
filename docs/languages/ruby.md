@@ -14,7 +14,8 @@ A review of the type mapping (see "Under review") found that Ruby 3.2 reached en
 |---|---|---|
 | `integer`, `int32`, `int64` | `Integer` | Ruby integers have arbitrary precision, so 64-bit values are exact. |
 | `number` with `format: float` or `double` | `Float` | |
-| `number` with no format, `format: decimal` | `Float` | Money loses exact decimal representation: `0.1 + 0.2` is `0.30000000000000004`. The generated README says so and points to `JSON.parse(body, decimal_class: BigDecimal)` for callers who need exact arithmetic. |
+| `number` with no format, `format: decimal` | `BigDecimal` | Read from the JSON text with `decimal_class: BigDecimal` and written as a bare JSON number in plain notation. A `BigDecimal` keeps no trailing zero, so `12.50` is written `12.5`. A `type: string` decimal is read from a JSON string only and written as a JSON string. An untyped or free-form number is still a `Float`. |
+| `string` with `format: ipv4` or `ipv6` | `IPAddr` | Read from the plain address text only (a prefix length, a zone id, brackets, a leading zero and the wrong family fail with `SerializationError`) and written in canonical text, RFC 5952 for IPv6. |
 | `boolean` | `true` or `false` | |
 | `string` | `String` | |
 | `string` with `format: date` | `Date` | |
@@ -39,7 +40,7 @@ The model classes declare their attributes as `Types::Any.optional`, and the rea
 
 ## Dependencies
 
-The gemspec declares these runtime dependencies: `base64` (~> 0.3), `dry-struct` (~> 1.6), `dry-types` (~> 1.7), `faraday` (~> 2.0), `iso8601` (~> 0.13), `json` (~> 2.6), `set` (~> 1.1) and `tod` (~> 3.1). `base64`, `json` and `set` are declared explicitly because Ruby is moving them out of the default install.
+The gemspec declares these runtime dependencies: `base64` (~> 0.3), `bigdecimal` (~> 3.1), `dry-struct` (~> 1.6), `dry-types` (~> 1.7), `faraday` (~> 2.0), `iso8601` (~> 0.13), `json` (~> 2.6), `set` (~> 1.1) and `tod` (~> 3.1). `base64`, `json` and `set` are declared explicitly because Ruby is moving them out of the default install.
 
 Response decompression for `br` and `zstd` is optional. The `Gemfile` puts `brotli` (~> 0.5) and `zstd-ruby` (~> 1.5) in an `optional` group. The client requires them inside `begin`/`rescue` and offers a codec in `Accept-Encoding` only when it loaded. Both are C extensions with no precompiled musl build, so install them on a glibc platform if you want them.
 
@@ -79,7 +80,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 ## Known limits
 
 - A model never validates when it is constructed: a value of the wrong type, or an inline enum string the spec does not list, is held as given (a required property still has to be present and not `nil`). Decoding is where the check happens: a wrong type or an unknown enum value fails the decode loudly with `SerializationError`. See the type mapping above.
-- `number` is a `Float`, so exact decimal arithmetic needs the caller to decode with `BigDecimal` as the README describes.
+- A `BigDecimal` keeps no trailing zero, so a decimal read as `12.50` is written back as `12.5`.
 - An overflowing double literal such as `1e400` decodes to Infinity.
 - Faraday's default `net_http` adapter opens a connection per request. Connection reuse would need `net_http_persistent`, which is an open decision.
 - SOCKS proxies are not supported; `proxy` accepts `http://` and `https://` only.
@@ -91,8 +92,6 @@ Pass options with `--additional-properties` or a config file. Options that apply
 These are ideas from a review of the type mapping against current Ruby. None is decided, and none changes what the SDK does today.
 
 - Raise the floor to Ruby 3.3, because 3.2 is past end of life. This would also mean updating the CI images and the RBS and Steep target.
-- Decode `number` as `BigDecimal` through `JSON.parse` with `decimal_class`, and write it back as a bare JSON number. This needs `bigdecimal` declared in the gemspec, because it is a bundled gem from Ruby 3.4, and the musl pin in the `Gemfile` resolved first. It needs no floor change.
 - Tighten model attributes from `Types::Any` to the real `dry-types`, but only if lenient decoding is not wanted. Otherwise the plan is to document `OPENAPI_TYPES` as the contract. This needs an owner decision.
-- Use `IPAddr` for `ipv4` and `ipv6` only if canonical-text round trips are acceptable, because `IPAddr#to_s` rewrites addresses such as compressed IPv6.
 - Keep `String` for `uuid`, `uri`, `email` and `hostname`. Ruby has no UUID class, and parsing a URI risks changing its text.
 - Ruby 4.0 has no Temporal-like type, so `tod` and `iso8601` remain the libraries for time of day and duration.

@@ -151,6 +151,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         // JSON-encodes as int64 nanoseconds, which no protobuf-JSON API accepts.
         typeMapping.put("time", "string");
         typeMapping.put("duration", "Duration");
+        typeMapping.put("ipv4", "netip.Addr");
+        typeMapping.put("ipv6", "netip.Addr");
         typeMapping.put("array", "[]");
         typeMapping.put("List", "[]");
         typeMapping.put("map", "map");
@@ -174,7 +176,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                                 "byte",
                                 "any",
                                 "error",
-                                "uuid.UUID"));
+                                "uuid.UUID",
+                                "netip.Addr"));
 
         reservedWords = loadReservedWords("/reserved-words/go.txt");
 
@@ -914,6 +917,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected Map<String, String> getModelContextFlags() {
         return Map.of(
                 "type:uuid.UUID", "hasUuidImport",
+                "type:netip.Addr", "hasNetipImport",
                 "type:[]byte", "hasByteFields",
                 "oneOfAnyOf", "hasFmtImport",
                 "isEnum", "hasFmtImport",
@@ -930,6 +934,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return Map.of(
                 "type:io.Reader", "hasIoImport",
                 "type:uuid.UUID", "hasUuidImport",
+                "type:netip.Addr", "hasNetipImport",
                 "servers", "hasStringsImport",
                 "cookieParams", "hasStringsImport");
     }
@@ -954,6 +959,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         boolean hasModelImport = false;
         boolean hasIoImport = false;
         boolean hasUuidImport = false;
+        boolean hasNetipImport = false;
         boolean hasIntEnum = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
@@ -1029,6 +1035,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 hasIoImport = true;
             } else if (dataType != null && dataType.contains("uuid.UUID")) {
                 hasUuidImport = true;
+            } else if (dataType != null && dataType.contains("netip.Addr")) {
+                hasNetipImport = true;
             } else if (!p.isPrimitiveType
                     && dataType != null
                     && !goPrimitives.contains(baseType)
@@ -1053,6 +1061,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasUuidImport) {
             context.put("hasUuidImport", true);
+        }
+        if (hasNetipImport) {
+            context.put("hasNetipImport", true);
         }
         return renderOptionsTemplate("api/options.mustache", context);
     }

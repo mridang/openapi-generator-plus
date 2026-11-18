@@ -818,4 +818,32 @@ class AbstractBetterCodegenTest {
                 () -> assertFalse(Objects.requireNonNull((Boolean) openOp.get("hasSecuritySchemes"))),
                 () -> assertTrue(Objects.requireNonNull((List<?>) openOp.get("securitySchemeOrder")).isEmpty()));
     }
+
+    @Test
+    @DisplayName("marks a scalar ipv4, ipv6 or string decimal property and leaves a container and a number alone")
+    void marksNativeFormats() {
+        final CodegenProperty ipv4 = formatted("ipv4", "string", false);
+        final CodegenProperty ipv6 = formatted("ipv6", "string", false);
+        final CodegenProperty decimalString = formatted("decimal", "string", false);
+        final CodegenProperty decimalNumber = formatted("decimal", "number", false);
+        final CodegenProperty container = formatted("ipv6", "string", true);
+        for (final CodegenProperty property : List.of(ipv4, ipv6, decimalString, decimalNumber, container)) {
+            AbstractBetterCodegen.markNativeFormats(property);
+        }
+        assertAll(
+                () -> assertEquals(true, ipv4.vendorExtensions.get("isIpv4")),
+                () -> assertEquals(false, ipv4.vendorExtensions.get("isIpv6")),
+                () -> assertEquals(true, ipv6.vendorExtensions.get("isIpv6")),
+                () -> assertEquals(true, decimalString.vendorExtensions.get("isDecimalString")),
+                () -> assertEquals(false, decimalNumber.vendorExtensions.get("isDecimalString")),
+                () -> assertFalse(container.vendorExtensions.containsKey("isIpv6")));
+    }
+
+    private static CodegenProperty formatted(String format, String openApiType, boolean container) {
+        final CodegenProperty property = new CodegenProperty();
+        property.dataFormat = format;
+        property.openApiType = openApiType;
+        property.isContainer = container;
+        return property;
+    }
 }

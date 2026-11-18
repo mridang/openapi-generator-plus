@@ -11,6 +11,7 @@ use {{invokerPackage}}\Models\Defaults;
 use {{invokerPackage}}\Models\DefaultsModeEnum;
 use {{invokerPackage}}\Models\EdgeCases;
 use {{invokerPackage}}\Models\Metadata;
+use {{invokerPackage}}\Models\NativeValues;
 use {{invokerPackage}}\Models\Order;
 use {{invokerPackage}}\Models\OrderStatusEnum;
 use {{invokerPackage}}\Models\Pet;
@@ -22,6 +23,7 @@ use {{invokerPackage}}\Models\SetPetAvatarRequest;
 use {{invokerPackage}}\Models\StrictTag;
 use {{invokerPackage}}\Models\StockItem;
 use {{invokerPackage}}\Models\Swatch;
+use {{invokerPackage}}\Models\Tag;
 use {{invokerPackage}}\Models\TreeNode;
 
 // -- content cookie bytes --
@@ -1795,7 +1797,7 @@ test('bhv equality 001 two models built from the same values are equal and a cha
         name: 'Rex',
         photoUrls: new \Ds\Set(['a.png']),
         category: new Category(id: 1, name: $label),
-        tags: new \Ds\Vector([$when]),
+        tags: new \Ds\Vector([new Tag(id: 1, name: $when)]),
     );
 
     $left = $build('Dogs', 'morning');
@@ -2561,4 +2563,69 @@ test('bhv serialization 065 a null element of a list is kept in its own position
     \assert(is_array($dates));
     expect($dates[0])->toBeNull();
     expect($dates[1])->toBeInstanceOf(\DateTimeInterface::class);
+});
+
+// -- native value formats --
+
+test('bhv serializationobject 403 a duration field is the native DateInterval', function (): void {
+    $values = ObjectSerializer::deserialize('{"wait":"3600s"}', NativeValues::class);
+    assert($values instanceof NativeValues);
+    assert($values->wait instanceof \DateInterval);
+
+    expect($values->wait)->toBeInstanceOf(\DateInterval::class);
+    expect(ObjectSerializer::formatProtobufDuration($values->wait))->toBe('3600s');
+});
+
+test('bhv serializationobject 404 a duration keeps every nanosecond and is written in the shortest form', function (): void {
+    $values = ObjectSerializer::deserialize('{"wait":"-1.123456789s"}', NativeValues::class);
+
+    expect(ObjectSerializer::serialize($values))->toBe('{"wait":"-1.123456789s"}');
+});
+
+test('bhv serializationobject 405 an ipv4 field is the address text and is kept unchanged', function (): void {
+    $values = ObjectSerializer::deserialize('{"address4":"192.0.2.1"}', NativeValues::class);
+
+    expect(ObjectSerializer::serialize($values))->toBe('{"address4":"192.0.2.1"}');
+});
+
+test('bhv serializationobject 406 an ipv6 field keeps the address text unchanged', function (): void {
+    foreach (['2001:0DB8:0:0:0:0:0:1', '2001:db8::1', '::1'] as $text) {
+        $values = ObjectSerializer::deserialize('{"address6":"' . $text . '"}', NativeValues::class);
+
+        expect(ObjectSerializer::serialize($values))->toBe('{"address6":"' . $text . '"}');
+    }
+});
+
+test('bhv serializationobject 408 every absolute URI of the corpus round-trips byte for byte', function (): void {
+    $corpus = [
+        'https://example.com',
+        'HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag',
+        'mailto:a@b.c',
+        'urn:isbn:0451450523',
+        "https://example.com/[x]?q='a'",
+        'https://example.com?',
+        'https://example.com/%7euser',
+        'https://[2001:db8::1]:8443/',
+    ];
+    foreach ($corpus as $text) {
+        $json = json_encode(['homepage' => $text], JSON_UNESCAPED_SLASHES);
+        $values = ObjectSerializer::deserialize($json, NativeValues::class);
+
+        expect(ObjectSerializer::serialize($values))->toBe($json);
+    }
+});
+
+test('bhv serializationobject 409 a hostname and an email are kept as given', function (): void {
+    $json = '{"host":"not a host!","contact":"x@"}';
+    $values = ObjectSerializer::deserialize($json, NativeValues::class);
+
+    expect(ObjectSerializer::serialize($values))->toBe($json);
+});
+
+test('bhv serializationparam 104 a duration parameter is written in the protobuf form', function (): void {
+    expect(ObjectSerializer::stringify(new \DateInterval('PT1H')))->toBe('3600s');
+});
+
+test('bhv serializationparam 105 an address parameter is its text unchanged', function (): void {
+    expect(ObjectSerializer::stringify('2001:db8::1'))->toBe('2001:db8::1');
 });

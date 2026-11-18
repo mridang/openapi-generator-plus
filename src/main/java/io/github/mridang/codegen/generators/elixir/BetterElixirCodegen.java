@@ -125,6 +125,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         // fallback isn't shipped here because the supported floor is 1.18.
         typeMapping.put("time", "Time.t()");
         typeMapping.put("duration", "Duration.t()");
+        // Native IP address types: the Erlang `:inet` tuples. ObjectSerializer
+        // reads them strictly and writes the canonical RFC 5952 text.
+        typeMapping.put("ipv4", ":inet.ip4_address()");
+        typeMapping.put("ipv6", ":inet.ip6_address()");
         typeMapping.put("array", "list");
         typeMapping.put("List", "list");
         typeMapping.put("set", "MapSet.t()");
@@ -154,7 +158,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                                 // the codegen doesn't try to emit a model for
                                 // them or wrap them in Module.t() etc.
                                 "Time.t()",
-                                "Duration.t()"));
+                                "Duration.t()",
+                                ":inet.ip4_address()",
+                                ":inet.ip6_address()"));
 
         reservedWords = loadReservedWords("/reserved-words/elixir.txt");
 

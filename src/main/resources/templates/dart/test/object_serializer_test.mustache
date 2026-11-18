@@ -2297,6 +2297,68 @@ void main() {
       expect(() => Defaults.fromJson({'swatch': 'purple'}),
           throwsA(isA<ArgumentError>()));
     });
+
+    group('native value formats', () {
+      NativeValues decode(String json) => deserialize<NativeValues>(json, NativeValues.fromJson)!;
+
+      test('bhv serializationobject 403 a duration field is the native Duration', () {
+        final Duration? wait = decode('{"wait":"3600s"}').wait;
+
+        expect(wait, equals(const Duration(hours: 1)));
+      });
+
+      test('bhv serializationobject 404 a duration keeps every microsecond and truncates the rest toward zero', () {
+        expect(
+          decode('{"wait":"1.123456789s"}').wait,
+          equals(const Duration(seconds: 1, microseconds: 123456)),
+        );
+        expect(
+          decode('{"wait":"-1.123456789s"}').wait,
+          equals(-const Duration(seconds: 1, microseconds: 123456)),
+        );
+      });
+
+      test('bhv serializationobject 405 an ipv4 field is the address text and is kept unchanged', () {
+        expect(serialize(decode('{"address4":"192.0.2.1"}')), equals('{"address4":"192.0.2.1"}'));
+      });
+
+      test('bhv serializationobject 406 an ipv6 field keeps the address text unchanged', () {
+        for (final text in ['2001:0DB8:0:0:0:0:0:1', '2001:db8::1', '::1']) {
+          expect(serialize(decode('{"address6":"$text"}')), equals('{"address6":"$text"}'));
+        }
+      });
+
+      test('bhv serializationobject 408 every absolute URI of the corpus round-trips byte for byte', () {
+        for (final text in [
+          'https://example.com',
+          'HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag',
+          'mailto:a@b.c',
+          'urn:isbn:0451450523',
+          "https://example.com/[x]?q='a'",
+          'https://example.com?',
+          'https://example.com/%7euser',
+          'https://[2001:db8::1]:8443/',
+        ]) {
+          final json = jsonEncode({'homepage': text});
+
+          expect(serialize(decode(json)), equals(json), reason: text);
+        }
+      });
+
+      test('bhv serializationobject 409 a hostname and an email are kept as given', () {
+        const json = '{"host":"not a host!","contact":"x@"}';
+
+        expect(serialize(decode(json)), equals(json));
+      });
+
+      test('bhv serializationparam 104 a duration parameter is written in the protobuf form', () {
+        expect(stringify(const Duration(hours: 1)), equals('3600s'));
+      });
+
+      test('bhv serializationparam 105 an address parameter is its text unchanged', () {
+        expect(stringify('2001:db8::1'), equals('2001:db8::1'));
+      });
+    });
   });
 }
 {{/generateTests}}

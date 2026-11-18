@@ -14,6 +14,7 @@ from petstore_client.models.account import Account
 from petstore_client.models.category import Category
 from petstore_client.models.defaults import Defaults
 from petstore_client.models.department import Department
+from petstore_client.models.native_values import NativeValues
 from petstore_client.models.order import Order
 from petstore_client.models.reserve_stock_response import ReserveStockResponse
 from petstore_client.models.stock_item import StockItem
@@ -37,6 +38,7 @@ from .options.get_department_options import GetDepartmentOptions
 from .options.get_grouped_categories_options import GetGroupedCategoriesOptions
 from .options.get_inventory_options import GetInventoryOptions
 from .options.get_matrix_options import GetMatrixOptions
+from .options.get_native_values_options import GetNativeValuesOptions
 from .options.get_order_by_id_options import GetOrderByIdOptions
 from .options.get_order_by_tracking_id_options import GetOrderByTrackingIdOptions
 from .options.get_stock_item_options import GetStockItemOptions
@@ -560,6 +562,126 @@ class StoreApi(BaseApi):
             "List[List[StrictInt]]",
             NO_AUTH,
             operation_name="get_matrix",
+            request_options=options,
+        )
+
+    async def get_native_values(
+        self,
+        options: Optional[GetNativeValuesOptions] = None,
+    ) -> NativeValues:
+        """Reads values of the formats the SDKs type natively.
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: NativeValues
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_native_values_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for get_native_values but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_native_values_with_http_info(
+        self,
+        options: Optional[GetNativeValuesOptions] = None,
+    ) -> "ApiResult[NativeValues]":
+        """Reads values of the formats the SDKs type natively. (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/native-values"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.address4 is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "address4",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "address4",
+                            options.address4,
+                            "query",
+                            "Ipv4Address",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        if options is not None and options.delay is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "delay",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "delay",
+                            options.delay,
+                            "query",
+                            "ProtobufDuration",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        if options is not None and options.amount is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "amount",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "amount",
+                            options.amount,
+                            "query",
+                            "JsonNumber",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        if options is not None and options.x_address6 is not None:
+            header_params["X-Address6"] = str(
+                ValueSerializer.serialize_styled(
+                    "X-Address6",
+                    options.x_address6,
+                    "header",
+                    "Ipv6Address",
+                    None,
+                    "simple",
+                    False,
+                )
+            )
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "NativeValues",
+            NO_AUTH,
+            operation_name="get_native_values",
             request_options=options,
         )
 

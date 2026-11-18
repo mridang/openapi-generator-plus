@@ -144,7 +144,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // google.protobuf.Duration form ("<seconds>s", e.g. "3600s")
         // Zitadel's API requires.
         typeMapping.put("time", "chrono::NaiveTime");
-        typeMapping.put("duration", "chrono::Duration");
+        typeMapping.put("duration", "chrono::TimeDelta");
+        typeMapping.put("ipv4", "std::net::Ipv4Addr");
+        typeMapping.put("ipv6", "std::net::Ipv6Addr");
         typeMapping.put("array", "Vec");
         typeMapping.put("List", "Vec");
         typeMapping.put("set", "std::collections::HashSet");

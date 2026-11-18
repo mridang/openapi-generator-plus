@@ -528,6 +528,15 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
 {{/deprecated}}
+{{#vendorExtensions.isIpv4}}
+    [JsonConverter(typeof(Ipv4AddressConverter))]
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+    [JsonConverter(typeof(Ipv6AddressConverter))]
+{{/vendorExtensions.isIpv6}}
+{{#vendorExtensions.isDecimalString}}
+    [JsonConverter(typeof(DecimalStringConverter))]
+{{/vendorExtensions.isDecimalString}}
 {{#required}}
 {{! Required property. Deserialized through its init accessor (not a
     constructor parameter), so the model stays trim-safe. Divergence #10 — a
@@ -828,6 +837,15 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
 {{/deprecated}}
+{{#vendorExtensions.isIpv4}}
+    [JsonConverter(typeof(Ipv4AddressConverter))]
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+    [JsonConverter(typeof(Ipv6AddressConverter))]
+{{/vendorExtensions.isIpv6}}
+{{#vendorExtensions.isDecimalString}}
+    [JsonConverter(typeof(DecimalStringConverter))]
+{{/vendorExtensions.isDecimalString}}
     [JsonPropertyName("{{baseName}}")]
     public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; init; }{{#defaultValue}} = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = global::{{packageName}}.Models.{{vendorExtensions.siblingDefaultEnumType}}.{{vendorExtensions.siblingDefaultEnumVar}};{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}
 {{^-last}}

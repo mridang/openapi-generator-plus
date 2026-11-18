@@ -435,6 +435,78 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: [[Int]].self)
   }
 
+  /// Reads values of the formats the SDKs type natively.
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func getNativeValues(options: GetNativeValuesOptions? = nil) async throws -> NativeValues {
+    let result = try await getNativeValuesWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for getNativeValues but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getNativeValues operation and returns the full API result.
+  public func getNativeValuesWithHTTPInfo(options: GetNativeValuesOptions? = nil) async throws
+    -> ApiResult<NativeValues>
+  {
+
+    let path = "/store/native-values"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.address4 {
+      queryParams["address4"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "address4", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.delay {
+      queryParams["delay"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "delay", value: val, location: "query", schemaType: "TimeInterval", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.amount {
+      queryParams["amount"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "amount", value: val, location: "query", schemaType: "Double", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    var headerParams: [String: String] = [:]
+    if let options = options, let val = options.xAddress6 {
+      headerParams["X-Address6"] = try ValueSerializer.headerValue(
+        ValueSerializer.serializeStyled(
+          "X-Address6", value: val, location: "header", schemaType: "String", collectionFormat: "",
+          style: "simple", explode: false))
+    }
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "NativeValues",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getNativeValues",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: NativeValues.self)
+  }
+
   /// Find purchase order by ID
   ///
   /// - Parameters:

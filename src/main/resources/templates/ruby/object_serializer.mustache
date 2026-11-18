@@ -3,9 +3,12 @@
 {{>api_info}}
 
 require 'base64'
+require 'bigdecimal'
 require 'date'
+require 'ipaddr'
 require 'iso8601'
 require 'json'
+require 'securerandom'
 require 'time'
 require 'tod'
 
@@ -26,6 +29,15 @@ module {{moduleName}}
     # render with a ".000" fraction, which RFC 3339 / ISO 8601 parsers accept.
     DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%3N%:z'
 
+    # A bare +type: number+ is written as a JSON number with every digit of its
+    # BigDecimal. JSON.generate would quote a BigDecimal, so the value is carried
+    # as a marked string and the marker (with its quotes) is removed after the
+    # document is generated. The marker holds a random token, so no string a
+    # caller supplies can collide with it.
+    EXACT_NUMBER_TOKEN = SecureRandom.hex(8)
+    EXACT_NUMBER_PREFIX = "\u0001exact-number-#{EXACT_NUMBER_TOKEN}:".freeze
+    private_constant :EXACT_NUMBER_TOKEN, :EXACT_NUMBER_PREFIX
+
     # RFC 3339 date-time: full date, 'T', full time with an optional fraction
     # of any length, then a mandatory 'Z' or +-HH:MM offset.
     RFC3339_DATETIME_REGEX = /\A\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})\z/
@@ -45,7 +57,7 @@ module {{moduleName}}
     # @return [Object] the parsed value
     # @raise [Errors::SerializationError] if the depth limit is exceeded or
     #   parsing fails
-    def self.parse_json(json_string, symbolize_names: false)
+    def self.parse_json(json_string, symbolize_names: false, decimal: false)
       # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
       # but Windows-generated payloads often include one and Ruby's
       # JSON.parse rejects it. Strip it here so every JSON entry point,
@@ -59,8 +71,12 @@ module {{moduleName}}
         )
       end
 
-      JSON.parse(json_string, symbolize_names: symbolize_names, allow_nan: false,
-                              max_nesting: MAX_JSON_DEPTH)
+      # decimal: read a number with a fraction or exponent as a BigDecimal, so no
+      # digit passes through a binary float. Only typed decoding asks for it.
+      # @type var options: Hash[Symbol, untyped]
+      options = { symbolize_names: symbolize_names, allow_nan: false, max_nesting: MAX_JSON_DEPTH }
+      options[:decimal_class] = BigDecimal if decimal
+      JSON.parse(json_string, **options)
     rescue JSON::ParserError => e
       raise Errors::SerializationError.new("Failed to deserialize JSON: #{e.message}", e)
     end
@@ -105,10 +121,118 @@ module {{moduleName}}
     # non-finite floats on both encode and decode.
     def self.serialize(object)
       sanitized = sanitize_for_serialization(object)
-      JSON.generate(sanitized, allow_nan: false)
+      JSON.generate(sanitized, allow_nan: false).gsub(exact_number_pattern, '\\1')
     rescue StandardError => e
       raise Errors::SerializationError.new("Failed to serialize object to JSON: #{e.message}", e)
     end
+
+    # The marker of a number written with every digit, see EXACT_NUMBER_PREFIX.
+    def self.exact_number_pattern
+      /"\\u0001exact-number-#{EXACT_NUMBER_TOKEN}:(-?\d+(?:\.\d+)?)"/
+    end
+    private_class_method :exact_number_pattern
+
+    # A BigDecimal in plain notation (no exponent, no trailing ".0").
+    #
+    # @param value [BigDecimal] a finite decimal
+    # @return [String] its digits, for example +1000+ or +12.5+
+    def self.decimal_to_plain(value)
+      raise Errors::SerializationError, "#{value} is not a finite JSON number" unless value.finite?
+
+      text = value.to_s('F')
+      text.delete_suffix('.0')
+    end
+
+    # The text of an IP address: dotted decimal for IPv4, the RFC 5952 form for
+    # IPv6 (lowercase, the longest run of zero groups compressed).
+    #
+    # @param address [IPAddr] the address
+    # @return [String] the canonical text
+    def self.ip_to_text(address)
+      return address.to_s if address.ipv4?
+
+      groups = (0..7).map { |i| (address.to_i >> (16 * (7 - i))) & 0xffff }
+      best_start = 0
+      best_length = 0
+      index = 0
+      while index < 8
+        if groups[index].zero?
+          stop = index
+          stop += 1 while stop < 8 && groups[stop].zero?
+          if stop - index > best_length
+            best_start = index
+            best_length = stop - index
+          end
+          index = stop
+        else
+          index += 1
+        end
+      end
+      return groups.map { |g| g.to_s(16) }.join(':') if best_length < 2
+
+      left = groups.take(best_start).map { |g| g.to_s(16) }.join(':')
+      right = groups.drop(best_start + best_length).map { |g| g.to_s(16) }.join(':')
+      "#{left}::#{right}"
+    end
+
+    IPV4_REGEX = /\A(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}\z/
+    IPV6_REGEX = /\A[0-9A-Fa-f:.]+\z/
+
+    # Read the plain text of an IP address: dotted decimal without leading
+    # zeros for IPv4, any RFC 4291 text for IPv6. A prefix length, a zone id,
+    # brackets and surrounding whitespace are refused, which IPAddr alone accepts.
+    #
+    # @param value [Object] the decoded JSON value
+    # @param family [Symbol, nil] +:ipv4+, +:ipv6+ or nil for either
+    # @return [IPAddr] the address
+    def self.parse_ip(value, family = nil)
+      return check_ip_family(value, family) if value.is_a?(IPAddr)
+
+      text = value.is_a?(String) ? value : ''
+      v4 = IPV4_REGEX.match?(text)
+      unless v4 || IPV6_REGEX.match?(text)
+        raise Errors::SerializationError, "Invalid IP address: #{value.inspect}"
+      end
+
+      address = begin
+        IPAddr.new(text)
+      rescue IPAddr::Error => e
+        raise Errors::SerializationError.new("Invalid IP address: #{value.inspect}", e)
+      end
+      check_ip_family(address, family)
+    end
+
+    # Refuse an address of the other family.
+    def self.check_ip_family(address, family)
+      return address if family.nil?
+      return address if (family == :ipv4) == address.ipv4?
+
+      raise Errors::SerializationError, "Expected an #{family} address, got #{ip_to_text(address).inspect}"
+    end
+
+    # Read a +type: string+ decimal: from a JSON string only, never a number.
+    #
+    # @param value [Object] the decoded JSON value
+    # @return [BigDecimal] the decimal
+    def self.parse_decimal_string(value)
+      unless value.is_a?(String) && value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\z/)
+        raise Errors::SerializationError, "Expected a decimal JSON string, got #{value.inspect}"
+      end
+
+      BigDecimal(value)
+    end
+
+    # Convert every BigDecimal inside an untyped value back to a Float, so a
+    # free-form value is the same Float it always was.
+    def self.free_form_value(value)
+      case value
+      when BigDecimal then value.to_f
+      when Array then value.map { |item| free_form_value(item) }
+      when Hash then value.transform_values { |item| free_form_value(item) }
+      else value
+      end
+    end
+    private_class_method :free_form_value
 
     # Apply a oneOf union's own pre-serialization transform to a request
     # body before it hits the normal serialize path.
@@ -151,7 +275,7 @@ module {{moduleName}}
       return nil if json_string.nil? || (json_string.is_a?(String) && json_string.empty?)
 
       data = if json_string.is_a?(String)
-               parse_json(json_string, symbolize_names: true)
+               parse_json(json_string, symbolize_names: true, decimal: true)
              else
                json_string
              end
@@ -189,6 +313,10 @@ module {{moduleName}}
       when Tod::TimeOfDay
         # 4.8: format: time → HH:MM:SS, plus .SSS when the milliseconds are not zero.
         format_time_of_day(value)
+      when BigDecimal
+        decimal_to_plain(value)
+      when IPAddr
+        ip_to_text(value)
       when ISO8601::Duration
         # format: duration → protobuf-JSON duration ("3600s"), the wire
         # form protobuf-derived APIs require. The
@@ -288,6 +416,10 @@ module {{moduleName}}
       when Date
         # Date#to_s emits ISO-8601 calendar form.
         object.to_s
+      when BigDecimal
+        raise Errors::SerializationError, "#{object} is not a finite JSON number" unless object.finite?
+
+        "#{EXACT_NUMBER_PREFIX}#{decimal_to_plain(object)}"
       when ISO8601::Duration
         # format: duration → protobuf-JSON duration ("3600s"). See
         # #duration_to_protobuf_json; the native ISO-8601 form is rejected.
@@ -427,17 +559,20 @@ module {{moduleName}}
     def self.convert_to_type(data, return_type)
       return nil if data.nil?
 
+      # A number is parsed as a BigDecimal; error messages show it as the Float it reads as.
+      shown = data.is_a?(BigDecimal) ? data.to_f : data
+
       # Strict type-check primitives before coercing. Default Ruby
       # behaviour was lenient ("42".to_i => 42, "true" == true => false
       # silently). Aligns Ruby with Java/Kotlin/C#/Go/Swift/Rust which
       # throw on type mismatch — surfaces server-side bugs loudly.
       case return_type
       when 'String'
-        raise ArgumentError, "Expected String, got #{data.class}: #{data.inspect}" unless data.is_a?(String)
+        raise ArgumentError, "Expected String, got #{shown.class}: #{shown.inspect}" unless data.is_a?(String)
 
         data
       when 'Integer'
-        raise ArgumentError, "Expected Integer, got #{data.class}: #{data.inspect}" unless data.is_a?(Integer)
+        raise ArgumentError, "Expected Integer, got #{shown.class}: #{shown.inspect}" unless data.is_a?(Integer)
 
         data
       when 'Float'
@@ -479,8 +614,21 @@ module {{moduleName}}
         return data if data.is_a?(ISO8601::Duration)
 
         duration_from_protobuf_json(data.to_s)
+      when 'BigDecimal'
+        # A bare type: number. A number is read as a BigDecimal by the parser; a
+        # quoted number is not a JSON number.
+        unless data.is_a?(BigDecimal) || data.is_a?(Integer) || data.is_a?(Float)
+          raise ArgumentError, "Expected a JSON number, got #{data.class}: #{data.inspect}"
+        end
+
+        number = BigDecimal(data.to_s)
+        raise ArgumentError, "Expected a finite number, got #{data.inspect}" unless number.finite?
+
+        number
+      when 'IPAddr'
+        parse_ip(data)
       when 'Object'
-        data
+        free_form_value(data)
       when 'ByteArray'
         # A top-level `type: string, format: byte` response carried as
         # application/json arrives as a JSON string literal ("dGVzdC1pbWFnZQ==").
@@ -569,8 +717,14 @@ module {{moduleName}}
         next unless data.key?(json_key)
 
         value = data[json_key]
-        converted = value.nil? ? nil : convert_to_type(value, type.to_s)
         fmt = formats[attr]
+        converted = if value.nil?
+                      nil
+                    elsif fmt == 'decimal'
+                      parse_decimal_string(value)
+                    else
+                      convert_to_type(value, type.to_s)
+                    end
         transformed[attr] = if !converted.nil? && fmt
                               apply_format_on_deserialize(converted, fmt)
                             else
@@ -592,7 +746,7 @@ module {{moduleName}}
           next if declared_keys.include?(json_key)
 
           extras[json_key] = if value.nil? || extra_type.nil?
-                               value
+                               free_form_value(value)
                              else
                                convert_to_type(value, extra_type.to_s)
                              end
@@ -617,6 +771,10 @@ module {{moduleName}}
         validate_uuid(value)
       when 'uri'
         validate_uri(value)
+      when 'ipv4'
+        check_ip_family(value, :ipv4)
+      when 'ipv6'
+        check_ip_family(value, :ipv6)
       when 'byte[]'
         raise Errors::SerializationError, "Expected Array for format: byte[], got #{value.class}" unless value.is_a?(Array)
 
@@ -796,6 +954,10 @@ module {{moduleName}}
         encode_byte(value)
       when 'uuid'
         validate_uuid(value)
+      when 'decimal'
+        value.is_a?(BigDecimal) ? decimal_to_plain(value) : value
+      when 'ipv4', 'ipv6'
+        value.is_a?(IPAddr) ? ip_to_text(value) : value
       when 'byte[]'
         raise Errors::SerializationError, "Expected Array for format: byte[], got #{value.class}" unless value.is_a?(Array)
 

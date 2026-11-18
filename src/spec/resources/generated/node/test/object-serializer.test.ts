@@ -18,6 +18,7 @@ import {
 } from "../src/object-serializer.js";
 import { OpenAPIError, SerializationError } from "../src/errors/index.js";
 import {
+  NativeValues,
   Account,
   BinaryVault,
   Category,
@@ -2128,7 +2129,7 @@ describe("ObjectSerializer", () => {
           );
         });
 
-        test('bhv serializationobject 002 rejects a bare number with no "s" suffix', () => {
+        test('rejects a bare number with no "s" suffix', () => {
           expect(() => durationFromProtoJson("3600")).toThrow(
             SerializationError,
           );
@@ -3700,6 +3701,120 @@ describe("toBinary", () => {
       )!;
 
       expect(durationToProtoJson(decoded.retryAfter!)).toBe("5400s");
+    });
+  });
+
+  describe("native value formats", () => {
+    const decode = (text: string): NativeValues =>
+      ObjectSerializer.deserialize(
+        ObjectSerializer.parseJson(text),
+        NativeValues,
+      )!;
+
+    test("bhv serializationobject 002 a bare number keeps every digit and is written in plain notation", () => {
+      const pet = ObjectSerializer.deserialize(
+        ObjectSerializer.parseJson(
+          '{"name":"a","photoUrls":[],"weightKg":12.345678901234567890123}',
+        ),
+        Pet,
+      )!;
+
+      expect(pet.weightKg).toBe("12.345678901234567890123");
+      expect(ObjectSerializer.serialize(pet)).toContain(
+        '"weightKg":12.345678901234567890123',
+      );
+    });
+
+    test("bhv serializationobject 403 a duration field is the Temporal.Duration fallback", () => {
+      expect(decode('{"wait":"3600s"}').wait).toBeInstanceOf(Temporal.Duration);
+    });
+
+    test("bhv serializationobject 404 a duration keeps every nanosecond and is written in the shortest form", () => {
+      const values = decode('{"wait":"-1.123456789s"}');
+
+      expect(ObjectSerializer.serialize(values)).toBe(
+        '{"wait":"-1.123456789s"}',
+      );
+    });
+
+    test("bhv serializationobject 405 an ipv4 field is the address text and is kept unchanged", () => {
+      expect(
+        ObjectSerializer.serialize(decode('{"address4":"192.0.2.1"}')),
+      ).toBe('{"address4":"192.0.2.1"}');
+    });
+
+    test.each(["2001:0DB8:0:0:0:0:0:1", "2001:db8::1", "::1"])(
+      "bhv serializationobject 406 an ipv6 field keeps the text %p unchanged",
+      (text) => {
+        expect(
+          ObjectSerializer.serialize(decode(`{"address6":"${text}"}`)),
+        ).toBe(`{"address6":"${text}"}`);
+      },
+    );
+
+    test.each([
+      "https://example.com",
+      "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+      "mailto:a@b.c",
+      "urn:isbn:0451450523",
+      "https://example.com/[x]?q='a'",
+      "https://example.com?",
+      "https://example.com/%7euser",
+      "https://[2001:db8::1]:8443/",
+    ])(
+      "bhv serializationobject 408 the absolute URI %p round-trips byte for byte",
+      (text) => {
+        const json = JSON.stringify({ homepage: text });
+
+        expect(ObjectSerializer.serialize(decode(json))).toBe(json);
+      },
+    );
+
+    test("bhv serializationobject 409 a hostname and an email are kept as given", () => {
+      const json = '{"host":"not a host!","contact":"x@"}';
+
+      expect(ObjectSerializer.serialize(decode(json))).toBe(json);
+    });
+
+    test("bhv serializationobject 410 a number keeps every digit and is written in plain notation", () => {
+      const values = decode('{"amount":12.345678901234567890123}');
+
+      expect(values.amount).toBe("12.345678901234567890123");
+      expect(ObjectSerializer.serialize(values)).toBe(
+        '{"amount":12.345678901234567890123}',
+      );
+    });
+
+    test("bhv serializationobject 411 a string decimal is written as a JSON string and rejects a bare number", () => {
+      const values = decode('{"ledger":"12.50"}');
+
+      expect(values.ledger).toBe("12.50");
+      expect(ObjectSerializer.serialize(values)).toBe('{"ledger":"12.50"}');
+      expect(() => decode('{"ledger":12.50}')).toThrow(SerializationError);
+    });
+
+    test("bhv serializationobject 412 a forty digit number is exact and never rounded", () => {
+      const digits = "1234567890123456789012345678901234567890";
+
+      expect(ObjectSerializer.serialize(decode(`{"amount":${digits}}`))).toBe(
+        `{"amount":${digits}}`,
+      );
+    });
+
+    test("bhv serializationparam 104 a duration parameter is written in the protobuf form", () => {
+      expect(ObjectSerializer.stringify(Temporal.Duration.from("PT1H"))).toBe(
+        "3600s",
+      );
+    });
+
+    test("bhv serializationparam 105 an address parameter is its text unchanged", () => {
+      expect(ObjectSerializer.stringify("192.0.2.1")).toBe("192.0.2.1");
+    });
+
+    test("bhv serializationparam 106 a decimal parameter is written in plain notation", () => {
+      expect(ObjectSerializer.stringify("12.345678901234567890123")).toBe(
+        "12.345678901234567890123",
+      );
     });
   });
 });

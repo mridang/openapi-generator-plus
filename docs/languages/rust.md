@@ -12,11 +12,12 @@ The crate forbids `unsafe` code (`unsafe_code = "forbid"`).
 
 | OpenAPI type and format | Rust type | Notes |
 |---|---|---|
-| `string` | `String` | Also used for `email`, `hostname`, `ipv4`, `ipv6`, `password` and unknown formats. |
+| `string` | `String` | Also used for `email`, `hostname`, `password` and unknown formats. |
+| `string` / `ipv4`, `ipv6` | `std::net::Ipv4Addr`, `std::net::Ipv6Addr` | Read and written through the standard library's own serde implementation: a leading zero, a prefix length, a zone id, brackets, whitespace and the wrong family fail the decode, and an address is written in canonical text. |
 | `string` / `date` | `chrono::NaiveDate` | |
 | `string` / `date-time` | `crate::date_time::DateTime` | An SDK newtype over `chrono::DateTime<FixedOffset>`. The offset is kept. The wire form has a numeric offset (never `Z`) and a fixed three-digit millisecond fraction. |
 | `string` / `time` | `chrono::NaiveTime` | A time string with a zone offset does not round trip. |
-| `string` / `duration` | `chrono::Duration` | Serialised through `crate::proto_duration` as the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
+| `string` / `duration` | `chrono::TimeDelta` | Serialised through `crate::proto_duration` as the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
 | `string` / `uuid` | `uuid::Uuid` | |
 | `string` / `byte` | `Vec<u8>` | Base64 through a serde adapter. |
 | `string` / `binary`, file bodies | `Vec<u8>` | Held fully in memory, for uploads and downloads. |
@@ -127,10 +128,8 @@ Constructors and `Default` never validate. A wrong value or an unknown enum stri
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
-- Map `ipv4` and `ipv6` to `std::net::Ipv4Addr` and `Ipv6Addr`. They are in the standard library, so there is no new dependency or floor change, but it needs a decision on how strict to be with server input.
 - Widen an unformatted `integer` to `i64`, because OpenAPI treats it as unbounded. This would be decided together with the other languages.
 - Exact decimals through `rust_decimal` or `bigdecimal`, with a serde adapter. This adds a dependency. The review advises against turning on `serde_json`'s `arbitrary_precision` feature globally.
-- Use the current chrono name `chrono::TimeDelta` for durations. It is the same type that `chrono::Duration` aliases.
 - `url::Url` for `uri`. It is already in the dependency tree through `reqwest`, but it normalises on parse, so values would not round trip byte for byte.
 - `#[non_exhaustive]` on generated enums, so a new server value is not a breaking change for callers who match on them.
 - Edition 2024, which 1.85 already supports.
