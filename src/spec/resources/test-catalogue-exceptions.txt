@@ -431,3 +431,4 @@ go | misc087 | Go's number is float64 and documented lossy (serializationobject0
 go | misc088 | Go's number is float64 (no stdlib decimal, documented lossy), so the decimal places a value was written with are not kept, as serializationobject002 records
 go | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
 go | misc092 | encoding/json matches a key to a field by case-folding the tag, so a key differing from the wire name only by case is matched; the petstore has no property whose Go name differs from its wire name by more than case
+kotlin | operations164 | a required parameter is a non-null Kotlin type, so a nil argument is rejected by the compiler and cannot reach the call; a missing required Options field is refused with an argument error by bhv operations 132

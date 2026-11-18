@@ -705,6 +705,10 @@ class DefaultApiClientTest {
          * rebuilds the multipart body for every hop.
          */
         @Test
+        @DisplayName("bhvRetries046 a request body is resent unchanged when a 307 redirect keeps the same scheme")
+        fun bhvRetries046BodyResentUnchangedOn307() = multipartBodyReplayedOn307Redirect()
+
+        @Test
         @DisplayName("bhvRetries012 a 307 redirect replays the multipart body to the redirected location (T-new-3)")
         fun multipartBodyReplayedOn307Redirect() {
             val chasmUrl = ChasmContainer.getBaseUrl()
@@ -910,6 +914,49 @@ class DefaultApiClientTest {
             for (name in listOf("Authorization", "Cookie", "Proxy-Authorization", "X-Api-Key")) {
                 assertFalse(headers.contains(name), name)
             }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects047 a refused redirect and a successful redirect in parallel requests do not affect each other")
+        fun bhvRedirects047ParallelRedirectOutcomesAreIndependent() {
+            val engine =
+                MockEngine { req ->
+                    when (req.url.host) {
+                        "refused.example.com" ->
+                            respond(
+                                content = "",
+                                status = HttpStatusCode.TemporaryRedirect,
+                                headers = headersOf("Location", "http://refused.example.com/dest"),
+                            )
+                        "ok.example.com" ->
+                            if (req.url.encodedPath == "/x") {
+                                respond(
+                                    content = "",
+                                    status = HttpStatusCode.Found,
+                                    headers = headersOf("Location", "https://ok.example.com/dest"),
+                                )
+                            } else {
+                                respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                            }
+                        else -> respond("unexpected", HttpStatusCode.InternalServerError)
+                    }
+                }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val (refused, ok) =
+                runBlocking {
+                    val refusedCall =
+                        async {
+                            runCatching {
+                                apiClient.sendRequest("POST", "https://refused.example.com/x", emptyMap(), "body")
+                            }
+                        }
+                    val okCall = async { apiClient.sendRequest("POST", "https://ok.example.com/x", emptyMap(), "body") }
+                    refusedCall.await() to okCall.await()
+                }
+            assertTrue(refused.isFailure, "a 307 that downgrades https to http with a body is refused")
+            assertEquals(200, ok.statusCode)
+            assertEquals("ok", ok.body)
         }
 
         @Test
