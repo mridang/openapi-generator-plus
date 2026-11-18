@@ -489,6 +489,27 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
+    @DisplayName(
+        "bhvAuthscheme014 an empty environment variable for the password scheme credential is treated as unset and fails naming the variable",
+    )
+    fun bhvAuthscheme014EmptyPasswordSchemeVariableIsUnsetAndNamed() {
+        val env =
+            mapOf(
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID" to "env-id",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET" to "x",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME" to "",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD" to "pw",
+            )
+        val ex =
+            withEnvironment(env) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    LegacyAuthPasswordAuthenticator("https://api.example.com")
+                }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"), ex.message)
+    }
+
+    @Test
     @DisplayName("bhvAuthoauthtwopassword021 the password grant token request body uses a fixed parameter order")
     fun tokenBodyUsesAFixedParameterOrder() {
         val client = FakeApiClient()

@@ -9,6 +9,12 @@ import {{invokerPackage}}.errors.BadRequestException
 import {{invokerPackage}}.errors.ClientException
 import {{invokerPackage}}.errors.NotFoundException
 import {{invokerPackage}}.errors.ServerException
+import {{invokerPackage}}.errors.ConflictException
+import {{invokerPackage}}.errors.ForbiddenException
+import {{invokerPackage}}.errors.InternalServerErrorException
+import {{invokerPackage}}.errors.TooManyRequestsException
+import {{invokerPackage}}.errors.UnauthorizedException
+import {{invokerPackage}}.errors.UnprocessableEntityException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -545,5 +551,59 @@ class ApiExceptionTest {
         val ex = ApiException.fromResponse(500, emptyMap(), "<html>oops</html>")
         assertNull(ex.errorBody)
         assertEquals("<html>oops</html>", ex.responseBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors050 response headers render in the error text as compact JSON with sorted keys and unescaped slashes")
+    fun bhvErrors050ResponseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
+        val ex = ApiException(502, "bad", linkedMapOf("b" to "x/y", "a" to "1"), null)
+        assertEquals("bad\nHTTP status code: 502\nResponse headers: {\"a\":\"1\",\"b\":\"x/y\"}", ex.toString())
+    }
+
+    @Test
+    @DisplayName("bhvErrors051 an empty error message falls back to the generic error line")
+    fun bhvErrors051AnEmptyMessageFallsBackToTheGenericLine() {
+        assertEquals("Error message: the server returns an error", ApiException("").toString())
+    }
+
+    @Test
+    @DisplayName("bhvErrors052 a typed client error is caught by a base API error catch and chains to the API error root")
+    fun bhvErrors052TypedClientErrorIsCaughtByTheBaseApiErrorCatch() {
+        val ex: Exception = BadRequestException("bad request")
+        assertTrue(ex is ClientException)
+        assertTrue(ex is ApiException)
+        assertTrue(ex is {{errorPrefix}}Exception)
+        val caught = assertThrows(ApiException::class.java) { throw BadRequestException("bad request") }
+        assertEquals(400, caught.statusCode)
+    }
+
+    @Test
+    @DisplayName("bhvErrors053 each named error pins its own HTTP status code")
+    fun bhvErrors053EachNamedErrorPinsItsOwnStatusCode() {
+        assertEquals(400, BadRequestException().statusCode)
+        assertEquals(401, UnauthorizedException().statusCode)
+        assertEquals(403, ForbiddenException().statusCode)
+        assertEquals(404, NotFoundException().statusCode)
+        assertEquals(409, ConflictException().statusCode)
+        assertEquals(422, UnprocessableEntityException().statusCode)
+        assertEquals(429, TooManyRequestsException().statusCode)
+        assertEquals(500, InternalServerErrorException().statusCode)
+    }
+
+    @Test
+    @DisplayName("bhvErrors055 status error constructors default the response context to null")
+    fun bhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull() {
+        val ex = BadRequestException()
+        assertEquals(400, ex.statusCode)
+        assertNull(ex.responseHeaders)
+        assertNull(ex.responseBody)
+        assertNull(ex.errorBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors056 a status at or above 600 yields the base error and not a server error")
+    fun bhvErrors056AStatusAtOrAbove600IsTheBaseErrorAndNotAServerError() {
+        val ex = ApiException.fromResponse(600, emptyMap(), null)
+        assertEquals(ApiException::class.java, ex.javaClass)
     }
 }

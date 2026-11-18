@@ -2,6 +2,7 @@
 
 package {{invokerPackage}}
 
+import {{invokerPackage}}.errors.SerializationException
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -156,7 +157,7 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("tilde preserved (unreserved, not over-encoded)")
+        @DisplayName("bhvSerializationparam119 a tilde is kept literal in a path parameter value")
         fun tildePreserved() {
             // java-kotlin-tilde-overencoded: URLEncoder emits `~`->`%7E`, but
             // `~` is an RFC 3986 unreserved character and the other 10 SDKs
@@ -956,6 +957,77 @@ class ValueSerializerTest {
         @DisplayName("bhvSerializationparam102 a string with spaces is URL-encoded in a path")
         fun stringWithSpacesIsUrlEncoded() {
             assertEquals("a%20b", ValueSerializer.serializeStyled("name", "a b", "path", "string", null, "simple", false))
+        }
+    }
+
+    @Nested
+    @DisplayName("parameter wire forms")
+    inner class ParameterWireFormTests {
+
+        @Test
+        @DisplayName("bhvSerializationparam108 a nested object leaf in a styled parameter is rejected with a serialization error")
+        fun nestedObjectLeafInStyledParameterIsRejected() {
+            assertThrowsExactly(SerializationException::class.java) {
+                ValueSerializer.serializeStyled(
+                    "criteria", mapOf("inner" to mapOf("deeper" to 1)), "query", "object", null, "form", true
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam109 an unknown parameter style falls back to plain value serialization")
+        fun unknownStyleFallsBackToPlainSerialization() {
+            assertEquals("a b", ValueSerializer.serializeStyled("color", "a b", "query", "string", null, "unknownStyle", false))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam110 a date value is written as YYYY-MM-DD")
+        fun dateValueIsWrittenAsDateOnly() {
+            assertEquals("2024-01-15", ValueSerializer.serialize(LocalDate.of(2024, 1, 15), "query", "string", null))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam111 a deepObject parameter writes each property as name[key]")
+        fun deepObjectWritesEachPropertyAsNameKey() {
+            assertEquals(
+                mapOf("filter[min_count]" to "3", "filter[color]" to "red"),
+                ValueSerializer.serializeDeepObject("filter", mapOf("min_count" to 3, "color" to "red")),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam115 a csv query array keeps an empty slot for a null element")
+        fun csvArrayKeepsEmptySlotForNull() {
+            assertEquals("a,,c", ValueSerializer.serialize(listOf("a", null, "c"), "query", "array", "csv"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam117 a set in form style without explode joins its elements with commas like an array")
+        fun setInFormStyleWithoutExplodeJoinsWithCommas() {
+            assertEquals(
+                "red,blue",
+                ValueSerializer.serializeStyled("labels", linkedSetOf("red", "blue"), "query", "array", null, "form", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam118 a content cookie value is encoded to the shared percent encoded bytes")
+        fun contentCookieValueIsEncodedToTheSharedBytes() {
+            assertEquals(
+                "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
+                ValueSerializer.serializeContent("k", mapOf("k" to "a b~*\u00e9"), "cookie"),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam120 an array of date values is written with each element as YYYY-MM-DD")
+        fun arrayOfDatesWritesEachElementAsDateOnly() {
+            assertEquals(
+                listOf("2024-01-15", "2024-02-01"),
+                ValueSerializer.serializeStyled(
+                    "dates", listOf(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 2, 1)), "query", "array", null, "form", true
+                ),
+            )
         }
     }
 }

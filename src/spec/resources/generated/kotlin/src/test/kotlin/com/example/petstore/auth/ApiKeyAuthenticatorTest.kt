@@ -383,6 +383,20 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
+    @DisplayName(
+        "bhvAuthscheme012 an empty environment variable for the api key scheme credential is treated as unset and fails naming the variable",
+    )
+    fun bhvAuthscheme012EmptyApiKeyVariableIsUnsetAndNamed() {
+        val ex =
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY" to "")) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    ApiKeyAuthenticator("https://api.example.com", "X-API-Key", null, ApiKeyLocation.HEADER)
+                }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"), ex.message)
+    }
+
+    @Test
     fun bhvAuthscheme005ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
         val ex =
             withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY" to "")) {

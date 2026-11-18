@@ -1220,7 +1220,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("a non-JSON success body on a model return names the content type and the operation")
+        @DisplayName("bhvErrors054 a non-JSON success body on a model return names the content type and the operation, not the HTTP verb")
         fun nonJsonBodyOnAModelReturnNamesTheOperation() {
             val client =
                 object : CapturingApiClient() {
@@ -1402,6 +1402,22 @@ class BaseApiTest {
             val wire = client.capturedBody.toString()
             assertEquals("full+name=Ada+Lovelace", wire)
             assertFalse(wire.contains("%20"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire057 a form-urlencoded body keeps only the unreserved set literal and escapes the rest")
+        fun formBodyKeepsOnlyTheUnreservedSetLiteral() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call(
+                    "POST",
+                    "/test/echo",
+                    body = mapOf("nickname" to "a~b*c!d'e(f)g"),
+                    contentType = "application/x-www-form-urlencoded",
+                )
+            }
+            assertEquals("nickname=a~b%2Ac%21d%27e%28f%29g", client.capturedBody.toString())
         }
 
         @Test
@@ -1926,6 +1942,25 @@ class BaseApiTest {
             val testApi = TestableApiWithClient(client, "http://localhost")
             val result = runBlocking { testApi.callForResult<ByteArray>("GET", "/test/echo") }
             assertArrayEquals(original, result.data!!)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire060 a binary return type gets the raw bytes of a JSON body")
+        fun binaryReturnTypeGetsTheRawBytesOfAJsonBody() {
+            val json = "{\"id\":7,\"name\":\"photo\"}"
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiHttpResponse = ApiHttpResponse(200, json, mapOf("Content-Type" to "application/json"))
+                }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking { testApi.callForResult<ByteArray>("GET", "/test/echo") }
+            assertArrayEquals(json.toByteArray(Charsets.UTF_8), result.data!!)
         }
 
         @Test

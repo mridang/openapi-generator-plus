@@ -517,7 +517,12 @@ internal class ObjectSerializer(
     fun toWireMap(value: Any?): Map<String, String>? {
         if (value == null) return null
         if (value is Map<*, *>) {
-            return value.entries.associate { (key, field) -> key.toString() to stringify(field) }
+            return value.entries.associate { (key, field) ->
+                if (field is Map<*, *>) {
+                    throw SerializationException("Parameter field '$key' is a nested value; only flat objects can be encoded")
+                }
+                key.toString() to stringify(field)
+            }
         }
         if (value is Collection<*> || isLeafValue(value)) return null
         val model = unwrapInstance(value)
@@ -528,7 +533,7 @@ internal class ObjectSerializer(
             when (field) {
                 is JsonNull -> Unit
                 is JsonPrimitive -> result[key] = field.content
-                else -> throw IllegalArgumentException("Parameter field '$key' is a nested value; only flat objects can be encoded")
+                else -> throw SerializationException("Parameter field '$key' is a nested value; only flat objects can be encoded")
             }
         }
         return result

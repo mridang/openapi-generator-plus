@@ -1033,6 +1033,36 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationparam122 an allowReserved query value keeps its reserved characters literal on the wire")
+        fun testGetPetTagAllowReservedKeepsReservedCharactersLiteral() {
+            var capturedQuery: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.getPetTag(5L, "cute", GetPetTagOptions(revision = "v1.0/beta:rc1"))
+            }
+
+            assertTrue(
+                capturedQuery!!.contains("revision=v1.0/beta:rc1"),
+                "query was: $capturedQuery",
+            )
+        }
+
+        @Test
         @DisplayName("bhvOperations066 getPetTag sends a '#' in an allowReserved value percent-encoded, keeping the query")
         fun testGetPetTagAllowReservedEncodesFragmentDelimiter() {
             var capturedQuery: String? = null
@@ -2105,6 +2135,14 @@ class PetApiTest {
 
             assertEquals(1, urls.size)
             assertTrue(urls[0].startsWith("https://eu.example.com/v1/"), urls[0])
+        }
+
+        @Test
+        @DisplayName("bhvServers020 a per-operation server variable value outside its enum is rejected")
+        fun perOperationServerVariableOutsideItsEnumIsRejected() {
+            assertThrows(IllegalArgumentException::class.java) {
+                PetApi.GetStagingPetInfoServer.Environment.valueOf("production")
+            }
         }
 
         @Test

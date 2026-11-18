@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.auth.CredentialEnvironment
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -513,6 +514,31 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         assertEquals("https://auth.example.com/oauth/token", client.lastUrl)
         runBlocking { auth.getAuthHeaders() }
         assertEquals("https://auth.example.com/oauth/refresh", client.lastUrl)
+    }
+
+    @Test
+    @DisplayName(
+        "bhvAuthscheme015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable",
+    )
+    fun bhvAuthscheme015EmptyAuthorizationCodeSchemeVariableIsUnsetAndNamed() {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name ->
+            when (name) {
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID" -> ""
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET" -> "secret"
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI" -> "https://app.example.com/callback"
+                else -> null
+            }
+        }
+        try {
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    UserAuthAuthorizationCodeAuthenticator("https://api.example.com")
+                }
+            assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"), ex.message)
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
     }
 
     @Test

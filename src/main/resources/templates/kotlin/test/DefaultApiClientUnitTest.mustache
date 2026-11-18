@@ -276,6 +276,12 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationwire061 a multipart filename with an embedded quote is backslash-escaped")
+        fun multipartFilenameWithQuoteIsBackslashEscaped() {
+            assertEquals("filename=\"a\\\"b.png\"", buildFilenameDirective("a\"b.png"))
+        }
+
+        @Test
         @DisplayName("bhvSerializationwire043 CRLF in filename throws IllegalArgumentException")
         fun multipartFilenameCRLFRejected() {
             for (bad in listOf("a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf")) {

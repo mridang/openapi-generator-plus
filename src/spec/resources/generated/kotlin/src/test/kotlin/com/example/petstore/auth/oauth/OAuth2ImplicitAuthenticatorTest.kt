@@ -7,6 +7,7 @@
 
 package com.example.petstore.auth.oauth
 
+import com.example.petstore.auth.CredentialEnvironment
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -177,6 +178,24 @@ class OAuth2ImplicitAuthenticatorTest {
             "https://auth.example.com/authorize?response_type=token&client_id=cid&scope=read",
             auth.buildAuthorizationUrl(),
         )
+    }
+
+    @Test
+    @DisplayName(
+        "bhvAuthscheme016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable",
+    )
+    fun bhvAuthscheme016EmptyImplicitSchemeVariableIsUnsetAndNamed() {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> if (name == "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID") "" else null }
+        try {
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    BrowserAuthImplicitAuthenticator("https://api.example.com")
+                }
+            assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"), ex.message)
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
     }
 
     @Test
