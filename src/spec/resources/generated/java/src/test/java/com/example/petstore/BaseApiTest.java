@@ -1980,8 +1980,9 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("form-urlencoded body keeps ~ literal and escapes *")
-    void formUrlencodedBodyKeepsOnlyUnreservedLiteral() throws ApiException {
+    @DisplayName("bhvSerializationWire057 form-urlencoded body keeps ~ literal and escapes *")
+    void bhvSerializationWire057FormUrlencodedBodyKeepsOnlyTheUnreservedSetLiteral()
+        throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       Map<String, String> formParams = new java.util.LinkedHashMap<>();
@@ -2077,6 +2078,16 @@ class BaseApiTest {
               null);
       assertNotNull(result);
       assertEquals("hello", result);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationParam118 a content cookie value is encoded to the shared percent encoded"
+            + " bytes")
+    void bhvSerializationParam118ContentCookieValueIsEncodedToSharedBytes() {
+      String encoded = TestableApi.encodeCookie("[1,\"x\"]");
+      assertEquals("%5B1%2C%22x%22%5D", encoded);
+      assertTrue(TestableApi.cookieValueValid(encoded));
     }
 
     @Test
@@ -2404,6 +2415,33 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("bhvSerializationWire060 binary return type gets the raw bytes of a JSON body")
+    void bhvSerializationWire060BinaryReturnTypeGetsTheRawBytesOfAJsonBody() throws ApiException {
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              return new ApiHttpResponse(
+                  200, "{\"ok\":true}", Map.of("content-type", "application/json"));
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      byte[] result =
+          testApi.call(
+              "GET",
+              "/api/binary",
+              new HashMap<>(),
+              new HashMap<>(),
+              null,
+              new String[] {"application/json"},
+              "application/json",
+              byte[].class,
+              null);
+      assertArrayEquals("{\"ok\":true}".getBytes(java.nio.charset.StandardCharsets.UTF_8), result);
+    }
+
+    @Test
     @DisplayName(
         "bhvSerializationWire018 octet-stream base64 body decodes to correct bytes"
             + " (transport-level)")
@@ -2594,8 +2632,8 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("quote and backslash in filename are escaped")
-    void quoteAndBackslashEscaped() {
+    @DisplayName("bhvSerializationWire061 quote and backslash in filename are escaped")
+    void bhvSerializationWire061MultipartFilenameWithEmbeddedQuoteIsBackslashEscaped() {
       String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
       assertEquals(
           "filename=\"a\\\"b.txt\"",

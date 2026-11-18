@@ -542,6 +542,14 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("bhvSerializationObject230 a time value survives a stringify and parse round trip")
+    void bhvSerializationObject230TimeSurvivesStringifyAndParseRoundTrip() {
+      java.time.LocalTime time = java.time.LocalTime.of(10, 30, 0, 123_000_000);
+      String text = ObjectSerializer.stringify(time);
+      assertEquals(time, serializer.deserialize("\"" + text + "\"", java.time.LocalTime.class));
+    }
+
+    @Test
     @DisplayName(
         "bhvSerializationObject163 time body property uses the partial-time form and round-trips")
     void bhvSerializationObject163BodyTimeUsesPartialTimeAndRoundTrips() {
@@ -748,6 +756,21 @@ class ObjectSerializerTest {
                       new com.fasterxml.jackson.core.type.TypeReference<
                           java.util.Map<String, com.example.petstore.models.Pet>>() {}.getType()));
       assertNullElementCause(ex);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject229 deserializing a map of models returns a model instance for each"
+            + " value")
+    void bhvSerializationObject229DeserializeMapOfModelsReturnsAModelForEachValue() {
+      java.util.Map<String, com.example.petstore.models.Pet> decoded =
+          serializer.deserialize(
+              "{\"a\":{\"name\":\"a\",\"photoUrls\":[]},\"b\":{\"name\":\"b\",\"photoUrls\":[]}}",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  java.util.Map<String, com.example.petstore.models.Pet>>() {}.getType());
+      assertEquals(2, decoded.size());
+      assertInstanceOf(com.example.petstore.models.Pet.class, decoded.get("a"));
+      assertEquals("b", java.util.Objects.requireNonNull(decoded.get("b")).name);
     }
 
     @Test
@@ -1404,6 +1427,17 @@ class ObjectSerializerTest {
       assertNotNull(pet);
       assertNull(pet.tags);
       assertNull(pet.location);
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject231 a payload that omits optional fields leaves them unset")
+    void bhvSerializationObject231OmittedOptionalFieldsStayUnset() {
+      com.example.petstore.models.Pet pet =
+          serializer.deserialize(
+              "{\"name\":\"x\",\"photoUrls\":[]}", com.example.petstore.models.Pet.class);
+      assertNotNull(pet);
+      assertNull(pet.id);
+      assertNull(pet.tags);
     }
 
     @Test

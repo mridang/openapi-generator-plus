@@ -264,6 +264,24 @@ class MetadataTest {
   }
 
   @Test
+  void bhvSerializationObject227ModelExternalDocsDescriptionIsWrittenVerbatim() throws IOException {
+    java.util.List<Path> found;
+    try (java.util.stream.Stream<Path> walk = Files.walk(Path.of("src/main"))) {
+      found =
+          walk.filter(f -> f.getFileName().toString().equals("Account.java"))
+              .collect(java.util.stream.Collectors.toList());
+    }
+    assertThat(found).hasSize(1);
+    String source = Files.readString(found.get(0));
+    assertThat(source).contains("\"notes\" it's here");
+    assertThat(source)
+        .doesNotContain("&lt;")
+        .doesNotContain("&gt;")
+        .doesNotContain("&quot;")
+        .doesNotContain("&#");
+  }
+
+  @Test
   void bhvModels002TestPomManifestDeclaresNonEmptyDescription() throws IOException {
     Path pom = Path.of("pom.xml");
     assertThat(Files.exists(pom)).as("pom.xml must exist at the project root").isTrue();
