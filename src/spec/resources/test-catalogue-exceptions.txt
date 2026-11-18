@@ -519,7 +519,6 @@ elixir | misc056 | Elixir transport options are a keyword list given once to Tra
 elixir | misc059 | JSON has no NaN or Infinity literal and Jason refuses them, so a non-finite token lifetime cannot reach the token cache
 elixir | misc060 | The bearer authenticator constructor takes one token and has no token provider argument, so both cannot be supplied together
 elixir | misc061 | An authenticator is a plain module function with no call context argument, so there is no caller cancellation or context value to pass to it
-elixir | misc068 | Elixir reads the environment only for a nil credential; an empty string is passed on as the value and refused (a bearer token must be non-empty), so it never falls back to the environment
 elixir | misc074 | BaseApi.scheme_auth returns the one credential of the first listed scheme the client holds, so an alternative naming two schemes applies a single credential and never both
 elixir | misc262 | Elixir has no client-level cancellation to surface: a call is stopped only by its own process exiting (S7), and the SDK never receives or wraps a caller's cancellation (misc029)
 elixir | misc268 | The fixture certificate names every host the test helpers reach it by (localhost, 127.0.0.1, chasm and the host gateway, see TestCertificates), so no reachable address is missing from its names and a hostname mismatch cannot be produced
