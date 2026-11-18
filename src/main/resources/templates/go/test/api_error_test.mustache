@@ -13,6 +13,98 @@ import (
 	"{{packageName}}/pkg/models"
 )
 
+// Response headers render in the error text as compact JSON: sorted keys and unescaped slashes.
+func TestBhvErrors050_ApiError_ResponseHeadersRenderAsCompactSortedJson(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(302, "moved", "", map[string]string{
+		"x-b":      "2",
+		"location": "https://example.com/a",
+		"x-a":      "1",
+	}, nil, nil)
+	want := "\nResponse headers: {\"location\":\"https://example.com/a\",\"x-a\":\"1\",\"x-b\":\"2\"}"
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("expected %q in %q", want, err.Error())
+	}
+}
+
+// An empty error message falls back to the generic error line.
+func TestBhvErrors051_ApiError_EmptyMessageFallsBackToTheGenericLine(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(502, "", "", nil, nil, nil)
+	want := "Error message: the server returns an error\nHTTP status code: 502"
+	if err.Error() != want {
+		t.Errorf("expected %q, got %q", want, err.Error())
+	}
+}
+
+// A typed client error is caught by a base API error catch and chains to the API error root.
+func TestBhvErrors052_ApiError_TypedClientErrorChainsToTheApiErrorRoot(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(400, nil, "")
+
+	var base *apierrors.ApiError
+	if !errors.As(err, &base) {
+		t.Fatalf("expected %T to match *ApiError", err)
+	}
+	if base.StatusCode() != 400 {
+		t.Errorf("expected status 400, got %d", base.StatusCode())
+	}
+	var root apierrors.{{errorPrefix}}Error
+	if !errors.As(err, &root) {
+		t.Errorf("expected %T to satisfy {{errorPrefix}}Error", err)
+	}
+}
+
+// Each named error pins its own HTTP status code.
+func TestBhvErrors053_ApiError_EachNamedErrorPinsItsOwnStatusCode(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{400, 401, 403, 404, 409, 422, 429} {
+		err := apierrors.FromResponse(status, nil, "")
+		var base *apierrors.ApiError
+		if !errors.As(err, &base) || base.StatusCode() != status {
+			t.Errorf("expected %T to carry status %d", err, status)
+		}
+	}
+}
+
+// Status error constructors default the response context to null.
+func TestBhvErrors055_ApiError_StatusErrorDefaultsResponseContextToNil(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(400, nil, "")
+
+	var api *apierrors.ApiError
+	if !errors.As(err, &api) {
+		t.Fatalf("expected %T to match *ApiError", err)
+	}
+	if api.ResponseHeaders() != nil {
+		t.Errorf("expected nil response headers, got %v", api.ResponseHeaders())
+	}
+	if api.ErrorBody() != nil {
+		t.Errorf("expected nil error body, got %v", api.ErrorBody())
+	}
+	if api.ResponseBody() != "" {
+		t.Errorf("expected empty response body, got %q", api.ResponseBody())
+	}
+}
+
+// A status at or above 600 yields the base error and not a server error.
+func TestBhvErrors056_ApiError_StatusAbove599IsTheBaseErrorNotAServerError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(600, map[string]string{"x-request-id": "abc"}, "")
+
+	var server *apierrors.ServerError
+	if errors.As(err, &server) {
+		t.Errorf("expected %T not to match *ServerError", err)
+	}
+	var base *apierrors.ApiError
+	if !errors.As(err, &base) {
+		t.Fatalf("expected %T to match *ApiError", err)
+	}
+	if base.StatusCode() != 600 {
+		t.Errorf("expected status 600, got %d", base.StatusCode())
+	}
+}
+
 // Every error type is declared in the errors package and the root package exports it under the same type.
 func TestBhvErrors044_ApiError_EveryErrorTypeLivesInTheErrorsPackageAndTheRootExportsIt(t *testing.T) {
 	t.Parallel()

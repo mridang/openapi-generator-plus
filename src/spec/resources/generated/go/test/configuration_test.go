@@ -30,6 +30,57 @@ func TestBhvConfig014_Configuration_DefaultValues(t *testing.T) {
 	}
 }
 
+// A default constructed or built configuration uses the base URL from the spec.
+func TestBhvConfig018_Configuration_DefaultAndBuiltConfigurationsUseTheSpecBaseURL(t *testing.T) {
+	t.Parallel()
+	configs := []*petstore.Configuration{
+		petstore.DefaultConfiguration(),
+		petstore.NewConfigurationBuilder().Build(),
+	}
+	for _, config := range configs {
+		if config.BaseURL() != "/api/v3" {
+			t.Errorf("expected base URL %q, got %q", "/api/v3", config.BaseURL())
+		}
+	}
+}
+
+// The default configuration factory returns the spec base URL and no default headers.
+func TestBhvConfig019_Configuration_DefaultFactoryReturnsSpecBaseURLAndNoHeaders(t *testing.T) {
+	t.Parallel()
+	config := petstore.DefaultConfiguration()
+
+	if config.BaseURL() != "/api/v3" {
+		t.Errorf("expected default base URL %q, got %q", "/api/v3", config.BaseURL())
+	}
+	if len(config.DefaultHeaders()) != 0 {
+		t.Errorf("expected no default headers, got %v", config.DefaultHeaders())
+	}
+}
+
+// Each call to the default configuration factory returns a fresh instance with the same base URL.
+func TestBhvConfig023_Configuration_EachDefaultConfigurationIsAFreshInstance(t *testing.T) {
+	t.Parallel()
+	first := petstore.DefaultConfiguration()
+	second := petstore.DefaultConfiguration()
+
+	if first == second {
+		t.Error("expected each call to return a fresh configuration")
+	}
+	if first.BaseURL() != second.BaseURL() {
+		t.Errorf("expected the same base URL, got %q and %q", first.BaseURL(), second.BaseURL())
+	}
+}
+
+// The configuration has no settable process-wide default: a configuration built elsewhere never changes the default.
+func TestBhvConfig024_Configuration_NoSettableProcessWideDefault(t *testing.T) {
+	t.Parallel()
+	petstore.NewConfigurationBuilder().BaseURL("https://elsewhere.example.com").Build()
+
+	if config := petstore.DefaultConfiguration(); config.BaseURL() != "/api/v3" {
+		t.Errorf("expected default base URL %q, got %q", "/api/v3", config.BaseURL())
+	}
+}
+
 func TestBhvConfig007_Configuration_BuilderReturnsBuilderInstance(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewConfigurationBuilder()
@@ -177,7 +228,7 @@ func TestBhvConfig004_Configuration_BuilderMergesSingleAndBulkHeaders(t *testing
 	}
 }
 
-func TestConfiguration_BuilderChaining(t *testing.T) {
+func TestBhvConfig020_Configuration_BuilderChaining(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		BaseURL("https://api.example.com").
@@ -216,7 +267,7 @@ func TestBhvConfig008_Configuration_ServerURLResolution(t *testing.T) {
 	}
 }
 
-func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
+func TestBhvConfig021_Configuration_ServerURLResolutionWithDefaults(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com/api/{version}",
@@ -264,6 +315,20 @@ func TestBhvConfig017_Configuration_DefaultHeadersCopyIsolation(t *testing.T) {
 	original := config.DefaultHeaders()
 	if _, found := original["X-Mutated"]; found {
 		t.Error("modifying returned headers should not affect the configuration")
+	}
+}
+
+// Mutating the returned default headers does not change the configuration.
+func TestBhvConfig022_Configuration_DefaultHeadersAreACopy(t *testing.T) {
+	t.Parallel()
+	config := petstore.NewConfigurationBuilder().
+		DefaultHeader("X-Test", "value").
+		Build()
+
+	config.DefaultHeaders()["X-Mutated"] = "should-not-affect-config"
+
+	if _, found := config.DefaultHeaders()["X-Mutated"]; found {
+		t.Error("modifying the returned headers should not change the configuration")
 	}
 }
 

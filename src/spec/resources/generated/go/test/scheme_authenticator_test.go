@@ -407,7 +407,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_AnEmptyVariableCountsAsUn
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme011_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeServiceTokenAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeServiceTokenAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -636,7 +636,7 @@ func TestSchemeAuthenticator_InternalApiKeyAuthenticator_RejectsAnEmptyKeyAtCons
 	}
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme012_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -859,7 +859,7 @@ func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_AnEmptyVa
 	}
 }
 
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme013_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -924,7 +924,7 @@ func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_AnEmptyVariableCoun
 	}
 }
 
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme014_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -989,7 +989,7 @@ func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_AnEmptyVaria
 	}
 }
 
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme015_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1054,7 +1054,7 @@ func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_AnEmptyVariableCou
 	}
 }
 
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme016_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
