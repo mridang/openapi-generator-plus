@@ -2216,3 +2216,4 @@ langnode077 | Two URLs with the same origin are recognised as the same origin
 langnode078 | Two URLs with different origins are recognised as different origins
 langnode079 | A redirect status follows with the stated method and keeps or drops the body
 langnode080 | A maxRetries value of the wrong type is rejected
+langnode081 | A self-signed token endpoint is rejected when certificate verification stays on
