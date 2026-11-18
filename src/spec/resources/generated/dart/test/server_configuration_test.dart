@@ -11,6 +11,68 @@ import 'package:petstore_client/petstore_client.dart';
 void main() {
   group('ServerConfiguration', () {
     test(
+      'bhv misc 257 a variable declared with an empty enum accepts any value and the URL is built from it',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{env}.api.example.com',
+          variables: {
+            'env': ServerVariable(defaultValue: 'prod', enumValues: []),
+          },
+        );
+
+        expect(
+          config.url({'env': 'anything'}),
+          equals('https://anything.api.example.com'),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 258 without an override the default value of an enum variable is used in the URL',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{env}.api.example.com',
+          variables: {
+            'env': ServerVariable(
+              defaultValue: 'staging',
+              enumValues: ['prod', 'staging'],
+            ),
+          },
+        );
+
+        expect(config.url(), equals('https://staging.api.example.com'));
+      },
+    );
+
+    test(
+      'bhv misc 259 a placeholder with no declared variable stays in the URL exactly as written',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{env}.{region}.api.example.com',
+          variables: {'env': ServerVariable(defaultValue: 'prod')},
+        );
+
+        expect(config.url(), equals('https://prod.{region}.api.example.com'));
+      },
+    );
+
+    test(
+      'bhv misc 261 a value containing backslash sequences is inserted into the URL exactly as given',
+      () {
+        const value = r'a\n\1\\b';
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{env}.api.example.com',
+          variables: {'env': ServerVariable(defaultValue: 'prod')},
+        );
+
+        expect(
+          config.url({'env': value}),
+          equals('https://$value.api.example.com'),
+        );
+      },
+    );
+
+    test(
       'bhv servers 009 resolves URL template using default variable values',
       () {
         const config = ServerConfiguration(
@@ -401,6 +463,17 @@ void main() {
       },
     );
 
+    test('bhv misc 156 lists every server in declaration order', () {
+      expect(
+        allServers.map((s) => s.urlTemplate).toList(),
+        equals([
+          '/api/v3',
+          'https://{environment}.example.com/api/{version}',
+          'https://{tenant}.example.com/api',
+        ]),
+      );
+    });
+
     test(
       'bhv langdart 078 a constant configuration cannot be modified through its variables',
       () {
@@ -440,6 +513,44 @@ void main() {
         );
 
         expect(config.url(), equals('https://prod.example.com/v2'));
+      },
+    );
+    test(
+      'bhv misc 297 A templated server URL replaces every variable with the supplied value when several are present',
+      () {
+        final config = ServerConfiguration(
+          urlTemplate: 'https://{region}.api.example.com:{port}/v{version}',
+          variables: {
+            'region': ServerVariable(
+              defaultValue: 'eu',
+              enumValues: ['eu', 'us'],
+            ),
+            'port': ServerVariable(defaultValue: '8443'),
+            'version': ServerVariable(defaultValue: '1'),
+          },
+        );
+
+        expect(
+          config.url({'region': 'us', 'port': '9443', 'version': '2'}),
+          equals('https://us.api.example.com:9443/v2'),
+        );
+      },
+    );
+
+    test(
+      'bhv servers 030 a value that is not one of a server variable enum values is rejected with an error',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{env}.api.example.com',
+          variables: {
+            'env': ServerVariable(
+              defaultValue: 'prod',
+              enumValues: ['prod', 'staging'],
+            ),
+          },
+        );
+
+        expect(() => config.url({'env': 'dev'}), throwsArgumentError);
       },
     );
   });

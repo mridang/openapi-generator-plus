@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -896,4 +895,95 @@ test('bhv misc 078 the authorization url carries an s256 challenge and no nonce'
     expect($params['code_challenge_method'] ?? null)->toBe('S256');
     expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $params['code_challenge'] ?? ''))->toBe(1);
     expect($params)->not->toHaveKey('nonce');
+});
+
+test('bhv misc 199 discovery runs again when the cached document has a zero max age', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'max-age=0']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('bhv misc 200 a discovery document whose issuer names another server is rejected', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'issuer' => 'https://evil.example.com',
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'does not match');
+});
+
+test('bhv misc 201 a failed discovery request reports its path without the query string', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(503, 'down', ['Content-Type' => 'text/plain']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration?tenant=a',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    try {
+        $authenticator->buildAuthorizationUrl();
+        test()->fail('Expected exception not thrown');
+    } catch (\PetstoreClient\Errors\ApiException $e) {
+        expect($e->getRequestPath())->toBe('/.well-known/openid-configuration');
+    }
+});
+test('bhv misc 076 a call after a dropped code exchange reuses the discovered configuration', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+    $client->enqueueFailure(new \PetstoreClient\Errors\NetworkException('connection dropped', new \RuntimeException('dropped')));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode(['access_token' => 'tok', 'expires_in' => 3600]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->exchangeCode('the-code'))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+    $authenticator->exchangeCode('the-code');
+
+    expect($client->capturedRequests)->toHaveCount(3);
+    expect($client->capturedRequests[2]['url'])->toBe('https://auth.example.com/token');
+    expect($authenticator->getAuthHeaders()['Authorization'] ?? null)->toBe('Bearer tok');
 });

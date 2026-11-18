@@ -377,4 +377,25 @@ class ConfigurationTest {
         assertTrue(text.contains("http://localhost/api") && text.contains("X-Trace=on"), text)
         assertFalse(text.contains("secret"), text)
     }
+
+
+    @Test
+    fun bhvMisc276DefaultConfigurationUsesTheSpecBaseUrl() = runBlocking<Unit> {
+        assertEquals("{{{basePath}}}", Configuration.defaultConfiguration().baseUrl)
+        assertEquals("{{{basePath}}}", Configuration.builder().build().baseUrl)
+    }
+
+    @Test
+    fun bhvMisc277EachDefaultConfigurationIsADistinctObject() = runBlocking<Unit> {
+        assertNotSame(Configuration.defaultConfiguration(), Configuration.defaultConfiguration())
+    }
+
+    @Test
+    fun bhvMisc279ChangingReturnedHeadersLeavesTheConfigurationUnchanged() = runBlocking<Unit> {
+        val config = Configuration.builder().defaultHeader("X-Team", "alpha").build()
+        assertThrowsExactly(UnsupportedOperationException::class.java) {
+            (config.defaultHeaders as MutableMap<String, String>)["X-Team"] = "beta"
+        }
+        assertEquals("alpha", config.defaultHeaders["X-Team"])
+    }
 }

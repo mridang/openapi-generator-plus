@@ -689,4 +689,20 @@ class SchemeAuthenticatorTest {
       assertFalse(query.getAuthHeaders().containsKey("api_key"));
     }
   }
+
+  @Test
+  void bhvMisc193BasicAndBearerWrappersMatchTheirBaseAuthenticators() {
+    assertEquals(
+        new BasicAuthenticator("https://api.example.com", "alice", "s3cret").getAuthHeaders(),
+        new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret").getAuthHeaders());
+    assertEquals(
+        new BearerAuthenticator("https://api.example.com", "tok").getAuthHeaders(),
+        new PetStoreBearerAuthenticator("https://api.example.com", "tok").getAuthHeaders());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+  }
 }

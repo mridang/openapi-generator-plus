@@ -147,6 +147,9 @@ export class PetPassport {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
+    if (Array.isArray(this.scans)) {
+      this.scans = Object.freeze([...this.scans]) as typeof this.scans;
+    }
   }
 
   /**

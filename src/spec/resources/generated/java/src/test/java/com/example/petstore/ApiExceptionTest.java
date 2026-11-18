@@ -1111,4 +1111,20 @@ class ApiExceptionTest {
     assertEquals(ApiException.class, ApiException.fromResponse(399, Map.of(), null).getClass());
     assertEquals(ApiException.class, ApiException.fromResponse(600, Map.of(), null).getClass());
   }
+
+  @Test
+  @DisplayName("bhvMisc280 a truncated body states how many bytes were left out")
+  void bhvMisc280ATruncatedBodyStatesHowManyBytesWereLeftOut() {
+    ApiException ex = new ApiException(502, "bad gateway", Map.of(), "a".repeat(3000));
+
+    assertTrue(ex.getMessage().contains("1976 more bytes"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("bhvMisc281 headers from the response are copied onto the error")
+  void bhvMisc281HeadersFromTheResponseAreCopiedOntoTheError() {
+    ApiException ex = ApiException.fromResponse(503, Map.of("retry-after", "5"), "{}");
+
+    assertEquals("5", ex.getResponseHeaders().get("retry-after"));
+  }
 }

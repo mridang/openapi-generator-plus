@@ -37,6 +37,16 @@ func (o *UpstreamFailure) Equal(other *UpstreamFailure) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o UpstreamFailure) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "UpstreamFailure{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithCode returns a copy of the model with Code replaced; the receiver is unchanged.
 func (o UpstreamFailure) WithCode(value int32) UpstreamFailure {
 	o.Code = &value

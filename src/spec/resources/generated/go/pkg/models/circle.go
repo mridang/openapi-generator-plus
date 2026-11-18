@@ -39,6 +39,16 @@ func (o *Circle) Equal(other *Circle) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Circle) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Circle{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithShapeType returns a copy of the model with ShapeType replaced; the receiver is unchanged.
 func (o Circle) WithShapeType(value string) Circle {
 	o.ShapeType = value

@@ -965,6 +965,30 @@ fn test_bhv_misc_056_setting_the_proxy_to_an_empty_string_removes_an_earlier_pro
 }
 
 #[test]
+fn test_bhv_misc_175_credential_header_names_are_hidden_in_any_letter_case() {
+    let opts = TransportOptionsBuilder::new()
+        .default_header("X-API-KEY", "key-value-one")
+        .default_header("x-auth-TOKEN", "token-value-two")
+        .default_header("Authorization", "auth-value-three")
+        .build()
+        .expect("valid transport options");
+    let debug = format!("{:?}", opts);
+    assert!(!debug.contains("key-value-one"), "{}", debug);
+    assert!(!debug.contains("token-value-two"), "{}", debug);
+    assert!(!debug.contains("auth-value-three"), "{}", debug);
+}
+
+#[test]
+fn test_bhv_misc_180_the_inspect_form_shows_the_value_of_a_non_sensitive_default_header() {
+    let opts = TransportOptionsBuilder::new()
+        .default_header("X-Trace", "visible-trace-value")
+        .build()
+        .expect("valid transport options");
+    let debug = format!("{:?}", opts);
+    assert!(debug.contains("visible-trace-value"), "{}", debug);
+}
+
+#[test]
 fn test_bhv_misc_134_a_zero_timeout_is_refused_at_build_with_a_configuration_error() {
     let result = TransportOptionsBuilder::new().timeout(Some(0)).build();
     assert!(

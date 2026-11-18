@@ -3549,6 +3549,37 @@ async fn test_bhv_misc_127_a_location_with_only_a_query_keeps_the_path() {
     assert!(request.starts_with("GET /start?b=2 "), "{}", request);
 }
 
+#[tokio::test]
+async fn test_bhv_misc_177_a_default_content_type_is_not_sent_when_the_request_has_no_body() {
+    let (url, rx) = start_redirect_server(200);
+    let transport = TransportOptionsBuilder::new()
+        .default_header("content-type", "application/xml")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let _ = client.send_request("GET", &format!("{}/x", url), &HashMap::new(), None).await;
+    let head = rx.recv_timeout(std::time::Duration::from_secs(5)).expect("a captured request").to_lowercase();
+    assert!(!head.contains("content-type:"), "{}", head);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_181_a_header_value_is_sent_exactly_as_given_without_percent_encoding() {
+    let (url, rx) = start_redirect_server(200);
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("X-Raw".to_string(), "a b%20c/d".to_string());
+    let _ = client.send_request("GET", &format!("{}/x", url), &headers, None).await;
+    let head = rx.recv_timeout(std::time::Duration::from_secs(5)).expect("a captured request").to_lowercase();
+    assert!(head.contains("x-raw: a b%20c/d"), "{}", head);
+}
+
+#[test]
+fn test_bhv_misc_183_closing_a_client_with_nothing_to_release_succeeds() {
+    let client = DefaultApiClient::new(None);
+    client.close();
+    assert!(client.is_closed());
+}
+
 /// Binds a loopback listener for a scripted test server and returns its base URL.
 fn bind_local_server() -> (TcpListener, String) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");

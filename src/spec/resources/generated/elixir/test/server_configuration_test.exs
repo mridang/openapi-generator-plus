@@ -4,6 +4,21 @@ defmodule PetstoreClient.ServerConfigurationTest do
   alias PetstoreClient.ServerConfiguration
   alias PetstoreClient.ServerVariable
 
+  describe "variable substitution" do
+    test "bhv servers 029 a placeholder introduced by a substituted value stays literal and is never expanded again" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.example.com",
+        variables: %{
+          "env" => %ServerVariable{default_value: "prod"},
+          "region" => %ServerVariable{default_value: "eu"}
+        }
+      }
+
+      assert ServerConfiguration.url(config, %{"env" => "{region}"}) ==
+               "https://{region}.example.com"
+    end
+  end
+
   describe "url/2" do
     test "bhv servers 011 resolves a plain template with no variables unchanged" do
       config = %ServerConfiguration{url_template: "https://api.example.com/v1"}

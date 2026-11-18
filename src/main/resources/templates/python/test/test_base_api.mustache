@@ -2263,6 +2263,27 @@ class TestOperationServerVariants:
 
         assert client.captured_url == "https://ap.example.com/v1/pet/7/multi"
 
+    async def test_bhv_misc_219_an_operation_with_several_servers_sends_its_request_to_the_chosen_server(self) -> None:
+        from {{packageName}}.api.pet_api import (
+            GetStagingPetInfoServerEnvironment,
+            GetStagingPetInfoServerStagingServer,
+            GetStagingPetInfoServerVersion,
+        )
+
+        client = JsonReplyApiClient('{}')
+        api = PetApi(api_client=client, config=Configuration(base_url='http://localhost'))
+        server = GetStagingPetInfoServerStagingServer(
+            GetStagingPetInfoServerEnvironment('sandbox'),
+            GetStagingPetInfoServerVersion('v3'),
+        )
+
+        try:
+            await api.get_staging_pet_info(1, server)
+        except Exception:
+            pass  # Response deserialization may fail; we only inspect the request
+
+        assert client.captured_url.startswith('https://sandbox.example.com/api/v3/')
+
 
 class TestQueryParameterOrder:
     async def test_bhv_serialization_011_allow_reserved_parameter_keeps_its_declared_position(self) -> None:

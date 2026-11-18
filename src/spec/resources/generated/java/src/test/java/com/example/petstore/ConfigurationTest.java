@@ -341,4 +341,49 @@ class ConfigurationTest {
     assertFalse(text.contains("session=secret"), text);
     assertTrue(text.contains("Accept=text/plain"), text);
   }
+
+  @Test
+  void bhvMisc180InspectFormShowsTheValuesOfNonSensitiveDefaultHeaders() {
+    String text =
+        Configuration.builder()
+            .defaultHeader("X-Visible", "shown-value")
+            .defaultHeader("Authorization", "Bearer hidden-secret")
+            .build()
+            .toString();
+    assertTrue(text.contains("shown-value"), text);
+    assertFalse(text.contains("hidden-secret"), text);
+  }
+
+  @Test
+  @DisplayName(
+      "bhvMisc276 the default configuration and builder use the base URL declared in the spec")
+  void bhvMisc276TheDefaultConfigurationAndBuilderUseTheSpecBaseUrl() {
+    assertEquals("/api/v3", Configuration.builder().build().getBaseUrl());
+    assertEquals("/api/v3", Configuration.defaultConfiguration().getBaseUrl());
+  }
+
+  @Test
+  @DisplayName("bhvMisc277 each call to the default configuration returns a distinct object")
+  void bhvMisc277EachCallToTheDefaultConfigurationReturnsADistinctObject() {
+    assertNotSame(Configuration.defaultConfiguration(), Configuration.defaultConfiguration());
+  }
+
+  @Test
+  @DisplayName(
+      "bhvMisc279 changing headers returned from a configuration leaves its own headers unchanged")
+  void bhvMisc279ChangingHeadersReturnedFromAConfigurationLeavesItsOwnHeadersUnchanged() {
+    Configuration config =
+        Configuration.builder()
+            .baseUrl("https://example.com")
+            .defaultHeader("X-Keep", "yes")
+            .build();
+
+    try {
+      config.getDefaultHeaders().put("X-New", "no");
+    } catch (UnsupportedOperationException ignored) {
+      // An unmodifiable view also leaves the configuration untouched.
+    }
+    assertFalse(config.getDefaultHeaders().containsKey("X-New"));
+    assertEquals("yes", config.getDefaultHeaders().get("X-Keep"));
+  }
 }

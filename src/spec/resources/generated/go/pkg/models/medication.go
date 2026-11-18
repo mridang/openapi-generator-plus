@@ -39,6 +39,16 @@ func (o *Medication) Equal(other *Medication) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Medication) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Medication{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithDrugName returns a copy of the model with DrugName replaced; the receiver is unchanged.
 func (o Medication) WithDrugName(value string) Medication {
 	o.DrugName = value

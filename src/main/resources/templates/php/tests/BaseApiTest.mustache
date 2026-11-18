@@ -2458,3 +2458,68 @@ test('bhv misc 065 scheme credentials are copied when the api is built', functio
 
     expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer first');
 });
+
+test('bhv misc 191 an auth cookie with a forbidden character raises an argument error that is not an openapi error', function (): void {
+    $api = new TestableApi(new CapturingApiClient(), new Configuration('http://localhost'));
+    $auth = new TestAuthenticator(cookies: ['session' => 'a"b']);
+    try {
+        $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', $auth);
+        test()->fail('Expected exception not thrown');
+    } catch (\InvalidArgumentException $e) {
+        expect($e)->not->toBeInstanceOf(ApiException::class);
+    }
+});
+
+test('bhv misc 192 a cookie value made only of legal cookie octets is sent exactly as given', function (): void {
+    $value = 'a!#$%&\'()*+-./0123:<=>?@[]^_`{|}~';
+    $auth = new TestAuthenticator(cookies: ['session' => $value]);
+    $result = makeBaseApiTestableApi()->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', $auth);
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('session=' . $value);
+});
+
+test('bhv misc 197 the default authenticator serves an operation whose named schemes the client does not hold', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $auth = new BearerAuthenticator('http://localhost', 'default');
+    $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', $auth);
+    expect($client->capturedHeaders['Authorization'])->toBe('Bearer default');
+});
+
+test('bhv misc 202 a text body without a declared content type goes out with the bare json media type', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $api->call('POST', '/test/echo', [], [], 'hello', ['application/json'], '');
+    expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
+});
+test('bhv misc 296 a failed request is retried twice by default, so three requests reach the wire', function (): void {
+    /** @var \ArrayObject<int, string> $seen */
+    $seen = new \ArrayObject();
+    $api = flakyTransportApi(99, $seen, null);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
+        ->toThrow(ServerException::class);
+    expect(count($seen))->toBe(3);
+test('bhv misc 081 a base64 body under a binary content type is decoded before the caller gets it', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, base64_encode("\x89PNG\r\n"), ['Content-Type' => 'image/png']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+
+    $result = $testApi->call('GET', '/test/echo', [], [], null, ['image/png'], 'application/json', 'string');
+
+    expect($result)->toBe("\x89PNG\r\n");
+});

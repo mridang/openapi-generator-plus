@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -464,4 +463,29 @@ test('bhv misc 063 a per scheme wrapper sends its token request to the declared 
     $authenticator->getAuthHeaders();
 
     expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/token');
+});
+
+test('bhv misc 198 a new grant without expires_in clears the expiry of the previous token', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'expiring-cc-token',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'open-cc-token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        ['read']
+    );
+    $authenticator->setApiClient($client);
+
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer expiring-cc-token']);
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer open-cc-token']);
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer open-cc-token']);
+    expect($client->capturedRequests)->toHaveCount(2);
 });
