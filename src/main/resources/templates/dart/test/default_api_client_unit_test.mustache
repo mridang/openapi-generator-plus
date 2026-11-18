@@ -2169,6 +2169,42 @@ void main() {
       }
     });
 
+    test('bhv misc 224 transport default headers are not sent on a request that goes to another origin after a redirect', () async {
+      final seen = <String?>[];
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        seen.add(request.headers.value('x-probe'));
+        request.response.close();
+      });
+      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      source.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/second');
+        request.response.close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .defaultHeader('X-Probe', 'transport')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${source.port}/first',
+          {},
+          null,
+        );
+
+        expect(seen, hasLength(1));
+        expect(seen.single, isNull);
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
     test('bhv misc 225 A 3xx response that has no Location header is returned to the caller as the final response instead of raising an error', () async {
       var hits = 0;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
