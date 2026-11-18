@@ -1953,3 +1953,8 @@ langkotlin008 | A token made only of form feeds is rejected as empty
 langkotlin009 | A generated bearer scheme wrapper reads its token from its own environment variable
 langkotlin010 | A failing observer does not stop the other observers from being told the outcome
 langkotlin011 | A hook sees the request as edited by the hooks that ran before it
+langkotlin012 | A CA certificate path that does not exist raises an illegal argument error at build time
+langkotlin013 | A missing CA certificate file is rejected even when certificate verification is disabled
+langkotlin014 | A CA certificate file that holds no valid certificate raises an illegal argument error
+langkotlin015 | The built artifact declares a stable module name for consumers to depend on
+langkotlin016 | The factory helpers pass the configured call hook on to the client they build
