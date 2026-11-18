@@ -67,8 +67,9 @@ module Petstore::Client
     # @param user_auth [Auth::Authenticator, nil] credential of the +userAuth+ security scheme
     # @param browser_auth [Auth::Authenticator, nil] credential of the +browserAuth+ security scheme
     # @param sso_auth [Auth::Authenticator, nil] credential of the +ssoAuth+ security scheme
+    # @param call_hook [#start, nil] the hook that runs around every call, see {CallHook}
     # @raise [ArgumentError] when no credential is given
-    def initialize(authenticator = nil, transport_options = nil, pet_store_basic: nil, admin_basic: nil, pet_store_bearer: nil, service_token: nil, api_key_header: nil, internal_api_key: nil, api_key_query: nil, session_cookie: nil, machine_auth: nil, legacy_auth: nil, user_auth: nil, browser_auth: nil, sso_auth: nil)
+    def initialize(authenticator = nil, transport_options = nil, pet_store_basic: nil, admin_basic: nil, pet_store_bearer: nil, service_token: nil, api_key_header: nil, internal_api_key: nil, api_key_query: nil, session_cookie: nil, machine_auth: nil, legacy_auth: nil, user_auth: nil, browser_auth: nil, sso_auth: nil, call_hook: nil)
       # @type var schemes: Hash[String, Auth::Authenticator]
       schemes = {}
       schemes['petStoreBasic'] = pet_store_basic unless pet_store_basic.nil?
@@ -96,6 +97,7 @@ module Petstore::Client
 
       config = Configuration.builder
         .base_url(first_credential.host)
+        .call_hook(call_hook)
         .build
       @pet = Api::PetApi.new(api_client, config, authenticator, schemes)
       @problems = Api::ProblemsApi.new(api_client, config, authenticator, schemes)
@@ -127,9 +129,11 @@ module Petstore::Client
     # @param access_token [String, nil] Bearer token.
     # @param transport_options [TransportOptions, nil] Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
     # @param token_provider [#call, nil] Returns the Bearer token for one request.
+    # @param call_hook [#start, nil] The hook that runs around every call, see {CallHook}.
     # @return [Petstore] Configured client instance.
-    def self.with_token(host, access_token = nil, transport_options = nil, token_provider: nil)
-      new(Auth::BearerAuthenticator.new(host, access_token, token_provider: token_provider), transport_options)
+    def self.with_token(host, access_token = nil, transport_options = nil, token_provider: nil, call_hook: nil)
+      new(Auth::BearerAuthenticator.new(host, access_token, token_provider: token_provider), transport_options,
+          call_hook: call_hook)
     end
 
     # Creates a client from a ready-made authenticator.
@@ -143,9 +147,10 @@ module Petstore::Client
     #
     # @param authenticator [Auth::Authenticator] Provides host URL and auth headers.
     # @param transport_options [TransportOptions, nil] Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    # @param call_hook [#start, nil] The hook that runs around every call, see {CallHook}.
     # @return [Petstore] Configured client instance.
-    def self.with_authenticator(authenticator, transport_options = nil)
-      new(authenticator, transport_options)
+    def self.with_authenticator(authenticator, transport_options = nil, call_hook: nil)
+      new(authenticator, transport_options, call_hook: call_hook)
     end
   end
 end

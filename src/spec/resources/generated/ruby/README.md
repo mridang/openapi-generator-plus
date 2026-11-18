@@ -119,6 +119,99 @@ The SDK asks for `gzip, deflate` and decompresses the body itself; `br` and `zst
 
 The SDK writes no log. To log requests, supply a `Faraday::Connection` with the logging middleware you want through `TransportOptions.builder.connection(...)`. Authorization headers and other credentials are never part of an error message or of `inspect`.
 
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the request is sent and observe the status or the error afterwards, and without a hook set the call does nothing extra.
+
+A hook is any object that responds to `start(info, headers)`. `info` is a `CallInfo` with `operation_id` (exactly as the spec writes it), `http_method`, `url_template` (the spec path, for example `/items/{id}`), `url` (without query string and fragment) and `server_address` (the host, lower-case, without port or IPv6 brackets). `headers` is the final, mutable set of request headers: defaults, call headers, authentication, cookies and trace context are already in it. `start` returns an observer, an object that responds to `finish(outcome)`, or `nil`. `outcome` is a `CallOutcome` with `status_code` (0 when no response arrived), `headers` (lower-cased names, `nil` when no response arrived) and `error` (the very error the caller receives, or `nil`). Set the hook with `Configuration.builder.call_hook(hook)` or the `call_hook:` keyword of the client, and use `CallHook.chain(first, second)` to run several: they start in the order given and finish in the reverse order.
+
+`start` runs once per operation call, however many times the transport sends the request, and `finish` runs exactly once on every way the call can end. A header the hook sets is on every send of the call, and the fresh credentials of the one replay after a 401 still replace a header of the same name. An error raised by `start` reaches the caller unchanged and nothing is sent. An error raised by `finish` is swallowed. The hook runs above the transport, so it also runs when you supply your own, and it runs inline on the calling thread, so it must not block. Headers are a plain `Hash`: reuse the spelling of an existing name to replace it.
+
+```ruby
+class TenantHook
+  def start(_info, headers)
+    headers['X-Tenant'] = 'a'
+    nil
+  end
+end
+
+client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TenantHook.new)
+```
+
+#### OpenTelemetry
+
+This SDK ships no OpenTelemetry adapter and the SDK itself depends on no OpenTelemetry gem: the Ruby OpenTelemetry metrics API is not stable yet, so the same hook is shown as a recipe instead. It records one span per call, named with the operation id, of kind client, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code as text for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). It also records the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) with the same attributes, under an instrumentation scope named after the gem and carrying its version. It injects the `traceparent` header itself, so the span sent to the server is the client span. Add `opentelemetry-api` and `opentelemetry-metrics-api` to your own `Gemfile`; without an OpenTelemetry SDK it does nothing.
+
+```ruby
+require 'opentelemetry-api'
+require 'opentelemetry-metrics-api'
+
+# A call hook that records one span, one request count and one duration per
+# call. It needs the opentelemetry-api and opentelemetry-metrics-api gems, and
+# does nothing until you configure an OpenTelemetry SDK or pass providers.
+class TelemetryCallHook
+  # Ends the span and records the count and the duration of one call.
+  class Observer
+    def initialize(span, attributes, count, duration, started)
+      @span = span
+      @attributes = attributes
+      @count = count
+      @duration = duration
+      @started = started
+    end
+
+    def finish(outcome)
+      attributes = @attributes.dup
+      attributes['http.response.status_code'] = outcome.status_code if outcome.status_code.positive?
+      failure = error_type(outcome)
+      attributes['error.type'] = failure if failure
+      @span.add_attributes(attributes.slice('http.response.status_code', 'error.type'))
+      @span.status = OpenTelemetry::Trace::Status.error(failure) if failure
+      @span.finish
+      @count.add(1, attributes: attributes)
+      @duration.record(Process.clock_gettime(Process::CLOCK_MONOTONIC) - @started, attributes: attributes)
+    end
+
+    private
+
+    def error_type(outcome)
+      return outcome.status_code.to_s if outcome.status_code >= 400
+
+      case outcome.error
+      when nil then nil
+      when ::Petstore::Client::Errors::NetworkTimeoutError then 'timeout'
+      when ::Petstore::Client::Errors::NetworkError then 'network_error'
+      when ::Petstore::Client::Errors::SerializationError then 'serialization_error'
+      when ::SignalException then 'cancelled'
+      else '_OTHER'
+      end
+    end
+  end
+
+  def initialize(tracer_provider: OpenTelemetry.tracer_provider, meter_provider: OpenTelemetry.meter_provider)
+    @tracer = tracer_provider.tracer('petstore_client', ::Petstore::Client::VERSION)
+    meter = meter_provider.meter('petstore_client', version: ::Petstore::Client::VERSION)
+    @count = meter.create_counter('http.client.request.count', unit: '{request}')
+    @duration = meter.create_histogram('http.client.request.duration', unit: 's')
+  end
+
+  def start(info, headers)
+    attributes = {
+      'http.request.method' => info.http_method,
+      'url.template' => info.url_template,
+      'server.address' => info.server_address
+    }
+    span = @tracer.start_span(info.operation_id, kind: :client, attributes: attributes)
+    OpenTelemetry.propagation.inject(headers, context: OpenTelemetry::Trace.context_with_span(span))
+    Observer.new(span, attributes, @count, @duration, Process.clock_gettime(Process::CLOCK_MONOTONIC))
+  end
+end
+```
+
+```ruby
+client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TelemetryCallHook.new)
+```
+
 ### Streaming
 
 Streaming request and response bodies are not supported: a response is read in full before it is returned and a request body is a string, a model or a file read in full. For a streaming transport, inject your own `Faraday::Connection`.

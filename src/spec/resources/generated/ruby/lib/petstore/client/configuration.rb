@@ -32,10 +32,18 @@ module Petstore::Client
     # @return [Hash{String => String}]
     attr_reader :default_headers
 
+    # The hook that runs around every call, or +nil+ when there is none. It is
+    # an object that responds to +start(info, headers)+, see {CallHook}. It
+    # lives here and not on {TransportOptions} because it runs above the
+    # transport and so also when you supply your own.
+    # @return [#start, nil]
+    attr_reader :call_hook
+
     # @api private
-    def initialize(base_url:, default_headers:)
+    def initialize(base_url:, default_headers:, call_hook: nil)
       @base_url = base_url
       @default_headers = default_headers.freeze
+      @call_hook = call_hook
       freeze
     end
 
@@ -69,6 +77,7 @@ module Petstore::Client
       def initialize
         @base_url = '/api/v3'
         @default_headers = {} # : Hash[String, String]
+        @call_hook = nil
       end
 
       # Set the base URL for all API requests.
@@ -96,6 +105,18 @@ module Petstore::Client
         self
       end
 
+      # Set the hook that runs around every call: any object that responds to
+      # +start(info, headers)+, see {CallHook}. +nil+ removes it.
+      # @param hook [#start, nil] the hook
+      # @return [self]
+      # @raise [ArgumentError] if the hook does not respond to +start+
+      def call_hook(hook)
+        raise ArgumentError, 'call_hook must respond to start' unless hook.nil? || hook.respond_to?(:start)
+
+        @call_hook = hook
+        self
+      end
+
       # Set the base URL from a server configuration with optional variable overrides.
       #
       # Resolves the server URL template with the given variable values (or
@@ -116,7 +137,8 @@ module Petstore::Client
       def build
         Configuration.new(
           base_url: @base_url,
-          default_headers: @default_headers.dup
+          default_headers: @default_headers.dup,
+          call_hook: @call_hook
         )
       end
     end

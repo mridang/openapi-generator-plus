@@ -235,11 +235,11 @@ describe 'Client' do
     client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi)
   end
 
-  it 'bhv_lifecycle_015 takes one optional keyword credential per security scheme, named after it' do
+  it 'bhv_lifecycle_015 takes one optional keyword credential per security scheme, named after it, then the call hook' do
     keywords = Petstore::Client::Petstore.instance_method(:initialize).parameters
                                                   .filter_map { |kind, name| name if kind == :key }
 
-    _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth]
+    _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth call_hook]
   end
 
   it 'is built from a scheme credential alone and takes its base URL from it' do
@@ -274,6 +274,33 @@ describe 'Client' do
     api_client = client.instance_variable_get(:@api_client)
     _(default.injected).must_be_same_as api_client
     _(credential.injected).must_be_same_as api_client
+  end
+
+  def call_hook_groups_of(client)
+    client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi)
+  end
+
+  it 'hands the call hook to every API group' do
+    hook = RecordingCallHook.new
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+
+    client = Petstore::Client::Petstore.new(authenticator, nil, call_hook: hook)
+    from_token = Petstore::Client::Petstore.with_token('/api/v3', 'test-token', call_hook: hook)
+    from_authenticator = Petstore::Client::Petstore.with_authenticator(authenticator, call_hook: hook)
+
+    [client, from_token, from_authenticator].each do |built|
+      groups = call_hook_groups_of(built)
+      _(groups).wont_be_empty
+      _(groups.map { |api| api.config.call_hook }.uniq).must_equal [hook]
+    end
+  end
+
+  it 'has no call hook unless one is given' do
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+
+    groups = call_hook_groups_of(Petstore::Client::Petstore.new(authenticator))
+
+    _(groups.map { |api| api.config.call_hook }.uniq).must_equal [nil]
   end
 
   it 'bhv_lifecycle_008 close makes the client reject further requests' do

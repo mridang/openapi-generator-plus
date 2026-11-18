@@ -228,6 +228,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('apiKeyHeader', 'petStoreBearer'),
           operation_id: 'PetApi.add_pet',
+          spec_operation_id: 'addPet',
+          url_template: '/pet',
           request_options: options
         )
       end
@@ -293,6 +295,8 @@ module Petstore::Client
           'Array<Photo>',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.add_pet_photos',
+          spec_operation_id: 'addPetPhotos',
+          url_template: '/pet/{petId}/photos',
           request_options: options
         )
       end
@@ -354,6 +358,8 @@ module Petstore::Client
           'PetTreatment',
           nil,
           operation_id: 'PetApi.add_pet_treatment',
+          spec_operation_id: 'addPetTreatment',
+          url_template: '/pet/{petId}/treatment',
           request_options: options
         )
       end
@@ -404,6 +410,8 @@ module Petstore::Client
           nil,
           scheme_authenticator('adminBasic', 'machineAuth'),
           operation_id: 'PetApi.delete_pet',
+          spec_operation_id: 'deletePet',
+          url_template: '/pet/{petId}',
           request_options: options
         )
       end
@@ -463,6 +471,8 @@ module Petstore::Client
           'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.download_pet_document',
+          spec_operation_id: 'downloadPetDocument',
+          url_template: '/pet/{petId}/documents/{documentId}',
           request_options: options
         )
       end
@@ -512,6 +522,8 @@ module Petstore::Client
           'Array<Pet>',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.find_pets_born_on',
+          spec_operation_id: 'findPetsBornOn',
+          url_template: '/pet/born-on/{bornOn}',
           request_options: options
         )
       end
@@ -585,6 +597,8 @@ module Petstore::Client
           'Array<Pet>',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.find_pets_by_status',
+          spec_operation_id: 'findPetsByStatus',
+          url_template: '/pet/findByStatus',
           request_options: options
         )
       end
@@ -638,6 +652,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_external_pet_info',
+          spec_operation_id: 'getExternalPetInfo',
+          url_template: '/pet/{petId}/external',
           request_options: options
         )
       end
@@ -691,6 +707,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_multi_server_pet_info',
+          spec_operation_id: 'getMultiServerPetInfo',
+          url_template: '/pet/{petId}/multi',
           request_options: options
         )
       end
@@ -743,6 +761,8 @@ module Petstore::Client
           'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_avatar',
+          spec_operation_id: 'getPetAvatar',
+          url_template: '/pet/{petId}/avatar',
           request_options: options
         )
       end
@@ -795,6 +815,8 @@ module Petstore::Client
           'ByteArray',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_avatar_thumbnail',
+          spec_operation_id: 'getPetAvatarThumbnail',
+          url_template: '/pet/{petId}/avatar/thumbnail',
           request_options: options
         )
       end
@@ -857,6 +879,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_by_id',
+          spec_operation_id: 'getPetById',
+          url_template: '/pet/{petId}',
           request_options: options
         )
       end
@@ -940,6 +964,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_by_name',
+          spec_operation_id: 'getPetByName',
+          url_template: '/pet/byName/{name}',
           request_options: options
         )
       end
@@ -992,6 +1018,8 @@ module Petstore::Client
           'PetPassport',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_passport',
+          spec_operation_id: 'getPetPassport',
+          url_template: '/pet/{petId}/passport',
           request_options: options
         )
       end
@@ -1051,6 +1079,8 @@ module Petstore::Client
           'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_photo',
+          spec_operation_id: 'getPetPhoto',
+          url_template: '/pet/{petId}/photos/{photoId}',
           request_options: options
         )
       end
@@ -1141,6 +1171,8 @@ module Petstore::Client
           'String',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_summary',
+          spec_operation_id: 'getPetSummary',
+          url_template: '/pet/{petId}/summary/{asOf}',
           request_options: options
         )
       end
@@ -1261,6 +1293,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_tag',
+          spec_operation_id: 'getPetTag',
+          url_template: '/pet/{petId}/tag/{tagName}',
           request_options: options
         )
       end
@@ -1314,6 +1348,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_staging_pet_info',
+          spec_operation_id: 'getStagingPetInfo',
+          url_template: '/pet/{petId}/staging',
           request_options: options
         )
       end
@@ -1386,6 +1422,8 @@ module Petstore::Client
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           raw_body: true,
           operation_id: 'PetApi.set_pet_avatar',
+          spec_operation_id: 'setPetAvatar',
+          url_template: '/pet/{petId}/avatar',
           request_options: options
         )
       end
@@ -1436,6 +1474,8 @@ module Petstore::Client
           nil,
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.set_pet_avatar_thumbnail',
+          spec_operation_id: 'setPetAvatarThumbnail',
+          url_template: '/pet/{petId}/avatar/thumbnail',
           request_options: options
         )
       end
@@ -1504,6 +1544,8 @@ module Petstore::Client
           'ApiResponse',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.set_pet_preferences',
+          spec_operation_id: 'setPetPreferences',
+          url_template: '/pet/{petId}/preferences',
           request_options: options
         )
       end
@@ -1569,6 +1611,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.update_pet',
+          spec_operation_id: 'updatePet',
+          url_template: '/pet/{petId}',
           request_options: options
         )
       end
@@ -1628,6 +1672,8 @@ module Petstore::Client
           'ApiResponse',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.upload_pet_certificate',
+          spec_operation_id: 'uploadPetCertificate',
+          url_template: '/pet/{petId}/certificate',
           request_options: options
         )
       end
@@ -1714,6 +1760,8 @@ module Petstore::Client
           'ApiResponse',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.upload_pet_document',
+          spec_operation_id: 'uploadPetDocument',
+          url_template: '/pet/{petId}/documents',
           request_options: options
         )
       end

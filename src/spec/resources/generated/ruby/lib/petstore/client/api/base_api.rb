@@ -12,6 +12,7 @@ require 'cgi/escape'
 require 'json'
 require 'base64'
 require 'stringio'
+require 'English'
 
 require 'petstore/client/object_serializer'
 
@@ -100,6 +101,10 @@ module Petstore::Client
       #   keep the client's values. A custom ApiClient receives the headers only.
       # @param error_schemas [Hash{String => Class}, nil] the error classes the operation declares,
       #   by declared status (+'404'+, +'4XX'+, +'5XX'+ or +'default'+), nil when it declares none
+      # @param spec_operation_id [String, nil] the operation id exactly as the spec writes it, which the
+      #   call hook gets as +operation_id+ (defaults to +operation_id+)
+      # @param url_template [String, nil] the spec path template of the operation, which the call hook
+      #   gets as +url_template+ (defaults to the path of the request)
       # @return [ApiResult] ApiResult containing deserialized data, status code, raw body, and headers
       # @raise [Errors::ApiError] if the API call fails
       # @raise [Errors::SerializationError] if the response body cannot be decoded; the error
@@ -107,7 +112,7 @@ module Petstore::Client
       def invoke_api_for_result(
         method, path, query_params, header_params, body,
         accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
-        error_schemas: nil
+        error_schemas: nil, spec_operation_id: nil, url_template: nil
       )
         url = if path.start_with?('http://', 'https://')
                 path
@@ -159,53 +164,75 @@ module Petstore::Client
         headers.merge!(header_params)
         merge_call_headers(headers, request_options.headers) if request_options&.headers
         request_headers = authenticated_headers(headers, effective_auth)
-        serialized_body = serialize_body(body, content_type, raw_body: raw_body)
-        request_headers.delete('Content-Type') if serialized_body.nil?
-        # Every retry and replay is a fresh request: its headers (the
-        # authentication among them, which may now hold a renewed token) are
-        # rebuilt from the same inputs.
-        fresh_headers = lambda do
-          fresh = authenticated_headers(headers, effective_auth)
-          fresh.delete('Content-Type') if serialized_body.nil?
-          fresh
+        # The hook starts once per call, right after the trace context is in the
+        # headers, and may edit them. Every retry and replay is a fresh request
+        # whose headers are rebuilt, so what the hook changed is kept as a delta
+        # and applied to each of them again.
+        call_hook = @config.call_hook
+        observer = nil
+        hook_delta = nil
+        if call_hook
+          info = call_info_of(method, url, spec_operation_id || operation_id || self.class.name.to_s, url_template)
+          before = request_headers.dup
+          observer = call_hook.start(info, request_headers)
+          hook_delta = header_delta(before, request_headers)
         end
-        call_options = transport_call_options(request_options)
-        response = dispatch_request(method, url, request_headers, serialized_body, fresh_headers, call_options)
-        if response.status_code == 401 && effective_auth.respond_to?(:invalidate_access_token) && replayable_body?(serialized_body)
-          # A revoked or rotated token keeps failing while it is cached. Drop it,
-          # obtain a new one (a refresh grant first) and replay the request
-          # once. A body that cannot be replayed (multipart, a stream) is not
-          # sent again, and a failed re-authentication leaves the 401 as is.
-          effective_auth.invalidate_access_token
-          renewed = begin
-            fresh_headers.call
-          rescue ::Petstore::Client::Errors::OpenAPIError
-            nil
+        outcome = nil
+        begin
+          serialized_body = serialize_body(body, content_type, raw_body: raw_body)
+          request_headers.delete('Content-Type') if serialized_body.nil?
+          # Every retry and replay is a fresh request: its headers (the
+          # authentication among them, which may now hold a renewed token) are
+          # rebuilt from the same inputs.
+          fresh_headers = lambda do |replay = false|
+            rebuilt_headers(headers, effective_auth, serialized_body.nil?, hook_delta, replay)
           end
-          response = dispatch_request(method, url, renewed, serialized_body, fresh_headers, call_options) if renewed
-        end
-        throw_api_error(response, method, url, error_schemas) if response.status_code < 200 || response.status_code >= 300
-
-        data = nil
-        decode_type = return_type_for_status(return_type, response.status_code)
-        if decode_type && response.body && !response.body.empty?
-          begin
-            data = decode_success_body(response, decode_type, operation_id)
-          rescue ::Petstore::Client::Errors::SerializationError => e
-            # The error learns which response and request it belongs to.
-            raise e.with_response(
-              status_code: response.status_code, headers: response.headers, body: response.body,
-              request_method: method.to_s, request_path: request_path_of(url)
-            )
+          call_options = transport_call_options(request_options)
+          response = dispatch_request(method, url, request_headers, serialized_body, fresh_headers, call_options)
+          if response.status_code == 401 && effective_auth.respond_to?(:invalidate_access_token) && replayable_body?(serialized_body)
+            # A revoked or rotated token keeps failing while it is cached. Drop it,
+            # obtain a new one (a refresh grant first) and replay the request
+            # once. A body that cannot be replayed (multipart, a stream) is not
+            # sent again, and a failed re-authentication leaves the 401 as is.
+            effective_auth.invalidate_access_token
+            renewed = begin
+              fresh_headers.call(true)
+            rescue ::Petstore::Client::Errors::OpenAPIError
+              nil
+            end
+            response = dispatch_request(method, url, renewed, serialized_body, fresh_headers, call_options) if renewed
           end
-        end
+          throw_api_error(response, method, url, error_schemas) if response.status_code < 200 || response.status_code >= 300
 
-        ::Petstore::Client::ApiResult.new(
-          status_code: response.status_code,
-          data: data,
-          raw_body: response.body,
-          headers: response.headers
-        )
+          data = nil
+          decode_type = return_type_for_status(return_type, response.status_code)
+          if decode_type && response.body && !response.body.empty?
+            begin
+              data = decode_success_body(response, decode_type, operation_id)
+            rescue ::Petstore::Client::Errors::SerializationError => e
+              # The error learns which response and request it belongs to.
+              raise e.with_response(
+                status_code: response.status_code, headers: response.headers, body: response.body,
+                request_method: method.to_s, request_path: request_path_of(url)
+              )
+            end
+          end
+
+          result = ::Petstore::Client::ApiResult.new(
+            status_code: response.status_code,
+            data: data,
+            raw_body: response.body,
+            headers: response.headers
+          )
+          outcome = ::Petstore::Client::CallOutcome.new(
+            status_code: result.status_code, headers: lower_cased_headers(result.headers), error: nil
+          )
+          result
+        ensure
+          # The one place the call ends, whatever way it does: a result, an
+          # error, or an interruption raised into the thread.
+          finish_call(observer, outcome || error_outcome($ERROR_INFO)) if observer
+        end
       end
 
       # Invoke an API operation.
@@ -240,6 +267,14 @@ module Petstore::Client
       # The request headers: +base_headers+ plus what +effective_auth+ adds
       # (its headers and cookies) and the trace context, as a new Hash.
       def authenticated_headers(base_headers, effective_auth)
+        headers = credentialed_headers(base_headers, effective_auth)
+        ::Petstore::Client::TraceContextUtil.inject_trace_context(headers)
+        headers
+      end
+
+      # +base_headers+ plus what +effective_auth+ adds (its headers and cookies),
+      # as a new Hash.
+      def credentialed_headers(base_headers, effective_auth)
         headers = base_headers.dup
         headers.merge!(effective_auth.auth_headers) if effective_auth
         cookies = effective_auth&.cookie_params || {}
@@ -259,8 +294,80 @@ module Petstore::Client
           existing = headers['Cookie']
           headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
         end
-        ::Petstore::Client::TraceContextUtil.inject_trace_context(headers)
         headers
+      end
+
+      # The headers of a retry or of the replay after a 401, built again from the
+      # same inputs: the headers of the call, the credentials as they are now
+      # and the trace context, with what the call hook changed put back. A retry
+      # keeps every hook change. A replay carries fresh credentials, so a
+      # header the credentials set replaces a hook header of the same name.
+      def rebuilt_headers(base, effective_auth, no_body, hook_delta, replay)
+        credentialed = credentialed_headers(base, effective_auth)
+        credential_names = [] # : Array[String]
+        credential_names = credentialed.keys.reject { |name| credentialed[name] == base[name] } if replay
+        ::Petstore::Client::TraceContextUtil.inject_trace_context(credentialed)
+        apply_header_delta(credentialed, hook_delta, credential_names) if hook_delta
+        credentialed.delete('Content-Type') if no_body
+        credentialed
+      end
+
+      # What a hook changed in a header set: the headers it set or replaced and
+      # the names it removed.
+      def header_delta(before, after)
+        set = after.reject { |name, value| before.key?(name) && before[name] == value }
+        { set: set, removed: before.keys - after.keys }
+      end
+
+      # Puts a hook's changes onto +headers+, leaving alone the +skip+ names.
+      def apply_header_delta(headers, delta, skip)
+        delta[:removed].each { |name| headers.delete(name) unless skip.include?(name) }
+        delta[:set].each { |name, value| headers[name] = value unless skip.include?(name) }
+      end
+
+      # The call hook's view of a call: the spec operation id and path template
+      # and the request URL without its query string and fragment.
+      def call_info_of(method, url, spec_operation_id, url_template)
+        bare = url.split(/[?#]/, 2).first.to_s
+        ::Petstore::Client::CallInfo.new(
+          operation_id: spec_operation_id,
+          http_method: method.to_s.upcase,
+          url_template: url_template || request_path_of(url),
+          url: bare,
+          server_address: server_address_of(bare)
+        )
+      end
+
+      # The lower-case host of +url+ without its port and without the brackets
+      # of an IPv6 literal, or an empty string when there is none.
+      def server_address_of(url)
+        URI.parse(url).host.to_s.delete_prefix('[').delete_suffix(']').downcase
+      rescue URI::InvalidURIError
+        ''
+      end
+
+      # Response headers as the hook sees them: lower-cased names, read-only.
+      def lower_cased_headers(headers)
+        return nil if headers.nil?
+
+        headers.transform_keys { |name| name.to_s.downcase }.freeze
+      end
+
+      # How a call that raised ended: the status and headers of the response
+      # the error carries (none for a failure before one arrived), and the
+      # error itself.
+      def error_outcome(error)
+        status = error.respond_to?(:status_code) ? error.status_code.to_i : 0
+        headers = status.positive? && error.respond_to?(:response_headers) ? lower_cased_headers(error.response_headers) : nil
+        ::Petstore::Client::CallOutcome.new(status_code: status, headers: headers, error: error)
+      end
+
+      # Tells the observer the call ended. A hook never changes the result or the
+      # error of a call, so an error it raises here is dropped.
+      def finish_call(observer, outcome)
+        observer.finish(outcome)
+      rescue StandardError
+        nil
       end
 
       # Send one request. The SDK's own transport also gets +fresh_headers+, so
