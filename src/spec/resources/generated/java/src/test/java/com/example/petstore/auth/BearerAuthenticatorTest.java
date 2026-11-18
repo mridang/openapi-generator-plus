@@ -78,7 +78,7 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void newlineOnlyTokenReportsEmptyNotPrintableAscii() {
+  void bhvLangjava053NewlineOnlyTokenReportsEmptyNotPrintableAscii() {
     for (String blank : new String[] {"\n", "\r\n", "\013", "\f"}) {
       IllegalArgumentException ex =
           assertThrows(
@@ -180,7 +180,7 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void tokenProviderResultKeepsTheBearerPrefixRule() {
+  void bhvLangjava054TokenProviderResultKeepsTheBearerPrefixRule() {
     BearerAuthenticator auth = new BearerAuthenticator(HOST, () -> "Bearer xyz");
     assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
   }

@@ -1942,6 +1942,61 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langkotlin001 | The generated scheme wrapper reads each of its credentials from its own environment variable
+langkotlin002 | A generated scheme wrapper with no credential of its own falls back to the authenticator it was built with
+langkotlin003 | An API key containing a line break or a NUL character is refused when the authenticator is built
+langkotlin004 | Two result values with equal fields compare equal and hash alike
+langkotlin005 | A transport failure raised end to end carries the request method and path that were sent
+langkotlin006 | A void operation ignores a success body that is JSON but not an object
+langkotlin007 | A generated basic scheme wrapper reads its user and password from its own variables
+langkotlin008 | A token made only of form feeds is rejected as empty
+langkotlin009 | A generated bearer scheme wrapper reads its token from its own environment variable
+langkotlin010 | A failing observer does not stop the other observers from being told the outcome
+langkotlin011 | A hook sees the request as edited by the hooks that ran before it
+langkotlin012 | A CA certificate path that does not exist raises an illegal argument error at build time
+langkotlin013 | A missing CA certificate file is rejected even when certificate verification is disabled
+langkotlin014 | A CA certificate file that holds no valid certificate raises an illegal argument error
+langkotlin015 | The built artifact declares a stable module name for consumers to depend on
+langkotlin016 | The factory helpers pass the configured call hook on to the client they build
+langkotlin017 | A composed wrapper serialises and deserialises back to an equal value
+langkotlin018 | A composed model missing a required property throws on decode
+langkotlin019 | A factory for a second variant wraps that variant and answers only its own accessor
+langkotlin020 | A union with no variant answers nothing from any accessor
+langkotlin021 | A hook set on the configuration is installed on the client the configuration builds
+langkotlin022 | A redirect with an empty Location header returns the redirect response itself
+langkotlin023 | A redirect whose Location header cannot be parsed returns the redirect response itself
+langkotlin024 | A 3xx status outside the redirect set is returned without following its Location
+langkotlin025 | Exactly the redirect statuses trigger a follow-up request, and no other status does
+langkotlin026 | A timeout raised by the structured-concurrency timeout helper is not wrapped again
+langkotlin027 | A cancelled job surfaces its own cancellation and is not wrapped in an SDK error
+langkotlin028 | A text plain media type is not treated as JSON
+langkotlin029 | A model additional properties are read and written through its own accessor
+langkotlin030 | The additional properties constructor parameter is kept when the model is copied
+langkotlin031 | The spec directory of the generated project is compiled, run and linted by its own build
+langkotlin032 | Every development dependency the generated tests use is declared in the project manifest
+langkotlin033 | Generated sources contain no HTML character entities
+langkotlin034 | A generated OAuth2 client credentials wrapper prefers its argument to its variable
+langkotlin035 | A generated OAuth2 password wrapper reads every credential from its own variable
+langkotlin036 | A non-finite expires_in value leaves the token stale
+langkotlin037 | A string value is serialised and deserialised as a plain string
+langkotlin038 | A null optional field is left out of the serialised object
+langkotlin039 | A bare number where a string field is declared throws on decode
+langkotlin040 | A quoted number where a long field is declared throws on decode
+langkotlin041 | A quoted number where an int field is declared throws on decode
+langkotlin042 | A float literal too large for its type is refused when a payload is decoded
+langkotlin043 | Undeclared keys are kept as additional properties inside a container element
+langkotlin044 | A strict JSON reader without the SDK module does not decode a contextual serializer
+langkotlin045 | A strict JSON reader with the SDK module decodes a contextual serializer
+langkotlin046 | Decimal values with different scales but equal value compare equal
+langkotlin047 | A variable default value drives the substituted server URL
+langkotlin048 | Two values with equal content compare equal
+langkotlin049 | A simple string parameter is sent without percent encoding
+langkotlin050 | A header carries the JSON body value verbatim
+langkotlin051 | A query value carries the raw JSON text
+langkotlin052 | The client routes each operation to the first declared scheme it holds a credential for
+langkotlin053 | A partial time value is sent in its shortened form
+langkotlin054 | A password grant wrapper whose refresh is rejected falls back to the original grant
+||||||| 8dce4124f
 langdart001 | a path or query value holding reserved punctuation is refused before any request is sent
 langdart002 | operation prose from the spec appears verbatim in the generated documentation
 langdart003 | a server variant substitutes each of its variables into the URL when selected
@@ -2045,6 +2100,78 @@ langphp011 | A model container leaf given as an object deserializes into the mod
 langphp012 | A byte field rejects base64 that is not strict RFC 4648 text.
 langphp013 | A byte list element rejects base64 that is not strict RFC 4648 text.
 ||||||| cef6fbad1
+langcsharp001 | Constructing a model with an unknown enum value keeps that value without throwing
+langcsharp002 | Malformed JSON raises the library serialization error and no native parser error escapes
+langcsharp003 | A null in a free-form field stays null after decoding
+langcsharp004 | An optional field on a model body accepts an explicit null value
+langcsharp005 | Several unknown properties in a body are skipped without error
+langcsharp006 | An unknown nested object inside a body is skipped without error
+langcsharp007 | A duration round trip keeps both its day and its time components
+langcsharp008 | A duration with a nanosecond fraction parses to the exact amount
+langcsharp009 | A duration survives a full round trip through the object serializer
+langcsharp010 | A duration beyond the protobuf bound is refused as a serialization error
+langcsharp011 | A malformed uuid inside a model fails decoding with the serialization error
+langcsharp012 | A string enum with non-lowercase wire values deserializes from its exact wire casing
+langcsharp013 | A hyphenated string enum wire value deserializes to its member
+langcsharp014 | An array of integer arrays round trips to the same values
+langcsharp015 | The string form of a model shows collection and byte contents rather than identities
+langcsharp016 | An inline enum member keeps its exact wire value through a round trip
+langcsharp017 | A bare number read in exponent notation is written back in plain notation
+langcsharp018 | A duplicate key inside a nested object keeps the last value
+langcsharp019 | A copy with changed fields keeps every other field of the source model
+langcsharp020 | A copy of a model keeps its concrete type when held through its base type
+langjava014 | An empty service token is rejected when the authenticator is built, before any request is made.
+langjava015 | An empty explicit argument counts as not passed, so the value from the environment is used. | multi
+langjava016 | A control character in a credential read from the environment is rejected when the authenticator is built. | multi
+langjava017 | Each wrapper authenticator emits its key at the location its security scheme declares.
+langjava018 | Each wrapper kind reads only its own environment variable, so one kind never sees another kind's value.
+langjava019 | JSON request content is written literally, with its characters such as angle brackets and ampersands left as they are.
+langjava020 | A JSON number of the wrong kind for its field, such as a float for an integer field, is refused naming the value it saw. | multi
+langjava021 | A whole number beyond the exact range of a double still decodes exactly into an integer field.
+langjava022 | An unset optional array field is left out of the serialized JSON rather than sent as null.
+langjava023 | An empty optional array in the JSON decodes to an unset field.
+langjava024 | A duration keeps all nine fractional digits when its nanoseconds need them.
+langjava025 | A duration drops the trailing zeros of its fractional seconds.
+langjava026 | A duration given a JSON array is refused with a serialization error.
+langjava027 | A structural dump of a container shows its elements by content, not by identity.
+langjava028 | Additional properties are written through the builder, and the built object has no setter for them.
+langjava029 | A builder adds, bulk-adds, removes and replaces additional properties.
+langjava030 | A builder seeded from an existing object copies it with one property changed and every other kept.
+langjava031 | Changing a builder after build leaves the object it built unchanged.
+langjava032 | A collection property is copied on construction and exposed as an unmodifiable view.
+langjava033 | A builder refuses to build without a required property and names it in the error.
+langjava034 | Rebuilding from an existing object changes one property and keeps every other property.
+langjava035 | A property with a default keeps that default until it is set.
+langjava036 | The license name and URL in the project manifest come from the same license choice.
+langjava037 | Every dependency a generated test imports is declared in the project manifest.
+langjava038 | The README carries the shared sections in the shared order.
+langjava039 | The README's schema constraints section says what the server validates and that unique items are not sorted.
+langjava040 | The README's retries section documents the retry option and does not say requests are never retried.
+langjava041 | The README says every operation takes an options object.
+langjava042 | The README names the environment variable of every credential.
+langjava043 | Without per-call settings a call uses the plain send path with no overrides applied.
+langjava044 | A response body with no charset is decoded as UTF-8.
+langjava045 | An unknown response charset falls back to UTF-8 decoding.
+langjava046 | An optional array query parameter is serialized in the style its specification declares.
+langjava047 | The error handling example in the skill ends with the API exception arm.
+langjava048 | The configuration section of the skill has the shared subsections in the shared order.
+langjava049 | The skill documents the environment variable of every credential.
+langjava050 | Each scheme authenticator prints its own name with its secret redacted.
+langjava051 | The client routes each scheme's credential only to the operations that require that scheme.
+langjava052 | A tilde in a path parameter is left unencoded in the request path.
+langjava053 | A credential made only of control characters, such as a newline, reports as empty, not as a control-character failure. | multi
+langjava054 | A token provider's result that already carries the bearer prefix keeps it exactly once.
+langjava055 | An equals sign in a path value is written unencoded.
+langjava056 | A tilde in each element of a styled array value is left unencoded.
+langjava057 | The project manifest declares a description.
+langjava058 | A composed schema with no matching branch throws a deserialization error.
+langjava059 | The configuration's string form omits the call hook.
+langjava060 | A generated PKCE verifier is 43 unreserved characters and differs on each call.
+langjava061 | A failed first token exchange leaves no session behind and is not repeated.
+langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
+langjava063 | A 3xx response with an unusable or missing Location is returned to the caller untouched.
+langjava064 | A null path parameter beside a null required options object is the first violation reported.
+||||||| d4a0dc587
 langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
 langnode002 | An error constructor accepts an optional cause
 langnode003 | Reading an error's message property returns the rendered text

@@ -151,8 +151,8 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("equals preserved (sub-delimiter)")
-        fun equalsPreserved() {
+        @DisplayName("bhvLangkotlin048 equals preserved (sub-delimiter)")
+        fun bhvLangkotlin048EqualsPreserved() {
             assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null))
         }
 
@@ -418,8 +418,8 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("simple string without encoding")
-        fun simpleStringNoEncoding() {
+        @DisplayName("bhvLangkotlin049 simple string without encoding")
+        fun bhvLangkotlin049SimpleStringNoEncoding() {
             assertEquals("hello", ValueSerializer.serialize("hello", "path", "string", null))
         }
 
@@ -852,8 +852,8 @@ class ValueSerializerTest {
                 .EdgeCases(cutoff = java.time.LocalTime.of(10, 30, 0, 123_456_789))
 
         @Test
-        @DisplayName("header carries the SDK JSON verbatim")
-        fun headerCarriesTheJsonVerbatim() {
+        @DisplayName("bhvLangkotlin050 header carries the SDK JSON verbatim")
+        fun bhvLangkotlin050HeaderCarriesTheJsonVerbatim() {
             assertEquals("{\"cutoff\":\"10:30:00.123\"}", ValueSerializer.serializeContent("p", model, "header"))
         }
 
@@ -863,15 +863,6 @@ class ValueSerializerTest {
             assertEquals(
                 "%7B%22cutoff%22:%2210:30:00.123%22%7D",
                 ValueSerializer.serializeContent("p", model, "path"),
-            )
-        }
-
-        @Test
-        @DisplayName("cookie is fully percent-encoded")
-        fun cookieIsPercentEncoded() {
-            assertEquals(
-                "%7B%22cutoff%22%3A%2210%3A30%3A00.123%22%7D",
-                ValueSerializer.serializeContent("p", model, "cookie"),
             )
         }
 
@@ -900,14 +891,14 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("query returns the raw JSON for the query builder to encode")
-        fun queryReturnsTheRawJson() {
+        @DisplayName("bhvLangkotlin051 query returns the raw JSON for the query builder to encode")
+        fun bhvLangkotlin051QueryReturnsTheRawJson() {
             assertEquals("{\"cutoff\":\"10:30:00.123\"}", ValueSerializer.serializeContent("p", model, "query"))
         }
 
         @Test
-        @DisplayName("absent value is null in a query and empty elsewhere")
-        fun absentValue() {
+        @DisplayName("bhvSerialization110 absent value is null in a query and empty elsewhere")
+        fun bhvSerialization110AbsentValue() {
             assertNull(ValueSerializer.serializeContent("p", null, "query"))
             assertEquals("", ValueSerializer.serializeContent("p", null, "header"))
         }

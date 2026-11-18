@@ -45,8 +45,8 @@ class ApiResultTest {
     }
 
     @Test
-    @DisplayName("value equality holds for identical results")
-    fun valueEquality() {
+    @DisplayName("bhvLangkotlin004 value equality holds for identical results")
+    fun bhvLangkotlin004ValueEquality() {
         val a = ApiResult(200, "x", "raw", mapOf("h" to "v"))
         val b = ApiResult(200, "x", "raw", mapOf("h" to "v"))
         assertEquals(a, b)
@@ -54,8 +54,8 @@ class ApiResultTest {
     }
 
     @Test
-    @DisplayName("copy overrides a single field and leaves the rest intact")
-    fun copyOverridesSingleField() {
+    @DisplayName("bhvSerialization079 copy overrides a single field and leaves the rest intact")
+    fun bhvSerialization079CopyOverridesSingleField() {
         val original = ApiResult(200, "x", "raw", mapOf("h" to "v"))
         val copied = original.copy(statusCode = 201)
         assertEquals(201, copied.statusCode)

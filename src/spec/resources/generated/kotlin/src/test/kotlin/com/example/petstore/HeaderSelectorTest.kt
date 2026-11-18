@@ -75,8 +75,8 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("returns false for text/plain")
-        fun returnsFalseForTextPlain() {
+        @DisplayName("bhvLangkotlin028 returns false for text/plain")
+        fun bhvLangkotlin028ReturnsFalseForTextPlain() {
             assertFalse(selector.isJsonMime("text/plain"))
         }
 
