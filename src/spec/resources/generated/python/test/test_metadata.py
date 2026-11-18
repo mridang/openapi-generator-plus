@@ -988,7 +988,9 @@ class TestMetadataBehaviours:
     ) -> None:
         from petstore_client.models import Metadata
 
-        original = ObjectSerializer().deserialize('{"origin":"a","extra":1}', Metadata)
+        original = ObjectSerializer().deserialize(
+            '{"origin":"a","extra":"x"}', Metadata
+        )
         assert original is not None
         changed = original.model_copy(update={"origin": "b"})
 
