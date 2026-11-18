@@ -265,7 +265,7 @@ describe {{moduleName}}::DefaultApiClient do
       worker = Thread.new { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }
       worker.report_on_exception = false
       sleep 0.3
-      worker.raise(cancelled, 'cancelled by the caller')
+      worker.raise(cancelled.new('cancelled by the caller'))
 
       _(assert_raises(cancelled) { worker.join(10) }.message).must_equal 'cancelled by the caller'
       _(worker.alive?).must_equal false
@@ -837,8 +837,8 @@ describe {{moduleName}}::DefaultApiClient do
 
       _(run.call(301, :post)).must_equal([['GET', '']])
       _(run.call(302, :post)).must_equal([['GET', '']])
-      _(run.call(307, :post)).must_equal([['POST', 'payload']])
-      _(run.call(308, :post)).must_equal([['POST', 'payload']])
+      _(run.call(307, :post)).must_equal([%w[POST payload]])
+      _(run.call(308, :post)).must_equal([%w[POST payload]])
     end
 
     it 'bhv_redirects_036 turns every method except HEAD into GET on a 303' do

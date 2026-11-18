@@ -830,7 +830,8 @@ module {{moduleName}}
       uri = URI.parse(proxy)
       return proxy if uri.userinfo.nil?
 
-      password = uri.password.nil? ? nil : URI.decode_uri_component(uri.password)
+      raw_password = uri.password
+      password = raw_password.nil? ? nil : URI.decode_uri_component(raw_password)
       { uri: uri, user: URI.decode_uri_component(uri.user.to_s), password: password }
     end
 

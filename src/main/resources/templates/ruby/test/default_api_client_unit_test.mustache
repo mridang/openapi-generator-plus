@@ -1688,7 +1688,7 @@ describe 'DefaultApiClientUnit' do
     key = OpenSSL::PKey::RSA.new(2048)
     ca = OpenSSL::X509::Certificate.new
     ca.version = 2
-    ca.serial = rand(1..(2**31))
+    ca.serial = 1
     ca.subject = ca.issuer = OpenSSL::X509::Name.parse("/CN=#{name}")
     ca.public_key = key.public_key
     ca.not_before = Time.now - 60
@@ -2743,6 +2743,7 @@ describe 'DefaultApiClientUnit' do
       client.close
       _(closes.length).must_equal 1
     end
+  end
 
   # ── Wire and transport surface (ruby-03) ──
 
