@@ -77,6 +77,14 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         # The token POST must never have been issued for an empty code.
         mock_client.send_request.assert_not_called()
 
+    def test_bhv_auth_001_a_sync_header_call_before_the_exchange_raises_and_returns_no_headers(
+        self,
+    ) -> None:
+        auth = _create_authenticator()
+
+        with pytest.raises(RuntimeError):
+            auth.get_auth_headers()
+
     def test_bhv_authoauthtwoauthcode_030_headers_before_the_exchange_name_the_canonical_call(
         self,
     ) -> None:
@@ -277,6 +285,18 @@ class TestAuthorizationUrlEncoding:
             "&client_id=id~%2A%21%27%28%29"
             "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
             "&scope=a%2Ab%20c%21d&state=s%20t~%281%29"
+        )
+
+    def test_bhv_auth_019_the_authorization_url_lists_its_parameters_in_one_fixed_order(
+        self,
+    ) -> None:
+        url = _create_authenticator().build_authorization_url(state="xyz")
+
+        assert _without_pkce(url) == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=my_client_id"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=read%20write&state=xyz"
         )
 
     def test_bhv_authoauthtwoauthcode_018_an_empty_state_is_omitted_from_the_authorization_url(

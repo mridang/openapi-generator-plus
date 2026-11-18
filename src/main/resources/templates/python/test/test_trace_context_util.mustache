@@ -1,9 +1,11 @@
 """Unit tests for TraceContextUtil."""
 
 import re
+from typing import Any
 
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from opentelemetry.context import Context
+from opentelemetry.propagators.textmap import TextMapPropagator
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -103,6 +105,32 @@ class TestInjectTraceContext:
         assert re.fullmatch('[0-9a-f]{2}', unsampled_flags)
         assert int(sampled_flags, 16) & TraceFlags.SAMPLED == TraceFlags.SAMPLED
         assert int(unsampled_flags, 16) & TraceFlags.SAMPLED == 0
+
+    def test_bhv_misc_002_a_registered_propagator_is_the_one_used_and_existing_headers_are_kept(self) -> None:
+        tracer, _ = _sdk_tracer()
+        original = propagate.get_global_textmap()
+        propagate.set_global_textmap(_MarkingPropagator())
+        headers: dict[str, str] = {'Authorization': 'Bearer token123'}
+        try:
+            with tracer.start_as_current_span('request'):
+                inject_trace_context(headers)
+        finally:
+            propagate.set_global_textmap(original)
+        assert headers == {'Authorization': 'Bearer token123', 'x-marker': 'caller'}
+
+
+class _MarkingPropagator(TextMapPropagator):
+    """A caller-registered propagator that writes one marker header and no trace context."""
+
+    def inject(self, carrier: Any, context: Any = None, setter: Any = None) -> None:
+        carrier['x-marker'] = 'caller'
+
+    def extract(self, carrier: Any, context: Any = None, getter: Any = None) -> Context:
+        return context
+
+    @property
+    def fields(self) -> set[str]:
+        return {'x-marker'}
 
 
 def _sdk_tracer(sampler: Sampler = ALWAYS_ON) -> tuple[Tracer, InMemorySpanExporter]:

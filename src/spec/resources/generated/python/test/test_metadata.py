@@ -825,6 +825,15 @@ class TestMetadataEquality:
         assert "created_at=None" in repr(metadata)
         assert "additional_properties={'customField': 'hello'}" in repr(metadata)
 
+    def test_bhv_models_018_models_whose_decimal_fields_differ_only_in_trailing_zeros_compare_equal(
+        self,
+    ) -> None:
+        from decimal import Decimal
+
+        from petstore_client.models.defaults import Defaults
+
+        assert Defaults(ratio=Decimal("1.5")) == Defaults(ratio=Decimal("1.50"))
+
     def test_instances_differing_only_in_additional_properties_are_not_equal(
         self,
     ) -> None:
@@ -859,6 +868,52 @@ class TestMetadataBehaviours:
 
         assert changed.additional_properties == original.additional_properties
         assert changed.additional_properties != {}
+
+    def test_bhv_models_016_a_copy_clears_an_optional_field_only_when_none_is_passed(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        original = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z"}', Metadata
+        )
+        kept = original.model_copy()
+        cleared = original.model_copy(update={"created_at": None})
+
+        assert kept.created_at == original.created_at
+        assert cleared.created_at is None
+
+    def test_bhv_models_017_a_copy_can_set_or_clear_an_optional_field_and_the_original_keeps_its_value(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+
+        original = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z"}', Metadata
+        )
+        cleared = original.model_copy(update={"created_at": None})
+        filled = Metadata().model_copy(update={"created_at": original.created_at})
+
+        assert cleared.created_at is None
+        assert original.created_at is not None
+        assert filled.created_at == original.created_at
+
+    def test_bhv_models_021_each_member_of_an_integer_backed_enum_carries_its_declared_number(
+        self,
+    ) -> None:
+        from petstore_client.models.priority import Priority
+
+        assert [member.value for member in Priority] == [1, 2, 3]
+        assert Priority.NUMBER_3.value == 3
+
+    def test_bhv_models_022_a_model_whose_schema_allows_undeclared_properties_reports_it(
+        self,
+    ) -> None:
+        from petstore_client.models import Metadata
+        from petstore_client.models.category import Category
+
+        assert "additional_properties" in Metadata.model_fields
+        assert "additional_properties" not in Category.model_fields
 
     def test_bhv_models_019_two_models_with_a_different_field_value_compare_unequal(
         self,
