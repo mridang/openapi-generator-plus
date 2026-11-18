@@ -339,6 +339,18 @@ describe('DefaultApiClient CA certificate fail-fast', () => {
     expect(() => new DefaultApiClient(TransportOptions.builder().caCertPath(missing).build())).toThrow(missing);
   });
 
+  it('bhv errors 098 a missing CA certificate names the certificate and wraps the not-found cause', () => {
+    const missing = path.join(os.tmpdir(), 'no-such-ca-errors-098.pem');
+    let caught: unknown;
+    try {
+      new DefaultApiClient(TransportOptions.builder().caCertPath(missing).build());
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as Error).message).toContain(missing);
+    expect(((caught as Error).cause as { code?: string }).code).toBe('ENOENT');
+  });
+
   it('bhv errors 041 throws TypeError at construction for a non-existent caCertPath', () => {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction with a
