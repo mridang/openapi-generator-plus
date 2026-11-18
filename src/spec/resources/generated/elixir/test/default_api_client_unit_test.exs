@@ -1316,6 +1316,48 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert response.status_code == 404
   end
 
+  test "bhv misc 285 a response with a content encoding the SDK cannot decode is refused with the exact message" do
+    client =
+      routed_client(%{
+        "https://encoding.invalid/x" => {200, [{"content-encoding", "compress"}], "data"}
+      })
+
+    err =
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "https://encoding.invalid/x",
+          %{},
+          nil
+        )
+      end
+
+    assert err.message == "Unsupported Content-Encoding 'compress'"
+  end
+
+  test "bhv misc 282 a network failure raised after the connection drops keeps the transport error as its cause" do
+    adapter = fn request -> {request, %Req.TransportError{reason: :closed}} end
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+      )
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://custom.invalid/drop",
+          %{},
+          nil
+        )
+      end
+
+    assert %Req.TransportError{} = err.cause
+  end
+
   test "bhv misc 265 a redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status" do
     client =
       routed_client(%{
@@ -1503,6 +1545,33 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     assert PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code ==
              302
+  end
+
+  test "bhv misc 225 a 3xx response with no Location header is returned as the final response instead of raising" do
+    source = start_server(302, "text/plain", "")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    assert PetstoreClient.DefaultApiClient.send_request(client, :get, source, %{}, nil).status_code ==
+             302
+  end
+
+  test "bhv misc 224 transport default headers are not sent on a request that goes to another origin after a redirect" do
+    {target_url, _port} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, target_url)
+
+    transport =
+      PetstoreClient.TransportOptions.new(
+        follow_redirects: true,
+        default_headers: %{"X-Probe" => "transport"}
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
+
+    assert_receive {:captured_headers, headers}, 5000
+    refute Map.has_key?(headers, "x-probe")
   end
 
   test "bhv redirects 031 a 3xx without a Location header is returned unchanged instead of failing" do

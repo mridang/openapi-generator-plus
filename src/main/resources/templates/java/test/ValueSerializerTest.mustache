@@ -991,4 +991,19 @@ class ValueSerializerTest {
         assertEquals("on-hold", ValueSerializer.serializeStyled("status", "on-hold", "header", "string", null, "simple", false));
         assertEquals("on-hold", ValueSerializer.serializeStyled("status", "on-hold", "cookie", "string", null, "form", true));
     }
+
+    @Test
+    void bhvMisc120AnObjectParameterIsSortedByWireNameAndOmitsAbsentValues() {
+        Map<String, Object> filter = new java.util.LinkedHashMap<>();
+        filter.put("b", "2");
+        filter.put("c", null);
+        filter.put("a", "1");
+        assertEquals(List.of("filter[a]", "filter[b]"),
+                List.copyOf(ValueSerializer.serializeDeepObject("filter", filter).keySet()));
+    }
+
+    @Test
+    void bhvMisc123AValueTheCallerPercentEncodedIsSentAsGiven() {
+        assertEquals("a%20b", ValueSerializer.serializeStyled("sid", "a%20b", "cookie", "string", null, "form", true));
+    }
 }

@@ -3977,6 +3977,263 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc160AnErrorThatIsNotANetworkFailureIsNeverRetried()
+    {
+        var handler = new SequenceHandler(_ => Respond(400));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(2).Build()
+        );
+
+        _ = await SendGet(client);
+
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvMisc161ANonIdempotentRequestIsSentOnceWhenTheConnectionDropsAndQueryIsIdempotent()
+    {
+        var dropped = new SequenceHandler(_ =>
+            throw new HttpRequestException("connection dropped")
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(dropped),
+            TransportOptions.Builder().MaxRetries(2).Build()
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            SendGet(client, "{}", method: "POST")
+        );
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            SendGet(client, "{}", method: "PATCH")
+        );
+
+        Assert.Equal(2, dropped.Requests.Count);
+
+        var query = new SequenceHandler(n =>
+            n == 0 ? throw new HttpRequestException("connection dropped") : Respond(200, null)
+        );
+        var queryClient = new DefaultApiClient(
+            new HttpClient(query),
+            TransportOptions.Builder().MaxRetries(2).Build()
+        );
+
+        var response = await SendGet(queryClient, method: "QUERY");
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, query.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc162AnIdempotentRequestIsSentAgainExactlyOnceWhenTheConnectionDrops()
+    {
+        var handler = new SequenceHandler(n =>
+            n == 0 ? throw new HttpRequestException("connection dropped") : Respond(200, null)
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc163AOneShotStreamBodyIsNeverReplayedWhileBytesAndAnAbsentBodyAre()
+    {
+        var streamed = new SequenceHandler(_ => Respond(503));
+        var streamClient = new DefaultApiClient(
+            new HttpClient(streamed),
+            TransportOptions.Builder().MaxRetries(2).Build()
+        );
+        _ = await SendGet(streamClient, new MemoryStream([1, 2, 3]), method: "POST");
+        Assert.Single(streamed.Requests);
+
+        var bytes = new SequenceHandler(_ => Respond(503));
+        var bytesClient = new DefaultApiClient(
+            new HttpClient(bytes),
+            TransportOptions.Builder().MaxRetries(1).Build()
+        );
+        _ = await SendGet(bytesClient, new byte[] { 1, 2, 3 }, method: "POST");
+        Assert.Equal(2, bytes.Requests.Count);
+
+        var absent = new SequenceHandler(_ => Respond(503));
+        var absentClient = new DefaultApiClient(
+            new HttpClient(absent),
+            TransportOptions.Builder().MaxRetries(1).Build()
+        );
+        _ = await SendGet(absentClient);
+        Assert.Equal(2, absent.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc164ARetryWhoseWaitFitsTheTimeoutBudgetIsSent()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(503) : Respond(200, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Timeout(60000).Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc165AnHttpToHttpRedirectReplaysTheBody()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/start"),
+            new Dictionary<string, string>(),
+            "payload"
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc166ACallWithoutADeadlineIsNotCutShortWhileItWaitsToRetry()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(503, "1") : Respond(200, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var response = await SendWithCallOptions(client, null, 1);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc167ARetryableStatusIsAttemptedUpToTheLimitAndTheLastResponseIsReturned()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(2).Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc168ByDefaultAFailingRequestIsSentThreeTimesInTotal()
+    {
+        var handler = new SequenceHandler(_ => Respond(503, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        _ = await SendGet(client);
+
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public void BhvMisc169TheRetryPauseStartsAtHalfASecondDoublesAndNeverExceedsEightSeconds()
+    {
+        var none = new Dictionary<string, string>();
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Equal(TimeSpan.FromSeconds(0.5), DefaultApiClient.RetryDelay(0, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(1), DefaultApiClient.RetryDelay(1, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(8), DefaultApiClient.RetryDelay(40, none, now, 0));
+    }
+
+    [Fact]
+    public async Task BhvMisc170ATlsFailureIsReportedOnTheFirstAttemptAndNeverRetried()
+    {
+        var handler = new SequenceHandler(_ =>
+            throw new HttpRequestException(
+                "tls",
+                new System.Security.Authentication.AuthenticationException("bad certificate")
+            )
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(2).Build()
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() => SendGet(client));
+
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvMisc171APerCallMaxRetriesAboveTheTransportLimitAppliesToThatCall()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(0).Build()
+        );
+
+        _ = await SendWithCallOptions(client, null, 2);
+
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc173AnEmptyBodyIsReplayedAcrossAnHttpsToHttpRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc174AHeaderValueRefusedForALineBreakIsNeverRepeatedInTheError()
+    {
+        var client = new DefaultApiClient(
+            new HttpClient(new SequenceHandler(_ => Respond(200, null)))
+        );
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/items"),
+                new Dictionary<string, string> { ["X-Token"] = "s3cr3t\r\nInjected" },
+                null,
+                false,
+                CancellationToken.None
+            )
+        );
+
+        Assert.DoesNotContain("s3cr3t", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BhvTransport085TimeoutStaysDistinctFromCancellationWhenATokenIsSupplied()
     {
         var client = new DefaultApiClient(
@@ -5159,6 +5416,206 @@ public class DefaultApiClientUnitTest
         var response = await SendGet(client);
 
         Assert.Equal("aGk=", response.Body);
+    }
+
+    private sealed class SlowRedirectHandler : HttpMessageHandler
+    {
+        public int Hops { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Hops++;
+            await Task.Delay(150, cancellationToken);
+            var response = new HttpResponseMessage(HttpStatusCode.Redirect);
+            response.Headers.Location = new Uri("http://origin.example.com/next");
+            return response;
+        }
+    }
+
+    [Fact]
+    public async Task BhvRedirects047ARefusalInOneRequestDoesNotChangeAConcurrentRequest()
+    {
+        var refused = new DefaultApiClient(
+            new HttpClient(
+                new RedirectingHandler(HttpStatusCode.Redirect, new Uri("file:///etc/passwd"))
+            )
+        );
+        var succeeding = new DefaultApiClient(CreateMockHttpClient(HttpStatusCode.OK, "{}"));
+
+        var failing = Assert.ThrowsAsync<ApiException>(() => SendGet(refused));
+        var ok = SendGet(succeeding);
+        await Task.WhenAll(failing, ok);
+
+        Assert.Equal(200, (await ok).StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvRedirects054ARedirectChainPastTheTimeoutFailsWithOneBudgetAcrossAllHops()
+    {
+        var handler = new SlowRedirectHandler();
+        var transport = TransportOptions
+            .Builder()
+            .Timeout(300)
+            .MaxRedirects(10)
+            .MaxRetries(0)
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await Assert.ThrowsAnyAsync<NetworkException>(() => SendGet(client));
+
+        Assert.InRange(handler.Hops, 2, 3);
+    }
+
+    [Fact]
+    public async Task BhvRedirects055ARedirectToANonHttpSchemeIsRefusedWithAnError()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.Redirect,
+            new Uri("gopher://example.com/1")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => SendGet(client));
+
+        Assert.Contains("Refusing to follow redirect", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvRedirects056AnOptOutRequestSendsNoTransportDefaultHeadersAndTheNextOneSendsThem()
+    {
+        var sent = new List<HttpRequestMessage>();
+        var handler = new CapturingHandler(req =>
+        {
+            sent.Add(req);
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions
+            .Builder()
+            .DefaultHeader("X-Custom", "custom-value")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null,
+            true,
+            CancellationToken.None
+        );
+        await SendGet(client);
+
+        Assert.False(sent[0].Headers.Contains("X-Custom"));
+        Assert.True(sent[1].Headers.Contains("X-Custom"));
+    }
+
+    [Fact]
+    public async Task BhvRetries046ARequestBodyIsResentUnchangedOn307WhenTheSchemeIsKept()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.TemporaryRedirect,
+            new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        await SendGet(client, body: new byte[] { 1, 2, 3 }, method: "POST");
+
+        Assert.Equal(new byte[] { 1, 2, 3 }, handler.Bodies[1]);
+    }
+
+    [Fact]
+    public async Task BhvRetries047ARetryWaitThatWouldOverrunTheTimeoutIsNotTaken()
+    {
+        var handler = new SequenceHandler(_ => Respond(429, "10"));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        var response = await SendWithCallOptions(client, 300, 5);
+
+        Assert.Equal(429, response.StatusCode);
+        Assert.Single(handler.Requests);
+        Assert.True(
+            watch.Elapsed < TimeSpan.FromSeconds(5),
+            "the overrunning wait must not be taken"
+        );
+    }
+
+    [Fact]
+    public async Task BhvRetries048TheDefaultClientRetriesA503AndReturnsTheLaterSuccess()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(503, "0") : Respond(200, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvRetries049MaxRetriesAllowsThatManyRetriesAfterTheFirstAttempt()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(4).Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Equal(5, handler.Requests.Count);
+    }
+
+    [Fact]
+    public void BhvRetries050AHttpDateRetryAfterWaitsUntilThatDate()
+    {
+        var now = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var date = now.AddSeconds(30)
+            .ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.Equal(
+            TimeSpan.FromSeconds(30),
+            DefaultApiClient.RetryDelay(0, Header(date), now, 0)
+        );
+    }
+
+    [Fact]
+    public async Task BhvRetries051ABodyIsRefusedWith307WhenARedirectDowngradesHttpsToHttp()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.TemporaryRedirect,
+            new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("https://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                new byte[] { 1, 2, 3 },
+                false,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Equal(307, ex.StatusCode);
     }
 
     private static byte[] GzipBytes(string text)

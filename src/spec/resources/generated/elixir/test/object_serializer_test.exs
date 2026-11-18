@@ -113,6 +113,10 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert result == "2024-01-01T12:30:45.000+00:00"
     end
 
+    test "bhv misc 245 a time of day in a plain object is serialized as a JSON string" do
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:11:12]) == "10:11:12"
+    end
+
     test "bhv serializationobject 044 date-only serializes as ISO 8601 date without time component" do
       d = ~D[2024-01-01]
       result = PetstoreClient.ObjectSerializer.stringify(d)
@@ -1637,6 +1641,53 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert meta.additional_properties["weight"] == "42"
     end
 
+    test "bhv serialization 112 a password property is masked in the inspect form and sent unchanged on the wire" do
+      account = %PetstoreClient.Models.Account{username: "ann", password: "hunter2"}
+      refute inspect(account) =~ "hunter2"
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(account))["password"] ==
+               "hunter2"
+    end
+
+    test "bhv serialization 116 a wire key named after a language keyword is kept exactly on deserialize and serialize" do
+      meta = PetstoreClient.ObjectSerializer.deserialize(~s({"end":"x"}), "Metadata")
+      assert meta.additional_properties["end"] == "x"
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(meta))["end"] == "x"
+    end
+
+    test "bhv misc 290 an undeclared key whose value is a dictionary survives a full serialize and deserialize round trip" do
+      meta =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"createdAt":"2024-01-01T00:00:00Z","extra_map":{"a":1}}),
+          "Metadata"
+        )
+
+      back =
+        PetstoreClient.ObjectSerializer.deserialize(
+          PetstoreClient.ObjectSerializer.serialize(meta),
+          "Metadata"
+        )
+
+      assert back.additional_properties["extra_map"] == %{"a" => 1}
+    end
+
+    test "bhv misc 288 a snake_case input key at the top level of an object is captured as an undeclared extra" do
+      meta =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"createdAt":"2024-01-01T00:00:00Z","home_region":"eu"}),
+          "Metadata"
+        )
+
+      assert meta.additional_properties == %{"home_region" => "eu"}
+    end
+
+    test "bhv misc 287 a wire key literally named additional_properties is kept as an undeclared extra" do
+      meta =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"additional_properties":"x"}), "Metadata")
+
+      assert meta.additional_properties["additional_properties"] == "x"
+    end
+
     test "bhv serializationobject 020 serialize re-emits the extra key at the top level" do
       meta = %PetstoreClient.Models.Metadata{additional_properties: %{"region" => "eu"}}
       data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(meta))
@@ -1653,6 +1704,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
       assert first.additional_properties == %{"region" => "eu"}
       assert second.additional_properties == %{"weight" => "heavy"}
+    end
+
+    test "bhv misc 289 a snake_case input key inside a list element is captured as an undeclared extra" do
+      json = ~s([{"createdAt":"2024-01-01T00:00:00Z"},{"home_region":"eu"}])
+      [_first, second] = PetstoreClient.ObjectSerializer.deserialize(json, "[Metadata]")
+      assert second.additional_properties == %{"home_region" => "eu"}
     end
 
     test "bhv serialization 053 undeclared keys held by a nested model are written back as keys of that model" do
@@ -1844,6 +1901,16 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
       result = PetstoreClient.ObjectSerializer.resolve_one_of(%{"k" => "v"}, candidates)
       assert result == {:matched, %{"k" => "v"}}
+    end
+
+    test "bhv misc 291 when a payload matches more than one variant the first variant declared is resolved" do
+      candidates = [
+        fn data -> {:first, data} end,
+        fn data -> {:second, data} end
+      ]
+
+      assert PetstoreClient.ObjectSerializer.resolve_one_of(%{"k" => "v"}, candidates) ==
+               {:first, %{"k" => "v"}}
     end
 
     test "bhv serializationobject 129 resolve_one_of raises when no variant matches" do
