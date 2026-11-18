@@ -177,7 +177,9 @@ class TestExceptionHierarchy:
         assert err.status_code == 0
         assert NetworkException(message="refused").status_code == 0
 
-    def test_defaults_status_code_to_0_when_no_http_response_was_received(self) -> None:
+    def test_bhv_errors_084_defaults_status_code_to_0_when_no_http_response_was_received(
+        self,
+    ) -> None:
         assert ApiException().status_code == 0
         assert ApiException(message="connection reset").status_code == 0
 
@@ -491,7 +493,9 @@ class TestApiErrorRendering:
 
         assert str(err) == "bad gateway\nHTTP status code: 502"
 
-    def test_omits_the_status_line_when_no_response_arrived(self) -> None:
+    def test_bhv_errors_074_omits_the_status_line_when_no_response_arrived(
+        self,
+    ) -> None:
         err = ApiException(status_code=0, message="boom")
 
         assert str(err) == "boom"
@@ -735,3 +739,77 @@ class TestOAuth2ServerExceptionMessage:
         err = OAuth2ServerException(502, None, None, None, "Bad Gateway")
 
         assert str(err) == "Token request failed with status 502: Bad Gateway"
+
+
+class TestErrorBehaviours:
+    def test_bhv_errors_072_a_byte_order_mark_before_an_error_body_is_ignored(
+        self,
+    ) -> None:
+        plain = ApiException.from_response(400, {}, '{"id": 7, "name": "Dogs"}')
+        marked = ApiException.from_response(400, {}, '﻿{"id": 7, "name": "Dogs"}')
+
+        typed = marked.get_typed_error_body(Category)
+
+        assert typed == plain.get_typed_error_body(Category)
+        assert typed is not None
+        assert typed.id == 7
+
+    def test_bhv_errors_073_an_error_body_nested_past_common_parser_limits_is_kept(
+        self,
+    ) -> None:
+        depth = 150
+        error = ApiException.from_response(400, {}, "[" * depth + "]" * depth)
+
+        value: Any = error.error_body
+        for _ in range(depth - 1):
+            assert isinstance(value, list)
+            assert len(value) == 1
+            value = value[0]
+        assert value == []
+
+    def test_bhv_errors_075_a_rendered_body_is_never_cut_inside_a_multi_byte_character(
+        self,
+    ) -> None:
+        error = ApiException(
+            status_code=500, message="boom", response_body="a" + "é" * 600
+        )
+
+        text = str(error)
+
+        assert "... (177 more bytes)" in text
+        assert "�" not in text
+
+    def test_bhv_errors_076_an_error_the_sdk_did_not_raise_is_not_one_of_its_own(
+        self,
+    ) -> None:
+        assert not isinstance(ValueError("boom"), OpenAPIException)
+        try:
+            try:
+                raise ValueError("inner")
+            except ValueError as inner:
+                raise RuntimeError("outer") from inner
+        except RuntimeError as wrapped:
+            assert not isinstance(wrapped, OpenAPIException)
+            assert not isinstance(wrapped.__cause__, OpenAPIException)
+
+    def test_bhv_errors_079_the_first_complete_request_attachment_is_kept(self) -> None:
+        error = ApiException(status_code=500)._with_request("GET", "/pets?limit=2")
+        error._with_request("POST", "/orders")
+
+        assert error.request_method == "GET"
+        assert error.request_path == "/pets"
+
+    def test_an_incomplete_request_attachment_is_ignored(self) -> None:
+        error = ApiException(status_code=500)._with_request("", "/pets")
+
+        assert error.request_method is None
+        assert error.request_path is None
+
+    def test_bhv_errors_080_a_typed_http_error_is_caught_by_the_root_and_keeps_its_status(
+        self,
+    ) -> None:
+        try:
+            raise ApiException.from_response(404, {}, None)
+        except OpenAPIException as caught:
+            assert isinstance(caught, NotFoundException)
+            assert caught.status_code == 404

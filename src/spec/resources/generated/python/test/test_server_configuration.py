@@ -85,7 +85,7 @@ class TestServerConfiguration:
 
         assert config.get_url() == "https://api.example.com"
 
-    def test_variables_cannot_be_changed_through_the_dict_they_were_built_from(
+    def test_bhv_servers_025_variables_cannot_be_changed_through_the_dict_they_were_built_from(
         self,
     ) -> None:
         declared = {"env": ServerVariable(default_value="prod")}
@@ -122,7 +122,7 @@ class TestGeneratedServers:
 
             assert server.get_url() == server.url_template.format(**defaults)
 
-    def test_generated_server_variables_are_read_only_and_their_enums_immutable(
+    def test_bhv_servers_028_generated_server_variables_are_read_only_and_their_enums_immutable(
         self,
     ) -> None:
         for server in ALL:

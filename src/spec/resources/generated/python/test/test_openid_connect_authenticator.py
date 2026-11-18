@@ -730,7 +730,7 @@ class TestOidcPkceAndInvalidation:
         challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
         assert challenge == params["code_challenge"][0]
 
-    def test_invalidating_before_any_discovery_does_nothing(self) -> None:
+    def test_bhv_auth_002_invalidating_before_any_discovery_does_nothing(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         auth.invalidate_access_token()

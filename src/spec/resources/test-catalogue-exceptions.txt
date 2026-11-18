@@ -252,3 +252,6 @@ php | misc001 | PHP runs one request at a time in one process with no threads or
 php | lifecycle037 | PHP runs one request at a time in one process, so a close() cannot run while a request is still in flight; the refusal after close is bhv lifecycle 008
 php | errors079 | PHP attaches request details only through the error constructor, so there is no later attachment that could replace or be ignored after the error is built
 php | auth015 | PHP's header call raises the token error instead of returning headers, so no header map without an Authorization entry can ever be returned; the raise is pinned by bhv auth 001
+python | options058 | TransportOptions has no HTTP client field; a caller's HTTP client is the pool_manager argument of DefaultApiClient, which the client tests cover
+python | options059 | TransportOptions has no transport hook field, and the python client exposes no per-request hook to leave unset
+python | transport079 | urllib3 honours verify_ssl=False directly, so no client has to refuse it at construction because it cannot apply it

@@ -206,7 +206,9 @@ class TestProxyWithCredentials:
         }
         assert proxy_headers.get("proxy-authorization") == "Basic YWxpY2U6czNjcmV0"
 
-    def test_proxy_with_percent_encoded_credentials_are_decoded(self) -> None:
+    def test_bhv_transport_076_proxy_with_percent_encoded_credentials_are_decoded(
+        self,
+    ) -> None:
         import base64
 
         # Reserved characters in the userinfo are percent-encoded in the URL
@@ -661,7 +663,7 @@ class TestRedirectSecurityGuards:
         assert "x-custom-auth-key" not in followup
         assert followup["x-trace"] == "keep"
 
-    def test_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager(
+    def test_bhv_redirects_044_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager(
         self,
     ) -> None:
         """The pool manager's proxy_headers authenticate the client to its
@@ -1240,3 +1242,14 @@ class TestCancellation:
             await task
 
         assert time.monotonic() - started < 2
+
+
+class TestDefaultConfigurationRequests:
+    def test_bhv_transport_082_a_request_with_default_configuration_completes(
+        self, chasm_http_url: Any
+    ) -> None:
+        response = DefaultApiClient().send_request(
+            "POST", chasm_http_url + "/test/echo", {}, None
+        )
+
+        assert response.status_code == 200

@@ -1168,7 +1168,9 @@ class TestExchange:
         assert manager.exchanged is True
         assert client.send_request.call_count == 2
 
-    def test_a_failed_first_exchange_leaves_the_session_unexchanged(self) -> None:
+    def test_bhv_auth_028_a_failed_first_exchange_leaves_the_session_unexchanged(
+        self,
+    ) -> None:
         manager, _ = _manager_replying(_invalid_grant())
 
         with pytest.raises(OAuth2ServerException):

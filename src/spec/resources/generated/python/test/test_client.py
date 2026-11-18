@@ -12,6 +12,7 @@ from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
 from petstore_client.client import Client
+from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
 
 
@@ -127,7 +128,7 @@ class TestClientCredentials:
 
         assert _authorization(client) == "Bearer arg-token"
 
-    def test_the_environment_fills_what_was_not_passed(
+    def test_bhv_auth_024_the_environment_fills_what_was_not_passed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(
@@ -347,7 +348,9 @@ class TestClientSchemeCredentials:
         assert client.store._authenticator is default
         assert list(client.store._scheme_authenticators.values()) == [held]
 
-    def test_a_credential_that_needs_the_transport_is_given_it(self) -> None:
+    def test_bhv_auth_025_a_credential_that_needs_the_transport_is_given_it(
+        self,
+    ) -> None:
         class _NeedsTransport(HttpAwareAuthenticator):
             def __init__(self) -> None:
                 self.api_client: Any = None
@@ -423,7 +426,7 @@ async def _send(client: Client) -> Any:
 class TestClientClose:
     """F1078: closing is graceful and idempotent; requests in flight finish."""
 
-    async def test_a_request_in_flight_finishes_and_the_transport_is_released_after_it(
+    async def test_bhv_lifecycle_037_a_request_in_flight_finishes_and_the_transport_is_released_after_it(
         self,
     ) -> None:
         pool = _SlowPool()
@@ -463,7 +466,7 @@ class TestClientClose:
 
         assert pool.clears == 1
 
-    async def test_a_second_close_does_nothing(self) -> None:
+    async def test_bhv_lifecycle_036_a_second_close_does_nothing(self) -> None:
         pool = _SlowPool()
         client = _owning(pool)
         request = asyncio.ensure_future(_send(client))
@@ -521,7 +524,7 @@ class TestClientClose:
 
         assert pool.clears == 0
 
-    def test_leaving_the_with_block_closes_the_client(self) -> None:
+    def test_bhv_lifecycle_040_leaving_the_with_block_closes_the_client(self) -> None:
         pool = _SlowPool()
 
         with _owning(pool):
@@ -582,3 +585,13 @@ class TestClientPoolManager:
             Client(
                 BearerAuthenticator("/api/v3", "test-token"), transport, _OwnedPool()
             )
+
+
+class TestCallerTransportWithoutClose:
+    def test_bhv_lifecycle_038_a_caller_transport_without_close_is_valid_and_closing_twice_succeeds(
+        self,
+    ) -> None:
+        client = DefaultApiClient(pool_manager=object())
+
+        client.close()
+        client.close()

@@ -62,3 +62,17 @@ class TestApiResult:
 
         with pytest.raises(Exception):
             cast(Any, result).status_code = 500
+
+
+class TestApiResultHeadersAreACopy:
+    def test_bhv_results_006_the_headers_are_a_read_only_copy_taken_when_the_result_is_built(
+        self,
+    ) -> None:
+        source = {"Content-Type": "application/json"}
+        result = ApiResult(status_code=200, data=None, raw_body="", headers=source)
+
+        source["X-Late"] = "added-after-build"
+
+        assert result.headers == {"Content-Type": "application/json"}
+        with pytest.raises(TypeError):
+            result.headers["X-Other"] = "x"  # type: ignore[index]

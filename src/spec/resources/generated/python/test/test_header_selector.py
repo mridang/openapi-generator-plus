@@ -136,7 +136,9 @@ class TestSelectAcceptHeader:
         result = header_selector._select_accept_header(["   ", "application/json"])
         assert result == "application/json"
 
-    def test_should_not_add_quality_weights(self, header_selector: Any) -> None:
+    def test_bhv_headers_032_should_not_add_quality_weights(
+        self, header_selector: Any
+    ) -> None:
         result = header_selector._select_accept_header(
             ["text/html", "text/plain", "application/json"]
         )

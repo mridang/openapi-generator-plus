@@ -247,7 +247,7 @@ def _code_reply(**fields: object) -> ApiHttpResponse:
 
 
 class TestAuthorizationUrlEncoding:
-    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+    def test_bhv_auth_014_authorize_url_separates_scopes_with_percent_20(self) -> None:
         url = _create_authenticator().build_authorization_url()
 
         assert _without_pkce(url) == (
@@ -602,7 +602,7 @@ class TestPkce:
 
         assert "code_verifier" not in _form_of(mock_client.send_request.call_args)
 
-    def test_the_verifier_is_spent_by_a_successful_exchange(self) -> None:
+    def test_bhv_auth_020_the_verifier_is_spent_by_a_successful_exchange(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = _code_reply(
@@ -640,3 +640,15 @@ class TestInvalidateAccessToken:
         refresh = _form_of(mock_client.send_request.call_args_list[1])
         assert refresh["grant_type"] == ["refresh_token"]
         assert refresh["refresh_token"] == ["r1"]
+
+
+class TestPkceAppendixB:
+    def test_bhv_auth_008_the_s256_challenge_matches_the_rfc_7636_appendix_b_value(
+        self,
+    ) -> None:
+        authenticator = _create_authenticator()
+        authenticator._pkce_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+        url = authenticator.build_authorization_url()
+
+        assert "code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM" in url
