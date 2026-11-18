@@ -474,6 +474,10 @@ dart | misc010 | addPetPhotos takes its options object as a required positional 
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
 go | misc135 | Go has no client-level cancellation handle: cancellation is the context.Context each call takes, so the ConfigurationBuilder has no field to store one
 ||||||| 9c583bf17
+||||||| d4f99459d
+node | misc030 | Node's per-call timeout is a duration, not an absolute deadline, so there is no past deadline to pass; a timeout of zero or less is refused before any request is sent (bhv options 056).
+node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementation and there is no separate transport object, so there is no client and transport pair to refuse at build.
+||||||| 9f854cdf4
 ||||||| f5c1c903c
 java | misc030 | Java has no caller deadline API: the only bound is the transport timeout, which starts when the request is sent, so no call can arrive with a deadline already past
 java | misc033 | The JDK exposes no public API to issue a certificate, so a server presenting a root-linked intermediate cannot be built in-process to test a root-only CA file
