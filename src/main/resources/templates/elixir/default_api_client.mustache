@@ -59,11 +59,27 @@ defmodule {{moduleName}}.DefaultApiClient do
 
     %__MODULE__{
       transport_options: opts,
-      base_req: Req.new(merge_req_options(opts.req_options, request_options(opts))),
+      base_req: base_request(opts),
       proxy_auth_header: build_proxy_auth_header(opts.proxy),
       closed: :atomics.new(2, signed: false)
     }
   end
+
+  # Req adds a `user-agent` header of its own (`req/<version>`) through the
+  # put_user_agent request step. A transport whose user agent is nil sends no
+  # User-Agent header at all, so that step is taken out of the pipeline here;
+  # a User-Agent the caller sets still goes out as given.
+  defp base_request(%{user_agent: nil} = opts) do
+    req = Req.new(merge_req_options(opts.req_options, request_options(opts)))
+
+    %{
+      req
+      | request_steps: Keyword.delete(req.request_steps, :put_user_agent),
+        current_request_steps: List.delete(req.current_request_steps, :put_user_agent)
+    }
+  end
+
+  defp base_request(opts), do: Req.new(merge_req_options(opts.req_options, request_options(opts)))
 
   # The caller's `req_options` (a custom adapter or plug) form the base; the
   # SDK's own settings are applied on top and win on a shared key. The

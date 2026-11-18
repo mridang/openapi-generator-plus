@@ -108,6 +108,16 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
                    end
     end
 
+    test "bhv errors 081 a credential refused at construction names whether the username or the password is at fault" do
+      assert_raise ArgumentError, ~r/^Basic auth username must not contain/, fn ->
+        PetstoreClient.Auth.BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret")
+      end
+
+      assert_raise ArgumentError, ~r/^Basic auth password must not contain/, fn ->
+        PetstoreClient.Auth.BasicAuthenticator.new("https://api.example.com", "alice", "s3c\rret")
+      end
+    end
+
     test "bhv authbasic 009 rejects username with crlf at construction" do
       assert_raise ArgumentError, fn ->
         BasicAuthenticator.new("https://api.example.com", "alice\r\n", "s3cret")

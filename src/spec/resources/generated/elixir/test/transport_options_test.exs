@@ -376,6 +376,58 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.proxy == "http://user:hunter2@proxy.example.com:8080"
   end
 
+  test "bhv options 058 the injected HTTP client is none unless supplied and a supplied one is kept as the same instance" do
+    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+
+    assert PetstoreClient.TransportOptions.new().req_options == []
+
+    built = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    assert Keyword.fetch!(built.req_options, :adapter) === adapter
+  end
+
+  test "bhv options 059 a caller-supplied transport hook is unset unless given and is kept unchanged when supplied" do
+    options = [
+      adapter: fn request -> {request, Req.Response.new(status: 200)} end,
+      receive_timeout: 1_000
+    ]
+
+    assert PetstoreClient.TransportOptions.new().req_options == []
+    assert PetstoreClient.TransportOptions.new(req_options: options).req_options == options
+  end
+
+  test "bhv options 060 the builder entry point carries the values set on it and the defaults of a direct build" do
+    built = PetstoreClient.TransportOptions.new(timeout: 5_000, max_retries: 4)
+
+    assert built.timeout == 5_000
+    assert built.max_retries == 4
+    assert PetstoreClient.TransportOptions.new() == %PetstoreClient.TransportOptions{}
+  end
+
+  test "bhv options 062 an options object reports the values it was built with and unset fields read back as unset" do
+    built = PetstoreClient.TransportOptions.new(verify_ssl: false, max_retries: 4)
+
+    assert built.verify_ssl == false
+    assert built.max_retries == 4
+    assert built.proxy == nil
+    assert built.ca_cert_path == nil
+    assert built.req_options == []
+  end
+
+  test "bhv options 063 a built options object is unchanged by an update to a copy" do
+    built = PetstoreClient.TransportOptions.new(timeout: 5_000)
+    updated = %{built | timeout: 1_000, max_retries: 9}
+
+    assert built.timeout == 5_000
+    assert built.max_retries == 2
+    assert updated.timeout == 1_000
+  end
+
+  test "bhv options 064 the printable form of transport options shows the configured maximum number of retries" do
+    shown = inspect(PetstoreClient.TransportOptions.new(max_retries: 7))
+
+    assert shown =~ "max_retries: 7"
+  end
+
   test "req_options defaults to an empty list" do
     assert PetstoreClient.TransportOptions.new().req_options == []
   end

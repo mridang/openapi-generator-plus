@@ -211,6 +211,49 @@ defmodule PetstoreClient.ApiErrorTest do
              :not_an_error
   end
 
+  test "bhv errors 075 a cut body never splits a multi-byte character" do
+    # 1023 ASCII bytes and then a two-byte character: the 1 KiB cut lands on its
+    # first byte, which renders as a replacement character, so the message stays
+    # valid UTF-8 and counts the five bytes left out.
+    body = String.duplicate("x", 1_023) <> "é" <> "tail"
+
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "boom",
+        status_code: 500,
+        response_body: body
+      )
+
+    message = PetstoreClient.Errors.ApiError.message(err)
+
+    assert String.valid?(message)
+
+    assert message ==
+             "boom\nHTTP status code: 500\nResponse body: " <>
+               String.duplicate("x", 1_023) <> "\uFFFD... (5 more bytes)"
+  end
+
+  test "bhv errors 079 attaching request details keeps the first complete request and ignores later or incomplete attachments" do
+    error = PetstoreClient.Errors.ApiError.exception(message: "boom")
+
+    first =
+      PetstoreClient.Errors.ApiError.with_request(
+        error,
+        :get,
+        "https://api.example.com/items?key=1"
+      )
+
+    assert first.request_method == "GET"
+    assert first.request_path == "/items"
+
+    assert PetstoreClient.Errors.ApiError.with_request(first, :post, "/other") == first
+
+    incomplete = %{error | request_method: "PUT"}
+
+    assert PetstoreClient.Errors.ApiError.with_request(incomplete, :delete, "/later") ==
+             incomplete
+  end
+
   test "bhv errors 002 every error that specialises ApiError carries the request" do
     modules = [
       PetstoreClient.Errors.ApiError,
@@ -541,6 +584,22 @@ defmodule PetstoreClient.ApiErrorTest do
       serialization = %PetstoreClient.Errors.SerializationError{message: "bad"}
       refute PetstoreClient.Errors.ApiError.api_error?(serialization)
       refute PetstoreClient.Errors.ApiError.api_error?(%ArgumentError{message: "unrelated"})
+    end
+
+    test "bhv errors 080 a typed HTTP error and its kind view are caught by the SDK root error and keep their status code" do
+      typed = PetstoreClient.Errors.ApiError.from_response(404, %{}, "gone")
+
+      caught =
+        try do
+          raise typed
+        rescue
+          error -> error
+        end
+
+      assert %PetstoreClient.Errors.NotFoundError{} = caught
+      assert caught.status_code == 404
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(caught)
+      assert PetstoreClient.Errors.ClientError.client_error?(caught)
     end
 
     test "bhv errors 033 NotFoundError is a ClientError and an ApiError" do

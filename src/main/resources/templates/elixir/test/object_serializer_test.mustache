@@ -1352,6 +1352,22 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
+    test "bhv models 018 models whose decimal fields hold numerically equal values compare equal" do
+      first = {{moduleName}}.ObjectSerializer.deserialize(~s({"weightKg":2.5}), "DryFood")
+      second = {{moduleName}}.ObjectSerializer.deserialize(~s({"weightKg":2.50}), "DryFood")
+
+      assert first == second
+      assert %{{moduleName}}.Models.DryFood{weight_kg: 2.5} = second
+    end
+
+    test "bhv models 021 each member of an integer-backed enum carries its declared number as its value" do
+      for {member, number} <- [number_1: 1, number_2: 2, number_3: 3] do
+        assert {{moduleName}}.Models.Priority.value(member) == number
+      end
+
+      assert Enum.map({{moduleName}}.Models.Priority.all_values(), &{{moduleName}}.Models.Priority.value/1) == [1, 2, 3]
+    end
+
     test "bhv serializationobject 093 an integer-backed enum never serializes as a JSON string" do
       item = %{{moduleName}}.Models.StockItem{priority: :number_3}
       data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))

@@ -213,6 +213,40 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       assert token == "manual-token"
     end
 
+    test "bhv misc 001 replacing the token while other callers read it is race-free and each read gets one complete token" do
+      first = String.duplicate("a", 512)
+      second = String.duplicate("b", 512)
+      final = String.duplicate("c", 512)
+      url = "https://auth.example.com/token"
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_access_token(manager, first)
+
+      readers =
+        for _ <- 1..20 do
+          Task.async(fn ->
+            for _ <- 1..50 do
+              {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, url, %{})
+            end
+          end)
+        end
+
+      writer =
+        Task.async(fn ->
+          for i <- 1..200 do
+            {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_access_token(manager, Enum.at([first, second], rem(i, 2)))
+          end
+        end)
+
+      Task.await(writer, 5_000)
+      reads = readers |> Enum.flat_map(&Task.await(&1, 5_000))
+
+      assert Enum.all?(reads, &(&1 in [first, second]))
+
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_access_token(manager, final)
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, url, %{}) == final
+    end
+
     test "bhv authoauthtwotokenmgr 018 invalidate_access_token forces refetch" do
       fake_client = FakeApiClient.new([
         %{{moduleName}}.ApiHttpResponse{
@@ -1007,6 +1041,54 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
           %{"grant_type" => "client_credentials"}
         )
       end
+    end
+
+    test "bhv errors 082 a token error keeps a valid error code when its description or uri is malformed" do
+      malformed =
+        Jason.encode!(%{
+          "error" => "invalid_grant",
+          "error_description" => 42,
+          "error_uri" => ["x"]
+        })
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{status_code: 400, body: malformed}
+      ]))
+
+      error =
+        assert_raise {{moduleName}}.Errors.OAuth2ServerError, fn ->
+          {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      assert error.code == "invalid_grant"
+      assert error.description == nil
+      assert error.uri == nil
+    end
+
+    test "a non-string error value is not taken as a code" do
+      body = Jason.encode!(%{"error" => 7, "error_description" => "x"})
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{status_code: 400, body: body}
+      ]))
+
+      error =
+        assert_raise {{moduleName}}.Errors.OAuth2ServerError, fn ->
+          {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      assert error.code == nil
+      assert error.raw_body == body
     end
 
     test "bhv authoauthtwotokenmgr 036 missing access_token in 2xx response raises typed OAuth2TokenError" do
