@@ -2613,3 +2613,4 @@ langphp067 | Non-ASCII text in a serialized string is written literally and neve
 langphp068 | A hook that returns no observer is skipped while the other hooks still finish.
 langphp069 | The chain returns no observer when no hook returns one.
 langphp070 | Headers edited by one hook are handed on to the next hook.
+langcsharp065 | Cancelling the client-level token aborts a slow endpoint and reports the cancellation
