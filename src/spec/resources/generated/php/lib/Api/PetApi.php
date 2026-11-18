@@ -58,6 +58,7 @@ class PetApi extends BaseApi
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
      * @param AddPetOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): \PetstoreClient\Models\Pet
@@ -86,6 +87,7 @@ class PetApi extends BaseApi
      * @param AddPetOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function addPetWithHttpInfo(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): ApiResult
@@ -130,6 +132,7 @@ class PetApi extends BaseApi
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
      * @return \Ds\Vector<\PetstoreClient\Models\Photo>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function addPetPhotos(int $petId, AddPetPhotosOptions $options): \Ds\Vector
@@ -157,6 +160,7 @@ class PetApi extends BaseApi
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Photo>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function addPetPhotosWithHttpInfo(int $petId, AddPetPhotosOptions $options): ApiResult
@@ -220,6 +224,7 @@ class PetApi extends BaseApi
      * Record a treatment for a pet
      * @param AddPetTreatmentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): \PetstoreClient\Models\PetTreatment
     {
@@ -246,6 +251,7 @@ class PetApi extends BaseApi
      * @param AddPetTreatmentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\PetTreatment>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function addPetTreatmentWithHttpInfo(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): ApiResult
     {
@@ -307,6 +313,7 @@ class PetApi extends BaseApi
      * @param int $petId Pet id to delete
      * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function deletePet(int $petId, ?DeletePetOptions $options = null): void
@@ -319,6 +326,7 @@ class PetApi extends BaseApi
      * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function deletePetWithHttpInfo(int $petId, ?DeletePetOptions $options = null): ApiResult
@@ -398,6 +406,7 @@ class PetApi extends BaseApi
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
      * @param DownloadPetDocumentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function downloadPetDocument(int $petId, int $documentId, ?DownloadPetDocumentOptions $options = null): string
@@ -425,6 +434,7 @@ class PetApi extends BaseApi
      * @param DownloadPetDocumentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function downloadPetDocumentWithHttpInfo(int $petId, int $documentId, ?DownloadPetDocumentOptions $options = null): ApiResult
@@ -507,6 +517,7 @@ class PetApi extends BaseApi
      * @param FindPetsBornOnOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function findPetsBornOn(\DateTime $bornOn, ?FindPetsBornOnOptions $options = null): \Ds\Vector
     {
@@ -534,6 +545,7 @@ class PetApi extends BaseApi
      * @param FindPetsBornOnOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function findPetsBornOnWithHttpInfo(\DateTime $bornOn, ?FindPetsBornOnOptions $options = null): ApiResult
     {
@@ -595,6 +607,7 @@ class PetApi extends BaseApi
      * @param FindPetsByStatusOptions|null $options Options for query, header, form, and cookie parameters
      * @return \Ds\Vector<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @deprecated This operation is deprecated.
      * @see https://example.com/docs/filtering Find out more about filtering
@@ -624,6 +637,7 @@ class PetApi extends BaseApi
      * @param FindPetsByStatusOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @deprecated This operation is deprecated.
      */
@@ -712,6 +726,7 @@ class PetApi extends BaseApi
      * Get external pet info
      * @param GetExternalPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null, ?GetExternalPetInfoOptions $options = null): \PetstoreClient\Models\Pet
     {
@@ -738,6 +753,7 @@ class PetApi extends BaseApi
      * @param GetExternalPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getExternalPetInfoWithHttpInfo(int $petId, ?GetExternalPetInfoServer $server = null, ?GetExternalPetInfoOptions $options = null): ApiResult
     {
@@ -804,6 +820,7 @@ class PetApi extends BaseApi
      * Get multi-server pet info
      * @param GetMultiServerPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null, ?GetMultiServerPetInfoOptions $options = null): \PetstoreClient\Models\Pet
     {
@@ -830,6 +847,7 @@ class PetApi extends BaseApi
      * @param GetMultiServerPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getMultiServerPetInfoWithHttpInfo(int $petId, ?GetMultiServerPetInfoServer $server = null, ?GetMultiServerPetInfoOptions $options = null): ApiResult
     {
@@ -897,6 +915,7 @@ class PetApi extends BaseApi
      * Returns the raw image bytes of the pet's current avatar.
      * @param GetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetAvatar(int $petId, ?GetPetAvatarOptions $options = null): string
@@ -924,6 +943,7 @@ class PetApi extends BaseApi
      * @param GetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetAvatarWithHttpInfo(int $petId, ?GetPetAvatarOptions $options = null): ApiResult
@@ -986,6 +1006,7 @@ class PetApi extends BaseApi
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
      * @param GetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetAvatarThumbnail(int $petId, ?GetPetAvatarThumbnailOptions $options = null): string
@@ -1013,6 +1034,7 @@ class PetApi extends BaseApi
      * @param GetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetAvatarThumbnailWithHttpInfo(int $petId, ?GetPetAvatarThumbnailOptions $options = null): ApiResult
@@ -1078,6 +1100,7 @@ class PetApi extends BaseApi
      * @example 42 Large breed ID
      * @param GetPetByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      * @deprecated This operation is deprecated.
@@ -1108,6 +1131,7 @@ class PetApi extends BaseApi
      * @param GetPetByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      * @deprecated This operation is deprecated.
@@ -1177,6 +1201,7 @@ class PetApi extends BaseApi
      * Look up a pet by name (simple string path param + required query)
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getPetByName(string $name, GetPetByNameOptions $options): \PetstoreClient\Models\Pet
     {
@@ -1203,6 +1228,7 @@ class PetApi extends BaseApi
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getPetByNameWithHttpInfo(string $name, GetPetByNameOptions $options): ApiResult
     {
@@ -1288,6 +1314,7 @@ class PetApi extends BaseApi
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param GetPetPassportOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetPassport(int $petId, ?GetPetPassportOptions $options = null): \PetstoreClient\Models\PetPassport
@@ -1315,6 +1342,7 @@ class PetApi extends BaseApi
      * @param GetPetPassportOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\PetPassport>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetPassportWithHttpInfo(int $petId, ?GetPetPassportOptions $options = null): ApiResult
@@ -1377,6 +1405,7 @@ class PetApi extends BaseApi
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
      * @param GetPetPhotoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetPhoto(int $petId, int $photoId, ?GetPetPhotoOptions $options = null): string
@@ -1404,6 +1433,7 @@ class PetApi extends BaseApi
      * @param GetPetPhotoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetPhotoWithHttpInfo(int $petId, int $photoId, ?GetPetPhotoOptions $options = null): ApiResult
@@ -1486,6 +1516,7 @@ class PetApi extends BaseApi
      * @param \DateTime $asOf Summary date, sent as a matrix-style path segment
      * @param GetPetSummaryOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetSummary(int $petId, \DateTime $asOf, GetPetSummaryOptions $options): string
@@ -1514,6 +1545,7 @@ class PetApi extends BaseApi
      * @param GetPetSummaryOptions $options Options for query, header, form, and cookie parameters
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getPetSummaryWithHttpInfo(int $petId, \DateTime $asOf, GetPetSummaryOptions $options): ApiResult
@@ -1623,6 +1655,7 @@ class PetApi extends BaseApi
      * Get a tag for a pet
      * @param GetPetTagOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getPetTag(int $petId, string $tagName, ?GetPetTagOptions $options = null): \PetstoreClient\Models\Pet
     {
@@ -1649,6 +1682,7 @@ class PetApi extends BaseApi
      * @param GetPetTagOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getPetTagWithHttpInfo(int $petId, string $tagName, ?GetPetTagOptions $options = null): ApiResult
     {
@@ -1834,6 +1868,7 @@ class PetApi extends BaseApi
      * Get staging pet info
      * @param GetStagingPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null, ?GetStagingPetInfoOptions $options = null): \PetstoreClient\Models\Pet
     {
@@ -1860,6 +1895,7 @@ class PetApi extends BaseApi
      * @param GetStagingPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getStagingPetInfoWithHttpInfo(int $petId, ?GetStagingPetInfoServer $server = null, ?GetStagingPetInfoOptions $options = null): ApiResult
     {
@@ -1928,6 +1964,7 @@ class PetApi extends BaseApi
      * @param SetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function setPetAvatar(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): void
@@ -1940,6 +1977,7 @@ class PetApi extends BaseApi
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): ApiResult
@@ -2013,6 +2051,7 @@ class PetApi extends BaseApi
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
      * @param SetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function setPetAvatarThumbnail(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest, ?SetPetAvatarThumbnailOptions $options = null): void
@@ -2024,6 +2063,7 @@ class PetApi extends BaseApi
      * @param SetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function setPetAvatarThumbnailWithHttpInfo(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest, ?SetPetAvatarThumbnailOptions $options = null): ApiResult
@@ -2086,6 +2126,7 @@ class PetApi extends BaseApi
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function setPetPreferences(int $petId, SetPetPreferencesOptions $options): \PetstoreClient\Models\ApiResponse
@@ -2113,6 +2154,7 @@ class PetApi extends BaseApi
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function setPetPreferencesWithHttpInfo(int $petId, SetPetPreferencesOptions $options): ApiResult
@@ -2192,6 +2234,7 @@ class PetApi extends BaseApi
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
      * @param UpdatePetOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -2222,6 +2265,7 @@ class PetApi extends BaseApi
      * @param UpdatePetOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -2285,6 +2329,7 @@ class PetApi extends BaseApi
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function uploadPetCertificate(int $petId, UploadPetCertificateOptions $options): \PetstoreClient\Models\ApiResponse
@@ -2312,6 +2357,7 @@ class PetApi extends BaseApi
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function uploadPetCertificateWithHttpInfo(int $petId, UploadPetCertificateOptions $options): ApiResult
@@ -2376,6 +2422,7 @@ class PetApi extends BaseApi
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options, ?string $requestContentType = null): \PetstoreClient\Models\ApiResponse
@@ -2404,6 +2451,7 @@ class PetApi extends BaseApi
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function uploadPetDocumentWithHttpInfo(int $petId, UploadPetDocumentOptions $options, ?string $requestContentType = null): ApiResult

@@ -10,10 +10,18 @@ composer require openapi/petstoreclient
 
 ## Quick Start
 
-```php
+```php statements
 use PetstoreClient\Client;
 
-$client = Client::withToken('https://api.example.com', 'your-token');
+$host = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL') ?: throw new \RuntimeException('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set');
+$token = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN') ?: throw new \RuntimeException('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set');
+$client = Client::withToken($host, $token);
+try {
+    $result = $client->store->getDefaults();
+    print_r($result);
+} finally {
+    $client->close();
+}
 ```
 
 ## Authentication
@@ -24,7 +32,8 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\BearerAuthenticator;
 
 $authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
@@ -58,7 +67,8 @@ The prefix `SWAGGER_PETSTORE_OPEN_API_3_0` comes from the `envVarPrefix` generat
 
 ### Basic Auth
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\BasicAuthenticator;
 
 $authenticator = new BasicAuthenticator('https://api.example.com', 'username', 'password');
@@ -67,7 +77,8 @@ $client = new Client($authenticator);
 
 ### API Key
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 
@@ -77,7 +88,8 @@ $client = new Client($authenticator);
 
 ### OAuth2 Client Credentials
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
 $authenticator = new OAuth2ClientCredentialsAuthenticator(
@@ -87,7 +99,8 @@ $client = new Client($authenticator);
 
 ### OAuth2 Authorization Code
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
 
 $authenticator = new OAuth2AuthorizationCodeAuthenticator(
@@ -100,7 +113,8 @@ $authenticator->exchangeCode('authorization-code');
 
 ### OAuth2 Password
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator;
 
 $authenticator = new OAuth2PasswordAuthenticator(
@@ -113,7 +127,8 @@ $client = new Client($authenticator);
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator;
 
 $authenticator = new OAuth2ImplicitAuthenticator(
@@ -124,7 +139,8 @@ $client = new Client($authenticator);
 
 ### OpenID Connect
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
 
 $authenticator = new OpenIdConnectAuthenticator(
@@ -161,7 +177,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```php
+```php statements
 use PetstoreClient\Auth\OAuth\ClientAuthMethod;
 use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
@@ -174,7 +190,8 @@ $authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 If the OpenAPI spec defines multiple servers, the generated `PetstoreClient\Servers` class exposes each as a `ServerConfiguration` static method (e.g., `Servers::server0()`, `Servers::server1()`, ...) plus a `Servers::all()` array. Pass the desired server's URL to the client:
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Servers;
 
 $client = Client::withToken(Servers::server0()->getUrl(), 'your-token');
@@ -184,7 +201,8 @@ $client = Client::withToken(Servers::server0()->getUrl(), 'your-token');
 
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\Auth\Authenticator;
 
 $fake = new class implements Authenticator {
@@ -234,18 +252,19 @@ Every failure the SDK raises derives from `OpenAPIException`; catching it handle
     - `NetworkException` (no HTTP response, status 0)
       - `NetworkTimeoutException` (the request timed out, status 0)
 
-```php
+```php file
 use PetstoreClient\Client;
+use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Errors\OpenAPIException;
 
-function addPetOrReport(Client $client, \PetstoreClient\Models\Pet $pet): void
+function addPetOrReport(Client $client, \PetstoreClient\Models\Pet $pet, ?AddPetOptions $options): void
 {
     try {
-        $client->pet->addPet($pet);
+        $client->pet->addPet($pet, $options);
     } catch (NotFoundException $e) {
         echo "Not found: " . $e->getMessage();
     } catch (ClientException $e) {
@@ -264,33 +283,51 @@ function addPetOrReport(Client $client, \PetstoreClient\Models\Pet $pet): void
 
 ### Custom Transport Options
 
-```php
+```php file
+use PetstoreClient\Client;
+use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\TransportOptions;
 
-$transport = TransportOptions::builder()
-    ->proxy('http://proxy:3128')
-    ->timeout(5000)
-    ->build();
+function clientWithTransport(Authenticator $authenticator): Client
+{
+    $transport = TransportOptions::builder()
+        ->proxy('http://proxy:3128')
+        ->timeout(5000)
+        ->build();
 
-$client = new Client($authenticator, $transport);
+    return new Client($authenticator, $transport);
+}
 ```
 
 ### Retries
 
 `TransportOptions::builder()->maxRetries(int)` sets the retries after a transient failure (default 2; 0 disables). Network errors before a response and 408, 409, 429 and 5xx (not 501) are retried with a 0.5 s to 8 s backoff and `Retry-After` honoured (at most 60 s). The retries stay inside the request timeout, a stream or multipart body is never retried, and each retry rebuilds the headers, authentication included.
 
-```php
+```php statements
+use PetstoreClient\TransportOptions;
+
 $transport = TransportOptions::builder()->maxRetries(0)->build();
 ```
 
 ### Custom HTTP client
 
-```php
+```php file
+use PetstoreClient\Client;
 use PetstoreClient\Psr18ApiClient;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 
 /* $httpClient is any PSR-18 client with redirects disabled; $psr17 is any PSR-17 factory. */
-$apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
-$client = Client::withToken('https://api.example.com', 'your-token', null, $apiClient);
+function clientWithHttpClient(
+    ClientInterface $httpClient,
+    RequestFactoryInterface&StreamFactoryInterface $psr17,
+    string $token
+): Client {
+    $apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
+
+    return Client::withToken('https://api.example.com', $token, null, $apiClient);
+}
 ```
 
 The SDK sends every request through your client and never closes it. Combining a supplied client with `proxy`, `caCertPath` or `verifySsl(false)` throws `InvalidArgumentException`.
@@ -299,8 +336,14 @@ The SDK sends every request through your client and never closes it. Combining a
 
 Every operation takes an options object as its last argument, including one with no parameters and no security scheme, and it carries `timeout` (ms), `headers` and `maxRetries` for that call only, replacing the transport settings.
 
-```php
-$api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+```php file
+use PetstoreClient\Client;
+use PetstoreClient\Api\Options\GetDefaultsOptions;
+
+function getDefaultsWithinTwoSeconds(Client $client): void
+{
+    $client->store->getDefaults(new GetDefaultsOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+}
 ```
 
 ### Cancellation
@@ -319,10 +362,13 @@ Each API group is exposed as a typed property on the client (e.g., `$client->pet
 
 Models are generated as PHP classes under the `PetstoreClient\Models` namespace. They are immutable: properties are `readonly` and `withX()` returns a changed copy. A `oneOf` or `anyOf` wrapper has `fromX()`, `isX()` and `asX()` per variant, and an operation with several 2xx responses returns such a wrapper decoded by the status code that arrived.
 
-```php
+```php file
 use PetstoreClient\Models\Account;
 
-$model = new Account(username: 'example');
+function withIdFrom(Account $model, Account $other): Account
+{
+    return $model->withId($other->id);
+}
 ```
 
 ## Binary / File Uploads

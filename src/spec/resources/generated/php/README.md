@@ -42,14 +42,18 @@ composer require openapi/petstoreclient
 
 ## Usage
 
-```php
+```php statements
 use PetstoreClient\Client;
 
-$client = Client::withToken('https://api.example.com', 'your-token');
-
-/* $body is the \PetstoreClient\Models\Pet you want to send. */
-$result = $client->pet->addPet($body);
-$client->close();
+$host = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL') ?: throw new \RuntimeException('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set');
+$token = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN') ?: throw new \RuntimeException('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set');
+$client = Client::withToken($host, $token);
+try {
+    $result = $client->store->getDefaults();
+    print_r($result);
+} finally {
+    $client->close();
+}
 ```
 
 Closing the client is graceful: a request already sent finishes, every later request fails with a `\LogicException` (`client closed`), and only the transport the SDK built is released, never a client you supplied. Calling `close()` twice is harmless. Errors derive from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
@@ -66,7 +70,7 @@ Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with th
 
 A request that fails with a transient error is retried by the SDK. `TransportOptions::builder()->maxRetries()` sets how many times (default 2, so up to three attempts); `maxRetries(0)` disables retrying.
 
-```php
+```php statements
 use PetstoreClient\TransportOptions;
 
 $transport = TransportOptions::builder()->maxRetries(4)->build();
@@ -82,8 +86,14 @@ When an OAuth2 or OpenID Connect call is answered with 401, the cached access to
 
 Every operation takes an options object as its last argument, even one with no query, header, form or cookie parameter and no security scheme (`$api->operation()` with no argument still works). It accepts three fields for that one call: `timeout` (milliseconds, positive), `headers` (a name to value map that wins over a configured header of the same name) and `maxRetries` (0 or more). They replace the transport settings for that call only.
 
-```php
-$api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+```php file
+use PetstoreClient\Client;
+use PetstoreClient\Api\Options\GetDefaultsOptions;
+
+function getDefaultsWithinTwoSeconds(Client $client): void
+{
+    $client->store->getDefaults(new GetDefaultsOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+}
 ```
 
 `timeout` and `maxRetries` need the bundled transport or a subclass of `AbstractApiClient`; a transport you wrote yourself against `ApiClient` sends the headers and ignores the other two.
@@ -145,12 +155,23 @@ own framework-managed HTTP stack instead — Guzzle, Symfony's PSR-18 adapter,
 Laravel's client, or a test double — wrap any [PSR-18](https://www.php-fig.org/psr/psr-18/)
 `ClientInterface` in `Psr18ApiClient` and pass it to the client facade:
 
-```php
+```php file
+use PetstoreClient\Client;
 use PetstoreClient\Psr18ApiClient;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 
 /* $httpClient is any PSR-18 client; $psr17 is any PSR-17 request/stream factory. */
-$apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
-$client = Client::withToken('/api/v3', $token, null, $apiClient);
+function clientWithHttpClient(
+    ClientInterface $httpClient,
+    RequestFactoryInterface&StreamFactoryInterface $psr17,
+    string $token
+): Client {
+    $apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
+
+    return Client::withToken('https://api.example.com', $token, null, $apiClient);
+}
 ```
 
 The facade also offers a shortcut that builds the adapter for you:

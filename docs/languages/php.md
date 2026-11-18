@@ -94,6 +94,7 @@ Only `invokerPackage` and `packageVersion` are declared as options in the genera
 - **Raw responses.** Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with public `statusCode`, `data`, `rawBody` and `headers`.
 - **Custom transport.** Wrap any PSR-18 client in `Psr18ApiClient`, or use `Client::withHttpClient(...)`. The SDK keeps its own redirect loop, so disable redirects on your client. `TransportOptions` settings for proxy, TLS and timeout do not apply to an injected client, and setting a proxy, CA bundle or `verifySsl(false)` together with one is rejected with `InvalidArgumentException`.
 - **Request id.** `injectRequestId(true)` adds an `X-Request-ID` header to every request.
+- With `generateExamples` on, the project ships `examples/quickstart.php`, a script that requires `vendor/autoload.php`, builds a client with `Client::withToken` from `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN`, calls the example operation and closes the client in a `finally` block. `make examples` lints it with `php -l` and analyses it with PHPStan at level 9, and `make examples-run` runs it.
 
 ## Known limits
 

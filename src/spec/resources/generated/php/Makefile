@@ -1,4 +1,4 @@
-.PHONY: install build test lint format analyze audit docs clean
+.PHONY: install build test lint format analyze audit docs clean examples examples-run
 
 install:
 	composer install --no-interaction --prefer-dist
@@ -29,3 +29,11 @@ docs: install
 
 clean:
 	rm -rf vendor .phpunit.result.cache .pest.cache .phpdoc docs
+
+# Lints every file under examples and type-checks the directory with the shipped phpstan.neon.
+examples: install
+	find examples -name '*.php' -print0 | xargs -0 -n1 php -l
+	vendor/bin/phpstan analyse --no-progress --memory-limit=-1 examples
+
+examples-run: examples
+	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN=placeholder php examples/quickstart.php
