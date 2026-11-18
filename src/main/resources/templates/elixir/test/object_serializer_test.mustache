@@ -20,6 +20,18 @@ defmodule {{moduleName}}.Models.TestEnumStatus do
   def from_value(value), do: {:error, value}
 end
 
+# Fixture for bhv serialization 097: a field whose schema default is an enum value.
+defmodule {{moduleName}}.Models.TestDefaultedStatus do
+  defstruct status: "available"
+end
+
+# Fixture for bhv serialization 101: an integer-backed enum mapping its numbers to members.
+defmodule {{moduleName}}.Models.TestPriority do
+  def from_value(1), do: :low
+  def from_value(2), do: :high
+  def from_value(value), do: {:error, value}
+end
+
 defmodule {{moduleName}}.ObjectSerializerTest do
   use ExUnit.Case, async: true
 
@@ -2560,6 +2572,29 @@ defmodule {{moduleName}}.ObjectSerializerTest do
 
     test "bhv serialization 106 a non-exploded array query parameter joins its values with commas" do
       assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b"]) == "a,b"
+    end
+
+    test "bhv serialization 082 a missing or null discriminator property fails decoding with an error naming that key" do
+      for json <- [~s({"weightKg":2.5}), ~s({"foodType":null,"weightKg":2.5})] do
+        error =
+          assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+            {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood")
+          end
+
+        assert error.message =~ "foodType"
+      end
+    end
+
+    test "bhv serialization 097 an enum field with a schema default is written with that default when serialized" do
+      decoded =
+        Jason.decode!({{moduleName}}.ObjectSerializer.serialize(%{{moduleName}}.Models.TestDefaultedStatus{}))
+
+      assert decoded == %{"status" => "available"}
+    end
+
+    test "bhv serialization 101 an integer-backed enum decodes from its JSON number back to its member" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(2, "TestPriority") == :high
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(1, "TestPriority") == :low
     end
 end
 {{/generateTests}}
