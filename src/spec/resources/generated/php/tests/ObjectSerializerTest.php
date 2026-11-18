@@ -346,7 +346,7 @@ test('bhv serializationobject 159 stringify array fallback', function (): void {
     expect($result)->toBe('["a","b","c"]');
 });
 
-test('stringify object fallback', function (): void {
+test('bhv langphp 001 stringify object fallback', function (): void {
     $obj = new \stdClass();
     $obj->key = 'value';
     $result = ObjectSerializer::stringify($obj);
@@ -438,7 +438,7 @@ test('bhv serializationobject 031 cjk characters serialize and decode correctly'
     expect($decoded)->toBe('日本');
 });
 
-test('non ascii text is written literally not as unicode escapes', function (): void {
+test('bhv serializationobject 019 non ascii text is written literally not as unicode escapes', function (): void {
     expect(ObjectSerializer::serialize('café'))->toBe('"café"');
     expect(ObjectSerializer::serialize('日本'))->toBe('"日本"');
 });
@@ -447,7 +447,7 @@ test('bhv serializationobject 124 line separator characters are written literall
     expect(ObjectSerializer::serialize("a\u{2028}b\u{2029}c"))->toBe("\"a\u{2028}b\u{2029}c\"");
 });
 
-test('slash is not escaped in a serialized string', function (): void {
+test('bhv langphp 002 slash is not escaped in a serialized string', function (): void {
     expect(ObjectSerializer::serialize('a/b'))->toBe('"a/b"');
 });
 
@@ -764,7 +764,7 @@ test('bhv serializationobject 025 deserialize applies defaults only when fields 
     expect($defaults->label)->toBe('untitled');
 });
 
-test('deserialize holds the exact string default literal for greeting', function (): void {
+test('bhv misc 122 deserialize holds the exact string default literal for greeting', function (): void {
     /** @var Defaults $defaults */
     $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
     expect($defaults)->toBeInstanceOf(Defaults::class);
@@ -853,7 +853,7 @@ test('bhv serialization 025 enum leaves inside nested containers deserialize fro
     expect($result->get(1)->get('c'))->toBe(Swatch::GREEN);
 });
 
-test('an unknown enum value inside a container is rejected', function (): void {
+test('bhv serializationobject 024 an unknown enum value inside a container is rejected', function (): void {
     expect(fn (): mixed => ObjectSerializer::deserialize('{"a":"purple"}', 'Ds\Map<Swatch>'))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
@@ -888,7 +888,7 @@ test('bhv serializationobject 118 a null scalar element in a container is kept',
     expect(ObjectSerializer::deserialize('["a",null]', 'string[]'))->toBe(['a', null]);
 });
 
-test('string leaves keep their text and are not parsed as json again', function (): void {
+test('bhv langphp 003 string leaves keep their text and are not parsed as json again', function (): void {
     expect(ObjectSerializer::deserialize('["true","null","5","1.5"]', 'string[]'))
         ->toBe(['true', 'null', '5', '1.5']);
 });
@@ -962,7 +962,7 @@ test('bhv serialization 028 a wrong typed top level primitive body is rejected n
     'string for float' => ['"1.5"', 'float', 'string'],
 ]);
 
-test('a top level primitive body that is not json is rejected', function (): void {
+test('bhv serialization 103 a top level primitive body that is not json is rejected', function (): void {
     expect(fn (): mixed => ObjectSerializer::deserialize('abc', 'int'))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
@@ -1119,7 +1119,7 @@ test('bhv serialization 046 serialize model DateInterval property keeps fraction
     expect($decoded['retryAfter'])->toBe('3600.000000001s');
 });
 
-test('deserialize model with DateInterval property parses protobuf seconds', function (): void {
+test('bhv serialization 117 deserialize model with DateInterval property parses protobuf seconds', function (): void {
     /** @var EdgeCases $model */
     $model = ObjectSerializer::deserialize('{"retryAfter":"3600s"}', EdgeCases::class);
 
@@ -1371,7 +1371,7 @@ test('bhv serializationobject 127 resolveAnyOf throws when no variant matches', 
         ->toThrow(\UnexpectedValueException::class);
 });
 
-test('resolveAnyOfAll collects every matching variant not just the first', function (): void {
+test('bhv misc 293 resolveAnyOfAll collects every matching variant not just the first', function (): void {
     /* anyOf matches one OR MORE schemas: a payload co-satisfying several
      * variants must retain all of them so the round-trip is lossless. */
     $candidates = [
@@ -1382,7 +1382,7 @@ test('resolveAnyOfAll collects every matching variant not just the first', funct
     expect(ObjectSerializer::resolveAnyOfAll(['k' => 'v'], $candidates))->toBe(['A', 'C']);
 });
 
-test('resolveAnyOfAll throws when no variant matches', function (): void {
+test('bhv langphp 004 resolveAnyOfAll throws when no variant matches', function (): void {
     $candidates = [
         fn (mixed $data): mixed => throw new \RuntimeException('no match'),
         fn (mixed $data): mixed => throw new \RuntimeException('still no match'),
@@ -1449,7 +1449,7 @@ test('bhv serializationobject 050 a decoded model without the property takes the
     expect($item->availability)->toBe(Availability::ON_HOLD);
 });
 
-test('a decoded model with the property keeps the value on the wire over the default', function (): void {
+test('bhv langphp 005 a decoded model with the property keeps the value on the wire over the default', function (): void {
     /** @var StockItem $item */
     $item = ObjectSerializer::deserialize('{"priority":2,"availability":"Sold"}', StockItem::class);
 
@@ -1701,7 +1701,7 @@ test('bhv serialization 050 a digit-leading property keeps its wire name', funct
     expect($back->n2fa)->toBeTrue();
 });
 
-test('byte models expose no raw-bytes accessors', function (): void {
+test('bhv langphp 006 byte models expose no raw-bytes accessors', function (): void {
     foreach (['getThumbnailAsBytes', 'setThumbnailFromBytes', 'getScansAsBytes', 'setScansFromBytes'] as $method) {
         expect(method_exists(PetPassport::class, $method))->toBeFalse();
     }
@@ -1817,7 +1817,7 @@ test('bhv serialization 063 byte property with a description serializes raw byte
     expect($back->mimeType)->toBe('image/png');
 });
 
-test('byte property with bad base64 on the wire is rejected', function (): void {
+test('bhv serialization 090 byte property with bad base64 on the wire is rejected', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{"data":"!!!","mimeType":"image/png"}', SetPetAvatarRequest::class))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
@@ -1935,14 +1935,14 @@ test('bhv serializationobject 205 an extra key survives a full deserialize then 
     expect($back->additionalProperties->get('region'))->toBe('emea');
 });
 
-test('a model whose only fields are numeric additional properties serializes as an object', function (): void {
+test('bhv misc 093 a model whose only fields are numeric additional properties serializes as an object', function (): void {
     /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['0' => 'x', '1' => 'y']);
     $meta = (new Metadata())->withAdditionalProperties($extra);
     expect(ObjectSerializer::serialize($meta))->toBe('{"0":"x","1":"y"}');
 });
 
-test('a model with numeric and named fields keeps both as an object', function (): void {
+test('bhv langphp 007 a model with numeric and named fields keeps both as an object', function (): void {
     /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['0' => 'x']);
     $meta = (new Metadata(new \DateTime('2024-01-01T00:00:00+00:00')))->withAdditionalProperties($extra);
@@ -2075,7 +2075,7 @@ test('bhv serializationobject 004 a deserialize failure carries the canonical me
         });
 });
 
-test('a container leaf is not JSON-decoded a second time', function (string $leafType, string $literal): void {
+test('bhv misc 086 a container leaf is not JSON-decoded a second time', function (string $leafType, string $literal): void {
     // A decoded string element holding a quoted JSON literal is the value, not
     // JSON text to unwrap: only a raw body is parsed, never a container leaf.
     $body = json_encode(['"' . $literal . '"'], JSON_THROW_ON_ERROR);
@@ -2088,25 +2088,25 @@ test('a container leaf is not JSON-decoded a second time', function (string $lea
     'Uuid' => [\Symfony\Component\Uid\Uuid::class, '123e4567-e89b-12d3-a456-426614174000'],
 ]);
 
-test('a raw JSON string literal body still unwraps for a date-time', function (): void {
+test('bhv langphp 008 a raw JSON string literal body still unwraps for a date-time', function (): void {
     expect(ObjectSerializer::deserialize('"2024-01-15T10:00:00Z"', 'DateTime'))->toBeInstanceOf(\DateTime::class);
 });
 
-test('a composed-model container leaf given as JSON text is rejected, not parsed', function (): void {
+test('bhv langphp 009 a composed-model container leaf given as JSON text is rejected, not parsed', function (): void {
     expect(fn (): mixed => ObjectSerializer::deserialize(
         '["{\"foodType\":\"dry\",\"weightKg\":2.5}"]',
         \PetstoreClient\Models\PetFood::class . '[]'
     ))->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
-test('a model container leaf given as JSON text is rejected, not parsed', function (): void {
+test('bhv langphp 010 a model container leaf given as JSON text is rejected, not parsed', function (): void {
     expect(fn (): mixed => ObjectSerializer::deserialize(
         '["{\"quantity\":3}"]',
         \PetstoreClient\Models\Order::class . '[]'
     ))->toThrow(\PetstoreClient\Errors\SerializationException::class, 'Expected a JSON object, got string');
 });
 
-test('a model container leaf that is an object still deserializes', function (): void {
+test('bhv langphp 011 a model container leaf that is an object still deserializes', function (): void {
     /** @var list<\PetstoreClient\Models\Order> $orders */
     $orders = ObjectSerializer::deserialize('[{"quantity":3}]', \PetstoreClient\Models\Order::class . '[]');
 
@@ -2147,7 +2147,7 @@ test('bhv unions 033 an unknown, missing or empty discriminator fails with the S
 
 // -- format: byte parameters are standard base64 on the wire --
 
-test('encode base64 param encodes strings and each list element', function (mixed $value, mixed $expected): void {
+test('bhv serialization 088 encode base64 param encodes strings and each list element', function (mixed $value, mixed $expected): void {
     expect(ObjectSerializer::encodeBase64Param($value))->toBe($expected);
 })->with([
     'ascii' => ['hi', 'aGk='],
@@ -2251,7 +2251,7 @@ test('bhv serializationobject 003 offset-less date-time is rejected whatever the
 
 // -- format: byte decode is strict RFC 4648 --
 
-test('byte field decode rejects base64 that is not strict RFC 4648', function (string $value): void {
+test('bhv langphp 012 byte field decode rejects base64 that is not strict RFC 4648', function (string $value): void {
     $json = (string) json_encode(['thumbnail' => $value]);
     expect(fn () => ObjectSerializer::deserialize($json, PetPassport::class))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
@@ -2265,7 +2265,7 @@ test('byte field decode rejects base64 that is not strict RFC 4648', function (s
     'not base64' => ['!!!!'],
 ]);
 
-test('byte list element decode rejects base64 that is not strict RFC 4648', function (): void {
+test('bhv langphp 013 byte list element decode rejects base64 that is not strict RFC 4648', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{"scans":["dGVzdA==","dGVzdA"]}', PetPassport::class))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
