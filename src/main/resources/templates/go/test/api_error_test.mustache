@@ -1600,3 +1600,21 @@ func TestBhvMisc095_ApiError_InvalidBytesInABodyRenderAsReplacementCharacters(t 
 		t.Errorf("expected each invalid byte replaced by U+FFFD, got %q", err.Error())
 	}
 }
+
+// A rendered error body that is cut short states how many bytes were left out.
+func TestBhvMisc280_ApiError_ATruncatedBodyStatesHowManyBytesWereLeftOut(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(500, map[string]string{}, strings.Repeat("a", 1500))
+	if want := "(476 more bytes)"; !strings.Contains(err.Error(), want) {
+		t.Errorf("expected the message to state %q, got %q", want, err.Error())
+	}
+}
+
+// An OAuth2 server error names both its HTTP status and its OAuth error code.
+func TestBhvMisc286_ApiError_AnOAuth2ServerErrorNamesItsStatusAndItsErrorCode(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewOAuth2ServerError(401, "invalid_client", "", "", "{}")
+	if msg := err.Error(); !strings.Contains(msg, "401") || !strings.Contains(msg, "invalid_client") {
+		t.Errorf("expected the status and the error code in the message, got %q", msg)
+	}
+}

@@ -461,3 +461,51 @@ func TestBhvMisc136_Configuration_TheDebugTextShowsTheBaseUrlAndTheNonSensitiveH
 		t.Errorf("expected the credential masked in the debug text, got %s", got)
 	}
 }
+
+// The default configuration and the default builder both use the base URL the specification declares.
+func TestBhvMisc276_Configuration_TheDefaultsUseTheBaseUrlOfTheSpecification(t *testing.T) {
+	t.Parallel()
+	const want = "/api/v3"
+	if got := petstore.DefaultConfiguration().BaseURL(); got != want {
+		t.Errorf("expected the default configuration to use %q, got %q", want, got)
+	}
+	if got := petstore.NewConfigurationBuilder().Build().BaseURL(); got != want {
+		t.Errorf("expected the default builder to use %q, got %q", want, got)
+	}
+}
+
+// Each call to the default configuration returns a configuration object of its own.
+func TestBhvMisc277_Configuration_EachDefaultConfigurationIsADistinctObject(t *testing.T) {
+	t.Parallel()
+	first := petstore.DefaultConfiguration()
+	second := petstore.DefaultConfiguration()
+	if first == second {
+		t.Error("expected two distinct configuration objects")
+	}
+}
+
+// A server URL with templated variables resolves to each variable's default when no overrides are given.
+func TestBhvMisc278_Configuration_ATemplatedServerUrlResolvesToEachVariableDefault(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration("https://{host}/v{version}", "", map[string]petstore.ServerVariable{
+		"host":    petstore.NewServerVariable("api.example.com", "", nil),
+		"version": petstore.NewServerVariable("2", "", nil),
+	})
+	got, err := server.URL(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := "https://api.example.com/v2"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// Changing the headers returned from a configuration does not change the headers the configuration holds.
+func TestBhvMisc279_Configuration_ChangingTheReturnedHeadersLeavesTheConfigurationAlone(t *testing.T) {
+	t.Parallel()
+	config := petstore.NewConfigurationBuilder().DefaultHeader("X-Trace", "original").Build()
+	config.DefaultHeaders()["X-Trace"] = "changed"
+	if got := config.DefaultHeaders()["X-Trace"]; got != "original" {
+		t.Errorf("expected the held header to stay %q, got %q", "original", got)
+	}
+}
