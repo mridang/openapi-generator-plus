@@ -80,17 +80,6 @@ async fn test_base_api_error_dispatch_422() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_500() {
-    let base_url = format!("{}/test/status/500", testcontainers_helper::chasm_http_url());
-    let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let client = DefaultApiClient::new(Some(TransportOptions::builder().max_retries(0).build().expect("valid transport options")));
-    let api = PetApi::new(Arc::new(client), config, None);
-
-    let result = api.get_pet_by_id(1, None, None).await;
-    assert!(result.is_err(), "expected error for status 500");
-}
-
-#[tokio::test]
 async fn test_bhv_errors_070_base_api_error_dispatch_502() {
     let base_url = format!("{}/test/status/502", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();

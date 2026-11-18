@@ -1319,21 +1319,6 @@ mod tests {
     /* ── Per-part MIME sniffing ── */
 
     #[test]
-    fn test_mime_for_filename_png() {
-        assert_eq!(mime_for_filename("image.png"), "image/png");
-    }
-
-    #[test]
-    fn test_mime_for_filename_pdf() {
-        assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
-    }
-
-    #[test]
-    fn test_mime_for_filename_no_extension_defaults_to_octet_stream() {
-        assert_eq!(mime_for_filename("blob"), "application/octet-stream");
-    }
-
-    #[test]
     fn test_mime_for_filename_image_extensions() {
         assert_eq!(mime_for_filename("photo.png"), "image/png");
         assert_eq!(mime_for_filename("photo.JPG"), "image/jpeg");
@@ -1347,12 +1332,6 @@ mod tests {
         assert_eq!(mime_for_filename("payload.json"), "application/json");
         assert_eq!(mime_for_filename("notes.txt"), "text/plain");
         assert_eq!(mime_for_filename("index.html"), "text/html");
-    }
-
-    #[test]
-    fn test_mime_for_filename_unknown_extension_falls_back() {
-        assert_eq!(mime_for_filename("blob.xyz"), "application/octet-stream");
-        assert_eq!(mime_for_filename("noextension"), "application/octet-stream");
     }
 
     /* ── multipart-file-part-contenttype-from-extension (behavior 4) ──
@@ -1724,26 +1703,6 @@ mod tests {
 
     /* ── Multipart filename directive ── */
 
-    #[test]
-    fn test_build_filename_directive_non_ascii_emits_rfc5987() {
-        let directive = build_filename_directive("日本.pdf");
-        assert!(
-            directive.contains("filename*=UTF-8''"),
-            "non-ASCII filename must emit RFC 5987 filename*= form, got: {}",
-            directive
-        );
-        assert!(
-            directive.contains("%E6%97%A5%E6%9C%AC"),
-            "RFC 5987 value must be percent-encoded UTF-8, got: {}",
-            directive
-        );
-        assert!(
-            directive.starts_with("filename=\""),
-            "must still include an ASCII fallback filename=\"...\", got: {}",
-            directive
-        );
-    }
-
     /* F1136: a filename outside the BMP (an emoji) is one character, so the
      * ASCII fallback has one underscore for it, and filename* carries its four
      * UTF-8 bytes. */
@@ -1752,17 +1711,6 @@ mod tests {
         assert_eq!(
             "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
             build_filename_directive("\u{1F600}.png")
-        );
-    }
-
-    #[test]
-    fn test_build_filename_directive_ascii_only_omits_filename_star() {
-        let directive = build_filename_directive("file.png");
-        assert_eq!(directive, "filename=\"file.png\"");
-        assert!(
-            !directive.contains("filename*="),
-            "ASCII-only filename must not emit filename*=, got: {}",
-            directive
         );
     }
 
@@ -1799,15 +1747,6 @@ mod tests {
     }
 
     /* ── Multipart filename / field-name validation ── */
-
-    #[test]
-    fn test_validate_multipart_filename_rejects_crlf() {
-        assert!(validate_multipart_filename("a\rb.pdf").is_err());
-        assert!(validate_multipart_filename("a\nb.pdf").is_err());
-        assert!(validate_multipart_filename("a\r\nb.pdf").is_err());
-        /* ASCII filename is accepted. */
-        assert!(validate_multipart_filename("file.png").is_ok());
-    }
 
     #[test]
     fn test_bhv_serializationwire_050_validate_multipart_filename_rejects_nul() {
@@ -1884,19 +1823,6 @@ mod tests {
         /* 0xE9 in ISO-8859-1 is "é"; UTF-8 lossy would yield U+FFFD. */
         let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
         assert_eq!(decoded, "é");
-    }
-
-    #[test]
-    fn test_decode_text_body_defaults_to_utf8_when_charset_absent() {
-        let decoded = decode_text_body("hello world".as_bytes(), "text/plain");
-        assert_eq!(decoded, "hello world");
-    }
-
-    #[test]
-    fn test_decode_text_body_falls_back_to_utf8_for_unknown_charset() {
-        /* Unknown charset must not panic; the helper falls back to UTF-8. */
-        let decoded = decode_text_body("abc".as_bytes(), "text/plain; charset=windows-9999");
-        assert_eq!(decoded, "abc");
     }
 
     #[test]

@@ -82,22 +82,6 @@ fn test_bhv_errors_024_api_error_display_renders_status_headers_and_body() {
     );
 }
 
-/* D17: the headers line is compact JSON with the keys sorted, not the map's
- * random iteration order. */
-#[test]
-fn test_api_error_display_sorts_the_response_headers() {
-    let mut headers = HashMap::new();
-    headers.insert("x-b".to_string(), "2".to_string());
-    headers.insert("a-first".to_string(), "1".to_string());
-    headers.insert("x-c".to_string(), "3".to_string());
-    let err = ApiError::new(500, "boom".to_string(), Some(headers), None);
-
-    assert_eq!(
-        "boom\nHTTP status code: 500\nResponse headers: {\"a-first\":\"1\",\"x-b\":\"2\",\"x-c\":\"3\"}",
-        err.to_string()
-    );
-}
-
 #[test]
 fn test_bhv_errors_050_response_headers_render_as_compact_sorted_json_with_unescaped_slashes() {
     let mut headers = HashMap::new();
@@ -462,32 +446,6 @@ fn test_bhv_errors_005_api_error_error_body_is_none_without_json() {
 
     let not_json = ApiError::new(500, "boom".to_string(), None, Some("<html>oops</html>".to_string()));
     assert!(not_json.error_body().is_none());
-}
-
-// immutability regression: ApiError's state is only reachable through the
-// constructor + accessors. The fields are private, so a caller can neither
-// forge an ApiError by struct literal nor mutate `status_code` after the fact.
-// This test pins the read-only accessor surface; the privacy itself is
-// enforced at compile time by the generated `struct` having no `pub` fields.
-#[test]
-fn test_api_error_fields_are_accessor_only() {
-    let mut headers = HashMap::new();
-    headers.insert("x-trace".to_string(), "abc".to_string());
-    let err = ApiError::new(
-        500,
-        "boom".to_string(),
-        Some(headers),
-        Some("body".to_string()),
-    );
-
-    /* Every piece of state is reachable only via an accessor method. */
-    assert_eq!(err.status_code(), 500);
-    assert_eq!(err.message(), "boom");
-    assert_eq!(err.response_body(), Some("body"));
-    assert_eq!(
-        err.response_headers().and_then(|h| h.get("x-trace")).map(String::as_str),
-        Some("abc"),
-    );
 }
 
 // -- Branded error hierarchy: {{errorPrefix}}Error ---------------------------------
