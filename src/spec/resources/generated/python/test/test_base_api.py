@@ -1409,6 +1409,25 @@ class TestQuerySerialization:
         )
         assert client.captured_url == "http://localhost/test/echo?t=10%3A20%3A30"
 
+    async def test_bhv_serialization_107_an_exploded_array_query_parameter_repeats_its_key(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {"q": ["a", "b"]},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_url == "http://localhost/test/echo?q=a&q=b"
+
 
 class TestAllowEmptyValueQueryParams:
     async def test_bhv_options_002_null_options_omits_allow_empty_value_param(
@@ -1764,6 +1783,26 @@ class TestAuthInjection:
         # ... and it was computed off the event-loop thread.
         assert auth.auth_thread_id is not None
         assert auth.auth_thread_id != loop_thread_id
+
+    async def test_bhv_misc_191_an_auth_cookie_with_a_forbidden_character_raises_a_value_error(
+        self, api: Any
+    ) -> None:
+        auth = StubAuthenticator(cookies={"session": 'a"b'})
+
+        with pytest.raises(ValueError) as exc_info:
+            await api.call(
+                "GET",
+                "/test/echo",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                "object",
+                auth,
+            )
+
+        assert not isinstance(exc_info.value, ApiException)
 
 
 class TestNoAuthSentinel:
@@ -2619,6 +2658,18 @@ class TestBodySerialization:
         )
         assert client.captured_body is not None
 
+    async def test_bhv_misc_202_a_text_body_without_a_content_type_goes_out_as_bare_json(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await stub.call("POST", "/x", {}, {}, "hello", ["application/json"], "", None)
+
+        assert client.captured_headers["Content-Type"] == "application/json"
+
 
 class PlainTextApiClient(CapturingApiClient):
     """API client that returns a plain-text response instead of JSON."""
@@ -2897,6 +2948,27 @@ class TestByteOverJsonResponse:
             "bytes",
         )
         assert result == b"test-image"
+
+    async def test_bhv_serialization_128_a_response_declared_as_bytes_is_returned_unchanged(
+        self,
+    ) -> None:
+        client = _ScriptedApiClient(_json(200, '{"a":1}'))
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        result = await api.call(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            "bytes",
+        )
+
+        assert result == b'{"a":1}'
 
 
 class TestDateOnlyParamsSerializeWithoutTime:

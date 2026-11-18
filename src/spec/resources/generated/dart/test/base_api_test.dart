@@ -3721,6 +3721,22 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 228 A Retry-After header that cannot be parsed is ignored and the retry uses the normal backoff delay',
+      () async {
+        final client = _ScriptedApiClient([
+          _reply(503, headers: {'retry-after': 'soon'}),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(api.waits, hasLength(1));
+        expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
+      },
+    );
+
     test('bhv retries 022 Retry-After as an HTTP date sets the wait', () async {
       final date = HttpDate.format(
         DateTime.now().toUtc().add(const Duration(seconds: 30)),
@@ -3784,6 +3800,22 @@ void main() {
 
     test(
       'bhv retries 013 a network error before a response is retried',
+      () async {
+        final client = _ScriptedApiClient([
+          const NetworkException(message: 'connection reset'),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
+
+        final response = await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(response.statusCode, equals(200));
+        expect(client.sentHeaders, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 227 A network error that happens before any response is received is retried, so a dropped connection produces a second request',
       () async {
         final client = _ScriptedApiClient([
           const NetworkException(message: 'connection reset'),
@@ -4235,6 +4267,28 @@ void main() {
 
     test(
       'bhv retries 004 maxRetries 3 allows more retries than the transport default',
+      () async {
+        final client = _ScriptedApiClient([
+          _reply(503),
+          _reply(503),
+          _reply(503),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
+
+        final response = await api.invokeApi(
+          method: 'GET',
+          path: '/x',
+          maxRetries: 3,
+        );
+
+        expect(response.statusCode, equals(200));
+        expect(client.sentHeaders, hasLength(4));
+      },
+    );
+
+    test(
+      'bhv misc 229 A per-call max retries value overrides the client setting, so a call can retry even when the client was built with no retries',
       () async {
         final client = _ScriptedApiClient([
           _reply(503),

@@ -104,6 +104,12 @@ class TestSchemeAuthenticatorEnvironment:
             with pytest.raises(ValueError, match=missing):
                 _scheme_class(module, name)(HOST)
 
+    def test_bhv_misc_208_an_empty_environment_variable_for_an_implicit_credential_fails_as_unset(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]],
+        bearer: bool, basic: bool, api_key: bool,
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
 
 BEARER_SCHEMES = [(module, name, variables) for module, name, variables, bearer, _, _ in SCHEMES if bearer]
 BASIC_SCHEMES = [(module, name, variables) for module, name, variables, _, basic, _ in SCHEMES if basic]
@@ -251,6 +257,16 @@ class TestBasicSchemeAuthenticator:
         auth = _scheme_class(module, name)(HOST, 'alice', 's3cret')
 
         assert auth.get_auth_headers() == base.get_auth_headers()
+
+    def test_bhv_misc_193_a_basic_scheme_sends_the_same_header_as_its_base(
+        self, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        import base64
+
+        authenticator = _scheme_class(module, name)(HOST, 'alice', 's3cret')
+
+        expected = 'Basic ' + base64.b64encode(b'alice:s3cret').decode()
+        assert authenticator.get_auth_headers() == {'Authorization': expected}
 
 
 @pytest.mark.parametrize('module,name,variables', API_KEY_SCHEMES)
