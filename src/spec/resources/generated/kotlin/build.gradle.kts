@@ -110,7 +110,7 @@ kotlin {
             }
         }
         val jvmTest by getting {
-            kotlin.srcDirs("src/test/kotlin", "src/spec/kotlin")
+            kotlin.srcDirs("src/test/kotlin", "src/spec/kotlin", "src/examples/kotlin")
             dependencies {
                 // Spelled as an explicit coordinate rather than kotlin("test-junit5")
                 // so .openapi-generator/DEV-DEPENDENCIES can be checked against this
@@ -139,7 +139,7 @@ detekt {
     buildUponDefaultConfig = true
     allRules = false
     autoCorrect = false
-    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin", "src/spec/kotlin"))
+    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin", "src/spec/kotlin", "src/examples/kotlin"))
     config.setFrom(files("detekt.yml"))
 }
 
@@ -226,6 +226,16 @@ tasks.named<Test>("jvmTest") {
 
 tasks.register("test") {
     dependsOn("jvmTest")
+}
+
+// src/examples/kotlin is a source root of the jvmTest compilation, so the
+// quickstart compiles and is linted with the tests and never ships in the jar.
+// This task runs it with the test runtime class path.
+tasks.register<JavaExec>("runQuickstart") {
+    val compilation = kotlin.jvm().compilations.getByName("test")
+    dependsOn(compilation.compileAllTaskName)
+    classpath = files(compilation.output.allOutputs, compilation.runtimeDependencyFiles)
+    mainClass.set("com.example.petstore.examples.QuickstartKt")
 }
 
 kover {

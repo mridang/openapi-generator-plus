@@ -10,7 +10,7 @@ Auto-generated Kotlin SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Installation
 
-```kotlin
+```kts
 implementation("com.example.petstore:petstore-client:1.0.0")
 ```
 
@@ -20,10 +20,16 @@ Create a client from an authenticator and call the operations from a coroutine
 (every operation is a `suspend` function). `SKILLS.md` has the full reference:
 every authentication scheme, transport options, error handling and models.
 
-```kotlin
+```kotlin statements
 import com.example.petstore.Client
+import kotlinx.coroutines.runBlocking
 
-val client = Client.withToken("https://api.example.com", "your-token")
+val host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL")
+val token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+Client.withToken(host, token).use { client ->
+    val result = runBlocking { client.store.getDefaults() }
+    println(result)
+}
 ```
 
 ## Build
@@ -73,10 +79,13 @@ The call then raises `kotlinx.coroutines.CancellationException`, never a
 `TransportOptions` timeout elapses. The SDK has no cancellation API of its own
 and needs none.
 
-```kotlin
+```kotlin file
+import com.example.petstore.Client
 import kotlinx.coroutines.withTimeout
 
-withTimeout(2_000) { client.someApi.someOperation() }
+suspend fun getDefaultsWithinTwoSeconds(client: Client) {
+    withTimeout(2_000) { client.store.getDefaults() }
+}
 ```
 
 ## Custom HTTP client
@@ -115,7 +124,9 @@ the last answer or error is reported. A timeout is never retried, and
 cancelling the calling coroutine stops the wait. Every retry is a new request:
 its headers are built again (a new `X-Request-ID`), and the body is sent again.
 
-```kotlin
+```kotlin statements
+import com.example.petstore.TransportOptions
+
 val transport = TransportOptions.builder().maxRetries(0).build()
 ```
 
@@ -163,8 +174,11 @@ called on every request and its result is checked like a static value. The order
 the argument, then the environment variable, then the provider, so a provider is
 used only when neither of the other two is set.
 
-```kotlin
-val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { vault.currentToken() })
+```kotlin file
+import com.example.petstore.auth.BearerAuthenticator
+
+fun rotatingAuthenticator(currentToken: suspend () -> String): BearerAuthenticator =
+    BearerAuthenticator("https://api.example.com", tokenProvider = currentToken)
 ```
 
 ## Credentials per security scheme
@@ -198,8 +212,13 @@ of the same name set anywhere else is replaced) and `maxRetries` (`0` turns the
 retries of this call off). Each replaces the client-wide setting for that call
 and leaves it as it was for every other.
 
-```kotlin
-client.someApi.someOperation(options = SomeOperationOptions(timeout = 2_000, maxRetries = 0))
+```kotlin file
+import com.example.petstore.Client
+import com.example.petstore.api.options.GetDefaultsOptions
+
+suspend fun getDefaultsWithOptions(client: Client) {
+    client.store.getDefaults(options = GetDefaultsOptions(timeout = 2_000, maxRetries = 0))
+}
 ```
 
 ## Errors

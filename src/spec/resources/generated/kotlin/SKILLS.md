@@ -4,7 +4,7 @@
 
 Add to your `build.gradle.kts`:
 
-```kotlin
+```kts
 implementation("com.example.petstore:petstore-client:1.0.0")
 ```
 
@@ -20,11 +20,16 @@ Or with Maven:
 
 ## Quick Start
 
-```kotlin
+```kotlin statements
 import com.example.petstore.Client
-import com.example.petstore.auth.BearerAuthenticator
+import kotlinx.coroutines.runBlocking
 
-val client = Client.withToken("https://api.example.com", "your-token")
+val host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL")
+val token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+Client.withToken(host, token).use { client ->
+    val result = runBlocking { client.store.getDefaults() }
+    println(result)
+}
 ```
 
 ## Authentication
@@ -33,7 +38,8 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.BearerAuthenticator
 
 val authenticator = BearerAuthenticator("https://api.example.com", "your-token")
@@ -72,13 +78,18 @@ The authenticator generated for a security scheme reads its own variable instead
 
 `Client(host, <scheme> = credential, transportOptions)` takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Each operation uses the credential of the first scheme its spec lists that you passed; a call cannot pick another scheme, so an options object has no authenticator. An operation none of whose schemes you passed a credential for uses the authenticator of `Client(authenticator)` if you gave one and is otherwise sent without a credential, and an operation declared with no security never sends one.
 
-```kotlin
-val client = Client("https://api.example.com", petStoreBasic = PetStoreBasicAuthenticator("https://api.example.com")) // its credential comes from the environment
+```kotlin statements
+import com.example.petstore.Client
+import com.example.petstore.auth.PetStoreBasicAuthenticator
+
+/* The credential of the scheme comes from the environment. */
+val client = Client("https://api.example.com", petStoreBasic = PetStoreBasicAuthenticator("https://api.example.com"))
 ```
 
 ### Basic Auth
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.BasicAuthenticator
 
 val authenticator = BasicAuthenticator("https://api.example.com", "username", "password")
@@ -87,7 +98,8 @@ val client = Client(authenticator)
 
 ### API Key
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.ApiKeyAuthenticator
 import com.example.petstore.auth.ApiKeyLocation
 
@@ -97,7 +109,8 @@ val client = Client(authenticator)
 
 ### OAuth2 Client Credentials
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator
 
 val authenticator = OAuth2ClientCredentialsAuthenticator(
@@ -108,7 +121,8 @@ val client = Client(authenticator)
 
 ### OAuth2 Authorization Code
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator
 import kotlinx.coroutines.runBlocking
 
@@ -122,7 +136,8 @@ runBlocking { authenticator.exchangeCode("authorization-code") }
 
 ### OAuth2 Password
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator
 
 val authenticator = OAuth2PasswordAuthenticator(
@@ -135,7 +150,8 @@ val client = Client(authenticator)
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator
 
 val authenticator = OAuth2ImplicitAuthenticator(
@@ -146,7 +162,8 @@ val client = Client(authenticator)
 
 ### OpenID Connect
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.oauth.OpenIdConnectAuthenticator
 import kotlinx.coroutines.runBlocking
 
@@ -188,7 +205,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```kotlin
+```kotlin statements
 import com.example.petstore.auth.oauth.ClientAuthMethod
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator
 
@@ -202,7 +219,8 @@ val authenticator = OAuth2ClientCredentialsAuthenticator(
 
 If the OpenAPI spec defines multiple servers, the generated `Servers` object exposes each as a `ServerConfiguration` property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. Pass the desired server's URL to the client:
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.Servers
 
 val client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token")
@@ -212,7 +230,8 @@ val client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token")
 
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
 import com.example.petstore.auth.Authenticator
 
 val fake = object : Authenticator {
@@ -256,15 +275,19 @@ Every error the SDK raises derives from `OpenAPIException`. Besides the HTTP err
   - `NetworkException` (no HTTP response, status 0)
     - `NetworkTimeoutException` (the request timed out, status 0)
 
-```kotlin
+```kotlin file
 import com.example.petstore.Client
-import com.example.petstore.errors.*
+import com.example.petstore.errors.ApiException
+import com.example.petstore.errors.ClientException
+import com.example.petstore.errors.NotFoundException
+import com.example.petstore.errors.ServerException
 import com.example.petstore.models.Pet
+import com.example.petstore.api.options.AddPetOptions
 
 /* Operations are suspend functions, so they must be called from a coroutine. */
-suspend fun addPetOrReport(client: Client, pet: Pet) {
+suspend fun addPetOrReport(client: Client, pet: Pet, options: AddPetOptions?) {
     try {
-        client.pet.addPet(pet)
+        client.pet.addPet(pet, options)
     } catch (e: NotFoundException) {
         println("Not found: ${e.message}")
     } catch (e: ClientException) {
@@ -287,8 +310,13 @@ suspend fun addPetOrReport(client: Client, pet: Pet) {
 
 Every operation takes an options object, also one with no parameters and no security. It takes `timeout` (milliseconds, one end-to-end budget), `headers` (replace a header of the same name) and `maxRetries` (`0` disables) for that call only, in place of the client-wide setting:
 
-```kotlin
-client.someApi.someOperation(options = SomeOperationOptions(timeout = 2_000, maxRetries = 0))
+```kotlin file
+import com.example.petstore.Client
+import com.example.petstore.api.options.GetDefaultsOptions
+
+suspend fun getDefaultsWithOptions(client: Client) {
+    client.store.getDefaults(options = GetDefaultsOptions(timeout = 2_000, maxRetries = 0))
+}
 ```
 
 ### Closing the client
@@ -313,15 +341,19 @@ The SDK writes no logs; inject a Ktor `HttpClient` with the `Logging` plugin thr
 
 ### Custom Transport Options
 
-```kotlin
+```kotlin file
+import com.example.petstore.Client
 import com.example.petstore.TransportOptions
+import com.example.petstore.auth.Authenticator
 
-val transport = TransportOptions.builder()
-    .proxy("http://proxy:3128")
-    .timeout(5000L)
-    .build()
+fun clientWithTransport(authenticator: Authenticator): Client {
+    val transport = TransportOptions.builder()
+        .proxy("http://proxy:3128")
+        .timeout(5000L)
+        .build()
 
-val client = Client(authenticator, transport)
+    return Client(authenticator, transport)
+}
 ```
 
 ### Custom HTTP client
@@ -344,12 +376,12 @@ All API methods are asynchronous; call them from a coroutine.
 
 ## Models
 
-Models are generated as Kotlin data classes in the `com.example.petstore.models` package.
+Models are generated as Kotlin data classes in the `com.example.petstore.models` package; a model is copied with a changed property through `copy`.
 
-```kotlin
-import com.example.petstore.models.*
+```kotlin file
+import com.example.petstore.models.Account
 
-val model = Account(username = "example")
+fun withSameId(model: Account, other: Account): Account = model.copy(id = other.id)
 ```
 
 ## Binary / File Uploads

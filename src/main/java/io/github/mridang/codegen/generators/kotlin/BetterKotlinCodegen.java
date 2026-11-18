@@ -520,7 +520,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         final String errorsFolder = Path.of(invokerFolder, "errors").toString();
         final String jvmInvokerFolder =
                 Path.of("src", "jvmMain", "kotlin", pkg.replace(".", "/")).toString();
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".kt"),
@@ -577,7 +577,17 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
             new SupportingFileSpec(
                 "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES")
-        );
+        ));
+        if (generateExamples) {
+            /* The examples are a source root of the jvmTest compilation (build.gradle.kts adds
+             * it next to src/spec/kotlin), so they compile and are linted with the tests and
+             * never ship in the jar. */
+            specs.add(new SupportingFileSpec(
+                "examples/Quickstart.mustache",
+                Path.of("src", "examples", "kotlin", pkg.replace(".", "/"), "examples").toString(),
+                "Quickstart.kt"));
+        }
+        return specs;
     }
 
     @Override
