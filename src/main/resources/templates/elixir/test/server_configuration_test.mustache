@@ -182,6 +182,20 @@ defmodule {{moduleName}}.ServerConfigurationTest do
       assert ServerConfiguration.url(config) == "https://eu.example.com/eu/v1"
     end
 
+    test "bhv misc 297 every variable in the template is replaced when more than one is overridden" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.{region}.example.com/v{version}",
+        variables: %{
+          "env" => %ServerVariable{default_value: "prod"},
+          "region" => %ServerVariable{default_value: "eu"},
+          "version" => %ServerVariable{default_value: "1"}
+        }
+      }
+
+      assert ServerConfiguration.url(config, %{"env" => "staging", "region" => "us", "version" => "2"}) ==
+               "https://staging.us.example.com/v2"
+    end
+
     test "bhv servers 006 exposes the raw template and description" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",

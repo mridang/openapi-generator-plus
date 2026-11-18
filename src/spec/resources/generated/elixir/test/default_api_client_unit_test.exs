@@ -484,6 +484,38 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert headers["user-agent"] == "MyApp/1.0"
   end
 
+  test "bhv misc 299 a caller header overrides the transport default header of the same role" do
+    {base_url, _port} = start_header_capture_server()
+
+    transport =
+      PetstoreClient.TransportOptions.new(
+        user_agent: "MyApp/1.0",
+        default_headers: %{"X-Probe" => "transport"}
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "#{base_url}/test",
+      %{"User-Agent" => "Caller/2.0", "X-Probe" => "caller"},
+      nil
+    )
+
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["user-agent"] == "Caller/2.0"
+    assert headers["x-probe"] == "caller"
+  end
+
+  test "bhv misc 298 a client cannot be constructed from a malformed proxy URL" do
+    assert_raise ArgumentError, ~r/Invalid proxy URL/, fn ->
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(proxy: "http://[::1:3128")
+      )
+    end
+  end
+
   test "bhv transport 042 injects default User-Agent when not explicitly set" do
     {base_url, _port} = start_header_capture_server()
     client = PetstoreClient.DefaultApiClient.new()
