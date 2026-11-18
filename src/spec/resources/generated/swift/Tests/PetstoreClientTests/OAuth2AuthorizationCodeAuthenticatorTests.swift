@@ -63,7 +63,7 @@ import Testing
 
   /* The exchanged flag is written by exchangeCode on the callback thread and
      read on request threads; concurrent readers all see a settled value. */
-  @Test func testConcurrentReadsOfTheExchangedFlagWhileExchanging() async throws {
+  @Test func testBhvLangswift047ConcurrentReadsOfTheExchangedFlagWhileExchanging() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
     let auth = createAuthenticator()
@@ -329,14 +329,14 @@ import Testing
     #expect(client.lastURL.isEmpty)
   }
 
-  @Test func testEmptyCodeErrorCarriesTheCanonicalMessage() {
+  @Test func testBhvLangswift048EmptyCodeErrorCarriesTheCanonicalMessage() {
     #expect(
       OAuth2AuthorizationCodeError.emptyCode.localizedDescription
         == "Authorization code must not be empty")
   }
 
   /* D09: the precondition text names the method with its parentheses. */
-  @Test func testCodeNotExchangedErrorCarriesTheCanonicalMessage() {
+  @Test func testBhvLangswift049CodeNotExchangedErrorCarriesTheCanonicalMessage() {
     #expect(
       OAuth2AuthorizationCodeError.codeNotExchanged.localizedDescription
         == "Must call exchangeCode() before making API requests")
@@ -527,7 +527,7 @@ import Testing
       "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
     ),
   ])
-  func testSha256MatchesTheKnownAnswers(input: String, hex: String) {
+  func testBhvLangswift050Sha256MatchesTheKnownAnswers(input: String, hex: String) {
     let digest = PKCE.sha256(Array(input.utf8))
     #expect(digest.map { String(format: "%02x", $0) }.joined() == hex)
   }

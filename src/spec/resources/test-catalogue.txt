@@ -1988,3 +1988,7 @@ langswift043 | The README names the request context that errors carry
 langswift044 | The README names the environment variable of every authentication scheme
 langswift045 | The README says every operation takes an options struct
 langswift046 | The README lists the license in the package section
+langswift047 | Reading the exchanged flag while a code exchange is in progress is safe under concurrent access
+langswift048 | An empty authorization code error carries the canonical message
+langswift049 | A request made before the code is exchanged fails with the canonical message
+langswift050 | The SHA-256 digest used for PKCE matches the known answers
