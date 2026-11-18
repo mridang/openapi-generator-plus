@@ -78,6 +78,41 @@ class BasicAuthenticatorTest {
         }
     }
 
+    @Test
+    fun bhvAuthbasic018PasswordMayContainAColon() = runBlocking {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "p:ss:w0rd")
+        assertEquals("Basic YWxpY2U6cDpzczp3MHJk", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthbasic019GeneratedBasicWrapperEmitsTheSameBasicHeaderAsTheBaseAuthenticator() = runBlocking {
+        val base = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val wrapper = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertEquals(base.getAuthHeaders(), wrapper.getAuthHeaders())
+        assertTrue(wrapper.toString().startsWith("AdminBasicAuthenticator("))
+    }
+
+    @Test
+    fun bhvAuthbasic020BasicAuthenticatorMasksThePasswordInItsDebugOutput() {
+        val auth = PetStoreBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val rendered = "$auth"
+        assertTrue(rendered.startsWith("PetStoreBasicAuthenticator("))
+        assertTrue(rendered.contains("password=***"))
+        assertFalse(rendered.contains("s3cret"))
+    }
+
+    @Test
+    fun bhvAuthscheme003PetStoreBasicAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val env = mapOf(
+            "{{envVarPrefix}}_PET_STORE_BASIC_USERNAME" to "alice",
+            "{{envVarPrefix}}_PET_STORE_BASIC_PASSWORD" to "",
+        )
+        val ex = withEnvironment(env) {
+            assertThrows(IllegalArgumentException::class.java) { PetStoreBasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_PET_STORE_BASIC_PASSWORD"), ex.message)
+    }
+
     private fun <T> withEnvironment(values: Map<String, String>, body: () -> T): T {
         val saved = CredentialEnvironment.lookup
         CredentialEnvironment.lookup = { name -> values[name] }
@@ -155,8 +190,8 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: a scheme's authenticator treats an empty variable as unset and names it when missing")
-    fun schemeWrapperEmptyVariableFails() {
+    @DisplayName("bhvAuthscheme004 AdminBasic treats an empty variable as unset and names it when missing")
+    fun bhvAuthscheme004AdminBasicTreatsAnEmptyVariableAsUnsetAndNamesIt() {
         val env = mapOf(
             "{{envVarPrefix}}_ADMIN_BASIC_USERNAME" to "alice",
             "{{envVarPrefix}}_ADMIN_BASIC_PASSWORD" to "",

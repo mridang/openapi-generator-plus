@@ -167,6 +167,37 @@ class BearerAuthenticatorTest {
             assertEquals("PetStoreBearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
         }
 
+    @Test
+    fun bhvAuthbearer022RejectsANonAsciiTokenAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tökén")
+        }
+    }
+
+    @Test
+    fun bhvAuthbearer023GeneratedBearerWrapperEmitsABearerHeaderAndKeepsItsOwnName() =
+        runBlocking {
+            val wrapper = ServiceTokenAuthenticator("https://api.example.com", "abc123")
+            assertEquals("Bearer abc123", wrapper.getAuthHeaders()["Authorization"])
+            assertTrue(wrapper.toString().startsWith("ServiceTokenAuthenticator("))
+        }
+
+    @Test
+    fun bhvAuthbearer025EnvironmentVariableIsReadOnceAtConstruction() {
+        val env = mutableMapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "first")
+        val auth = withEnvironment(env) { BearerAuthenticator("https://api.example.com") }
+        env["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"] = "second"
+        val headers = withEnvironment(env) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Bearer first", headers["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthbearer027RejectsAWhitespaceOnlyTokenAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", " \t \r\n")
+        }
+    }
+
     private fun <T> withEnvironment(
         values: Map<String, String>,
         body: () -> T,
@@ -213,8 +244,8 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: an empty environment value counts as unset and a missing token fails at construction")
-    fun missingTokenFailsAtConstruction() {
+    @DisplayName("bhvAuthbearer019 an empty environment value counts as unset and a missing token fails at construction")
+    fun bhvAuthbearer019MissingTokenFailsAtConstruction() {
         val ex =
             withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "")) {
                 assertThrows(IllegalArgumentException::class.java) { BearerAuthenticator("https://api.example.com") }
