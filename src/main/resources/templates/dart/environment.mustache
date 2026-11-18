@@ -14,3 +14,26 @@ String? readEnvironmentVariable(
   final value = (environment ?? processEnvironment())[name];
   return value == null || value.isEmpty ? null : value;
 }
+
+/// Returns [explicit] when the caller passed one, even an empty one (the
+/// authenticator's own check then rejects it). Otherwise reads the environment
+/// variable [name] once and returns it, an empty variable counting as unset.
+/// A credential found in neither place throws an [ArgumentError] naming [name]
+/// and [field].
+String requireCredential(
+  String? explicit,
+  String name,
+  String field, [
+  Map<String, String>? environment,
+]) {
+  if (explicit != null) {
+    return explicit;
+  }
+  final fromEnvironment = readEnvironmentVariable(name, environment);
+  if (fromEnvironment != null) {
+    return fromEnvironment;
+  }
+  throw ArgumentError(
+    "Missing the credential '$field': pass it, or set the environment variable $name",
+  );
+}

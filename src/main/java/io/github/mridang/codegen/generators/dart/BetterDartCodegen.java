@@ -987,7 +987,13 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 final SecurityScheme scheme =
                         openAPI.getComponents().getSecuritySchemes().get(entry.get("schemeId"));
                 if (scheme != null && readsEnvironment(scheme, String.valueOf(entry.get("field")))) {
-                    read.add(entry);
+                    final SchemeAuthSpec spec =
+                            buildSchemeAuthSpec(String.valueOf(entry.get("schemeId")), scheme);
+                    if (spec != null) {
+                        final Map<String, Object> mapped = new HashMap<>(entry);
+                        mapped.put("baseClass", spec.baseClass());
+                        read.add(mapped);
+                    }
                 }
             }
         }
@@ -1030,28 +1036,130 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
      *     {@code firstVariable}
      */
     static List<Map<String, Object>> credentialSchemes(final List<Map<String, Object>> read) {
-        final Map<String, List<String>> bySchemeId = new LinkedHashMap<>();
+        final Map<String, List<Map<String, Object>>> bySchemeId = new LinkedHashMap<>();
         for (final Map<String, Object> entry : read) {
             bySchemeId
                     .computeIfAbsent(String.valueOf(entry.get("schemeId")), k -> new ArrayList<>())
-                    .add(String.valueOf(entry.get("envName")));
+                    .add(entry);
         }
         final List<Map<String, Object>> out = new ArrayList<>();
-        for (final Map.Entry<String, List<String>> scheme : bySchemeId.entrySet()) {
-            final StringBuilder literal = new StringBuilder("{");
-            for (final String name : scheme.getValue()) {
-                literal.append(literal.length() > 1 ? ", " : "")
-                        .append('\'').append(name).append("': 'value'");
-            }
-            literal.append('}');
+        for (final Map.Entry<String, List<Map<String, Object>>> scheme : bySchemeId.entrySet()) {
+            final String className = wrapperClassName(scheme.getKey(),
+                    String.valueOf(scheme.getValue().get(0).get("baseClass")));
             final Map<String, Object> entry = new HashMap<>();
-            entry.put(
-                    "className",
-                    NamingConvention.PASCAL_CASE.apply(scheme.getKey()) + "Authenticator");
-            entry.put("environment", literal.toString());
-            entry.put("firstVariable", scheme.getValue().get(0));
+            entry.put("className", className);
+            entry.put("environment", environmentLiteral(scheme.getValue(), null));
+            entry.put("firstVariable", String.valueOf(scheme.getValue().get(0).get("envName")));
+            final Map<String, Object> catalogue = authSchemeTest(className, scheme.getValue());
+            entry.put("hasAuthSchemeTest", catalogue != null);
+            if (catalogue != null) {
+                entry.putAll(catalogue);
+            }
             out.add(entry);
         }
+        return out;
+    }
+
+    /**
+     * The name of the generated authenticator class of a scheme. An OAuth2 scheme's wrapper names
+     * its flow after the scheme (MachineAuthClientCredentialsAuthenticator); the others take the
+     * plain scheme name.
+     */
+    static String wrapperClassName(final String schemeId, final String baseClass) {
+        final String flow;
+        switch (baseClass) {
+            case "OAuth2ClientCredentialsAuthenticator":
+                flow = "ClientCredentials";
+                break;
+            case "OAuth2PasswordAuthenticator":
+                flow = "Password";
+                break;
+            case "OAuth2AuthorizationCodeAuthenticator":
+                flow = "AuthorizationCode";
+                break;
+            case "OAuth2ImplicitAuthenticator":
+                flow = "Implicit";
+                break;
+            default:
+                flow = "";
+        }
+        return NamingConvention.PASCAL_CASE.apply(schemeId) + flow + "Authenticator";
+    }
+
+    /** A Dart map literal that sets each variable of a scheme; {@code emptyName} is set to ''. */
+    private static String environmentLiteral(
+            final List<Map<String, Object>> fields, @Nullable final String emptyName) {
+        final StringBuilder literal = new StringBuilder("{");
+        for (final Map<String, Object> field : fields) {
+            final String name = String.valueOf(field.get("envName"));
+            literal.append(literal.length() > 1 ? ", " : "")
+                    .append('\'').append(name).append("': '")
+                    .append(name.equals(emptyName) ? "" : "value").append('\'');
+        }
+        return literal.append('}').toString();
+    }
+
+    /**
+     * The catalogue case an OAuth or OpenID Connect scheme carries (authscheme 008, 013 to 016):
+     * the test name, the variable that is set to an empty value, and the map literal that sets
+     * the other variables. A scheme of another kind carries none.
+     *
+     * @return the three entries to merge into the scheme, or {@code null} when it has no case
+     */
+    @Nullable
+    static Map<String, Object> authSchemeTest(
+            final String className, final List<Map<String, Object>> fields) {
+        final String baseClass = String.valueOf(fields.get(0).get("baseClass"));
+        final String id;
+        final String emptyField;
+        final String description;
+        switch (baseClass) {
+            case "OpenIdConnectAuthenticator":
+                id = "008";
+                emptyField = "clientId";
+                description = "the " + className
+                        + " treats an empty environment variable as unset and names it";
+                break;
+            case "OAuth2ClientCredentialsAuthenticator":
+                id = "013";
+                emptyField = "clientSecret";
+                description = "an empty environment variable for the client credentials scheme"
+                        + " credential is treated as unset and fails naming the variable";
+                break;
+            case "OAuth2PasswordAuthenticator":
+                id = "014";
+                emptyField = "username";
+                description = "an empty environment variable for the password scheme credential"
+                        + " is treated as unset and fails naming the variable";
+                break;
+            case "OAuth2AuthorizationCodeAuthenticator":
+                id = "015";
+                emptyField = "clientId";
+                description = "an empty environment variable for the authorization code scheme"
+                        + " credential is treated as unset and fails naming the variable";
+                break;
+            case "OAuth2ImplicitAuthenticator":
+                id = "016";
+                emptyField = "clientId";
+                description = "an empty environment variable for the implicit scheme credential"
+                        + " is treated as unset and fails naming the variable";
+                break;
+            default:
+                return null;
+        }
+        String emptyName = null;
+        for (final Map<String, Object> field : fields) {
+            if (emptyField.equals(field.get("field"))) {
+                emptyName = String.valueOf(field.get("envName"));
+            }
+        }
+        if (emptyName == null) {
+            return null;
+        }
+        final Map<String, Object> out = new HashMap<>();
+        out.put("authSchemeTestName", "bhv authscheme " + id + " " + description);
+        out.put("emptyVariable", emptyName);
+        out.put("emptyEnvironment", environmentLiteral(fields, emptyName));
         return out;
     }
 
@@ -1062,6 +1170,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     private static boolean readsEnvironment(final SecurityScheme scheme, final String field) {
         if (scheme.getType() == SecurityScheme.Type.APIKEY) {
             return "apiKey".equals(field);
+        }
+        if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            return "clientId".equals(field) || "clientSecret".equals(field)
+                    || "username".equals(field) || "password".equals(field)
+                    || "redirectUri".equals(field);
         }
         if (scheme.getType() != SecurityScheme.Type.HTTP || scheme.getScheme() == null) {
             return false;
@@ -1268,34 +1382,37 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             imports = List.of("oauth2_client_credentials_authenticator.dart");
             constructorSig =
-                    "required String host, required String clientId, required String clientSecret";
+                    "required String host, String? clientId, String? clientSecret, "
+                            + "Map<String, String>? environment";
             superCall =
                     "host: host, clientId: clientId, clientSecret: clientSecret, tokenUrl: '"
                             + spec.tokenUrl()
                             + "', scopes: "
-                            + scopes;
+                            + scopes
+                            + ", environment: environment";
         } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final String refreshArg =
                     spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
             imports = List.of("oauth2_password_authenticator.dart");
             constructorSig =
-                    "required String host, required String clientId, "
-                            + "required String clientSecret, required String username, "
-                            + "required String password";
+                    "required String host, String? clientId, String? clientSecret, "
+                            + "String? username, String? password, "
+                            + "Map<String, String>? environment";
             superCall =
                     "host: host, clientId: clientId, clientSecret: clientSecret, tokenUrl: '"
                             + spec.tokenUrl()
                             + "', refreshUrl: "
                             + refreshArg
                             + ", username: username, password: password, scopes: "
-                            + scopes;
+                            + scopes
+                            + ", environment: environment";
         } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg =
                     spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
             imports = List.of("oauth2_authorization_code_authenticator.dart");
             constructorSig =
-                    "required String host, required String clientId, "
-                            + "required String clientSecret, required String redirectUri";
+                    "required String host, String? clientId, String? clientSecret, "
+                            + "String? redirectUri, Map<String, String>? environment";
             superCall =
                     "host: host, clientId: clientId, clientSecret: clientSecret, "
                             + "authorizationUrl: '"
@@ -1305,25 +1422,28 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             + "', redirectUri: redirectUri, scopes: "
                             + scopes
                             + ", refreshUrl: "
-                            + refreshArg;
+                            + refreshArg
+                            + ", environment: environment";
         } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             imports = List.of("oauth2_implicit_authenticator.dart");
-            constructorSig = "required String host, required String clientId";
+            constructorSig = "required String host, String? clientId, "
+                    + "Map<String, String>? environment";
             superCall =
                     "host: host, clientId: clientId, authorizationUrl: '"
                             + spec.authorizationUrl()
                             + "', scopes: "
-                            + scopes;
+                            + scopes
+                            + ", environment: environment";
         } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             imports = List.of("openid_connect_authenticator.dart");
             constructorSig =
-                    "required String host, required String clientId, "
-                            + "required String clientSecret, required String redirectUri";
+                    "required String host, String? clientId, String? clientSecret, "
+                            + "String? redirectUri, Map<String, String>? environment";
             superCall =
                     "host: host, openIdConnectUrl: '"
                             + spec.openIdConnectUrl()
                             + "', clientId: clientId, clientSecret: clientSecret, "
-                            + "redirectUri: redirectUri, scopes: []";
+                            + "redirectUri: redirectUri, scopes: [], environment: environment";
         } else {
             LOGGER.warn("Unsupported scheme base class: {}", spec.baseClass());
             return "";
@@ -1340,8 +1460,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     /**
      * Names, for each environment variable a scheme's credential field reads (F862), the
      * constructor argument of the base authenticator that takes the variable name, so the
-     * per-scheme template can pass {@code usernameVariable: 'NAME'}. Only the basic, bearer and
-     * API key authenticators read the environment; the OAuth schemes get no entries.
+     * per-scheme template can pass {@code usernameVariable: 'NAME'}. The basic, bearer and API
+     * key authenticators and the OAuth2 and OpenID Connect ones (#119) read the environment.
      *
      * @param baseClass the base authenticator class of the scheme
      * @param shared the scheme's entries from the shared generator ({@code field}, {@code envName})
@@ -1365,6 +1485,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             } else if (("BearerAuthenticator".equals(baseClass) && "token".equals(field))
                     || ("ApiKeyAuthenticator".equals(baseClass) && "apiKey".equals(field))) {
                 arg = "environmentVariable";
+            } else if (isOAuthBase(baseClass) && oauthVariableArgument(field) != null) {
+                arg = oauthVariableArgument(field);
             } else {
                 continue;
             }
@@ -1373,6 +1495,30 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             out.add(mapped);
         }
         return out;
+    }
+
+    /** Reports whether {@code baseClass} is an OAuth2 or OpenID Connect authenticator. */
+    private static boolean isOAuthBase(final String baseClass) {
+        return baseClass.startsWith("OAuth2") || "OpenIdConnectAuthenticator".equals(baseClass);
+    }
+
+    /** The base authenticator argument that names the variable of an OAuth credential field. */
+    @Nullable
+    private static String oauthVariableArgument(final String field) {
+        switch (field) {
+            case "clientId":
+                return "clientIdVariable";
+            case "clientSecret":
+                return "clientSecretVariable";
+            case "username":
+                return "usernameVariable";
+            case "password":
+                return "passwordVariable";
+            case "redirectUri":
+                return "redirectUriVariable";
+            default:
+                return null;
+        }
     }
 
     private static String formatDartScopes(@Nullable Map<String, String> scopes) {

@@ -10,6 +10,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import '../../api_client.dart';
+import '../../environment.dart';
 import '../../value_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
@@ -47,22 +48,46 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
   /// Creates a new authorization code authenticator.
   ///
   /// If [refreshUrl] is empty, the [tokenUrl] is used for refresh requests.
+  ///
+  /// Each credential not passed is read from its environment variable (default
+  /// `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID`, `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET` and
+  /// `SWAGGER_PETSTORE_OPEN_API_3_0_REDIRECT_URI`, or the names given). An empty variable
+  /// counts as unset.
   OAuth2AuthorizationCodeAuthenticator({
     required String host,
-    required String clientId,
-    required String clientSecret,
+    String? clientId,
+    String? clientSecret,
+    String? clientIdVariable,
+    String? clientSecretVariable,
     required String authorizationUrl,
     required String tokenUrl,
-    required String redirectUri,
+    String? redirectUri,
+    String? redirectUriVariable,
     List<String> scopes = const [],
     String refreshUrl = '',
+    Map<String, String>? environment,
   }) : _host = host,
-       _clientId = clientId,
-       _clientSecret = clientSecret,
+       _clientId = requireCredential(
+         clientId,
+         clientIdVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID',
+         'clientId',
+         environment,
+       ),
+       _clientSecret = requireCredential(
+         clientSecret,
+         clientSecretVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET',
+         'clientSecret',
+         environment,
+       ),
        _authorizationUrl = authorizationUrl,
        _tokenUrl = tokenUrl,
        _refreshUrl = refreshUrl.isEmpty ? tokenUrl : refreshUrl,
-       _redirectUri = redirectUri,
+       _redirectUri = requireCredential(
+         redirectUri,
+         redirectUriVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_REDIRECT_URI',
+         'redirectUri',
+         environment,
+       ),
        _scopes = scopes,
        _tokenManager = OAuth2TokenManager();
 

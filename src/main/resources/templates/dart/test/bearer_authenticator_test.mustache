@@ -362,6 +362,19 @@ void main() {
               (e) => e.message, 'message', contains('{{firstVariable}}'))),
         );
       });
+
+{{#hasAuthSchemeTest}}
+      test('{{{authSchemeTestName}}}', () {
+        expect(
+          () => {{className}}(
+            host: '{{{basePath}}}',
+            environment: {{{emptyEnvironment}}},
+          ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{emptyVariable}}'))),
+        );
+      });
+{{/hasAuthSchemeTest}}
     });
 {{/credentialSchemes}}
   });

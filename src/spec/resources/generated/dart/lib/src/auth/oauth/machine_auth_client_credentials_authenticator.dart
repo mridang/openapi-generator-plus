@@ -13,10 +13,15 @@ class MachineAuthClientCredentialsAuthenticator
   /// Creates an authenticator for the `machineAuth` security scheme.
   MachineAuthClientCredentialsAuthenticator({
     required super.host,
-    required super.clientId,
-    required super.clientSecret,
+    super.clientId,
+    super.clientSecret,
+    super.environment,
   }) : super(
          tokenUrl: 'https://auth.example.com/oauth/token',
          scopes: ['pets:read', 'pets:write'],
+         clientIdVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID',
+         clientSecretVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET',
        );
 }

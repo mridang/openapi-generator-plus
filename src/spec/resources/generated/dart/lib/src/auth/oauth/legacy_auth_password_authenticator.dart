@@ -12,13 +12,20 @@ class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator {
   /// Creates an authenticator for the `legacyAuth` security scheme.
   LegacyAuthPasswordAuthenticator({
     required super.host,
-    required super.clientId,
-    required super.clientSecret,
-    required super.username,
-    required super.password,
+    super.clientId,
+    super.clientSecret,
+    super.username,
+    super.password,
+    super.environment,
   }) : super(
          tokenUrl: 'https://auth.example.com/oauth/token',
          refreshUrl: 'https://auth.example.com/oauth/refresh',
          scopes: ['read'],
+         clientIdVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID',
+         clientSecretVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET',
+         usernameVariable: 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME',
+         passwordVariable: 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD',
        );
 }

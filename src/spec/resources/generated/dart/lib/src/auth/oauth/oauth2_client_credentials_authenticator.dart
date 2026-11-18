@@ -8,6 +8,7 @@
 import 'dart:convert';
 
 import '../../api_client.dart';
+import '../../environment.dart';
 import '../../value_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
@@ -31,16 +32,34 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
   final OAuth2TokenManager _tokenManager;
 
   /// Creates a new client credentials authenticator.
+  ///
+  /// [clientId] and [clientSecret] are read from [clientIdVariable] and
+  /// [clientSecretVariable] (default `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID` and
+  /// `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET`) when not passed; an empty variable counts
+  /// as unset. [environment] replaces the process environment.
   OAuth2ClientCredentialsAuthenticator({
     required String host,
-    required String clientId,
-    required String clientSecret,
+    String? clientId,
+    String? clientSecret,
+    String? clientIdVariable,
+    String? clientSecretVariable,
     required String tokenUrl,
     List<String> scopes = const [],
     ClientAuthMethod clientAuthMethod = ClientAuthMethod.body,
+    Map<String, String>? environment,
   }) : _host = host,
-       _clientId = clientId,
-       _clientSecret = clientSecret,
+       _clientId = requireCredential(
+         clientId,
+         clientIdVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID',
+         'clientId',
+         environment,
+       ),
+       _clientSecret = requireCredential(
+         clientSecret,
+         clientSecretVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET',
+         'clientSecret',
+         environment,
+       ),
        _tokenUrl = tokenUrl,
        _scopes = scopes,
        _clientAuthMethod = clientAuthMethod,

@@ -13,13 +13,19 @@ class UserAuthAuthorizationCodeAuthenticator
   /// Creates an authenticator for the `userAuth` security scheme.
   UserAuthAuthorizationCodeAuthenticator({
     required super.host,
-    required super.clientId,
-    required super.clientSecret,
-    required super.redirectUri,
+    super.clientId,
+    super.clientSecret,
+    super.redirectUri,
+    super.environment,
   }) : super(
          authorizationUrl: 'https://auth.example.com/authorize',
          tokenUrl: 'https://auth.example.com/oauth/token',
          scopes: ['pets:read', 'pets:write'],
          refreshUrl: 'https://auth.example.com/oauth/refresh',
+         clientIdVariable: 'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID',
+         clientSecretVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET',
+         redirectUriVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI',
        );
 }

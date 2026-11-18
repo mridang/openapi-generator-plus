@@ -204,11 +204,6 @@ php | authscheme013 | php: its OAuth2 and OpenID Connect authenticators take the
 php | authscheme014 | php: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
 php | authscheme015 | php: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
 php | authscheme016 | php: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme008 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme013 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme014 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme015 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
