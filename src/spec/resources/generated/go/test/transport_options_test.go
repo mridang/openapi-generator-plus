@@ -1060,3 +1060,13 @@ func TestBhvMisc298_TransportOptions_MalformedProxyUrlFailsTheClientWithInvalidP
 		t.Error("expected no TransportOptions when the proxy URL is malformed")
 	}
 }
+
+func TestBhvMisc026_TransportOptions_ATimeoutMistakeIsNotAnApiError(t *testing.T) {
+	t.Parallel()
+	value := -1
+	_, err := petstore.NewTransportOptionsBuilder().Timeout(&value).Build()
+	var status interface{ StatusCode() int }
+	if errors.As(err, &status) {
+		t.Errorf("expected a configuration error that is not an API error, got %T", err)
+	}
+}

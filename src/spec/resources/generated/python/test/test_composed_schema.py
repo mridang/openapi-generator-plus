@@ -75,6 +75,26 @@ class TestOneOfPetFood:
             ObjectSerializer().deserialize(json_str, "PetFood")
         assert "'raw'" in str(exc_info.value)
 
+    def test_bhv_misc_045_a_payload_that_fails_a_variant_schema_is_not_accepted_as_that_variant(
+        self,
+    ) -> None:
+        for json_str in [
+            '{"foodType":3,"weightKg":2.5}',
+            '{"FoodType":"dry","weightKg":2.5}',
+            '{"foodType":"fish","weightKg":2.5}',
+            '{"foodType":"dry"}',
+        ]:
+            with pytest.raises((SerializationException, ValidationError)):
+                ObjectSerializer().deserialize(json_str, "PetFood")
+
+    def test_bhv_misc_047_serializing_a_union_holding_a_non_variant_fails_naming_the_union(
+        self,
+    ) -> None:
+        wrapped = PetFood.model_construct(actual_instance="not a variant")
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().serialize(wrapped)
+        assert "PetFood" in str(exc_info.value)
+
     def test_bhv_unions_020_serializes_dry_food(self) -> None:
         json_str = '{"foodType":"dry","weightKg":2.5}'
         result = ObjectSerializer().deserialize(json_str, "PetFood")

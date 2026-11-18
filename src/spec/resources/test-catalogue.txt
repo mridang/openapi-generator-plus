@@ -3013,7 +3013,6 @@ langgo094 | Server configuration accessors expose immutable state.
 langgo095 | Server variable constructor copies enum slice.
 langgo096 | Skills upload parameters are documented as io reader.
 langgo097 | Skills error handling example ends with the base error arm.
-langgo098 | Main.
 langgo099 | Trace context util concurrent set and inject is race free.
 langgo100 | Trace context util registered propagator is used.
 langgo101 | Trace context util propagator reads the span from the call context.

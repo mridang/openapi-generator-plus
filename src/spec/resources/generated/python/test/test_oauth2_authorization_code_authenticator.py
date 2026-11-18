@@ -435,6 +435,20 @@ def _form_of(call: Any) -> dict[str, list[str]]:
 
 
 class TestAuthorizationCodeSession:
+    def test_bhv_misc_028_a_transport_failure_during_the_code_exchange_is_raised_unchanged(
+        self,
+    ) -> None:
+        cause = OSError("connection reset")
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = cause
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(OSError) as exc_info:
+            auth.exchange_code("the-code")
+
+        assert exc_info.value is cause
+
     def test_bhv_authoauthtwoauthcode_026_the_refresh_carries_the_client_credentials(
         self,
     ) -> None:

@@ -593,6 +593,50 @@ class TestPetApi:
         assert result is not None
         assert isinstance(result, list)
 
+    def test_bhv_misc_004_an_operation_called_without_its_options_names_the_missing_argument(
+        self,
+    ) -> None:
+        with pytest.raises(TypeError, match="options"):
+            cast(Any, self.api).get_pet_summary(7, datetime.date(2024, 1, 5))
+
+    async def test_bhv_misc_007_a_missing_path_parameter_is_named_and_no_request_is_sent(
+        self,
+    ) -> None:
+        class _Capturing(ApiClient):
+            captured_url = ""
+
+            def send_request(
+                self,
+                method: str,
+                url: str,
+                headers: dict,
+                body: Any = None,
+                no_redirect: bool = False,
+            ) -> ApiHttpResponse:
+                self.captured_url = url
+                return ApiHttpResponse(
+                    status_code=200,
+                    body="{}",
+                    headers={"content-type": "application/json"},
+                )
+
+        client = _Capturing()
+        api = PetApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        with pytest.raises(ValueError, match="Missing the required parameter 'as_of'"):
+            await api.get_pet_summary(
+                7, cast(Any, None), GetPetSummaryOptions(session="s")
+            )
+        assert client.captured_url == ""
+
+    async def test_bhv_misc_009_a_call_without_options_sends_none_of_the_per_call_headers(
+        self,
+    ) -> None:
+        captured = await _capture_get(lambda api: api.get_pet_by_id(1))
+        assert not any(name.lower() == "x-per-call" for name in captured["headers"])
+
     def test_bhv_misc_010_add_pet_photos_requires_options(self) -> None:
         # Parity with the other 11 SDKs: when an operation's Options object has
         # required fields, the options argument is required (no default). Omitting

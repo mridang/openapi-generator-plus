@@ -396,6 +396,34 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(client.last_body).must_equal 'grant_type=client_credentials&client_id=my_client_id&client_secret=my_client_secret&scope=read+write'
   end
 
+  it 'bhv_authoauthtwotokenmgr_045 a padded decimal string expires_in is accepted as a lifetime so the token is cached' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'pad-1', 'expires_in' => " 3600.5\n" } },
+                                   { status: 200, body: { 'access_token' => 'pad-2', 'expires_in' => " 3600.5\n" } }
+                                 ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    params = { 'grant_type' => 'client_credentials' }
+
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'pad-1'
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'pad-1'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'bhv_authoauthtwotokenmgr_046 a string expires_in outside the plain decimal grammar leaves the token stale' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'stale-1', 'expires_in' => '3600s' } },
+                                   { status: 200, body: { 'access_token' => 'stale-2', 'expires_in' => '3600s' } }
+                                 ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    params = { 'grant_type' => 'client_credentials' }
+
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'stale-1'
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'stale-2'
+    _(client.call_count).must_equal 2
+  end
+
   it 'bhv_authoauthtwotokenmgr_007 applies one margin capped at half the lifetime' do
     short = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
     short.api_client = FakeTokenClient.new([{ status: 200, body: { 'access_token' => 'short', 'expires_in' => 40 } }])
