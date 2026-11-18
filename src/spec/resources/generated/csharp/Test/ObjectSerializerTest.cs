@@ -36,6 +36,20 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvMisc137AGeneratedEnumListsItsValuesAndReportsMembership()
+        {
+            Assert.Equal(3, Enum.GetValues<Priority>().Length);
+            Assert.True(Enum.IsDefined(Priority.Number2));
+            Assert.False(Enum.IsDefined((Priority)999));
+        }
+
+        [Fact]
+        public void BhvMisc138ConvertingAMemberToTextYieldsItsWireValue()
+        {
+            Assert.Equal("on-hold", ObjectSerializer.Stringify(Availability.OnHold));
+        }
+
+        [Fact]
         public void BhvSerializationobject110NullReturnsEmptyString()
         {
             Assert.Equal("", ObjectSerializer.Stringify(null));
@@ -3530,6 +3544,37 @@ public static class ObjectSerializerTest
                 source,
                 StringComparison.Ordinal
             );
+        }
+    }
+
+    public class ModelValueTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void BhvMisc119AnEscapedDuplicateKeyIsTheSameKeyAndTheLastValueWins()
+        {
+            var category = _serializer.Deserialize<Category>(
+                @"{""name"":""First"",""\u006eame"":""Last""}"
+            );
+            Assert.Equal("Last", category!.Name);
+        }
+
+        [Fact]
+        public void BhvMisc121AnUndeclaredObjectIsWrittenAsAJsonObjectOfItsProperties()
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(
+                _serializer.Serialize(new Dictionary<string, object?> { { "b", "x" }, { "a", 1 } })
+            );
+            Assert.Equal(1, doc.RootElement.GetProperty("a").GetInt32());
+            Assert.Equal("x", doc.RootElement.GetProperty("b").GetString());
+        }
+
+        [Fact]
+        public void BhvMisc122AStringDefaultIsAppliedAsTheExactLiteral()
+        {
+            var defaults = _serializer.Deserialize<Defaults>("{}");
+            Assert.Equal("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b", defaults!.Greeting);
         }
     }
 }
