@@ -594,30 +594,38 @@ describe("scheme authenticators the spec declares", () => {
     expect(() => new Wrapper(host, "")).toThrow(TypeError);
   });
 
-  test("the Bearer and Basic wrappers emit their Authorization headers", () => {
+  test("bhv authbasic 019 the generated Basic wrappers emit the same Basic header as the base authenticator", () => {
+    const base = new BasicAuthenticator(
+      host,
+      "alice",
+      "s3cret",
+    ).getAuthHeaders();
+    expect(base).toEqual({ Authorization: "Basic YWxpY2U6czNjcmV0" });
+    expect(
+      new PetStoreBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
+    ).toEqual(base);
+    expect(
+      new AdminBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
+    ).toEqual(base);
+    expect(
+      util.inspect(new AdminBasicAuthenticator(host, "alice", "s3cret")),
+    ).toBe(
+      "AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+    );
+  });
+
+  test("bhv authbearer 023 the generated Bearer wrappers emit a Bearer header and keep their own name", () => {
     expect(
       new PetStoreBearerAuthenticator(host, "tok").getAuthHeaders(),
     ).toEqual({ Authorization: "Bearer tok" });
     expect(new ServiceTokenAuthenticator(host, "tok").getAuthHeaders()).toEqual(
       { Authorization: "Bearer tok" },
     );
-    expect(
-      new PetStoreBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
-    ).toEqual({
-      Authorization: "Basic YWxpY2U6czNjcmV0",
-    });
-    expect(
-      new AdminBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
-    ).toEqual({
-      Authorization: "Basic YWxpY2U6czNjcmV0",
-    });
+    expect(util.inspect(new PetStoreBearerAuthenticator(host, "tok"))).toMatch(
+      /^PetStoreBearerAuthenticator\(/,
+    );
     expect(util.inspect(new ServiceTokenAuthenticator(host, "tok"))).toBe(
       "ServiceTokenAuthenticator(host=https://api.example.com, token=***)",
-    );
-    expect(
-      util.inspect(new AdminBasicAuthenticator(host, "alice", "s3cret")),
-    ).toBe(
-      "AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
     );
   });
 

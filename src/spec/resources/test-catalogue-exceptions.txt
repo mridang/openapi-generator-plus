@@ -149,3 +149,5 @@ java | authscheme008 | The SsoAuth scheme is openIdConnect, for which the Java g
 kotlin | lifecycle030 | The scheme constructor takes the base URL as its required first argument (F857), so no scheme credential can supply it; the default authenticator supplies it through the authenticator constructor
 kotlin | options046 | TransportOptions has a private constructor, so a caller cannot build one directly and the scheme check runs only in the builder, where the refusal is pinned by bhv options 051
 kotlin | retries032 | Kotlin request bodies are a String, a ByteArray or a multipart map, all held in memory, and no public body type is a one-shot stream that a retry would have to refuse to resend (bhv retries 034 covers the string body)
+node | authscheme008 | the OpenID Connect authenticator behind SsoAuth takes every credential as an explicit constructor argument and reads no environment variable, so there is no variable to be empty
+node | authbearer026 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal
