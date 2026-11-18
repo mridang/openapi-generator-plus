@@ -137,6 +137,13 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert PetstoreClient.Models.PetFood.as_wet_food(wrapped) == nil
     end
 
+    test "bhv misc 294 a wet food payload without its discriminator is decoded as the variant the mapping names" do
+      result = PetstoreClient.ObjectSerializer.deserialize(~s({"volumeMl":400}), "WetFood")
+
+      assert %PetstoreClient.Models.WetFood{} = result
+      assert result.food_type == "wet"
+    end
+
     test "bhv unions 035 a discriminator value not listed in the mapping fails to deserialize" do
       # Mapping keys are matched exactly, so a case-different value is unlisted.
       json = ~s({"foodType":"DRY","weightKg":2.5})
@@ -361,6 +368,14 @@ defmodule PetstoreClient.ComposedSchemaTest do
         PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
       end
     end
+
+    test "bhv misc 293 an anyOf value keeps the matching variant and skips the one that does not match" do
+      json = ~s({"procedureName":"Spay","durationMinutes":45})
+      result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
+
+      assert [%PetstoreClient.Models.Surgery{procedure_name: "Spay"}] =
+               PetstoreClient.Models.PetTreatment.matched_instances(result)
+    end
   end
 
   # -- oneOf of byte variants: SetPetAvatarThumbnailRequest --
@@ -395,6 +410,17 @@ defmodule PetstoreClient.ComposedSchemaTest do
       # Encoding the sanitized value as JSON yields a quoted base64 string,
       # never a numeric array.
       assert Jason.encode!(wire) == ~s("AQIDBA==")
+    end
+
+    test "bhv misc 295 a byte oneOf round-trips a scalar through base64 and rejects a non-list for the array variant" do
+      raw = <<0x01, 0x02, 0x03, 0x04>>
+
+      assert SetPetAvatarThumbnailRequest.build(SetPetAvatarThumbnailRequest.serialize(raw)) ==
+               raw
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        SetPetAvatarThumbnailRequest.build(42)
+      end
     end
 
     test "bhv unions 023 scalar base64 string deserializes back to the original 4 bytes (scalar before array)" do

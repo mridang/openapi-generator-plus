@@ -3256,6 +3256,13 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
+  test "bhv misc 296 by default a failed request is retried twice, so three requests reach the wire" do
+    state = retry_state([{503, [{"retry-after", "0"}]}])
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(state)
+    assert length(attempts()) == 3
+  end
+
   test "bhv retries 018 max_retries 0 sends the request once" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
 
