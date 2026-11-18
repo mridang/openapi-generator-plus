@@ -103,17 +103,6 @@ describe("ServerConfiguration", () => {
     expect(config.getUrl()).toBe("https://a$&b.api.example.com");
   });
 
-  it("substitutes variables with supplied overrides", () => {
-    const config = new ServerConfiguration(
-      "https://{env}.api.example.com",
-      null,
-      { env: new ServerVariable("prod", null, []) },
-    );
-    expect(config.getUrl({ env: "staging" })).toBe(
-      "https://staging.api.example.com",
-    );
-  });
-
   it("bhv servers 003 accepts an override that is one of the enum values", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com",

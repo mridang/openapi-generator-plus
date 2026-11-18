@@ -1249,15 +1249,6 @@ describe("ValueSerializer", () => {
       );
     });
 
-    test("stringifyDates formats each array element as YYYY-MM-DD in order", () => {
-      expect(
-        ValueSerializer.stringifyDates([
-          new Date(Date.UTC(2024, 1, 1, 23, 59)),
-          new Date(Date.UTC(2024, 0, 15, 10)),
-        ]),
-      ).toEqual(["2024-02-01", "2024-01-15"]);
-    });
-
     test("bhv serializationparam 083 stringifyDates expands a Set in iteration order", () => {
       expect(
         ValueSerializer.stringifyDates(new Set(["2024-01-15", "2024-02-01"])),

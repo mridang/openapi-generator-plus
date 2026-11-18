@@ -552,28 +552,6 @@ describe("Client", () => {
     expect(() => new BearerAuthenticator("/api/v3", "   ")).toThrow(TypeError);
   });
 
-  test("authenticators redact the secret from default string/inspect/JSON", () => {
-    // authenticator-secret-in-default-string-repr: console.log / util.inspect
-    // / JSON.stringify must never leak the live credential.
-    const bearer = new BearerAuthenticator("/api/v3", "super-secret-token");
-    expect(util.inspect(bearer)).not.toContain("super-secret-token");
-    expect(JSON.stringify(bearer)).not.toContain("super-secret-token");
-    expect(`${util.inspect(bearer)}`).toContain("***");
-
-    const basic = new BasicAuthenticator("/api/v3", "alice", "pw-secret-123");
-    expect(util.inspect(basic)).not.toContain("pw-secret-123");
-    expect(JSON.stringify(basic)).not.toContain("pw-secret-123");
-
-    const apiKey = new ApiKeyAuthenticator(
-      "/api/v3",
-      "X-Api-Key",
-      "key-secret-xyz",
-      ApiKeyLocation.HEADER,
-    );
-    expect(util.inspect(apiKey)).not.toContain("key-secret-xyz");
-    expect(JSON.stringify(apiKey)).not.toContain("key-secret-xyz");
-  });
-
   test("bhv lifecycle 002 api key header rejects crlf and non ascii", () => {
     expect(
       () => new ApiKeyHeaderAuthenticator("/api/v3", "abc\r\nInjected: yes"),

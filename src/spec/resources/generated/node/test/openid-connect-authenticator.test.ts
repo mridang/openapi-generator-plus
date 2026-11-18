@@ -66,14 +66,6 @@ describe("OpenIdConnectAuthenticator", () => {
     );
   });
 
-  test("client secret is not leaked in default string representation", () => {
-    // client-secret-leak-in-default-repr: console.log / util.inspect /
-    // JSON.stringify must never expose the stored OAuth2 client secret.
-    expect(util.inspect(authenticator)).not.toContain("my-client-secret");
-    expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
-    expect(util.inspect(authenticator)).toContain("***");
-  });
-
   it("bhv authoidc 019 redacts secret", () => {
     expect(util.inspect(authenticator)).not.toContain("my-client-secret");
     expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
