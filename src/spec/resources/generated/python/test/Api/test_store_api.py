@@ -61,6 +61,12 @@ class TestStoreApi:
 
         assert isinstance(result, dict)
 
+    async def test_bhv_misc_013_a_no_parameter_operation_returns_its_result(
+        self,
+    ) -> None:
+        api, _ = _create_mock_server(200, "application/json", '{"available":3}')
+        assert await api.get_inventory() == {"available": 3}
+
     async def test_bhv_operations_117_place_order(self) -> None:
         order = Order(
             id=1,
