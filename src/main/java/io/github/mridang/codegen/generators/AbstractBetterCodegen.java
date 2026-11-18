@@ -511,13 +511,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
-     * Processes user-supplied additional properties after the
-     * codegen options are resolved. Enables post-process file
-     * hooks, clears default supporting files so subclasses
-     * control which files are emitted, and reads the
-     * {@code generateTests} and {@code clientClassName} options.
-     */
-    /**
      * Whether this language ships the optional OpenTelemetry adapter built on the call hook.
      * The templates read it as {@code hasOpenTelemetryAdapter} so one README section can show
      * the adapter or, where the language has no stable OpenTelemetry API, the recipe.
@@ -528,6 +521,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return false;
     }
 
+    /**
+     * Processes user-supplied additional properties after the
+     * codegen options are resolved. Enables post-process file
+     * hooks, clears default supporting files so subclasses
+     * control which files are emitted, and reads the
+     * {@code generateTests} and {@code clientClassName} options.
+     */
     @Override
     public void processOpts() {
         super.processOpts();
