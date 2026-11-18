@@ -7,17 +7,15 @@
 
 import '../object_serializer.dart';
 
+import 'vehicle.dart';
+
 /// Truck is a model class generated from the OpenAPI schema.
-class Truck {
-  final String vehicleType;
-
-  final String plate;
-
+class Truck extends Vehicle {
   final int? payloadKg;
 
   const Truck({
-    this.vehicleType = 'truck',
-    required this.plate,
+    super.vehicleType = 'truck',
+    required super.plate,
     this.payloadKg,
   });
 
@@ -58,6 +56,7 @@ class Truck {
   }
 
   /// Converts this [Truck] to a JSON map.
+  @override
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
 

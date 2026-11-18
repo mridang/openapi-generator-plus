@@ -7,15 +7,13 @@
 
 import '../object_serializer.dart';
 
+import 'shape.dart';
+
 /// Square is a model class generated from the OpenAPI schema.
-class Square {
-  final String shapeType;
-
-  final String? label;
-
+class Square extends Shape {
   final double side;
 
-  const Square({this.shapeType = 'Square', this.label, required this.side});
+  const Square({super.shapeType = 'Square', super.label, required this.side});
 
   /// Creates a [Square] from a JSON map.
   factory Square.fromJson(Map<String, dynamic> json) {
@@ -54,6 +52,7 @@ class Square {
   }
 
   /// Converts this [Square] to a JSON map.
+  @override
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
 
