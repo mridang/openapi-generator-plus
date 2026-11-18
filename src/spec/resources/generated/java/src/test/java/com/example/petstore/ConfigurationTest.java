@@ -315,4 +315,16 @@ class ConfigurationTest {
         "https://api.example.com/v2",
         Configuration.builder().baseUrl("https://api.example.com/v2").build().getBaseUrl());
   }
+
+  @Test
+  void bhvMisc136TheDebugTextShowsTheBaseUrlAndNonSensitiveHeaders() {
+    String text =
+        Configuration.builder()
+            .baseUrl("https://api.example.com")
+            .defaultHeader("Accept", "text/plain")
+            .build()
+            .toString();
+    assertTrue(text.contains("https://api.example.com"), text);
+    assertTrue(text.contains("Accept=text/plain"), text);
+  }
 }

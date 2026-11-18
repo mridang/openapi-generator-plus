@@ -16,6 +16,15 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
+private enum class TierFixture(
+    private val wire: String,
+) {
+    GOLD("gold-tier"),
+    ;
+
+    override fun toString(): String = wire
+}
+
 class ValueSerializerTest {
     @Nested
     @DisplayName("path dot segments")
@@ -1167,6 +1176,34 @@ class ValueSerializerTest {
             assertEquals("1.50", objects.toFormValue(java.math.BigDecimal("1.50")))
             assertEquals("42", objects.toFormValue(42))
             assertEquals("true", objects.toFormValue(true))
+        }
+    }
+
+    @Nested
+    @DisplayName("enum and scalar parameter locations")
+    inner class ParameterLocationTests {
+        @Test
+        @DisplayName("bhvMisc082 an enum value in a path, query or header parameter is sent as its wire value")
+        fun bhvMisc082EnumParameterIsSentAsWireValue() {
+            for (location in listOf("path", "query", "header")) {
+                assertEquals(
+                    "gold-tier",
+                    ValueSerializer.serializeStyled("tier", TierFixture.GOLD, location, "string", null, "simple", false).toString(),
+                    location,
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc084 a set optional scalar parameter sends its value in every location")
+        fun bhvMisc084ScalarParameterIsSentInEveryLocation() {
+            for (location in listOf("path", "query", "header", "cookie")) {
+                assertEquals(
+                    "7",
+                    ValueSerializer.serializeStyled("count", 7, location, "integer", null, "simple", false).toString(),
+                    location,
+                )
+            }
         }
     }
 }
