@@ -1056,3 +1056,4 @@ dart | misc262 | The SDK always wraps an http.ClientException from a cancelled r
 ||||||| 9606d5116
 node | serialization102 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
 >>>>>>> origin/test/fail-on-untagged
+ruby | misc185 | The Ruby OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be expressed
