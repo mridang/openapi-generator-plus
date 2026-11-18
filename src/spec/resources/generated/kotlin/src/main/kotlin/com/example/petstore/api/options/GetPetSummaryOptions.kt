@@ -10,7 +10,7 @@ class GetPetSummaryOptions(
     /** Session token: \"a<b>\" & it's required */
     val session: String,
     /** Extra dates to summarise */
-    val days: List<@Contextual LocalDate>? = null,
+    val days: List<LocalDate>? = null,
     /**
      * The end-to-end timeout of this call in milliseconds, in place of the client's
      * `TransportOptions.timeout`; null keeps the client's setting.

@@ -1277,7 +1277,7 @@ class PetApi : BaseApi {
             ValueSerializer.putQuery(
                 queryParams,
                 "days",
-                ValueSerializer.serializeStyled("days", options.days, "query", "List<@Contextual LocalDate>", "multi", "form", true),
+                ValueSerializer.serializeStyled("days", options.days, "query", "List<LocalDate>", "multi", "form", true),
                 false,
             )
         }

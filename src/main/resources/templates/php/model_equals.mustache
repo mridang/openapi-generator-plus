@@ -4,7 +4,7 @@
      * models, lists, maps and date-times are compared by value. A value of another class, or null,
      * is never equal.
      */
-    public function equals(?self $other): bool
+    public function equals(?object $other): bool
     {
         return $other !== null
             && $other::class === $this::class
