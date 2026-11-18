@@ -2025,3 +2025,20 @@ langpython082 | Retry after in the past means no wait.
 langpython083 | An exhausted deadline times out without sending.
 langpython084 | An unrelated connection failure is not a timeout.
 langpython085 | Should keep a non form data multipart subtype for the transport.
+langpython086 | Field name kwargs bucket is spread not nested.
+langpython087 | Pyproject description keeps quotes and markup unescaped.
+langpython088 | Make test runs the configured testpaths not only the test directory.
+langpython089 | Readme package name is the manifest name.
+langpython090 | Skills install command uses the manifest name.
+langpython091 | Readme opens with installation and usage that link the skills.
+langpython092 | Readme files supported features outside not supported.
+langpython093 | Readme documents credentials per call options and the behaviours to know.
+langpython094 | Readme not supported lists xml links and mutual tls.
+langpython095 | Skills models sample passes the required fields.
+langpython096 | Readme and skills name the credential of each security scheme.
+langpython097 | Readme and skills describe a graceful close and raw cookies.
+langpython098 | Skills call the authenticator an abstract base class.
+langpython099 | Skills error handling example passes real arguments.
+langpython100 | Zero retries is allowed.
+langpython101 | The options object carries the per call settings.
+langpython102 | Instances differing only in additional properties are not equal.
