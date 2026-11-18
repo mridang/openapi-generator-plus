@@ -3899,6 +3899,20 @@ void main() {
       );
     });
 
+    test('bhv errors 092 a network failure carries the request method and path', () async {
+      final client = _ScriptedApiClient(
+          [const NetworkException(message: 'connection refused')],
+          maxRetries: 0);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/items'),
+        throwsA(isA<NetworkException>()
+            .having((e) => e.requestMethod, 'requestMethod', 'GET')
+            .having((e) => e.requestPath, 'requestPath', '/items')),
+      );
+    });
+
     test('bhv errors 205 a decode failure of a response carries the status, the headers and the raw body', () async {
       final client = _ScriptedApiClient([
         ApiHttpResponse(

@@ -177,6 +177,128 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvErrors085ALineBreakInTheBodyRendersEscaped()
+    {
+        var ex = new ApiException(500, "boom", null, "a\r\nb");
+
+        Assert.Equal("boom\nHTTP status code: 500\nResponse body: a\\r\\nb", ex.ToString());
+    }
+
+    [Fact]
+    public void BhvErrors086ABodyOfExactlyOneKibRendersWhole()
+    {
+        string body = new string('a', 1024);
+        var ex = new ApiException(500, "boom", null, body);
+
+        Assert.EndsWith(body, ex.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("more bytes", ex.ToString(), StringComparison.Ordinal);
+        Assert.Equal(body, ex.ResponseBody);
+    }
+
+    [Fact]
+    public void BhvErrors087AuthenticationHeadersAreMaskedInTheMessage()
+    {
+        var headers = new Dictionary<string, string>
+        {
+            ["Authorization"] = "Bearer abc",
+            ["WWW-Authenticate"] = "Basic realm=x",
+        };
+        var ex = new ApiException(401, "denied", headers, "");
+
+        string rendered = ex.ToString();
+        Assert.DoesNotContain("Bearer abc", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("realm=x", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvErrors088AbsentSectionsAreLeftOutAndPresentOnesKept()
+    {
+        var ex = new ApiException(500, "down", null, "oops");
+
+        Assert.Equal("down\nHTTP status code: 500\nResponse body: oops", ex.ToString());
+    }
+
+    [Fact]
+    public void BhvErrors089AnEmptyMessageRendersTheDefaultText()
+    {
+        var ex = new ApiException(0, "");
+
+        Assert.Equal("Error message: the server returns an error", ex.ToString());
+    }
+
+    [Fact]
+    public void BhvErrors090AnErrorWithNoResponseKeepsTheBodyAndHeadersNull()
+    {
+        var ex = ApiException.FromResponse(0, null, null);
+
+        Assert.Null(ex.ResponseHeaders);
+        Assert.Null(ex.ResponseBody);
+        Assert.Null(ex.ErrorBody);
+    }
+
+    [Fact]
+    public void BhvErrors091TheMessageNamesTheRequestWhenNoResponseArrived()
+    {
+        var ex = ApiException.FromResponse(0, null, null, "GET", "/items/7");
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+        Assert.Contains("GET /items/7", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvErrors093ABomPrefixedBodyKeepsTheRawBodyAndParsesTheErrorBody()
+    {
+        string body = "﻿{\"code\":1}";
+
+        var ex = ApiException.FromResponse(400, new Dictionary<string, string>(), body);
+
+        Assert.Equal(body, ex.ResponseBody);
+        var decoded = Assert.IsType<System.Text.Json.JsonElement>(ex.ErrorBody);
+        Assert.Equal(1, decoded.GetProperty("code").GetInt32());
+    }
+
+    [Theory]
+    [InlineData(400)]
+    [InlineData(404)]
+    [InlineData(500)]
+    [InlineData(503)]
+    public void BhvErrors094EveryRaisedErrorIsTheRootExceptionType(int status)
+    {
+        var ex = ApiException.FromResponse(status, new Dictionary<string, string>(), null);
+
+        Assert.IsAssignableFrom<OpenAPIException>(ex);
+    }
+
+    [Fact]
+    public void BhvErrors095ATypedErrorIsFoundByItsStatusFamily()
+    {
+        var notFound = ApiException.FromResponse(404, new Dictionary<string, string>(), null);
+        var unavailable = ApiException.FromResponse(503, new Dictionary<string, string>(), null);
+
+        Assert.IsAssignableFrom<ClientException>(notFound);
+        Assert.IsAssignableFrom<ServerException>(unavailable);
+    }
+
+    [Theory]
+    [InlineData(399)]
+    [InlineData(600)]
+    public void BhvErrors096AStatusOutsideEveryClassRangeFallsBackToTheBaseError(int status)
+    {
+        var ex = ApiException.FromResponse(status, new Dictionary<string, string>(), null);
+
+        Assert.Equal(typeof(ApiException), ex.GetType());
+    }
+
+    [Fact]
+    public void BhvErrors097AnUnrecognised4xxStatusRaisesTheGenericClientError()
+    {
+        var ex = ApiException.FromResponse(499, new Dictionary<string, string>(), null);
+
+        Assert.Equal(typeof(ClientException), ex.GetType());
+    }
+
+    [Fact]
     public void BhvErrors026FromResponseStripsAQueryStringFromTheRequestPath()
     {
         var ex = ApiException.FromResponse(
