@@ -1887,7 +1887,7 @@ class ObjectSerializerTest {
   class EnumMemberNameTests {
 
     private <T> T decode(String json, Class<T> type) {
-      return serializer.deserialize(json, type);
+      return java.util.Objects.requireNonNull(serializer.deserialize(json, type));
     }
 
     private String modelSource(String name) {

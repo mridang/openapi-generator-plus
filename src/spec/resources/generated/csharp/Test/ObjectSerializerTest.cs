@@ -2771,7 +2771,7 @@ public static class ObjectSerializerTest
         [Fact]
         public void BhvEnums009ADescriptionIsTheCommentAboveTheMember()
         {
-            var source = ModelSource("Tier").Replace("\r\n", "\n");
+            var source = ModelSource("Tier").Replace("\r\n", "\n", StringComparison.Ordinal);
             Assert.Contains(
                 "/// The smallest tier.\n    /// </summary>\n    Small",
                 source,
@@ -2787,7 +2787,7 @@ public static class ObjectSerializerTest
         [Fact]
         public void BhvEnums010AMemberWithoutADescriptionHasNoComment()
         {
-            var source = ModelSource("Rank").Replace("\r\n", "\n");
+            var source = ModelSource("Rank").Replace("\r\n", "\n", StringComparison.Ordinal);
             var between = source.Substring(
                 source.IndexOf("LOW = 1,", StringComparison.Ordinal),
                 source.IndexOf("MEDIUM = 2,", StringComparison.Ordinal)
@@ -2805,7 +2805,7 @@ public static class ObjectSerializerTest
         [Fact]
         public void BhvEnums011AHostileDescriptionStaysAComment()
         {
-            var source = ModelSource("Tier").Replace("\r\n", "\n");
+            var source = ModelSource("Tier").Replace("\r\n", "\n", StringComparison.Ordinal);
             Assert.Contains(
                 "/// The largest tier. Ends with */ and #{x} and $x.\n    /// </summary>\n    Large",
                 source,
