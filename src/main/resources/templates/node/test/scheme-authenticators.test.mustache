@@ -46,6 +46,15 @@ describe('SchemeAuthenticators', () => {
     }
   };
 
+  test('bhv authscheme 010 an empty bearer variable is treated as unset and fails naming the variable', () => {
+    const bearer = environmentSchemes.find(([name]) => name.endsWith('BearerAuthenticator'));
+    expect(bearer).toBeDefined();
+    const [, cls, variables] = bearer!;
+    withVariables(variables, variables.map(() => ''), () => {
+      expect(() => new cls('https://api.example.com')).toThrow(variables[0]);
+    });
+  });
+
   for (const [name, cls, variables] of environmentSchemes) {
     it(`bhv authscheme 001 ${name} reads its own credential variables from the environment`, () => {
       withVariables(variables, variables.map((variable) => `value-${variable}`), () => {

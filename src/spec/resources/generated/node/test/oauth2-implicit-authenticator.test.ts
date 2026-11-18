@@ -45,6 +45,14 @@ describe("OAuth2ImplicitAuthenticator", () => {
     expect(authenticator.buildAuthorizationUrl("")).not.toContain("state=");
   });
 
+  test("bhv authoauthtwoimplicit 016 an implicit access token may contain a tab", () => {
+    authenticator.setAccessToken("tok\ten");
+
+    expect(authenticator.getAuthHeaders()["Authorization"]).toBe(
+      "Bearer tok\ten",
+    );
+  });
+
   test("bhv authoauthtwoimplicit 013 throws when access token set to empty", () => {
     authenticator.setAccessToken("");
 

@@ -140,7 +140,10 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
      * Discovery is an HTTP call like any other, so it throws the same typed
      * error an API call with that status would. */
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiError.fromResponse(response.statusCode, response.headers, response.body);
+      throw ApiError.fromResponse(response.statusCode, response.headers, response.body, {
+        method: 'GET',
+        path: new URL(this.openIdConnectUrl).pathname,
+      });
     }
     let parsed: unknown;
     try {

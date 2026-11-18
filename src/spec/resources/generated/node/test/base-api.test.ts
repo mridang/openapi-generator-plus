@@ -640,7 +640,7 @@ describe("BaseApi", () => {
     expect(client.capturedUrl).not.toContain("limit=10.0");
   });
 
-  test("query keys and values escape ! * ' ( ) and keep ~ literal", async () => {
+  test("bhv serializationparam 107 query keys and values escape ! * ' ( ) and keep ~ literal", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1136,6 +1136,51 @@ describe("BaseApi", () => {
     expect(
       (result as { headers: Record<string, string> }).headers["authorization"],
     ).toBe("Bearer secret-token-123");
+  });
+
+  test("bhv authintegration 018 a configured client authenticator is applied to a secured operation", async () => {
+    const clientAuth = new BearerAuthenticator(chasmUrl, "client-token-456");
+    const configured = new TestableApi(
+      new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+      new Configuration({ baseUrl: chasmUrl }),
+      clientAuth,
+    );
+    const result = await configured.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      (json) => json as { headers: Record<string, string> },
+    );
+    expect(
+      (result as { headers: Record<string, string> }).headers["authorization"],
+    ).toBe("Bearer client-token-456");
+  });
+
+  test("bhv authintegration 019 an invalid auth cookie fails the call before any request is sent", async () => {
+    const capturing = new CapturingApiClient();
+    const auth = new TestAuthenticator({}, {}, { session: "a;b" });
+    const error = await new TestableApi(
+      capturing,
+      new Configuration({ baseUrl: "https://api.example.com" }),
+    )
+      .call(
+        "GET",
+        "/items",
+        {},
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        null,
+        auth,
+      )
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TypeError);
+    expect(capturing.capturedUrl).toBe("");
   });
 });
 

@@ -421,6 +421,12 @@ describe("ApiError", () => {
     );
   });
 
+  test("bhv errors 049 an OAuth2 server error names the status and the error code", () => {
+    expect(
+      new OAuth2ServerError(400, "invalid_grant", null, null, "{}").message,
+    ).toBe("Token request failed with status 400: invalid_grant");
+  });
+
   describe("TooManyRequestsError.retryAfter", () => {
     const tooMany = (headers: Record<string, string> | null) =>
       new TooManyRequestsError("m", headers);
