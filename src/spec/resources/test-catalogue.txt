@@ -2536,3 +2536,10 @@ langcsharp047 | A per-call timeout of zero is refused when the call is built
 langcsharp048 | A discovery endpoint served in clear text is rejected unless it is a loopback address
 langnode007 | A key location rejects a value with a carriage return, line feed or NUL
 langnode008 | A key location rejects an empty or whitespace-only key with a fixed message
+langnode009 | An operation called without an options object still applies the per-call settings
+langnode010 | A server variant documents itself with the operation's server description
+langnode011 | A parameter description keeps quotes, angle brackets and ampersands unescaped
+langnode012 | No generated doc comment carries an HTML entity
+langnode013 | An operation's options argument is documented
+langnode014 | A path value containing replacement patterns is inserted literally
+langnode015 | A cookie value that cannot be sent is refused before the request goes out
