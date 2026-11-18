@@ -33,7 +33,9 @@ class TestDateTimeOffsetPreservation:
         result = ObjectSerializer.stringify(dt)
         assert "-08:00" in result
 
-    def test_subseconds_preserved_in_serialized_datetime(self) -> None:
+    def test_bhv_serializationobject_199_subseconds_preserved_in_serialized_datetime(
+        self,
+    ) -> None:
         # The decoder (dateutil.parser.parse) accepts a fractional second, so
         # the encoder must emit it too — truncating to whole seconds would make
         # the wire round-trip lossy. We keep at least millisecond precision.
@@ -537,6 +539,11 @@ class TestStringify:
     def test_bhv_serializationobject_110_none_returns_empty_string(self) -> None:
         assert ObjectSerializer.stringify(None) == ""
 
+    def test_bhv_serializationobject_211_an_int64_is_stringified_to_its_decimal_digits(
+        self,
+    ) -> None:
+        assert ObjectSerializer.stringify(9223372036854775807) == "9223372036854775807"
+
     def test_bhv_serializationobject_028_boolean_true_returns_lowercase_string(
         self,
     ) -> None:
@@ -692,6 +699,11 @@ class TestToHeaderValue:
     def test_bhv_serializationobject_096_joins_array_with_comma(self) -> None:
         assert ObjectSerializer.to_header_value(["a", "b", "c"]) == "a,b,c"
 
+    def test_bhv_serializationobject_210_a_header_value_for_a_list_of_strings_is_joined_with_commas(
+        self,
+    ) -> None:
+        assert ObjectSerializer.to_header_value(["a", "b"]) == "a,b"
+
 
 class TestToFormValue:
     def test_bhv_serializationobject_132_returns_empty_string_for_none(self) -> None:
@@ -723,6 +735,17 @@ class TestToCookieValue:
 
     def test_bhv_serializationobject_040_converts_integer_to_string(self) -> None:
         assert ObjectSerializer.to_cookie_value(42) == "42"
+
+    def test_bhv_serializationobject_224_a_content_cookie_value_keeps_only_the_unreserved_set_literal(
+        self,
+    ) -> None:
+        from petstore_client.value_serializer import ValueSerializer
+
+        wire = ObjectSerializer().serialize({"k": "a b~*é"})
+        assert (
+            ValueSerializer.encode_content("c", wire, "cookie")
+            == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
+        )
 
 
 class TestSerialize:
@@ -879,7 +902,7 @@ class TestFixtureModelsOnTheWire:
         assert json.loads(ObjectSerializer().serialize(decoded)) == wire
 
     @pytest.mark.parametrize("wire", ["o'clock", "a\\b", "$eq", "#{x}"])
-    def test_hostile_availability_members_map_to_their_wire_strings(
+    def test_bhv_serializationobject_208_hostile_availability_members_map_to_their_wire_strings(
         self, wire: str
     ) -> None:
         import json
@@ -1027,7 +1050,7 @@ class TestRequiredNullableOnTheWire:
             ObjectSerializer().serialize(RequiredNullable(note=None)) == '{"note":null}'
         )
 
-    def test_a_value_is_written_as_is(self) -> None:
+    def test_bhv_serializationobject_218_a_value_is_written_as_is(self) -> None:
         from petstore_client.models.required_nullable import RequiredNullable
 
         assert (
@@ -1036,7 +1059,7 @@ class TestRequiredNullableOnTheWire:
 
 
 class TestExcludeNoneOnSerialize:
-    def test_none_values_are_omitted(self) -> None:
+    def test_bhv_serializationobject_202_none_values_are_omitted(self) -> None:
         import json
 
         # Category with id=None should not include the id key on the wire.
@@ -1226,6 +1249,16 @@ class TestNanInfinityRejection:
         with pytest.raises(SerializationException):
             ObjectSerializer().serialize({"val": -math.inf})
 
+    def test_bhv_serializationobject_200_serialize_failure_has_the_canonical_prefix_and_names_the_detail(
+        self,
+    ) -> None:
+        import math
+
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().serialize({"val": math.nan})
+        assert str(exc_info.value).startswith("Failed to serialize object to JSON: ")
+        assert "Out of range float values are not JSON compliant" in str(exc_info.value)
+
     def test_deserialize_nan_raises(self) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"val": NaN}', "object")
@@ -1386,7 +1419,7 @@ class TestModelsAreImmutable:
         with pytest.raises(ValidationError, match="frozen"):
             self._pet().name = "Rex"
 
-    def test_model_copy_update_returns_a_changed_copy_and_leaves_the_original(
+    def test_bhv_serializationobject_209_model_copy_update_returns_a_changed_copy_and_leaves_the_original(
         self,
     ) -> None:
         pet = self._pet()
@@ -1448,7 +1481,9 @@ class TestTimeFormat:
     def test_stringify_time_drops_a_sub_millisecond_part(self) -> None:
         assert ObjectSerializer.stringify(datetime.time(13, 45, 30, 400)) == "13:45:30"
 
-    def test_serialize_time_in_dict_keeps_milliseconds(self) -> None:
+    def test_bhv_serializationobject_219_serialize_time_in_dict_keeps_milliseconds(
+        self,
+    ) -> None:
         result = ObjectSerializer().serialize(
             {"opens_at": datetime.time(9, 0, 0, 250000)}
         )
@@ -1550,6 +1585,19 @@ class TestDurationFormat:
         # API rejects them with 400; surface the mismatch as a ValueError.
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize("PT1H", "datetime.timedelta")
+
+    def test_bhv_serializationobject_223_a_duration_at_the_protobuf_bound_is_accepted_and_one_past_it_is_rejected(
+        self,
+    ) -> None:
+        bound = 315576000000
+        assert ObjectSerializer()._deserialize(
+            f"{bound}s", "datetime.timedelta"
+        ) == datetime.timedelta(seconds=bound)
+        assert ObjectSerializer()._deserialize(
+            f"-{bound}s", "datetime.timedelta"
+        ) == -datetime.timedelta(seconds=bound)
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize(f"{bound + 1}s", "datetime.timedelta")
 
     def test_bhv_serializationobject_002_bare_integer_is_rejected(self) -> None:
         # A second count without the trailing 's' is not a valid duration.
@@ -1718,7 +1766,7 @@ class TestIntegerBackedEnum:
         assert result == Priority(2)
         assert isinstance(result, Priority)
 
-    def test_unknown_int_value_rejected(self) -> None:
+    def test_bhv_serializationobject_193_unknown_int_value_rejected(self) -> None:
         from petstore_client.models.priority import Priority
 
         with pytest.raises(SerializationException):
@@ -1772,7 +1820,9 @@ class TestNonLowercaseStringEnum:
         assert ObjectSerializer().serialize(Availability("Available")) == '"Available"'
         assert ObjectSerializer().serialize(Availability("Sold")) == '"Sold"'
 
-    def test_hyphenated_value_round_trips_exactly(self) -> None:
+    def test_bhv_serializationobject_194_hyphenated_value_round_trips_exactly(
+        self,
+    ) -> None:
         from petstore_client.models.availability import Availability
 
         member = Availability("on-hold")
@@ -1812,7 +1862,9 @@ class TestByteFormatBase64RoundTrip:
         restored = ObjectSerializer().deserialize(wire, bytes)
         assert restored == raw
 
-    def test_array_of_byte_serializes_each_element_to_base64(self) -> None:
+    def test_bhv_serializationobject_222_array_of_byte_serializes_each_element_to_base64(
+        self,
+    ) -> None:
         import base64
         import json
 
@@ -1936,6 +1988,28 @@ class TestByteModelFieldHoldsRawBytes:
             ObjectSerializer().deserialize(
                 '{"labels":{"k":"dG!VzdA=="}}', "BinaryVault"
             )
+
+    def test_bhv_serializationobject_206_a_differing_map_key_makes_models_unequal(
+        self,
+    ) -> None:
+        vault = self._vault()
+        assert vault(labels={"k": bytes(self.RAW)}) != vault(
+            labels={"j": bytes(self.RAW)}
+        )
+
+    def test_bhv_serializationobject_207_a_url_safe_base64_value_is_rejected_on_decode(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"seal":"-_8="}', "BinaryVault")
+
+    def test_bhv_serializationobject_221_array_of_base64_strings_decodes_each_element_to_bytes(
+        self,
+    ) -> None:
+        vault = ObjectSerializer().deserialize(
+            '{"shards":["AQID","BAUG"]}', "BinaryVault"
+        )
+        assert vault.shards == [b"\x01\x02\x03", b"\x04\x05\x06"]
 
 
 class TestDateTimeModelFieldRejectsNonStrings:
@@ -2082,7 +2156,9 @@ class TestAdditionalPropertiesTopLevelRoundTrip:
         assert "additional_properties" not in data
         assert "additionalProperties" not in data
 
-    def test_full_round_trip_preserves_extra_keys(self) -> None:
+    def test_bhv_serializationobject_205_full_round_trip_preserves_extra_keys(
+        self,
+    ) -> None:
         wire = '{"createdAt":"2024-01-01T00:00:00Z","region":"eu","tier":"gold"}'
         metadata = ObjectSerializer().deserialize(wire, "Metadata")
         restored = ObjectSerializer().deserialize(
@@ -2250,7 +2326,9 @@ class TestReferencedEnumDefault:
         item = ObjectSerializer().deserialize('{"priority":1}', "StockItem")
         assert item.availability == Availability("on-hold")
 
-    def test_a_decoded_value_replaces_the_default(self) -> None:
+    def test_bhv_serializationobject_196_a_decoded_value_replaces_the_default(
+        self,
+    ) -> None:
         from petstore_client.models.availability import Availability
 
         item = ObjectSerializer().deserialize(
@@ -2262,19 +2340,18 @@ class TestReferencedEnumDefault:
 class TestSubMilliDurationNoScientificNotation:
     """Scenario 9 (residual) — a sub-0.0001s duration magnitude must serialize
     as a plain decimal with an `s` suffix, never in scientific notation
-    (`1e-06s`). A NEGATIVE duration is covered by TestDurationFormat above;
-    this guards the tiny-magnitude path where Python's default float repr
-    would otherwise switch to exponent form."""
+    (`1e-06s`). This guards the tiny-magnitude path where Python's default
+    float repr would otherwise switch to exponent form, for both signs."""
 
-    def test_one_microsecond_is_plain_decimal(self) -> None:
+    def test_bhv_serializationobject_212_sub_milli_and_negative_durations_are_plain_decimal(
+        self,
+    ) -> None:
         out = ObjectSerializer.stringify(datetime.timedelta(microseconds=1))
         assert out == "0.000001s"
         assert "e" not in out.lower()
-
-    def test_negative_sub_milli_duration_is_plain_decimal(self) -> None:
-        out = ObjectSerializer.stringify(datetime.timedelta(microseconds=-1))
-        assert out == "-0.000001s"
-        assert "e" not in out.lower()
+        negative = ObjectSerializer.stringify(datetime.timedelta(microseconds=-1))
+        assert negative == "-0.000001s"
+        assert "e" not in negative.lower()
 
 
 class TestCanonicalSerdeBehaviours:
