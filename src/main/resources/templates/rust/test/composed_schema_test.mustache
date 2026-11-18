@@ -1162,10 +1162,10 @@ fn test_bhv_serializationobject_012_pet_location_tuple_round_trips_as_an_open_li
 #[test]
 fn test_bhv_serializationobject_013_edge_cases_retry_after_duration_round_trips() {
     for (wire, expected) in [
-        ("3600s", chrono::Duration::seconds(3600)),
-        ("3600.000000001s", chrono::Duration::seconds(3600) + chrono::Duration::nanoseconds(1)),
-        ("-300s", chrono::Duration::seconds(-300)),
-        ("315576000000s", chrono::Duration::seconds(315_576_000_000)),
+        ("3600s", chrono::TimeDelta::seconds(3600)),
+        ("3600.000000001s", chrono::TimeDelta::seconds(3600) + chrono::TimeDelta::nanoseconds(1)),
+        ("-300s", chrono::TimeDelta::seconds(-300)),
+        ("315576000000s", chrono::TimeDelta::seconds(315_576_000_000)),
     ] {
         let body = serde_json::json!({"retryAfter": wire}).to_string();
         let decoded: EdgeCases = serde_json::from_str(&body).expect("failed to decode retryAfter");

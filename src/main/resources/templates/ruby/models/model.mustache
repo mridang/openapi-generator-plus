@@ -523,6 +523,15 @@ module {{moduleName}}
         {{#isUri}}
         {{{name}}}: 'uri',
         {{/isUri}}
+        {{#vendorExtensions.isIpv4}}
+        {{{name}}}: 'ipv4',
+        {{/vendorExtensions.isIpv4}}
+        {{#vendorExtensions.isIpv6}}
+        {{{name}}}: 'ipv6',
+        {{/vendorExtensions.isIpv6}}
+        {{#vendorExtensions.isDecimalString}}
+        {{{name}}}: 'decimal',
+        {{/vendorExtensions.isDecimalString}}
         {{^isByteArray}}{{^isUuid}}
         {{#isArray}}
         {{#items.isByteArray}}

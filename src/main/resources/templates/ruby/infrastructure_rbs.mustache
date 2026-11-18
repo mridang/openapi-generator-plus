@@ -376,7 +376,16 @@
     def self.encode_base64_param: (String?) -> String?
     def self.serialize: (untyped) -> String
     def self.encode_oneof_body: (untyped, String) -> untyped
-    def self.parse_json: (String, ?symbolize_names: bool) -> untyped
+    def self.parse_json: (String, ?symbolize_names: bool, ?decimal: bool) -> untyped
+    def self.exact_number_pattern: () -> Regexp
+    def self.decimal_to_plain: (BigDecimal) -> String
+    def self.ip_to_text: (IPAddr) -> String
+    def self.parse_ip: (untyped, ?Symbol?) -> IPAddr
+    def self.check_ip_family: (IPAddr, Symbol?) -> IPAddr
+    def self.parse_decimal_string: (untyped) -> BigDecimal
+    def self.free_form_value: (untyped) -> untyped
+    IPV4_REGEX: Regexp
+    IPV6_REGEX: Regexp
     def self.json_max_depth: (String) -> Integer
     def self.deserialize: (untyped, String) -> untyped
     def self.to_path_value: (untyped) -> String
