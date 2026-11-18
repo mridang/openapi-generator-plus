@@ -18,6 +18,8 @@ import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.errors.ApiException;
+import com.sun.net.httpserver.HttpServer;
+import java.net.InetSocketAddress;
 import org.junit.jupiter.api.Test;
 
 class ClientTest {
@@ -263,6 +265,30 @@ class ClientTest {
           IllegalArgumentException.class,
           () -> new ApiKeyAuthenticator("/api/v3", "X-API-Key", key, ApiKeyLocation.HEADER));
     }
+  }
+
+  @Test
+  void bhvLifecycle030TheDefaultAuthenticatorSuppliesTheBaseUrl() throws Exception {
+    java.util.concurrent.atomic.AtomicReference<String> seenPath =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          seenPath.set(exchange.getRequestURI().getPath());
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      String host = "http://localhost:" + server.getAddress().getPort();
+      try (Client client = new Client(new BearerAuthenticator(host, "test-token"))) {
+        client.store.deleteOrder(1L);
+      }
+    } finally {
+      server.stop(0);
+    }
+    assertEquals("/store/order/1", seenPath.get());
   }
 
   @Test
