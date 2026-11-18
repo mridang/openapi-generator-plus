@@ -488,3 +488,9 @@ dart | misc033 | the suite ships a single server certificate with no root and in
 dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
 dart | misc044 | the Dart client raises on a body that declares gzip but fails to decode, as bhv transport 073 pins, so it never returns that body as plain content
 dart | misc047 | PetFood.toJson passes a value that is not one of its variants through unchanged instead of raising, so no serialization error names the union
+elixir | misc048 | The fixture has no operation whose declared response is a union, so no undeclared success status can decode as a union return type
+elixir | misc054 | Elixir maps are immutable, so a later change to the caller's variable cannot reach a call and there is no shared map to copy
+elixir | misc056 | Elixir transport options are a keyword list given once to TransportOptions.new/1, so there is no earlier proxy setting for an empty string to remove
+elixir | misc059 | JSON has no NaN or Infinity literal and Jason refuses them, so a non-finite token lifetime cannot reach the token cache
+elixir | misc060 | The bearer authenticator constructor takes one token and has no token provider argument, so both cannot be supplied together
+elixir | misc061 | An authenticator is a plain module function with no call context argument, so there is no caller cancellation or context value to pass to it
