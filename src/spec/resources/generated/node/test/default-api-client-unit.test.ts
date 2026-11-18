@@ -1862,6 +1862,71 @@ describe("HTTPS -> HTTP body replay guard", () => {
     global.fetch = originalFetch;
   });
 
+  it("bhv retries 051 a request with a body fails with status 307 when a redirect downgrades https to http", async () => {
+    global.fetch = (async (): Promise<Response> =>
+      new Response(null, {
+        status: 307,
+        headers: { Location: "http://secure.example/x" },
+      })) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    const error = await client
+      .sendRequest("POST", "https://secure.example/start", {}, '{"x":1}')
+      .catch((caught: unknown) => caught);
+    expect((error as ApiError).statusCode).toBe(307);
+  });
+
+  it("bhv retries 046 a request body is resent unchanged when a 307 redirect keeps the same scheme", async () => {
+    const bodies: unknown[] = [];
+    global.fetch = (async (_url: unknown, init: { body: unknown }) => {
+      bodies.push(init.body);
+      if (bodies.length === 1) {
+        return new Response(null, {
+          status: 307,
+          headers: { Location: "https://secure.example/next" },
+        });
+      }
+      return new Response("{}", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+
+    await client.sendRequest(
+      "POST",
+      "https://secure.example/start",
+      {},
+      '{"x":1}',
+    );
+
+    expect(bodies).toEqual(['{"x":1}', '{"x":1}']);
+  });
+
+  it("bhv retries 048 the default client retries a 503 and returns the later success", async () => {
+    let calls = 0;
+    global.fetch = (async () => {
+      calls++;
+      if (calls === 1) {
+        return new Response(null, { status: 503 });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+
+    const response = await new DefaultApiClient(
+      TransportOptions.builder().build(),
+    ).sendRequest("GET", "http://api.example/items", {}, null);
+
+    expect(response.statusCode).toBe(200);
+    expect(calls).toBe(2);
+  });
+
   it("bhv retries 020 refuses to replay POST body when redirected from HTTPS to HTTP", async () => {
     let call = 0;
     // First call: pretend the user posted to https://secure.example/token
@@ -2383,6 +2448,20 @@ describe("redirect to non-HTTP(S) scheme is refused", () => {
     global.fetch = originalFetch;
   });
 
+  it("bhv redirects 055 a Location with an ftp scheme is refused with an error", async () => {
+    global.fetch = (async (): Promise<Response> =>
+      new Response(null, {
+        status: 302,
+        headers: { Location: "ftp://files.example/x" },
+      })) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await expect(
+      client.sendRequest("GET", "https://api.example/start", {}, null),
+    ).rejects.toThrow(ApiError);
+  });
+
   it("bhv redirects 020 throws an ApiError when Location uses a file:/javascript: scheme", async () => {
     global.fetch = (async (): Promise<Response> => {
       return new Response(null, {
@@ -2615,6 +2694,59 @@ describe("redirect exhaustion throws", () => {
       status: "fulfilled",
       value: { statusCode: 200 },
     });
+  });
+
+  it("bhv redirects 054 a redirect chain that runs past the timeout budget fails, and the budget is shared across hops", async () => {
+    const chain = (redirects: number): typeof fetch => {
+      let n = 0;
+      return (async (
+        _input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> =>
+        new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            n++;
+            resolve(
+              n <= redirects
+                ? new Response(null, {
+                    status: 302,
+                    headers: { Location: `http://api.example/hop${n}` },
+                  })
+                : new Response('{"ok":true}', {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" },
+                  }),
+            );
+          }, 300);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(init.signal!.reason);
+          });
+        })) as typeof fetch;
+    };
+    const build = () =>
+      new DefaultApiClient(
+        TransportOptions.builder()
+          .followRedirects(true)
+          .maxRedirects(10)
+          .timeout(1000)
+          .build(),
+      );
+
+    global.fetch = chain(2);
+    const within = await build().sendRequest(
+      "GET",
+      "http://api.example/start",
+      {},
+      null,
+    );
+    expect(within.statusCode).toBe(200);
+
+    global.fetch = chain(4);
+    const error = await build()
+      .sendRequest("GET", "http://api.example/start", {}, null)
+      .catch((caught: unknown) => caught);
+    expect((error as Error).constructor).toBe(NetworkTimeoutError);
   });
 
   it("bhv redirects 026 throws an ApiError once maxRedirects is exceeded", async () => {
@@ -2960,6 +3092,32 @@ describe("request header and byte body handling", () => {
     expect(Object.keys(seen).map((key) => key.toLowerCase())).not.toContain(
       "authorization",
     );
+  });
+
+  it("bhv redirects 056 a request that opts out of default headers sends none, and the next normal request sends them again", async () => {
+    const seen: Array<Record<string, string>> = [];
+    global.fetch = (async (
+      _url: unknown,
+      init: { headers: Record<string, string> },
+    ) => {
+      seen.push(init.headers);
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .defaultHeaders({ Authorization: "Bearer api-only" })
+        .build(),
+    );
+
+    await client.sendRequest("POST", "http://idp.example/token", {}, "a=b", {
+      noDefaultHeaders: true,
+    });
+    await client.sendRequest("GET", "http://api.example/items", {}, null);
+
+    expect(Object.keys(seen[0]!).map((key) => key.toLowerCase())).not.toContain(
+      "authorization",
+    );
+    expect(seen[1]!["Authorization"]).toBe("Bearer api-only");
   });
 
   it("sends a plain Uint8Array body as raw bytes, not multipart", async () => {

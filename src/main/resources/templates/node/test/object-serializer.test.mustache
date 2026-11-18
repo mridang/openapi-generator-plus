@@ -608,6 +608,18 @@ describe('ObjectSerializer', () => {
     expect(pet.name).toBe('a');
   });
 
+  test('bhv serialization 077 a duration written to its wire string and decoded back is the same duration', () => {
+    for (const fields of [{ seconds: 0 }, { seconds: -90 }, { microseconds: 500 }, { hours: 72 }, { seconds: 315576000000 }]) {
+      const duration = Temporal.Duration.from(fields);
+      expect(Temporal.Duration.compare(durationFromProtoJson(durationToProtoJson(duration)), duration)).toBe(0);
+    }
+  });
+
+  test('bhv serialization 080 a protobuf duration string is accepted up to the protobuf maximum and one second past it is rejected', () => {
+    expect(() => durationFromProtoJson('315576000000s')).not.toThrow();
+    expect(() => durationFromProtoJson('315576000001s')).toThrow();
+  });
+
   test('bhv serialization 081 a value whose JSON type does not match the schema raises an error and is never coerced', () => {
     expect(() => ObjectSerializer.deserialize({ id: '5', name: 'x', photoUrls: [] }, Pet)).toThrow(SerializationError);
   });
