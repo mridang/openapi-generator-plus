@@ -62,7 +62,7 @@ void main() {
       expect(headers['X-Second'], equals('two'));
     });
 
-    test('builder chaining', () {
+    test('bhv config 020 a builder chain sets the base URL and default headers in one configuration', () {
       final config = ConfigurationBuilder()
           .baseUrl('https://api.example.com')
           .defaultHeader('Authorization', 'Bearer token')
@@ -95,7 +95,7 @@ void main() {
       expect(config.baseUrl, equals('https://staging.example.com/api/v3'));
     });
 
-    test('server URL resolution with defaults', () {
+    test('bhv config 021 a server URL template resolves its variables to their defaults', () {
       final server = ServerConfiguration(
         urlTemplate: 'https://{env}.example.com/api/{version}',
         description: 'Test server',
@@ -127,7 +127,7 @@ void main() {
       expect(config.baseUrl, equals('https://override.example.com'));
     });
 
-    test('default headers copy isolation', () {
+    test('bhv config 022 mutating the returned default headers does not change the configuration', () {
       final config = ConfigurationBuilder()
           .defaultHeader('X-Test', 'value')
           .build();
@@ -249,6 +249,29 @@ void main() {
       config.defaultHeaders['X-Mutated'] = 'mutated';
 
       expect(config.defaultHeaders, equals({'X-Key': 'value'}));
+    });
+
+    test('bhv config 018 a default constructed or built configuration uses the base URL from the spec', () {
+      final built = ConfigurationBuilder().build();
+      final defaults = Configuration.defaultConfiguration();
+
+      expect(built.baseUrl, equals('{{{basePath}}}'));
+      expect(defaults.baseUrl, equals('{{{basePath}}}'));
+    });
+
+    test('bhv config 019 the default configuration factory returns the spec base URL and no default headers', () {
+      final config = Configuration.defaultConfiguration();
+
+      expect(config.baseUrl, equals('{{{basePath}}}'));
+      expect(config.defaultHeaders, isEmpty);
+    });
+
+    test('bhv config 023 each call to the default configuration factory returns a fresh instance', () {
+      final first = Configuration.defaultConfiguration();
+      final second = Configuration.defaultConfiguration();
+
+      expect(identical(first, second), isFalse);
+      expect(first.baseUrl, equals(second.baseUrl));
     });
 
     test('bhv config 006 builder produces independent instances', () {

@@ -218,7 +218,24 @@ void main() {
       },
     );
 
-    test('each named error pins its own status code', () {
+    test(
+      'bhv errors 052 a typed client error is caught by a base ApiException catch and chains to the root',
+      () {
+        const error = BadRequestException(message: 'bad request');
+        ApiException? caught;
+
+        try {
+          throw error;
+        } on ApiException catch (e) {
+          caught = e;
+        }
+
+        expect(caught, same(error));
+        expect(caught, isA<OpenAPIException>());
+      },
+    );
+
+    test('bhv errors 053 each named error pins its own status code', () {
       expect(const BadRequestException(message: 'x').statusCode, equals(400));
       expect(const UnauthorizedException(message: 'x').statusCode, equals(401));
       expect(const ForbiddenException(message: 'x').statusCode, equals(403));
@@ -242,16 +259,22 @@ void main() {
       );
     });
 
-    test('status error constructors default the response context to null', () {
-      const err = BadRequestException();
+    test(
+      'bhv errors 055 status error constructors default the response context to null',
+      () {
+        const err = BadRequestException();
 
-      expect(err.statusCode, equals(400));
-      expect(err.message, equals(''));
-      expect(err.responseHeaders, isNull);
-      expect(err.responseBody, isNull);
-      expect(err.errorBody, isNull);
-      expect(const NotFoundException(message: 'gone').responseHeaders, isNull);
-    });
+        expect(err.statusCode, equals(400));
+        expect(err.message, equals(''));
+        expect(err.responseHeaders, isNull);
+        expect(err.responseBody, isNull);
+        expect(err.errorBody, isNull);
+        expect(
+          const NotFoundException(message: 'gone').responseHeaders,
+          isNull,
+        );
+      },
+    );
 
     test('bhv errors 003 every status error accepts an optional cause', () {
       final cause = StateError('root');
@@ -328,15 +351,20 @@ void main() {
       });
     });
 
-    test('a status at or above 600 is not a ServerException', () {
-      // The 5xx arm is bounded at < 600: a status outside 400-599 yields the
-      // base ApiException, never ServerException.
-      final err = ApiException.fromResponse(600, {'x-request-id': 'abc'}, null);
+    test(
+      'bhv errors 056 a status at or above 600 yields the base error and not a server error',
+      () {
+        // The 5xx arm is bounded at < 600: a status outside 400-599 yields the
+        // base ApiException, never ServerException.
+        final err = ApiException.fromResponse(600, {
+          'x-request-id': 'abc',
+        }, null);
 
-      expect(err.runtimeType, equals(ApiException));
-      expect(err, isNot(isA<ServerException>()));
-      expect(err.statusCode, equals(600));
-    });
+        expect(err.runtimeType, equals(ApiException));
+        expect(err, isNot(isA<ServerException>()));
+        expect(err.statusCode, equals(600));
+      },
+    );
 
     test('bhv errors 009 refuses a deeply nested error body', () {
       // The error body is attacker-controlled, so parsing is depth-capped: an
@@ -506,14 +534,20 @@ void main() {
       },
     );
 
-    test('renders the response headers as compact sorted JSON', () {
-      const err = ApiException(
-        statusCode: 500,
-        message: 'boom',
-        responseHeaders: {'b': '2', 'a': 'x/y'},
-      );
-      expect(err.toString(), contains('Response headers: {"a":"x/y","b":"2"}'));
-    });
+    test(
+      'bhv errors 050 response headers render in the error text as compact sorted JSON with unescaped slashes',
+      () {
+        const err = ApiException(
+          statusCode: 500,
+          message: 'boom',
+          responseHeaders: {'b': '2', 'a': 'x/y'},
+        );
+        expect(
+          err.toString(),
+          contains('Response headers: {"a":"x/y","b":"2"}'),
+        );
+      },
+    );
 
     test('caps the rendered body and says how much was left out', () {
       final body = 'x' * 1030;
@@ -666,14 +700,17 @@ void main() {
       expect(err.toString(), equals('boom\nHTTP status code: 500'));
     });
 
-    test('an empty message renders the generic line', () {
-      const err = ApiException(statusCode: 0, message: '');
+    test(
+      'bhv errors 051 an empty error message falls back to the generic error line',
+      () {
+        const err = ApiException(statusCode: 0, message: '');
 
-      expect(
-        err.toString(),
-        equals('Error message: the server returns an error'),
-      );
-    });
+        expect(
+          err.toString(),
+          equals('Error message: the server returns an error'),
+        );
+      },
+    );
 
     test(
       'bhv errors 010 a scalar JSON error body is exposed but not deserializable into a model',
