@@ -114,7 +114,7 @@ import Testing
     #expect(result as? String == "false")
   }
 
-  @Test func testSerializeValueQueryArray() {
+  @Test func testBhvSerialization106SerializeValueQueryArray() {
     let result = ValueSerializer.serializeValue(
       ["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "csv")
     #expect(result as? String == "a,b,c")
@@ -511,7 +511,7 @@ import Testing
     var inner: Criteria
   }
 
-  @Test func testObjectFieldsAreWireKeyedSortedAndSkipNulls() throws {
+  @Test func testBhvLangswift073ObjectFieldsAreWireKeyedSortedAndSkipNulls() throws {
     let value = Criteria(breed: "lab", minAge: 3, active: true, note: nil)
     let fields = try #require(try? ValueSerializer.objectFields(value)?.get())
     #expect(fields.map { $0.name } == ["active", "breed", "min_age"])

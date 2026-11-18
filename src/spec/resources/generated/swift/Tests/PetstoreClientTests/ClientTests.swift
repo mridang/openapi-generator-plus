@@ -212,7 +212,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   /* Tests/Spec is where hand-written specs are kept, so the test target must
    * compile and run them; only the fixture data is left out of it. */
-  @Test func testSpecDirectoryIsPartOfTheTestTarget() throws {
+  @Test func testBhvLangswift020SpecDirectoryIsPartOfTheTestTarget() throws {
     let manifest = try String(
       contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         .appendingPathComponent("Package.swift"),
@@ -364,7 +364,9 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testATokenProviderIsCalledBeforeEveryRequestAndBeatsTheEnvironmentToken() async throws
+  @Test
+  func testBhvLangswift021ATokenProviderIsCalledBeforeEveryRequestAndBeatsTheEnvironmentToken()
+    async throws
   {
     let counter = TokenCounter()
     let client = try environmentClient(
@@ -399,7 +401,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(value == "explicit-key")
   }
 
-  @Test func testTheEnvironmentSuppliesACredentialThatWasNotPassed() throws {
+  @Test func testBhvLangswift022TheEnvironmentSuppliesACredentialThatWasNotPassed() throws {
     let value = try BaseAuthenticator.credential(
       nil, name: "token", variable: "EXAMPLE_TOKEN",
       environment: ["EXAMPLE_TOKEN": "env-value"])
@@ -1309,7 +1311,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(client.store.config.callHook == nil)
   }
 
-  @Test func testTheNamedFactoriesAndTheEnvironmentFactoryAlsoTakeAHook() throws {
+  @Test func testBhvLangswift023TheNamedFactoriesAndTheEnvironmentFactoryAlsoTakeAHook() throws {
     let hook = ClientHook()
     let viaToken = try Client.withToken(
       host: "https://example.com", accessToken: "t", callHook: hook)

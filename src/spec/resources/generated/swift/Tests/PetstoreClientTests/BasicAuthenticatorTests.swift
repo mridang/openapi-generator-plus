@@ -93,7 +93,7 @@ import Testing
   /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
    * included, so the redacted description is not enough: the reflection
    * must hide the secret too. */
-  @Test func testDumpDoesNotLeakSecret() async throws {
+  @Test func testBhvLangswift015DumpDoesNotLeakSecret() async throws {
     let auth = try BasicAuthenticator(
       host: "https://api.example.com", username: "alice", password: "dump-secret-pass")
     var dumped = ""
@@ -110,7 +110,9 @@ import Testing
     ("alice", "s3c\u{0}ret"),
     ("ali:ce", "s3cret"),
   ])
-  func testRejectsMalformedCredentialsAtConstruction(username: String, password: String) {
+  func testBhvLangswift016RejectsMalformedCredentialsAtConstruction(
+    username: String, password: String
+  ) {
     let error = #expect(throws: ConfigurationError.self) {
       _ = try BasicAuthenticator(
         host: "https://api.example.com",

@@ -168,7 +168,7 @@ import Testing
         }
     }
 
-    @Test func testTokenProviderFailureFailsTheRequest() async throws {
+    @Test func testBhvLangswift013TokenProviderFailureFailsTheRequest() async throws {
         let auth = BearerAuthenticator(
             host: "https://api.example.com", tokenProvider: { throw ProviderFailure() })
         await #expect(throws: ProviderFailure.self) {
@@ -176,7 +176,7 @@ import Testing
         }
     }
 
-    @Test func testTokenProviderAuthenticatorKeepsTheTokenOutOfItsDescription() {
+    @Test func testBhvLangswift014TokenProviderAuthenticatorKeepsTheTokenOutOfItsDescription() {
         let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "provided-1" })
         #expect(!String(describing: auth).contains("provided-1"))
     }

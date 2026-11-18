@@ -12,7 +12,7 @@ import Testing
 
 @Suite final class ServerVariableTests {
 
-  @Test func testStoresDefaultValue() {
+  @Test func testBhvLangswift069StoresDefaultValue() {
     let variable = ServerVariable(defaultValue: "prod")
     #expect(variable.defaultValue == "prod")
   }
@@ -61,7 +61,7 @@ import Testing
    * cleanly through ServerConfiguration; a default outside the constraint
    * is rejected. These lock the enum-validation contract at the variable
    * level. */
-  @Test func testEnumConstrainedDefaultResolves() throws {
+  @Test func testBhvLangswift070EnumConstrainedDefaultResolves() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.api.example.com",
       variables: [
