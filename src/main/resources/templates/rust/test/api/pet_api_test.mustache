@@ -2334,3 +2334,13 @@ async fn test_bhv_misc_021_the_request_path_in_an_error_keeps_the_base_url_prefi
         .expect("every HTTP error chains to an ApiError");
     assert_eq!(api_err.request_path(), Some("/v1/pet/1"));
 }
+
+#[tokio::test]
+async fn test_bhv_misc_025_a_typed_call_fails_when_the_server_answers_a_client_error() {
+    let (api, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"gone"}"#);
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a client error status must fail the typed call");
+    assert!(err.downcast_ref::<NotFoundError>().is_some(), "expected NotFoundError, got: {}", err);
+}

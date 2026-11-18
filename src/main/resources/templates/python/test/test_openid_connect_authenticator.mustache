@@ -331,6 +331,22 @@ class TestDiscoveryDocumentIsChecked:
         ):
             auth.build_authorization_url()
 
+    def test_bhv_misc_070_a_discovery_document_that_is_not_an_object_keeps_no_cause_and_hides_its_body(self) -> None:
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body='["leaked-body"]',
+            headers={'content-type': 'application/json'},
+        )
+        auth = _create_authenticator()
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(SerializationException, match='OIDC discovery document is not a JSON object') as exc_info:
+            auth.build_authorization_url()
+
+        assert exc_info.value.__cause__ is None
+        assert 'leaked-body' not in str(exc_info.value)
+
     def test_bhv_authoidc_004_an_issuer_with_a_trailing_slash_is_accepted(self) -> None:
         auth = self._authenticator_serving(issuer='https://auth.example.com/')
         assert auth.build_authorization_url().startswith('https://auth.example.com/authorize?')

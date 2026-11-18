@@ -383,6 +383,20 @@ describe {{moduleName}}::DefaultApiClient do
     end
   end
 
+  describe 'HTTP method and body' do
+    it 'bhv_misc_041 a request with an HTTP method outside the standard set is sent with its body intact' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      client = {{moduleName}}::DefaultApiClient.new(nil)
+      response = client.send_request(:PURGE, "#{chasm_url}/test/echo", { 'Content-Type' => 'text/plain' }, 'payload')
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['method']).must_equal('PURGE')
+      _(json['body']).must_equal('payload')
+    end
+  end
+
   describe 'User-Agent header' do
     it 'bhv_transport_012 injects custom User-Agent header' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
@@ -397,6 +411,21 @@ describe {{moduleName}}::DefaultApiClient do
       _(response.status_code).must_equal(200)
       json = JSON.parse(response.body)
       _(json['headers']['user-agent']).must_equal('MyApp/1.0')
+    end
+
+    it 'bhv_misc_043 a user agent that is explicitly cleared is omitted from the request entirely' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .user_agent('')
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['headers']).wont_include('user-agent')
     end
 
     it 'bhv_transport_003 keeps a lower-case caller User-Agent and X-Request-ID instead of injecting' do

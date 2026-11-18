@@ -130,6 +130,33 @@ public class ApiExceptionTest
         Assert.StartsWith("API returned status code 404 for GET /items/7", ex.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BhvMisc024ATransportFailureKeepsTheUnderlyingErrorAsItsCause()
+    {
+        var transportError = new InvalidOperationException("connection reset");
+        var ex = new NetworkTimeoutException("timed out", transportError);
+
+        Assert.Same(transportError, ex.InnerException);
+        Assert.Equal(0, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvMisc025ATypedCallFailsWhenTheServerAnswersWithAClientErrorStatus()
+    {
+        var ex = ApiException.FromResponse(401, new Dictionary<string, string>(), "{\"code\":7}");
+
+        Assert.IsType<UnauthorizedException>(ex);
+        Assert.Equal(401, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvMisc026ConfigurationMistakesAreNotApiErrors()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => TransportOptions.Builder().MaxRetries(-1));
+
+        Assert.IsNotAssignableFrom<ApiException>(ex);
+    }
+
     [Theory]
     [InlineData(400)]
     [InlineData(401)]

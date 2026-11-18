@@ -263,6 +263,24 @@ def _code_reply(**fields: object) -> ApiHttpResponse:
 
 
 class TestAuthorizationUrlEncoding:
+    def test_bhv_misc_058_the_endpoint_and_redirect_uri_reach_the_url_as_configured(
+        self,
+    ) -> None:
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host="https://api.example.com",
+            client_id="my_client_id",
+            client_secret="my_secret",
+            authorization_url="https://Auth.Example.com:443/authorize",
+            token_url="https://auth.example.com/token",
+            redirect_uri="https://App.Example.com:443/Callback",
+            scopes=["read", "write"],
+        )
+
+        url = _without_pkce(auth.build_authorization_url())
+
+        assert url.startswith("https://Auth.Example.com:443/authorize?")
+        assert "&redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2FCallback&" in url
+
     def test_bhv_auth_048_authorize_url_is_exact_and_the_code_exchange_goes_to_the_token_url(
         self,
     ) -> None:
@@ -577,6 +595,21 @@ class TestUserAuthWrapper:
         first, second = mock_client.send_request.call_args_list
         assert first[0][1] == "https://auth.example.com/oauth/token"
         assert second[0][1] == "https://auth.example.com/oauth/refresh"
+
+    def test_bhv_misc_062_the_authorization_url_carries_the_declared_scopes(
+        self,
+    ) -> None:
+        from petstore_client.auth.oauth.user_auth_authorization_code_authenticator import (
+            UserAuthAuthorizationCodeAuthenticator,
+        )
+
+        auth = UserAuthAuthorizationCodeAuthenticator(
+            "https://api.example.com", "cid", "sec", "https://app.example.com/cb"
+        )
+
+        assert "&scope=pets%3Aread%20pets%3Awrite" in _without_pkce(
+            auth.build_authorization_url()
+        )
 
 
 class TestAuthorizationCodeRedactedRepr:
