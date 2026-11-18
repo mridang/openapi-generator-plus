@@ -521,7 +521,6 @@ module Petstore::Client
       # @return [Array<Pet>]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
-
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
       def find_pets_by_status(options = nil)
@@ -545,7 +544,6 @@ module Petstore::Client
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
-
       # @deprecated This operation is deprecated.
       def find_pets_by_status_with_http_info(options = nil)
         path = '/pet/findByStatus'
@@ -811,7 +809,6 @@ module Petstore::Client
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
-
       # @deprecated This operation is deprecated.
       def get_pet_by_id(pet_id, options = nil, server: nil)
         result = get_pet_by_id_with_http_info(pet_id, options, server: server)
@@ -835,7 +832,6 @@ module Petstore::Client
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
-
       # @deprecated This operation is deprecated.
       def get_pet_by_id_with_http_info(pet_id, options = nil, server: nil)
         if pet_id.nil?

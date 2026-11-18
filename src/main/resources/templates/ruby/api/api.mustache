@@ -113,7 +113,8 @@ module {{moduleName}}
 {{/vendorExtensions.hasMultipleConsumes}}
       # @return [{{#isResponseFile}}StringIO{{/isResponseFile}}{{^isResponseFile}}{{{returnType}}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}]
       # @raise [ApiError] if fails to make API call
-{{>api/operation_doc_throws}}{{#isDeprecated}}
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
@@ -144,7 +145,8 @@ module {{moduleName}}
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-{{>api/operation_doc_throws}}{{#isDeprecated}}
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
       def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
