@@ -3034,7 +3034,7 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('maxRetries(n) caps the attempts at n + 1', async () => {
+  it('bhv retries 049 maxRetries(n) caps the attempts at n + 1', async () => {
     await send(clientPlaying([reply(500)], (builder) => builder.maxRetries(4).timeout(null)));
 
     expect(calls).toHaveLength(5);
@@ -3111,6 +3111,16 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     expect(delays).toHaveLength(1);
     expect(delays[0]!).toBeGreaterThan(28_000);
     expect(delays[0]!).toBeLessThanOrEqual(30_000);
+  });
+
+  it('bhv retries 050 a Retry-After given as an HTTP date waits the time left until that date, then retries', async () => {
+    const at = new Date(Date.now() + 10_000).toUTCString();
+
+    await send(clientPlaying([reply(503, { 'Retry-After': at }), reply(200)], (builder) => builder.timeout(null)));
+
+    expect(delays).toHaveLength(1);
+    expect(delays[0]!).toBeGreaterThan(8_000);
+    expect(delays[0]!).toBeLessThanOrEqual(10_000);
   });
 
   it('bhv retries 023 caps a Retry-After at 60 s', async () => {

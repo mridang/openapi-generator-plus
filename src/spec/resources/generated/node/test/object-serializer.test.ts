@@ -687,6 +687,72 @@ describe("ObjectSerializer", () => {
     expect(pet!.name).toBe("Rex");
   });
 
+  test("bhv serialization 068 building a model in code does not validate it, so a wrong type is kept as given", () => {
+    const pet = new Pet({
+      id: "not-a-number",
+      photoUrls: new Set<string>(),
+    } as never);
+    expect(pet.id).toBe("not-a-number");
+  });
+
+  test("bhv serialization 069 schema constraints such as pattern are not enforced, so a non-matching value is accepted", () => {
+    const pet = ObjectSerializer.deserialize(
+      { name: "x", photoUrls: [], nickname: "!!!not-matching-pattern!!!" },
+      Pet,
+    )!;
+    expect(pet.nickname).toBe("!!!not-matching-pattern!!!");
+  });
+
+  test("bhv serialization 070 a JSON null for an optional or nullable field decodes to null instead of failing", () => {
+    const pet = ObjectSerializer.deserialize(
+      { name: "x", photoUrls: [], nickname: null },
+      Pet,
+    )!;
+    expect(pet.nickname).toBeNull();
+  });
+
+  test("bhv serialization 072 keys the model does not declare are skipped, scalar and nested alike", () => {
+    const pet = ObjectSerializer.deserialize(
+      {
+        name: "x",
+        photoUrls: [],
+        extraScalar: 1,
+        extraNested: { a: [1, { b: 2 }] },
+      },
+      Pet,
+    )!;
+    expect(pet.name).toBe("x");
+  });
+
+  test("bhv serialization 073 a required field that is missing or null fails decoding with an error naming that field", () => {
+    expect(() => ObjectSerializer.deserialize({ photoUrls: [] }, Pet)).toThrow(
+      /name/,
+    );
+    expect(() =>
+      ObjectSerializer.deserialize({ name: null, photoUrls: [] }, Pet),
+    ).toThrow(/name/);
+  });
+
+  test("bhv serialization 079 copying a model with named changes keeps the other fields and leaves the original untouched", () => {
+    const pet = new Pet({
+      id: 1,
+      name: "a",
+      photoUrls: new Set<string>(["u"]),
+    });
+    const copy = pet.with({ name: "b" });
+    expect(copy).not.toBe(pet);
+    expect(copy.name).toBe("b");
+    expect(copy.id).toBe(1);
+    expect([...copy.photoUrls]).toEqual(["u"]);
+    expect(pet.name).toBe("a");
+  });
+
+  test("bhv serialization 081 a value whose JSON type does not match the schema raises an error and is never coerced", () => {
+    expect(() =>
+      ObjectSerializer.deserialize({ id: "5", name: "x", photoUrls: [] }, Pet),
+    ).toThrow(SerializationError);
+  });
+
   test("bhv serializationobject 083 throws when a required field is ABSENT from the payload", () => {
     // Divergence #10: a required, non-nullable field missing from the wire
     // payload must hard-fail with the SDK serialization error rather than
