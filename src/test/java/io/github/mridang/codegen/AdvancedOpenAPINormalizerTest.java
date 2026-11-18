@@ -43,4 +43,27 @@ class AdvancedOpenAPINormalizerTest {
             .forOperation(HttpMethod.GET, "/api/v1/users")
             .hasParameters("paramToKeep");
     }
+
+    @Test
+    @DisplayName("Should wire the method and tag filters, with exclusions winning")
+    void shouldApplyOperationFilters() {
+        OpenAPI openAPI = new OpenAPI()
+            .path("/a", new PathItem()
+                .get(new Operation().addTagsItem("one"))
+                .post(new Operation().addTagsItem("one")))
+            .path("/b", new PathItem().get(new Operation().addTagsItem("two")))
+            .path("/c", new PathItem().get(new Operation().addTagsItem("one").addTagsItem("two")));
+
+        Map<String, String> rulesToRun = Map.of(
+            "FILTER_METHODS", "get",
+            "FILTER_TAGS", "one",
+            "EXCLUDE_TAGS", "two"
+        );
+
+        new AdvancedOpenAPINormalizer(openAPI, rulesToRun).normalize();
+
+        assertThat(openAPI).hasPaths("/a");
+        org.junit.jupiter.api.Assertions.assertNull(java.util.Objects.requireNonNull(
+            java.util.Objects.requireNonNull(openAPI.getPaths()).get("/a")).getPost());
+    }
 }

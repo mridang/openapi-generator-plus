@@ -27,6 +27,10 @@ The normaliser is `AdvancedOpenAPINormalizer`. It first runs the stock OpenAPI G
 | `CLEAN_EMPTY_REQUEST_BODIES` | Finds request bodies that are effectively empty. In the default `Tag` mode a required empty body is tagged; in `Remove` mode an optional empty body is deleted. |
 | `ONLY_ALLOW_JSON` | Keeps `application/json` as the only content type of request and response bodies, then fails the run if anything else is left. |
 | `FILTER_PATHS` | Keeps only the paths that match at least one of the given regular expressions (a comma-separated list), so you can generate an SDK for part of an API. |
+| `FILTER_METHODS` | Keeps only the operations whose HTTP method is in the given `\|`-separated, case-insensitive list (for example `get\|head` for a read-only SDK). A path left with no operation is removed. |
+| `EXCLUDE_METHODS` | Removes the operations whose HTTP method is in the given list. It runs after `FILTER_METHODS`, so an exclusion always wins. |
+| `FILTER_TAGS` | Keeps only the operations that carry at least one of the given tags (a `\|`-separated, case-insensitive list). Untagged operations are removed. A path left with no operation is removed. |
+| `EXCLUDE_TAGS` | Removes the operations that carry at least one of the given tags. It runs after `FILTER_TAGS`, so an exclusion always wins. |
 | `RUN_SCRIPT` | Runs your own JavaScript transformation through GraalVM. |
 | `GARBAGE_COLLECT_COMPONENTS` | Removes components nothing refers to any more. Run it last so it sees the effect of the other rules. |
 
