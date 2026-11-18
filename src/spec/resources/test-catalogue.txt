@@ -1956,3 +1956,5 @@ langswift011 | A per-call timeout of zero is rejected with a configuration error
 langswift012 | A success response with an empty body and a status other than 200 has no data but keeps its status
 langswift013 | A failing token provider fails the request with its own error rather than sending an empty credential
 langswift014 | A bearer authenticator built from a token provider does not show the token in its description
+langswift015 | A debugger dump of a basic authenticator does not reveal the password
+langswift016 | Basic credentials that cannot be encoded are rejected when the authenticator is constructed
