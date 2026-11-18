@@ -9,7 +9,7 @@ from {{packageName}}.errors import {{errorPrefix}}Exception
 from {{packageName}}.errors import SerializationException
 from {{packageName}}.object_serializer import ObjectSerializer
 from {{packageName}}.models.category import Category
-from {{packageName}}.models.order import OrderStatusEnum
+from {{packageName}}.models.order import Order, OrderStatusEnum
 from {{packageName}}.models.pet import Pet
 from {{packageName}}.models.tag import Tag
 
@@ -2201,3 +2201,70 @@ class TestModelDocProseIsRaw:
 
         assert Account.__doc__ is not None
         assert "`Account <docs> & \"notes\" it's here <https://example.com/docs/account>`_" in Account.__doc__
+
+
+class TestObjectSerializerBehaviours:
+    def test_bhv_serialization_002_an_enum_member_is_written_as_its_exact_wire_string(self) -> None:
+        order = Order(status=OrderStatusEnum.APPROVED)
+
+        assert json.loads(ObjectSerializer().serialize(order))['status'] == 'approved'
+
+    def test_bhv_serialization_004_an_enum_lists_its_members_and_refuses_any_other_value(self) -> None:
+        assert [member.value for member in OrderStatusEnum] == ['placed', 'approved', 'delivered']
+        with pytest.raises(ValidationError):
+            Order.model_validate({'status': 'shipped'})
+
+    def test_bhv_serialization_017_a_model_is_written_under_wire_names_in_declaration_order(self) -> None:
+        keys = list(json.loads(ObjectSerializer().serialize(Order(id=1, pet_id=2))))
+
+        assert keys.index('id') < keys.index('petId')
+        assert 'pet_id' not in keys
+
+    def test_bhv_serialization_019_an_unset_optional_property_is_left_out(self) -> None:
+        assert json.loads(ObjectSerializer().serialize(Tag())) == {}
+
+    def test_bhv_serialization_020_an_unset_field_is_written_with_its_schema_default(self) -> None:
+        assert json.loads(ObjectSerializer().serialize(Order(id=1)))['status'] == 'placed'
+
+    def test_bhv_serialization_023_json_with_content_after_the_document_fails_to_decode(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"id": 1} trailing', Tag)
+
+    def test_bhv_serialization_024_brackets_inside_json_strings_do_not_count_toward_the_depth_limit(self) -> None:
+        payload = '{"name": "' + '[' * 2000 + '"}'
+
+        assert ObjectSerializer().deserialize(payload, Tag).name == '[' * 2000
+
+    def test_a_payload_nested_past_the_depth_limit_is_refused(self) -> None:
+        payload = '[' * 1001 + ']' * 1001
+
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(payload, Tag)
+
+    def test_bhv_serialization_025_a_typed_leaf_inside_a_model_decodes_to_its_enum_member(self) -> None:
+        order = ObjectSerializer().deserialize('{"status": "approved"}', Order)
+
+        assert order.status is OrderStatusEnum.APPROVED
+
+    def test_bhv_serialization_028_a_json_array_for_a_model_is_refused(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('[1]', Tag)
+
+    def test_bhv_serialization_029_a_quoted_number_for_an_integer_field_is_refused(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"id": "5"}', Tag)
+
+    def test_bhv_serialization_032_an_integer_field_refuses_a_fraction_or_an_exponent(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"id": 1.0}', Tag)
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"id": 1e2}', Tag)
+
+    def test_bhv_serialization_036_a_whole_number_float_is_written_with_a_decimal_point(self) -> None:
+        assert '1.0' in ObjectSerializer().serialize({'value': 1.0})
+
+    def test_bhv_serialization_042_a_date_is_passed_through_as_its_iso_date(self) -> None:
+        assert ObjectSerializer.stringify(datetime.date(2024, 1, 2)) == '2024-01-02'
+
+    def test_bhv_serialization_061_slash_angle_brackets_ampersand_and_non_ascii_are_written_literally(self) -> None:
+        assert 'a/b<&>é' in ObjectSerializer().serialize({'value': 'a/b<&>é'})

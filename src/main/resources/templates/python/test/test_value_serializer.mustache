@@ -551,3 +551,12 @@ class TestObjectValuedParameters:
         wrapped = ValueSerializer.maybe_allow_reserved({'a': 'x/y'}, True)
         assert isinstance(wrapped, dict)
         assert isinstance(wrapped['a'], AllowReservedValue)
+
+
+class TestValueSerializerBehaviours:
+    def test_bhv_serialization_008_a_content_parameter_is_encoded_once_for_its_location(self) -> None:
+        assert ValueSerializer.encode_content('filter', '{"a":1}', 'path') == '%7B%22a%22%3A1%7D'
+        assert ValueSerializer.encode_content('filter', '{"a":1}', 'query') == '{"a":1}'
+
+    def test_bhv_serialization_013_an_array_in_a_header_is_written_as_its_items(self) -> None:
+        assert ValueSerializer.serialize(['a', 'b'], 'header', 'array') == 'a,b'
