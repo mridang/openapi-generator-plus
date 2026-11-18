@@ -337,7 +337,7 @@ describe("Client", () => {
       );
     });
 
-    test("an OAuth2 scheme credential shares the transport of the client", async () => {
+    test("bhv auth 025 an OAuth2 scheme credential shares the transport of the client", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         {
@@ -419,7 +419,7 @@ describe("Client", () => {
       expect(calls()).toBe(0);
     });
 
-    test("a second close() is a no-op", async () => {
+    test("bhv lifecycle 036 a second close() is a no-op", async () => {
       const client = new Client(closable);
 
       await client.close();
@@ -454,7 +454,7 @@ describe("Client", () => {
     );
   });
 
-  test("Symbol.asyncDispose closes the client", async () => {
+  test("bhv lifecycle 040 Symbol.asyncDispose closes the client", async () => {
     const client = new Client(authenticator);
 
     await client[Symbol.asyncDispose]();

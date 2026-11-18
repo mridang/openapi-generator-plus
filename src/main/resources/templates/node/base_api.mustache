@@ -475,8 +475,8 @@ export abstract class BaseApi {
    */
   private static checkCallLimits(requestOptions: RequestOptions | undefined): void {
     const timeout = requestOptions?.timeout;
-    if (timeout !== undefined && timeout !== null && !(timeout > 0)) {
-      throw new TypeError(`Invalid timeout: must be a positive number of milliseconds (got ${timeout})`);
+    if (timeout !== undefined && timeout !== null && !(timeout >= 1)) {
+      throw new TypeError(`Invalid timeout: must be at least one millisecond (got ${timeout})`);
     }
     const maxRetries = requestOptions?.maxRetries;
     if (maxRetries !== undefined && (!Number.isInteger(maxRetries) || maxRetries < 0)) {

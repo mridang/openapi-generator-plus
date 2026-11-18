@@ -28,7 +28,7 @@ describe("credentials", () => {
     expect(readEnvCredential(TOKEN_VARIABLE)).toBe("from-env");
   });
 
-  it("treats an unset variable as absent", () => {
+  it("bhv auth 003 treats an unset variable as absent", () => {
     delete process.env[TOKEN_VARIABLE];
     expect(readEnvCredential(TOKEN_VARIABLE)).toBeUndefined();
   });
@@ -52,7 +52,7 @@ describe("credentials", () => {
     );
   });
 
-  it("keeps an explicit empty string, so the caller sees the mistake", () => {
+  it("bhv auth 023 keeps an explicit empty string, so the caller sees the mistake", () => {
     process.env[TOKEN_VARIABLE] = "from-env";
     expect(resolveCredential("", TOKEN_VARIABLE, "Token")).toBe("");
   });

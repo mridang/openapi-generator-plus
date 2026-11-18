@@ -2049,7 +2049,7 @@ describe("BaseApi WithHTTPInfo variant", () => {
     expect(result.rawBody).toBe('{"id":7,"name":"WithInfoPet"}');
   });
 
-  test("the headers are a frozen copy of the response map", async () => {
+  test("bhv results 006 the headers are a frozen copy of the response map", async () => {
     const client = new CapturingApiClient();
     client.responseHeaders = {
       "content-type": "application/json",
@@ -2092,7 +2092,7 @@ describe("BaseApi scheme credentials", () => {
     expect(testApi.resolve(["bearer", "apiKey"])).toBe(bearer);
   });
 
-  test("resolves nothing when the client holds none of the listed schemes", () => {
+  test("bhv auth 021 resolves nothing when the client holds none of the listed schemes", () => {
     const testApi = new TestableApi(undefined, undefined, null, { bearer });
 
     expect(testApi.resolve(["basic", "apiKey"])).toBeUndefined();
@@ -2722,6 +2722,43 @@ describe("BaseApi per-call request options", () => {
     await send(client, { timeout: 250, maxRetries: 0 });
     expect(client.sendOptions?.timeout).toBe(250);
     expect(client.sendOptions?.maxRetries).toBe(0);
+  });
+
+  test("bhv options 053 per-call options take effect on that one call only", async () => {
+    const client = new RecordingApiClient();
+    await send(client, { timeout: 250, maxRetries: 0 });
+    expect(client.sendOptions?.timeout).toBe(250);
+    await send(client);
+    expect(client.sendOptions?.timeout).toBeUndefined();
+    expect(client.sendOptions?.maxRetries).toBeUndefined();
+  });
+
+  test("bhv options 055 a call without per-call options leaves the client default headers in force", async () => {
+    const client = new RecordingApiClient();
+    const config = new Configuration({
+      baseUrl: "http://localhost",
+      defaultHeaders: { "X-Region": "default" },
+    });
+    await send(client, undefined, config);
+    expect(client.headers["X-Region"]).toBe("default");
+    expect(client.sendOptions?.timeout).toBeUndefined();
+  });
+
+  test("bhv options 056 a per-call timeout of zero or less, or a negative retry count, is refused before any request is sent", async () => {
+    const client = new RecordingApiClient();
+    await expect(send(client, { timeout: 0 })).rejects.toThrow(
+      /Invalid timeout/,
+    );
+    await expect(send(client, { maxRetries: -1 })).rejects.toThrow(
+      /Invalid maxRetries/,
+    );
+    expect(client.url).toBe("");
+  });
+
+  test("bhv options 057 a per-call timeout below one millisecond is refused", async () => {
+    await expect(
+      send(new RecordingApiClient(), { timeout: 0.5 }),
+    ).rejects.toThrow(/Invalid timeout/);
   });
 
   test("bhv transport 002 a null timeout reaches the transport as no timeout", async () => {

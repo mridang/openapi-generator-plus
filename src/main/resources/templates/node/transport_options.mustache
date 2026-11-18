@@ -285,6 +285,7 @@ export class TransportOptions {
     this.injectRequestId = options.injectRequestId;
     this.fetch = options.fetch ?? null;
     this.fetchOptions = options.fetchOptions == null ? null : Object.freeze({ ...options.fetchOptions });
+    Object.freeze(this);
   }
 
   /**

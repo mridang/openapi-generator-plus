@@ -234,3 +234,6 @@ java | options059 | The only injectable transport in java is the HttpClient (S9)
 kotlin | auth001 | Kotlin has no synchronous header call: getAuthHeaders is a suspend function for every authenticator, so there is no sync path that could return unauthenticated headers
 kotlin | transport075 | zstd bodies are decoded only when the optional zstd-jni library is on the classpath, and the generated build does not ship it, so the expansion-ratio behaviour cannot be reached in the petstore suite
 kotlin | servers026 | ServerVariable keeps the List the caller passed, the same reason as kotlin | servers024: a frozen copy would turn it into a regular class with hand-written equals, hashCode and copy
+node | transport074 | every codec the SDK decodes (gzip, deflate, br) is built into zlib and the fetch layer, so no codec library can be missing at run time, and an unknown coding is passed through untouched (FORCED D-FORCED-1, see errors042)
+node | transport075 | the SDK adds no zstd decoder and the fetch layer owns Content-Encoding (see transport006), so a zstd frame is never decoded by the SDK
+node | errors079 | the method and path of an ApiError are fixed when it is built (ApiErrorOptions) and the SDK never attaches request details to an error afterwards, so there is no later attachment to keep or ignore

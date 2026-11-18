@@ -28,6 +28,11 @@ describe('BasicAuthenticator', () => {
     );
   });
 
+  it('bhv errors 081 a refused username names the username and a refused password names the password', () => {
+    expect(() => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret')).toThrow(/username/);
+    expect(() => new BasicAuthenticator('https://api.example.com', 'alice', 's3c\0ret')).toThrow(/password/);
+  });
+
   it('bhv authbasic 009 rejects username with crlf at construction', () => {
     expect(
       () => new BasicAuthenticator('https://api.example.com', 'alice\r\n', 's3cret')

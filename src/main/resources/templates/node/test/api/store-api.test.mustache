@@ -287,6 +287,15 @@ describe('StoreApi response shapes', () => {
     }
   });
 
+  test('bhv operations 154 a 201 body that only fits the 200 schema is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(201, 'application/json', '{"reservationId":31,"quantity":4}');
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
   test('bhv operations 120 reserveStock decodes a 201 body as the new receipt', async () => {
     const { api: mockApi, close } = await createMockServer(201, 'application/json', '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}');
     try {
@@ -405,6 +414,17 @@ describe('StoreApi content-encoded query parameters', () => {
       server.close();
     }
   }
+
+  test('bhv operations 155 searchStore sends its query parameters in the declared order', async () => {
+    const url = await captureRequest((s) =>
+      s.searchStore({
+        q: new PhotoMetadata({ location: new PhotoMetadataLocation({ lat: 1 }) }),
+        labels: new Set(['red']),
+        at: Temporal.PlainTime.from('10:30:00'),
+      }),
+    );
+    expect([...new URL(url, 'http://127.0.0.1').searchParams.keys()]).toEqual(['q', 'labels', 'at']);
+  });
 
   test('searchStore expands a Set parameter like an array', async () => {
     const url = await captureRequest((s) => s.searchStore({ labels: new Set(['red', 'blue']) }));

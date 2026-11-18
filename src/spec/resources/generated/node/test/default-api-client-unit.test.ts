@@ -99,6 +99,33 @@ afterAll(async () => {
 });
 
 describe("DefaultApiClient unit", () => {
+  it("bhv transport 082 a client built with default configuration or only a timeout completes its request", async () => {
+    const ok = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"ok":true}');
+    });
+    await new Promise<void>((resolve) => ok.listen(0, "127.0.0.1", resolve));
+    const port = (ok.address() as { port: number }).port;
+    const url = `http://127.0.0.1:${port}/ping`;
+    const defaults = new DefaultApiClient(TransportOptions.builder().build());
+    const timed = new DefaultApiClient(
+      TransportOptions.builder().timeout(5000).build(),
+    );
+    try {
+      expect(
+        (await defaults.sendRequest("GET", url, {}, null)).statusCode,
+      ).toBe(200);
+      expect((await timed.sendRequest("GET", url, {}, null)).body).toBe(
+        '{"ok":true}',
+      );
+    } finally {
+      await defaults.close();
+      await timed.close();
+      ok.closeAllConnections();
+      await new Promise<void>((resolve) => ok.close(() => resolve()));
+    }
+  });
+
   it("bhv transport 054 sends GET request and returns response", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
@@ -434,6 +461,16 @@ describe("DefaultApiClient unit", () => {
 });
 
 describe("DefaultApiClient CA certificate fail-fast", () => {
+  it("bhv errors 083 an unreadable CA certificate path fails at construction with an error that names the path", () => {
+    const missing = path.join(os.tmpdir(), "no-such-ca-errors-083.pem");
+    expect(
+      () =>
+        new DefaultApiClient(
+          TransportOptions.builder().caCertPath(missing).build(),
+        ),
+    ).toThrow(missing);
+  });
+
   it("bhv errors 041 throws TypeError at construction for a non-existent caCertPath", () => {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction with a
@@ -467,7 +504,7 @@ describe("DefaultApiClient CA certificate fail-fast", () => {
     );
   });
 
-  it("reads a directory as a failed read, not as a certificate", () => {
+  it("bhv transport 077 reads a directory as a failed read, not as a certificate", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-cert-"));
     try {
       const transport = TransportOptions.builder().caCertPath(dir).build();
@@ -537,6 +574,55 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect((caught!.cause as Error).name).toBe("TypeError");
   });
 
+  it("bhv errors 077 a URL in diagnostics keeps only the path of the request", async () => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+    let caught: ApiError | undefined;
+    try {
+      await client.sendRequest(
+        "GET",
+        "http://user:pass@127.0.0.1:1/never?token=abc#frag",
+        {},
+        null,
+      );
+    } catch (e) {
+      caught = e as ApiError;
+    } finally {
+      await client.close();
+    }
+    expect(caught!.requestPath).toBe("/never");
+    expect(caught!.toString()).toContain("Request: GET /never");
+    expect(caught!.toString()).not.toContain("user:pass");
+    expect(caught!.toString()).not.toContain("token");
+    expect(caught!.toString()).not.toContain("frag");
+  });
+
+  it("bhv errors 078 a network failure message and its cause never show the query string", async () => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+    let caught: ApiError | undefined;
+    try {
+      await client.sendRequest(
+        "GET",
+        "http://127.0.0.1:1/never?token=secretvalue",
+        {},
+        null,
+      );
+    } catch (e) {
+      caught = e as ApiError;
+    } finally {
+      await client.close();
+    }
+    expect(caught).toBeInstanceOf(NetworkError);
+    expect(caught!.message).not.toContain("secretvalue");
+    expect(
+      String((caught!.cause as Error | undefined)?.message ?? ""),
+    ).not.toContain("secretvalue");
+    expect(caught!.toString()).not.toContain("secretvalue");
+  });
+
   it("bhv errors 057 a network failure error carries the request method and path", async () => {
     const client = new DefaultApiClient(
       TransportOptions.builder().maxRetries(0).build(),
@@ -557,6 +643,81 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect(caught).toBeInstanceOf(NetworkError);
     expect(caught!.requestMethod).toBe("DELETE");
     expect(caught!.requestPath).toBe("/items/7");
+  });
+
+  it("bhv transport 070 a per-call timeout bounds the request deadline, not the transport timeout", async () => {
+    const slow = http.createServer(() => {
+      /* never respond */
+    });
+    await new Promise<void>((resolve) => slow.listen(0, "127.0.0.1", resolve));
+    const port = (slow.address() as { port: number }).port;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().timeout(60000).maxRetries(0).build(),
+    );
+    const started = Date.now();
+    let caught: unknown;
+    try {
+      await client.sendRequest(
+        "GET",
+        `http://127.0.0.1:${port}/slow`,
+        {},
+        null,
+        { timeout: 50 },
+      );
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+      slow.closeAllConnections();
+      await new Promise<void>((resolve) => slow.close(() => resolve()));
+    }
+    expect((caught as Error).constructor).toBe(NetworkTimeoutError);
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it("bhv transport 071 one configured timeout bounds the wait for the response headers", async () => {
+    const slow = http.createServer(() => {
+      /* never respond */
+    });
+    await new Promise<void>((resolve) => slow.listen(0, "127.0.0.1", resolve));
+    const port = (slow.address() as { port: number }).port;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().timeout(50).maxRetries(0).build(),
+    );
+    const started = Date.now();
+    let caught: unknown;
+    try {
+      await client.sendRequest(
+        "GET",
+        `http://127.0.0.1:${port}/slow`,
+        {},
+        null,
+      );
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+      slow.closeAllConnections();
+      await new Promise<void>((resolve) => slow.close(() => resolve()));
+    }
+    expect((caught as Error).constructor).toBe(NetworkTimeoutError);
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it("bhv transport 072 an unrelated connection failure is not raised as the timeout error", async () => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().timeout(5000).maxRetries(0).build(),
+    );
+    let caught: unknown;
+    try {
+      await client.sendRequest("GET", "http://127.0.0.1:1/never", {}, null);
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+    }
+    expect(caught).toBeInstanceOf(NetworkError);
+    expect(caught).not.toBeInstanceOf(NetworkTimeoutError);
   });
 
   it("bhv transport 031 an undici phase timeout throws NetworkTimeoutError", async () => {
@@ -680,7 +841,7 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect(caught).not.toBeInstanceOf(OpenAPIError);
   });
 
-  it("a header value with CR/LF throws TypeError, not NetworkError", async () => {
+  it("bhv headers 031 a header value with CR/LF throws TypeError, not NetworkError", async () => {
     const client = new DefaultApiClient();
     let caught: unknown;
     try {
@@ -1720,7 +1881,7 @@ describe("HTTPS -> HTTP body replay guard", () => {
     expect(call).toBe(2);
   });
 
-  it("allows HTTPS -> HTTP when the redirect status forces an empty body (303)", async () => {
+  it("bhv redirects 040 allows HTTPS -> HTTP when the redirect status forces an empty body (303)", async () => {
     let call = 0;
     global.fetch = (async (): Promise<Response> => {
       call++;
@@ -2509,7 +2670,7 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     expect(out.toString("utf-8")).toBe('{"userId":1}');
   });
 
-  it("throws ApiError directly from ensureDecoded on invalid gzip bytes", async () => {
+  it("bhv transport 073 throws ApiError directly from ensureDecoded on invalid gzip bytes", async () => {
     const lyingBody = Buffer.concat([
       Buffer.from([0x1f, 0x8b]),
       Buffer.from("garbage", "utf-8"),
@@ -2574,6 +2735,34 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     }
   });
 
+  it("bhv transport 067 a successful response with no body is returned as a success with an empty body", async () => {
+    const noBody = http.createServer((_req, res) => {
+      res.writeHead(204);
+      res.end();
+    });
+    await new Promise<void>((resolve) =>
+      noBody.listen(0, "127.0.0.1", resolve),
+    );
+    const port = (noBody.address() as { port: number }).port;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+    try {
+      const response = await client.sendRequest(
+        "DELETE",
+        `http://127.0.0.1:${port}/gone`,
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(204);
+      expect(response.body).toBe("");
+    } finally {
+      await client.close();
+      noBody.closeAllConnections();
+      await new Promise<void>((resolve) => noBody.close(() => resolve()));
+    }
+  });
+
   it("bhv transport 037 passes an empty body declared gzip through as empty, not an error", async () => {
     // A zero-byte body still declared `Content-Encoding: gzip` has nothing to
     // inflate and no gzip magic: ensureDecoded must return it unchanged rather
@@ -2611,6 +2800,39 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
 });
 
 describe("injected fetch (TransportOptions.fetch)", () => {
+  it("bhv transport 081 a caller-supplied fetch receives the request URL and caller headers unchanged", async () => {
+    const seen: Array<{ url: string; headers: Record<string, string> }> = [];
+    const customFetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      seen.push({
+        url: String(input),
+        headers: { ...(init?.headers as Record<string, string>) },
+      });
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().fetch(customFetch).build(),
+    );
+    try {
+      await client.sendRequest(
+        "GET",
+        "http://example.invalid/items?page=2",
+        { "X-Trace-Token": "abc" },
+        null,
+      );
+      expect(seen).toHaveLength(1);
+      expect(seen[0]!.url).toBe("http://example.invalid/items?page=2");
+      expect(seen[0]!.headers["X-Trace-Token"]).toBe("abc");
+    } finally {
+      await client.close();
+    }
+  });
+
   it("bhv transport 040 sends the request through the supplied fetch with the SDK defaults on top", async () => {
     const calls: Array<{ url: string; init: Record<string, unknown> }> = [];
     const customFetch = (async (
@@ -2714,6 +2936,63 @@ describe("injected fetch (TransportOptions.fetch)", () => {
 });
 
 describe("SendRequestOptions.signal", () => {
+  it("bhv transport 068 a call whose signal has already fired raises the cancellation and sends no request", async () => {
+    let called = 0;
+    const customFetch = (async (): Promise<Response> => {
+      called++;
+      return new Response("{}");
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().fetch(customFetch).build(),
+    );
+    const controller = new AbortController();
+    controller.abort();
+    try {
+      await expect(
+        client.sendRequest("GET", "http://example.invalid/never", {}, null, {
+          signal: controller.signal,
+        }),
+      ).rejects.toMatchObject({ name: "AbortError" });
+      expect(called).toBe(0);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("bhv transport 069 the cancellation signal reaches the transport request and aborting the call aborts it", async () => {
+    let transportSignal: AbortSignal | undefined;
+    let started!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const customFetch = ((
+      _input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> =>
+      new Promise<Response>((_resolve, reject) => {
+        transportSignal = init?.signal ?? undefined;
+        transportSignal?.addEventListener("abort", () =>
+          reject(transportSignal?.reason),
+        );
+        started();
+      })) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().fetch(customFetch).timeout(60000).build(),
+    );
+    const controller = new AbortController();
+    const pending = client
+      .sendRequest("GET", "http://example.invalid/slow", {}, null, {
+        signal: controller.signal,
+      })
+      .catch((e: unknown) => e);
+    await ready;
+    expect(transportSignal).toBeInstanceOf(AbortSignal);
+    controller.abort();
+    expect(transportSignal!.aborted).toBe(true);
+    expect(((await pending) as Error).name).toBe("AbortError");
+    await client.close();
+  });
+
   it("bhv transport 060 cancelling an in-flight call aborts the request without reporting a timeout", async () => {
     const customFetch = ((
       _input: string | URL | Request,
@@ -2841,6 +3120,49 @@ describe("the client keeps no ambient state between requests", () => {
 });
 
 describe("proxy URL credentials route through the proxy", () => {
+  it("bhv transport 076 percent-escapes in proxy credentials are decoded and a literal plus stays a plus", async () => {
+    const seen: Array<string | undefined> = [];
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(405);
+      res.end();
+    });
+    proxy.on("connect", (req, clientSocket, head) => {
+      seen.push(req.headers["proxy-authorization"]);
+      const target = new URL(`http://${req.url!}`);
+      const upstream = net.connect(Number(target.port), target.hostname, () => {
+        clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+        upstream.write(head);
+        clientSocket.pipe(upstream);
+        upstream.pipe(clientSocket);
+      });
+      clientSocket.on("error", () => upstream.destroy());
+      upstream.on("error", () => clientSocket.destroy());
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    const port = (proxy.address() as { port: number }).port;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .proxy(`http://us%40er:p%2Bss@127.0.0.1:${port}`)
+        .build(),
+    );
+    try {
+      const response = await client.sendRequest(
+        "GET",
+        `${baseUrl}/echo`,
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(200);
+      expect(seen).toEqual([
+        `Basic ${Buffer.from("us@er:p+ss", "utf-8").toString("base64")}`,
+      ]);
+    } finally {
+      await client.close();
+      proxy.closeAllConnections();
+      await new Promise<void>((resolve) => proxy.close(() => resolve()));
+    }
+  });
+
   it("bhv transport 001 a proxy URL with embedded basic-auth credentials routes through proxy", async () => {
     const userinfo = ["user", "pass"].join(":");
     const seen: Array<string | undefined> = [];

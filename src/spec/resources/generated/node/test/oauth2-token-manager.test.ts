@@ -557,6 +557,33 @@ describe("OAuth2TokenManager", () => {
     );
   });
 
+  test("bhv errors 082 a malformed optional field is dropped and a non-string error is not taken as a code", async () => {
+    mockClient.responseStatus = 400;
+    mockClient.responseBody = JSON.stringify({
+      error: "invalid_grant",
+      error_description: 42,
+      error_uri: ["x"],
+    });
+    await expect(
+      tokenManager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      }),
+    ).rejects.toMatchObject({
+      code: "invalid_grant",
+      description: null,
+      uri: null,
+    });
+    mockClient.responseBody = JSON.stringify({
+      error: 42,
+      error_description: "bad",
+    });
+    await expect(
+      tokenManager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      }),
+    ).rejects.toMatchObject({ code: null });
+  });
+
   test("bhv authoauthtwotokenmgr 043 the token request body is serialised with the parameters in a fixed shared key order", async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "order-tok",

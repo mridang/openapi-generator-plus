@@ -61,7 +61,7 @@ describe('Web (portable) transport', () => {
     expect(response.headers['x-test-header']).toBe('test-value');
   });
 
-  it('rejects proxy routing at construction with a TypeError', () => {
+  it('bhv transport 080 rejects proxy routing at construction with a TypeError', () => {
     const transport = TransportOptions.builder().proxy('http://127.0.0.1:3128').build();
     expect(() => new WebApiClient(transport)).toThrow(TypeError);
   });
@@ -71,7 +71,7 @@ describe('Web (portable) transport', () => {
     expect(() => new WebApiClient(transport)).toThrow(TypeError);
   });
 
-  it('rejects disabling TLS verification at construction with a TypeError', () => {
+  it('bhv transport 079 rejects disabling TLS verification at construction with a TypeError', () => {
     const transport = TransportOptions.builder().verifySsl(false).build();
     expect(() => new WebApiClient(transport)).toThrow(TypeError);
   });

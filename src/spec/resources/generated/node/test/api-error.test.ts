@@ -165,6 +165,22 @@ describe("ApiError", () => {
   describe("unified exception hierarchy", () => {
     // The full extends chain a BadRequestError must satisfy:
     //   BadRequestError -> ClientError -> ApiError -> OpenAPIError -> Error
+    test("bhv errors 076 an error the SDK did not raise is not an SDK error, even when it wraps one", () => {
+      const wrapped = new Error("outer", { cause: new ApiError(500, "inner") });
+      expect(wrapped).not.toBeInstanceOf(ApiError);
+      expect(wrapped).not.toBeInstanceOf(OpenAPIError);
+    });
+
+    test("bhv errors 080 a typed HTTP error is caught by the SDK root error type and keeps its status code", () => {
+      try {
+        throw ApiError.fromResponse(404, {}, null);
+      } catch (e) {
+        expect(e).toBeInstanceOf(OpenAPIError);
+        expect(e).toBeInstanceOf(ClientError);
+        expect((e as ApiError).statusCode).toBe(404);
+      }
+    });
+
     test("bhv errors 061 a BadRequestError is a ClientError, ApiError, OpenAPIError and Error", () => {
       const err = new BadRequestError("bad input");
       expect(err).toBeInstanceOf(ClientError);
@@ -215,6 +231,10 @@ describe("ApiError", () => {
         );
       },
     );
+
+    test("bhv errors 084 an error built without an HTTP response reports status zero by default", () => {
+      expect(new NetworkError("no response").statusCode).toBe(0);
+    });
 
     test("bhv errors 020 a NetworkTimeoutError is a NetworkError and ApiError with status 0", () => {
       const cause = new Error("socket hang up");
@@ -315,6 +335,22 @@ describe("ApiError", () => {
         '\uFEFF{"id":42,"name":"Dogs"}',
       );
       expect(err.errorBody).toEqual({ id: 42, name: "Dogs" });
+    });
+
+    test("bhv errors 072 a typed view of a BOM-prefixed error body equals the view of the same body without it", () => {
+      const withBom = ApiError.fromResponse(
+        400,
+        {},
+        '\uFEFF{"id":42,"name":"Dogs"}',
+      );
+      const withoutBom = ApiError.fromResponse(
+        400,
+        {},
+        '{"id":42,"name":"Dogs"}',
+      );
+      const typed = withBom.getTypedErrorBody(Category);
+      expect(typed).toBeInstanceOf(Category);
+      expect(typed).toEqual(withoutBom.getTypedErrorBody(Category));
     });
 
     test("bhv errors 015 returns null when there is no response body", () => {
@@ -655,6 +691,13 @@ describe("ApiError", () => {
       },
     );
 
+    test("bhv errors 073 keeps an error body nested within the depth limit as structured data", () => {
+      const body = "[".repeat(900) + "]".repeat(900);
+      const err = ApiError.fromResponse(400, {}, body);
+      expect(err.errorBody).not.toBeNull();
+      expect(JSON.stringify(err.errorBody)).toBe(body);
+    });
+
     test("bhv errors 009 refuses a deeply nested error body", () => {
       /* The error body is attacker-controlled, so parsing is depth-capped:
        * an over-deep payload leaves errorBody null instead of overflowing
@@ -689,6 +732,14 @@ describe("ApiError", () => {
         `bad gateway\nHTTP status code: 502\nResponse body: ${"x".repeat(1024)}... (6 more bytes)`,
       );
       expect(err.responseBody).toBe(body);
+    });
+
+    test("bhv errors 075 a cut body never splits a surrogate pair", () => {
+      const body = "x".repeat(1023) + "\u{1F600}" + "tail";
+      const err = new ApiError(502, "bad gateway", {}, body, null);
+      expect(err.toString()).toBe(
+        `bad gateway\nHTTP status code: 502\nResponse body: ${"x".repeat(1023)}... (8 more bytes)`,
+      );
     });
 
     test("escapes CR, LF and other control characters in the rendered body", () => {
@@ -762,7 +813,7 @@ describe("ApiError", () => {
       expect(err.toString()).toBe("not found\nHTTP status code: 404");
     });
 
-    test("omits an absent status, headers and body", () => {
+    test("bhv errors 074 omits an absent status, headers and body", () => {
       const err = new ApiError(0, "connection reset");
       expect(err.toString()).toBe("connection reset");
     });

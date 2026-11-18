@@ -306,6 +306,7 @@ export class TransportOptions {
       options.fetchOptions == null
         ? null
         : Object.freeze({ ...options.fetchOptions });
+    Object.freeze(this);
   }
 
   /**
