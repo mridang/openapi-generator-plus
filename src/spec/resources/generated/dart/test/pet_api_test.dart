@@ -1085,6 +1085,123 @@ void main() {
     );
 
     test(
+      'bhv misc 003 an all-optional operation runs with no arguments and sends no omitted parameter',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? query;
+        server.listen((request) {
+          query = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.findPetsByStatus(null);
+
+          expect(query, isEmpty);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 004 a missing required options field raises an argument error naming it',
+      () async {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await expectLater(
+          api.getPetSummary(
+            1,
+            DateTime.utc(2026, 1, 2),
+            GetPetSummaryOptions(session: ''),
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => '${e.message}',
+              'message',
+              contains('session'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 006 a bare JSON null body gives no data and keeps the raw body',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('null')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          final result = await api.findPetsByStatusWithHttpInfo(null);
+
+          expect(result.data, isNull);
+          expect(result.rawBody, equals('null'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 007 a missing required path parameter is named and no request is sent',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        var hits = 0;
+        server.listen((request) {
+          hits++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetTag(1, '', null),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => '${e.message}',
+                'message',
+                contains('tagName'),
+              ),
+            ),
+          );
+          expect(hits, equals(0));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv misc 005 bare JSON null body throws ApiException from a list operation',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
