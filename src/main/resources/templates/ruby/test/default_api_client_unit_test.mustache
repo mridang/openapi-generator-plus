@@ -175,6 +175,23 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_transport_082 a client built with default configuration or only a timeout completes and returns its response' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') { [200, { 'content-type' => 'application/json' }, '{"method":"GET"}'] }
+    end
+    clients = [
+      {{moduleName}}::DefaultApiClient.new,
+      {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.timeout(5000).build)
+    ]
+    clients.each do |client|
+      client.stub(:build_connection, stub_connection(stubs)) do
+        response = client.send_request('GET', 'http://localhost/echo', {}, nil)
+        _(response.status_code).must_equal 200
+        _(JSON.parse(response.body)['method']).must_equal 'GET'
+      end
+    end
+  end
+
   it 'bhv_serializationwire_052 sends POST with JSON body' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/echo') { [200, {}, '{"method":"POST","body":"{key}"}'] }
