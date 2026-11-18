@@ -371,5 +371,48 @@ defmodule {{moduleName}}.ClientTest do
 {{/apis}}
 {{/apiInfo}}
   end
+  test "bhv mocking 001 every group has a behaviour the module implements" do
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    assert {{moduleName}}.Api.{{classname}}Behaviour in Keyword.get_values(
+             {{moduleName}}.Api.{{classname}}.module_info(:attributes),
+             :behaviour
+           ) |> List.flatten()
+
+    {{clientPropertyName}}_listed =
+      {{moduleName}}.Api.{{classname}}Behaviour.behaviour_info(:callbacks) |> Enum.map(&elem(&1, 0))
+{{#operation}}
+    assert :{{operationId}} in {{clientPropertyName}}_listed
+    assert :{{operationId}}! in {{clientPropertyName}}_listed
+    assert :{{operationId}}_with_http_info in {{clientPropertyName}}_listed
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  end
+
+  test "bhv mocking 002 the group behaviour lists exactly the public operations of the module" do
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    listed =
+      {{moduleName}}.Api.{{classname}}Behaviour.behaviour_info(:callbacks)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    declared =
+      {{moduleName}}.Api.{{classname}}.__info__(:functions)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.reject(&(&1 == :new or String.starts_with?(Atom.to_string(&1), "__")))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    assert listed == declared
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  end
 end
 {{/generateTests}}

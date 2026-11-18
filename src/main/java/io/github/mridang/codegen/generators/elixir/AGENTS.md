@@ -171,6 +171,9 @@ Rule: `inspect(auth, structs: false)` prints raw credentials and will keep doing
 
 Rule: these Elixir differences are settled and are not defects: error members through `api_error?/1`, `extra*` props on transparent structs, `start_link/1`, `__using__/1`, `exceptions/0`, the receiver-first argument, the keyword-list constructors and `default/0`, no `BaseAuthenticator` members (a behaviour), `AnyOfComposite`, the module functions `actual_instance` and `matched_instances`, `Metadata.additionalProperties` being non-nil by its `%{}` default, no `@enforce_keys` on options structs, the trailing `opts` keyword list, and extra helpers on the support modules. Why: each is forced by structs, behaviours or the lack of visibility across files.
 
+### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
+Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `<Group>ApiBehaviour` in the group file, with a `@callback` for the full arity of each operation, its bang form and its `_with_http_info` form; `PetApi` declares `@behaviour` and `@impl true`. A fake is a module (Elixir calls a module, not a value), so code under test takes the group module. There is no client behaviour: `Client` is a struct of group structs. The tests use a hand-written module, not Mox. Tests: test/client_test.mustache (001, 002), test/api/pet_api_test.mustache (003 to 006), test/fake_group.mustache (the shared fake). Where: the templates named above, `BetterElixirCodegen`, the README template (`Testing your code`), `docs/languages/elixir.md`.
+
 ## Known limitations and out of scope
 
 - Charsets: `shift_jis` and the other `iso-8859-x` labels return the raw bytes, because Erlang's `:unicode` has no multi-charset support (partial).

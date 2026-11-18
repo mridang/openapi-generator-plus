@@ -74,6 +74,26 @@ end
 {{/variants}}
 {{/serverTypeDefs}}
 
+defmodule {{moduleName}}.Api.{{classname}}Behaviour do
+  @moduledoc """
+  The contract of `{{moduleName}}.Api.{{classname}}`: every operation of the {{baseName}} API group
+  with its bang and `_with_http_info` forms, at the full arity (the lower arities come from the
+  default arguments of the real module). Depend on it instead of the module to substitute a
+  hand-written fake module in your own tests.
+  """
+{{#operation}}
+
+  @callback {{operationId}}({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}} | {:error, Exception.t()}
+
+  @callback {{operationId}}!({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}
+
+  @callback {{operationId}}_with_http_info({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
+{{/operation}}
+end
+
 defmodule {{moduleName}}.Api.{{classname}} do
   @moduledoc ~S"""
   {{classname}} provides functions for the {{baseName}} API group.
@@ -86,6 +106,8 @@ defmodule {{moduleName}}.Api.{{classname}} do
   See [{{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}]({{{url}}})
   {{/tagExternalDocs}}
   """
+
+  @behaviour {{moduleName}}.Api.{{classname}}Behaviour
 
   @type t :: %__MODULE__{
           api_client: term(),
@@ -188,6 +210,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{/isDeprecated}}
   @spec {{operationId}}(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}} | {:error, Exception.t()}
+  @impl true
   def {{operationId}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
     case {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
 {{#returnType}}
@@ -222,6 +245,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{/isDeprecated}}
   @spec {{operationId}}!(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}
+  @impl true
   def {{operationId}}!(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
     case {{operationId}}(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
       {:ok, data} -> data
@@ -237,6 +261,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{/isDeprecated}}
   @spec {{operationId}}_with_http_info(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares

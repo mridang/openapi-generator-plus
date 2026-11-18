@@ -226,6 +226,612 @@ defmodule PetstoreClient.Api.GetStagingPetInfoServer.StagingServer do
   end
 end
 
+defmodule PetstoreClient.Api.PetApiBehaviour do
+  @moduledoc """
+  The contract of `PetstoreClient.Api.PetApi`: every operation of the Pet API group
+  with its bang and `_with_http_info` forms, at the full arity (the lower arities come from the
+  default arguments of the real module). Depend on it instead of the module to substitute a
+  hand-written fake module in your own tests.
+  """
+
+  @callback add_pet(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Models.Pet.t(),
+              PetstoreClient.Api.Options.AddPetOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback add_pet!(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Models.Pet.t(),
+              PetstoreClient.Api.Options.AddPetOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback add_pet_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Models.Pet.t(),
+              PetstoreClient.Api.Options.AddPetOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback add_pet_photos(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.AddPetPhotosOptions.t(),
+              keyword()
+            ) ::
+              {:ok, [PetstoreClient.Models.Photo.t()]} | {:error, Exception.t()}
+
+  @callback add_pet_photos!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.AddPetPhotosOptions.t(),
+              keyword()
+            ) ::
+              [PetstoreClient.Models.Photo.t()]
+
+  @callback add_pet_photos_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.AddPetPhotosOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback add_pet_treatment(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.PetTreatment.t(),
+              PetstoreClient.Api.Options.AddPetTreatmentOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.PetTreatment.t()} | {:error, Exception.t()}
+
+  @callback add_pet_treatment!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.PetTreatment.t(),
+              PetstoreClient.Api.Options.AddPetTreatmentOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.PetTreatment.t()
+
+  @callback add_pet_treatment_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.PetTreatment.t(),
+              PetstoreClient.Api.Options.AddPetTreatmentOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback delete_pet(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.DeletePetOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, nil} | {:error, Exception.t()}
+
+  @callback delete_pet!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.DeletePetOptions.t() | nil,
+              keyword()
+            ) ::
+              nil
+
+  @callback delete_pet_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.DeletePetOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback download_pet_document(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              integer(),
+              PetstoreClient.Api.Options.DownloadPetDocumentOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, binary()} | {:error, Exception.t()}
+
+  @callback download_pet_document!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              integer(),
+              PetstoreClient.Api.Options.DownloadPetDocumentOptions.t() | nil,
+              keyword()
+            ) ::
+              binary()
+
+  @callback download_pet_document_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              integer(),
+              PetstoreClient.Api.Options.DownloadPetDocumentOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback find_pets_born_on(
+              PetstoreClient.Api.PetApi.t(),
+              Date.t(),
+              PetstoreClient.Api.Options.FindPetsBornOnOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, [PetstoreClient.Models.Pet.t()]} | {:error, Exception.t()}
+
+  @callback find_pets_born_on!(
+              PetstoreClient.Api.PetApi.t(),
+              Date.t(),
+              PetstoreClient.Api.Options.FindPetsBornOnOptions.t() | nil,
+              keyword()
+            ) ::
+              [PetstoreClient.Models.Pet.t()]
+
+  @callback find_pets_born_on_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              Date.t(),
+              PetstoreClient.Api.Options.FindPetsBornOnOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback find_pets_by_status(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.FindPetsByStatusOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, [PetstoreClient.Models.Pet.t()]} | {:error, Exception.t()}
+
+  @callback find_pets_by_status!(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.FindPetsByStatusOptions.t() | nil,
+              keyword()
+            ) ::
+              [PetstoreClient.Models.Pet.t()]
+
+  @callback find_pets_by_status_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.FindPetsByStatusOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_external_pet_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetExternalPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback get_external_pet_info!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetExternalPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback get_external_pet_info_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetExternalPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_multi_server_pet_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetMultiServerPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback get_multi_server_pet_info!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetMultiServerPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback get_multi_server_pet_info_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetMultiServerPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_pet_avatar(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetAvatarOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, binary()} | {:error, Exception.t()}
+
+  @callback get_pet_avatar!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetAvatarOptions.t() | nil,
+              keyword()
+            ) ::
+              binary()
+
+  @callback get_pet_avatar_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetAvatarOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_pet_avatar_thumbnail(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetAvatarThumbnailOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, binary()} | {:error, Exception.t()}
+
+  @callback get_pet_avatar_thumbnail!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetAvatarThumbnailOptions.t() | nil,
+              keyword()
+            ) ::
+              binary()
+
+  @callback get_pet_avatar_thumbnail_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetAvatarThumbnailOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_pet_by_id(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetByIdOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback get_pet_by_id!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetByIdOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback get_pet_by_id_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetByIdOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_pet_by_name(
+              PetstoreClient.Api.PetApi.t(),
+              String.t(),
+              PetstoreClient.Api.Options.GetPetByNameOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback get_pet_by_name!(
+              PetstoreClient.Api.PetApi.t(),
+              String.t(),
+              PetstoreClient.Api.Options.GetPetByNameOptions.t(),
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback get_pet_by_name_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              String.t(),
+              PetstoreClient.Api.Options.GetPetByNameOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_pet_passport(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetPassportOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.PetPassport.t()} | {:error, Exception.t()}
+
+  @callback get_pet_passport!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetPassportOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.PetPassport.t()
+
+  @callback get_pet_passport_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetPassportOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_pet_photo(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetPhotoOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, binary()} | {:error, Exception.t()}
+
+  @callback get_pet_photo!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetPhotoOptions.t() | nil,
+              keyword()
+            ) ::
+              binary()
+
+  @callback get_pet_photo_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              integer(),
+              PetstoreClient.Api.Options.GetPetPhotoOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_pet_summary(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              Date.t(),
+              PetstoreClient.Api.Options.GetPetSummaryOptions.t(),
+              keyword()
+            ) ::
+              {:ok, String.t()} | {:error, Exception.t()}
+
+  @callback get_pet_summary!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              Date.t(),
+              PetstoreClient.Api.Options.GetPetSummaryOptions.t(),
+              keyword()
+            ) ::
+              String.t()
+
+  @callback get_pet_summary_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              Date.t(),
+              PetstoreClient.Api.Options.GetPetSummaryOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_pet_tag(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              String.t(),
+              PetstoreClient.Api.Options.GetPetTagOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback get_pet_tag!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              String.t(),
+              PetstoreClient.Api.Options.GetPetTagOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback get_pet_tag_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              String.t(),
+              PetstoreClient.Api.Options.GetPetTagOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback get_staging_pet_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetStagingPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback get_staging_pet_info!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetStagingPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback get_staging_pet_info_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.GetStagingPetInfoOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback set_pet_avatar(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              binary(),
+              PetstoreClient.Api.Options.SetPetAvatarOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, nil} | {:error, Exception.t()}
+
+  @callback set_pet_avatar!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              binary(),
+              PetstoreClient.Api.Options.SetPetAvatarOptions.t() | nil,
+              keyword()
+            ) ::
+              nil
+
+  @callback set_pet_avatar_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              binary(),
+              PetstoreClient.Api.Options.SetPetAvatarOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback set_pet_avatar_thumbnail(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.SetPetAvatarThumbnailRequest.t(),
+              PetstoreClient.Api.Options.SetPetAvatarThumbnailOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, nil} | {:error, Exception.t()}
+
+  @callback set_pet_avatar_thumbnail!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.SetPetAvatarThumbnailRequest.t(),
+              PetstoreClient.Api.Options.SetPetAvatarThumbnailOptions.t() | nil,
+              keyword()
+            ) ::
+              nil
+
+  @callback set_pet_avatar_thumbnail_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.SetPetAvatarThumbnailRequest.t(),
+              PetstoreClient.Api.Options.SetPetAvatarThumbnailOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback set_pet_preferences(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.SetPetPreferencesOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+
+  @callback set_pet_preferences!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.SetPetPreferencesOptions.t(),
+              keyword()
+            ) ::
+              PetstoreClient.Models.ApiResponse.t()
+
+  @callback set_pet_preferences_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.SetPetPreferencesOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback update_pet(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.Pet.t(),
+              PetstoreClient.Api.Options.UpdatePetOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback update_pet!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.Pet.t(),
+              PetstoreClient.Api.Options.UpdatePetOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback update_pet_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Models.Pet.t(),
+              PetstoreClient.Api.Options.UpdatePetOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback upload_pet_certificate(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.UploadPetCertificateOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+
+  @callback upload_pet_certificate!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.UploadPetCertificateOptions.t(),
+              keyword()
+            ) ::
+              PetstoreClient.Models.ApiResponse.t()
+
+  @callback upload_pet_certificate_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.UploadPetCertificateOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback upload_pet_document(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.UploadPetDocumentOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+
+  @callback upload_pet_document!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.UploadPetDocumentOptions.t(),
+              keyword()
+            ) ::
+              PetstoreClient.Models.ApiResponse.t()
+
+  @callback upload_pet_document_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.UploadPetDocumentOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+end
+
 defmodule PetstoreClient.Api.PetApi do
   @moduledoc ~S"""
   PetApi provides functions for the Pet API group.
@@ -234,6 +840,8 @@ defmodule PetstoreClient.Api.PetApi do
 
   See [Find out more about pets (it's */ here) on two lines](https://example.com/docs/pets)
   """
+
+  @behaviour PetstoreClient.Api.PetApiBehaviour
 
   @type t :: %__MODULE__{
           api_client: term(),
@@ -308,6 +916,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def add_pet(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
     case add_pet_with_http_info(api, pet, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -341,6 +950,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def add_pet!(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
     case add_pet(api, pet, options, opts) do
       {:ok, data} -> data
@@ -358,6 +968,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def add_pet_with_http_info(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -436,6 +1047,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, [PetstoreClient.Models.Photo.t()]} | {:error, Exception.t()}
+  @impl true
   def add_pet_photos(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case add_pet_photos_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -469,6 +1081,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           [PetstoreClient.Models.Photo.t()]
+  @impl true
   def add_pet_photos!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case add_pet_photos(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -486,6 +1099,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def add_pet_photos_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -586,6 +1200,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.PetTreatment.t()} | {:error, Exception.t()}
+  @impl true
   def add_pet_treatment(%__MODULE__{} = api, pet_id, pet_treatment, options \\ nil, opts \\ []) do
     case add_pet_treatment_with_http_info(api, pet_id, pet_treatment, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -620,6 +1235,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.PetTreatment.t()
+  @impl true
   def add_pet_treatment!(%__MODULE__{} = api, pet_id, pet_treatment, options \\ nil, opts \\ []) do
     case add_pet_treatment(api, pet_id, pet_treatment, options, opts) do
       {:ok, data} -> data
@@ -638,6 +1254,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def add_pet_treatment_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -745,6 +1362,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, nil} | {:error, Exception.t()}
+  @impl true
   def delete_pet(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case delete_pet_with_http_info(api, pet_id, options, opts) do
       {:ok, result} -> {:ok, result.data}
@@ -762,6 +1380,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           nil
+  @impl true
   def delete_pet!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case delete_pet(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -779,6 +1398,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -912,6 +1532,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, binary()} | {:error, Exception.t()}
+  @impl true
   def download_pet_document(%__MODULE__{} = api, pet_id, document_id, options \\ nil, opts \\ []) do
     case download_pet_document_with_http_info(api, pet_id, document_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -946,6 +1567,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           binary()
+  @impl true
   def download_pet_document!(%__MODULE__{} = api, pet_id, document_id, options \\ nil, opts \\ []) do
     case download_pet_document(api, pet_id, document_id, options, opts) do
       {:ok, data} -> data
@@ -964,6 +1586,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def download_pet_document_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -1077,6 +1700,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, [PetstoreClient.Models.Pet.t()]} | {:error, Exception.t()}
+  @impl true
   def find_pets_born_on(%__MODULE__{} = api, born_on, options \\ nil, opts \\ []) do
     case find_pets_born_on_with_http_info(api, born_on, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1110,6 +1734,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           [PetstoreClient.Models.Pet.t()]
+  @impl true
   def find_pets_born_on!(%__MODULE__{} = api, born_on, options \\ nil, opts \\ []) do
     case find_pets_born_on(api, born_on, options, opts) do
       {:ok, data} -> data
@@ -1127,6 +1752,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def find_pets_born_on_with_http_info(%__MODULE__{} = api, born_on, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -1225,6 +1851,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, [PetstoreClient.Models.Pet.t()]} | {:error, Exception.t()}
+  @impl true
   def find_pets_by_status(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case find_pets_by_status_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1258,6 +1885,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           [PetstoreClient.Models.Pet.t()]
+  @impl true
   def find_pets_by_status!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case find_pets_by_status(api, options, opts) do
       {:ok, data} -> data
@@ -1275,6 +1903,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def find_pets_by_status_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -1442,6 +2071,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def get_external_pet_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_external_pet_info_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1475,6 +2105,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def get_external_pet_info!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_external_pet_info(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -1492,6 +2123,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_external_pet_info_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -1604,6 +2236,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def get_multi_server_pet_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_multi_server_pet_info_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1637,6 +2270,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def get_multi_server_pet_info!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_multi_server_pet_info(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -1654,6 +2288,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_multi_server_pet_info_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -1775,6 +2410,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, binary()} | {:error, Exception.t()}
+  @impl true
   def get_pet_avatar(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_avatar_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1808,6 +2444,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           binary()
+  @impl true
   def get_pet_avatar!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_avatar(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -1825,6 +2462,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -1920,6 +2558,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, binary()} | {:error, Exception.t()}
+  @impl true
   def get_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_avatar_thumbnail_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1953,6 +2592,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           binary()
+  @impl true
   def get_pet_avatar_thumbnail!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_avatar_thumbnail(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -1970,6 +2610,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_avatar_thumbnail_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -2083,6 +2724,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_by_id(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_by_id_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2117,6 +2759,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def get_pet_by_id!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_by_id(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -2135,6 +2778,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_by_id_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -2242,6 +2886,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_by_name(%__MODULE__{} = api, name, options, opts \\ []) do
     case get_pet_by_name_with_http_info(api, name, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2275,6 +2920,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def get_pet_by_name!(%__MODULE__{} = api, name, options, opts \\ []) do
     case get_pet_by_name(api, name, options, opts) do
       {:ok, data} -> data
@@ -2292,6 +2938,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_by_name_with_http_info(%__MODULE__{} = api, name, options, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -2444,6 +3091,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.PetPassport.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_passport(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_passport_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2477,6 +3125,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.PetPassport.t()
+  @impl true
   def get_pet_passport!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_passport(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -2494,6 +3143,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_passport_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -2591,6 +3241,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, binary()} | {:error, Exception.t()}
+  @impl true
   def get_pet_photo(%__MODULE__{} = api, pet_id, photo_id, options \\ nil, opts \\ []) do
     case get_pet_photo_with_http_info(api, pet_id, photo_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2625,6 +3276,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           binary()
+  @impl true
   def get_pet_photo!(%__MODULE__{} = api, pet_id, photo_id, options \\ nil, opts \\ []) do
     case get_pet_photo(api, pet_id, photo_id, options, opts) do
       {:ok, data} -> data
@@ -2643,6 +3295,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_photo_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -2767,6 +3420,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, String.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_summary(%__MODULE__{} = api, pet_id, as_of, options, opts \\ []) do
     case get_pet_summary_with_http_info(api, pet_id, as_of, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -2801,6 +3455,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           String.t()
+  @impl true
   def get_pet_summary!(%__MODULE__{} = api, pet_id, as_of, options, opts \\ []) do
     case get_pet_summary(api, pet_id, as_of, options, opts) do
       {:ok, data} -> data
@@ -2819,6 +3474,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_summary_with_http_info(%__MODULE__{} = api, pet_id, as_of, options, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -2992,6 +3648,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options \\ nil, opts \\ []) do
     case get_pet_tag_with_http_info(api, pet_id, tag_name, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -3026,6 +3683,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def get_pet_tag!(%__MODULE__{} = api, pet_id, tag_name, options \\ nil, opts \\ []) do
     case get_pet_tag(api, pet_id, tag_name, options, opts) do
       {:ok, data} -> data
@@ -3044,6 +3702,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_tag_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -3373,6 +4032,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def get_staging_pet_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_staging_pet_info_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -3406,6 +4066,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def get_staging_pet_info!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_staging_pet_info(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -3423,6 +4084,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_staging_pet_info_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -3541,6 +4203,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, nil} | {:error, Exception.t()}
+  @impl true
   def set_pet_avatar(%__MODULE__{} = api, pet_id, body, options \\ nil, opts \\ []) do
     case set_pet_avatar_with_http_info(api, pet_id, body, options, opts) do
       {:ok, result} -> {:ok, result.data}
@@ -3559,6 +4222,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           nil
+  @impl true
   def set_pet_avatar!(%__MODULE__{} = api, pet_id, body, options \\ nil, opts \\ []) do
     case set_pet_avatar(api, pet_id, body, options, opts) do
       {:ok, data} -> data
@@ -3577,6 +4241,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def set_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, body, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -3703,6 +4368,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, nil} | {:error, Exception.t()}
+  @impl true
   def set_pet_avatar_thumbnail(
         %__MODULE__{} = api,
         pet_id,
@@ -3733,6 +4399,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           nil
+  @impl true
   def set_pet_avatar_thumbnail!(
         %__MODULE__{} = api,
         pet_id,
@@ -3757,6 +4424,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def set_pet_avatar_thumbnail_with_http_info(
         %__MODULE__{} = api,
         pet_id,
@@ -3868,6 +4536,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+  @impl true
   def set_pet_preferences(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case set_pet_preferences_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -3901,6 +4570,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.ApiResponse.t()
+  @impl true
   def set_pet_preferences!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case set_pet_preferences(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -3918,6 +4588,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def set_pet_preferences_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -4041,6 +4712,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def update_pet(%__MODULE__{} = api, pet_id, pet, options \\ nil, opts \\ []) do
     case update_pet_with_http_info(api, pet_id, pet, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -4075,6 +4747,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def update_pet!(%__MODULE__{} = api, pet_id, pet, options \\ nil, opts \\ []) do
     case update_pet(api, pet_id, pet, options, opts) do
       {:ok, data} -> data
@@ -4093,6 +4766,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def update_pet_with_http_info(%__MODULE__{} = api, pet_id, pet, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -4193,6 +4867,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+  @impl true
   def upload_pet_certificate(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_certificate_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -4226,6 +4901,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.ApiResponse.t()
+  @impl true
   def upload_pet_certificate!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_certificate(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -4243,6 +4919,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def upload_pet_certificate_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -4344,6 +5021,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+  @impl true
   def upload_pet_document(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_document_with_http_info(api, pet_id, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -4377,6 +5055,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           PetstoreClient.Models.ApiResponse.t()
+  @impl true
   def upload_pet_document!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_document(api, pet_id, options, opts) do
       {:ok, data} -> data
@@ -4394,6 +5073,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def upload_pet_document_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares

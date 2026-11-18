@@ -78,6 +78,7 @@ The extra applications are `:logger` and `:crypto`. If a `br` response arrives a
 - Structs are plain maps with no private fields, so authenticators hide their secrets through a custom `Inspect` implementation.
 - Deprecated operations carry `@deprecated`. A deprecated model field gets a note in the module's `@moduledoc`, because `@deprecated` applies to functions only.
 - Streaming is not supported. Req reads each response whole. Inject a transport if you need streaming.
+- Testing your code: `<Group>ApiBehaviour` in the group file, with a `@callback` for the full arity of each operation, its bang form and its `_with_http_info` form; `PetApi` declares `@behaviour` and `@impl true`. A fake is a module (Elixir calls a module, not a value), so code under test takes the group module. There is no client behaviour: `Client` is a struct of group structs. The tests use a hand-written module, not Mox.
 
 ## Known limits
 
