@@ -48,6 +48,26 @@ fn test_bhv_servers_018_enum_values_are_exposed_for_validation() {
 }
 
 #[test]
+fn test_bhv_servers_024_a_server_variable_freezes_its_enum_values() {
+    // The accessor hands out a shared view, so a caller that edits its own copy
+    // of the allowed values must not change what the variable enforces.
+    let variable = ServerVariable::new(
+        "prod".to_string(),
+        "deployment environment".to_string(),
+        vec!["prod".to_string(), "staging".to_string()],
+    );
+
+    let mut copy = variable.enum_values().to_vec();
+    copy.push("sandbox".to_string());
+    copy[0] = "changed".to_string();
+
+    assert_eq!(
+        variable.enum_values(),
+        &["prod".to_string(), "staging".to_string()]
+    );
+}
+
+#[test]
 fn test_bhv_servers_019_enum_does_not_contain_a_value_outside_the_allowed_set() {
     // An out-of-set value (e.g. "dev") is absent from the enum, which is what
     // drives ServerConfiguration to reject it.

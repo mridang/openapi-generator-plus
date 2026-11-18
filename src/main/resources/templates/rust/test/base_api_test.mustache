@@ -282,7 +282,7 @@ async fn test_base_api_rejects_a_text_plain_body_for_a_model_return() {
         .downcast_ref::<SerializationError>()
         .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
     assert_eq!(
-        "Unexpected response Content-Type 'text/plain' for a JSON return type",
+        "Unexpected response Content-Type 'text/plain' for PetApi.get_pet_by_id",
         serialization.message()
     );
 }
@@ -1341,7 +1341,29 @@ async fn test_bhv_errors_035_text_plain_body_for_a_model_return_is_a_serializati
         .downcast_ref::<SerializationError>()
         .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
     assert_eq!(
-        "Unexpected response Content-Type 'text/plain' for a JSON return type",
+        "Unexpected response Content-Type 'text/plain' for PetApi.get_pet_by_id",
+        serialization.message()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_errors_054_an_unexpected_content_type_error_names_the_operation() {
+    let client = Arc::new(BinaryResponseApiClient {
+        body: "hello world".to_string(),
+        content_type: "text/plain".to_string(),
+    });
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client, config, None);
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("text/plain cannot be a model");
+    let serialization = err
+        .downcast_ref::<SerializationError>()
+        .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
+    assert!(
+        serialization.message().ends_with("for PetApi.get_pet_by_id"),
+        "the error must name the operation, got: {}",
         serialization.message()
     );
 }

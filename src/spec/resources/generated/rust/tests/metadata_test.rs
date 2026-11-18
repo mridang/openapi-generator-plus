@@ -297,7 +297,7 @@ fn test_metadata_date_time_without_an_offset_is_rejected() {
 // every language's native date-time type supports, so the exact canonical
 // string is asserted.
 #[test]
-fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
+fn test_bhv_serializationobject_199_subseconds_are_preserved_in_a_serialized_date_time() {
     use petstore::date_time::DateTime;
 
     // The canonical instant with millisecond precision.
@@ -486,4 +486,17 @@ fn test_bhv_serializationobject_227_a_model_external_docs_description_is_documen
             entity
         );
     }
+}
+
+#[test]
+fn test_bhv_serializationobject_205_an_extra_key_survives_a_deserialize_then_serialize_round_trip()
+{
+    use petstore::models::Metadata;
+
+    let body = r#"{"owner":"u","extra_key":"kept"}"#;
+    let metadata: Metadata = serde_json::from_str(body).expect("deserialize Metadata");
+    let json = serde_json::to_string(&metadata).expect("serialize Metadata");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse the output");
+    assert_eq!(parsed["extra_key"], "kept", "{}", json);
+    assert_eq!(parsed["owner"], "u", "{}", json);
 }

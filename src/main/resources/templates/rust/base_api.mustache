@@ -78,6 +78,8 @@ fn is_no_auth(auth: &dyn Authenticator) -> bool {
 
 /// Parameters for the `invoke_api` call.
 pub(crate) struct InvokeApiParams<'a> {
+    /// The `Class.operationId` the call belongs to, named in the errors the call raises.
+    pub operation: &'a str,
     pub method: &'a str,
     pub path: &'a str,
     /// Query parameters as `(name, value, allow_reserved)` triples. When
@@ -447,6 +449,7 @@ impl BaseApi {
          * invoke_api. Binary operations set this to "Vec<u8>" so we can route
          * non-JSON bodies straight to the raw-bytes path below. */
         let is_binary_return = params.return_type == "Vec<u8>";
+        let operation = params.operation;
         let response = self.invoke_api(params).await?;
 
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
@@ -537,8 +540,9 @@ impl BaseApi {
                     return Err(Box::new(
                         crate::errors::serialization_error::SerializationError::new(
                             format!(
-                                "Unexpected response Content-Type '{}' for a JSON return type",
-                                resp_content_type.as_deref().unwrap_or("")
+                                "Unexpected response Content-Type '{}' for {}",
+                                resp_content_type.as_deref().unwrap_or(""),
+                                operation
                             ),
                             None,
                         ),
@@ -1042,6 +1046,7 @@ mod tests {
         let mut header_params = HashMap::new();
         header_params.insert("Accept".to_string(), "application/xml".to_string());
         let params = InvokeApiParams {
+            operation: "TestApi.test",
             method: "GET",
             path: "/items",
             query_params: Vec::new(),
@@ -1058,6 +1063,126 @@ mod tests {
         api.invoke_api(params).await.expect("a 200 response must succeed");
 
         assert_eq!(Some("application/xml".to_string()), *client.accept.lock().unwrap());
+    }
+
+    /// Records every `Accept` entry of the one request it receives, whatever the case of its name.
+    struct AcceptEntriesClient {
+        entries: std::sync::Mutex<Vec<(String, String)>>,
+    }
+
+    impl ApiClient for AcceptEntriesClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.entries.lock().unwrap() = headers
+                .iter()
+                .filter(|(name, _)| name.eq_ignore_ascii_case("accept"))
+                .map(|(name, value)| (name.clone(), value.clone()))
+                .collect();
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /// Accepts every connection, reads its request and never answers, counting the connections.
+    fn start_counting_silent_server() -> (String, Arc<std::sync::atomic::AtomicUsize>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        let addr = listener.local_addr().expect("local address");
+        let accepted = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = accepted.clone();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                std::thread::spawn(move || {
+                    let mut buf = [0u8; 4096];
+                    let _ = std::io::Read::read(&mut stream, &mut buf);
+                    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(10)));
+                    let _ = std::io::Read::read(&mut stream, &mut buf);
+                });
+            }
+        });
+        (format!("http://{}", addr), accepted)
+    }
+
+    /* retries042: a request that times out is sent once, even with a retry budget. */
+    #[tokio::test]
+    async fn test_bhv_retries_042_a_timeout_is_not_retried() {
+        let (base_url, accepted) = start_counting_silent_server();
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .timeout(Some(200))
+            .build()
+            .expect("valid transport options");
+        let client = Arc::new(crate::default_api_client::DefaultApiClient::new(Some(transport)));
+        let config = ConfigurationBuilder::new().base_url(&base_url).build();
+        let api = BaseApi::new(client, config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/slow",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions { max_retries: Some(2), ..CallOptions::default() },
+        };
+
+        let err = api.invoke_api(params).await.expect_err("a request past the timeout must fail");
+
+        assert!(
+            err.downcast_ref::<crate::errors::NetworkTimeoutError>().is_some(),
+            "expected a NetworkTimeoutError, got: {err}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        assert_eq!(1, accepted.load(std::sync::atomic::Ordering::SeqCst), "the timed-out request must be sent once");
+    }
+
+    /* headers030: a default header in another case replaces the negotiated Accept
+     * instead of being sent beside it. */
+    #[tokio::test]
+    async fn test_bhv_headers_030_a_default_header_in_another_case_replaces_the_negotiated_accept() {
+        let client = Arc::new(AcceptEntriesClient { entries: std::sync::Mutex::new(Vec::new()) });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("accept", "application/vnd.x+json")
+            .build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/test/echo",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions::default(),
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        assert_eq!(
+            vec![("accept".to_string(), "application/vnd.x+json".to_string())],
+            *client.entries.lock().unwrap()
+        );
     }
 
     /// Answers every request with a fixed status, or with a network failure, and
@@ -1169,6 +1294,7 @@ mod tests {
         let mut header_params = HashMap::new();
         header_params.insert("X-Call".to_string(), "from-parameter".to_string());
         InvokeApiParams {
+            operation: "TestApi.test",
             method: "GET",
             path: "/items/7",
             query_params: vec![("token".to_string(), "secret".to_string(), false)],
@@ -1244,6 +1370,7 @@ mod tests {
         let config = ConfigurationBuilder::new().base_url("http://localhost").build();
         let api = BaseApi::new(client.clone(), config, None);
         let params = InvokeApiParams {
+            operation: "TestApi.test",
             path: "https://items.example.org/v2/items/7",
             query_params: Vec::new(),
             ..call_params(CallOptions::default())
@@ -1402,6 +1529,7 @@ mod tests {
         let config = ConfigurationBuilder::new().base_url("http://localhost").build();
         let api = BaseApi::new(client.clone(), config, None);
         let params = InvokeApiParams {
+            operation: "TestApi.test",
             body: Some(b"plain text body".to_vec()),
             content_type: "text/plain",
             ..call_params(CallOptions { max_retries: Some(2), ..CallOptions::default() })
@@ -1464,6 +1592,7 @@ mod tests {
         let config = ConfigurationBuilder::new().base_url("http://localhost").build();
         let api = BaseApi::new(Arc::new(client), config, None);
         let params = InvokeApiParams {
+            operation: "TestApi.test",
             method: "GET",
             path: "/text",
             query_params: Vec::new(),

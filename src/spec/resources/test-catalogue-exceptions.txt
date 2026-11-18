@@ -193,3 +193,4 @@ swift | transport063 | On Linux FoundationNetworking cannot apply a proxy, so se
 swift | transport064 | URLSession releases the intermediate response of a refused redirect itself and a URLProtocol stub cannot observe that release (forced, F1140)
 swift | transport065 | On Linux FoundationNetworking cannot apply a custom CA, so caCertPath throws ConfigurationError.invalidCACertificate (testCaCertificateIsRefusedOnLinux) and the trust-store replacement cannot run in the Linux spec
 swift | transport066 | On Linux FoundationNetworking cannot apply a custom CA, so caCertPath throws ConfigurationError.invalidCACertificate (testCaCertificateIsRefusedOnLinux) and the bundle's certificates cannot be trusted in the Linux spec
+rust | transport061 | RequestBody has only Bytes and Multipart variants, so no caller-supplied stream reaches the transport and nothing is left open after the body is sent; streaming request bodies are open work in issue #114

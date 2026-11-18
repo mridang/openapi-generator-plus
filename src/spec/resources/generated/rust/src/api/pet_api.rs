@@ -324,6 +324,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.add_pet",
             method: "POST",
             path: &path,
             query_params,
@@ -458,6 +459,7 @@ impl PetApi {
         let multipart = Some(multipart);
 
         let params = InvokeApiParams {
+            operation: "PetApi.add_pet_photos",
             method: "POST",
             path: &path,
             query_params,
@@ -567,6 +569,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.add_pet_treatment",
             method: "POST",
             path: &path,
             query_params,
@@ -706,6 +709,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.delete_pet",
             method: "DELETE",
             path: &path,
             query_params,
@@ -829,6 +833,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.download_pet_document",
             method: "GET",
             path: &path,
             query_params,
@@ -928,6 +933,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.find_pets_born_on",
             method: "GET",
             path: &path,
             query_params,
@@ -1128,6 +1134,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.find_pets_by_status",
             method: "GET",
             path: &path,
             query_params,
@@ -1235,6 +1242,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_external_pet_info",
             method: "GET",
             path: &path,
             query_params,
@@ -1343,6 +1351,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_multi_server_pet_info",
             method: "GET",
             path: &path,
             query_params,
@@ -1440,6 +1449,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_avatar",
             method: "GET",
             path: &path,
             query_params,
@@ -1540,6 +1550,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_avatar_thumbnail",
             method: "GET",
             path: &path,
             query_params,
@@ -1661,6 +1672,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_by_id",
             method: "GET",
             path: &path,
             query_params,
@@ -1861,6 +1873,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_by_name",
             method: "GET",
             path: &path,
             query_params,
@@ -1960,6 +1973,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_passport",
             method: "GET",
             path: &path,
             query_params,
@@ -2080,6 +2094,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_photo",
             method: "GET",
             path: &path,
             query_params,
@@ -2294,6 +2309,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_summary",
             method: "GET",
             path: &path,
             query_params,
@@ -2681,6 +2697,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_tag",
             method: "GET",
             path: &path,
             query_params,
@@ -2788,6 +2805,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_staging_pet_info",
             method: "GET",
             path: &path,
             query_params,
@@ -2911,6 +2929,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.set_pet_avatar",
             method: "PUT",
             path: &path,
             query_params,
@@ -3010,6 +3029,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.set_pet_avatar_thumbnail",
             method: "PUT",
             path: &path,
             query_params,
@@ -3135,6 +3155,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.set_pet_preferences",
             method: "POST",
             path: &path,
             query_params,
@@ -3236,6 +3257,7 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.update_pet",
             method: "PUT",
             path: &path,
             query_params,
@@ -3354,6 +3376,7 @@ impl PetApi {
         let multipart = Some(multipart);
 
         let params = InvokeApiParams {
+            operation: "PetApi.upload_pet_certificate",
             method: "POST",
             path: &path,
             query_params,
@@ -3555,6 +3578,7 @@ impl PetApi {
         }
 
         let params = InvokeApiParams {
+            operation: "PetApi.upload_pet_document",
             method: "POST",
             path: &path,
             query_params,

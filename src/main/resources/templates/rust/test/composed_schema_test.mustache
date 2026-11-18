@@ -132,7 +132,7 @@ fn test_bhv_unions_013_pet_food_deserialize_wet_food() {
 /* F129 / D59: a subtype payload that leaves out its required discriminator is
  * filled with the value its mapping declares, as in the other SDKs. */
 #[test]
-fn test_pet_food_subtype_without_its_discriminator_takes_the_mapping_value() {
+fn test_bhv_unions_030_pet_food_subtype_without_its_discriminator_takes_the_mapping_value() {
     let dry: DryFood = serde_json::from_str(r#"{"weightKg":2.5}"#).expect("failed to decode DryFood");
     let wet: WetFood = serde_json::from_str(r#"{"volumeMl":400}"#).expect("failed to decode WetFood");
 
@@ -165,7 +165,7 @@ fn test_pet_food_subtype_default_carries_its_mapping_value() {
 }
 
 #[test]
-fn test_pet_food_deserialize_unknown_discriminator() {
+fn test_bhv_unions_035_pet_food_deserialize_unknown_discriminator() {
     let json_data = r#"{"foodType":"raw","calories":300}"#;
 
     let result = serde_json::from_str::<PetFood>(json_data);
@@ -230,6 +230,31 @@ fn test_bhv_unions_020_pet_food_serialize_dry_food() {
     let parsed: serde_json::Value =
         serde_json::from_str(&data).expect("failed to parse serialized JSON");
     assert_eq!(parsed["foodType"], "dry");
+}
+
+#[test]
+fn test_bhv_unions_029_one_of_wrappers_have_value_equality() {
+    let dry = PetFood::DryFood(DryFood::new(2.5));
+    assert_eq!(dry, PetFood::DryFood(DryFood::new(2.5)));
+    assert_ne!(dry, PetFood::DryFood(DryFood::new(3.5)));
+    assert_ne!(dry, PetFood::WetFood(WetFood::new(400)));
+}
+
+#[test]
+fn test_bhv_unions_032_a_one_of_wrapper_built_from_a_variant_serializes_its_discriminator() {
+    let food = PetFood::WetFood(WetFood::new(400));
+    let data = serde_json::to_string(&food).expect("failed to serialize PetFood");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized PetFood");
+    assert_eq!(parsed["foodType"], "wet");
+    assert_eq!(parsed["volumeMl"], 400);
+}
+
+#[test]
+fn test_bhv_unions_034_a_one_of_typed_match_answers_for_the_held_variant_only() {
+    let food = PetFood::DryFood(DryFood::new(2.5));
+    assert!(matches!(food, PetFood::DryFood(_)));
+    assert!(!matches!(food, PetFood::WetFood(_)));
 }
 
 {{! M8 (rust discriminator-child Default) is deferred: the discriminator info is
@@ -505,6 +530,28 @@ fn test_bhv_unions_016_enum_unknown_value_on_deserialize_is_rejected() {
         result.is_err(),
         "deserializing an unknown enum value must fail, not fall back to a default variant"
     );
+}
+
+#[test]
+fn test_bhv_serializationobject_193_an_unknown_integer_enum_value_is_rejected_on_decode() {
+    assert_eq!(Priority::Number2, serde_json::from_str::<Priority>("2").expect("2 is a declared value"));
+    assert!(serde_json::from_str::<Priority>("4").is_err(), "4 is not a declared value");
+}
+
+#[test]
+fn test_bhv_serializationobject_194_a_hyphenated_enum_wire_value_is_serialized_as_declared() {
+    assert_eq!(r#""a-b""#, serde_json::to_string(&Separator::AB).expect("serializes"));
+    assert_eq!(r#""a_b""#, serde_json::to_string(&Separator::AB2).expect("serializes"));
+}
+
+#[test]
+fn test_bhv_serializationobject_208_hostile_enum_wire_strings_survive_serialize_and_decode() {
+    assert_eq!(r#""a\\b""#, serde_json::to_string(&Availability::AB).expect("serializes"));
+    for value in Availability::all_values() {
+        let wire = serde_json::to_string(&value).expect("serializes");
+        let back: Availability = serde_json::from_str(&wire).expect("decodes its own wire value");
+        assert_eq!(value, back, "wire value {} must decode to the same member", wire);
+    }
 }
 
 #[test]
@@ -810,7 +857,7 @@ fn test_referenced_enum_with_sibling_default_applies_when_the_key_is_missing() {
 }
 
 #[test]
-fn test_referenced_enum_with_sibling_default_is_replaced_by_a_decoded_value() {
+fn test_bhv_serializationobject_196_an_explicit_wire_value_replaces_the_declared_default() {
     let item: StockItem = serde_json::from_str(r#"{"priority":1,"availability":"Sold"}"#)
         .expect("failed to deserialize StockItem");
     assert_eq!(item.availability, Some(Availability::Sold));
