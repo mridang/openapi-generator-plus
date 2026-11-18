@@ -1300,7 +1300,7 @@ func TestBhvSerialization060_PetApi_MultipartObjectPartHasJSONContentType(t *tes
 // with IsPrimary=true and TakenAt=2020-01-02T03:04:05.123+00:00, send it as the
 // "metadata" part, capture the outgoing part body, and assert the wire keys and
 // date-time string.
-func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
+func TestBhvLanggo001_PetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 	t.Parallel()
 	var metadataPartBody string
 	var sawMetadataPart bool
@@ -1394,7 +1394,7 @@ func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 // advertise a Content-Type derived from its filename extension (image/png for a
 // .png), with application/octet-stream as the fallback — matching the other 11
 // SDKs. AddPetPhotos uploads files as the "files" multipart part.
-func TestPetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
+func TestBhvLanggo002_PetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
 	t.Parallel()
 	var filePartContentType string
 	var sawFilePart bool
@@ -1575,7 +1575,7 @@ func TestBhvOperations056_PetApi_GetPetSummaryRefusesAnEmptyRequiredCookieBefore
 	}
 }
 
-func TestPetApi_UploadFieldAcceptsAnIoReader(t *testing.T) {
+func TestBhvLanggo003_PetApi_UploadFieldAcceptsAnIoReader(t *testing.T) {
 	t.Parallel()
 	var gotFile string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1818,7 +1818,7 @@ func TestBhvOperations079_PetApi_AddPetUsesOnlyTheCredentialOfTheSchemeItRequire
 
 // F857: an API group built on its own takes the per-scheme credentials as its
 // last constructor argument, like the client hands them to its groups.
-func TestPetApi_NewPetApiTakesTheCredentialsOfEachScheme(t *testing.T) {
+func TestBhvLanggo004_PetApi_NewPetApiTakesTheCredentialsOfEachScheme(t *testing.T) {
 	t.Parallel()
 	var gotAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2144,7 +2144,7 @@ func hasDeprecatedParagraph(doc string) bool {
 	return false
 }
 
-func TestPetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
+func TestBhvLanggo005_PetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"AddPet", "GetPetById", "FindPetsByStatus"} {
 		doc := declDoc(t, "../pkg/pet_api.go", name)
@@ -2158,7 +2158,7 @@ func TestPetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
 // an apostrophe, an ampersand or an angle bracket. A positional parameter is
 // documented on the operation; a header, query, form or cookie parameter lives
 // on its Options struct and is documented there only.
-func TestPetApi_ParameterDocsKeepTheSpecProseVerbatim(t *testing.T) {
+func TestBhvLanggo006_PetApi_ParameterDocsKeepTheSpecProseVerbatim(t *testing.T) {
 	t.Parallel()
 	doc := declDoc(t, "../pkg/pet_api.go", "GetPetSummary")
 	if want := "param asOf: Summary date, sent as a matrix-style path segment"; !strings.Contains(doc, want) {
@@ -2181,7 +2181,7 @@ func TestPetApi_ParameterDocsKeepTheSpecProseVerbatim(t *testing.T) {
 
 // An operation comment ends with the HTTP method and path, in a paragraph of
 // its own, after the parameter lines.
-func TestPetApi_OperationDocEndsWithTheMethodAndPath(t *testing.T) {
+func TestBhvLanggo007_PetApi_OperationDocEndsWithTheMethodAndPath(t *testing.T) {
 	t.Parallel()
 	for name, want := range map[string]string{
 		"GetPetById": "\n\nGET /pet/{petId}",
