@@ -50,20 +50,22 @@ settings belong to the pool manager you built.
 Every API group has an interface (`PetApiProtocol`) and the client has one (`ClientProtocol`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
 ```python
+from typing import cast
+
 from petstore_client import PetApiProtocol
 
 # Code under test takes the group interface, never the generated class.
 def use(api: PetApiProtocol) -> None:
     pass
 
-# A fake subclasses the interface, so only the operations you fake are written.
-class Fake(PetApiProtocol):
+# A fake is any object with the operations your code calls; cast it where the interface is expected.
+class Fake:
     pass
 
-use(Fake())
+use(cast(PetApiProtocol, Fake()))
 ```
 
-A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops type-checking after you regenerate; subclass the interface as above so only the operation you fake is written.
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops type-checking after you regenerate; give the fake only the operations your code calls and cast it, as above, so only the operation you fake is written.
 
 ### Automatic retries
 

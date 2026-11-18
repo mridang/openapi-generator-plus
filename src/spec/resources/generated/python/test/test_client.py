@@ -583,8 +583,8 @@ class _FakeGroup:
     """A hand-written fake of any API group: it opens no connection."""
 
 
-class _FakeClient(ClientProtocol):
-    """A client built from fakes; it implements only what the test fakes."""
+class _FakeClient:
+    """A client built from fakes; it has only what the test fakes, and is cast where the protocol is expected."""
 
     def __init__(self) -> None:
         self.closed = 0
@@ -624,6 +624,7 @@ class TestMocking:
 
         pet_group: PetApiProtocol = client.pet
         pet_listed = _public_names(PetApiProtocol)
+        assert pet_group is client.pet
         assert "add_pet" in pet_listed
         assert "add_pet_with_http_info" in pet_listed
         assert "add_pet_photos" in pet_listed
@@ -674,6 +675,7 @@ class TestMocking:
         assert "upload_pet_document_with_http_info" in pet_listed
         problems_group: ProblemsApiProtocol = client.problems
         problems_listed = _public_names(ProblemsApiProtocol)
+        assert problems_group is client.problems
         assert "get_fallback" in problems_listed
         assert "get_fallback_with_http_info" in problems_listed
         assert "get_member" in problems_listed
@@ -688,6 +690,7 @@ class TestMocking:
         assert "take_lock_with_http_info" in problems_listed
         store_group: StoreApiProtocol = client.store
         store_listed = _public_names(StoreApiProtocol)
+        assert store_group is client.store
         assert "create_account" in store_listed
         assert "create_account_with_http_info" in store_listed
         assert "delete_order" in store_listed
@@ -751,7 +754,7 @@ class TestMocking:
         self,
     ) -> None:
         fake = _FakeClient()
-        via_protocol: ClientProtocol = fake
+        via_protocol = cast(ClientProtocol, fake)
 
         assert via_protocol.pet is not None
         assert via_protocol.problems is not None

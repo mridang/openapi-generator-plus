@@ -381,11 +381,12 @@ defmodule PetstoreClient.ClientTest do
   end
 
   test "bhv mocking 001 every group has a behaviour the module implements" do
-    assert (PetstoreClient.Api.PetApiBehaviour in Keyword.get_values(
-              PetstoreClient.Api.PetApi.module_info(:attributes),
-              :behaviour
-            ))
-           |> List.flatten()
+    pet_behaviours =
+      PetstoreClient.Api.PetApi.module_info(:attributes)
+      |> Keyword.get_values(:behaviour)
+      |> List.flatten()
+
+    assert PetstoreClient.Api.PetApiBehaviour in pet_behaviours
 
     pet_listed =
       PetstoreClient.Api.PetApiBehaviour.behaviour_info(:callbacks) |> Enum.map(&elem(&1, 0))
@@ -463,11 +464,12 @@ defmodule PetstoreClient.ClientTest do
     assert :upload_pet_document! in pet_listed
     assert :upload_pet_document_with_http_info in pet_listed
 
-    assert (PetstoreClient.Api.ProblemsApiBehaviour in Keyword.get_values(
-              PetstoreClient.Api.ProblemsApi.module_info(:attributes),
-              :behaviour
-            ))
-           |> List.flatten()
+    problems_behaviours =
+      PetstoreClient.Api.ProblemsApi.module_info(:attributes)
+      |> Keyword.get_values(:behaviour)
+      |> List.flatten()
+
+    assert PetstoreClient.Api.ProblemsApiBehaviour in problems_behaviours
 
     problems_listed =
       PetstoreClient.Api.ProblemsApiBehaviour.behaviour_info(:callbacks) |> Enum.map(&elem(&1, 0))
@@ -491,11 +493,12 @@ defmodule PetstoreClient.ClientTest do
     assert :take_lock! in problems_listed
     assert :take_lock_with_http_info in problems_listed
 
-    assert (PetstoreClient.Api.StoreApiBehaviour in Keyword.get_values(
-              PetstoreClient.Api.StoreApi.module_info(:attributes),
-              :behaviour
-            ))
-           |> List.flatten()
+    store_behaviours =
+      PetstoreClient.Api.StoreApi.module_info(:attributes)
+      |> Keyword.get_values(:behaviour)
+      |> List.flatten()
+
+    assert PetstoreClient.Api.StoreApiBehaviour in store_behaviours
 
     store_listed =
       PetstoreClient.Api.StoreApiBehaviour.behaviour_info(:callbacks) |> Enum.map(&elem(&1, 0))

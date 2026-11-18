@@ -5,6 +5,9 @@ use {{invokerPackage}}\ApiResult;
 {{#optionsImports}}
 use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 {{/optionsImports}}
+{{#enumParamImports}}
+use {{invokerPackage}}\Models\{{.}};
+{{/enumParamImports}}
 
 {{#operations}}
 /**
@@ -81,6 +84,7 @@ interface {{classname}}Interface
     public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): void;
 {{/returnType}}
 
+{{#returnType}}
     /**
 {{#pathParams}}
 {{#description}}
@@ -126,6 +130,54 @@ interface {{classname}}Interface
 {{/isDeprecated}}
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult;
+{{/returnType}}
+{{^returnType}}
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+     * @return ApiResult<null>
+     * @throws \{{invokerPackage}}\Errors\ApiException
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+     */
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult;
+{{/returnType}}
 {{^-last}}
 
 {{/-last}}

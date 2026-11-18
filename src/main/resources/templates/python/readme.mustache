@@ -52,6 +52,8 @@ settings belong to the pool manager you built.
 Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protocol{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Protocol`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
 ```python
+from typing import cast
+
 from {{packageName}} import {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protocol{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 
 
@@ -60,15 +62,15 @@ def use(api: {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protoco
     pass
 
 
-# A fake subclasses the interface, so only the operations you fake are written.
-class Fake({{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protocol{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}):
+# A fake is any object with the operations your code calls; cast it where the interface is expected.
+class Fake:
     pass
 
 
-use(Fake())
+use(cast({{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protocol{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}, Fake()))
 ```
 
-A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops type-checking after you regenerate; subclass the interface as above so only the operation you fake is written.
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops type-checking after you regenerate; give the fake only the operations your code calls and cast it, as above, so only the operation you fake is written.
 
 ### Automatic retries
 

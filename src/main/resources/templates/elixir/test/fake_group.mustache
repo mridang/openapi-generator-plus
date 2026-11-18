@@ -5,7 +5,7 @@ defmodule Fake{{classname}} do
   """
   @behaviour {{moduleName}}.Api.{{classname}}Behaviour
 
-  defp failure, do: {{moduleName}}.Errors.NotFoundError.exception(message: "missing")
+  defp failure, do: {{moduleName}}.Errors.NotFoundError.exception("missing")
 {{#operation}}
 
   @impl true

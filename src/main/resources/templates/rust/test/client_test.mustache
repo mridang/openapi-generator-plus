@@ -4,9 +4,17 @@ use std::future::Future;
 
 use {{packageName}}::{{clientClassName}};
 use {{packageName}}::{{clientClassName}}Trait;
+use {{packageName}}::ApiResult;
 use {{packageName}}::api::*;
 use {{packageName}}::api::options::*;
 use {{packageName}}::models::*;
+
+/* The signatures of the fakes name `crate::date_time`, which is the SDK's module; this file is its own
+ * crate, so the path is made to resolve to the SDK's. */
+#[allow(unused_imports)]
+mod date_time {
+    pub use {{packageName}}::date_time::*;
+}
 use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
 use {{packageName}}::auth::api_key_location::ApiKeyLocation;
 use {{packageName}}::auth::Authenticator;

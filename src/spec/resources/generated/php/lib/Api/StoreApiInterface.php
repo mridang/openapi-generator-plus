@@ -32,6 +32,7 @@ use PetstoreClient\Api\Options\GetTreeOptions;
 use PetstoreClient\Api\Options\PlaceOrderOptions;
 use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
+use PetstoreClient\Models\Swatch;
 
 /**
  * Contract of {@see StoreApi}: every operation of the Store API group and its
@@ -67,7 +68,7 @@ interface StoreApiInterface
     /**
      * @param int $orderId ID of the order to delete
      * @param DeleteOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<>
+     * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404

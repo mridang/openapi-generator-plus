@@ -1994,7 +1994,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     """
     @behaviour PetstoreClient.Api.PetApiBehaviour
 
-    defp failure, do: PetstoreClient.Errors.NotFoundError.exception(message: "missing")
+    defp failure, do: PetstoreClient.Errors.NotFoundError.exception("missing")
 
     @impl true
     def add_pet(_api, _pet, _options \\ nil, _opts \\ []) do

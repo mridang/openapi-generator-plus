@@ -208,13 +208,13 @@ public interface PetApiInterface {
   /** The {@code getExternalPetInfo} operation. */
   Pet getExternalPetInfo(
       Long petId,
-      @Nullable GetExternalPetInfoServer server,
+      @Nullable PetApi.GetExternalPetInfoServer server,
       @Nullable GetExternalPetInfoOptions options);
 
   /** The {@code getExternalPetInfo} operation with its HTTP details. */
   ApiResult<Pet> getExternalPetInfoWithHttpInfo(
       Long petId,
-      @Nullable GetExternalPetInfoServer server,
+      @Nullable PetApi.GetExternalPetInfoServer server,
       @Nullable GetExternalPetInfoOptions options);
 
   /** The {@code getMultiServerPetInfo} operation, using the server declared in the spec. */
@@ -247,13 +247,13 @@ public interface PetApiInterface {
   /** The {@code getMultiServerPetInfo} operation. */
   Pet getMultiServerPetInfo(
       Long petId,
-      @Nullable GetMultiServerPetInfoServer server,
+      @Nullable PetApi.GetMultiServerPetInfoServer server,
       @Nullable GetMultiServerPetInfoOptions options);
 
   /** The {@code getMultiServerPetInfo} operation with its HTTP details. */
   ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
       Long petId,
-      @Nullable GetMultiServerPetInfoServer server,
+      @Nullable PetApi.GetMultiServerPetInfoServer server,
       @Nullable GetMultiServerPetInfoOptions options);
 
   /** The {@code getPetAvatar} operation without the optional per-call options. */
@@ -327,12 +327,12 @@ public interface PetApiInterface {
   /** The {@code getPetById} operation. */
   @Deprecated
   Pet getPetById(
-      Long petId, @Nullable GetPetByIdServer server, @Nullable GetPetByIdOptions options);
+      Long petId, @Nullable PetApi.GetPetByIdServer server, @Nullable GetPetByIdOptions options);
 
   /** The {@code getPetById} operation with its HTTP details. */
   @Deprecated
   ApiResult<Pet> getPetByIdWithHttpInfo(
-      Long petId, @Nullable GetPetByIdServer server, @Nullable GetPetByIdOptions options);
+      Long petId, @Nullable PetApi.GetPetByIdServer server, @Nullable GetPetByIdOptions options);
 
   /** The {@code getPetByName} operation. */
   Pet getPetByName(String name, GetPetByNameOptions options);
@@ -435,13 +435,13 @@ public interface PetApiInterface {
   /** The {@code getStagingPetInfo} operation. */
   Pet getStagingPetInfo(
       Long petId,
-      @Nullable GetStagingPetInfoServer server,
+      @Nullable PetApi.GetStagingPetInfoServer server,
       @Nullable GetStagingPetInfoOptions options);
 
   /** The {@code getStagingPetInfo} operation with its HTTP details. */
   ApiResult<Pet> getStagingPetInfoWithHttpInfo(
       Long petId,
-      @Nullable GetStagingPetInfoServer server,
+      @Nullable PetApi.GetStagingPetInfoServer server,
       @Nullable GetStagingPetInfoOptions options);
 
   /** The {@code setPetAvatar} operation without the optional per-call options. */

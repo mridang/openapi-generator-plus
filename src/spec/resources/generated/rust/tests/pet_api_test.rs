@@ -24,6 +24,13 @@ use petstore::auth::{ApiKeyHeaderAuthenticator, Authenticator};
 use petstore::models::*;
 use petstore::*;
 
+/* The signatures of the fakes name `crate::date_time`, which is the SDK's module; this file is its own
+ * crate, so the path is made to resolve to the SDK's. */
+#[allow(unused_imports)]
+mod date_time {
+    pub use petstore::date_time::*;
+}
+
 /// Test authenticator that returns a static bearer token.
 struct TestBearerAuth;
 

@@ -451,8 +451,8 @@ class _FakeGroup:
     """A hand-written fake of any API group: it opens no connection."""
 
 
-class _FakeClient({{clientClassName}}Protocol):
-    """A client built from fakes; it implements only what the test fakes."""
+class _FakeClient:
+    """A client built from fakes; it has only what the test fakes, and is cast where the protocol is expected."""
 
     def __init__(self) -> None:
         self.closed = 0
@@ -491,6 +491,7 @@ class TestMocking:
 {{#operations}}
         {{clientPropertyName}}_group: {{classname}}Protocol = client.{{clientPropertyName}}
         {{clientPropertyName}}_listed = _public_names({{classname}}Protocol)
+        assert {{clientPropertyName}}_group is client.{{clientPropertyName}}
 {{#operation}}
         assert '{{operationId}}' in {{clientPropertyName}}_listed
         assert '{{operationId}}_with_http_info' in {{clientPropertyName}}_listed
@@ -527,7 +528,7 @@ class TestMocking:
 
     def test_bhv_mocking_008_client_built_from_fakes_never_connects_and_closes_without_error(self) -> None:
         fake = _FakeClient()
-        via_protocol: {{clientClassName}}Protocol = fake
+        via_protocol = cast({{clientClassName}}Protocol, fake)
 
 {{#apiInfo}}
 {{#apis}}

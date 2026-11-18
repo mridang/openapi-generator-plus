@@ -32,7 +32,7 @@ interface {{classname}}Interface {
 {{#isDeprecated}}
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
-    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
+    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
         {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}
     }
 
@@ -40,7 +40,7 @@ interface {{classname}}Interface {
 {{#isDeprecated}}
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
-    suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+    suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
         return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}})
     }
 {{/-first}}{{/servers}}
@@ -49,13 +49,13 @@ interface {{classname}}Interface {
 {{#isDeprecated}}
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
-    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}
+    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}
 
     /** The `{{operationId}}` operation with its status code, headers and body. */
 {{#isDeprecated}}
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
-    suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}>
+    suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}>
 {{/operation}}
 }
 {{/operations}}

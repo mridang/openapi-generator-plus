@@ -149,14 +149,14 @@ interface PetApiInterface {
     /** The `getExternalPetInfo` operation. */
     suspend fun getExternalPetInfo(
         petId: Long,
-        server: GetExternalPetInfoServer? = null,
+        server: PetApi.GetExternalPetInfoServer? = null,
         options: GetExternalPetInfoOptions? = null,
     ): Pet
 
     /** The `getExternalPetInfo` operation with its status code, headers and body. */
     suspend fun getExternalPetInfoWithHttpInfo(
         petId: Long,
-        server: GetExternalPetInfoServer? = null,
+        server: PetApi.GetExternalPetInfoServer? = null,
         options: GetExternalPetInfoOptions? = null,
     ): ApiResult<Pet>
 
@@ -175,14 +175,14 @@ interface PetApiInterface {
     /** The `getMultiServerPetInfo` operation. */
     suspend fun getMultiServerPetInfo(
         petId: Long,
-        server: GetMultiServerPetInfoServer? = null,
+        server: PetApi.GetMultiServerPetInfoServer? = null,
         options: GetMultiServerPetInfoOptions? = null,
     ): Pet
 
     /** The `getMultiServerPetInfo` operation with its status code, headers and body. */
     suspend fun getMultiServerPetInfoWithHttpInfo(
         petId: Long,
-        server: GetMultiServerPetInfoServer? = null,
+        server: PetApi.GetMultiServerPetInfoServer? = null,
         options: GetMultiServerPetInfoOptions? = null,
     ): ApiResult<Pet>
 
@@ -228,7 +228,7 @@ interface PetApiInterface {
     @Deprecated("This operation is deprecated.")
     suspend fun getPetById(
         petId: Long,
-        server: GetPetByIdServer? = null,
+        server: PetApi.GetPetByIdServer? = null,
         options: GetPetByIdOptions? = null,
     ): Pet
 
@@ -236,7 +236,7 @@ interface PetApiInterface {
     @Deprecated("This operation is deprecated.")
     suspend fun getPetByIdWithHttpInfo(
         petId: Long,
-        server: GetPetByIdServer? = null,
+        server: PetApi.GetPetByIdServer? = null,
         options: GetPetByIdOptions? = null,
     ): ApiResult<Pet>
 
@@ -321,14 +321,14 @@ interface PetApiInterface {
     /** The `getStagingPetInfo` operation. */
     suspend fun getStagingPetInfo(
         petId: Long,
-        server: GetStagingPetInfoServer? = null,
+        server: PetApi.GetStagingPetInfoServer? = null,
         options: GetStagingPetInfoOptions? = null,
     ): Pet
 
     /** The `getStagingPetInfo` operation with its status code, headers and body. */
     suspend fun getStagingPetInfoWithHttpInfo(
         petId: Long,
-        server: GetStagingPetInfoServer? = null,
+        server: PetApi.GetStagingPetInfoServer? = null,
         options: GetStagingPetInfoOptions? = null,
     ): ApiResult<Pet>
 

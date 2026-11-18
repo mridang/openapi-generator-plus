@@ -1673,7 +1673,7 @@ class TestPetApiWithHttpInfo:
         assert result.data is not None
 
 
-class _FakePetApi(PetApiProtocol):
+class _FakePetApi:
     """A hand-written fake of the group: it fakes one operation and records the call."""
 
     def __init__(self, fail_with: Optional[Exception] = None) -> None:
@@ -1695,6 +1695,11 @@ class _FakePetApi(PetApiProtocol):
 async def _look_up(group: PetApiProtocol, pet_id: int) -> Pet:
     """Code under test: it takes the group protocol, never the generated class."""
     return await group.get_pet_by_id(pet_id)
+
+
+def _as_protocol(fake: _FakePetApi) -> PetApiProtocol:
+    """A fake has only the operation it fakes, so it is cast where the protocol is expected."""
+    return cast(PetApiProtocol, fake)
 
 
 async def _classify(call: Callable[[], Any]) -> str:
@@ -1725,7 +1730,7 @@ class TestPetApiMocking:
     ) -> None:
         fake = _FakePetApi()
 
-        pet = await _look_up(fake, 42)
+        pet = await _look_up(_as_protocol(fake), 42)
 
         assert pet.name == "fake"
         assert [call[0] for call in fake.calls] == [42]
@@ -1738,13 +1743,13 @@ class TestPetApiMocking:
             404, "application/json", '{"message":"Pet not found"}'
         )
 
-        from_fake = await _classify(lambda: _look_up(fake, 1))
+        from_fake = await _classify(lambda: _look_up(_as_protocol(fake), 1))
         from_real = await _classify(lambda: _look_up(real, 1))
 
         assert from_fake == "not found"
         assert from_fake == from_real
         with pytest.raises(ApiException):
-            await _look_up(fake, 1)
+            await _look_up(_as_protocol(fake), 1)
 
     async def test_bhv_mocking_005_protocol_call_sends_the_same_request_as_the_class_call(
         self,
@@ -1763,6 +1768,6 @@ class TestPetApiMocking:
     ) -> None:
         fake = _FakePetApi()
 
-        await _look_up(fake, 7)
+        await _look_up(_as_protocol(fake), 7)
 
         assert fake.calls == [(7, None, None)]

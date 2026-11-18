@@ -2211,6 +2211,9 @@ public class PetApiTest
         return (api, fake);
     }
 
+    private static Task<ApiResult<Pet>> CallThroughTheInterface(IPetApi group) =>
+        group.GetPetByIdWithHttpInfoAsync(1L);
+
     // Code under test: it takes the group interface, never the generated class.
     private static Task<Pet> LookUp(IPetApi group, long id) => group.GetPetByIdAsync(id);
 
@@ -2260,10 +2263,8 @@ public class PetApiTest
     [Fact]
     public async Task BhvMocking005InterfaceCallSendsTheSameRequestAndReturnsTheSameResultAsTheClassCall()
     {
-        IPetApi viaInterface = _api;
-
         var direct = await _api.GetPetByIdWithHttpInfoAsync(1L);
-        var through = await viaInterface.GetPetByIdWithHttpInfoAsync(1L);
+        var through = await CallThroughTheInterface(_api);
 
         Assert.Equal(direct.StatusCode, through.StatusCode);
         Assert.Equal(direct.RawBody, through.RawBody);

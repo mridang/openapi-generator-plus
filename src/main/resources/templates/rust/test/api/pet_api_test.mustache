@@ -17,6 +17,13 @@ use {{packageName}}::api::options::*;
 use {{packageName}}::auth::{ApiKeyHeaderAuthenticator, Authenticator};
 use {{packageName}}::models::*;
 
+/* The signatures of the fakes name `crate::date_time`, which is the SDK's module; this file is its own
+ * crate, so the path is made to resolve to the SDK's. */
+#[allow(unused_imports)]
+mod date_time {
+    pub use {{packageName}}::date_time::*;
+}
+
 /// Test authenticator that returns a static bearer token.
 struct TestBearerAuth;
 

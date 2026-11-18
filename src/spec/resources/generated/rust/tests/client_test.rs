@@ -11,13 +11,21 @@ use std::future::Future;
 
 use petstore::api::options::*;
 use petstore::api::*;
+use petstore::models::*;
+use petstore::ApiResult;
+use petstore::Client;
+use petstore::ClientTrait;
+
+/* The signatures of the fakes name `crate::date_time`, which is the SDK's module; this file is its own
+ * crate, so the path is made to resolve to the SDK's. */
+#[allow(unused_imports)]
+mod date_time {
+    pub use petstore::date_time::*;
+}
 use petstore::auth::api_key_authenticator::ApiKeyAuthenticator;
 use petstore::auth::api_key_location::ApiKeyLocation;
 use petstore::auth::Authenticator;
 use petstore::auth::{BearerAuthenticator, TokenProvider};
-use petstore::models::*;
-use petstore::Client;
-use petstore::ClientTrait;
 use petstore::ConfigurationError;
 use petstore::TransportOptionsBuilder;
 

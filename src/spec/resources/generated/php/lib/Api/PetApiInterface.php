@@ -108,7 +108,7 @@ interface PetApiInterface
     /**
      * @param int $petId Pet id to delete
      * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
-     * @return ApiResult<>
+     * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
@@ -363,7 +363,7 @@ interface PetApiInterface
     /**
      * @param SetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
-     * @return ApiResult<>
+     * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -380,7 +380,7 @@ interface PetApiInterface
 
     /**
      * @param SetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<>
+     * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
