@@ -1634,6 +1634,14 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Multipart filename sanitization (Gap F)
 
+  test "bhv serialization 057 a multipart field name containing a NUL byte or a line break is refused before any request is sent" do
+    for name <- ["a\0b", "a\r\nX-Injected: yes"] do
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.DefaultApiClient.build_multipart_body(%{name => "value"}, "BOUNDARY")
+      end
+    end
+  end
+
   test "multipart filename containing CRLF raises ArgumentError" do
     assert_raise ArgumentError, fn ->
       PetstoreClient.DefaultApiClient.build_content_disposition(
@@ -1673,6 +1681,18 @@ defmodule PetstoreClient.Api.BaseApiTest do
   end
 
   # Charset-aware response decoding (Gap H)
+
+  test "bhv serialization 055 the charset parameter is matched by name, ignoring letter case and spacing, never by suffix" do
+    assert PetstoreClient.DefaultApiClient.decode_text_body(
+             <<0xE9>>,
+             "text/plain;  CHARSET = ISO-8859-1"
+           ) == "é"
+
+    assert PetstoreClient.DefaultApiClient.decode_text_body(
+             <<0xE9>>,
+             "text/plain; xcharset=ISO-8859-1"
+           ) == <<0xE9>>
+  end
 
   test "bhv serializationwire 032 decode_text_body decodes ISO-8859-1 to é" do
     result =
@@ -2776,6 +2796,37 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert String.contains?(serialized, "Content-Type: application/octet-stream"),
            "Expected octet-stream fallback for extension-less raw bytes, got: #{serialized}"
+  end
+
+  test "bhv serialization 058 a multipart part with no filename is sent as application/octet-stream" do
+    serialized =
+      PetstoreClient.DefaultApiClient.build_multipart_body(
+        %{"data" => {:raw, <<1, 2, 3>>}},
+        "BOUNDARY"
+      )
+
+    assert String.contains?(serialized, "Content-Type: application/octet-stream"),
+           "Expected octet-stream for a part without a filename, got: #{serialized}"
+  end
+
+  test "bhv serialization 059 a raw binary part is sent as a file part that carries exactly its bytes" do
+    bytes = <<0, 255, 13, 10, 0>>
+
+    serialized =
+      PetstoreClient.DefaultApiClient.build_multipart_body(%{"file" => {:raw, bytes}}, "BOUNDARY")
+
+    assert String.contains?(
+             serialized,
+             "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\n" <>
+               bytes <> "\r\n--BOUNDARY--\r\n"
+           )
+  end
+
+  test "bhv serialization 060 a model sent as a multipart part declares the application/json media type" do
+    pet = %PetstoreClient.Models.Pet{name: "rex", photo_urls: []}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(%{"pet" => pet}, "BOUNDARY")
+
+    assert String.contains?(serialized, "name=\"pet\"\r\nContent-Type: application/json\r\n\r\n{")
   end
 
   # Behavior #5: a non-ASCII multipart field name is preserved verbatim as
