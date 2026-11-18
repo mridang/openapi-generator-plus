@@ -3579,3 +3579,252 @@ fn test_bhv_misc_183_closing_a_client_with_nothing_to_release_succeeds() {
     client.close();
     assert!(client.is_closed());
 }
+
+/// Binds a loopback listener for a scripted test server and returns its base URL.
+fn bind_local_server() -> (TcpListener, String) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    (listener, url)
+}
+
+/// Serves one connection per scripted response, recording each request head.
+fn serve_scripted(listener: TcpListener, responses: Vec<String>, log: Arc<Mutex<Vec<String>>>) {
+    thread::spawn(move || {
+        for response in responses {
+            let Ok((mut stream, _)) = listener.accept() else { return };
+            let mut buf = [0u8; 4096];
+            let n_read = stream.read(&mut buf).unwrap_or(0);
+            log.lock().unwrap().push(String::from_utf8_lossy(&buf[..n_read]).to_string());
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+}
+
+fn redirect_response(location: &str) -> String {
+    format!("HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", location)
+}
+
+fn empty_ok_response() -> String {
+    "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string()
+}
+
+#[tokio::test]
+async fn test_bhv_misc_128_a_cross_origin_redirect_never_removes_the_proxy_credential() {
+    let (proxy, proxy_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(proxy, vec![redirect_response("http://other.example.com/hop"), empty_ok_response()], log.clone());
+    let addr = proxy_url.trim_start_matches("http://").to_string();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(&format!("http://user:pass@{}", addr))
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    client
+        .send_request("GET", "http://example.com/start", &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let calls = log.lock().unwrap();
+    assert_eq!(2, calls.len(), "the redirect must have been followed through the proxy");
+    for head in calls.iter() {
+        assert!(head_header(head, "proxy-authorization").is_some(), "{}", head);
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_130_a_credential_removed_by_a_cross_origin_hop_is_not_restored_on_return() {
+    let (origin, origin_url) = bind_local_server();
+    let (other, other_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![redirect_response(&format!("{}/hop", other_url)), empty_ok_response()], log.clone());
+    serve_scripted(other, vec![redirect_response(&format!("{}/back", origin_url))], log.clone());
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let mut headers = HashMap::new();
+    headers.insert("Authorization".to_string(), "Bearer secret".to_string());
+
+    client
+        .send_request("GET", &format!("{}/start", origin_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let calls = log.lock().unwrap();
+    assert_eq!(3, calls.len(), "start, cross-origin hop and return must each be sent");
+    assert!(head_header(&calls[0], "authorization").is_some(), "{}", calls[0]);
+    assert_eq!(None, head_header(&calls[1], "authorization"), "{}", calls[1]);
+    assert_eq!(None, head_header(&calls[2], "authorization"), "{}", calls[2]);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_131_a_supplied_session_still_has_the_sdk_redirect_rules_applied() {
+    let (origin, origin_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![redirect_response(&format!("{}/next", origin_url)), empty_ok_response()], log.clone());
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(false)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::with_client(reqwest::Client::new(), Some(transport)).expect("a plain client is accepted");
+
+    let response = client
+        .send_request("GET", &format!("{}/start", origin_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(302, response.status_code());
+    assert_eq!(1, log.lock().unwrap().len(), "a redirect must not be followed by the supplied session");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_132_a_per_call_header_with_a_credential_word_is_dropped_on_cross_origin_redirect() {
+    let (origin, origin_url) = bind_local_server();
+    let (other, other_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![redirect_response(&format!("{}/end", other_url))], log.clone());
+    serve_scripted(other, vec![empty_ok_response()], log.clone());
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let mut headers = HashMap::new();
+    headers.insert("X-Call-Token".to_string(), "abc".to_string());
+
+    client
+        .send_request("GET", &format!("{}/start", origin_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let calls = log.lock().unwrap();
+    assert_eq!(2, calls.len());
+    assert_eq!(Some("abc".to_string()), head_header(&calls[0], "x-call-token"), "{}", calls[0]);
+    assert_eq!(None, head_header(&calls[1], "x-call-token"), "{}", calls[1]);
+}
+
+fn service_unavailable_response(retry_after: &str) -> String {
+    let retry = if retry_after.is_empty() { String::new() } else { format!("Retry-After: {}\r\n", retry_after) };
+    format!("HTTP/1.1 503 Service Unavailable\r\n{}Content-Length: 0\r\nConnection: close\r\n\r\n", retry)
+}
+
+#[tokio::test]
+async fn test_bhv_misc_160_an_error_that_is_not_a_network_failure_is_never_retried() {
+    let (origin, origin_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![redirect_response("ftp://example.com/x")], log.clone());
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let result = client.send_request("GET", &format!("{}/start", origin_url), &HashMap::new(), None).await;
+
+    assert!(result.is_err(), "a refused redirect must fail the call");
+    assert_eq!(1, log.lock().unwrap().len(), "the refused redirect must not be retried");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_162_an_idempotent_request_is_sent_again_once_after_a_dropped_connection() {
+    let (origin, origin_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![String::new(), empty_ok_response()], log.clone());
+    let transport = TransportOptionsBuilder::new().build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    client
+        .send_request("GET", &format!("{}/start", origin_url), &HashMap::new(), None)
+        .await
+        .expect("the retry must succeed");
+
+    assert_eq!(2, log.lock().unwrap().len());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_165_a_request_body_is_replayed_across_a_redirect_that_keeps_plain_text() {
+    let (origin, origin_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![
+        "HTTP/1.1 307 Temporary Redirect\r\nLocation: /y\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string(),
+        empty_ok_response(),
+    ], log.clone());
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let body = RequestBody::Bytes(b"{\"a\":1}".to_vec());
+
+    client
+        .send_request("POST", &format!("{}/x", origin_url), &HashMap::new(), Some(&body))
+        .await
+        .expect("unexpected error");
+
+    let calls = log.lock().unwrap();
+    assert_eq!(2, calls.len());
+    assert!(calls[1].contains("{\"a\":1}"), "{}", calls[1]);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_166_a_call_that_disables_its_deadline_is_not_cut_short_while_it_waits_to_retry() {
+    let (origin, origin_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![service_unavailable_response("1"), empty_ok_response()], log.clone());
+    let transport = TransportOptionsBuilder::new()
+        .timeout(None)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/start", origin_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(200, response.status_code());
+    assert_eq!(2, log.lock().unwrap().len());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_167_a_retryable_status_is_attempted_up_to_the_limit_then_returned() {
+    let (origin, origin_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![
+        service_unavailable_response("0"),
+        service_unavailable_response("0"),
+        service_unavailable_response("0"),
+    ], log.clone());
+    let transport = TransportOptionsBuilder::new()
+        .max_retries(2)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/start", origin_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(503, response.status_code());
+    assert_eq!(3, log.lock().unwrap().len(), "one send plus two retries");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_168_with_no_retry_setting_a_failing_request_is_sent_three_times_with_pauses() {
+    let (origin, origin_url) = bind_local_server();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    serve_scripted(origin, vec![
+        service_unavailable_response(""),
+        service_unavailable_response(""),
+        service_unavailable_response(""),
+    ], log.clone());
+    let transport = TransportOptionsBuilder::new().build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let started = std::time::Instant::now();
+
+    let response = client
+        .send_request("GET", &format!("{}/start", origin_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(503, response.status_code());
+    assert_eq!(3, log.lock().unwrap().len());
+    assert!(started.elapsed() >= std::time::Duration::from_millis(1100), "{:?}", started.elapsed());
+}

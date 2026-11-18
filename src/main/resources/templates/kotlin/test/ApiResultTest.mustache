@@ -78,4 +78,18 @@ class ApiResultTest {
         val result = ApiResult(200, "x", "{\"raw\":true}", emptyMap())
         assertEquals("{\"raw\":true}", result.rawBody)
     }
+
+
+    @Test
+    fun bhvResults007ResultCarriesDataRawBodyAndHeadersTogether() = runBlocking<Unit> {
+        val result = ApiResult(
+            statusCode = 201,
+            data = "payload",
+            rawBody = "{\"value\":\"payload\"}",
+            headers = mapOf("X-Id" to "42"),
+        )
+        assertEquals("payload", result.data)
+        assertEquals("{\"value\":\"payload\"}", result.rawBody)
+        assertEquals("42", result.headers["X-Id"])
+    }
 }

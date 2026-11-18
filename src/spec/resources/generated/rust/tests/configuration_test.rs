@@ -412,3 +412,15 @@ fn test_bhv_hooks_020_configuration_carries_the_call_hook_and_does_not_print_it(
     assert!(shown.contains("<hook>"), "{shown}");
     assert!(!shown.contains("SecretHook"), "{shown}");
 }
+
+#[test]
+fn test_bhv_misc_136_the_configuration_debug_text_shows_the_base_url_and_plain_default_headers() {
+    use petstore::Configuration;
+    let config = Configuration::builder()
+        .base_url("https://api.example.com")
+        .default_header("Accept", "text/plain")
+        .build();
+    let shown = format!("{:?}", config);
+    assert!(shown.contains("https://api.example.com"), "{shown}");
+    assert!(shown.contains("text/plain"), "{shown}");
+}

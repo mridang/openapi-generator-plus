@@ -569,6 +569,16 @@ void main() {
           );
         },
       );
+
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            AdminBasicAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            startsWith('AdminBasicAuthenticator('),
+          );
+        },
+      );
     });
     group('ApiKeyHeaderAuthenticator', () {
       test(
@@ -650,6 +660,16 @@ void main() {
           );
         },
       );
+
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            ApiKeyHeaderAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            startsWith('ApiKeyHeaderAuthenticator('),
+          );
+        },
+      );
     });
     group('ApiKeyQueryAuthenticator', () {
       test(
@@ -722,6 +742,16 @@ void main() {
                 contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
               ),
             ),
+          );
+        },
+      );
+
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            ApiKeyQueryAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            startsWith('ApiKeyQueryAuthenticator('),
           );
         },
       );
@@ -829,6 +859,18 @@ void main() {
           );
         },
       );
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            BrowserAuthImplicitAuthenticator(
+              host: '/api/v3',
+              token: 'xyz',
+            ).toString(),
+            startsWith('BrowserAuthImplicitAuthenticator('),
+          );
+        },
+      );
     });
     group('InternalApiKeyAuthenticator', () {
       test(
@@ -908,6 +950,19 @@ void main() {
                 ),
               ),
             ),
+          );
+        },
+      );
+
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            InternalApiKeyAuthenticator(
+              host: '/api/v3',
+              token: 'xyz',
+            ).toString(),
+            startsWith('InternalApiKeyAuthenticator('),
           );
         },
       );
@@ -1012,6 +1067,18 @@ void main() {
                 contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME'),
               ),
             ),
+          );
+        },
+      );
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            LegacyAuthPasswordAuthenticator(
+              host: '/api/v3',
+              token: 'xyz',
+            ).toString(),
+            startsWith('LegacyAuthPasswordAuthenticator('),
           );
         },
       );
@@ -1122,6 +1189,18 @@ void main() {
           );
         },
       );
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            MachineAuthClientCredentialsAuthenticator(
+              host: '/api/v3',
+              token: 'xyz',
+            ).toString(),
+            startsWith('MachineAuthClientCredentialsAuthenticator('),
+          );
+        },
+      );
     });
     group('PetStoreBasicAuthenticator', () {
       test(
@@ -1206,6 +1285,19 @@ void main() {
           );
         },
       );
+
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            PetStoreBasicAuthenticator(
+              host: '/api/v3',
+              token: 'xyz',
+            ).toString(),
+            startsWith('PetStoreBasicAuthenticator('),
+          );
+        },
+      );
     });
     group('PetStoreBearerAuthenticator', () {
       test(
@@ -1287,6 +1379,19 @@ void main() {
           );
         },
       );
+
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            PetStoreBearerAuthenticator(
+              host: '/api/v3',
+              token: 'xyz',
+            ).toString(),
+            startsWith('PetStoreBearerAuthenticator('),
+          );
+        },
+      );
     });
     group('ServiceTokenAuthenticator', () {
       test(
@@ -1359,6 +1464,16 @@ void main() {
                 contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
               ),
             ),
+          );
+        },
+      );
+
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            ServiceTokenAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            startsWith('ServiceTokenAuthenticator('),
           );
         },
       );
@@ -1440,6 +1555,19 @@ void main() {
                 ),
               ),
             ),
+          );
+        },
+      );
+
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            SessionCookieAuthenticator(
+              host: '/api/v3',
+              token: 'xyz',
+            ).toString(),
+            startsWith('SessionCookieAuthenticator('),
           );
         },
       );
@@ -1537,6 +1665,15 @@ void main() {
                 contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
               ),
             ),
+          );
+        },
+      );
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            SsoAuthAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            startsWith('SsoAuthAuthenticator('),
           );
         },
       );
@@ -1639,6 +1776,18 @@ void main() {
                 contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
               ),
             ),
+          );
+        },
+      );
+      test(
+        'bhv langdart 024 the scheme name in this test identifies the scheme under test',
+        () {
+          expect(
+            UserAuthAuthorizationCodeAuthenticator(
+              host: '/api/v3',
+              token: 'xyz',
+            ).toString(),
+            startsWith('UserAuthAuthorizationCodeAuthenticator('),
           );
         },
       );

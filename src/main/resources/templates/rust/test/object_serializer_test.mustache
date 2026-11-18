@@ -1467,3 +1467,104 @@ fn test_bhv_misc_112_a_repeated_element_of_a_unique_array_keeps_one_copy() {
     assert_eq!(decoded.values.len(), 2);
     assert!(decoded.values.contains("a") && decoded.values.contains("b"));
 }
+
+#[test]
+fn test_bhv_misc_137_a_generated_enum_lists_its_values_and_reports_membership() {
+    use {{packageName}}::models::Separator;
+    let values: Vec<String> = Separator::all_values().iter().map(|v| v.to_string()).collect();
+    assert_eq!(values, vec![" ", "@@", "a-b", "a_b"]);
+    assert!(serde_json::from_str::<Separator>(r#""not-declared""#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_138_converting_an_enum_member_to_text_yields_its_wire_value() {
+    use {{packageName}}::models::Separator;
+    assert_eq!(Separator::AB.to_string(), "a-b");
+    assert_eq!(Separator::SPACE1.to_string(), " ");
+}
+
+#[test]
+fn test_bhv_misc_139_a_collection_given_to_a_model_is_copied_so_later_source_changes_do_not_reach_it() {
+    use {{packageName}}::models::BinaryVault;
+    let mut source: Vec<Vec<u8>> = vec![vec![4, 5]];
+    let vault = BinaryVault::new().with_shards(source.clone());
+    source.push(vec![6]);
+    assert_eq!(vault.shards, Some(vec![vec![4u8, 5u8]]));
+}
+
+#[test]
+fn test_bhv_misc_140_building_a_model_without_a_required_property_fails_naming_it() {
+    use {{packageName}}::models::Employee;
+    let err = serde_json::from_str::<Employee>("{}").expect_err("a missing required property must be refused");
+    assert!(err.to_string().contains("name"), "{err}");
+}
+
+#[test]
+fn test_bhv_misc_141_a_model_built_without_a_defaulted_property_holds_the_default() {
+    use {{packageName}}::models::{Defaults, DefaultsModeEnum};
+    let model: Defaults = serde_json::from_str("{}").expect("decodes");
+    assert_eq!(model.retries, Some(3));
+    assert_eq!(model.mode, Some(DefaultsModeEnum::Medium));
+}
+
+#[test]
+fn test_bhv_misc_142_additional_properties_are_returned_unchanged_by_key() {
+    use {{packageName}}::models::Metadata;
+    let meta: Metadata = serde_json::from_str(r#"{"note":"x","owner":"ann"}"#).expect("decodes");
+    assert_eq!(meta.additional_properties.get("note").map(String::as_str), Some("x"));
+    let mut keys: Vec<&str> = meta.additional_properties.keys().map(String::as_str).collect();
+    keys.sort();
+    assert_eq!(keys, vec!["note", "owner"]);
+}
+
+#[test]
+fn test_bhv_misc_143_a_model_built_with_additional_properties_copies_them_and_compares_equal() {
+    use {{packageName}}::models::Metadata;
+    let entries = std::collections::HashMap::from([("customField".to_string(), "a".to_string())]);
+    let original = Metadata::new().with_additional_properties(entries);
+    let copy = original.clone();
+    assert_eq!(copy.additional_properties.get("customField").map(String::as_str), Some("a"));
+    assert_eq!(copy, original);
+}
+
+#[test]
+fn test_bhv_misc_144_validating_a_model_refuses_a_string_for_a_numeric_field() {
+    use {{packageName}}::models::Defaults;
+    assert!(serde_json::from_str::<Defaults>(r#"{"retries":"3"}"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_146_a_copy_with_no_changes_compares_equal_to_the_original() {
+    use {{packageName}}::models::Department;
+    let original = Department::new("Ops".to_string());
+    assert_eq!(original.clone(), original);
+}
+
+#[test]
+fn test_bhv_misc_148_a_copy_serializes_to_the_wire_form_with_its_changes_applied() {
+    use {{packageName}}::models::{Department, Employee};
+    let original = Department::new("Ops".to_string()).with_lead(Box::new(Employee::new("Ann".to_string())));
+    let copy = original.clone().with_name("Eng".to_string());
+    let expected = Department::new("Eng".to_string()).with_lead(Box::new(Employee::new("Ann".to_string())));
+    assert_eq!(serde_json::to_value(&copy).expect("serializes"), serde_json::to_value(&expected).expect("serializes"));
+}
+
+#[test]
+fn test_bhv_misc_150_models_whose_fields_are_equal_compare_equal_and_differing_ones_unequal() {
+    use {{packageName}}::models::Employee;
+    assert_eq!(Employee::new("Ann".to_string()), Employee::new("Ann".to_string()));
+    assert_ne!(Employee::new("Ann".to_string()), Employee::new("Bo".to_string()));
+}
+
+#[test]
+fn test_bhv_misc_151_a_model_holding_a_map_compares_by_its_entries() {
+    use {{packageName}}::models::Metadata;
+    let with = |second: &str| {
+        Metadata::new().with_additional_properties(std::collections::HashMap::from([
+            ("a".to_string(), "1".to_string()),
+            ("b".to_string(), second.to_string()),
+        ]))
+    };
+    assert_eq!(with("2"), with("2"));
+    assert_ne!(with("2"), with("3"));
+}
