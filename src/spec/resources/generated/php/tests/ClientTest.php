@@ -312,7 +312,7 @@ test('bhv lifecycle 016 with token fails when the token is empty', function (): 
 });
 
 test('bhv mocking 001 every group has an interface the class implements', function (): void {
-    expect(is_subclass_of(\PetstoreClient\Api\PetApi::class, \PetstoreClient\Api\PetApiInterface::class))->toBeTrue();
+    expect((new \ReflectionClass(\PetstoreClient\Api\PetApi::class))->implementsInterface(\PetstoreClient\Api\PetApiInterface::class))->toBeTrue();
     $petListed = get_class_methods(\PetstoreClient\Api\PetApiInterface::class);
     expect($petListed)->toContain('addPet')->toContain('addPetWithHttpInfo');
     expect($petListed)->toContain('addPetPhotos')->toContain('addPetPhotosWithHttpInfo');
@@ -338,7 +338,7 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($petListed)->toContain('updatePet')->toContain('updatePetWithHttpInfo');
     expect($petListed)->toContain('uploadPetCertificate')->toContain('uploadPetCertificateWithHttpInfo');
     expect($petListed)->toContain('uploadPetDocument')->toContain('uploadPetDocumentWithHttpInfo');
-    expect(is_subclass_of(\PetstoreClient\Api\ProblemsApi::class, \PetstoreClient\Api\ProblemsApiInterface::class))->toBeTrue();
+    expect((new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))->implementsInterface(\PetstoreClient\Api\ProblemsApiInterface::class))->toBeTrue();
     $problemsListed = get_class_methods(\PetstoreClient\Api\ProblemsApiInterface::class);
     expect($problemsListed)->toContain('getFallback')->toContain('getFallbackWithHttpInfo');
     expect($problemsListed)->toContain('getMember')->toContain('getMemberWithHttpInfo');
@@ -346,7 +346,7 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($problemsListed)->toContain('getRange')->toContain('getRangeWithHttpInfo');
     expect($problemsListed)->toContain('getUpstream')->toContain('getUpstreamWithHttpInfo');
     expect($problemsListed)->toContain('takeLock')->toContain('takeLockWithHttpInfo');
-    expect(is_subclass_of(\PetstoreClient\Api\StoreApi::class, \PetstoreClient\Api\StoreApiInterface::class))->toBeTrue();
+    expect((new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))->implementsInterface(\PetstoreClient\Api\StoreApiInterface::class))->toBeTrue();
     $storeListed = get_class_methods(\PetstoreClient\Api\StoreApiInterface::class);
     expect($storeListed)->toContain('createAccount')->toContain('createAccountWithHttpInfo');
     expect($storeListed)->toContain('deleteOrder')->toContain('deleteOrderWithHttpInfo');

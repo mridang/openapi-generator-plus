@@ -345,7 +345,7 @@ test('bhv mocking 001 every group has an interface the class implements', functi
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-    expect(is_subclass_of(\{{apiPackage}}\{{classname}}::class, \{{apiPackage}}\{{classname}}Interface::class))->toBeTrue();
+    expect((new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->implementsInterface(\{{apiPackage}}\{{classname}}Interface::class))->toBeTrue();
     ${{clientPropertyName}}Listed = get_class_methods(\{{apiPackage}}\{{classname}}Interface::class);
 {{#operation}}
     expect(${{clientPropertyName}}Listed)->toContain('{{operationId}}')->toContain('{{operationId}}WithHttpInfo');
