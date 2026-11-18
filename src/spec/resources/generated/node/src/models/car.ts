@@ -39,8 +39,6 @@ export class Car extends Vehicle {
 
   @Expose({ name: "vehicleType" })
   readonly vehicleType: string = "car";
-  @Expose({ name: "plate" })
-  readonly plate!: string;
   @Expose({ name: "doorCount" })
   readonly doorCount!: number;
 
@@ -161,7 +159,7 @@ export class Car extends Vehicle {
    * nested value's own `equals` method when it exposes one (generated
    * models do), so equality stays value-based all the way down.
    */
-  private static __deepEquals(
+  protected static __deepEquals(
     a: unknown,
     b: unknown,
     decimal = false,

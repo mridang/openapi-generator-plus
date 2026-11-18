@@ -7,7 +7,6 @@
 
 import { ApiError } from "./api-error.js";
 import type { ApiErrorOptions } from "./api-error.js";
-import { ApiError } from "./api-error.js";
 import { ObjectSerializer } from "../object-serializer.js";
 import { UnexpectedFailure } from "../models/index.js";
 

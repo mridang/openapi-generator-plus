@@ -2,7 +2,9 @@
 
 import { ApiError } from './api-error{{importFileExtension}}';
 import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+{{^parentIsApi}}
 import { {{parentClassName}} } from './{{parentFileName}}{{importFileExtension}}';
+{{/parentIsApi}}
 import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
 import { {{schemaName}} } from '../models/index{{importFileExtension}}';
 

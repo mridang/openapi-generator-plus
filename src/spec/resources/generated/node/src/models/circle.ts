@@ -39,8 +39,6 @@ export class Circle extends Shape {
 
   @Expose({ name: "shapeType" })
   readonly shapeType: string = "Circle";
-  @Expose({ name: "label" })
-  readonly label?: string;
   @Expose({ name: "radius" })
   readonly radius!: number;
 
@@ -142,7 +140,7 @@ export class Circle extends Shape {
    * nested value's own `equals` method when it exposes one (generated
    * models do), so equality stays value-based all the way down.
    */
-  private static __deepEquals(
+  protected static __deepEquals(
     a: unknown,
     b: unknown,
     decimal = false,
