@@ -148,6 +148,26 @@ describe('Composed Schema', () => {
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
   });
 
+  test('bhv misc 293 anyOf returns every matching variant and skips the candidates that do not match', () => {
+    const both = ObjectSerializer.deserialize(
+      { drugName: 'Amoxicillin', dosage: '250mg', procedureName: 'Spay', durationMinutes: 45 },
+      PetTreatment,
+    );
+    expect(both!.getMatchedInstances()).toHaveLength(2);
+    expect(both!.getMatchedInstances().some((m) => m instanceof Medication)).toBe(true);
+    expect(both!.getMatchedInstances().some((m) => m instanceof Surgery)).toBe(true);
+
+    const medicationOnly = ObjectSerializer.deserialize({ drugName: 'Amoxicillin', dosage: '500mg' }, PetTreatment);
+    expect(medicationOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(medicationOnly!.getMatchedInstances()[0]).toBeInstanceOf(Medication);
+  });
+
+  test('bhv misc 294 a subtype payload that omits its discriminator is decoded as the variant the mapping names', () => {
+    const food = ObjectSerializer.deserialize({ weightKg: 2.5 }, DryFood);
+    expect(food).toBeInstanceOf(DryFood);
+    expect(food!.foodType).toBe('dry');
+  });
+
   // -- allOf with a discriminator: Vehicle and Shape --
 
   test('bhv unions 301 allOf: the base decodes to the subtype its explicit mapping names', () => {

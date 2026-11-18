@@ -157,6 +157,12 @@ describe("TransportOptions", () => {
     expect(message).not.toContain("hunter2");
   });
 
+  test("bhv misc 298 a client built with a malformed proxy URL fails with an invalid proxy URL error", () => {
+    expect(() =>
+      TransportOptions.builder().proxy("not-a-valid-url").build(),
+    ).toThrow(/Invalid proxy URL/);
+  });
+
   test("bhv options 024 invalid proxy URL throws error", () => {
     let caught: unknown;
     try {
