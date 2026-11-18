@@ -430,5 +430,8 @@ swift | operations162 | the fixture has no date-only (format: date) parameter in
 swift | serialization078 | Swift maps format: time to String, as the idiom table in the swift AGENTS file records, so the SDK never formats a time of day itself and there is no zero-padding or fraction rule to test
 csharp | misc283 | C# has no package root module to re-export from: the error types are declared once in the Errors namespace and a consumer reaches each of them by that namespace
 rust | misc004 | Rust operations take required parameters as positional arguments, so omitting one is refused by the compiler and no run-time argument error naming the field exists
+rust | misc007 | Rust operations take required path parameters and the options argument positionally, so omitting either is refused by the compiler and no run-time error naming the parameter exists
+rust | misc010 | Rust operations take an options object with required fields as a positional argument, so omitting it is refused by the compiler and no run-time error exists
+rust | misc012 | Rust has no nil value, so a required argument cannot be absent at run time; omitting it is refused by the compiler and no run-time argument error exists
 ||||||| 92a9dd837
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
