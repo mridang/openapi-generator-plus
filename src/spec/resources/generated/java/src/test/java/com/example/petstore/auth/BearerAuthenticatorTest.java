@@ -89,7 +89,7 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void controlCharacterInTokenReportsPrintableAscii() {
+  void bhvAuth035ControlCharacterInTokenReportsPrintableAscii() {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class,
@@ -259,5 +259,28 @@ class BearerAuthenticatorTest {
     assertTrue(repr.contains("host=https://api.example.com"));
     assertFalse(repr.contains("s3cr3t-value"));
     assertTrue(repr.contains("token=***"));
+  }
+
+  @Test
+  void bhvAuth037TokenProviderIsAskedAgainForEachRequest() {
+    java.util.concurrent.atomic.AtomicInteger calls =
+        new java.util.concurrent.atomic.AtomicInteger();
+    BearerAuthenticator auth =
+        new BearerAuthenticator(
+            "https://api.example.com", () -> "token-" + calls.incrementAndGet());
+    assertEquals("Bearer token-1", auth.getAuthHeaders().get("Authorization"));
+    assertEquals("Bearer token-2", auth.getAuthHeaders().get("Authorization"));
+    assertEquals(2, calls.get());
+  }
+
+  @Test
+  void bhvAuth039PassingBothATokenAndATokenProviderIsRejected() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new BearerAuthenticator(
+                    "https://api.example.com", "static-token", () -> "provided"));
+    assertEquals("Pass either token or tokenProvider, not both", ex.getMessage());
   }
 }

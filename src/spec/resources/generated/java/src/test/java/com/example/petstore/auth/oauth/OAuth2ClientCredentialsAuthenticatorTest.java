@@ -464,4 +464,25 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         java.util.Objects.requireNonNull(ex.getMessage()).contains(CLIENT_ID_VARIABLE),
         ex.getMessage());
   }
+
+  @Test
+  void bhvAuth050ClientCredentialsPostsScopesJoinedByPlusToTheTokenUrl() {
+    AtomicReference<String> capturedUrl = new AtomicReference<>();
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedUrl.set(url);
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    auth.getAuthHeaders();
+
+    assertEquals("https://auth.example.com/token", capturedUrl.get());
+    assertTrue(capturedBody.get().contains("grant_type=client_credentials"), capturedBody.get());
+    assertTrue(capturedBody.get().contains("scope=read+write"), capturedBody.get());
+  }
 }

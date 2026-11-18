@@ -226,5 +226,36 @@ class ApiKeyAuthenticatorTest {
         assertTrue(repr.contains("***"));
     }
 
+    @Test
+    void bhvAuth031ApiKeyHeaderHasTheExactNameAndValueOnTheWire() {
+        ApiKeyAuthenticator auth = new ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-KEY", "key-value", ApiKeyLocation.HEADER);
+        assertEquals(Map.of("X-API-KEY", "key-value"), auth.getAuthHeaders());
+        assertEquals(Map.of(), auth.getQueryParams());
+        assertEquals(Map.of(), auth.getCookieParams());
+    }
 
+    @Test
+    void bhvAuth032SessionCookieIsSentAsTheSessionIdCookie() {
+        ApiKeyAuthenticator auth = new ApiKeyAuthenticator(
+                "https://api.example.com", "SESSION_ID", "session-value", ApiKeyLocation.COOKIE);
+        assertEquals(Map.of("SESSION_ID", "session-value"), auth.getCookieParams());
+        assertEquals(Map.of(), auth.getAuthHeaders());
+    }
+
+    @Test
+    void bhvAuth033DebugOutputOfTheAuthenticatorNeverShowsTheSecret() {
+        ApiKeyAuthenticator auth = new ApiKeyAuthenticator(
+                "https://api.example.com", "SESSION_ID", "s3cr3t-value", ApiKeyLocation.COOKIE);
+        assertFalse(auth.toString().contains("s3cr3t-value"));
+        assertFalse(String.valueOf(auth).contains("s3cr3t-value"));
+    }
+
+    @Test
+    void bhvAuth034ApiKeyRejectsAnEmptyOrBlankKeyAtConstruction() {
+        for (String blank : new String[] {"", " ", "\t"}) {
+            assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
+                    "https://api.example.com", "X-API-KEY", blank, ApiKeyLocation.HEADER));
+        }
+    }
 }
