@@ -916,5 +916,69 @@ void main() {
         );
       },
     );
+
+    test(
+      'bhv unions 044 each variant of a union has a typed constructor and accessor that identify it',
+      () {
+        final food = PetFood.dryFood(
+          DryFood.fromJson(<String, dynamic>{
+            'foodType': 'dry',
+            'weightKg': 2.5,
+          }),
+        );
+
+        expect(food.isDryFood, isTrue);
+        expect(food.isWetFood, isFalse);
+        expect(food.asDryFood?.weightKg, equals(2.5));
+        expect(food.asWetFood, isNull);
+      },
+    );
+
+    test(
+      'bhv unions 045 two union values built from the same data compare equal, decoded or built by a factory',
+      () {
+        final decoded = PetFood.fromJson(<String, dynamic>{
+          'foodType': 'dry',
+          'weightKg': 2.5,
+        });
+        final built = PetFood.dryFood(
+          DryFood.fromJson(<String, dynamic>{
+            'foodType': 'dry',
+            'weightKg': 2.5,
+          }),
+        );
+
+        expect(decoded, equals(built));
+      },
+    );
+
+    test(
+      'bhv unions 046 when a payload matches several anyOf variants each matching variant keeps its value',
+      () {
+        final treatment = PetTreatment.fromJson(<String, dynamic>{
+          'drugName': 'Amoxicillin',
+          'procedureName': 'Spay',
+          'durationMinutes': 45,
+        });
+
+        expect(treatment.isMedication, isTrue);
+        expect(treatment.isSurgery, isTrue);
+        expect(treatment.asMedication?.drugName, equals('Amoxicillin'));
+        expect(treatment.asSurgery?.procedureName, equals('Spay'));
+        expect(treatment.matchedInstances, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv unions 046 a non-matching anyOf variant reports false and null',
+      () {
+        final treatment = PetTreatment.fromJson(<String, dynamic>{
+          'drugName': 'Amoxicillin',
+        });
+
+        expect(treatment.isSurgery, isFalse);
+        expect(treatment.asSurgery, isNull);
+      },
+    );
   });
 }

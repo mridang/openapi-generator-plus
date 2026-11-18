@@ -4988,6 +4988,151 @@ void main() {
 
       expect(received, equals([null, 'default-value']));
     });
+
+    test('bhv serialization 128 a response declared as bytes or string is returned unchanged whatever its content type', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Type', 'application/json')
+          ..write('{"a":1}')
+          ..close();
+      });
+
+      try {
+        final resp = await DefaultApiClient().sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/raw',
+          {},
+          null,
+        );
+        expect(resp.body, equals('{"a":1}'));
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv transport 086 a request that exceeds its timeout fails with the network timeout error within the budget', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await Future<void>.delayed(const Duration(seconds: 5));
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final stopwatch = Stopwatch()..start();
+        await expectLater(
+          DefaultApiClient().sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/slow',
+            {},
+            null,
+            timeout: 200,
+          ),
+          throwsA(isA<NetworkTimeoutException>()),
+        );
+        expect(stopwatch.elapsed, lessThan(const Duration(seconds: 4)));
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv transport 087 a connection that cannot be established raises the network error', () async {
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+      await expectLater(
+        DefaultApiClient().sendRequest('GET', 'http://127.0.0.1:$port/unreachable', {}, null),
+        throwsA(isA<NetworkException>()),
+      );
+    });
+
+    test('bhv transport 088 a validly gzip-encoded response body is decoded before it is returned', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Encoding', 'gzip')
+          ..add(gzip.encode(utf8.encode('hello')))
+          ..close();
+      });
+
+      try {
+        final resp = await DefaultApiClient().sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/gzip',
+          {},
+          null,
+        );
+        expect(resp.body, equals('hello'));
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv transport 089 a Content-Encoding that does not match the body raises the API error rather than crashing', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Encoding', 'gzip')
+          ..add(utf8.encode('not gzip at all'))
+          ..close();
+      });
+
+      try {
+        await expectLater(
+          DefaultApiClient().sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/mismatch',
+            {},
+            null,
+          ),
+          throwsA(isA<ApiException>()),
+        );
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv transport 090 response headers repeated on the wire keep every value', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.add('X-Multi', 'first')
+          ..headers.add('X-Multi', 'second')
+          ..close();
+      });
+
+      try {
+        final resp = await DefaultApiClient().sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/multi',
+          {},
+          null,
+        );
+        expect(resp.headers['x-multi'], allOf(contains('first'), contains('second')));
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv transport 092 a caller-supplied HTTP client or connection pool receives the SDK request', () async {
+      var received = false;
+      final custom = MockClient((request) async {
+        received = true;
+        return http.Response('ok', 200);
+      });
+      final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(custom).build());
+
+      await client.sendRequest('GET', 'http://example.com/pool', {}, null);
+
+      expect(received, isTrue);
+    });
   });
 }
 {{/generateTests}}

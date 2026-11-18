@@ -474,5 +474,22 @@ void main() {
         );
       },
     );
+
+    test(
+      'bhv servers 030 a value that is not one of a server variable enum values is rejected with an error',
+      () {
+        const config = ServerConfiguration(
+          urlTemplate: 'https://{env}.api.example.com',
+          variables: {
+            'env': ServerVariable(
+              defaultValue: 'prod',
+              enumValues: ['prod', 'staging'],
+            ),
+          },
+        );
+
+        expect(() => config.url({'env': 'dev'}), throwsArgumentError);
+      },
+    );
   });
 }
