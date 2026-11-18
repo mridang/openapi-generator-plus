@@ -26,7 +26,7 @@ class BearerAuthenticatorTest {
     @Test
     @DisplayName("bhvAuthbearer028 a bearer token containing CRLF is rejected at construction")
     fun bhvAuthbearer028ABearerTokenContainingCrlfIsRejectedAtConstruction() =
-        runBlocking {
+        runBlocking<Unit> {
             assertThrows(IllegalArgumentException::class.java) {
                 BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
             }
