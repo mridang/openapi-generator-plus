@@ -15,6 +15,7 @@ import Testing
         var lastBody: Data? = nil
         /// The URL of every request received, in order.
         var urls: [String] = []
+        var failure: Error? = nil
 
         /// Satisfies the ApiClient requirement that carries no request options.
         func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
@@ -30,6 +31,9 @@ import Testing
             urls.append(url)
             lastHeaders = headers
             lastBody = body as? Data
+            if let failure = failure {
+                throw failure
+            }
             return responses.removeFirst()
         }
     }
@@ -687,5 +691,33 @@ import Testing
         #expect(url.hasPrefix("https://auth.example.com/authorize?"))
         let items = URLComponents(string: url)?.queryItems ?? []
         #expect(items.first { $0.name == "scope" }?.value == "pets:read pets:write")
+    }
+
+
+    /* A transport failure during the code exchange reaches the caller as the same error. */
+    @Test func testBhvMisc028AnExchangeFailureIsThrownUnchanged() async throws {
+        let client = MockApiClient()
+        let cause = URLError(.networkConnectionLost)
+        client.failure = cause
+        let auth = OAuth2AuthorizationCodeAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            authorizationURL: "https://auth.example.com/authorize",
+            tokenURL: "https://auth.example.com/token",
+            redirectURI: "https://app.example.com/callback",
+            scopes: ["read", "write"],
+            refreshURL: "https://auth.example.com/refresh"
+        )
+        auth.setApiClient(client)
+        _ = try auth.buildAuthorizationURL()
+        do {
+            try await auth.exchangeCode("the-code")
+            Issue.record("expected the transport failure to be thrown")
+        } catch let error as URLError {
+            #expect(error.code == .networkConnectionLost)
+        } catch {
+            Issue.record("expected the transport failure unchanged, got \(error)")
+        }
     }
 }
