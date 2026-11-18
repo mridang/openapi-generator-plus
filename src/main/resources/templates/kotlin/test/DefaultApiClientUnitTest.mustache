@@ -3816,4 +3816,54 @@ class DefaultApiClientUnitTest {
             }
         }
     }
+    @Nested
+    @DisplayName("cancellation before and during a call")
+    inner class CancelledBeforeSendTests {
+
+        @Test
+        @DisplayName("bhvMisc152 a call whose coroutine is already cancelled fails without sending the request")
+        fun bhvMisc152CancelledCallIsNeverSent() {
+            var sent = false
+            val engine = MockEngine { _ ->
+                sent = true
+                respond("ok", HttpStatusCode.OK)
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val cancelled = kotlinx.coroutines.Job().apply { cancel() }
+            assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+                runBlocking {
+                    kotlinx.coroutines.withContext(cancelled) {
+                        apiClient.sendRequest("GET", "http://localhost/never", emptyMap(), null)
+                    }
+                }
+            }
+            assertFalse(sent)
+        }
+
+        @Test
+        @DisplayName("bhvMisc153 cancelling the call's coroutine cancels the same in-flight request")
+        fun bhvMisc153CancellingTheCallCancelsTheInFlightRequest() {
+            val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val outcome = kotlinx.coroutines.CompletableDeferred<String>()
+            val engine = MockEngine { _ ->
+                started.complete(Unit)
+                try {
+                    kotlinx.coroutines.awaitCancellation()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    outcome.complete("cancelled")
+                    throw e
+                }
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine))
+            runBlocking {
+                val call = launch {
+                    apiClient.sendRequest("GET", "http://localhost/never", emptyMap(), null)
+                }
+                started.await()
+                call.cancel()
+                call.join()
+                assertEquals("cancelled", outcome.await())
+            }
+        }
+    }
 }

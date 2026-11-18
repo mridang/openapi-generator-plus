@@ -678,6 +678,10 @@ dart | misc135 | Dart has no client-level cancellation handle: a call is cancell
 dart | misc139 | Dart model constructors are const and store a passed map by reference, so a copy cannot be taken when the model is built without losing const construction
 dart | misc145 | additionalProperties is a plain final Map on a const model, so a read returns the stored map and a copy on read would break the const model shape
 dart | misc149 | Dart named parameters are checked at compile time, so an undeclared copyWith attribute is a compile error and no runtime refusal can be tested
+dart | misc152 | Dart has no cancellation signal on a call: a request is cancelled by cancelling the stream subscription it returns, so there is no already-aborted signal to pass
+dart | misc153 | Dart has no cancellation signal on a call or client: a request is cancelled by cancelling its stream subscription, so no signal can abort an in-flight request
+dart | misc166 | invokeApi treats a null per-call timeout as the transport timeout, so a call has no way to switch its own deadline off
+dart | misc170 | TLS failures are dart:io TlsException values that the shared retry loop cannot name, since the web build has no dart:io; they are retried like other network errors
 kotlin | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
 kotlin | misc098 | Kotlin request bodies are ByteArray values and the MultipartWriter buffers every part into a ByteArrayOutputStream, so no caller-supplied stream reaches the SDK and there is nothing for it to close (transport061 pins the buffering)
 ||||||| 3033dba2f
@@ -688,6 +692,8 @@ java | misc135 | Java has no client-level cancellation handle to store: cancella
 ||||||| 72eb7d52b
 go | misc231 | Go model fields are statically typed, so a model built in code cannot hold a wrong-typed value for a declared property; the wrong-type check runs only when decoding
 go | misc215 | an input object with no declared fields has no declared defaults to fill, so there is no observable default-filling behaviour to test for it
+go | misc260 | Go takes server variable overrides as map[string]string, so a nil value for an enum variable cannot be expressed and the type system rules it out
+||||||| 537627306
 python | misc185 | python's OAuth2 token manager has no stop operation and holds no process or resource to release, so a second stop and a stopped-manager error do not exist
 python | misc186 | python transport options take no ready-made HTTP connection value, so there is no connection to refuse or to combine with a CA bundle setting
 ||||||| 064947382
@@ -697,3 +703,4 @@ kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema fo
 ||||||| 7b31d005e
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
+kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
