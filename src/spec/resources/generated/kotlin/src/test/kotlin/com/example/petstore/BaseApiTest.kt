@@ -645,6 +645,70 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvOptions053 per-call options take effect on that one call only")
+        fun perCallOptionsTakeEffectOnThatOneCallOnly() {
+            val client = CapturingApiClient()
+            val api = PerCallApi(client)
+            runBlocking { api.call(callHeaders = mapOf("X-Extra" to "1"), callTimeout = 250L, callMaxRetries = 0) }
+            assertEquals("1", client.capturedHeaders["X-Extra"])
+            runBlocking { api.call() }
+            assertNull(client.capturedHeaders["X-Extra"])
+        }
+
+        @Test
+        @DisplayName("bhvOptions055 a call without per-call options keeps the client retry limit, timeout and headers in force")
+        fun callWithoutPerCallOptionsKeepsTheClientSettings() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val engine =
+                MockEngine { request ->
+                    seen.add(request)
+                    respond(
+                        "{}",
+                        if (seen.size < 3) HttpStatusCode.ServiceUnavailable else HttpStatusCode.OK,
+                        headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val transport =
+                TransportOptions
+                    .builder()
+                    .httpClient(HttpClient(engine) { followRedirects = false })
+                    .timeout(5000L)
+                    .maxRetries(2)
+                    .build()
+            val client = DefaultApiClient(transport)
+            client.sleeper = { }
+            runBlocking { PerCallApi(client).call() }
+            assertEquals(3, seen.size)
+            assertEquals("config", seen[2].headers["X-Layer"])
+            val armed = seen[2].getCapabilityOrNull(HttpTimeoutCapability)
+            assertNotNull(armed)
+            assertTrue(armed!!.requestTimeoutMillis!! in 1L..5000L, armed.requestTimeoutMillis.toString())
+        }
+
+        @Test
+        @DisplayName("bhvOptions056 a per-call negative timeout or negative retry count is refused before any request is sent")
+        fun negativeCallTimeoutOrRetryCountIsRefusedBeforeSend() {
+            val (client, seen) = statusClient(200)
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(client).call(callTimeout = -5L) }
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(client).call(callMaxRetries = -1) }
+            }
+            assertTrue(seen.isEmpty())
+        }
+
+        @Test
+        @DisplayName("bhvOptions057 a per-call timeout of zero, below one millisecond, is refused before any request is sent")
+        fun zeroCallTimeoutIsRefusedBeforeSend() {
+            val (client, seen) = statusClient(200)
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(client).call(callTimeout = 0L) }
+            }
+            assertTrue(seen.isEmpty())
+        }
+
+        @Test
         @DisplayName("bhvRetries009 F827: an invalid per-call timeout or maxRetries is refused before anything is sent")
         fun invalidCallSettingsAreRefused() {
             val (client, seen) = statusClient(200)
@@ -1578,6 +1642,20 @@ class BaseApiTest {
     @Nested
     @DisplayName("query parameters")
     inner class QueryParameters {
+        @Test
+        @DisplayName("bhvSerialization007 a literal plus is sent as %2B and non-ASCII query text as percent-encoded UTF-8")
+        fun plusAndNonAsciiQueryTextAreEncoded() {
+            val client = CapturingApiClient()
+            runBlocking {
+                TestableApiWithClient(client, "http://localhost").call(
+                    "GET",
+                    "/test/echo",
+                    queryParams = mutableMapOf("q" to "a+b é"),
+                )
+            }
+            assertEquals("http://localhost/test/echo?q=a%2Bb%20%C3%A9", client.capturedUrl)
+        }
+
         @Test
         @DisplayName("bhvSerializationwire002 appends query params to URL")
         fun appendsQueryParams() {

@@ -14,6 +14,15 @@ import org.junit.jupiter.api.Test
 
 class ServerConfigurationTest {
     @Test
+    @DisplayName("bhvServers028 the generated server list cannot be changed after creation")
+    fun generatedServerListCannotBeChanged() {
+        val servers = Servers.ALL
+        assertThrows(UnsupportedOperationException::class.java) {
+            (servers as MutableList<ServerConfiguration>).add(servers[0])
+        }
+    }
+
+    @Test
     @DisplayName("bhvServers010 getUrl substitutes variable defaults into the URL template")
     fun getUrlUsesVariableDefaults() {
         val server =

@@ -1593,7 +1593,7 @@ class PetApiTest {
                         headers = headersOf("Content-Type", "application/json"),
                     )
                 }
-            val transport = TransportOptions.builder().httpClient(HttpClient(engine)).build()
+            val transport = TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build()
             val client =
                 {{clientClassName}}(
                     "http://localhost",
@@ -1771,6 +1771,63 @@ class PetApiTest {
                 "Content-Type must be application/x-www-form-urlencoded, got: $capturedContentType",
             )
             assertEquals("nickname=a+b&tags=x&tags=y", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvOperations156 an operation sends its form-encoded body fields in the order the specification declares them")
+        fun testSetPetPreferencesFormFieldsFollowDeclarationOrder() {
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(
+                        nickname = "n",
+                        tags = listOf("x", "y"),
+                        note = "m",
+                        renewalDate = LocalDate.of(2025, 1, 2),
+                    ),
+                )
+            }
+
+            assertEquals("nickname=n&tags=x&tags=y&note=m&renewalDate=2025-01-02", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvOptions054 an operation accepts per-call request options alongside its other arguments")
+        fun testSetPetPreferencesAcceptsPerCallHeaders() {
+            var capturedTrace: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedTrace = request.headers["X-Trace"]
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(nickname = "n", headers = mapOf("X-Trace" to "t1")),
+                )
+            }
+
+            assertEquals("t1", capturedTrace)
         }
 
         @Test

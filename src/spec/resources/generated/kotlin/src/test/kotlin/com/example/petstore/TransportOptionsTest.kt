@@ -561,7 +561,7 @@ class TransportOptionsTest {
         @DisplayName("bhvOptions058 httpClient defaults to null and is kept when set")
         fun httpClientIsKept() {
             assertNull(TransportOptions.builder().build().httpClient)
-            val custom = HttpClient(MockEngine { respondOk() })
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
             try {
                 assertSame(
                     custom,
@@ -577,9 +577,22 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("bhvRedirects045 a supplied httpClient that follows redirects is refused, because the SDK manages redirects itself")
+        fun httpClientThatFollowsRedirectsIsRefused() {
+            val custom = HttpClient(MockEngine { respondOk() })
+            try {
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().httpClient(custom).build()
+                }
+            } finally {
+                custom.close()
+            }
+        }
+
+        @Test
         @DisplayName("bhvLifecycle024 a supplied httpClient conflicts with the SDK proxy, caCertPath and verifySsl=false settings")
         fun httpClientConflictsWithSdkTransportSettings() {
-            val custom = HttpClient(MockEngine { respondOk() })
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
             try {
                 val proxy =
                     assertThrows(IllegalArgumentException::class.java) {
@@ -641,7 +654,7 @@ class TransportOptionsTest {
         @DisplayName("bhvOptions059 a caller-supplied HTTP client is kept as the same instance on the built options")
         fun suppliedHttpClientIsKeptAsTheSameInstance() {
             assertNull(TransportOptions.builder().build().httpClient)
-            val client = HttpClient()
+            val client = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
             assertSame(
                 client,
                 TransportOptions
