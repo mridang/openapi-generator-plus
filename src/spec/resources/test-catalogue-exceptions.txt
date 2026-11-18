@@ -30,7 +30,6 @@ node | transport006 | The Fetch layer owns Content-Encoding and the SDK adds no 
 node | errors042 | FORCED D-FORCED-1: the fetch layer owns Content-Encoding and node passes an unrecognised coding through untouched rather than raising ApiError (see the node AGENTS.md forced divergences)
 python | serializationobject015 | Python has no set order to keep: a uniqueItems array decodes to a set, which the SDK writes sorted (TestSetSanitization), so no insertion order exists to pin
 python | serializationobject032 | python enforces the declared minLength, maxLength, pattern and numeric bounds on decode (pydantic, shared rule S3), so an out-of-bounds slug, nickname or quantity is rejected; the nickname case is bhv serializationobject 030
-ruby | serializationobject002 | Ruby decodes a bare type: number to Float, a binary double, so it cannot be exact and plain-notation decimal in the way java, csharp and kotlin BigDecimal are (FD-11)
 ruby | models009 | Ruby is dynamically typed: undeclared additionalProperties values are kept as the JSON type they arrive as (ADDITIONAL_PROPERTIES is true, extras are stored as-is), so there is no string type to assert; the captured string shape is covered by bhv models 001 and 004
 swift | serializationobject009 | Swift types a list of byte arrays and a map of byte arrays as different types, so they cannot be compared for equality at all
 swift | serializationobject015 | Swift Set members have no insertion order (S6, unspecified uniqueItems order) and Pet.photoUrls is a Set, so the schema promises no order
