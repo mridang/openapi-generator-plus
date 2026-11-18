@@ -8,12 +8,34 @@
 package com.example.petstore.auth.oauth
 
 import com.example.petstore.auth.CredentialEnvironment
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class OAuth2ImplicitAuthenticatorTest {
+    @Test
+    @DisplayName("bhvMisc001 replacing the token while other callers read the headers never yields a token that was not set")
+    fun bhvMisc001ReplacingTheTokenIsRaceFree() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("tok-0")
+        val seen =
+            runBlocking {
+                kotlinx.coroutines.coroutineScope {
+                    (0 until 50)
+                        .map { i ->
+                            kotlinx.coroutines.async(kotlinx.coroutines.Dispatchers.Default) {
+                                auth.setAccessToken("tok-$i")
+                                auth.getAuthHeaders()["Authorization"]
+                            }
+                        }.awaitAll()
+                }
+            }
+        val allowed = (0 until 50).map { "Bearer tok-$it" }.toSet()
+        assertTrue(seen.all { it in allowed }, seen.toString())
+    }
+
     private fun createAuthenticator(): OAuth2ImplicitAuthenticator =
         OAuth2ImplicitAuthenticator(
             host = "https://api.example.com",

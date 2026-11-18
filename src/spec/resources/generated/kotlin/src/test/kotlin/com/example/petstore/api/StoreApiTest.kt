@@ -387,6 +387,23 @@ class StoreApiTest {
         }
 
         @Test
+        @DisplayName(
+            "bhvOperations154 a body is checked only against the schema of its own status, and a body that matches neither is refused",
+        )
+        fun bhvOperations154ABodyIsCheckedOnlyAgainstItsOwnStatus() {
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
+                runBlocking {
+                    capturingStoreApi("""{"unrelated":1}""", HttpStatusCode.OK).reserveStock()
+                }
+            }
+            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
+                runBlocking {
+                    capturingStoreApi("""{"unrelated":1}""", HttpStatusCode.Created).reserveStock()
+                }
+            }
+        }
+
+        @Test
         @DisplayName("bhvUnions036 F1062: the status code, not the shape of the body, picks the variant")
         fun testReserveStockRefusesABodyThatDoesNotFitItsStatus() {
             assertThrows(com.example.petstore.errors.SerializationException::class.java) {
@@ -458,6 +475,22 @@ class StoreApiTest {
             }
 
             assertEquals(listOf("at=10%3A30%3A00.123", "at=10%3A30%3A00"), captured)
+        }
+
+        @Test
+        @DisplayName("bhvOperations155 an operation sends its query parameters in the order the specification declares them")
+        fun bhvOperations155QueryParametersFollowTheSpecOrder() {
+            var query = ""
+            val api =
+                capturingStoreApi(
+                    "[]",
+                    HttpStatusCode.OK,
+                    capture = { request, _ -> query = request.url.encodedQuery },
+                )
+            runBlocking {
+                api.searchStore(SearchStoreOptions(at = java.time.LocalTime.of(10, 30, 0), labels = setOf("red")))
+            }
+            assertEquals("labels=red&at=10%3A30%3A00", query)
         }
 
         @Test

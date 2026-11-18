@@ -123,6 +123,36 @@ class BasicAuthenticatorTest {
         assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD"), ex.message)
     }
 
+    @Test
+    @DisplayName("bhvAuth007 a credential is read only from the variable it names, and nothing else is looked up")
+    fun bhvAuth007ReadsOnlyTheVariableItNames() {
+        val read = mutableListOf<String>()
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name ->
+            read.add(name)
+            null
+        }
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com")
+            }
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+        assertEquals(listOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"), read)
+    }
+
+    @Test
+    @DisplayName("bhvAuth024 each credential takes its passed value or its own variable, independently of the other")
+    fun bhvAuth024EachCredentialFallsBackIndependently() =
+        runBlocking {
+            val auth =
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "pw")) {
+                    BasicAuthenticator("https://api.example.com", "alice")
+                }
+            assertEquals("Basic YWxpY2U6cHc=", auth.getAuthHeaders()["Authorization"])
+        }
+
     private fun <T> withEnvironment(
         values: Map<String, String>,
         body: () -> T,

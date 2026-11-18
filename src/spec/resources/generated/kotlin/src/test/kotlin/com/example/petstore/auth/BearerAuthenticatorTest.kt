@@ -229,6 +229,30 @@ class BearerAuthenticatorTest {
         }
     }
 
+    @Test
+    @DisplayName("bhvAuth003 an empty token environment variable counts as no value, so construction fails naming it")
+    fun bhvAuth003AnEmptyTokenVariableCountsAsUnset() {
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "")) {
+                    BearerAuthenticator("https://api.example.com")
+                }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth018 a refused token never appears in the exception text or the stack trace")
+    fun bhvAuth018ARefusedTokenNeverAppearsInTheException() {
+        val secret = "s3cr3t-token-value"
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", "$secret\u0001")
+            }
+        assertFalse(ex.stackTraceToString().contains(secret), ex.stackTraceToString())
+        assertFalse(ex.toString().contains(secret), ex.toString())
+    }
+
     private fun <T> withEnvironment(
         values: Map<String, String>,
         body: () -> T,

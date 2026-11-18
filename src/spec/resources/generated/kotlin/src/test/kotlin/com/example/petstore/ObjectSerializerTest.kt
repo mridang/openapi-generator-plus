@@ -1682,6 +1682,14 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvModels021 each member of an integer-backed enum carries its declared number as its value")
+        fun bhvModels021EachIntegerEnumMemberCarriesItsDeclaredNumber() {
+            for (member in com.example.petstore.models.Priority.entries) {
+                assertEquals(member.name.removePrefix("NUMBER_").toInt(), member.value, member.name)
+            }
+        }
+
+        @Test
         @DisplayName(
             "bhvSerializationobject093 integer-backed enum (Priority) round-trips as a " +
                 "JSON NUMBER, not a string",
