@@ -384,6 +384,19 @@ class StoreApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc114 a success response is decoded by the decoder for the status code actually received")
+        fun bhvMisc114ASuccessResponseIsDecodedForTheStatusActuallyReceived() {
+            val created =
+                runBlocking {
+                    capturingStoreApi(
+                        """{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}""",
+                        HttpStatusCode.Created,
+                    ).reserveStock()
+                }
+            assertTrue(created.actualInstance is ReservationReceipt)
+        }
+
+        @Test
         @DisplayName("bhvOperations120 reserveStock decodes a 201 body as the new receipt")
         fun bhvOperations120ReserveStockDecodesA201BodyAsTheReceipt() {
             val created =
