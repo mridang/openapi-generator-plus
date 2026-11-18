@@ -219,6 +219,51 @@ carries its method, path, status and headers on the `ApiException`, with
 credential headers redacted in `toString()`. Set
 `TransportOptions.builder().injectRequestId(true)` to correlate with server logs.
 
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it once on the client or on the `Configuration`, and combine several with `chainCallHooks`, which starts them in the order given and finishes their observers in the reverse order.
+
+```dart
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+class SourceHook implements CallHook {
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    headers['X-Source'] = 'nightly-job';
+    return null;
+  }
+}
+
+final client = {{clientClassName}}.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: SourceHook(),
+);
+```
+
+`start` runs once per call, however many sends the call takes, right after the trace context is injected, so `headers` is the final header set: authentication and default headers included, and any of them can be replaced. A header you set is on every send of the call, retries and the replay after a 401 included; the fresh authentication headers of a replay still replace a header of the same name. `start` returns a `CallObserver`, or `null` when it has nothing to observe, and `CallObserver.finish` is called exactly once when the call has ended, with a `CallOutcome`: the `statusCode` (0 when no response arrived), the lower-cased response `headers` (`null` when no response arrived) and the `error`, the very error the caller receives. `CallInfo` carries the `operationId` as written in the spec, the upper-case `method`, the `urlTemplate`, the `url` without its query string and the `serverAddress`. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook runs above the transport, so it also fires with a `package:http` `Client` you supplied.
+
+To record one span, one request count and one duration per call, give the SDK a hook built on the OpenTelemetry API. The SDK itself has no OpenTelemetry dependency and Dart cannot detect an optional package, so this is a recipe you copy into your project rather than a class the SDK ships. It names the span after the operation id with kind client, sets `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code for a status of 400 or more, else `timeout`, `network_error`, `serialization_error` or `_OTHER`), and writes the `traceparent` of the client span into the request itself. The `opentelemetry` package offers no histogram and its SDK counter records nothing, so the count and the duration go to the functions you pass as `onRequest` and `onDuration`; forward them to your metrics library.
+
+```dart
+{{>call_hook_recipe}}
+```
+
+Pass it as the `callHook`, with your tracer provider and propagator:
+
+```dart
+import 'package:opentelemetry/api.dart' as otel;
+
+final client = {{clientClassName}}.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: OpenTelemetryCallHook(
+    tracerProvider: otel.globalTracerProvider,
+    propagator: otel.W3CTraceContextPropagator(),
+  ),
+);
+```
+
 ### Versioning
 
 The package version is `{{packageVersion}}` and follows semantic versioning: a

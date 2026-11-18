@@ -3443,5 +3443,407 @@ void main() {
       );
     });
   });
+
+  group('BaseApi call hook', () {
+    test('bhv hooks 001 without a hook a call sends the same headers and returns the same result', () async {
+      final plain = _ScriptedApiClient([_reply(200)]);
+      final hooked = _ScriptedApiClient([_reply(200)]);
+
+      final first = await _HookedApi(plain, null)
+          .invokeApi(method: 'GET', path: '/x');
+      final second = await _HookedApi(hooked, _RecordingHook(returnsObserver: false))
+          .invokeApi(method: 'GET', path: '/x');
+
+      expect(first.statusCode, equals(second.statusCode));
+      expect(plain.sentHeaders, equals(hooked.sentHeaders));
+    });
+
+    test('bhv hooks 002 start is called once with the spec operation id, the method, the template and the url', () async {
+      final hook = _RecordingHook();
+      final api = _HookedApi(_ScriptedApiClient([_reply(200)]), hook);
+
+      await api.invokeApi(
+        method: 'GET',
+        path: '/items/7?a=1',
+        operationId: 'listItems',
+        urlTemplate: '/items/{id}',
+      );
+
+      expect(hook.infos, hasLength(1));
+      expect(hook.infos.single.operationId, equals('listItems'));
+      expect(hook.infos.single.method, equals('GET'));
+      expect(hook.infos.single.urlTemplate, equals('/items/{id}'));
+      expect(hook.infos.single.url, equals('https://api.example.com/items/7'));
+    });
+
+    test('bhv hooks 002 a generated operation passes its spec id and its path template', () async {
+      final hook = _RecordingHook();
+      final client = _ScriptedApiClient([
+        ApiHttpResponse(
+          statusCode: 200,
+          body: '{"name":"a","photoUrls":[]}',
+          headers: {'content-type': 'application/json'},
+        ),
+      ]);
+      final api = PetApi(
+        apiClient: client,
+        config: ConfigurationBuilder()
+            .baseUrl('https://api.example.com')
+            .callHook(hook)
+            .build(),
+      );
+
+      await api.getPetById(7, null, null);
+
+      expect(hook.infos.single.operationId, equals('getPetById'));
+      expect(hook.infos.single.urlTemplate, equals('/pet/{petId}'));
+      expect(hook.infos.single.method, equals('GET'));
+    });
+
+    test('bhv hooks 003 serverAddress is the host without port and without IPv6 brackets', () async {
+      final hook = _RecordingHook();
+
+      await _HookedApi(_ScriptedApiClient([_reply(200)]), hook,
+              baseUrl: 'https://API.Example.com:8443')
+          .invokeApi(method: 'GET', path: '/x');
+      await _HookedApi(_ScriptedApiClient([_reply(200)]), hook,
+              baseUrl: 'http://[::1]:8080')
+          .invokeApi(method: 'GET', path: '/x');
+
+      expect(hook.infos.map((i) => i.serverAddress),
+          equals(['api.example.com', '::1']));
+    });
+
+    test('bhv hooks 004 a header the hook sets reaches the transport', () async {
+      final client = _ScriptedApiClient([_reply(200)]);
+      final api = _HookedApi(
+          client, _RecordingHook(edit: (headers) => headers['X-Hook'] = 'on'));
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(client.sentHeaders.single['X-Hook'], equals('on'));
+    });
+
+    test('bhv hooks 005 start sees the final header set and can replace a header', () async {
+      final hook = _RecordingHook(
+          edit: (headers) => headers['Authorization'] = 'Bearer replaced');
+      final client = _ScriptedApiClient([_reply(200)]);
+      final api = _HookedApi(client, hook,
+          authenticator: _BaseApiAuth(headers: {'Authorization': 'Bearer own'}),
+          defaultHeaders: {'X-Default': 'd'});
+
+      await api.invokeApi(
+          method: 'GET', path: '/x', headerParams: {'X-Operation': 'o'});
+
+      expect(hook.seen.single['Authorization'], equals('Bearer own'));
+      expect(hook.seen.single['X-Default'], equals('d'));
+      expect(hook.seen.single['X-Operation'], equals('o'));
+      expect(client.sentHeaders.single['Authorization'],
+          equals('Bearer replaced'));
+    });
+
+    test('bhv hooks 006 a header the hook sets is on every send, retries and the replay after a 401 included', () async {
+      final retried = _ScriptedApiClient([_reply(503), _reply(503), _reply(200)]);
+      await _HookedApi(
+              retried, _RecordingHook(edit: (h) => h['X-Hook'] = 'on'))
+          .invokeApi(method: 'GET', path: '/x');
+      final replayed = _ScriptedApiClient([_reply(401), _reply(200)]);
+      await _HookedApi(
+              replayed, _RecordingHook(edit: (h) => h['X-Hook'] = 'on'),
+              authenticator: _RotatingAuth())
+          .invokeApi(method: 'GET', path: '/x');
+
+      expect(retried.sentHeaders.map((h) => h['X-Hook']),
+          equals(['on', 'on', 'on']));
+      expect(replayed.sentHeaders.map((h) => h['X-Hook']), equals(['on', 'on']));
+    });
+
+    test('bhv hooks 007 the fresh authentication headers of a replay replace a hook header of the same name', () async {
+      final client = _ScriptedApiClient([_reply(401), _reply(200)]);
+      final api = _HookedApi(
+          client, _RecordingHook(edit: (h) => h['Authorization'] = 'hook'),
+          authenticator: _RotatingAuth());
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(client.sentHeaders.map((h) => h['Authorization']),
+          equals(['hook', 'Bearer t2']));
+    });
+
+    test('bhv hooks 008 a call that is retried calls start once and finish once', () async {
+      final hook = _RecordingHook();
+      final client = _ScriptedApiClient([_reply(503), _reply(503), _reply(200)]);
+
+      await _HookedApi(client, hook).invokeApi(method: 'GET', path: '/x');
+
+      expect(client.sentHeaders, hasLength(3));
+      expect(hook.infos, hasLength(1));
+      expect(hook.outcomes, hasLength(1));
+      expect(hook.outcomes.single.statusCode, equals(200));
+    });
+
+    test('bhv hooks 009 the call that returns the raw response and the one that returns a result call the hook once each', () async {
+      final hook = _RecordingHook();
+      final api = _HookedApi(
+          _ScriptedApiClient([_reply(200), _reply(200)]), hook);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+      await api.invokeApiForResult<void>(method: 'GET', path: '/x');
+
+      expect(hook.infos, hasLength(2));
+      expect(hook.outcomes, hasLength(2));
+    });
+
+    test('bhv hooks 010 a hook on the configuration fires when the caller supplied the transport', () async {
+      final hook = _RecordingHook();
+      final supplied = MockClient((_) async => http.Response('{}', 200));
+      final api = _HookedApi(
+          DefaultApiClient(
+              transportOptions:
+                  TransportOptionsBuilder().httpClient(supplied).build()),
+          hook);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(hook.infos, hasLength(1));
+      expect(hook.outcomes.single.statusCode, equals(200));
+    });
+
+    test('bhv hooks 011 finish gets the status, the lower-cased headers and no error on a 2xx', () async {
+      final hook = _RecordingHook();
+      final client =
+          _ScriptedApiClient([_reply(200, headers: {'X-Request-Id': 'abc'})]);
+
+      await _HookedApi(client, hook).invokeApi(method: 'GET', path: '/x');
+
+      final outcome = hook.outcomes.single;
+      expect(outcome.statusCode, equals(200));
+      expect(outcome.headers, equals({'x-request-id': 'abc'}));
+      expect(outcome.error, isNull);
+    });
+
+    test('bhv hooks 012 finish gets the status, the headers and the same typed error the caller receives', () async {
+      final hook = _RecordingHook();
+      final client =
+          _ScriptedApiClient([_reply(404, headers: {'X-Request-Id': 'abc'})]);
+
+      Object? thrown;
+      try {
+        await _HookedApi(client, hook).invokeApi(method: 'GET', path: '/x');
+      } catch (e) {
+        thrown = e;
+      }
+
+      expect(thrown, isA<NotFoundException>());
+      final outcome = hook.outcomes.single;
+      expect(outcome.statusCode, equals(404));
+      expect(outcome.headers, equals({'x-request-id': 'abc'}));
+      expect(identical(outcome.error, thrown), isTrue);
+    });
+
+    test('bhv hooks 013 finish gets status 0, no headers and the network error when no response arrived', () async {
+      final hook = _RecordingHook();
+      final client = _ScriptedApiClient(
+          [const NetworkException(message: 'connection refused')],
+          maxRetries: 0);
+
+      Object? thrown;
+      try {
+        await _HookedApi(client, hook).invokeApi(method: 'GET', path: '/x');
+      } catch (e) {
+        thrown = e;
+      }
+
+      final outcome = hook.outcomes.single;
+      expect(outcome.statusCode, equals(0));
+      expect(outcome.headers, isNull);
+      expect(thrown, isA<NetworkException>());
+      expect(identical(outcome.error, thrown), isTrue);
+    });
+
+    test('bhv hooks 014 finish gets the timeout error when the end-to-end budget is exhausted', () async {
+      final hook = _RecordingHook();
+      final client = _ScriptedApiClient(
+          [const NetworkTimeoutException(message: 'slow')],
+          maxRetries: 0);
+
+      Object? thrown;
+      try {
+        await _HookedApi(client, hook).invokeApi(method: 'GET', path: '/x');
+      } catch (e) {
+        thrown = e;
+      }
+
+      expect(thrown, isA<NetworkTimeoutException>());
+      expect(identical(hook.outcomes.single.error, thrown), isTrue);
+    });
+
+    test('bhv hooks 016 finish gets the serialization error, with the status that arrived, when the response cannot be decoded', () async {
+      final hook = _RecordingHook();
+      final client = _ScriptedApiClient([
+        ApiHttpResponse(
+          statusCode: 200,
+          body: '[1, 2',
+          headers: {'Content-Type': 'application/json'},
+        ),
+      ]);
+
+      Object? thrown;
+      try {
+        await _HookedApi(client, hook).invokeApiForResult<Map<String, dynamic>>(
+          method: 'GET',
+          path: '/x',
+          returnType: 'Map<String, dynamic>',
+          deserialize: (body) =>
+              deserialize<Map<String, dynamic>>(body, (json) => json)!,
+        );
+      } catch (e) {
+        thrown = e;
+      }
+
+      expect(thrown, isA<SerializationException>());
+      final outcome = hook.outcomes.single;
+      expect(outcome.statusCode, equals(200));
+      expect(outcome.headers, equals({'content-type': 'application/json'}));
+      expect(identical(outcome.error, thrown), isTrue);
+    });
+
+    test('bhv hooks 017 finish is called when the request body cannot be encoded and nothing is sent', () async {
+      final hook = _RecordingHook();
+      final client = _ScriptedApiClient([_reply(200)]);
+
+      Object? thrown;
+      try {
+        await _HookedApi(client, hook).invokeApi(
+          method: 'POST',
+          path: '/x',
+          contentType: 'application/x-www-form-urlencoded',
+          body: <String, Object?>{
+            'a': <String, Object?>{'b': 1},
+          },
+        );
+      } catch (e) {
+        thrown = e;
+      }
+
+      expect(thrown, isA<SerializationException>());
+      expect(client.sentHeaders, isEmpty);
+      expect(hook.outcomes, hasLength(1));
+      expect(identical(hook.outcomes.single.error, thrown), isTrue);
+    });
+
+    test('bhv hooks 018 an error thrown by start reaches the caller unchanged, nothing is sent and finish is not called', () async {
+      const refusal = NetworkException(message: 'refused by the hook');
+      final hook = _RecordingHook(failOnStart: refusal);
+      final client = _ScriptedApiClient([_reply(200)]);
+
+      Object? thrown;
+      try {
+        await _HookedApi(client, hook).invokeApi(method: 'GET', path: '/x');
+      } catch (e) {
+        thrown = e;
+      }
+
+      expect(identical(thrown, refusal), isTrue);
+      expect(client.sentHeaders, isEmpty);
+      expect(hook.outcomes, isEmpty);
+    });
+
+    test('bhv hooks 019 an error thrown by finish is swallowed and the caller still gets its result or its own error', () async {
+      final hook = _RecordingHook(failOnFinish: StateError('observer broke'));
+      final client = _ScriptedApiClient([_reply(200), _reply(404)]);
+      final api = _HookedApi(client, hook);
+
+      final response = await api.invokeApi(method: 'GET', path: '/x');
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<NotFoundException>()),
+      );
+
+      expect(response.statusCode, equals(200));
+      expect(hook.outcomes, hasLength(2));
+    });
+
+    test('bhv hooks 021 the url given to the hook never carries the query string or the fragment', () async {
+      final hook = _RecordingHook();
+      final api = _HookedApi(_ScriptedApiClient([_reply(200)]), hook);
+
+      await api.invokeApi(
+        method: 'GET',
+        path: '/items?a=1#top',
+        queryParams: {'b': '2'},
+      );
+
+      expect(hook.infos.single.url, equals('https://api.example.com/items'));
+    });
+  });
+}
+
+/// A [BaseApi] with a [CallHook] on its configuration that records the waits
+/// before a retry instead of sleeping.
+class _HookedApi extends BaseApi {
+  _HookedApi(
+    ApiClient client,
+    CallHook? hook, {
+    Authenticator? authenticator,
+    String baseUrl = 'https://api.example.com',
+    Map<String, String> defaultHeaders = const {},
+  }) : super(
+          apiClient: client,
+          config: ConfigurationBuilder()
+              .baseUrl(baseUrl)
+              .defaultHeaders(defaultHeaders)
+              .callHook(hook)
+              .build(),
+          authenticator: authenticator,
+        );
+
+  @override
+  Future<void> sleepBeforeRetry(Duration delay) async {}
+}
+
+/// A hook that records what it is told and can edit the headers or fail.
+class _RecordingHook implements CallHook {
+  _RecordingHook({
+    this.edit,
+    this.failOnStart,
+    this.failOnFinish,
+    this.returnsObserver = true,
+  });
+
+  final void Function(Map<String, String> headers)? edit;
+  final Object? failOnStart;
+  final Object? failOnFinish;
+  final bool returnsObserver;
+  final List<CallInfo> infos = [];
+  final List<Map<String, String>> seen = [];
+  final List<CallOutcome> outcomes = [];
+
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    infos.add(info);
+    seen.add(Map<String, String>.of(headers));
+    edit?.call(headers);
+    final failure = failOnStart;
+    if (failure != null) {
+      throw failure;
+    }
+    return returnsObserver ? _RecordingObserver(this) : null;
+  }
+}
+
+class _RecordingObserver implements CallObserver {
+  _RecordingObserver(this._hook);
+
+  final _RecordingHook _hook;
+
+  @override
+  void finish(CallOutcome outcome) {
+    _hook.outcomes.add(outcome);
+    final failure = _hook.failOnFinish;
+    if (failure != null) {
+      throw failure;
+    }
+  }
 }
 {{/generateTests}}

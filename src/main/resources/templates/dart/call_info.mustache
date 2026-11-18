@@ -1,0 +1,66 @@
+{{>api_info}}
+/// What a [CallHook] is told about a call before it is sent.
+///
+/// The values are the same in every SDK: [operationId] is the operation id as
+/// written in the spec, [method] is the upper-case HTTP method, [urlTemplate]
+/// is the spec path template without the server base path, [url] is the
+/// request URL without its query string and fragment, and [serverAddress] is
+/// the lower-case host of [url], without a port and without the brackets of an
+/// IPv6 literal.
+class CallInfo {
+  /// Creates the description of one call.
+  const CallInfo({
+    required this.operationId,
+    required this.method,
+    required this.urlTemplate,
+    required this.url,
+    required this.serverAddress,
+  });
+
+  /// The operation id exactly as written in the spec.
+  final String operationId;
+
+  /// The upper-case HTTP method.
+  final String method;
+
+  /// The spec path template of the operation, for example `/items/{id}`.
+  final String urlTemplate;
+
+  /// The request URL without its query string and fragment.
+  final String url;
+
+  /// The host of [url], lower-case, without a port.
+  final String serverAddress;
+
+  /// Builds the description of a call from the target of its request.
+  ///
+  /// A query string and a fragment are dropped from [target] before it is
+  /// stored, and a [target] that is not a URL has an empty [serverAddress].
+  factory CallInfo.of({
+    required String operationId,
+    required String method,
+    required String urlTemplate,
+    required String target,
+  }) {
+    var url = target;
+    for (final cut in const ['?', '#']) {
+      final index = url.indexOf(cut);
+      if (index >= 0) {
+        url = url.substring(0, index);
+      }
+    }
+    var host = '';
+    try {
+      host = Uri.parse(url).host.toLowerCase();
+    } on FormatException {
+      host = '';
+    }
+    return CallInfo(
+      operationId: operationId,
+      method: method.toUpperCase(),
+      urlTemplate: urlTemplate,
+      url: url,
+      serverAddress: host,
+    );
+  }
+}

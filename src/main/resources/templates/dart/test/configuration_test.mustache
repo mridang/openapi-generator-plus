@@ -249,6 +249,36 @@ void main() {
       expect(first.baseUrl, equals(second.baseUrl));
       expect(identical(first, second), isFalse);
     });
+
+    test('the call hook is unset by default', () {
+      expect(ConfigurationBuilder().build().callHook, isNull);
+    });
+
+    test('builder sets the call hook and returns the builder', () {
+      final hook = _NoopHook();
+      final builder = ConfigurationBuilder();
+
+      expect(identical(builder.callHook(hook), builder), isTrue);
+      expect(identical(builder.build().callHook, hook), isTrue);
+    });
+
+    test('builder removes the call hook when given null', () {
+      final config =
+          ConfigurationBuilder().callHook(_NoopHook()).callHook(null).build();
+
+      expect(config.callHook, isNull);
+    });
+
+    test('toString does not print the call hook', () {
+      final config = ConfigurationBuilder().callHook(_NoopHook()).build();
+
+      expect(config.toString(), isNot(contains('_NoopHook')));
+    });
   });
+}
+
+class _NoopHook implements CallHook {
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) => null;
 }
 {{/generateTests}}

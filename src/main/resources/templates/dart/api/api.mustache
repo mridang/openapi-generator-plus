@@ -489,6 +489,8 @@ class {{classname}} extends BaseApi {
     return invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}(
       method: '{{httpMethod}}',
       operation: '{{classname}}.{{operationId}}',
+      operationId: '{{#lambda.dartString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.dartString}}',
+      urlTemplate: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,

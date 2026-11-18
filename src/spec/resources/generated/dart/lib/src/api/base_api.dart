@@ -17,6 +17,9 @@ import '../api_http_response.dart';
 import '../api_result.dart';
 import '../auth/authenticator.dart';
 import '../auth/http_aware_authenticator.dart';
+import '../call_hook.dart';
+import '../call_info.dart';
+import '../call_outcome.dart';
 import '../configuration.dart';
 import '../default_api_client.dart';
 import '../header_selector.dart';
@@ -115,7 +118,53 @@ class BaseApi {
   ///     0 disables them and a negative value is refused
   ///   - [errorSchemas]: the error factories of the operation by declared
   ///     status (`404`, `4XX`, `default`), or null when it declares none
+  ///   - [operationId]: the operation id as written in the spec, handed to the
+  ///     [CallHook] of the configuration
+  ///   - [urlTemplate]: the spec path template of the operation, handed to the
+  ///     [CallHook] of the configuration
   Future<ApiHttpResponse> invokeApi({
+    required String method,
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    String returnType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+  }) {
+    final run = _CallRun(config.callHook, operationId, urlTemplate);
+    return run.observe<ApiHttpResponse>(
+      () => _send(
+        run: run,
+        method: method,
+        path: path,
+        queryParams: queryParams,
+        headerParams: headerParams,
+        body: body,
+        accepts: accepts,
+        contentType: contentType,
+        returnType: returnType,
+        auth: auth,
+        rawBody: rawBody,
+        timeout: timeout,
+        callHeaders: callHeaders,
+        maxRetries: maxRetries,
+        errorSchemas: errorSchemas,
+      ),
+      (response) => (response.statusCode, response.headers),
+    );
+  }
+
+  Future<ApiHttpResponse> _send({
+    required _CallRun run,
     required String method,
     required String path,
     Map<String, Object?>? queryParams,
@@ -216,12 +265,15 @@ class BaseApi {
         });
       }
 
+      final authNames = <String>{};
       if (effectiveAuth != null) {
         /* Await the async variant so token-exchange OAuth flows (client-
            credentials, password, authorization-code) perform their token fetch
            and contribute a real Authorization header; non-token schemes fall
            through to the synchronous authHeaders via the default implementation. */
-        headers.addAll(await effectiveAuth.authHeadersAsync());
+        final authHeaders = await effectiveAuth.authHeadersAsync();
+        headers.addAll(authHeaders);
+        authNames.addAll(authHeaders.keys.map((name) => name.toLowerCase()));
 
         final cookies = effectiveAuth.cookieParams();
         if (cookies.isNotEmpty) {
@@ -256,6 +308,7 @@ class BaseApi {
       }
 
       TraceContextUtil.injectTraceContext(headers);
+      run.beforeSend(method, targetUrl, headers, authNames);
 
       final Uint8List? serializedBody;
       if (contentType == 'multipart/form-data' &&
@@ -309,6 +362,9 @@ class BaseApi {
                   );
                 },
               );
+      } on _HookStartFailure catch (e) {
+        /* An error of the hook's start reaches the caller unchanged. */
+        Error.throwWithStackTrace(e.error, e.stackTrace);
       } on NetworkException catch (e) {
         failure = e.withRequest(method, requestPath);
       } on ApiException catch (e) {
@@ -492,8 +548,57 @@ class BaseApi {
     T Function(String body)? deserialize,
     T Function(String body, int statusCode)? deserializeByStatus,
     Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+  }) {
+    final run = _CallRun(config.callHook, operationId, urlTemplate);
+    return run.observe<ApiResult<T>>(
+      () => _sendForResult<T>(
+        run: run,
+        method: method,
+        operation: operation,
+        path: path,
+        queryParams: queryParams,
+        headerParams: headerParams,
+        body: body,
+        accepts: accepts,
+        contentType: contentType,
+        returnType: returnType,
+        auth: auth,
+        rawBody: rawBody,
+        timeout: timeout,
+        callHeaders: callHeaders,
+        maxRetries: maxRetries,
+        deserialize: deserialize,
+        deserializeByStatus: deserializeByStatus,
+        errorSchemas: errorSchemas,
+      ),
+      (result) => (result.statusCode, result.headers),
+    );
+  }
+
+  Future<ApiResult<T>> _sendForResult<T>({
+    required _CallRun run,
+    required String method,
+    String operation = '',
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    String returnType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    T Function(String body)? deserialize,
+    T Function(String body, int statusCode)? deserializeByStatus,
+    Map<String, ErrorFactory>? errorSchemas,
   }) async {
-    final response = await invokeApi(
+    final response = await _send(
+      run: run,
       method: method,
       path: path,
       queryParams: queryParams,
@@ -891,4 +996,152 @@ class BaseApi {
         '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
         '${hex.substring(20, 32)}';
   }
+}
+
+/// An error thrown by [CallHook.start], carried out of the send loop so that it
+/// reaches the caller unchanged.
+class _HookStartFailure {
+  _HookStartFailure(this.error, this.stackTrace);
+
+  final Object error;
+  final StackTrace stackTrace;
+}
+
+/// The state of one operation call as far as the [CallHook] is concerned: the
+/// observer [CallHook.start] returned and the header edits the hook made, which
+/// are applied again to every further send of the call.
+class _CallRun {
+  _CallRun(this._hook, this._operationId, this._urlTemplate);
+
+  final CallHook? _hook;
+  final String _operationId;
+  final String _urlTemplate;
+  bool _started = false;
+  CallObserver? _observer;
+
+  /// The edits the hook made to the headers, by header name; null removes it.
+  final Map<String, String?> _edits = {};
+
+  /// Calls [CallHook.start] on the first send of the call, and on every later
+  /// send applies the edits it made. A header the authentication of this send
+  /// provides (by lower-case name in [authNames]) is not overwritten.
+  void beforeSend(
+    String method,
+    String target,
+    Map<String, String> headers,
+    Set<String> authNames,
+  ) {
+    final hook = _hook;
+    if (hook == null) {
+      return;
+    }
+    if (_started) {
+      _edits.forEach((name, value) {
+        if (authNames.contains(name.toLowerCase())) {
+          return;
+        }
+        if (value == null) {
+          headers.remove(name);
+        } else {
+          headers[name] = value;
+        }
+      });
+      return;
+    }
+    _started = true;
+    final before = Map<String, String>.of(headers);
+    try {
+      _observer = hook.start(
+        CallInfo.of(
+          operationId: _operationId,
+          method: method,
+          urlTemplate: _urlTemplate,
+          target: target,
+        ),
+        headers,
+      );
+    } catch (e, s) {
+      throw _HookStartFailure(e, s);
+    }
+    headers.forEach((name, value) {
+      if (before[name] != value) {
+        _edits[name] = value;
+      }
+    });
+    for (final name in before.keys) {
+      if (!headers.containsKey(name)) {
+        _edits[name] = null;
+      }
+    }
+  }
+
+  /// Runs [body] and tells the observer how it ended: [describe] gives the
+  /// status and the headers of a result, and an error thrown by [body] is
+  /// reported and rethrown as it is.
+  Future<R> observe<R>(
+    Future<R> Function() body,
+    (int, Map<String, String>) Function(R result) describe,
+  ) async {
+    if (_hook == null) {
+      return body();
+    }
+    final R result;
+    try {
+      result = await body();
+    } catch (e) {
+      _finish(_outcomeOfError(e));
+      rethrow;
+    }
+    final (status, headers) = describe(result);
+    _finish(
+      CallOutcome(
+        statusCode: status,
+        headers: _lowerCased(headers),
+        error: null,
+      ),
+    );
+    return result;
+  }
+
+  /// Tells the observer, if there is one, that the call has ended. An error of
+  /// the observer is swallowed: it never replaces the result of the call.
+  void _finish(CallOutcome outcome) {
+    final observer = _observer;
+    _observer = null;
+    if (observer == null) {
+      return;
+    }
+    try {
+      observer.finish(outcome);
+    } catch (_) {
+      /* The call still returns its result or its own error. */
+    }
+  }
+
+  static CallOutcome _outcomeOfError(Object error) {
+    if (error is ApiException) {
+      return CallOutcome(
+        statusCode: error.statusCode,
+        headers: _lowerCasedOrNull(error.responseHeaders),
+        error: error,
+      );
+    }
+    if (error is SerializationException) {
+      return CallOutcome(
+        statusCode: error.statusCode ?? 0,
+        headers: _lowerCasedOrNull(error.responseHeaders),
+        error: error,
+      );
+    }
+    return CallOutcome(statusCode: 0, headers: null, error: error);
+  }
+
+  static Map<String, String>? _lowerCasedOrNull(Map<String, String>? headers) =>
+      headers == null ? null : _lowerCased(headers);
+
+  static Map<String, String> _lowerCased(Map<String, String> headers) =>
+      Map.unmodifiable({
+        for (final entry in headers.entries)
+          entry.key.toLowerCase(): entry.value,
+      });
 }
