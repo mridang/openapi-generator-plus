@@ -258,4 +258,14 @@ public class BearerAuthenticatorTest
             )
         );
     }
+
+    [Fact]
+    public void BhvMisc017ARejectedCredentialIsNeverEchoedInTheConstructionError()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "tok\u0001secret")
+        );
+
+        Assert.DoesNotContain("secret", ex.Message, StringComparison.Ordinal);
+    }
 }

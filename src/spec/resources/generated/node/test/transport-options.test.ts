@@ -579,3 +579,11 @@ describe("TransportOptions", () => {
     });
   });
 });
+
+describe("TransportOptions misc behaviours", () => {
+  test("bhv misc 026 a configuration mistake raises a TypeError that is not an SDK error", () => {
+    const configure = (): unknown => TransportOptions.builder().timeout(-1);
+    expect(configure).toThrow(TypeError);
+    expect(configure).not.toThrow(OpenAPIError);
+  });
+});

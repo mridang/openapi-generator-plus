@@ -578,6 +578,64 @@ test('bhv operations 021 a digit-leading query parameter keeps its wire name', f
     expect($captured->url)->not->toContain('n2ndPage');
 });
 
+test('bhv misc 007 a missing path parameter is named and no request is sent', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->getPetSummary(7, null, new GetPetSummaryOptions(session: 's')))
+        ->toThrow(\TypeError::class, '$asOf');
+    expect($captured->url)->toBe('');
+});
+
+test('bhv misc 008 a supplied required cookie is sent in the cookie header', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetSummary(7, new \DateTime('2024-01-15'), new GetPetSummaryOptions(session: 'abc'));
+    } catch (\Throwable) {
+        // Only the captured request matters here.
+    }
+
+    expect($captured->headers['Cookie'] ?? null)->toBe('session=abc');
+});
+
+test('bhv misc 009 a call without options sends none of the per call headers', function (): void {
+    [$api, $captured] = newHeaderCapturingPetApi();
+
+    $api->getPetById(1);
+
+    foreach (array_keys($captured->headers) as $name) {
+        expect(strtolower((string) $name))->not->toBe('x-per-call');
+    }
+});
+
+test('bhv misc 010 an operation whose options have required fields refuses a call without them', function (): void {
+    expect(fn (): mixed => $this->api->addPetPhotos(1))->toThrow(\ArgumentCountError::class);
+});
+
+test('bhv misc 012 a nil required argument is named and nothing is sent', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->addPet(null))->toThrow(\TypeError::class, '$pet');
+    expect($captured->url)->toBe('');
+});
+
+test('bhv misc 014 a null success body for a body returning operation raises and returns no value', function (): void {
+    $api = newPetApiForMock(200, 'application/json', 'null');
+
+    expect(fn (): mixed => $api->getPetById(1))->toThrow(ApiException::class);
+});
+
+test('bhv misc 019 a request target in an error is reduced to its path', function (): void {
+    $api = newPetApiForMock(404, 'application/json', '{"message":"Pet not found"}');
+
+    try {
+        $api->getPetById(99999);
+        test()->fail('Expected exception not thrown');
+    } catch (\{{invokerPackage}}\Errors\NotFoundException $e) {
+        expect($e->getRequestPath())->toBe('/pet/99999');
+    }
+});
+
 test('bhv operations 057 get pet summary sends the matrix date segment, the session cookie and the date array', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 

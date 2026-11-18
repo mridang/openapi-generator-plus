@@ -259,6 +259,33 @@ describe 'Client' do
     _(error.message).must_equal 'At least one credential is required'
   end
 
+  it 'bhv_misc_065 scheme credentials are copied when the client is built' do
+    first = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'first-token')
+    second = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'second-token')
+    credentials = { pet_store_basic: first }
+
+    client = Petstore::Client::Petstore.new(nil, nil, **credentials)
+    credentials[:pet_store_basic] = second
+
+    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
+  end
+
+  it 'bhv_misc_075 a credential keyed to a scheme the API does not declare is refused when the client is built' do
+    credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+
+    _ { Petstore::Client::Petstore.new(nil, nil, undeclared_scheme: credential) }.must_raise ArgumentError
+  end
+
+  it 'bhv_misc_071 hands the client transport to a credential that needs HTTP' do
+    default = ClientTestHttpAwareCredential.new('http://127.0.0.1:2')
+    credential = ClientTestHttpAwareCredential.new('http://127.0.0.1:1')
+
+    client = Petstore::Client::Petstore.new(default, nil, pet_store_basic: credential)
+
+    api_client = client.instance_variable_get(:@api_client)
+    _(credential.injected).must_be_same_as api_client
+  end
+
   it 'bhv_auth_025 hands the shared transport to every credential that needs HTTP' do
     default = ClientTestHttpAwareCredential.new('http://127.0.0.1:2')
     credential = ClientTestHttpAwareCredential.new('http://127.0.0.1:1')
