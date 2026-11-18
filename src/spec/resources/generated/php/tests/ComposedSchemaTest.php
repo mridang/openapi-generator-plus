@@ -507,3 +507,19 @@ test('bhv unions 043 a discriminator value already set on a subtype is written a
 
     expect($decoded['foodType'] ?? null)->toBe('custom');
 });
+
+test('bhv misc 045 a variant payload that fails its schema is rejected', function (array $data): void {
+    expect(fn () => PetFood::build($data))->toThrow(\Throwable::class);
+})->with([
+    'missing required field' => [['foodType' => 'dry']],
+    'field of the wrong type' => [['foodType' => 'dry', 'weightKg' => 'heavy']],
+]);
+
+test('bhv misc 046 unions holding equal content compare equal and different content compares unequal', function (): void {
+    $a = PetTreatment::build(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);
+    $b = PetTreatment::build(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);
+    $c = PetTreatment::build(['drugName' => 'Other', 'dosage' => '1mg']);
+
+    expect($a->equals($b))->toBeTrue();
+    expect($a->equals($c))->toBeFalse();
+});

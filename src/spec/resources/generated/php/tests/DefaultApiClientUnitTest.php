@@ -3051,3 +3051,100 @@ test('bhv errors 098 an unreadable caCertPath names the certificate and the unde
             expect($e->getMessage())->toContain('No such file or directory');
         });
 });
+
+test('bhv misc 027 a transport failure with no response is a network error that keeps its cause', function (): void {
+    $cause = new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+    $client = new StubbedDefaultApiClient(new MockHttpClient(function () use ($cause): never {
+        throw $cause;
+    }));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/refused', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\PetstoreClient\Errors\NetworkException $e) {
+        expect($e->getPrevious())->toBe($cause);
+    }
+});
+
+test('bhv misc 031 a proxy url with user information carries the credential to the proxy', function (): void {
+    $client = new DefaultApiClient(TransportOptions::builder()->proxy('http://user:pass@proxy.example:3128')->build());
+    $http = (new \ReflectionProperty(DefaultApiClient::class, 'client'))->getValue($client);
+    assert(is_object($http));
+    $defaults = (new \ReflectionProperty($http, 'defaultOptions'))->getValue($http);
+    assert(is_array($defaults));
+
+    expect($defaults['proxy'])->toBe('http://user:pass@proxy.example:3128');
+});
+
+test('bhv misc 032 the raw http response exposes its status code, body and headers', function (): void {
+    $response = new \PetstoreClient\RawHttpResponse(201, '{"ok":true}', ['content-type' => ['application/json']]);
+
+    expect($response->statusCode)->toBe(201);
+    expect($response->body)->toBe('{"ok":true}');
+    expect($response->headers)->toBe(['content-type' => ['application/json']]);
+});
+
+test('bhv misc 036 a caller body part stays readable after the request it was sent with fails', function (): void {
+    $stream = fopen('php://temp', 'w+');
+    assert(is_resource($stream));
+    fwrite($stream, 'content');
+    $client = new StubbedDefaultApiClient(new MockHttpClient(function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+    }));
+
+    try {
+        $client->sendRequest('POST', 'http://example.com/upload', [], ['raw' => $stream]);
+        test()->fail('Expected NetworkException');
+    } catch (\PetstoreClient\Errors\NetworkException) {
+        rewind($stream);
+        expect(stream_get_contents($stream))->toBe('content');
+    }
+});
+
+test('bhv misc 040 response header names are returned in lower case', function (): void {
+    $mockResponse = new MockResponse('{"ok":true}', [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'application/json', 'X-Custom-Header' => 'yes'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/headers', [], null);
+
+    expect(array_keys($response->headers))->toContain('x-custom-header');
+});
+
+test('bhv misc 041 a request with a non standard method is sent with its body intact', function (): void {
+    $sent = ['method' => null, 'body' => null];
+    $client = new StubbedDefaultApiClient(new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$sent): MockResponse {
+            $sent = [
+                'method' => $method,
+                'body' => collectDefaultApiClientRequestBody($options['body'] ?? ''),
+            ];
+            return new MockResponse('{"ok":true}', ['http_code' => 200]);
+        }
+    ));
+
+    $client->sendRequest('PROPFIND', 'http://example.com/x', [], 'payload');
+
+    expect($sent['method'])->toBe('PROPFIND');
+    expect($sent['body'])->toBe('payload');
+});
+
+test('bhv misc 043 a user agent that is explicitly cleared is omitted from the request', function (): void {
+    $captured = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$captured): MockResponse {
+            foreach ($options['normalized_headers'] ?? [] as $values) {
+                [$name, $value] = explode(': ', $values[0], 2);
+                $captured[strtolower($name)] = $value;
+            }
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+    $client = new StubbedDefaultApiClient($mockClient, TransportOptions::builder()->userAgent(null)->build());
+
+    $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+    expect($captured)->not->toHaveKey('user-agent');
+});

@@ -461,3 +461,7 @@ python | misc044 | a declared gzip body that is not gzip raises ApiException (tr
 python | misc051 | operation Options objects are typed, so an option the operation cannot apply is refused by Python as an unknown keyword at construction
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
+php | misc029 | PHP has no cancellation API, so a caller cancellation never reaches the SDK; timeouts are the only bound
+php | misc033 | libcurl and the TLS stack build the chain from the CA file, and the unit tests cannot run a live TLS handshake to check it
+php | misc034 | PHP has one caller transport, the PSR-18 client, so there is no separate HTTP client option to combine with it
+php | misc035 | PHP has no abort signal to pass to a call, so an already aborted call cannot exist
