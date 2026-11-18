@@ -107,7 +107,9 @@ class TestBearerAuthenticator:
             BearerAuthenticator(host="https://api.example.com", token="   ")
 
     @pytest.mark.parametrize("blank", ["\t", "\f", "\v", " \f "])
-    def test_rejects_ascii_whitespace_only_token_as_empty(self, blank: str) -> None:
+    def test_bhv_lang_python_038_rejects_ascii_whitespace_only_token_as_empty(
+        self, blank: str
+    ) -> None:
         with pytest.raises(ValueError, match="Bearer token must not be empty"):
             BearerAuthenticator(host="https://api.example.com", token=blank)
 
@@ -141,7 +143,7 @@ class TestBearerAuthenticator:
         assert "token=xyz" not in rendered
         assert "***" in rendered
 
-    def test_equal_credentials_are_not_equal_by_value(self) -> None:
+    def test_bhv_lang_python_039_equal_credentials_are_not_equal_by_value(self) -> None:
         """Authenticators compare by identity, so a secret is never compared or hashed by value."""
         first = BearerAuthenticator(host="https://api.example.com", token="xyz")
         second = BearerAuthenticator(host="https://api.example.com", token="xyz")
@@ -271,7 +273,9 @@ class TestBearerBehaviours:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="abc\x00def")
 
-    def test_a_provided_token_with_a_line_break_is_refused_on_use(self) -> None:
+    def test_bhv_misc_174_a_provided_token_with_a_line_break_is_refused_on_use(
+        self,
+    ) -> None:
         auth = BearerAuthenticator(
             host="https://api.example.com", token_provider=lambda: "abc\ndef"
         )

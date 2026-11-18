@@ -68,11 +68,11 @@ describe 'scheme authenticators' do
            .select { |const| const.is_a?(Class) && const < Petstore::Client::Auth::Authenticator }
   end
 
-  it 'finds the generated authenticators' do
+  it 'bhv_langruby_075 finds the generated authenticators' do
     _(authenticator_classes).wont_be_empty
   end
 
-  it 'take positional arguments like their base authenticators' do
+  it 'bhv_langruby_076 take positional arguments like their base authenticators' do
     offenders = authenticator_classes.select do |klass|
       klass.instance_method(:initialize).parameters.any? { |kind, _name| kind == :keyreq }
     end
@@ -190,7 +190,7 @@ describe 'scheme authenticators' do
     environment_schemes.flat_map { |_name, _base, credentials| credentials.values }
   end
 
-  it 'finds a wrapper for every scheme the spec declares' do
+  it 'bhv_misc_073 finds a wrapper for every scheme the spec declares' do
     environment_schemes.each { |name, _base, _credentials| _(scheme_class(name)).wont_be_nil }
   end
 
@@ -198,7 +198,7 @@ describe 'scheme authenticators' do
     _(every_variable.uniq).must_equal every_variable
   end
 
-  it 'builds each wrapper from its own variables alone' do
+  it 'bhv_langruby_077 builds each wrapper from its own variables alone' do
     environment_schemes.each do |name, _base, credentials|
       env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
       _(scheme_class(name).new('https://api.example.com', env: env)).wont_be_nil
@@ -338,7 +338,7 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'takes the token provider of a Bearer wrapper after the variable' do
+  it 'bhv_langruby_078 takes the token provider of a Bearer wrapper after the variable' do
     environment_schemes.each do |name, base, credentials|
       next unless base == 'BearerAuthenticator'
 

@@ -217,7 +217,9 @@ class TestClientCredentials:
 
         assert _authorization(client) == "Bearer live"
 
-    def test_a_token_and_a_token_provider_together_are_rejected(self) -> None:
+    def test_bhv_lang_python_045_a_token_and_a_token_provider_together_are_rejected(
+        self,
+    ) -> None:
         with pytest.raises(ValueError, match="not both"):
             Client.with_token(
                 "https://arg.example.com", "arg-token", token_provider=lambda: "live"
@@ -233,7 +235,9 @@ class TestClientSchemeCredentials:
         with pytest.raises(ValueError, match="At least one credential is required"):
             Client()
 
-    def test_the_default_authenticator_alone_is_enough(self) -> None:
+    def test_bhv_lang_python_046_the_default_authenticator_alone_is_enough(
+        self,
+    ) -> None:
         client = Client(
             authenticator=BearerAuthenticator("https://default.example.com", "tok")
         )
@@ -266,7 +270,7 @@ class TestClientSchemeCredentials:
             "sso_auth",
         ]
 
-    def test_the_scheme_credentials_are_keyword_only(self) -> None:
+    def test_bhv_lang_python_047_the_scheme_credentials_are_keyword_only(self) -> None:
         parameters = inspect.signature(Client.__init__).parameters
 
         for name in [
@@ -287,7 +291,9 @@ class TestClientSchemeCredentials:
             assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY
             assert parameters[name].default is None
 
-    def test_each_scheme_names_the_scheme_it_is_the_credential_of(self) -> None:
+    def test_bhv_lang_python_048_each_scheme_names_the_scheme_it_is_the_credential_of(
+        self,
+    ) -> None:
         held = BearerAuthenticator("https://pet_store_basic.example.com", "tok")
 
         client = Client(pet_store_basic=held)
@@ -379,7 +385,7 @@ class TestClientSchemeCredentials:
         assert client.store._authenticator is default
         assert list(client.store._scheme_authenticators.values()) == [held]
 
-    def test_the_call_hook_reaches_every_api_group(self) -> None:
+    def test_bhv_lang_python_049_the_call_hook_reaches_every_api_group(self) -> None:
         class _Hook:
             def start(
                 self, info: CallInfo, headers: dict[str, str]
@@ -488,7 +494,7 @@ class TestClientClose:
         assert (await request).status_code == 200
         assert pool.clears == 1
 
-    async def test_the_transport_is_released_when_the_last_of_several_requests_ends(
+    async def test_bhv_lang_python_050_the_transport_is_released_when_the_last_of_several_requests_ends(
         self,
     ) -> None:
         pool = _SlowPool()
@@ -504,7 +510,7 @@ class TestClientClose:
 
         assert pool.clears == 1
 
-    def test_closing_with_nothing_in_flight_releases_the_transport_at_once(
+    def test_bhv_lang_python_051_closing_with_nothing_in_flight_releases_the_transport_at_once(
         self,
     ) -> None:
         pool = _SlowPool()

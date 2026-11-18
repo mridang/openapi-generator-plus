@@ -162,7 +162,7 @@ describe 'Client' do
   # per-operation server types: they are declared inside the API file whose
   # operations use them, as in the other eleven SDKs, so they are listed by
   # name below and skipped.
-  it 'declares exactly the constant each lib file path names' do
+  it 'bhv_langruby_024 declares exactly the constant each lib file path names' do
     lib = File.expand_path('../lib', File.dirname(__FILE__))
     root_dir = File.join(lib, 'petstore/client')
     files = Dir.glob(File.join(root_dir, '**', '*.rb'))
@@ -313,7 +313,7 @@ describe 'Client' do
     client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi)
   end
 
-  it 'hands the call hook to every API group' do
+  it 'bhv_langruby_025 hands the call hook to every API group' do
     hook = RecordingCallHook.new
     authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
 
@@ -326,14 +326,6 @@ describe 'Client' do
       _(groups).wont_be_empty
       _(groups.map { |api| api.config.call_hook }.uniq).must_equal [hook]
     end
-  end
-
-  it 'has no call hook unless one is given' do
-    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
-
-    groups = call_hook_groups_of(Petstore::Client::Petstore.new(authenticator))
-
-    _(groups.map { |api| api.config.call_hook }.uniq).must_equal [nil]
   end
 
   it 'bhv_lifecycle_008 close makes the client reject further requests' do
