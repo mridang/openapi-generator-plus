@@ -264,6 +264,33 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvAuth053ExchangingACodeDiscardsARefreshTokenHeldBefore()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        await auth.ExchangeCodeAsync("first-code");
+        await auth.ExchangeCodeAsync("second-code");
+
+        auth.InvalidateAccessToken();
+        try
+        {
+            await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        }
+        catch (InvalidOperationException) { }
+
+        Assert.DoesNotContain(
+            "refresh_token=ref1",
+            client.LastBody ?? string.Empty,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task BhvAuthoauthtwoauthcode012ExchangesCodeWithCorrectGrantType()
     {
         var client = new FakeApiClient();

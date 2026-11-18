@@ -56,6 +56,49 @@ public class OAuth2TokenManagerTest
         }
     }
 
+    private sealed class UnreachableApiClient : IApiClient
+    {
+        private readonly Exception _failure;
+
+        public UnreachableApiClient(Exception failure)
+        {
+            _failure = failure;
+        }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        ) => Task.FromException<ApiHttpResponse>(_failure);
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect
+        ) => Task.FromException<ApiHttpResponse>(_failure);
+    }
+
+    [Fact]
+    public async Task BhvAuth055ANetworkFailureReachesTheCallerUnchanged()
+    {
+        var failure = new HttpRequestException("network down");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(new UnreachableApiClient(failure));
+
+        var thrown = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            manager.GetAccessTokenAsync(
+                TokenUrl,
+                ClientCredentialsGrant(),
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Same(failure, thrown);
+    }
+
     [Fact]
     public async Task BhvAuthoauthtwotokenmgr014ExtractsAccessTokenFromResponse()
     {
@@ -1380,7 +1423,10 @@ public class OAuth2TokenManagerTest
     )]
     [InlineData("not json", "Token request failed with status 400: not json")]
     [InlineData("{\"error\":\"\"}", "Token request failed with status 400: {\"error\":\"\"}")]
-    public async Task TokenEndpointFailureMessageFollowsTheBody(string body, string expected)
+    public async Task BhvAuth054TokenEndpointFailureMessageFollowsTheBody(
+        string body,
+        string expected
+    )
     {
         var client = new FakeApiClient();
         client.Enqueue(body, statusCode: 400);
@@ -1514,6 +1560,108 @@ public class OAuth2TokenManagerTest
                 new Dictionary<string, string>()
             );
         }
+    }
+
+    [Fact]
+    public async Task BhvAuth056APaddedDecimalExpiresInIsHonouredAsALifetime()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"padded\",\"expires_in\":\"  3600  \"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+
+        Assert.Equal(
+            "padded",
+            await manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(
+            "padded",
+            await manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(1, client.CallCount);
+    }
+
+    [Fact]
+    public async Task BhvAuth057ARejectedRefreshFallsBackToTheOriginalGrant()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = "cid",
+            ["client_secret"] = "secret",
+        };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var refreshUrl = new Uri("https://auth.example.com/refresh");
+
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal("tok2", second);
+        Assert.Equal(3, client.CallCount);
+    }
+
+    [Fact]
+    public async Task BhvAuth058ARefreshTokenHeldIsUsedBeforeTheOriginalGrant()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string>
+        {
+            ["grant_type"] = "password",
+            ["client_id"] = "cid",
+            ["client_secret"] = "secret",
+        };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var refreshUrl = new Uri("https://auth.example.com/refresh");
+
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, client.CallCount);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]

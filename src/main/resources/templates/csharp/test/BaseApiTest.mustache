@@ -2133,6 +2133,26 @@ public class BaseApiTest
         Assert.Equal("Bearer client-secret", client.CapturedHeaders["Authorization"]);
     }
 
+    [Fact]
+    public async Task BhvAuth046InheritedSecurityOperationReceivesTheClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "Authorization", "Bearer inherited-value" } });
+        var api = new PetApi(client, new Configuration("http://localhost"), clientAuth);
+
+        try
+        {
+            await api.GetPetByIdAsync(7L);
+        }
+        catch (OpenAPIException)
+        {
+            // The request is captured before the empty body fails to deserialize.
+        }
+
+        Assert.Equal("Bearer inherited-value", client.CapturedHeaders["Authorization"]);
+    }
+
     // SECURED (Wave A1 guard against over-suppression): a secured operation
     // with a configured client authenticator and NO per-call override must
     // STILL attach the credential. addPet is secured, so the api method passes

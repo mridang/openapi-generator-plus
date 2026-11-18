@@ -145,6 +145,17 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvAuth052AnAuthenticatorHoldingNoTokenRefusesAuthHeadersSyncAndAsync()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public void BhvAuthoauthtwoimplicit012ThrowsWhenAccessTokenNotSet()
     {
         var auth = CreateAuthenticator();

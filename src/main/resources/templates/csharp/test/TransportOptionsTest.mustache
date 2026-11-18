@@ -509,6 +509,14 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void BhvLifecycle041SuppliedHandlerConflictsWithTheProxySetting()
+    {
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpMessageHandler(handler).Proxy("http://proxy.example.com:8080").Build());
+    }
+
+    [Fact]
     public void BhvRedirects045SuppliedStockHandlerThatFollowsRedirectsConflictsWithTheRedirectPolicy()
     {
         using var handler = new HttpClientHandler { AllowAutoRedirect = true };

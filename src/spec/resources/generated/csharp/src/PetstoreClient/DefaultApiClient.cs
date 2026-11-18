@@ -364,6 +364,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     internal DefaultApiClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
+        _ownsHttpClient = false;
         _transportOptions = TransportOptions.Builder().Build();
         ProxyAuthorizationHeader = null;
     }
@@ -379,6 +380,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(transportOptions);
         _httpClient = httpClient;
+        _ownsHttpClient = false;
         _transportOptions = transportOptions;
         ProxyAuthorizationHeader = BuildProxyAuthorizationHeader(transportOptions.Proxy);
     }

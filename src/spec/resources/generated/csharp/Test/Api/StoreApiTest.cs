@@ -902,6 +902,22 @@ public class StoreApiTest
     }
 
     [Fact]
+    public async Task BhvOperations158APerCallHeaderIsSentWithThatCall()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetInventoryAsync(
+            new GetInventoryOptions
+            {
+                Headers = new Dictionary<string, string> { ["X-Call"] = "call-1" },
+            }
+        );
+
+        Assert.Equal("call-1", client.Headers["X-Call"]);
+    }
+
+    [Fact]
     public async Task AnOperationWithNoParametersAndNoSecurityLeavesTheTransportSettingsAloneWithoutOptions()
     {
         var client = new CallOptionsApiClient { Body = "{}" };

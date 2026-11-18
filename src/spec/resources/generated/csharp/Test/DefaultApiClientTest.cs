@@ -854,7 +854,7 @@ public class DefaultApiClientTest
     [InlineData(303, "HEAD", "HEAD", false)]
     [InlineData(307, "PUT", "PUT", true)]
     [InlineData(308, "DELETE", "DELETE", true)]
-    public async Task RedirectRewritesTheMethodPerRfc9110(
+    public async Task BhvRedirects050RedirectRewritesTheMethodPerRfc9110(
         int status,
         string method,
         string expectedMethod,
