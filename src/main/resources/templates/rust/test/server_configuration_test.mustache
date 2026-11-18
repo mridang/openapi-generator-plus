@@ -299,3 +299,48 @@ fn test_bhv_servers_015_a_server_without_a_description_is_allowed() {
     assert_eq!(server.description(), "");
     assert_eq!(server.url(&HashMap::new()).unwrap(), "https://api.example.com/v1");
 }
+
+#[test]
+fn test_bhv_servers_025_changing_the_variables_map_after_building_does_not_change_the_configuration() {
+    let mut variables = HashMap::new();
+    variables.insert(
+        "env".to_string(),
+        ServerVariable::new("prod".to_string(), "environment".to_string(), vec!["prod".to_string()]),
+    );
+    let config = ServerConfiguration::new(
+        "https://{env}.example.com".to_string(),
+        "d".to_string(),
+        variables.clone(),
+    );
+    variables.insert(
+        "extra".to_string(),
+        ServerVariable::new("x".to_string(), "extra".to_string(), vec!["x".to_string()]),
+    );
+    assert_eq!(config.variables().len(), 1, "the built configuration must not see the later change");
+}
+
+#[test]
+fn test_bhv_servers_026_changing_the_allowed_values_after_building_does_not_change_the_variable() {
+    let mut values = vec!["a".to_string()];
+    let variable = ServerVariable::new("a".to_string(), "letter".to_string(), values.clone());
+    values.push("b".to_string());
+    assert_eq!(variable.enum_values(), &["a".to_string()][..]);
+}
+
+#[test]
+fn test_bhv_servers_027_two_server_variables_with_the_same_fields_are_equal() {
+    let first = ServerVariable::new("a".to_string(), "letter".to_string(), vec!["a".to_string()]);
+    let same = ServerVariable::new("a".to_string(), "letter".to_string(), vec!["a".to_string()]);
+    let other = ServerVariable::new("b".to_string(), "letter".to_string(), vec!["a".to_string()]);
+    assert_eq!(first, same);
+    assert_ne!(first, other);
+}
+
+#[test]
+fn test_bhv_servers_028_the_generated_server_list_is_a_fresh_copy_on_every_read() {
+    let mut first = {{packageName}}::servers::all_servers();
+    let count = first.len();
+    first.clear();
+    let second = {{packageName}}::servers::all_servers();
+    assert_eq!(second.len(), count, "a change to one list must not change the generated servers");
+}

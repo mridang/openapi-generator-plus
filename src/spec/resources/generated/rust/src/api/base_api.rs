@@ -214,6 +214,19 @@ impl BaseApi {
                 return Err(Box::new(ConfigurationError::InvalidTimeout(0)));
             }
         }
+        /* A header value with a CR or LF would split the request head; refuse it before anything is sent. */
+        for (name, value) in params
+            .header_params
+            .iter()
+            .chain(params.call.headers.iter())
+        {
+            if value.contains(['\r', '\n']) {
+                return Err(Box::new(ConfigurationError::InvalidArgument(format!(
+                    "header '{}' must not contain CR or LF characters",
+                    name
+                ))));
+            }
+        }
         let mut request_url = params.path.to_string();
         if !request_url.starts_with("http://") && !request_url.starts_with("https://") {
             /* Strip trailing slash from baseUrl when the path starts with a
@@ -1708,6 +1721,40 @@ mod tests {
         let deadline = client.last_deadline.lock().unwrap().expect("a deadline");
         assert!(deadline >= before + std::time::Duration::from_secs(30));
         assert!(deadline <= std::time::Instant::now() + std::time::Duration::from_secs(30));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_043_an_unauthorized_response_is_not_replayed_without_a_fresh_credential(
+    ) {
+        let client = ScriptedClient::new(401);
+        let api = api_for(client.clone());
+
+        let result = api.invoke_api(call_params(CallOptions::default())).await;
+
+        assert!(result.is_err(), "the 401 must reach the caller");
+        assert_eq!(
+            1,
+            client.calls(),
+            "no authenticator can refresh the credential, so it is not replayed"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_headers_031_a_header_value_with_a_line_break_is_refused_before_sending() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let mut params = call_params(CallOptions::default());
+        params
+            .header_params
+            .insert("X-Bad".to_string(), "a\r\nInjected: yes".to_string());
+
+        let result = api.invoke_api(params).await;
+
+        assert!(
+            result.is_err(),
+            "a CR or LF in a header value must be refused"
+        );
+        assert_eq!(0, client.calls(), "nothing may be sent");
     }
 
     #[tokio::test]

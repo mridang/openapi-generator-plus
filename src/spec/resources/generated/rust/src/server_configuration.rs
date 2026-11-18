@@ -20,7 +20,7 @@ use crate::errors::configuration_error::ConfigurationError;
 /// This struct is immutable and thread-safe.
 ///
 /// See also [`ServerConfiguration`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ServerVariable {
     /// The default value for this variable.
     default_value: String,

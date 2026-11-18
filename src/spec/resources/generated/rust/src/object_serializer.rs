@@ -2810,4 +2810,109 @@ mod tests {
         assert!(stamps[0].is_none());
         assert!(stamps[1].is_some());
     }
+
+    #[test]
+    fn test_bhv_serialization_009_a_value_that_cannot_be_serialized_raises_the_serialization_error()
+    {
+        assert!(serialize(&f64::NAN).is_err(), "NaN has no JSON form");
+        assert!(
+            serialize(&f64::INFINITY).is_err(),
+            "infinity has no JSON form"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_015_an_object_parameter_keeps_the_separators_of_its_declared_style() {
+        let map = sample_object();
+        let exploded = object_query_pairs(&map, "form", true)
+            .expect("an object of scalars serializes")
+            .expect("form with explode expands the object");
+        assert!(
+            exploded.contains(&("breed".to_string(), "lab".to_string())),
+            "{:?}",
+            exploded
+        );
+        assert!(
+            exploded.contains(&("min_age".to_string(), "3".to_string())),
+            "{:?}",
+            exploded
+        );
+        assert_eq!(
+            object_query_pairs(&map, "form", false).expect("serializes"),
+            None
+        );
+        let joined = object_serializer::stringify_param(&map, "form", false).expect("serializes");
+        assert!(
+            joined.contains("breed,lab") && joined.contains("min_age,3"),
+            "{}",
+            joined
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_017_an_object_built_from_a_model_is_written_in_declaration_order() {
+        let category = crate::models::Category {
+            id: Some(1),
+            name: Some("dogs".to_string()),
+        };
+        let pairs = object_query_pairs(&category, "form", true)
+            .expect("a model serializes")
+            .expect("form with explode expands the model");
+        assert_eq!(
+            pairs,
+            vec![
+                ("id".to_string(), "1".to_string()),
+                ("name".to_string(), "dogs".to_string())
+            ]
+        );
+        let simple = object_serializer::stringify_param(&category, "simple", false)
+            .expect("a model serializes");
+        assert_eq!(simple, "id,1,name,dogs");
+    }
+
+    #[test]
+    fn test_bhv_serialization_018_a_nested_value_inside_an_object_parameter_is_refused() {
+        let mut map = sample_object();
+        map.insert("nested".to_string(), serde_json::json!({"a": 1}));
+        assert!(object_query_pairs(&map, "form", true).is_err());
+        assert!(object_serializer::stringify_param(&map, "form", false).is_err());
+    }
+
+    #[test]
+    fn test_bhv_serialization_019_an_unset_entry_in_a_parameter_map_is_left_out() {
+        let pairs = object_query_pairs(&sample_object(), "form", true)
+            .expect("serializes")
+            .expect("expanded");
+        assert!(
+            pairs.iter().all(|(key, _)| key != "skipped"),
+            "a null entry must be omitted: {:?}",
+            pairs
+        );
+        assert_eq!(pairs.len(), 2);
+    }
+
+    #[test]
+    fn test_bhv_serialization_026_a_json_object_decodes_to_a_map_and_an_empty_object_to_an_empty_map(
+    ) {
+        let mut expected = std::collections::HashMap::new();
+        expected.insert("a".to_string(), 1);
+        let filled: Option<std::collections::HashMap<String, i32>> =
+            deserialize(br#"{"a":1}"#).expect("an object decodes");
+        assert_eq!(filled, Some(expected));
+        let empty: Option<std::collections::HashMap<String, i32>> =
+            deserialize(b"{}").expect("an empty object decodes");
+        assert_eq!(empty, Some(std::collections::HashMap::new()));
+    }
+
+    #[test]
+    fn test_bhv_serialization_042_a_date_or_time_string_is_passed_through_exactly_as_given() {
+        assert_eq!(
+            object_serializer::to_path_value(&"2024-01-15".to_string()),
+            "2024-01-15"
+        );
+        assert_eq!(
+            object_serializer::to_path_value(&"12:34:56".to_string()),
+            "12:34:56"
+        );
+    }
 }

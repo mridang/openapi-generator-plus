@@ -933,3 +933,59 @@ async fn test_bhv_serialization_014_an_unset_query_parameter_produces_no_query_e
         url
     );
 }
+
+/* serialization008: a content-typed parameter is JSON-encoded once, then percent-encoded once for its location. */
+#[tokio::test]
+async fn test_bhv_serialization_008_a_content_typed_parameter_is_json_encoded_exactly_once() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let q = PhotoMetadata {
+        caption: Some("a".to_string()),
+        ..PhotoMetadata::new()
+    };
+
+    let _ = api
+        .search_store(Some(&SearchStoreOptions::new().q(q)))
+        .await;
+
+    let url = client.url.lock().unwrap().clone();
+    assert!(
+        url.contains("q=%7B%22caption%22%3A%22a%22%7D"),
+        "expected one JSON encoding: {}",
+        url
+    );
+    assert!(
+        !url.contains("%257B"),
+        "the JSON must not be percent-encoded twice: {}",
+        url
+    );
+}
+
+/* headers032: the Accept header lists media types without quality weights. */
+#[tokio::test]
+async fn test_bhv_headers_032_the_accept_header_lists_media_types_without_quality_weights() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    let _ = api.get_inventory(None).await;
+
+    let accept = client
+        .headers
+        .lock()
+        .unwrap()
+        .get("Accept")
+        .cloned()
+        .unwrap_or_default();
+    assert!(!accept.is_empty(), "an Accept header must be sent");
+    assert!(
+        !accept.contains("q="),
+        "quality weights must not be sent: {}",
+        accept
+    );
+}

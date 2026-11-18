@@ -313,3 +313,18 @@ fn test_bhv_lifecycle_015_takes_one_optional_keyword_credential_per_security_sch
     let client = Client::with_credentials(host, credentials, None);
     let _ = &client;
 }
+#[test]
+fn test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_at_construction() {
+    let no_host = Client::with_token(None, Some("token"), None);
+    assert!(
+        no_host.is_err(),
+        "a client without a host must not be built"
+    );
+    let empty_token = Client::with_token(Some("http://localhost"), Some(""), None);
+    assert!(
+        empty_token.is_err(),
+        "an empty token must not build a client"
+    );
+    let valid = Client::with_token(Some("http://localhost"), Some("token"), None);
+    assert!(valid.is_ok(), "a host and a token build a client");
+}
