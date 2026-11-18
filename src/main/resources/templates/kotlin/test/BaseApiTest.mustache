@@ -620,6 +620,21 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc053 a per-call retry budget of zero is accepted and a negative retry budget is refused")
+        fun bhvMisc053ZeroRetryBudgetIsAcceptedAndNegativeIsRefused() {
+            val (client, seen) = statusClient(503, 200)
+            assertThrows(ServerException::class.java) {
+                runBlocking { PerCallApi(client).call(callMaxRetries = 0) }
+            }
+            assertEquals(1, seen.size)
+            val (refused, seenRefused) = statusClient(200)
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(refused).call(callMaxRetries = -1) }
+            }
+            assertTrue(seenRefused.isEmpty())
+        }
+
+        @Test
         @DisplayName("bhvOptions053 per-call options take effect on that one call only")
         fun perCallOptionsTakeEffectOnThatOneCallOnly() {
             val client = CapturingApiClient()
@@ -628,6 +643,18 @@ class BaseApiTest {
             assertEquals("1", client.capturedHeaders["X-Extra"])
             runBlocking { api.call() }
             assertNull(client.capturedHeaders["X-Extra"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc054 per-call headers are a copy that later changes to the caller's own map do not reach")
+        fun bhvMisc054PerCallHeadersAreACopyOfTheCallersMap() {
+            val client = CapturingApiClient()
+            val headers = mutableMapOf("X-Extra" to "1")
+            runBlocking { PerCallApi(client).call(callHeaders = headers) }
+            headers["X-Extra"] = "2"
+            headers["X-Later"] = "late"
+            assertEquals("1", client.capturedHeaders["X-Extra"])
+            assertNull(client.capturedHeaders["X-Later"])
         }
 
         @Test
@@ -660,6 +687,40 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc050 per-call options override the options object and an unset option falls through to it")
+        fun bhvMisc050PerCallOptionsOverrideTheClientAndUnsetOnesFallThrough() {
+            fun retryingClient(): Pair<DefaultApiClient, MutableList<io.ktor.client.request.HttpRequestData>> {
+                val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+                val engine = MockEngine { request ->
+                    seen.add(request)
+                    respond(
+                        "{}",
+                        if (seen.size < 3) HttpStatusCode.ServiceUnavailable else HttpStatusCode.OK,
+                        headersOf("Content-Type", "application/json"),
+                    )
+                }
+                val client = DefaultApiClient(
+                    TransportOptions
+                        .builder()
+                        .httpClient(HttpClient(engine) { followRedirects = false })
+                        .timeout(5000L)
+                        .maxRetries(2)
+                        .build(),
+                )
+                client.sleeper = { }
+                return Pair(client, seen)
+            }
+            val (overridden, seenOverridden) = retryingClient()
+            assertThrows(ServerException::class.java) {
+                runBlocking { PerCallApi(overridden).call(callMaxRetries = 0) }
+            }
+            assertEquals(1, seenOverridden.size)
+            val (fallsThrough, seenFallsThrough) = retryingClient()
+            runBlocking { PerCallApi(fallsThrough).call() }
+            assertEquals(3, seenFallsThrough.size)
+        }
+
+        @Test
         @DisplayName("bhvOptions056 a per-call negative timeout or negative retry count is refused before any request is sent")
         fun negativeCallTimeoutOrRetryCountIsRefusedBeforeSend() {
             val (client, seen) = statusClient(200)
@@ -686,6 +747,22 @@ class BaseApiTest {
         @DisplayName("bhvRetries009 F827: an invalid per-call timeout or maxRetries is refused before anything is sent")
         fun invalidCallSettingsAreRefused() {
             val (client, seen) = statusClient(200)
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(client).call(callTimeout = 0L) }
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(client).call(callMaxRetries = -1) }
+            }
+            assertTrue(seen.isEmpty())
+        }
+
+        @Test
+        @DisplayName("bhvMisc055 a per-call timeout or retry count that is not valid is refused with an argument error")
+        fun bhvMisc055InvalidPerCallTimeoutOrRetriesAreRefused() {
+            val (client, seen) = statusClient(200)
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(client).call(callTimeout = -5L) }
+            }
             assertThrows(IllegalArgumentException::class.java) {
                 runBlocking { PerCallApi(client).call(callTimeout = 0L) }
             }
@@ -898,6 +975,28 @@ class BaseApiTest {
             assertNotNull(response)
             val json = com.fasterxml.jackson.databind.ObjectMapper().readTree(response.body)
             assertEquals("auth-value", json.get("headers").get("x-custom").asText())
+        }
+
+        @Test
+        @DisplayName("bhvMisc061 an authenticator making a request receives caller context and its returned headers are sent")
+        fun bhvMisc061AuthenticatorSeesCallerContextAndItsHeadersAreSent() {
+            var seenName: String? = null
+            var seenActive: Boolean? = null
+            val auth = object : Authenticator {
+                override fun getHost(): String = "https://api.example.com"
+                override suspend fun getAuthHeaders(): Map<String, String> {
+                    seenName = kotlin.coroutines.coroutineContext[kotlinx.coroutines.CoroutineName]?.name
+                    seenActive = kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]?.isActive
+                    return mapOf("X-From-Auth" to "auth-value")
+                }
+            }
+            val response = runBlocking(kotlinx.coroutines.CoroutineName("caller-context")) {
+                api().call("GET", "/test/echo", auth = auth)
+            }
+            assertEquals("caller-context", seenName)
+            assertEquals(true, seenActive)
+            val json = com.fasterxml.jackson.databind.ObjectMapper().readTree(response.body)
+            assertEquals("auth-value", json.get("headers").get("x-from-auth").asText())
         }
 
         @Test

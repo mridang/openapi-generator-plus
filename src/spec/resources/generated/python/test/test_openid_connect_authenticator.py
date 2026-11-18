@@ -377,6 +377,26 @@ class TestDiscoveryDocumentIsChecked:
         ):
             auth.build_authorization_url()
 
+    def test_bhv_misc_070_a_discovery_document_that_is_not_an_object_keeps_no_cause_and_hides_its_body(
+        self,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body='["leaked-body"]',
+            headers={"content-type": "application/json"},
+        )
+        auth = _create_authenticator()
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(
+            SerializationException, match="OIDC discovery document is not a JSON object"
+        ) as exc_info:
+            auth.build_authorization_url()
+
+        assert exc_info.value.__cause__ is None
+        assert "leaked-body" not in str(exc_info.value)
+
     def test_bhv_authoidc_004_an_issuer_with_a_trailing_slash_is_accepted(self) -> None:
         auth = self._authenticator_serving(issuer="https://auth.example.com/")
         assert auth.build_authorization_url().startswith(
@@ -742,6 +762,50 @@ class TestOpenIdConnectRedactedRepr:
 
 
 class TestOidcPkceAndInvalidation:
+    def test_bhv_misc_076_a_call_during_the_code_exchange_reuses_the_discovered_configuration(
+        self,
+    ) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+        auth.build_authorization_url()
+        gate = threading.Event()
+        entered = threading.Event()
+        discovery_requests: list[int] = []
+        discovery_response = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps(
+                {
+                    "authorization_endpoint": "https://auth.example.com/authorize",
+                    "token_endpoint": "https://auth.example.com/token",
+                    "issuer": "https://auth.example.com",
+                }
+            ),
+            headers={"content-type": "application/json"},
+        )
+        token_response = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({"access_token": "oidc-tok", "expires_in": 3600}),
+            headers={"content-type": "application/json"},
+        )
+
+        def gated_send(method: str, *args: Any, **kwargs: Any) -> ApiHttpResponse:
+            if method == "POST":
+                entered.set()
+                gate.wait(5)
+                return token_response
+            discovery_requests.append(1)
+            return discovery_response
+
+        mock_client.send_request.side_effect = gated_send
+        exchange = threading.Thread(target=auth.exchange_code, args=("oidc-code",))
+        exchange.start()
+        assert entered.wait(5)
+        url = auth.build_authorization_url()
+        gate.set()
+        exchange.join(5)
+
+        assert "code_challenge=" in url
+        assert len(discovery_requests) == 1
+
     def test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_no_nonce(
         self,
     ) -> None:

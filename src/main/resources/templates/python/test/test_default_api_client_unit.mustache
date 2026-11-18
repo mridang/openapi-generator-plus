@@ -37,6 +37,11 @@ class _EchoHandler(BaseHTTPRequestHandler):
         body = self.rfile.read(length).decode() if length else ""
         self._respond(body)
 
+    def do_PROPFIND(self) -> None:
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length).decode() if length else ""
+        self._respond(body)
+
     def do_DELETE(self) -> None:
         self._respond()
 
@@ -84,6 +89,25 @@ class _EchoHandler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
             return
 
+        if self.path in ("/zero-gzip", "/blank-gzip"):
+            payload = gzip.compress(b"0" if self.path == "/zero-gzip" else b"")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if self.path == "/partial-success":
+            payload = b'{"foodType":"dry","weightKg":2.5}'
+            self.send_response(207)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
         if self.path == "/empty-gzip":
             # A zero-byte body that still advertises Content-Encoding: gzip.
             # There is nothing to inflate, so the client must pass the empty
@@ -126,6 +150,76 @@ class TestDefaultApiClientUnit:
     @classmethod
     def teardown_class(cls) -> None:
         cls.server.shutdown()
+
+    def test_bhv_misc_032_the_raw_response_exposes_status_body_and_headers_under_public_names(self) -> None:
+        from {{packageName}}.api_http_response import ApiHttpResponse
+
+        response = DefaultApiClient().send_request("GET", f"{self.base_url}/echo", {}, None)
+        assert isinstance(response, ApiHttpResponse)
+        assert response.status_code == 200
+        assert response.headers["x-test-header"] == "test-value"
+        assert "method" in json.loads(response.body)
+
+    def test_bhv_misc_037_an_undecoded_body_keeps_its_content_length_header(self) -> None:
+        response = DefaultApiClient().send_request("GET", f"{self.base_url}/empty-gzip", {}, None)
+        assert response.headers["content-length"] == "0"
+
+    def test_bhv_misc_039_a_well_formed_gzip_stream_with_empty_or_zero_content_is_returned_as_that_content(self) -> None:
+        client = DefaultApiClient()
+        assert client.send_request("GET", f"{self.base_url}/zero-gzip", {}, None).body == "0"
+        assert client.send_request("GET", f"{self.base_url}/blank-gzip", {}, None).body == ""
+
+    def test_bhv_misc_040_response_header_names_are_returned_in_lower_case(self) -> None:
+        response = DefaultApiClient().send_request("GET", f"{self.base_url}/echo", {}, None)
+        assert response.headers
+        assert all(name == name.lower() for name in response.headers)
+
+    def test_bhv_misc_041_a_request_with_a_non_standard_method_is_sent_with_its_body_intact(self) -> None:
+        response = DefaultApiClient().send_request(
+            "PROPFIND", f"{self.base_url}/echo", {"Content-Type": "application/json"}, '{"key":"value"}'
+        )
+        body = json.loads(response.body)
+        assert body["method"] == "PROPFIND"
+        assert body["body"] == '{"key":"value"}'
+
+    def test_bhv_misc_043_an_explicitly_cleared_user_agent_is_omitted_from_the_request(self) -> None:
+        client = DefaultApiClient(TransportOptions.builder().user_agent(None).build())
+        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        assert "user-agent" not in json.loads(response.body)["headers"]
+
+    def test_bhv_misc_048_an_undeclared_success_status_decodes_as_the_union_return_type(self) -> None:
+        import asyncio
+        from {{packageName}}.api.base_api import BaseApi
+        from {{packageName}}.configuration import Configuration
+        from {{packageName}}.models.dry_food import DryFood
+
+        api = BaseApi(api_client=DefaultApiClient(), config=Configuration(base_url=self.base_url))
+        result = asyncio.run(
+            api._invoke_api("GET", "/partial-success", {}, {}, None, ["application/json"], "application/json", "PetFood")
+        )
+        assert isinstance(result.actual_instance, DryFood)
+
+    def test_bhv_misc_050_per_call_headers_override_and_an_unset_option_falls_through(self) -> None:
+        import asyncio
+        from {{packageName}}.api.base_api import BaseApi
+        from {{packageName}}.configuration import Configuration
+
+        class _Options:
+            timeout = None
+            headers = {"X-Per-Call": "yes"}
+            max_retries = None
+
+        client = DefaultApiClient(TransportOptions.builder().default_header("X-Client", "kept").build())
+        api = BaseApi(api_client=client, config=Configuration(base_url=self.base_url))
+        result = asyncio.run(
+            api._invoke_api_for_result(
+                "GET", "/echo", {}, {}, None, ["application/json"], "application/json", None,
+                request_options=_Options(),
+            )
+        )
+        headers = json.loads(result.raw_body)["headers"]
+        assert headers["x-per-call"] == "yes"
+        assert headers["x-client"] == "kept"
 
     def test_bhv_transport_054_sends_get_request_and_returns_response(self) -> None:
         client = DefaultApiClient()
@@ -463,6 +557,9 @@ class TestCharsetDecoding:
         assert _decode_with_charset("café".encode("utf-8"), "text/plain; charset=no-such-charset") == "café"
         assert _decode_with_charset(b"\x00h\x00i", "text/plain; charset=utf-16") == "hi"
 
+    def test_bhv_misc_095_invalid_bytes_in_the_declared_charset_decode_as_replacement_characters(self) -> None:
+        assert _decode_with_charset(b"a\xffb\xfe", "text/plain; charset=utf-8") == "a\ufffdb\ufffd"
+
     def test_bhv_lang_python_061_extracts_charset_parameter(self) -> None:
         assert _charset_from_content_type("text/plain; charset=ISO-8859-1") == "ISO-8859-1"
         assert _charset_from_content_type("text/plain") is None
@@ -567,6 +664,25 @@ class TestMultipartFilenameSanitization:
         assert ascii_fallback == "_.png"
         assert rfc5987 == "UTF-8''%F0%9F%98%80.png"
 
+    def test_bhv_misc_096_a_text_part_carries_only_its_content_disposition(self) -> None:
+        body = DefaultApiClient()._build_multipart_body({'title': 'hello'}, 'boundary')
+        assert b'--boundary\r\nContent-Disposition: form-data; name="title"\r\n\r\nhello\r\n' in body
+        assert b'Content-Transfer-Encoding' not in body
+
+    def test_bhv_misc_097_each_array_element_is_its_own_part_in_order(self) -> None:
+        body = DefaultApiClient()._build_multipart_body({'tags': ['a', 'b'], 'name': 'x'}, 'boundary')
+        assert body.count(b'name="tags"') == 2
+        assert body.index(b'\r\n\r\na\r\n') < body.index(b'\r\n\r\nb\r\n')
+        assert body.count(b'name="name"') == 1
+
+    def test_bhv_misc_098_a_caller_supplied_stream_is_read_and_never_closed_by_the_sdk(self) -> None:
+        import io
+
+        stream = io.BytesIO(b"hello")
+        stream.name = "a.txt"
+        DefaultApiClient()._build_multipart_body({'upload': stream}, 'boundary')
+        assert not stream.closed
+
     def test_bhv_serialization_057_multipart_body_rejects_filename_injection(self) -> None:
         import io
         client = DefaultApiClient()
@@ -602,6 +718,25 @@ class TestMultipartFilenameSanitization:
         assert b"world" in body
         assert not bare.closed
         assert not named.closed
+
+    def test_bhv_misc_099_a_non_ascii_filename_has_one_fallback_and_an_extended_form(self) -> None:
+        import io
+        file_like = io.BytesIO(b"x")
+        file_like.name = "résumé.pdf"
+        body = DefaultApiClient()._build_multipart_body({"upload": file_like}, "boundary")
+        assert body.count(b"filename=") == 1
+        assert b"filename*=UTF-8''r%C3%A9sum%C3%A9.pdf" in body
+
+    def test_bhv_misc_101_a_multipart_source_that_cannot_be_read_fails_the_call(self) -> None:
+        class UnreadableSource:
+            name = "a.txt"
+
+            def read(self, *args: object) -> bytes:
+                raise OSError("source gone")
+
+        with pytest.raises(Exception):
+            DefaultApiClient()._build_multipart_body({"upload": UnreadableSource()}, "boundary")
+
 
 class TestMultipartFieldNameUtf8:
     """multipart-field-name-ascii-fold: a non-ASCII field NAME must reach the
@@ -1875,6 +2010,22 @@ class TestNetworkErrorMessageKeepsTheQueryOut:
         assert "api_key" not in str(excinfo.value)
 
 
+class TestPastDeadline:
+
+    def test_bhv_misc_030_a_request_past_its_deadline_is_a_timeout_and_never_reaches_the_transport(self) -> None:
+        from unittest.mock import MagicMock
+
+        from {{packageName}}.errors.network_timeout_exception import NetworkTimeoutException
+
+        pool = MagicMock()
+        client = DefaultApiClient(TransportOptions.builder().max_retries(0).build(), pool_manager=pool)
+
+        with pytest.raises(NetworkTimeoutException):
+            client.send_request('GET', 'http://127.0.0.1:1/echo', {}, None, False, time.monotonic() - 1)
+
+        pool.request.assert_not_called()
+
+
 class TestCaCertPathFailsFast:
     """An explicitly configured CA certificate path that cannot be read or
     parsed must fail fast at construction with a ValueError rather than
@@ -2214,6 +2365,80 @@ class TestRedirectCookieAndAuthorizationOnSameOrigin:
 
         assert followed["authorization"] == "Bearer secret"
         assert followed["cookie"] == "session=abc123"
+
+
+class _ScriptedPool:
+    """Pool double that answers each call from a script, then 200."""
+
+    def __init__(self, *script: Any) -> None:
+        self.script = list(script)
+        self.calls: list[Any] = []
+
+    def request(self, method: str, url: str, **kwargs: Any) -> Any:
+        self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+        if self.script:
+            status, location = self.script.pop(0)
+            return _FakeResp(status, {"location": location} if location else {})
+        return _FakeResp(200, {})
+
+
+class TestRedirectHopsAndStatuses:
+    """Per-hop redirect rules: the redirect status set, the body rule for an
+    upgrade, the method kept on a HEAD 303, and credentials across a return."""
+
+    def test_bhv_misc_125_a_307_redirect_that_upgrades_to_https_keeps_the_body(self) -> None:
+        pool = _ScriptedPool((307, "https://example.com/upgraded"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request(
+            "POST", "http://example.com/secure", {"Content-Type": "application/json"}, '{"a":1}'
+        )
+        assert len(pool.calls) == 2
+        assert pool.calls[1][1] == "https://example.com/upgraded"
+
+    def test_bhv_misc_124_a_301_https_to_http_redirect_refuses_the_body_replay(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        pool = _ScriptedPool((301, "http://example.com/plain"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request(
+                "POST", "https://example.com/secure", {"Content-Type": "application/json"}, '{"a":1}'
+            )
+        assert excinfo.value.status_code == 301
+        assert len(pool.calls) == 1
+
+    def test_bhv_misc_126_a_head_request_redirected_by_303_is_followed_as_head(self) -> None:
+        pool = _ScriptedPool((303, "https://example.com/elsewhere"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request("HEAD", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 2
+        assert pool.calls[1][0] == "HEAD"
+
+    @pytest.mark.parametrize("status", [300, 305])
+    def test_bhv_misc_133_a_300_or_305_with_a_location_is_returned_unfollowed(self, status: int) -> None:
+        pool = _ScriptedPool((status, "https://example.com/elsewhere"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 1
+        assert response.status == status
+
+    def test_bhv_misc_130_a_credential_removed_by_a_cross_origin_hop_is_not_restored_on_return(self) -> None:
+        pool = _ScriptedPool((302, "https://other.example.com/hop"), (302, "https://example.com/back"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request("GET", "https://example.com/start", {"Authorization": "Bearer secret"}, None)
+        assert len(pool.calls) == 3
+        assert pool.calls[1][2].get("Authorization") is None
+        assert {k.lower() for k in pool.calls[2][2]}.isdisjoint({"authorization"})
 
 
 class TestGarbageCaCertPath:

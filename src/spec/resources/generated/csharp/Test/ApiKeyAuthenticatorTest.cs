@@ -373,4 +373,32 @@ public class ApiKeyAuthenticatorTest
             auth.GetCookieParams()
         );
     }
+
+    [Fact]
+    public void BhvMisc057AnApiKeyForAHeaderIsNeverSentAsAQueryParamOrCookie()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "X-API-Key",
+            "abc123",
+            ApiKeyLocation.Header
+        );
+
+        Assert.Empty(auth.GetQueryParams());
+        Assert.Empty(auth.GetCookieParams());
+        Assert.Equal("abc123", auth.GetAuthHeaders()["X-API-Key"]);
+    }
+
+    [Fact]
+    public void BhvMisc190PrintedOutputOfTheAuthenticatorHidesTheSecret()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "X-Key",
+            "k3y-s3cret",
+            ApiKeyLocation.Header
+        );
+
+        Assert.DoesNotContain("k3y-s3cret", auth.ToString(), StringComparison.Ordinal);
+    }
 }

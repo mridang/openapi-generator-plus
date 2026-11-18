@@ -572,3 +572,53 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow('Must call exchangeCode() before making API requests');
   });
 });
+
+describe('OAuth2AuthorizationCodeAuthenticator misc behaviours', () => {
+  test('bhv misc 028 a transport failure during the code exchange reaches the caller unchanged', async () => {
+    const failure = new Error('connection reset');
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      'https://api.example.com',
+      'client-id',
+      'client-secret',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://myapp.example.com/callback',
+      []
+    );
+    auth.setApiClient({ sendRequest: () => Promise.reject(failure) } as never);
+    await expect(auth.exchangeCode('my-auth-code')).rejects.toBe(failure);
+  });
+});
+
+describe('OAuth2AuthorizationCodeAuthenticator configured urls', () => {
+  it('bhv misc 058 the configured endpoint and redirect URI reach the authorization URL exactly as configured', () => {
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      'https://api.example.com',
+      'my-client-id',
+      'my-client-secret',
+      'https://Auth.Example.com:443/authorize',
+      'https://auth.example.com/token',
+      'https://MyApp.example.com:443/callback',
+      ['read']
+    );
+
+    const url = auth.buildAuthorizationUrl();
+
+    expect(url.startsWith('https://Auth.Example.com:443/authorize?')).toBe(true);
+    expect(new URLSearchParams(url.slice(url.indexOf('?') + 1)).get('redirect_uri')).toBe('https://MyApp.example.com:443/callback');
+  });
+
+  it('bhv misc 062 the authorization URL carries the declared scopes', () => {
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      'https://api.example.com',
+      'cid',
+      'sec',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://app.example.com/cb',
+      ['pets:read', 'pets:write']
+    );
+
+    expect(auth.buildAuthorizationUrl()).toContain('scope=pets%3Aread%20pets%3Awrite');
+  });
+});

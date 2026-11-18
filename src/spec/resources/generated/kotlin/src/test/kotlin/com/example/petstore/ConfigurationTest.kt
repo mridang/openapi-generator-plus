@@ -13,6 +13,18 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class ConfigurationTest {
+    @Test
+    @DisplayName("bhvConfig026 the builder keeps the base URL that was set on it")
+    fun bhvConfig026BuilderKeepsTheBaseUrl() {
+        val config =
+            Configuration
+                .builder()
+                .baseUrl("https://api.example.com/v2")
+                .build()
+
+        assertEquals("https://api.example.com/v2", config.baseUrl)
+    }
+
     @Nested
     @DisplayName("defaults")
     inner class Defaults {

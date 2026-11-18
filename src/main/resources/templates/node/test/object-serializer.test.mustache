@@ -2172,6 +2172,13 @@ describe('ObjectSerializer', () => {
       expect(Buffer.compare(restored[1]!, payloads[1]!)).toBe(0);
     });
 
+    test('bhv misc 049 a choice between one binary value and a list writes the list as base64 text items', () => {
+      const payloads = [Buffer.from([0x01, 0x02, 0x03, 0x04]), Buffer.from([0x05, 0x06, 0x07, 0x08])];
+      const request: SetPetAvatarThumbnailRequest = payloads;
+      const wire = JSON.parse(ObjectSerializer.serialize(request)) as unknown;
+      expect(wire).toEqual(['AQIDBA==', 'BQYHCA==']);
+    });
+
     // ORDERING — a scalar base64 string must resolve to the SCALAR variant
     // (one Buffer), never be mis-parsed element-by-element into a list. The
     // bare-union encoding keeps the two cases structurally distinct: a scalar
@@ -3100,5 +3107,13 @@ describe('toBinary', () => {
     test('bhv enums 011 a description with terminators and sigils still yields a comment', () => {
       expect(source('tier')).toContain('  /** The largest tier. Ends with *\\/ and #{x} and $x. */\n  Large:');
     });
+  });
+});
+
+describe('ObjectSerializer union variants', () => {
+  test('bhv misc 047 serializing a union that holds a value which is not one of its variants fails naming the union', () => {
+    const wrapped = new PetFood('kibble' as unknown as DryFood);
+    expect(() => ObjectSerializer.serialize(wrapped)).toThrow(SerializationError);
+    expect(() => ObjectSerializer.serialize(wrapped)).toThrow('is not a variant of PetFood');
   });
 });

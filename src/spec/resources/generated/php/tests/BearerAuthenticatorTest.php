@@ -42,6 +42,16 @@ test('bhv authbearer 008 mixed case bearer prefix is stripped', function (): voi
     expect($headers['Authorization'])->toBe('Bearer xyz');
 });
 
+test('bhv misc 017 a rejected credential is never named in the construction error', function (): void {
+    try {
+        new BearerAuthenticator('https://api.example.com', "tok\r\nInjected: yes");
+        test()->fail('Expected exception not thrown');
+    } catch (\InvalidArgumentException $e) {
+        expect($e->getMessage())->not->toContain('Injected');
+        expect($e->getMessage())->not->toContain("tok\r\n");
+    }
+});
+
 test('bhv authbearer 012 bearer rejects crlf at construction', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', "tok\r\nInjected: yes"))
         ->toThrow(\InvalidArgumentException::class);
@@ -476,4 +486,23 @@ test('bhv auth 037 a token provider is asked again for each request and its curr
 
     expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-1');
     expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-2');
+});
+
+test('bhv misc 066 a token provider value is sent as the bearer credential on the authenticated request', function (): void {
+    $calls = 0;
+    $auth = new BearerAuthenticator('https://api.example.com', null, function () use (&$calls): string {
+        $calls++;
+
+        return 'token-' . $calls;
+    });
+
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-1');
+});
+
+test('bhv misc 067 a token provider error reaches the caller unchanged', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', null, function (): string {
+        throw new \RuntimeException('provider boom');
+    });
+
+    expect(fn () => $auth->getAuthHeaders())->toThrow(\RuntimeException::class, 'provider boom');
 });

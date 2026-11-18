@@ -801,4 +801,14 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.maybeAllowReserved(undefined, true)).toBeUndefined();
     });
   });
+
+  describe('misc scalar and array writing', () => {
+    test.each(['path', 'header', 'cookie', 'query'] as const)('bhv misc 084 a set optional scalar writes its value in the %s location', (location) => {
+      expect(ValueSerializer.serialize(7, location, 'integer')).toBe('7');
+    });
+
+    test('bhv misc 086 an element holding json text is taken as its own value', () => {
+      expect(String(ValueSerializer.serialize(['{"a":1}'], 'query', 'array'))).toContain('{"a":1}');
+    });
+  });
 });

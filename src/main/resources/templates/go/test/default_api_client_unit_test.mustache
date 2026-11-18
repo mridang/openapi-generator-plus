@@ -28,6 +28,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
 	"math/big"
 	"os"
@@ -3515,5 +3516,366 @@ func TestBhvSerialization119_DefaultApiClient_ABodyIsDecodedByItsDeclaredCharset
 	}
 	if got := decodeBodyByCharset([]byte{0x00, 0x41}, "text/plain; charset=utf-16"); got != "A" {
 		t.Errorf("expected BOM-less UTF-16 read as big-endian, got %q", got)
+	}
+}
+
+// bhvMisc101Source is a body source that fails once it is read.
+type bhvMisc101Source struct{}
+
+func (bhvMisc101Source) Read(p []byte) (int, error) { return 0, errors.New("source is gone") }
+
+// bhvMisc098Stream records whether the SDK closed it.
+type bhvMisc098Stream struct {
+	io.Reader
+	closed bool
+}
+
+func (s *bhvMisc098Stream) Close() error {
+	s.closed = true
+	return nil
+}
+
+func TestBhvMisc096_DefaultApiClientUnit_ATextPartCarriesOnlyItsContentDisposition(t *testing.T) {
+	t.Parallel()
+	body, err := buildMultipartBody(map[string]any{"title": "hello"}, "b")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	want := "--b\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nhello\r\n--b--"
+	if !strings.Contains(string(body), want) {
+		t.Errorf("expected the text part exactly, got %q", body)
+	}
+	if strings.Contains(string(body), "Content-Transfer-Encoding") {
+		t.Errorf("expected no Content-Transfer-Encoding header, got %q", body)
+	}
+}
+
+func TestBhvMisc097_DefaultApiClientUnit_AnArrayFieldIsOnePartPerElementInOrder(t *testing.T) {
+	t.Parallel()
+	body, err := buildMultipartBody(map[string]any{"tags": []string{"a", "b"}, "name": "x"}, "b")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	text := string(body)
+	if strings.Count(text, `name="tags"`) != 2 {
+		t.Errorf("expected two tags parts, got %q", text)
+	}
+	if strings.Index(text, "\r\n\r\na\r\n") > strings.Index(text, "\r\n\r\nb\r\n") {
+		t.Errorf("expected the elements in the order given, got %q", text)
+	}
+	if strings.Count(text, `name="name"`) != 1 {
+		t.Errorf("expected the scalar field as one part, got %q", text)
+	}
+}
+
+func TestBhvMisc098_DefaultApiClientUnit_ACallerStreamIsReadButNeverClosed(t *testing.T) {
+	t.Parallel()
+	stream := &bhvMisc098Stream{Reader: strings.NewReader("data")}
+	body, err := buildMultipartBody(map[string]any{"upload": stream}, "b")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	if !strings.Contains(string(body), "data") {
+		t.Errorf("expected the stream read into the body, got %q", body)
+	}
+	if stream.closed {
+		t.Errorf("expected the SDK not to close the caller stream")
+	}
+}
+
+func TestBhvMisc099_DefaultApiClientUnit_ANonAsciiFilenameHasOneFallbackAndAnExtendedForm(t *testing.T) {
+	t.Parallel()
+	body, err := buildMultipartBody(map[string]any{"résumé.pdf": strings.NewReader("x")}, "b")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	text := string(body)
+	if strings.Count(text, "filename=") != 1 {
+		t.Errorf("expected exactly one plain filename directive, got %q", text)
+	}
+	if !strings.Contains(text, "filename*=UTF-8''r%C3%A9sum%C3%A9.pdf") {
+		t.Errorf("expected the extended filename form, got %q", text)
+	}
+}
+
+func TestBhvMisc101_DefaultApiClientUnit_AnUnreadableBodySourceFailsTheBuild(t *testing.T) {
+	t.Parallel()
+	if _, err := buildMultipartBody(map[string]any{"upload": bhvMisc101Source{}}, "b"); err == nil {
+		t.Errorf("expected the unreadable source to fail the build, got no error")
+	}
+}
+
+// hopScriptTripper answers hop i with statuses[i] and a Location of locations[i];
+// every hop past the script gets a 200. It records what each hop carried.
+type hopScriptTripper struct {
+	statuses       []int
+	locations      []string
+	urls           []string
+	methods        []string
+	bodies         []string
+	authorizations []string
+	proxyAuths     []string
+	requestTags    []string
+}
+
+func (r *hopScriptTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	hop := len(r.urls)
+	r.urls = append(r.urls, req.URL.String())
+	r.methods = append(r.methods, req.Method)
+	r.authorizations = append(r.authorizations, req.Header.Get("Authorization"))
+	r.proxyAuths = append(r.proxyAuths, req.Header.Get("Proxy-Authorization"))
+	r.requestTags = append(r.requestTags, req.Header.Get("X-Request-Tag"))
+	body := ""
+	if req.Body != nil {
+		data, _ := io.ReadAll(req.Body)
+		body = string(data)
+	}
+	r.bodies = append(r.bodies, body)
+	if hop < len(r.statuses) {
+		return &http.Response{
+			StatusCode: r.statuses[hop],
+			Status:     fmt.Sprintf("%d", r.statuses[hop]),
+			Header:     http.Header{"Location": []string{r.locations[hop]}},
+			Body:       io.NopCloser(strings.NewReader("")),
+			Request:    req,
+		}, nil
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Status:     "200 OK",
+		Header:     http.Header{},
+		Body:       io.NopCloser(strings.NewReader("done")),
+		Request:    req,
+	}, nil
+}
+
+// A 307 that keeps the request on one scheme, or upgrades it from HTTP to HTTPS,
+// is followed with its body and is not refused as a body replay.
+func TestBhvMisc125_DefaultApiClientUnit_A307ToSameSchemeOrUpgradeIsNotRefusedAsBodyReplay(t *testing.T) {
+	t.Parallel()
+	for _, location := range []string{"http://example.test/landed", "https://example.test/landed"} {
+		tripper := &hopScriptTripper{statuses: []int{http.StatusTemporaryRedirect}, locations: []string{location}}
+		transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+		client := NewDefaultApiClient(transport)
+		if _, err := client.SendRequest("POST", "http://example.test/start", nil, []byte("payload")); err != nil {
+			t.Fatalf("redirect to %s: unexpected error: %v", location, err)
+		}
+		if len(tripper.bodies) != 2 || tripper.bodies[1] != "payload" {
+			t.Errorf("redirect to %s: expected the body replayed, got %v", location, tripper.bodies)
+		}
+	}
+}
+
+// A HEAD request that receives a 303 is followed as HEAD rather than converted to GET.
+func TestBhvMisc126_DefaultApiClientUnit_AHeadRequestStaysHeadThroughA303(t *testing.T) {
+	t.Parallel()
+	tripper := &hopScriptTripper{statuses: []int{http.StatusSeeOther}, locations: []string{"http://example.test/landed"}}
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("HEAD", "http://example.test/start", nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tripper.methods) != 2 || tripper.methods[1] != "HEAD" {
+		t.Errorf("expected the followed request to stay HEAD, got %v", tripper.methods)
+	}
+}
+
+// A Location that holds only a query keeps the path of the redirected request and replaces its query.
+func TestBhvMisc127_DefaultApiClientUnit_ALocationWithOnlyAQueryKeepsThePath(t *testing.T) {
+	t.Parallel()
+	tripper := &hopScriptTripper{statuses: []int{http.StatusFound}, locations: []string{"?b=2"}}
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("GET", "http://example.test/start?a=1", nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tripper.urls) != 2 || tripper.urls[1] != "http://example.test/start?b=2" {
+		t.Errorf("expected the path kept and the query replaced, got %v", tripper.urls)
+	}
+}
+
+// The proxy credential in the proxy URL is applied by the shared transport to every
+// request, so a cross-origin redirect never removes it.
+func TestBhvMisc128_DefaultApiClientUnit_ACrossOriginRedirectKeepsTheTransportProxyCredential(t *testing.T) {
+	t.Parallel()
+	var landedProxyAuth string
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/landed" {
+			landedProxyAuth = r.Header.Get("Proxy-Authorization")
+			w.WriteHeader(200)
+			return
+		}
+		w.Header().Set("Location", "http://other.example.test/landed")
+		w.WriteHeader(302)
+	}))
+	defer proxy.Close()
+
+	transport, err := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Proxy("http://user:pass@" + strings.TrimPrefix(proxy.URL, "http://")).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+	if _, err := client.SendRequest("GET", "http://origin.example.test/start", nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "Basic " + base64.StdEncoding.EncodeToString([]byte("user:pass"))
+	if landedProxyAuth != want {
+		t.Errorf("expected the proxy credential on the redirected request, got %q", landedProxyAuth)
+	}
+}
+
+// A proxy credential the SDK adds to every request is not sent again when a redirect
+// moves an HTTPS request to a different origin.
+func TestBhvMisc129_DefaultApiClientUnit_AnSdkProxyCredentialIsNotResentAcrossAnHttpsCrossOriginRedirect(t *testing.T) {
+	t.Parallel()
+	tripper := &hopScriptTripper{statuses: []int{http.StatusFound}, locations: []string{"https://other.example.test/landed"}}
+	transport, err := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		DefaultHeader("Proxy-Authorization", "Basic c2VjcmV0").
+		RoundTripper(tripper).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("GET", "https://origin.example.test/start", nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tripper.proxyAuths) != 2 || tripper.proxyAuths[0] != "Basic c2VjcmV0" || tripper.proxyAuths[1] != "" {
+		t.Errorf("expected the credential on the first hop only, got %v", tripper.proxyAuths)
+	}
+}
+
+// Credentials a cross-origin redirect removed are not restored when a later redirect
+// in the chain returns to the original origin.
+func TestBhvMisc130_DefaultApiClientUnit_RemovedCredentialsAreNotRestoredOnReturnToTheOrigin(t *testing.T) {
+	t.Parallel()
+	tripper := &hopScriptTripper{
+		statuses:  []int{http.StatusFound, http.StatusFound},
+		locations: []string{"http://other.example.test/middle", "http://origin.example.test/back"},
+	}
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("GET", "http://origin.example.test/start",
+		map[string]string{"Authorization": "Bearer chain-probe"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tripper.authorizations) != 3 {
+		t.Fatalf("expected three hops, got %d", len(tripper.authorizations))
+	}
+	if tripper.authorizations[2] != "" {
+		t.Errorf("expected Authorization to stay removed on the return hop, got %q", tripper.authorizations[2])
+	}
+}
+
+// A session the caller supplies still has the SDK's redirect rules applied to the
+// requests made through it.
+func TestBhvMisc131_DefaultApiClientUnit_ASuppliedSessionKeepsTheSdkRedirectRules(t *testing.T) {
+	t.Parallel()
+	tripper := &hopScriptTripper{statuses: []int{http.StatusFound}, locations: []string{"http://other.example.test/landed"}}
+	transport, err := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		HttpClient(&http.Client{Transport: tripper}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("GET", "http://origin.example.test/start",
+		map[string]string{"Authorization": "Bearer session-probe"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tripper.authorizations) != 2 || tripper.authorizations[1] != "" {
+		t.Errorf("expected the cross-origin hop to drop Authorization, got %v", tripper.authorizations)
+	}
+}
+
+// A header the caller sets for a single call is not treated as a credential header:
+// an ordinary per-call header reaches the target of a cross-origin redirect.
+func TestBhvMisc132_DefaultApiClientUnit_APerCallHeaderIsNotTreatedAsACredentialOnRedirect(t *testing.T) {
+	t.Parallel()
+	tripper := &hopScriptTripper{statuses: []int{http.StatusFound}, locations: []string{"http://other.example.test/landed"}}
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("GET", "http://origin.example.test/start",
+		map[string]string{"X-Request-Tag": "trace-1"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tripper.requestTags) != 2 || tripper.requestTags[1] != "trace-1" {
+		t.Errorf("expected the per-call header on the redirected request, got %v", tripper.requestTags)
+	}
+}
+
+// A 300 or 305 response is returned as it is, even when it carries a Location header.
+func TestBhvMisc133_DefaultApiClientUnit_A300Or305IsReturnedAsItIsWithItsLocation(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{http.StatusMultipleChoices, http.StatusUseProxy} {
+		tripper := &hopScriptTripper{statuses: []int{status}, locations: []string{"http://other.example.test/landed"}}
+		transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+		client := NewDefaultApiClient(transport)
+		resp, err := client.SendRequest("GET", "http://origin.example.test/start", nil, nil)
+		if err != nil {
+			t.Fatalf("status %d: unexpected error: %v", status, err)
+		}
+		if resp.StatusCode != status || len(tripper.urls) != 1 {
+			t.Errorf("status %d: expected it returned unfollowed, got %d after %d hops", status, resp.StatusCode, len(tripper.urls))
+		}
+	}
+}
+
+func TestBhvMisc175_DefaultApiClientUnit_CredentialHeaderNamesAreStrippedInAnyCaseAndOrdinaryOnesKept(t *testing.T) {
+	t.Parallel()
+	var receivedAuth, receivedCookie, receivedTrace string
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth = r.Header.Get("Authorization")
+		receivedCookie = r.Header.Get("Cookie")
+		receivedTrace = r.Header.Get("X-Trace")
+		w.WriteHeader(200)
+	}))
+	defer target.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/followed")
+		w.WriteHeader(302)
+	}))
+	defer origin.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err := client.SendRequest("GET", origin.URL+"/start",
+		map[string]string{"authorization": "Bearer leaked-token", "COOKIE": "session=leaked", "X-Trace": "kept"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedAuth != "" || receivedCookie != "" {
+		t.Errorf("expected credential headers stripped across the redirect, got %q and %q", receivedAuth, receivedCookie)
+	}
+	if receivedTrace != "kept" {
+		t.Errorf("expected the ordinary header kept, got %q", receivedTrace)
 	}
 }

@@ -17,6 +17,22 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class TransportOptionsTest {
+    @Test
+    @DisplayName("bhvMisc026 a configuration mistake is an argument error and not an API error")
+    fun bhvMisc026ConfigurationMistakeIsAnArgumentErrorNotAnApiError() {
+        assertThrowsExactly(IllegalArgumentException::class.java) { TransportOptions.builder().timeout(-1L).build() }
+    }
+
+    @Test
+    @DisplayName("bhvErrors098 a missing CA certificate names the path and wraps the not-found cause")
+    fun bhvErrors098MissingCaCertificateNamesThePathAndWrapsTheCause() {
+        val path = "/nonexistent/ca-certificate.pem"
+        val ex = assertThrows(IllegalArgumentException::class.java) { loadCaCertTrustManager(path) }
+
+        assertTrue(ex.message.orEmpty().contains(path))
+        assertTrue(ex.cause is java.io.IOException)
+    }
+
     @Nested
     @DisplayName("defaults")
     inner class Defaults {
@@ -571,6 +587,42 @@ class TransportOptionsTest {
         @Test
         @DisplayName("bhvLifecycle041 supplying an HTTP client with SDK proxy, TLS or redirect settings is rejected with a conflict")
         fun bhvLifecycle041SuppliedClientWithSdkSettingsConflicts() = httpClientConflictsWithSdkTransportSettings()
+
+        @Test
+        @DisplayName("bhvMisc034 a caller HTTP client combined with a caller transport is refused when the client is built")
+        fun bhvMisc034CallerHttpClientWithCallerTransportIsRefusedAtBuild() {
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
+            try {
+                assertThrows(IllegalArgumentException::class.java) {
+                    TransportOptions
+                        .builder()
+                        .httpClient(custom)
+                        .proxy("http://127.0.0.1:3128")
+                        .build()
+                }
+            } finally {
+                custom.close()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc042 a custom httpClient with verifySsl disabled is refused when the options are built, naming the setting")
+        fun bhvMisc042CustomHttpClientWithVerificationDisabledIsRefusedNamingTheSetting() {
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
+            try {
+                val ex =
+                    assertThrows(IllegalArgumentException::class.java) {
+                        TransportOptions
+                            .builder()
+                            .httpClient(custom)
+                            .verifySsl(false)
+                            .build()
+                    }
+                assertTrue(ex.message!!.contains("verifySsl=false"), ex.message)
+            } finally {
+                custom.close()
+            }
+        }
 
         @Test
         @DisplayName("bhvLifecycle024 a supplied httpClient conflicts with the SDK proxy, caCertPath and verifySsl=false settings")

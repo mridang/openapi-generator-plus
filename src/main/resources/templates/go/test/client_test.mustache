@@ -1049,3 +1049,28 @@ func TestBhvMisc073_Client_EveryDeclaredSchemeHasAWrapperClass(t *testing.T) {
 	var _ *auth.ApiKeyQueryAuthenticator
 	var _ *auth.SessionCookieAuthenticator
 }
+
+func TestBhvMisc152_Client_ACallWhoseCancelSignalIsAlreadyAbortedSendsNothing(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = client.Pet.GetPetById(ctx, int64(1), nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected a cancellation error, got %v", err)
+	}
+	if got := hits.Load(); got != 0 {
+		t.Errorf("expected no request sent, got %d", got)
+	}
+}

@@ -385,6 +385,21 @@ describe("StoreApi response shapes", () => {
     }
   });
 
+  test("bhv misc 048 an undeclared success status decodes as the union return type", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      202,
+      "application/json",
+      '{"reservationId":7,"quantity":2}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(7);
+    } finally {
+      close();
+    }
+  });
+
   test("bhv operations 154 a 201 body that only fits the 200 schema is refused", async () => {
     const { api: mockApi, close } = await createMockServer(
       201,
@@ -894,5 +909,21 @@ describe("StoreApi operation without parameters or security", () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe("StoreApi misc behaviours", () => {
+  test("bhv misc 011 an operation with no parameters accepts the call settings", async () => {
+    const result = await api.getInventory({
+      timeout: 5000,
+      maxRetries: 0,
+      headers: { "X-A": "1" },
+    });
+    expect(result).toBeDefined();
+  });
+
+  test("bhv misc 013 an operation with no parameters can be called with no argument and returns its result", async () => {
+    const result = await api.getInventory();
+    expect(result).toBeDefined();
   });
 });

@@ -907,3 +907,32 @@ describe("OpenIdConnectAuthenticator", () => {
     });
   });
 });
+
+describe("OpenIdConnectAuthenticator discovery document", () => {
+  it("bhv misc 070 a discovery document that is not an object keeps no cause and does not repeat its body", async () => {
+    const client = new MockApiClient();
+    client.responses = [
+      {
+        statusCode: 200,
+        body: '["discovery-body-secret"]',
+        headers: { "content-type": "application/json" },
+      },
+    ];
+    const auth = new OpenIdConnectAuthenticator(
+      "https://api.example.com",
+      "https://auth.example.com/.well-known/openid-configuration",
+      "my-client-id",
+      "my-client-secret",
+    );
+    auth.setApiClient(client);
+
+    const error = await auth.buildAuthorizationUrl().catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(SerializationError);
+    expect((error as Error).message).toBe(
+      "OIDC discovery document is not a JSON object",
+    );
+    expect((error as Error).cause).toBeUndefined();
+    expect((error as Error).message).not.toContain("discovery-body-secret");
+  });
+});

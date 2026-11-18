@@ -3264,3 +3264,43 @@ func TestBhvMisc080_Store_ABodyIsDecodedWithItsOwnStatusSchema(t *testing.T) {
 		t.Error("expected the 200 body refused for not fitting the 200 schema")
 	}
 }
+
+// A cookie value the caller has already percent-encoded reaches the wire unchanged.
+func TestBhvMisc123_PetApi_PreEncodedCookieValueIsSentUnchanged(t *testing.T) {
+	t.Parallel()
+	var cookie string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie = r.Header.Get("Cookie")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	value := "a%20b"
+	if err := api.DeletePet(context.Background(), int64(1), &options.DeletePetOptions{ApiKey: &value}); err != nil {
+		t.Fatalf("DeletePet failed: %v", err)
+	}
+	if cookie != "api_key=a%20b" {
+		t.Errorf("expected the cookie to be sent unchanged, got %q", cookie)
+	}
+}
+
+func TestBhvMisc176_PetApi_ARequiredCookieParamIsSentInTheCookieHeaderWithItsValue(t *testing.T) {
+	t.Parallel()
+	var cookie string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie = r.Header.Get("Cookie")
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("summary"))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	if _, err := api.GetPetSummary(context.Background(), int64(7), "2024-01-15", &options.GetPetSummaryOptions{Session: "abc123"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cookie != "session=abc123" {
+		t.Errorf("expected the session cookie sent with its value, got %q", cookie)
+	}
+}
