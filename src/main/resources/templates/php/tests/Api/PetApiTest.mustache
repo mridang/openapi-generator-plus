@@ -796,7 +796,7 @@ test('bhv operations 069 date only header param serialises without time componen
     expect($headers['report-date'])->toBe('2024-01-01');
 });
 
-test('date only form field serialises without time component', function (): void {
+test('bhv operations 162 date only form field serialises without time component', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     $api->setPetPreferences(1, new SetPetPreferencesOptions(
