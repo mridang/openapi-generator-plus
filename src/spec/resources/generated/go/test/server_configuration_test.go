@@ -117,7 +117,7 @@ func TestBhvServers014_ServerConfiguration_URLAcceptsAnyValueWhenNoEnum(t *testi
 	}
 }
 
-func TestServerConfiguration_AccessorsExposeImmutableState(t *testing.T) {
+func TestBhvLanggo094_ServerConfiguration_AccessorsExposeImmutableState(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.example.com",
@@ -496,5 +496,16 @@ func TestBhvServers030_ServerConfiguration_AValueOutsideTheEnumIsRejected(t *tes
 	)
 	if _, err := server.URL(map[string]string{"env": "bogus"}); !errors.Is(err, petstore.ErrInvalidServerVariable) {
 		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
+	}
+}
+
+func TestBhvMisc297_ServerConfiguration_EveryTemplateVariableIsReplacedWhenTheURLIsBuilt(t *testing.T) {
+	t.Parallel()
+	got, err := petstore.Server1.URL(map[string]string{"environment": "staging", "version": "v2"})
+	if err != nil {
+		t.Fatalf("failed to build the server URL: %v", err)
+	}
+	if want := "https://staging.example.com/api/v2"; got != want {
+		t.Errorf("URL = %q, want %q", got, want)
 	}
 }
