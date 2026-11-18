@@ -232,8 +232,22 @@ describe Petstore::Client::ServerConfiguration, 'variables are not shared with t
     variables = { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
     config = Petstore::Client::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
 
-    _(-> { variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us')
     _(config.variables.keys).must_equal(['region'])
+  end
+
+  it 'bhv_misc_139 the variables collection is copied and frozen so the configuration cannot be changed through it' do
+    variables = { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
+    config = Petstore::Client::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
+
+    _(-> { config.variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(variables).wont_be_same_as(config.variables)
+  end
+
+  it 'bhv_misc_156 the list of all servers keeps the order in which they are declared' do
+    Petstore::Client::Servers::ALL.each_with_index do |server, index|
+      _(server).must_be_same_as(Petstore::Client::Servers.const_get("SERVER_#{index}"))
+    end
   end
 
   it 'bhv_misc_154 the variables map returned by the accessor cannot be edited' do
