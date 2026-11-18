@@ -901,6 +901,33 @@ void main() {
      * typed ApiException from the plain convenience method (parity with
      * C#/Swift), not a Dart runtime TypeError from `null as Pet`. */
     test(
+      'bhv operations 159 a call that returns a value raises a typed ApiException when a success response has an empty body',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetById(1, null, null),
+            throwsA(isA<ApiException>()),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv operations 036 emptyBodyMock throws ApiException from convenience method',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1568,6 +1595,38 @@ void main() {
 
           expect(received.containsKey('authorization'), isFalse);
           expect(received.containsKey('x-api-key'), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 163 a request with no body sends no Content-Type header whatever the case of a default header name',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":7,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('CONTENT-TYPE', 'text/plain')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetById(7, null, null);
+
+          expect(received.containsKey('content-type'), isFalse);
         } finally {
           await server.close();
         }

@@ -2436,6 +2436,40 @@ void main() {
       }
     });
 
+    test(
+      'bhv operations 157 a binary request body is sent as its exact raw bytes with no multipart encoding',
+      () async {
+        List<int> receivedBytes = [];
+        String? receivedType;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          receivedType = request.headers.contentType?.mimeType;
+          receivedBytes = await request.fold<List<int>>(
+            <int>[],
+            (acc, chunk) => acc..addAll(chunk),
+          );
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/upload',
+            {'Content-Type': 'application/octet-stream'},
+            Uint8List.fromList([0x01, 0x02, 0x03]),
+          );
+
+          expect(receivedType, equals('application/octet-stream'));
+          expect(receivedBytes, equals([0x01, 0x02, 0x03]));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('bhv operations 016 sends no body when body is null', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
