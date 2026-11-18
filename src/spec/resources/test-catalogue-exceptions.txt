@@ -525,6 +525,13 @@ elixir | misc059 | JSON has no NaN or Infinity literal and Jason refuses them, s
 elixir | misc060 | The bearer authenticator constructor takes one token and has no token provider argument, so both cannot be supplied together
 elixir | misc061 | An authenticator is a plain module function with no call context argument, so there is no caller cancellation or context value to pass to it
 ||||||| 48a69653b
+||||||| 334663d4c
+rust | misc047 | Rust unions are enums, so a value that is not one of the variants cannot be built and the compiler admits only variants when serializing, so no run-time error naming the union exists
+rust | misc050 | RequestOptions is a plain struct whose flags default to false, so an unset per-call flag cannot be told apart from an explicit false and cannot fall through to the transport options
+rust | misc051 | Rust builders expose only typed setters, so an option the builder does not have cannot be passed and the compiler rejects it before any run-time check
+rust | misc060 | Rust has no API key provider: a credential is a typed value passed in one place, so supplying both an API key and a provider cannot be expressed
+rust | misc061 | Rust has no cancellation parameter or context values on a call (S7), so the authenticator receives no caller cancellation or context to pass on, the same limit as misc029
+||||||| 1fb5cb0ce
 dart | misc051 | Dart rejects an unknown named option and a server setting on an operation without servers at compile time, since the generated options classes and constructors declare only their own fields, so no run-time refusal can be observed
 dart | misc052 | Dart rejects a repeated named argument at compile time and per-call options fields are final, so the same kind of option cannot be given twice at run time
 dart | misc061 | Dart has no per-call cancellation handle and no context-value channel (S7), so an authenticator receives no cancel signal or context values to pass on
