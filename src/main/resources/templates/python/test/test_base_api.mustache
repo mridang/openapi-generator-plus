@@ -933,6 +933,15 @@ class TestAuthInjection:
         assert auth.auth_thread_id is not None
         assert auth.auth_thread_id != loop_thread_id
 
+    async def test_bhv_misc_191_an_auth_cookie_with_a_forbidden_character_raises_a_value_error(self, api: Any) -> None:
+        auth = StubAuthenticator(cookies={'session': 'a"b'})
+
+        with pytest.raises(ValueError) as exc_info:
+            await api.call('GET', '/test/echo', {}, {}, None,
+                           ['application/json'], 'application/json', 'object', auth)
+
+        assert not isinstance(exc_info.value, ApiException)
+
 
 class TestNoAuthSentinel:
     """Wave A2 — the no-auth sentinel three-state contract in base_api.
@@ -1474,6 +1483,14 @@ class TestBodySerialization:
         await stub.call('POST', '/test/echo', {}, {}, b'\x01\x02\x03',
                         ['application/json'], 'application/octet-stream', None)
         assert client.captured_body is not None
+
+    async def test_bhv_misc_202_a_text_body_without_a_content_type_goes_out_as_bare_json(self) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(api_client=client, config=Configuration(base_url='http://localhost'))
+
+        await stub.call('POST', '/x', {}, {}, 'hello', ['application/json'], '', None)
+
+        assert client.captured_headers['Content-Type'] == 'application/json'
 
 
 class PlainTextApiClient(CapturingApiClient):
