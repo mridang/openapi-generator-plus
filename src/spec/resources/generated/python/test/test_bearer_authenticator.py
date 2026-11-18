@@ -83,7 +83,7 @@ class TestBearerAuthenticator:
                 host="https://api.example.com", token="tok\r\nInjected: yes"
             )
 
-    def test_rejects_non_ascii(self) -> None:
+    def test_bhv_authbearer_022_rejects_non_ascii(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="ñoño")
 
@@ -181,7 +181,9 @@ class TestBearerTokenProvider:
 
         assert auth.get_auth_headers() == {"Authorization": "Bearer env-token"}
 
-    def test_a_token_and_a_provider_together_are_rejected(self) -> None:
+    def test_bhv_authbearer_026_a_token_and_a_provider_together_are_rejected(
+        self,
+    ) -> None:
         with pytest.raises(ValueError, match="not both"):
             BearerAuthenticator(
                 host="https://api.example.com",
