@@ -669,7 +669,9 @@ class TestToQueryValue:
     ) -> None:
         assert ObjectSerializer.to_query_value([1, None, 3], "csv") == "1,,3"
 
-    def test_keeps_empty_slot_for_null_array_element_in_default_csv(self) -> None:
+    def test_bhv_serializationparam_115_keeps_empty_slot_for_null_array_element_in_default_csv(
+        self,
+    ) -> None:
         assert ObjectSerializer.to_query_value([1, None, 3]) == "1,,3"
 
     def test_bhv_serializationobject_169_keeps_empty_slot_for_null_array_element_in_ssv(
@@ -1081,6 +1083,26 @@ class TestExcludeNoneOnSerialize:
 
 
 class TestDeserialize:
+    def test_bhv_serializationobject_231_omitting_an_optional_field_leaves_it_unset(
+        self,
+    ) -> None:
+        category = ObjectSerializer().deserialize('{"name":"Dogs"}', "Category")
+        assert isinstance(category, Category)
+        assert category.id is None
+        assert category.name == "Dogs"
+
+    def test_bhv_serializationobject_229_a_map_of_models_returns_a_model_for_each_value(
+        self,
+    ) -> None:
+        result = ObjectSerializer().deserialize(
+            '{"dogs":{"id":1,"name":"Dogs"},"cats":{"id":2,"name":"Cats"}}',
+            "Dict[str, Category]",
+        )
+        assert sorted(result) == ["cats", "dogs"]
+        assert isinstance(result["dogs"], Category)
+        assert isinstance(result["cats"], Category)
+        assert result["dogs"].name == "Dogs"
+
     def test_bhv_serializationobject_070_deserializes_json_to_typed_model(self) -> None:
         json_str = '{"id":1,"name":"Dogs"}'
         category = ObjectSerializer().deserialize(json_str, "Category")
@@ -1510,7 +1532,9 @@ class TestTimeFormat:
         result = ObjectSerializer()._deserialize("13:45:30", "datetime.time")
         assert result == datetime.time(13, 45, 30)
 
-    def test_round_trip_time_yields_same_value(self) -> None:
+    def test_bhv_serializationobject_230_round_trip_time_yields_same_value(
+        self,
+    ) -> None:
         original = datetime.time(7, 30, 15)
         serialized = ObjectSerializer.stringify(original)
         parsed = ObjectSerializer()._deserialize(serialized, "datetime.time")
@@ -2632,7 +2656,9 @@ class TestPatternIsTheSpecRegex:
 
 
 class TestModelDocProseIsRaw:
-    def test_external_docs_description_has_no_html_entities(self) -> None:
+    def test_bhv_serializationobject_227_external_docs_description_has_no_html_entities(
+        self,
+    ) -> None:
         from petstore_client.models.account import Account
 
         assert Account.__doc__ is not None

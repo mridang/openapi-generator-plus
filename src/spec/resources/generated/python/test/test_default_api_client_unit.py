@@ -583,7 +583,9 @@ class TestMultipartFilenameSanitization:
         with pytest.raises(ValueError):
             client._build_multipart_body({"upload": file_like}, "boundary")
 
-    def test_multipart_body_escapes_quote_in_filename(self) -> None:
+    def test_bhv_serializationwire_061_multipart_body_escapes_quote_in_filename(
+        self,
+    ) -> None:
         import io
 
         client = DefaultApiClient()
