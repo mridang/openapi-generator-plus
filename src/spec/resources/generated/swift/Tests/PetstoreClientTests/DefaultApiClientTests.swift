@@ -1328,7 +1328,7 @@ import Testing
     #expect(try echoedHeaders(response)["x-custom"] as? String == "custom-value")
   }
 
-  @Test func testCallerHeadersOverrideTransportDefaultHeaders() async throws {
+  @Test func testBhvMisc299CallerHeadersOverrideTransportDefaultHeaders() async throws {
     let transport = try TransportOptionsBuilder()
       .defaultHeader(name: "Accept", value: "text/plain")
       .build()

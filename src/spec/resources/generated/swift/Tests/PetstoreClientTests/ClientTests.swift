@@ -118,6 +118,13 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     _ = try Client(authenticator: authenticator, transportOptions: transport)
   }
 
+  @Test func testBhvMisc298ClientWithAMalformedProxyUrlFailsWithInvalidProxy() {
+    #expect(throws: ConfigurationError.invalidProxy("Invalid proxy URL: not a valid url")) {
+      let transport = try TransportOptionsBuilder().proxy("not a valid url").build()
+      _ = try Client(authenticator: authenticator, transportOptions: transport)
+    }
+  }
+
   /* An API key sent in a header rejects CR/LF and non-ASCII characters at
    * construction, with ConfigurationError.invalidArgument. */
   @Test(arguments: ["abc\r\nInjected: yes", "kéy"])

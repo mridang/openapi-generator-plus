@@ -872,6 +872,19 @@ import FoundationNetworking
         #expect(calls == 3)
     }
 
+    /* With no retry setting the transport default applies: one try and two retries reach the wire. */
+    @Test func testBhvMisc296DefaultRetriesSendAFailedRequestThreeTimes() async throws {
+        var calls = 0
+        let client = try retryClient { _ in
+            calls += 1
+            return (Data(), 503, ["Retry-After": "0"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "http://localhost/default", headers: [:], body: nil)
+        #expect(response.statusCode == 503)
+        #expect(calls == 3)
+    }
+
     @Test func testBhvRetries024RetriesStopAfterMaxRetriesAndReturnTheLastResponse() async throws {
         var calls = 0
         let client = try retryClient(maxRetries: 1) { _ in
