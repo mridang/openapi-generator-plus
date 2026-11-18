@@ -2386,3 +2386,4 @@ langphp032 | The OpenID Connect authenticator masks its client secret in debug o
 langphp033 | A third global server keeps its URL, description and variable through a round trip.
 langphp034 | A multipart text part carries only a Content-Disposition header.
 langphp035 | The retry backoff doubles from half a second up to a cap of eight seconds.
+langcsharp060 | A non-finite expires_in value skips caching of the token
