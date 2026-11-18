@@ -26,7 +26,9 @@ class TestApiResult:
         assert result.data == {"id": 2}
 
     def test_bhv_results_005_a_result_exposes_the_raw_response_body(self) -> None:
-        result = ApiResult(status_code=200, data=None, raw_body='{"id": 2}', headers={})
+        result: ApiResult[None] = ApiResult(
+            status_code=200, data=None, raw_body='{"id": 2}', headers={}
+        )
 
         assert result.raw_body == '{"id": 2}'
 
@@ -69,7 +71,9 @@ class TestApiResultHeadersAreACopy:
         self,
     ) -> None:
         source = {"Content-Type": "application/json"}
-        result = ApiResult(status_code=200, data=None, raw_body="", headers=source)
+        result: ApiResult[None] = ApiResult(
+            status_code=200, data=None, raw_body="", headers=source
+        )
 
         source["X-Late"] = "added-after-build"
 

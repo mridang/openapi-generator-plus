@@ -864,6 +864,7 @@ class TestMetadataBehaviours:
         from petstore_client.models import Metadata
 
         original = ObjectSerializer().deserialize('{"origin":"a","extra":1}', Metadata)
+        assert original is not None
         changed = original.model_copy(update={"origin": "b"})
 
         assert changed.additional_properties == original.additional_properties
@@ -877,6 +878,7 @@ class TestMetadataBehaviours:
         original = ObjectSerializer().deserialize(
             '{"createdAt":"2024-01-01T00:00:00Z"}', Metadata
         )
+        assert original is not None
         kept = original.model_copy()
         cleared = original.model_copy(update={"created_at": None})
 
@@ -891,6 +893,7 @@ class TestMetadataBehaviours:
         original = ObjectSerializer().deserialize(
             '{"createdAt":"2024-01-01T00:00:00Z"}', Metadata
         )
+        assert original is not None
         cleared = original.model_copy(update={"created_at": None})
         filled = Metadata().model_copy(update={"created_at": original.created_at})
 

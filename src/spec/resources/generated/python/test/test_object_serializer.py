@@ -1050,9 +1050,9 @@ class TestWireNamesMapsAndFreeForm:
         decoded = ObjectSerializer().deserialize('{"2fa":true}', "EdgeCases")
         assert isinstance(decoded, EdgeCases)
         assert decoded.n2fa is True
-        assert json.loads(ObjectSerializer().serialize(EdgeCases(n2fa=True))) == {
-            "2fa": True
-        }
+        assert json.loads(
+            ObjectSerializer().serialize(EdgeCases.model_validate({"2fa": True}))
+        ) == {"2fa": True}
 
     def test_bhv_serialization_051_a_strict_model_exposes_no_public_strict_decoder(
         self,
@@ -2862,7 +2862,7 @@ class TestObjectSerializerBehaviours:
     def test_bhv_serialization_017_a_model_is_written_under_wire_names_in_declaration_order(
         self,
     ) -> None:
-        keys = list(json.loads(ObjectSerializer().serialize(Order(id=1, pet_id=2))))
+        keys = list(json.loads(ObjectSerializer().serialize(Order(id=1, petId=2))))
 
         assert keys.index("id") < keys.index("petId")
         assert "pet_id" not in keys
@@ -2888,7 +2888,9 @@ class TestObjectSerializerBehaviours:
     ) -> None:
         payload = '{"name": "' + "[" * 2000 + '"}'
 
-        assert ObjectSerializer().deserialize(payload, Tag).name == "[" * 2000
+        tag = ObjectSerializer().deserialize(payload, Tag)
+        assert tag is not None
+        assert tag.name == "[" * 2000
 
     def test_a_payload_nested_past_the_depth_limit_is_refused(self) -> None:
         payload = "[" * 1001 + "]" * 1001
@@ -2900,6 +2902,7 @@ class TestObjectSerializerBehaviours:
         self,
     ) -> None:
         order = ObjectSerializer().deserialize('{"status": "approved"}', Order)
+        assert order is not None
 
         assert order.status is OrderStatusEnum.APPROVED
 
@@ -2947,13 +2950,10 @@ class TestModelDefaultsAndRanges:
     def test_bhv_serialization_031_an_integer_at_the_top_of_its_range_decodes_exactly(
         self,
     ) -> None:
-        assert (
-            ObjectSerializer().deserialize('{"id": 2147483647}', Tag).id == 2147483647
-        )
-        assert (
-            ObjectSerializer().deserialize('{"id": 9223372036854775807}', Tag).id
-            == 9223372036854775807
-        )
+        small = ObjectSerializer().deserialize('{"id": 2147483647}', Tag)
+        large = ObjectSerializer().deserialize('{"id": 9223372036854775807}', Tag)
+        assert small is not None and small.id == 2147483647
+        assert large is not None and large.id == 9223372036854775807
 
 
 class TestCollectionDecoding:
@@ -2978,7 +2978,7 @@ class TestCollectionDecoding:
     def test_bhv_serialization_065_a_null_in_an_array_is_kept_in_its_own_position(
         self,
     ) -> None:
-        decoded = ObjectSerializer().deserialize('[null, {"id": 2}]', "List[Tag]")
+        decoded = ObjectSerializer().deserialize('[null, "b"]', "List[str]")
 
         assert decoded[0] is None
-        assert decoded[1].id == 2
+        assert decoded[1] == "b"

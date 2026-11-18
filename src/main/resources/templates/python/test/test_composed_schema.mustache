@@ -401,6 +401,6 @@ class TestUnionWrapperBehaviours:
     def test_bhv_unions_043_a_discriminator_set_on_a_subtype_is_written_as_given(self) -> None:
         import json
 
-        food = DryFood(food_type='custom', weight_kg=2.5)
+        food = DryFood(foodType='custom', weightKg=2.5)
 
         assert json.loads(ObjectSerializer().serialize(food))['foodType'] == 'custom'
