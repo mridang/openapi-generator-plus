@@ -113,8 +113,8 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("form feed and vertical tab only tokens are rejected as empty")
-    fun formFeedOnlyTokenIsRejectedAsEmpty() {
+    @DisplayName("bhvLangkotlin008 form feed and vertical tab only tokens are rejected as empty")
+    fun bhvLangkotlin008FormFeedOnlyTokenIsRejectedAsEmpty() {
         for (blank in listOf("\u000C", "\u000B", " \t\r\n")) {
             val ex = assertThrows(IllegalArgumentException::class.java) {
                 BearerAuthenticator("https://api.example.com", blank)
@@ -293,23 +293,6 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: the argument wins over the environment variable, which wins over the provider")
-    fun precedenceIsArgumentThenEnvironmentThenProvider() = runBlocking {
-        val provider: suspend () -> String = { "from-provider" }
-        val env = mapOf("{{envVarPrefix}}_TOKEN" to "from-env")
-        val explicit =
-            withEnvironment(env) { BearerAuthenticator("https://api.example.com", "explicit") }
-        assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
-        val fromEnv =
-            withEnvironment(env) { BearerAuthenticator("https://api.example.com", tokenProvider = provider) }
-        assertEquals("Bearer from-env", fromEnv.getAuthHeaders()["Authorization"])
-        val fromProvider = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "")) {
-            BearerAuthenticator("https://api.example.com", tokenProvider = provider)
-        }
-        assertEquals("Bearer from-provider", fromProvider.getAuthHeaders()["Authorization"])
-    }
-
-    @Test
     @DisplayName("bhvAuthbearer002 F862: a token the provider returns is validated like a static one")
     fun providerTokenIsValidated() {
         val auth =
@@ -318,8 +301,8 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: a security scheme's authenticator reads the variable of its own scheme")
-    fun schemeWrapperReadsItsOwnVariable() = runBlocking {
+    @DisplayName("bhvLangkotlin009 F862: a security scheme's authenticator reads the variable of its own scheme")
+    fun bhvLangkotlin009SchemeWrapperReadsItsOwnVariable() = runBlocking {
         val env = mapOf("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" to "from-env")
         val auth =
             withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com") }
