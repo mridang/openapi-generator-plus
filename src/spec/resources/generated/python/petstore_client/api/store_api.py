@@ -124,6 +124,8 @@ class StoreApi(BaseApi):
             "Account",
             NO_AUTH,
             operation_name="create_account",
+            operation_id="createAccount",
+            url_template="/store/account",
             request_options=options,
         )
 
@@ -188,6 +190,8 @@ class StoreApi(BaseApi):
             None,
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="delete_order",
+            operation_id="deleteOrder",
+            url_template="/store/order/{orderId}",
             request_options=options,
         )
 
@@ -290,6 +294,8 @@ class StoreApi(BaseApi):
             "Category",
             NO_AUTH,
             operation_name="get_by_swatch",
+            operation_id="getBySwatch",
+            url_template="/store/by-swatch/{pathSwatch}",
             request_options=options,
         )
 
@@ -344,6 +350,8 @@ class StoreApi(BaseApi):
             "Defaults",
             NO_AUTH,
             operation_name="get_defaults",
+            operation_id="getDefaults",
+            url_template="/store/defaults",
             request_options=options,
         )
 
@@ -398,6 +406,8 @@ class StoreApi(BaseApi):
             "Department",
             NO_AUTH,
             operation_name="get_department",
+            operation_id="getDepartment",
+            url_template="/store/department",
             request_options=options,
         )
 
@@ -452,6 +462,8 @@ class StoreApi(BaseApi):
             "List[Dict[str, Category]]",
             NO_AUTH,
             operation_name="get_grouped_categories",
+            operation_id="getGroupedCategories",
+            url_template="/store/grouped-categories",
             request_options=options,
         )
 
@@ -506,6 +518,8 @@ class StoreApi(BaseApi):
             "Dict[str, StrictInt]",
             NO_AUTH,
             operation_name="get_inventory",
+            operation_id="getInventory",
+            url_template="/store/inventory",
             request_options=options,
         )
 
@@ -560,6 +574,8 @@ class StoreApi(BaseApi):
             "List[List[StrictInt]]",
             NO_AUTH,
             operation_name="get_matrix",
+            operation_id="getMatrix",
+            url_template="/store/matrix",
             request_options=options,
         )
 
@@ -636,6 +652,8 @@ class StoreApi(BaseApi):
             "Order",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_order_by_id",
+            operation_id="getOrderById",
+            url_template="/store/order/{orderId}",
             request_options=options,
         )
 
@@ -714,6 +732,8 @@ class StoreApi(BaseApi):
             "Order",
             NO_AUTH,
             operation_name="get_order_by_tracking_id",
+            operation_id="getOrderByTrackingId",
+            url_template="/store/order/by-tracking/{trackingId}",
             request_options=options,
         )
 
@@ -786,6 +806,8 @@ class StoreApi(BaseApi):
             "StockItem",
             NO_AUTH,
             operation_name="get_stock_item",
+            operation_id="getStockItem",
+            url_template="/store/stock-item",
             request_options=options,
         )
 
@@ -840,6 +862,8 @@ class StoreApi(BaseApi):
             "Swatch",
             NO_AUTH,
             operation_name="get_swatch",
+            operation_id="getSwatch",
+            url_template="/store/swatch",
             request_options=options,
         )
 
@@ -894,6 +918,8 @@ class StoreApi(BaseApi):
             "List[Dict[str, Swatch]]",
             NO_AUTH,
             operation_name="get_swatch_groups",
+            operation_id="getSwatchGroups",
+            url_template="/store/swatch-groups",
             request_options=options,
         )
 
@@ -948,6 +974,8 @@ class StoreApi(BaseApi):
             "List[Dict[str, AwareDatetime]]",
             NO_AUTH,
             operation_name="get_timestamp_groups",
+            operation_id="getTimestampGroups",
+            url_template="/store/timestamp-groups",
             request_options=options,
         )
 
@@ -1002,6 +1030,8 @@ class StoreApi(BaseApi):
             "TreeNode",
             NO_AUTH,
             operation_name="get_tree",
+            operation_id="getTree",
+            url_template="/store/tree",
             request_options=options,
         )
 
@@ -1063,6 +1093,8 @@ class StoreApi(BaseApi):
             "Order",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="place_order",
+            operation_id="placeOrder",
+            url_template="/store/order",
             request_options=options,
         )
 
@@ -1133,6 +1165,8 @@ class StoreApi(BaseApi):
             "ReserveStockResponse",
             NO_AUTH,
             operation_name="reserve_stock",
+            operation_id="reserveStock",
+            url_template="/store/reservation",
             request_options=options,
             decode_success=decode_success,
         )
@@ -1234,5 +1268,7 @@ class StoreApi(BaseApi):
             "List[Order]",
             NO_AUTH,
             operation_name="search_store",
+            operation_id="searchStore",
+            url_template="/store/search",
             request_options=options,
         )

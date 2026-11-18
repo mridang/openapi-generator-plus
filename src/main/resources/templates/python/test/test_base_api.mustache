@@ -8,7 +8,7 @@ import threading
 import time
 from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Iterator, Optional, Union
+from typing import Any, Callable, Iterator, Optional, Union
 
 from urllib3._collections import HTTPHeaderDict
 
@@ -21,6 +21,7 @@ from {{packageName}}.api.options.reserve_stock_options import ReserveStockOption
 from {{packageName}}.models.reservation import Reservation
 from {{packageName}}.models.reservation_receipt import ReservationReceipt
 from {{packageName}}.models.pet import Pet
+from {{packageName}}.call_hook import CallInfo, CallObserver, CallOutcome
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.transport_options import TransportOptions
@@ -76,10 +77,10 @@ class StubApi(BaseApi):
                           header_params: dict[str, str], body: Any,
                           accepts: list[str], content_type: str,
                           return_type: Optional[str], auth: Union[Authenticator, _NoAuth, None] = None,
-                          request_options: Any = None) -> Any:
+                          request_options: Any = None, **extra: Any) -> Any:
         return await self._invoke_api_for_result(
             method, path, query_params, header_params, body,
-            accepts, content_type, return_type, auth, request_options=request_options)
+            accepts, content_type, return_type, auth, request_options=request_options, **extra)
 
 
 class StubAuthenticator(Authenticator):
@@ -2108,3 +2109,324 @@ class TestUnauthorizedReplay:
             await _get(_retry_api(server))
 
         assert len(server.requests) == 1
+
+
+class _RecordingHook:
+    """A call hook that records what it is told and may edit the headers."""
+
+    def __init__(
+        self,
+        edit: Optional[Callable[[dict[str, str]], None]] = None,
+        fail_start: Optional[Exception] = None,
+        fail_finish: Optional[Exception] = None,
+    ) -> None:
+        self.infos: list[CallInfo] = []
+        self.seen: list[dict[str, str]] = []
+        self.outcomes: list[CallOutcome] = []
+        self._edit = edit
+        self._fail_start = fail_start
+        self._fail_finish = fail_finish
+
+    def start(self, info: CallInfo, headers: dict[str, str]) -> Optional[CallObserver]:
+        if self._fail_start is not None:
+            raise self._fail_start
+        self.infos.append(info)
+        self.seen.append(dict(headers))
+        if self._edit is not None:
+            self._edit(headers)
+        return self
+
+    def finish(self, outcome: CallOutcome) -> None:
+        self.outcomes.append(outcome)
+        if self._fail_finish is not None:
+            raise self._fail_finish
+
+
+def _hook_api(server: ScriptedServer, hook: Any, **options: Any) -> StubApi:
+    builder = TransportOptions.builder()
+    if 'max_retries' in options:
+        builder.max_retries(options['max_retries'])
+    if 'timeout' in options:
+        builder.timeout(options['timeout'])
+    return StubApi(
+        api_client=DefaultApiClient(builder.build()),
+        config=Configuration(base_url=server.url, call_hook=hook),
+    )
+
+
+def _hook_stub(client: ApiClient, hook: Any, base_url: str = 'https://example.test') -> StubApi:
+    return StubApi(api_client=client, config=Configuration(base_url=base_url, call_hook=hook))
+
+
+async def _hooked_get(api: StubApi, auth: Any = None, **extra: Any) -> Any:
+    return await api.call_result(
+        'GET', '/x', {}, {}, None, ['application/json'], 'application/json', None, auth, **extra
+    )
+
+
+class TestCallHook:
+    async def test_bhv_hooks_001_without_a_hook_the_call_is_unchanged(self, scripted: Any) -> None:
+        plain = scripted(_OK)
+        noop = scripted(_OK)
+
+        first = await _hooked_get(_hook_api(plain, None))
+        second = await _hooked_get(_hook_api(noop, _NoObserverHook()))
+
+        assert Configuration().call_hook is None
+        assert first.status_code == second.status_code == 200
+        assert first.raw_body == second.raw_body
+        assert {k: v for k, v in plain.requests[0].items() if k != 'host'} == {
+            k: v for k, v in noop.requests[0].items() if k != 'host'
+        }
+
+    async def test_bhv_hooks_002_start_gets_the_spec_operation_id_method_template_and_url(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((200, {}, '[]'))
+        hook = _RecordingHook()
+        api = PetApi(
+            api_client=DefaultApiClient(TransportOptions.builder().max_retries(0).build()),
+            config=Configuration(base_url=server.url, call_hook=hook),
+        )
+
+        await api.find_pets_by_status(FindPetsByStatusOptions(status='available'))
+
+        assert hook.infos == [
+            CallInfo(
+                operation_id='findPetsByStatus',
+                method='GET',
+                url_template='/pet/findByStatus',
+                url=server.url + '/pet/findByStatus',
+                server_address='127.0.0.1',
+            )
+        ]
+
+    @pytest.mark.parametrize(
+        'base_url,expected',
+        [
+            ('http://Example.TEST:9000/v1', 'example.test'),
+            ('http://[::1]:8080/v1', '::1'),
+            ('https://user:secret@example.test/v1', 'example.test'),
+        ],
+    )
+    async def test_bhv_hooks_003_the_server_address_is_the_bare_host(self, base_url: str, expected: str) -> None:
+        hook = _RecordingHook()
+        api = _hook_stub(_ScriptedApiClient(_json(200, '{}')), hook, base_url)
+
+        await _hooked_get(api)
+
+        assert hook.infos[0].server_address == expected
+        assert 'secret' not in hook.infos[0].url
+
+    async def test_bhv_hooks_004_a_header_the_hook_sets_reaches_the_server(self, scripted: Any) -> None:
+        server = scripted(_OK)
+        hook = _RecordingHook(edit=lambda headers: headers.update({'X-Hook': 'on'}))
+
+        await _hooked_get(_hook_api(server, hook))
+
+        assert server.requests[0]['x-hook'] == 'on'
+
+    async def test_bhv_hooks_005_start_sees_the_final_headers_and_can_replace_one(self, scripted: Any) -> None:
+        server = scripted(_OK)
+        hook = _RecordingHook(edit=lambda headers: headers.update({'Authorization': 'Bearer hook'}))
+        api = StubApi(
+            api_client=DefaultApiClient(TransportOptions.builder().max_retries(0).build()),
+            config=Configuration(base_url=server.url, default_headers={'X-Default': 'd'}, call_hook=hook),
+        )
+
+        await _hooked_get(api, StubAuthenticator({'Authorization': 'Bearer auth'}))
+
+        assert hook.seen[0]['Authorization'] == 'Bearer auth'
+        assert hook.seen[0]['X-Default'] == 'd'
+        assert server.requests[0]['authorization'] == 'Bearer hook'
+
+    @pytest.mark.parametrize('first', [(503, _SOON, '{}'), (401, {}, '{}')])
+    async def test_bhv_hooks_006_a_hook_header_is_on_every_send_of_the_call(
+        self, scripted: Any, first: Any
+    ) -> None:
+        server = scripted(first, _OK)
+        hook = _RecordingHook(edit=lambda headers: headers.update({'X-Hook': 'on'}))
+
+        await _hooked_get(_hook_api(server, hook), OAuthStubAuthenticator())
+
+        assert len(server.requests) == 2
+        assert [r['x-hook'] for r in server.requests] == ['on', 'on']
+
+    async def test_bhv_hooks_007_the_fresh_authentication_of_a_replay_replaces_a_hook_header(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((401, {}, '{}'), _OK)
+        hook = _RecordingHook(edit=lambda headers: headers.update({'Authorization': 'Bearer hook'}))
+
+        await _hooked_get(_hook_api(server, hook), OAuthStubAuthenticator())
+
+        assert [r['authorization'] for r in server.requests] == ['Bearer hook', 'Bearer t2']
+
+    async def test_bhv_hooks_008_a_retried_call_starts_once_and_finishes_once(self, scripted: Any) -> None:
+        server = scripted((503, _SOON, '{}'), _OK)
+        hook = _RecordingHook()
+
+        await _hooked_get(_hook_api(server, hook))
+
+        assert len(server.requests) == 2
+        assert len(hook.infos) == 1
+        assert [o.status_code for o in hook.outcomes] == [200]
+
+    async def test_bhv_hooks_009_both_variants_of_an_operation_call_the_hook_once_each(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((200, {}, '[]'))
+        hook = _RecordingHook()
+        api = PetApi(
+            api_client=DefaultApiClient(TransportOptions.builder().max_retries(0).build()),
+            config=Configuration(base_url=server.url, call_hook=hook),
+        )
+
+        await api.find_pets_by_status_with_http_info()
+        assert len(hook.infos) == 1
+        await api.find_pets_by_status()
+        assert len(hook.infos) == 2
+        assert len(hook.outcomes) == 2
+
+    async def test_bhv_hooks_010_the_hook_fires_when_the_caller_supplied_the_transport(self) -> None:
+        hook = _RecordingHook(edit=lambda headers: headers.update({'X-Hook': 'on'}))
+        client = _ScriptedApiClient(_json(200, '{}'))
+
+        await _hooked_get(_hook_stub(client, hook))
+
+        assert len(hook.infos) == 1
+        assert len(hook.outcomes) == 1
+        assert client.sent[0]['X-Hook'] == 'on'
+
+    async def test_bhv_hooks_011_finish_gets_the_status_and_lower_cased_headers_on_a_2xx(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((200, {'X-Mixed-Case': 'v'}, '{}'))
+        hook = _RecordingHook()
+
+        await _hooked_get(_hook_api(server, hook))
+
+        outcome = hook.outcomes[0]
+        assert outcome.status_code == 200
+        assert outcome.headers is not None and outcome.headers['x-mixed-case'] == 'v'
+        assert outcome.error is None
+
+    async def test_bhv_hooks_012_finish_gets_the_typed_error_the_caller_receives(self, scripted: Any) -> None:
+        server = scripted((404, {'X-Why': 'gone'}, '{}'))
+        hook = _RecordingHook()
+
+        with pytest.raises(NotFoundException) as exc_info:
+            await _hooked_get(_hook_api(server, hook))
+
+        outcome = hook.outcomes[0]
+        assert outcome.status_code == 404
+        assert outcome.headers is not None and outcome.headers['x-why'] == 'gone'
+        assert outcome.error is exc_info.value
+
+    async def test_bhv_hooks_013_finish_gets_status_0_and_no_headers_without_a_response(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(None)
+        hook = _RecordingHook()
+
+        with pytest.raises(NetworkException) as exc_info:
+            await _hooked_get(_hook_api(server, hook, max_retries=0))
+
+        outcome = hook.outcomes[0]
+        assert outcome.status_code == 0
+        assert outcome.headers is None
+        assert outcome.error is exc_info.value
+
+    async def test_bhv_hooks_014_finish_gets_the_timeout_error_never_the_cancellation(self) -> None:
+        from {{packageName}}.errors import NetworkTimeoutException
+
+        hook = _RecordingHook()
+        api = _hook_stub(_FailingApiClient(error=NetworkTimeoutException('budget')), hook)
+
+        with pytest.raises(NetworkTimeoutException) as exc_info:
+            await _hooked_get(api)
+
+        assert hook.outcomes[0].error is exc_info.value
+        assert not isinstance(hook.outcomes[0].error, asyncio.CancelledError)
+
+    async def test_bhv_hooks_015_finish_gets_the_cancellation_and_the_call_rethrows_it(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, {'Retry-After': '30'}, '{}'), _OK)
+        hook = _RecordingHook()
+        task = asyncio.ensure_future(_hooked_get(_hook_api(server, hook, max_retries=1, timeout=None)))
+        while not server.requests:
+            await asyncio.sleep(0.01)
+        await asyncio.sleep(0.1)
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert isinstance(hook.outcomes[0].error, asyncio.CancelledError)
+        assert not isinstance(hook.outcomes[0].error, NetworkException)
+
+    async def test_bhv_hooks_016_finish_gets_the_decode_error_with_the_status_that_arrived(self) -> None:
+        hook = _RecordingHook()
+        api = _hook_stub(MalformedJsonApiClient(), hook)
+
+        with pytest.raises(SerializationException) as exc_info:
+            await api.call('GET', '/x', {}, {}, None, ['application/json'], 'application/json', 'object')
+
+        assert hook.outcomes[0].status_code == 200
+        assert hook.outcomes[0].error is exc_info.value
+
+    async def test_bhv_hooks_017_finish_is_called_when_the_body_cannot_be_encoded(self, scripted: Any) -> None:
+        server = scripted(_OK)
+        hook = _RecordingHook()
+
+        with pytest.raises(SerializationException) as exc_info:
+            await _hook_api(server, hook).call_result(
+                'POST', '/x', {}, {}, {'a': {'b': 1}}, ['application/json'],
+                'application/x-www-form-urlencoded', None,
+            )
+
+        assert server.requests == []
+        assert hook.outcomes[0].status_code == 0
+        assert hook.outcomes[0].error is exc_info.value
+
+    async def test_bhv_hooks_018_an_error_from_start_reaches_the_caller_unchanged(self, scripted: Any) -> None:
+        server = scripted(_OK)
+        refusal = ValueError('refused')
+        hook = _RecordingHook(fail_start=refusal)
+
+        with pytest.raises(ValueError) as exc_info:
+            await _hooked_get(_hook_api(server, hook))
+
+        assert exc_info.value is refusal
+        assert server.requests == []
+        assert hook.outcomes == []
+
+    async def test_bhv_hooks_019_an_error_from_finish_is_swallowed(self, scripted: Any) -> None:
+        server = scripted(_OK, (404, {}, '{}'))
+        hook = _RecordingHook(fail_finish=RuntimeError('observer broke'))
+        api = _hook_api(server, hook)
+
+        result = await _hooked_get(api)
+        with pytest.raises(NotFoundException):
+            await _hooked_get(api)
+
+        assert result.status_code == 200
+        assert len(hook.outcomes) == 2
+
+    async def test_bhv_hooks_021_the_url_never_carries_the_query_or_the_fragment(self, scripted: Any) -> None:
+        server = scripted((200, {}, '[]'))
+        hook = _RecordingHook()
+        api = _hook_api(server, hook)
+
+        await api.call_result(
+            'GET', '/x#frag', {'token': 'secret'}, {}, None, ['application/json'], 'application/json', None,
+        )
+
+        assert hook.infos[0].url == server.url + '/x'
+        assert 'secret' not in hook.infos[0].url
+
+
+class _NoObserverHook:
+    def start(self, info: CallInfo, headers: dict[str, str]) -> Optional[CallObserver]:
+        return None
