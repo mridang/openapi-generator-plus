@@ -327,7 +327,7 @@ class BaseApiTest {
 
     @Test
     @DisplayName("a stream body is not replayed, but the token is still dropped")
-    void streamBodyIsNotReplayed() {
+    void bhvRetries045StreamBodyIsNotReplayed() {
       var client = new ScriptedApiClient(401, 200);
       var auth = new RotatingTokenAuthenticator(true);
       assertThrowsExactly(

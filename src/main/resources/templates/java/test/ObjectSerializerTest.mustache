@@ -2960,4 +2960,107 @@ class ObjectSerializerTest {
         assertEquals(Integer.valueOf(Integer.MIN_VALUE), serializer.deserialize("-2147483648", Integer.class));
         assertEquals(Long.valueOf(Long.MAX_VALUE), serializer.deserialize("9223372036854775807", Long.class));
     }
+
+    @Test
+    void bhvSerialization067ExtraPropertiesAreWrittenAsTopLevelKeys() throws Exception {
+        {{modelPackage}}.Metadata metadata =
+                serializer.deserialize("{\"zeta\":1}", {{modelPackage}}.Metadata.class);
+        assertTrue(serializer.serialize(metadata).contains("\"zeta\":1"));
+    }
+
+    @Test
+    void bhvSerialization068BuildingAModelInCodeDoesNotValidateIt() {
+        assertDoesNotThrow(() -> {{modelPackage}}.EdgeCases.builder().build());
+    }
+
+    @Test
+    void bhvSerialization070JsonNullDecodesToNullForAnOptionalNullableField() throws Exception {
+        {{modelPackage}}.EdgeCases edge = serializer.deserialize(
+                "{\"permissionsNote\":null}", {{modelPackage}}.EdgeCases.class);
+        assertNull(edge.permissionsNote);
+    }
+
+    @Test
+    void bhvSerialization071NestingBeyondTheAllowedDepthIsRefusedBeforeParsing() {
+        String deep = "[".repeat(5000) + "]".repeat(5000);
+        assertThrowsExactly(SerializationException.class,
+                () -> serializer.deserialize(deep, Object.class));
+    }
+
+    @Test
+    void bhvSerialization072UndeclaredKeysAreSkippedWhateverTheirShape() throws Exception {
+        String json = "{\"unknownScalar\":1,\"unknownObject\":{\"inner\":[1,2]},\"unknownText\":\"x\"}";
+        assertNotNull(serializer.deserialize(json, {{modelPackage}}.EdgeCases.class));
+    }
+
+    @Test
+    void bhvSerialization073MissingRequiredFieldFailsNamingTheField() {
+        SerializationException ex = assertThrowsExactly(SerializationException.class,
+                () -> serializer.deserialize("{\"id\":1}", {{modelPackage}}.Pet.class));
+        assertTrue(ex.getMessage().contains("name"), ex.getMessage());
+    }
+
+    @Test
+    void bhvSerialization074NestedArraysSerializeBackToTheSameShape() throws Exception {
+        Integer[][] nested = serializer.deserialize("[[1,2],[3]]", Integer[][].class);
+        assertEquals("[[1,2],[3]]", serializer.serialize(nested));
+    }
+
+    @Test
+    void bhvSerialization075EnumDecodesFromItsWireCasingToTheMember() throws Exception {
+        assertEquals({{modelPackage}}.Color.RED,
+                serializer.deserialize("\"red\"", {{modelPackage}}.Color.class));
+    }
+
+    @Test
+    void bhvSerialization076UnionValueMatchingNoCandidateRaisesASerializationError() {
+        assertThrowsExactly(SerializationException.class,
+                () -> serializer.deserialize("{\"unmatched\":true}", {{modelPackage}}.Shape.class));
+    }
+
+    @Test
+    void bhvSerialization077DurationRoundTripsAcrossZeroNegativeSubSecondMultiDayAndExtremeValues() {
+        Duration[] values = {
+            Duration.ZERO,
+            Duration.ofMillis(-1500),
+            Duration.ofMillis(250),
+            Duration.ofDays(3).plusSeconds(7),
+            Duration.ofSeconds(315576000000L),
+        };
+        for (Duration value : values) {
+            assertEquals(value, ObjectSerializer.parseDuration(ObjectSerializer.formatDuration(value)));
+        }
+    }
+
+    @Test
+    void bhvSerialization078TimeOfDayIsZeroPaddedWithAFractionOnlyWhenSubSecond() {
+        assertEquals("09:05:03", ObjectSerializer.stringify(java.time.LocalTime.of(9, 5, 3)));
+        assertEquals("09:05:03.5",
+                ObjectSerializer.stringify(java.time.LocalTime.of(9, 5, 3, 500_000_000)));
+    }
+
+    @Test
+    void bhvSerialization080ProtobufDurationAcceptsTheUpperBoundAndRejectsOnePastIt() {
+        assertEquals(Duration.ofDays(3652500), ObjectSerializer.parseDuration("315576000000s"));
+        assertThrowsExactly(SerializationException.class,
+                () -> ObjectSerializer.parseDuration("315576000001s"));
+    }
+
+    @Test
+    void bhvSerialization081QuotedNumberIsNeverCoercedToANumber() {
+        assertThrowsExactly(SerializationException.class,
+                () -> serializer.deserialize("\"5\"", Integer.class));
+    }
+
+    @Test
+    void bhvSerialization079CopyWithNamedChangesKeepsTheOriginalAndTheUnnamedFields() {
+        {{modelPackage}}.Pet original = {{modelPackage}}.Pet.builder()
+                .id(1L).name("first").photoUrls(java.util.Set.of("http://example.com/a.jpg")).build();
+        {{modelPackage}}.Pet changed = original.toBuilder().name("second").build();
+        assertNotSame(original, changed);
+        assertEquals("first", original.name);
+        assertEquals("second", changed.name);
+        assertEquals(original.id, changed.id);
+        assertEquals(original.photoUrls, changed.photoUrls);
+    }
 }

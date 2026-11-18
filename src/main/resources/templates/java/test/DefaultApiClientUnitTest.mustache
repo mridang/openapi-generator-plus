@@ -2380,7 +2380,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void staleConnectionRetryDrawsFromTheRemainingBudget() throws Exception {
+  void bhvRetries047StaleConnectionRetryDrawsFromTheRemainingBudget() throws Exception {
     // D76: the one retry after "header parser received no bytes" shares the end-to-end
     // budget. The first connection is held 1.5 s and dropped without a byte; the second is
     // never answered. With a 2 s budget the call ends near 2 s, not near 3.5 s.
@@ -3654,5 +3654,69 @@ class DefaultApiClientUnitTest {
     assertFalse(second.headers().firstValue("Cookie").isPresent());
     assertFalse(second.headers().firstValue("Proxy-Authorization").isPresent());
     assertFalse(second.headers().firstValue("X-Api-Token").isPresent());
+  }
+
+  @Test
+  void bhvRetries046RequestBodyIsResentUnchangedAfterASameSchemeTemporaryRedirect() {
+    assertEquals(echoed("POST", "payload"), methodAndBodyAfterRedirect("POST", 307));
+  }
+
+  @Test
+  void bhvRetries048DefaultClientRetriesA503OverARealConnectionAndReturnsTheSuccess() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(503, "0") : new Reply(200, ""), hits);
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      assertEquals(200, response.statusCode());
+      assertEquals(2, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRetries049MaxRetriesAllowsThatManyRetriesThenReturnsTheLastFailure() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(3).build());
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(4, hits.get(), "three retries after the first attempt");
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRetries050RetryAfterHttpDateIsHonouredAndTheRequestIsRetried() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(
+        n -> n == 1 ? new Reply(503, "Thu, 01 Jan 1970 00:00:00 GMT") : new Reply(200, ""), hits);
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      assertEquals(200, response.statusCode());
+      assertEquals(2, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRetries051Redirect307HttpsToHttpBodyIsRefusedWithStatus307() {
+    assertHttpsToHttpBodyIsRefused(307);
+  }
+
+  @Test
+  void bhvRedirects055RedirectToANonHttpSchemeIsRefused() {
+    RecordingHttpClient transport = redirectingOnceTo(302, "ftp://example.com/x");
+    DefaultApiClient client = new DefaultApiClient(
+        TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    assertThrowsExactly(ApiException.class,
+        () -> client.sendRequest("GET", "http://localhost/start", Map.of(), null));
+    assertEquals(1, transport.requests.size(), "the non-http target must not be requested");
   }
 }
