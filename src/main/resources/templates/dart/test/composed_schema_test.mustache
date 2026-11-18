@@ -723,6 +723,23 @@ void main() {
         throwsA(isA<SerializationException>()),
       );
     });
+    test('bhv serialization 076 a union value that matches no candidate raises a serialization error', () {
+      expect(
+        () => PetTreatment.fromJson(<String, dynamic>{'unrelatedKey': 'value'}),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serialization 082 a missing discriminator fails with an error that names the missing key', () {
+      expect(
+        () => PetFood.fromJson(<String, dynamic>{'weightKg': 2.5}),
+        throwsA(isA<SerializationException>().having(
+          (e) => e.message,
+          'message',
+          contains('foodType'),
+        )),
+      );
+    });
   });
 }
 {{/generateTests}}

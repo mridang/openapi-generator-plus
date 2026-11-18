@@ -1141,6 +1141,19 @@ import Testing
         noRedirect: false, refreshHeaders: nil, maxRetries: 2)
       #expect(response.statusCode == 200)
     }
+
+    /* An ISO-8859-1 error response body decodes to UTF-8 text in the error. */
+    @Test func testBhvMisc237AnIso88591ErrorBodyDecodesToUtf8Text() async throws {
+      let client = makeClient(transport: nil) { _ in
+        (
+          Data("caf\u{e9}".data(using: .isoLatin1)!), 404,
+          ["Content-Type": "text/plain; charset=ISO-8859-1"]
+        )
+      }
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/missing", headers: [:], body: nil)
+      #expect(response.body == "caf\u{e9}")
+    }
   }
 
   /// A URLProtocol that accepts a request and never answers it, so a test can

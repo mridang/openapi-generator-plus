@@ -348,6 +348,38 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 249 a free-form object field keeps its object and integer entries through a JSON round trip',
+      () {
+        final json = serialize({
+          'props': {'count': 3, 'tag': 'x'},
+        });
+        expect(
+          jsonDecode(json),
+          equals({
+            'props': {'count': 3, 'tag': 'x'},
+          }),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 251 a duration string with a day designator is rejected',
+      () {
+        expect(
+          () => parseProtobufDuration('1d'),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 252 an enum wire value containing separators round-trips unchanged',
+      () {
+        expect(parseJson(serialize('a,b;c d/e:f')), equals('a,b;c d/e:f'));
+      },
+    );
+
     test('bhv serializationobject 147 serialize map to JSON', () {
       final input = {'name': 'Fido', 'age': 3};
 
@@ -4471,6 +4503,72 @@ void main() {
         );
       },
     );
+
+    test(
+      'bhv serialization 112 a password is masked in the string form and written verbatim on the wire',
+      () {
+        const account = Account(username: 'u', password: 'p-secret-value');
+        expect(account.toString(), isNot(contains('p-secret-value')));
+        expect(serialize(account), contains('"password":"p-secret-value"'));
+      },
+    );
+
+    test(
+      'bhv serialization 113 a string value passes through unchanged without normalising its form',
+      () {
+        expect(stringify('é'), equals('é'));
+      },
+    );
+
+    test(
+      'bhv serialization 114 a decoded number keeps its full magnitude and fractional part',
+      () {
+        final food = deserialize<DryFood>(
+          '{"foodType":"dry","weightKg":12345678901234567890.5}',
+          DryFood.fromJson,
+        );
+        expect(food?.weightKg, equals(12345678901234567890.5));
+      },
+    );
+
+    test(
+      'bhv serialization 115 an integral JSON number decoded into a floating-point field becomes a float',
+      () {
+        final food = deserialize<DryFood>(
+          '{"foodType":"dry","weightKg":5}',
+          DryFood.fromJson,
+        );
+        expect(food?.weightKg, equals(5.0));
+        expect(food?.weightKg, isA<double>());
+      },
+    );
+
+    test(
+      'bhv serialization 116 a property named as a language keyword keeps its exact wire key',
+      () {
+        expect(
+          deserialize<EdgeCases>('{"class":"x"}', EdgeCases.fromJson)?.class_,
+          equals('x'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 117 a protobuf duration string decodes to a duration both standalone and as a property',
+      () {
+        expect(
+          parseProtobufDuration('3600s'),
+          equals(const Duration(hours: 1)),
+        );
+        expect(
+          deserialize<EdgeCases>(
+            '{"retryAfter":"3600s"}',
+            EdgeCases.fromJson,
+          )?.retryAfter,
+          equals(const Duration(hours: 1)),
+        );
+      },
+    );
     test(
       'bhv misc 287 A wire key literally named additional_properties is kept as an undeclared extra',
       () {
@@ -4524,6 +4622,194 @@ void main() {
         )!;
 
         expect(restored.additionalProperties['nested'], equals({'a': 1}));
+      },
+    );
+    test(
+      'bhv serialization 067 extra properties are written as top-level keys beside the declared fields',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}',
+          Metadata.fromJson,
+        )!;
+
+        final wire = jsonDecode(serialize(metadata)) as Map<String, dynamic>;
+
+        expect(wire['region'], equals('eu'));
+        expect(wire.containsKey('createdAt'), isTrue);
+      },
+    );
+
+    test(
+      'bhv serialization 071 JSON nested deeper than the allowed depth is refused before parsing',
+      () {
+        final deep = '[' * 1001 + ']' * 1001;
+
+        expect(
+          () => parseJson(deep),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              contains('exceeds limit 1000'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 074 nested arrays serialize back to the same nested shape they were decoded from',
+      () {
+        expect(
+          jsonDecode(
+            serialize([
+              [1, 2],
+              [3],
+            ]),
+          ),
+          equals([
+            [1, 2],
+            [3],
+          ]),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 075 an enum value decodes from its wire string to the matching member',
+      () {
+        final order = deserialize<Order>(
+          '{"id":10,"status":"placed"}',
+          Order.fromJson,
+        );
+
+        expect(order!.status, equals(OrderStatusEnum.placed));
+      },
+    );
+
+    test(
+      'bhv serialization 077 a duration written to its wire string and decoded back is unchanged',
+      () {
+        final values = <Duration>[
+          Duration.zero,
+          const Duration(seconds: -90, microseconds: -250000),
+          const Duration(microseconds: 1500),
+          const Duration(days: 3, seconds: 5),
+          const Duration(seconds: 315576000000),
+        ];
+
+        for (final value in values) {
+          expect(
+            parseProtobufDuration(formatProtobufDuration(value)),
+            equals(value),
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv serialization 079 copying a model with named changes changes only those fields',
+      () {
+        final original = Order();
+
+        final copy = original.copyWith(quantity: 500);
+
+        expect(identical(copy, original), isFalse);
+        expect(copy.quantity, equals(500));
+        expect(original.quantity, isNot(equals(500)));
+      },
+    );
+
+    test(
+      'bhv serialization 081 a value of the wrong JSON type is rejected and never coerced',
+      () {
+        expect(
+          () => deserialize<Metadata>('{"createdAt":123}', Metadata.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 083 a serialization error is the library error type and carries a non-empty message',
+      () {
+        expect(
+          () => deserialize<Metadata>('{', Metadata.fromJson),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              isNotEmpty,
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 084 protobuf duration fractions parse to their exact value, including short padded ones',
+      () {
+        expect(
+          parseProtobufDuration('1.5s'),
+          equals(const Duration(seconds: 1, microseconds: 500000)),
+        );
+        expect(
+          parseProtobufDuration('0.1s'),
+          equals(const Duration(microseconds: 100000)),
+        );
+        expect(
+          parseProtobufDuration('1.000001s'),
+          equals(const Duration(seconds: 1, microseconds: 1)),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 085 a date-time field decodes from its ISO-8601 string into a date-time value',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"createdAt":"2024-01-01T00:00:00Z"}',
+          Metadata.fromJson,
+        )!;
+
+        expect(metadata.createdAt, isA<DateTime>());
+        expect(metadata.createdAt, equals(DateTime.utc(2024, 1, 1)));
+      },
+    );
+
+    test(
+      'bhv serialization 086 a duration is written as protobuf seconds with days folded in',
+      () {
+        expect(
+          formatProtobufDuration(const Duration(days: 1, seconds: 5)),
+          equals('86405s'),
+        );
+        expect(
+          formatProtobufDuration(const Duration(seconds: 2)),
+          equals('2s'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 087 a very small duration is written as fixed-point decimal digits, never scientific',
+      () {
+        final out = formatProtobufDuration(const Duration(microseconds: 1));
+
+        expect(out, equals('0.000001s'));
+        expect(out.toLowerCase(), isNot(contains('e')));
+      },
+    );
+
+    test(
+      'bhv serialization 089 a base64 wire string decodes into a byte value',
+      () {
+        final request = SetPetAvatarThumbnailRequest.fromJson('aGk=');
+
+        expect(
+          request.actualInstance,
+          equals(Uint8List.fromList(<int>[0x68, 0x69])),
+        );
       },
     );
   });
