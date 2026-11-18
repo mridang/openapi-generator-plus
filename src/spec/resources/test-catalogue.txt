@@ -1984,3 +1984,10 @@ langpython041 | A chain is a call hook.
 langpython042 | One failing observer does not stop the others.
 langpython043 | The response headers are lower cased and read only.
 langpython044 | No response means no headers rather than an empty map.
+langpython045 | A token and a token provider together are rejected.
+langpython046 | The default authenticator alone is enough.
+langpython047 | The scheme credentials are keyword only.
+langpython048 | Each scheme names the scheme it is the credential of.
+langpython049 | The call hook reaches every api group.
+langpython050 | The transport is released when the last of several requests ends.
+langpython051 | Closing with nothing in flight releases the transport at once.
