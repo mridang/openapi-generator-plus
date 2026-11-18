@@ -353,7 +353,7 @@ func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{#isNullable}}*{{/is
 {{/optionalVars}}
 	return &{{classname}}{
 {{#isAdditionalPropertiesTrue}}
-		AdditionalProperties: make(map[string]any),
+		AdditionalProperties: make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}),
 {{/isAdditionalPropertiesTrue}}
 {{#requiredVars}}
 		{{name}}: {{nameInCamelCase}},

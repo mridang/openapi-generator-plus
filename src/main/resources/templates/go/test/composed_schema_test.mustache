@@ -729,10 +729,10 @@ func TestBhvUnions029_ComposedSchema_SetPetAvatarThumbnailRequest_OneOfWrappersH
 	right := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
 	other := models.NewSetPetAvatarThumbnailRequest([]byte{0x03})
 
-	if !left.Equal(right) {
+	if !left.Equal(&right) {
 		t.Error("expected two wrappers holding the same value to be equal")
 	}
-	if left.Equal(other) {
+	if left.Equal(&other) {
 		t.Error("expected a wrapper holding a different value not to be equal")
 	}
 }
