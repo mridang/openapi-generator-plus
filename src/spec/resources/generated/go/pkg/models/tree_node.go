@@ -26,7 +26,10 @@ type TreeNode struct {
 // built-in `==` operator panics at runtime on such values. Comparing the
 // canonical JSON encodings gives a value-equality contract that works for every
 // field shape, matching the equality semantics of the other SDKs.
-func (o TreeNode) Equal(other TreeNode) bool {
+func (o *TreeNode) Equal(other *TreeNode) bool {
+	if o == nil || other == nil {
+		return o == other
+	}
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
 	if errA != nil || errB != nil {

@@ -88,11 +88,11 @@ func TestBhvModels005_Metadata_EqualIncludesAdditionalProperties(t *testing.T) {
 		t.Fatalf("failed to deserialize Metadata: %v", err)
 	}
 	b := a
-	if !a.Equal(b) {
+	if !a.Equal(&b) {
 		t.Fatal("expected a model to equal its copy")
 	}
 	b.AdditionalProperties = map[string]any{"other": "y"}
-	if a.Equal(b) {
+	if a.Equal(&b) {
 		t.Error("expected models with different AdditionalProperties to be unequal")
 	}
 }

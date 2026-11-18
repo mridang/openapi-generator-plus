@@ -1004,3 +1004,4 @@ unions302 | An allOf base decodes to the subtype its implicit schema name mappin
 unions303 | An unknown allOf discriminator value fails and the error names the value
 unions304 | An allOf base payload without its discriminator fails
 errors205 | A decode failure of a response carries the status, the headers and the raw body
+equality001 | Two models built from the same values are equal, and a change in any nested value makes them unequal
