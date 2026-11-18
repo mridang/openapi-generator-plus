@@ -1474,7 +1474,7 @@ describe {{moduleName}}::Api::PetApi do
     # arguments only. The generated classes expose attr_reader members and
     # freeze themselves at the end of #initialize, so reading values works
     # but no writer (setter) is exposed and the instance is frozen.
-    it 'builds immutable Options from keyword arguments' do
+    it 'bhv_options_063 builds immutable Options from keyword arguments' do
       options = {{moduleName}}::Api::Options::FindPetsByStatusOptions.new(status: 'available')
 
       _(options.status).must_equal 'available'

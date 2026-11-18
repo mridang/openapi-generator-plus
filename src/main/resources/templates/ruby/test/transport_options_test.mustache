@@ -73,7 +73,7 @@ describe {{moduleName}}::TransportOptions do
     end
   end
 
-  it 'shows max_retries in inspect' do
+  it 'bhv_options_064 shows max_retries in inspect' do
     _({{moduleName}}::TransportOptions.builder.max_retries(4).build.inspect).must_include 'max_retries=4'
   end
 
@@ -362,7 +362,7 @@ describe {{moduleName}}::TransportOptions do
       _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
     end
 
-    it 'rejects a connection combined with a proxy' do
+    it 'bhv_transport_078 rejects a connection combined with a proxy' do
       error = assert_raises(ArgumentError) do
         {{moduleName}}::TransportOptions.builder.connection(Faraday.new('http://localhost')).proxy('http://proxy:3128').build
       end

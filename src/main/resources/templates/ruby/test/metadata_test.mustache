@@ -110,7 +110,7 @@ describe 'Metadata', 'round-trip and constants' do
     _(first.eql?(other)).must_equal(false)
   end
 
-  it 'defines ADDITIONAL_PROPERTIES constant' do
+  it 'bhv_models_022 defines ADDITIONAL_PROPERTIES constant' do
     _({{moduleName}}::Models::Metadata.const_defined?(:ADDITIONAL_PROPERTIES)).must_equal(true)
     _({{moduleName}}::Models::Metadata::ADDITIONAL_PROPERTIES).must_equal(true)
   end

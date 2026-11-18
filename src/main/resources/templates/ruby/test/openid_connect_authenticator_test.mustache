@@ -572,7 +572,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(client.requests.last[:body]).must_include 'refresh_token=oidc_ref'
   end
 
-  it 'ignores invalidate_access_token before the first discovery' do
+  it 'bhv_auth_002 ignores invalidate_access_token before the first discovery' do
     client = FakeOidcClient.new([discovery_response])
     oidc_authenticator(client).invalidate_access_token
     _(client.requests).must_be_empty

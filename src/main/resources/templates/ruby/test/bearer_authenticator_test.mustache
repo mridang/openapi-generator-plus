@@ -158,7 +158,7 @@ describe {{moduleName}}::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer first'
     end
 
-    it 'prefers the environment variable to the token provider' do
+    it 'bhv_auth_022 prefers the environment variable to the token provider' do
       auth = {{moduleName}}::Auth::BearerAuthenticator.new(
         'https://api.example.com', token_provider: -> { 'from-provider' }, env: { "#{prefix}_TOKEN" => 'from-env' }
       )

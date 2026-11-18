@@ -111,7 +111,7 @@ describe 'scheme authenticators' do
   end
 {{#hasApiKeyHeaderNames}}
 
-  it 'the API-key wrappers emit every header name the spec declares' do
+  it 'bhv_auth_006 the API-key wrappers emit every header name the spec declares' do
     emitted = wrappers_of({{moduleName}}::Auth::ApiKeyAuthenticator).flat_map do |klass|
       klass.new('https://api.example.com', 'wrapper-key').auth_headers.keys
     end
@@ -193,7 +193,7 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'fails when a credential is missing, whatever the other schemes have set' do
+  it 'bhv_auth_004 fails when a credential is missing, whatever the other schemes have set' do
     environment_schemes.each do |name, _base, credentials|
       credentials.each_value do |missing|
         env = every_variable.reject { |variable| variable == missing }.to_h { |variable| [variable, "value-#{variable}"] }
@@ -237,7 +237,7 @@ describe 'scheme authenticators' do
     assert_empty_variable_fails_naming_it('BrowserAuthImplicitAuthenticator')
   end
 
-  it 'counts an empty variable as unset' do
+  it 'bhv_auth_003 counts an empty variable as unset' do
     environment_schemes.each do |name, _base, credentials|
       credentials.each_value do |empty|
         env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
