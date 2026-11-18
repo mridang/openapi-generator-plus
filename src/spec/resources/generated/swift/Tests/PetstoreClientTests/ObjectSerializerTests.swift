@@ -2726,4 +2726,37 @@ import Testing
       try enumModelSource("Tier").contains(
         "  /// The largest tier. Ends with */ and #{x} and $x.\n  case large"))
   }
+
+  /* A UUID whose text is not canonical is refused with a type error when it is read into a model. */
+  @Test func testBhvMisc085ANonCanonicalUuidIsRefusedWithATypeError() {
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.deserialize(
+        Data("{\"trackingId\":\"not-a-uuid\"}".utf8), as: Order.self)
+    }
+  }
+
+  /* A date-time inside a container is written in its canonical form. */
+  @Test func testBhvMisc089ADateTimeInAContainerIsWrittenInCanonicalForm() throws {
+    let at = Date(timeIntervalSince1970: 1_767_323_045)
+    #expect(try ObjectSerializer.serialize([at]) == "[\"\(ObjectSerializer.formatDateTime(at))\"]")
+  }
+
+  /* A duration field of a model writes its fractional seconds in the wire form. */
+  @Test func testBhvMisc090AModelDurationWritesItsFractionalSeconds() throws {
+    let text = try ObjectSerializer.serialize(EdgeCases(retryAfter: 3600.000001))
+    #expect(text.contains("\"3600.000001s\""))
+  }
+
+  /* A property is matched only by its wire name, never by a different spelling of it. */
+  @Test func testBhvMisc092APropertyIsMatchedOnlyByItsWireName() throws {
+    let restored = try ObjectSerializer.deserialize(
+      Data("{\"retry_after\":\"3600s\"}".utf8), as: EdgeCases.self)
+    #expect(restored?.retryAfter == nil)
+  }
+
+  /* A free-form object is written with its members and their values unchanged. */
+  @Test func testBhvMisc094AFreeFormObjectIsWrittenWithItsMembersUnchanged() throws {
+    let data: [String: Any] = ["b": [1, "x"], "a": ["c": true]]
+    #expect(try ObjectSerializer.serialize(data) == "{\"a\":{\"c\":true},\"b\":[1,\"x\"]}")
+  }
 }

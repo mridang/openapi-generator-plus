@@ -975,4 +975,21 @@ import Testing
     #expect(ValueSerializer.encodeCookieValue("{\"a\":1}") == "%7B%22a%22%3A1%7D")
     #expect(ValueSerializer.encodeCookieValue("%7B") == "%257B")
   }
+
+  /* A set optional scalar parameter is sent in every location. */
+  @Test func testBhvMisc084ASetOptionalScalarIsSentInEveryLocation() {
+    let value: Int? = 7
+    for location in ["path", "header", "cookie", "query"] {
+      let sent = ValueSerializer.serializeValue(
+        value, location: location, schemaType: "integer", collectionFormat: "")
+      #expect("\(sent ?? "")" == "7", "\(location)")
+    }
+  }
+
+  /* An element that holds JSON text is taken as its own value and is never decoded again. */
+  @Test func testBhvMisc086AnElementHoldingJsonTextIsNotDecodedAgain() {
+    let sent = ValueSerializer.serializeValue(
+      ["{\"a\":1}"], location: "query", schemaType: "array", collectionFormat: "multi")
+    #expect((sent as? [String]) == ["{\"a\":1}"])
+  }
 }
