@@ -2138,3 +2138,9 @@ langpython193 | The environment supplies the key.
 langpython194 | Variables are read only.
 langpython195 | All is an immutable tuple.
 langpython196 | Repr keeps other default header values.
+langpython197 | A datetime for a styled date parameter sends only the date.
+langpython198 | Path value is fully percent encoded.
+langpython199 | Header value is sent verbatim.
+langpython200 | Query value is left for the query builder.
+langpython201 | Simple exploded assigns each property.
+langpython202 | Query entries expand an exploded object.

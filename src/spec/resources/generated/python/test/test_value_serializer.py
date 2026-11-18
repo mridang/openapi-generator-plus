@@ -733,7 +733,9 @@ class TestValueSerializerFormatDatePath:
         )
         assert ValueSerializer.serialize(moment, location, "date") == "2024-01-15"
 
-    def test_a_datetime_for_a_styled_date_parameter_sends_only_the_date(self) -> None:
+    def test_bhv_lang_python_197_a_datetime_for_a_styled_date_parameter_sends_only_the_date(
+        self,
+    ) -> None:
         moment = datetime.datetime(
             2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc
         )
@@ -858,7 +860,7 @@ class TestPathSegmentCharacterSet:
 class TestEncodeContent:
     """A `content` parameter's JSON text is encoded once, by its location."""
 
-    def test_path_value_is_fully_percent_encoded(self) -> None:
+    def test_bhv_lang_python_198_path_value_is_fully_percent_encoded(self) -> None:
         assert (
             ValueSerializer.encode_content("p", '{"a":"b/c"}', "path")
             == "%7B%22a%22%3A%22b%2Fc%22%7D"
@@ -878,14 +880,16 @@ class TestEncodeContent:
             == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
         )
 
-    def test_header_value_is_sent_verbatim(self) -> None:
+    def test_bhv_lang_python_199_header_value_is_sent_verbatim(self) -> None:
         assert ValueSerializer.encode_content("h", '{"a":1}', "header") == '{"a":1}'
 
     def test_bhv_headers_031_header_value_with_a_line_break_is_rejected(self) -> None:
         with pytest.raises(ValueError):
             ValueSerializer.encode_content("h", '{"a":"x\ny"}', "header")
 
-    def test_query_value_is_left_for_the_query_builder(self) -> None:
+    def test_bhv_lang_python_200_query_value_is_left_for_the_query_builder(
+        self,
+    ) -> None:
         assert ValueSerializer.encode_content("q", '{"a":1}', "query") == '{"a":1}'
 
 
@@ -928,7 +932,7 @@ class TestObjectValuedParameters:
         )
         assert result == "breed,lab,min_age,3"
 
-    def test_simple_exploded_assigns_each_property(self) -> None:
+    def test_bhv_lang_python_201_simple_exploded_assigns_each_property(self) -> None:
         result = ValueSerializer.serialize_styled(
             "c", self._FIELDS, "header", "Obj", None, "simple", True
         )
@@ -960,7 +964,7 @@ class TestObjectValuedParameters:
             is None
         )
 
-    def test_query_entries_expand_an_exploded_object(self) -> None:
+    def test_bhv_lang_python_202_query_entries_expand_an_exploded_object(self) -> None:
         assert ValueSerializer.query_entries("c", {"a": "1"}) == {"a": "1"}
         assert ValueSerializer.query_entries("c", "v") == {"c": "v"}
         assert ValueSerializer.query_entries("c", None) == {}
