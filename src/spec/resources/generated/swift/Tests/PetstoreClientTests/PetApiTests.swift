@@ -2400,4 +2400,77 @@ private func classify(_ call: () async throws -> Void) async -> String {
   } catch {
     return "other"
   }
+
+  /* An operation whose parameters are all optional runs with no arguments and sends no omitted parameter. */
+  @Test func testBhvMisc003AnAllOptionalOperationSendsNoOmittedParameter() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "[]"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    _ = try await api.findPetsByStatus()
+    #expect(!mockClient.lastURL.contains("?"))
+  }
+
+  /* A bare JSON null list body is an API error. */
+  @Test func testBhvMisc005ABareNullListBodyThrowsAnApiError() async throws {
+    let mockApi = petApiForMock(statusCode: 200, body: "null")
+    await #expect(throws: ApiError.self) {
+      _ = try await mockApi.findPetsByStatus()
+    }
+  }
+
+  /* A bare JSON null response through the WithHTTPInfo variant gives no data and keeps the raw body. */
+  @Test func testBhvMisc006ABareNullResponseGivesNoDataAndKeepsTheRawBody() async throws {
+    let mockApi = petApiForMock(statusCode: 200, body: "null")
+    let result = try await mockApi.getPetByIdWithHTTPInfo(petId: 1)
+    #expect(result.data == nil)
+    #expect(result.rawBody == "null")
+  }
+
+  /* A missing required path parameter is named and no request is sent. */
+  @Test func testBhvMisc007AMissingPathParameterIsNamedAndNothingIsSent() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "\"all quiet\""
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetSummary(
+        petId: 5, asOf: "", options: GetPetSummaryOptions(session: "abc", days: nil))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message.contains("'asOf'"))
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
+  /* A supplied required cookie parameter is sent in the Cookie header. */
+  @Test func testBhvMisc008ASuppliedRequiredCookieIsSentInTheCookieHeader() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "\"all quiet\""
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    _ = try await api.getPetSummary(
+      petId: 5, asOf: "2024-01-15", options: GetPetSummaryOptions(session: "abc", days: nil))
+    #expect(mockClient.lastHeaders["Cookie"] == "session=abc")
+  }
+
+  /* A call without an options object sends none of the per-call headers. */
+  @Test func testBhvMisc009ACallWithoutOptionsSendsNoPerCallHeaders() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    _ = try await api.getPetById(petId: 1)
+    #expect(mockClient.lastHeaders["X-Call-Id"] == nil)
+  }
 }

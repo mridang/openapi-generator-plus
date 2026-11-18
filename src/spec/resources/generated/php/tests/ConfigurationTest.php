@@ -414,3 +414,9 @@ test('bhv langphp 047 the debug output of a configuration does not show the call
 
     expect(print_r($config, true))->not->toContain('RecordingCallHook');
 });
+
+test('bhv config 026 a configuration built through the builder entry point returns the base url set on it', function (): void {
+    $config = Configuration::builder()->baseUrl('https://api.example.test')->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.test');
+});

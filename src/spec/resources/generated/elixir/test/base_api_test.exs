@@ -4416,4 +4416,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert Enum.map(starts(), fn {info, _headers} -> info.url end) ==
              ["https://api.example.com/things/1", "https://api.example.com/things/1"]
   end
+
+  test "bhv errors 092 a timeout carries the request method and path and stays a timeout" do
+    state = retry_state([{:transport_error, :timeout}], max_retries: 0)
+
+    assert {:error, %PetstoreClient.Errors.NetworkTimeoutError{} = error} = get_thing(state)
+    assert error.request_method == "GET"
+    assert error.request_path == "/things"
+  end
 end

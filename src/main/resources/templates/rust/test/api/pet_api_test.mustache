@@ -2257,3 +2257,28 @@ async fn test_bhv_operations_163_a_request_without_a_body_sends_no_content_type(
     assert!(!request.contains("content-type:"), "request: {}", request);
 }
 
+
+#[tokio::test]
+async fn test_bhv_misc_003_an_all_optional_operation_runs_with_no_arguments_and_sends_no_omitted_parameter() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let _ = api.find_pets_by_status(None).await;
+
+    let request = rx.recv().expect("the all-optional operation must send a request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(!request_line.contains("status="), "no omitted parameter may be sent: {}", request_line);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_005_a_bare_null_body_for_a_list_operation_raises_an_api_error() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
+    let err = api.find_pets_by_status(None).await.unwrap_err();
+    assert!(err.downcast_ref::<{{packageName}}::ApiError>().is_some(), "got: {}", err);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_006_a_bare_null_response_keeps_the_raw_body_and_gives_no_data() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
+    let result = api.get_pet_by_id_with_http_info(1, None, None).await.expect("a null body is a result");
+    assert!(result.data().is_none());
+    assert_eq!("null", result.raw_body());
+}

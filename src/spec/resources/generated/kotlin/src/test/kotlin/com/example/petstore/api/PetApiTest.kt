@@ -116,6 +116,124 @@ class PetApiTest {
         private val api: PetApi get() = sharedApi
 
         @Test
+        @DisplayName("bhvMisc003 an operation whose parameters are all optional sends no omitted parameter")
+        fun bhvMisc003AllOptionalOperationSendsNoOmittedParameter() {
+            var query = "?"
+            val api =
+                capturingPetApi("[]") { request, _ ->
+                    query = request.url.encodedQuery
+                }
+
+            runBlocking { api.findPetsByStatus(null) }
+
+            assertEquals("", query)
+        }
+
+        @Test
+        @DisplayName("bhvMisc004 a missing required field of the options object is named in the error")
+        fun bhvMisc004MissingRequiredOptionsFieldIsNamed() {
+            val ex =
+                assertThrows(RuntimeException::class.java) {
+                    com.example.petstore.api.options
+                        .GetPetSummaryOptions(session = forceNull())
+                }
+
+            assertTrue(ex.message.orEmpty().contains("session"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc005 a bare null list body is an API error")
+        fun bhvMisc005BareNullListBodyIsAnApiError() {
+            val api = capturingPetApi("null") { _, _ -> }
+
+            assertThrows(ApiException::class.java) { runBlocking { api.findPetsByStatus(null) } }
+        }
+
+        @Test
+        @DisplayName("bhvMisc006 a bare null body through the HttpInfo variant gives no data and keeps the raw body")
+        fun bhvMisc006NullBodyThroughHttpInfoGivesNoDataAndKeepsRawBody() {
+            val api = capturingPetApi("null") { _, _ -> }
+
+            val result = runBlocking { api.findPetsByStatusWithHttpInfo(null) }
+
+            assertNull(result.data)
+            assertEquals("null", result.rawBody)
+        }
+
+        @Test
+        @DisplayName("bhvMisc007 a missing required path parameter is named and no request is sent")
+        fun bhvMisc007MissingPathParameterIsNamedAndNothingIsSent() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val ex =
+                assertThrows(RuntimeException::class.java) {
+                    runBlocking {
+                        api.getPetSummary(
+                            1L,
+                            forceNull(),
+                            com.example.petstore.api.options
+                                .GetPetSummaryOptions(session = "abc"),
+                        )
+                    }
+                }
+
+            assertTrue(ex.message.orEmpty().contains("asOf"))
+            assertEquals(0, requests)
+        }
+
+        @Test
+        @DisplayName("bhvMisc008 a supplied required cookie parameter is sent in the Cookie header")
+        fun bhvMisc008RequiredCookieIsSentInTheCookieHeader() {
+            var cookie: String? = null
+            val api =
+                capturingPetApi("hello", contentType = "text/plain") { request, _ ->
+                    cookie = request.headers["Cookie"]
+                }
+
+            runBlocking {
+                api.getPetSummary(
+                    1L,
+                    java.time.LocalDate.of(2024, 1, 2),
+                    com.example.petstore.api.options
+                        .GetPetSummaryOptions(session = "abc123"),
+                )
+            }
+
+            assertEquals("session=abc123", cookie)
+        }
+
+        @Test
+        @DisplayName("bhvErrors091 a status error names the request method and the path with parameters substituted")
+        fun bhvErrors091StatusErrorNamesTheSubstitutedPath() {
+            val engine =
+                MockEngine { _ ->
+                    respond(content = "{}", status = HttpStatusCode.NotFound, headers = headersOf("Content-Type", "application/json"))
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val ex = assertThrows(ApiException::class.java) { runBlocking { api.getPetById(7L, null, null) } }
+
+            assertEquals("GET", ex.requestMethod)
+            assertEquals("/pet/7", ex.requestPath)
+        }
+
+        @Test
         @DisplayName("bhvMocking005 an operation called through the interface sends the same request as the class call")
         fun interfaceCallSendsTheSameRequestAsTheClassCall() {
             val viaInterface: com.example.petstore.api.PetApiInterface = api

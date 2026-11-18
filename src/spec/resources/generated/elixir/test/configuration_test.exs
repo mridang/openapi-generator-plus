@@ -254,4 +254,10 @@ defmodule PetstoreClient.ConfigurationTest do
     refute shown =~ "SomeHook"
     assert shown =~ "call_hook: :set"
   end
+
+  test "bhv config 026 a configuration built through the builder entry point returns the base URL that was set" do
+    config = PetstoreClient.Configuration.new(base_url: "https://builder.example.com")
+
+    assert config.base_url == "https://builder.example.com"
+  end
 end
