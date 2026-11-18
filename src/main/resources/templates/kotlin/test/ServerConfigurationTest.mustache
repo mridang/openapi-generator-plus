@@ -254,4 +254,20 @@ class ServerConfigurationTest {
         )
         assertEquals("https://api.example.com/api/v3", server.getUrl())
     }
+
+    @Test
+    @DisplayName("bhvMisc157 a server built with explicit variable values resolves them into its URL")
+    fun bhvMisc157ExplicitVariableValuesResolveIntoUrl() {
+        val server = ServerConfiguration(
+            urlTemplate = "https://{host}.example.com/v1",
+            variables = mapOf("host" to ServerVariable(defaultValue = "api")),
+        )
+        assertEquals("https://eu.example.com/v1", server.getUrl(mapOf("host" to "eu")))
+    }
+
+    @Test
+    @DisplayName("bhvMisc158 a server built with a fixed URL reports exactly that URL")
+    fun bhvMisc158FixedUrlIsReportedUnchanged() {
+        assertEquals("https://api.example.com/v1", ServerConfiguration(urlTemplate = "https://api.example.com/v1").getUrl())
+    }
 }

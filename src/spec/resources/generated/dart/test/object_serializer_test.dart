@@ -252,6 +252,102 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 230 a model with no extra properties writes exactly its declared keys',
+      () {
+        final order = Order.fromJson({'id': 1, 'quantity': 2});
+        expect(jsonDecode(serialize(order)), equals({'id': 1, 'quantity': 2}));
+      },
+    );
+
+    test(
+      'bhv misc 234 a model with additional properties keeps them through serialize and deserialize',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"rogue":{"inner":"x"}}',
+          Metadata.fromJson,
+        )!;
+        expect(
+          jsonDecode(serialize(metadata)),
+          equals({
+            'rogue': {'inner': 'x'},
+          }),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 235 a duration with fractional seconds keeps its fraction when serialized',
+      () {
+        expect(
+          formatProtobufDuration(const Duration(milliseconds: 1500)),
+          equals('1.5s'),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 243 an absent optional array field decodes to null, not to an empty list',
+      () {
+        final pet = deserialize<Pet>(
+          '{"name":"x","photoUrls":[]}',
+          Pet.fromJson,
+        )!;
+        expect(pet.tags, isNull);
+      },
+    );
+
+    test(
+      'bhv misc 244 a body with a leading byte-order mark decodes into the model',
+      () {
+        final order = deserialize<Order>(
+          '﻿{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}',
+          Order.fromJson,
+        )!;
+        expect(order.trackingId, isNotNull);
+      },
+    );
+
+    test(
+      'bhv misc 245 a time of day in a plain object is serialized as a JSON string',
+      () {
+        expect(
+          jsonDecode(serialize({'openAt': '08:00:00'})),
+          equals({'openAt': '08:00:00'}),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 246 a negative whole-second protobuf duration string parses to a negative duration',
+      () {
+        expect(
+          parseProtobufDuration('-90s'),
+          equals(const Duration(seconds: -90)),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 247 a UUID string with the wrong segment lengths is rejected',
+      () {
+        expect(
+          () => UuidValue.fromString('550e8400-e29b-41d4-a716-44665544000'),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 248 a duration with days is formatted as a duration string',
+      () {
+        expect(
+          formatProtobufDuration(const Duration(days: 3)),
+          equals('259200s'),
+        );
+      },
+    );
+
     test('bhv serializationobject 147 serialize map to JSON', () {
       final input = {'name': 'Fido', 'age': 3};
 
@@ -4373,6 +4469,61 @@ void main() {
           () => deserialize<Order>('{"status":"PLACED"}', Order.fromJson),
           throwsA(isA<SerializationException>()),
         );
+      },
+    );
+    test(
+      'bhv misc 287 A wire key literally named additional_properties is kept as an undeclared extra',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"additional_properties":"bar","region":"eu"}',
+          Metadata.fromJson,
+        )!;
+
+        expect(
+          metadata.additionalProperties,
+          containsPair('additional_properties', 'bar'),
+        );
+        expect(metadata.additionalProperties, containsPair('region', 'eu'));
+      },
+    );
+
+    test(
+      'bhv misc 288 A snake_case key at the top level of an object is captured as an undeclared extra',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"snake_case_key":1}',
+          Metadata.fromJson,
+        )!;
+
+        expect(metadata.additionalProperties, equals({'snake_case_key': 1}));
+      },
+    );
+
+    test(
+      'bhv misc 289 A snake_case key inside a list element is captured as an undeclared extra',
+      () {
+        final items = (jsonDecode('[{"snake_case_key":1}]') as List<dynamic>)
+            .map((item) => Metadata.fromJson(item as Map<String, dynamic>))
+            .toList();
+
+        expect(items.first.additionalProperties, equals({'snake_case_key': 1}));
+      },
+    );
+
+    test(
+      'bhv misc 290 An undeclared key whose value is a dictionary survives a full serialize and deserialize round trip',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"nested":{"a":1}}',
+          Metadata.fromJson,
+        )!;
+
+        final restored = deserialize<Metadata>(
+          serialize(metadata),
+          Metadata.fromJson,
+        )!;
+
+        expect(restored.additionalProperties['nested'], equals({'a': 1}));
       },
     );
   });

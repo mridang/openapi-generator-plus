@@ -64,6 +64,18 @@ import { uuid, isUuid } from "../src/brand.js";
 import { Temporal } from "temporal-polyfill";
 
 describe("ObjectSerializer", () => {
+  test("bhvMisc139 a collection passed into a model is copied, so later changes to the source do not reach the model", () => {
+    const source = [{ weightKg: "7" }];
+    const edge = new EdgeCases({ freeFormAny: source });
+    source.push({ weightKg: "8" });
+    expect(edge.freeFormAny).toEqual([{ weightKg: "7" }]);
+  });
+
+  test("bhvMisc139 a collection held by a model cannot be changed through the model", () => {
+    const edge = new EdgeCases({ freeFormAny: [{ weightKg: "7" }] });
+    expect(Object.isFrozen(edge.freeFormAny)).toBe(true);
+  });
+
   describe("unified exception hierarchy", () => {
     // SerializationError must extend the branded OpenAPIError root so
     // callers can catch every SDK-originated error — transport and serde
@@ -4265,5 +4277,27 @@ describe("ObjectSerializer enum and default misc behaviours", () => {
     expect(() =>
       ObjectSerializer.deserialize('{"retries":"3"}', Defaults),
     ).toThrow(SerializationError);
+  });
+});
+
+describe("ObjectSerializer misc behaviours", () => {
+  test("bhv serialization 074 nested arrays decode and encode back to the same nested shape", () => {
+    const decoded = ObjectSerializer.deserializeArray(
+      [[1, 2], [3]],
+      (x: unknown) =>
+        ObjectSerializer.deserializeArray(x, (v: unknown) => v as number),
+    );
+    expect(JSON.stringify(decoded)).toBe("[[1,2],[3]]");
+  });
+
+  test("bhv serialization 083 a serialization error is caught as the library error type and carries a non-empty message", () => {
+    let caught: unknown = null;
+    try {
+      ObjectSerializer.deserializeArray({}, (v: unknown) => v);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(SerializationError);
+    expect((caught as Error).message).not.toBe("");
   });
 });

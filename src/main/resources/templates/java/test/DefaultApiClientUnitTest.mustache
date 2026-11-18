@@ -4412,4 +4412,83 @@ class DefaultApiClientUnitTest {
       assertFalse(thrown.getMessage().contains("X-Evil"), thrown.getMessage());
     }
   }
+
+  @Test
+  void bhvMisc177ADefaultContentTypeInAnyCaseIsNotSentWithoutABody() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder = request -> RecordingHttpClient.redirect(200, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder()
+                .httpClient(transport)
+                .defaultHeader("content-type", "application/json")
+                .build());
+    client.sendRequest("GET", "http://example.test/read", Map.of(), null);
+    assertTrue(transport.requests.get(0).headers().firstValue("Content-Type").isEmpty());
+  }
+
+  @Test
+  void bhvMisc181AHeaderIsSentExactlyAsSerialisedWithoutPercentEncoding() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder = request -> RecordingHttpClient.redirect(200, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    client.sendRequest("GET", "http://example.test/read", Map.of("X-Raw", "a b/c%20d"), null);
+    assertEquals(
+        "a b/c%20d", transport.requests.get(0).headers().firstValue("X-Raw").orElseThrow());
+  }
+
+  @Test
+  void bhvMisc182RemovingAHeaderMatchesEverySpellingOfItsName() {
+    for (String spelling : List.of("Authorization", "authorization", "AUTHORIZATION")) {
+      RecordingHttpClient transport = redirectingOnceTo(307, "http://other.example.test/landed");
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder()
+                  .httpClient(transport)
+                  .followRedirects(true)
+                  .defaultHeader(spelling, "Bearer secret")
+                  .build());
+      client.sendRequest("GET", "http://example.test/start", Map.of(), null);
+      assertEquals(2, transport.requests.size());
+      assertTrue(
+          transport.requests.get(1).headers().firstValue("Authorization").isEmpty(),
+          "the " + spelling + " header must be removed across the redirect");
+    }
+  }
+
+  @Test
+  void bhvMisc183ClosingAClientWithNothingToReleaseSucceeds() {
+    new DefaultApiClient().close();
+  }
+
+  @Test
+  void bhvMisc184CloseDoesNotWaitForOrCancelARunningRequest() throws Exception {
+    java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor();
+    try {
+      java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+      java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+      RecordingHttpClient transport = new RecordingHttpClient();
+      transport.responder =
+          request -> {
+            entered.countDown();
+            try {
+              release.await();
+            } catch (InterruptedException interrupted) {
+              throw new IllegalStateException(interrupted);
+            }
+            return RecordingHttpClient.redirect(200, null, request);
+          };
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+      java.util.concurrent.Future<ApiHttpResponse> inFlight =
+          pool.submit(() -> client.sendRequest("GET", "http://example.test/slow", Map.of(), null));
+      assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS));
+      client.close();
+      release.countDown();
+      assertEquals(200, inFlight.get(5, java.util.concurrent.TimeUnit.SECONDS).statusCode());
+    } finally {
+      pool.shutdownNow();
+    }
+  }
 }

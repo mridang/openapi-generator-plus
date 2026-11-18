@@ -401,6 +401,17 @@ void main() {
       },
     );
 
+    test('bhv misc 156 lists every server in declaration order', () {
+      expect(
+        allServers.map((s) => s.urlTemplate).toList(),
+        equals([
+          '/api/v3',
+          'https://{environment}.example.com/api/{version}',
+          'https://{tenant}.example.com/api',
+        ]),
+      );
+    });
+
     test(
       'bhv langdart 078 a constant configuration cannot be modified through its variables',
       () {
@@ -440,6 +451,27 @@ void main() {
         );
 
         expect(config.url(), equals('https://prod.example.com/v2'));
+      },
+    );
+    test(
+      'bhv misc 297 A templated server URL replaces every variable with the supplied value when several are present',
+      () {
+        final config = ServerConfiguration(
+          urlTemplate: 'https://{region}.api.example.com:{port}/v{version}',
+          variables: {
+            'region': ServerVariable(
+              defaultValue: 'eu',
+              enumValues: ['eu', 'us'],
+            ),
+            'port': ServerVariable(defaultValue: '8443'),
+            'version': ServerVariable(defaultValue: '1'),
+          },
+        );
+
+        expect(
+          config.url({'region': 'us', 'port': '9443', 'version': '2'}),
+          equals('https://us.api.example.com:9443/v2'),
+        );
       },
     );
   });

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -896,4 +895,27 @@ test('bhv misc 078 the authorization url carries an s256 challenge and no nonce'
     expect($params['code_challenge_method'] ?? null)->toBe('S256');
     expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $params['code_challenge'] ?? ''))->toBe(1);
     expect($params)->not->toHaveKey('nonce');
+});
+
+test('bhv misc 076 a call after a dropped code exchange reuses the discovered configuration', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+    $client->enqueueFailure(new \PetstoreClient\Errors\NetworkException('connection dropped', new \RuntimeException('dropped')));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode(['access_token' => 'tok', 'expires_in' => 3600]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->exchangeCode('the-code'))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+    $authenticator->exchangeCode('the-code');
+
+    expect($client->capturedRequests)->toHaveCount(3);
+    expect($client->capturedRequests[2]['url'])->toBe('https://auth.example.com/token');
+    expect($authenticator->getAuthHeaders()['Authorization'] ?? null)->toBe('Bearer tok');
 });
