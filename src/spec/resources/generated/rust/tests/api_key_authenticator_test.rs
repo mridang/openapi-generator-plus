@@ -413,3 +413,43 @@ fn test_bhv_auth_018_a_refused_key_is_never_echoed_in_its_error() {
         Ok(_) => panic!("a key with CR/LF must be refused"),
     }
 }
+
+/// An API-key header is sent under its fixed name with the exact key value, and as no other header.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_031_an_api_key_header_is_sent_with_its_fixed_name_and_value() {
+    let auth = ApiKeyHeaderAuthenticator::new("https://api.example.com", Some("abc123")).unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(headers.len(), 1, "{:?}", headers);
+    assert_eq!(headers.get("X-API-Key"), Some(&"abc123".to_string()));
+}
+
+/// The session-cookie authenticator sends its key as the one cookie SESSION_ID, with the exact value.
+#[test]
+fn test_bhv_auth_032_the_session_cookie_is_sent_with_its_fixed_name_and_value() {
+    let auth = SessionCookieAuthenticator::new("https://api.example.com", Some("sess-42")).unwrap();
+    let cookies = auth.cookie_params();
+    assert_eq!(cookies.len(), 1, "{:?}", cookies);
+    assert_eq!(cookies.get("SESSION_ID"), Some(&"sess-42".to_string()));
+}
+
+/// Empty and blank keys are refused at construction at every location.
+#[test]
+fn test_bhv_auth_034_an_empty_or_blank_api_key_is_rejected_at_construction() {
+    for location in [
+        ApiKeyLocation::Header,
+        ApiKeyLocation::Query,
+        ApiKeyLocation::Cookie,
+    ] {
+        for key in ["", " ", "\t", "   "] {
+            assert!(refusal_reason(key, location).contains("must not be empty"));
+        }
+    }
+}
+
+/// NUL and other control characters are refused, and a non-ASCII key is refused in a header.
+#[test]
+fn test_bhv_auth_035_a_control_nul_or_non_ascii_character_is_rejected() {
+    assert!(refusal_reason("abc\0def", ApiKeyLocation::Query).contains("control characters"));
+    assert!(refusal_reason("abc\x01def", ApiKeyLocation::Header).contains("printable ASCII"));
+    assert!(refusal_reason("kéy", ApiKeyLocation::Header).contains("printable ASCII"));
+}
