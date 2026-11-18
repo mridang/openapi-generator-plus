@@ -1124,7 +1124,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
           "note", value: val, location: "query", schemaType: "String", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     } else {
-      queryParams["note"] = ""
+      queryParams["note"] = ValueSerializer.allowEmptyQuery("")
     }
     if let val = options.rank {
       queryParams["rank"] = ValueSerializer.maybeAllowReserved(
@@ -1132,7 +1132,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
           "rank", value: val, location: "query", schemaType: "Int", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     } else {
-      queryParams["rank"] = ""
+      queryParams["rank"] = ValueSerializer.allowEmptyQuery("")
     }
 
     let headerParams: [String: String] = [:]
