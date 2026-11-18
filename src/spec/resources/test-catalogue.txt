@@ -3137,3 +3137,4 @@ langelixir092 | A byte value survives a round trip through base64 encoding and d
 langelixir093 | A UUID whose segments have the wrong lengths is rejected on decode.
 langcsharp070 | Null server variable overrides are refused when the url is built
 langcsharp071 | A oneOf without a discriminator throws when no member matches
+langcsharp072 | A token provider also serves the synchronous header getter
