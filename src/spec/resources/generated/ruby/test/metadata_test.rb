@@ -223,4 +223,10 @@ describe 'Metadata', 'copy, equality and enum contract' do
   it 'bhv_models_024 a newly built model leaves its optional properties unset' do
     _(Petstore::Client::Models::Metadata.new.created_at).must_be_nil
   end
+
+  it 'bhv_models_018 models whose decimal fields hold numerically equal values compare equal' do
+    short = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.5}', 'Pet')
+    padded = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.50}', 'Pet')
+    _(short).must_equal(padded)
+  end
 end

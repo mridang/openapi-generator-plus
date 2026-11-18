@@ -810,6 +810,45 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body.to_s).wont_include '%20'
   end
 
+  it 'bhv_serialization_006 query names and values percent-encode reserved and space characters' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'a&b' => 'x&y=z 1' }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_equal 'http://localhost/test?a%26b=x%26y%3Dz%201'
+  end
+
+  it 'bhv_serialization_007 a literal plus sign is sent as %2B and non-ASCII text as percent-encoded UTF-8' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'q' => '1+1 é' }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_equal 'http://localhost/test?q=1%2B1%20%C3%A9'
+    test_api.call('POST', '/test', {}, {}, { 'q' => '1+1 é' },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'q=1%2B1+%C3%A9'
+  end
+
+  it 'bhv_serialization_008 a content-typed query parameter is JSON-encoded once and percent-encoded once' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    filter = {{moduleName}}::ObjectSerializer.serialize({ 'a' => 'b c' })
+    test_api.call('GET', '/test', { 'filter' => filter }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_equal 'http://localhost/test?filter=%7B%22a%22%3A%22b%20c%22%7D'
+  end
+
+  it 'bhv_serialization_010 a body is sent with exactly the content type the caller declared and no charset' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, 'hello', ['application/json'], 'text/plain', nil)
+    _(client.captured_headers['Content-Type']).must_equal 'text/plain'
+  end
+
   it 'bhv_serializationwire_057 form-urlencoded body keeps ~ literal and escapes * in keys and values' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build

@@ -50,6 +50,38 @@ describe {{moduleName}}::Api::StoreApi do
     [{{moduleName}}::Api::StoreApi.new(nil, config), server, thread, captured]
   end
 
+  # Starts a one-shot TCP server that answers +count+ requests in turn and
+  # records the lower-cased headers of each, in order. The returned Queue
+  # receives one Hash of headers per request.
+  def capture_wire_headers(count, default_headers: {})
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = server.addr[1]
+    captured = Queue.new
+    thread = Thread.new do
+      count.times do
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
+        client.gets # request line
+        headers = {}
+        while (line = client.gets)
+          break if line.strip.empty?
+
+          name, value = line.split(':', 2)
+          headers[name.to_s.strip.downcase] = value.to_s.strip
+        end
+        captured << headers
+        client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                     "Content-Length: 2\r\nConnection: close\r\n\r\n{}")
+        client.close
+      end
+    end
+    config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: default_headers)
+    [{{moduleName}}::Api::StoreApi.new(nil, config), server, thread, captured]
+  end
+
   describe '#search_store content-encoded query' do
     it 'bhv_operations_139 keeps the fractional seconds of a time parameter when non-zero' do
       api, server, thread, captured = capture_wire_request('[]')
@@ -84,6 +116,21 @@ describe {{moduleName}}::Api::StoreApi do
         _ { api.search_store({{moduleName}}::Api::Options::SearchStoreOptions.new(q: query)) }
           .must_raise({{moduleName}}::Errors::SerializationError)
         _(captured.empty?).must_equal(true)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#search_store query order' do
+    it 'bhv_operations_155 sends the query parameters in the order the specification declares them' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        at = {{moduleName}}::ObjectSerializer.convert_to_type('10:30:00', 'Tod::TimeOfDay')
+        api.search_store({{moduleName}}::Api::Options::SearchStoreOptions.new(labels: Set['red', 'blue'], at: at))
+        query = captured.pop[:request_line].split[1].to_s.split('?', 2).last.to_s
+        _(query.split('&').map { |pair| pair.split('=', 2).first }).must_equal(%w[labels labels at])
       ensure
         server.close
         thread.join(2)
@@ -182,6 +229,45 @@ describe {{moduleName}}::Api::StoreApi do
       options = {{moduleName}}::Api::Options::GetInventoryOptions.new(max_retries: -1)
 
       _(-> { @api.get_inventory_with_http_info(options) }).must_raise ArgumentError
+    end
+
+    it 'bhv_options_053 per-call headers apply to that one call only' do
+      api, server, thread, captured = capture_wire_headers(2)
+      begin
+        api.get_inventory({{moduleName}}::Api::Options::GetInventoryOptions.new(headers: { 'X-Tenant' => 'a' }))
+        api.get_inventory
+        _(captured.pop['x-tenant']).must_equal('a')
+        _(captured.pop).wont_include('x-tenant')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_options_055 a call without per-call options keeps the client default headers' do
+      api, server, thread, captured = capture_wire_headers(1, default_headers: { 'X-Client' => 'c' })
+      begin
+        api.get_inventory
+        _(captured.pop['x-client']).must_equal('c')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_options_054 an operation takes its per-call options after its other arguments' do
+      api, server, thread, captured = capture_wire_request('{"id":1}')
+      begin
+        api.place_order(nil, {{moduleName}}::Api::Options::PlaceOrderOptions.new(headers: { 'X-Tenant' => 'a' }))
+        _(captured.pop[:headers]['x-tenant']).must_equal('a')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_options_057 a per-call timeout below one millisecond is refused before anything is sent' do
+      _(-> { @api.get_inventory({{moduleName}}::Api::Options::GetInventoryOptions.new(timeout: 0.5)) }).must_raise ArgumentError
     end
 
     it 'still takes no argument at all' do
@@ -523,6 +609,16 @@ describe {{moduleName}}::Api::StoreApi do
 
         _(result).must_be_kind_of({{moduleName}}::Models::Reservation)
         _(result.reservation_id).must_equal(31)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_154 a 201 body that fits the 200 schema but not its own status schema is refused' do
+      api, server, thread, = capture_wire_request('{"reservationId":31,"quantity":4}', status_line: '201 Created')
+      begin
+        _ { api.reserve_stock }.must_raise({{moduleName}}::Errors::SerializationError)
       ensure
         server.close
         thread.join(2)

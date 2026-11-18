@@ -1535,6 +1535,21 @@ describe {{moduleName}}::Api::PetApi do
       [api, server, thread, captured]
     end
 
+    it 'bhv_operations_156 sends the form fields in the order the specification declares them' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', tags: %w[a b], note: 'n'
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent.split('&').map { |pair| pair.split('=', 2).first }).must_equal(%w[nickname tags tags note])
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # Canonical behavior 1 — a repeated-key array (`tags=a&tags=b`), not a
     # comma-joined value or a bracketed `tags[]` form.
     it 'bhv_serializationwire_053 expands an array form property to repeated keys' do

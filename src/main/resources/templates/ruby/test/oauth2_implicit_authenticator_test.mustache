@@ -114,4 +114,17 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
       'authorization_url="https://auth.example.com/authorize" scopes=["read", "write"] access_token="***">'
     )
   end
+
+  it 'bhv_misc_001 replacing the access token while other threads read the headers never yields a mixed token' do
+    first = "token-#{'a' * 40}"
+    second = "token-#{'b' * 40}"
+    auth.access_token = first
+    readers = Array.new(4) do
+      Thread.new { 200.times.map { auth.auth_headers['Authorization'] } }
+    end
+    writer = Thread.new { 500.times { |i| auth.access_token = i.even? ? second : first } }
+    writer.join
+    seen = readers.flat_map(&:value)
+    _(seen - ["Bearer #{first}", "Bearer #{second}"]).must_be_empty
+  end
 end

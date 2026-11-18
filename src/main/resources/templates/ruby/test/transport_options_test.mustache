@@ -358,6 +358,14 @@ describe {{moduleName}}::TransportOptions do
       _({{moduleName}}::TransportOptions.builder.connection(conn).build.connection).must_be_same_as conn
     end
 
+    it 'bhv_options_059 a supplied connection is kept unchanged on the built options and is unset by default' do
+      conn = Faraday.new('http://localhost')
+      built = {{moduleName}}::TransportOptions.builder.connection(conn).build
+      _(built.connection).must_be_same_as conn
+      _({{moduleName}}::DefaultApiClient.new(built).connection).must_be_same_as conn
+      _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
+    end
+
     it 'defaults to no connection' do
       _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
     end
@@ -388,6 +396,16 @@ describe {{moduleName}}::TransportOptions do
       _(-> { {{moduleName}}::TransportOptions.builder.connection(conn).proxy('http://proxy:3128').build }).must_raise ArgumentError
       _(-> { {{moduleName}}::TransportOptions.builder.connection(conn).verify_ssl(false).build }).must_raise ArgumentError
       _(-> { {{moduleName}}::TransportOptions.builder.connection(conn).ca_cert_path('/tmp/ca.pem').build }).must_raise ArgumentError
+    end
+
+    it 'bhv_redirects_045 rejects a connection that follows redirects on its own' do
+      # A named stand-in for the redirect-following middleware: its class
+      # name is what the SDK checks, as the real gem's class name is.
+      namespace = Module.new
+      namespace.const_set(:FollowRedirects, Class.new(Faraday::Middleware))
+      conn = Faraday.new('http://localhost') { |f| f.use namespace::FollowRedirects }
+      error = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.connection(conn).build }
+      _(error.message).must_include 'follow redirects'
     end
 
     it 'rejects an object that is not a connection' do

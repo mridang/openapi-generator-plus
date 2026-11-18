@@ -178,6 +178,8 @@ module Petstore::Client
 
       raise ArgumentError, 'connection must be a Faraday::Connection' unless connection.respond_to?(:run_request)
 
+      raise ArgumentError, 'A custom connection must not follow redirects itself: the SDK follows them' if follows_redirects?(connection)
+
       conflicts = [] # : Array[String]
       conflicts << 'proxy' if proxy
       conflicts << 'ca_cert_path' if ca_cert_path
@@ -187,6 +189,17 @@ module Petstore::Client
       raise ArgumentError,
             "A custom connection conflicts with the SDK's own #{conflicts.join(', ')} setting; " \
             'configure it on the connection instead'
+    end
+
+    # Whether +connection+ carries a Faraday middleware that follows redirects
+    # on its own, which would bypass the SDK's redirect policy.
+    # @api private
+    # @param connection [Faraday::Connection] the supplied connection
+    # @return [Boolean]
+    def self.follows_redirects?(connection)
+      return false unless connection.respond_to?(:builder)
+
+      connection.builder.handlers.any? { |handler| handler.klass.to_s.include?('FollowRedirects') }
     end
 
     # Header names whose values never appear in a string representation:

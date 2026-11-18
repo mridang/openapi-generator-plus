@@ -1134,6 +1134,136 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
+  it 'bhv_redirects_038 a 307 redirect keeps the method and sends the original body with its Content-Type' do
+    # 307 keeps the method, so the body the caller sent must reach the new
+    # location unchanged, together with the Content-Type that describes it.
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do
+        [307, { 'location' => 'http://localhost/landing' }, '']
+      end
+      stub.post('/landing') do |env|
+        seen = [env.body, env.request_headers['Content-Type']]
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:POST, 'http://localhost/r', { 'Content-Type' => 'application/json' }, '{"a":1}')
+      _(resp.status_code).must_equal 200
+    end
+    _(seen).must_equal ['{"a":1}', 'application/json']
+  end
+
+  it 'bhv_redirects_040 follows a 301, 302 or 303 redirect from HTTPS to plain HTTP for a POST with a body' do
+    # Those statuses send the next request as a GET with no body, so there is
+    # nothing to leak across the downgrade and the redirect is followed.
+    [301, 302, 303].each do |status|
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/r') do
+          [status, { 'location' => 'http://localhost/landing' }, '']
+        end
+        stub.get('/landing') do
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        resp = client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
+        _(resp.status_code).must_equal 200
+        _(resp.body).must_equal 'ok'
+      end
+    end
+  end
+
+  it 'bhv_redirects_041 a redirect that turns a POST into a GET sends no Content-Length or Content-Type' do
+    [301, 302, 303].each do |status|
+      seen = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/r') do
+          [status, { 'location' => 'http://localhost/landing' }, '']
+        end
+        stub.get('/landing') do |env|
+          seen = env.request_headers.keys.map(&:downcase)
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request(:POST, 'http://localhost/r', {}, nil)
+      end
+      _(seen).wont_include 'content-length'
+      _(seen).wont_include 'content-type'
+    end
+  end
+
+  it 'bhv_redirects_042 a 307 redirect of a bodyless POST stays a POST with Content-Length zero' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do
+        [307, { 'location' => 'http://localhost/landing' }, '']
+      end
+      stub.post('/landing') do |env|
+        seen = [env.method, env.request_headers['Content-Length']]
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:POST, 'http://localhost/r', {}, nil)
+    end
+    _(seen).must_equal [:post, '0']
+  end
+
+  it 'bhv_redirects_043 resolves a relative Location against the URL of the request that was redirected' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/a/b') do
+        [302, { 'location' => 'c/d' }, '']
+      end
+      stub.get('/a/c/d') do |env|
+        seen = env.url.path
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/a/b', {}, nil)
+      _(resp.status_code).must_equal 200
+    end
+    _(seen).must_equal '/a/c/d'
+  end
+
+  it 'bhv_redirects_044 a cross-origin redirect keeps the connection proxy and drops the caller authorization' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') do
+        [302, { 'location' => 'http://other.example/landing' }, '']
+      end
+      stub.get('/landing') do |env|
+        seen = env.request_headers.keys.map(&:downcase)
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    conn = Faraday.new('http://localhost') do |f|
+      f.proxy = 'http://proxy.example:3128'
+      f.adapter :test, stubs
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, conn) do
+      resp = client.send_request(:GET, 'http://localhost/start', { 'Authorization' => 'Bearer caller' }, nil)
+      _(resp.status_code).must_equal 200
+    end
+    _(seen).wont_include 'authorization'
+    _(conn.proxy.uri.host).must_equal 'proxy.example'
+  end
+
   it 'bhv_retries_016 allows HTTPS -> HTTP redirect when method demotes to GET with no body' do
     # 302 of a POST demotes to GET and drops the body, so there is no
     # body to replay across the downgrade — the guard MUST NOT refuse.
@@ -1274,6 +1404,24 @@ describe 'DefaultApiClientUnit' do
     _(err).must_be_instance_of RuntimeError
     _(err).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
     _(err.message).must_equal 'ApiClient has been closed and can no longer send requests'
+  end
+
+  it 'bhv_lifecycle_040 the standard close hook closes the client and releases the connection it built' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    closes = [] # : Array[bool]
+    client = Petstore::Client::DefaultApiClient.new(single_attempt)
+    client.define_singleton_method(:build_connection) do
+      built = Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+      built.define_singleton_method(:close) { closes << true }
+      built
+    end
+    client.send_request(:GET, 'http://localhost/echo', {}, nil)
+    client.close
+    _(closes.length).must_equal 1
   end
 
   it 'bhv_lifecycle_036 close is idempotent' do
