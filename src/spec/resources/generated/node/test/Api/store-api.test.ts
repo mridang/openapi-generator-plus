@@ -711,19 +711,19 @@ describe("StoreApi named-enum parameters", () => {
 });
 
 describe("StoreApi error dispatch through the typed status routes", () => {
-  test.each([
-    [400, BadRequestError],
-    [401, UnauthorizedError],
-    [403, ForbiddenError],
-    [404, NotFoundError],
-    [409, ConflictError],
-    [418, ClientError],
-    [422, UnprocessableEntityError],
-    [500, InternalServerError],
-    [502, ServerError],
-  ])(
-    "bhv operations 110 getOrderById picks the status-specific error for status %i",
-    async (status, expected) => {
+  test("bhv operations 110 getOrderById picks the status-specific error class for each typed status route", async () => {
+    const rows: Array<[number, unknown]> = [
+      [400, BadRequestError],
+      [401, UnauthorizedError],
+      [403, ForbiddenError],
+      [404, NotFoundError],
+      [409, ConflictError],
+      [418, ClientError],
+      [422, UnprocessableEntityError],
+      [500, InternalServerError],
+      [502, ServerError],
+    ];
+    for (const [status, expected] of rows) {
       const statusApi = new StoreApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder()
@@ -735,8 +735,24 @@ describe("StoreApi error dispatch through the typed status routes", () => {
 
       expect((error as Error).constructor).toBe(expected);
       expect((error as ClientError).statusCode).toBe(status);
-    },
-  );
+    }
+  });
+
+  test("bhv operations 138 an error response is thrown as the exception class specific to its status through the typed routes", async () => {
+    for (const status of [400, 404, 422, 500]) {
+      const statusApi = new StoreApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder()
+          .baseUrl(`${baseUrl}/test/status/${status}`)
+          .build(),
+      );
+
+      const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
+
+      expect((error as Error).constructor).not.toBe(ClientError);
+      expect((error as ClientError).statusCode).toBe(status);
+    }
+  });
 });
 
 describe("StoreApi", () => {

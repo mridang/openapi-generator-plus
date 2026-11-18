@@ -60,65 +60,73 @@ describe("ApiError", () => {
       expect(err.requestPath).toBeNull();
     });
 
-    test.each([
-      [
-        "ApiError",
-        (o: object) => new ApiError(500, "boom", null, null, null, o),
-      ],
-      [
-        "ClientError",
-        (o: object) => new ClientError(418, "boom", null, null, null, o),
-      ],
-      [
-        "ServerError",
-        (o: object) => new ServerError(502, "boom", null, null, null, o),
-      ],
-      [
-        "BadRequestError",
-        (o: object) => new BadRequestError("boom", null, null, null, o),
-      ],
-      [
-        "UnauthorizedError",
-        (o: object) => new UnauthorizedError("boom", null, null, null, o),
-      ],
-      [
-        "ForbiddenError",
-        (o: object) => new ForbiddenError("boom", null, null, null, o),
-      ],
-      [
-        "NotFoundError",
-        (o: object) => new NotFoundError("boom", null, null, null, o),
-      ],
-      [
-        "ConflictError",
-        (o: object) => new ConflictError("boom", null, null, null, o),
-      ],
-      [
-        "UnprocessableEntityError",
-        (o: object) =>
-          new UnprocessableEntityError("boom", null, null, null, o),
-      ],
-      [
-        "TooManyRequestsError",
-        (o: object) => new TooManyRequestsError("boom", null, null, null, o),
-      ],
-      [
-        "InternalServerError",
-        (o: object) => new InternalServerError("boom", null, null, null, o),
-      ],
-      ["NetworkError", (o: object) => new NetworkError("boom", o)],
-      [
-        "NetworkTimeoutError",
-        (o: object) => new NetworkTimeoutError("boom", o),
-      ],
-    ])(
-      "bhv errors 002 %s carries requestMethod and requestPath",
-      (_name, build) => {
+    test("bhv errors 002 every status exception carries the request context", () => {
+      const rows: Array<
+        [
+          string,
+          (o: object) => {
+            requestMethod: string | null;
+            requestPath: string | null;
+          },
+        ]
+      > = [
+        [
+          "ApiError",
+          (o: object) => new ApiError(500, "boom", null, null, null, o),
+        ],
+        [
+          "ClientError",
+          (o: object) => new ClientError(418, "boom", null, null, null, o),
+        ],
+        [
+          "ServerError",
+          (o: object) => new ServerError(502, "boom", null, null, null, o),
+        ],
+        [
+          "BadRequestError",
+          (o: object) => new BadRequestError("boom", null, null, null, o),
+        ],
+        [
+          "UnauthorizedError",
+          (o: object) => new UnauthorizedError("boom", null, null, null, o),
+        ],
+        [
+          "ForbiddenError",
+          (o: object) => new ForbiddenError("boom", null, null, null, o),
+        ],
+        [
+          "NotFoundError",
+          (o: object) => new NotFoundError("boom", null, null, null, o),
+        ],
+        [
+          "ConflictError",
+          (o: object) => new ConflictError("boom", null, null, null, o),
+        ],
+        [
+          "UnprocessableEntityError",
+          (o: object) =>
+            new UnprocessableEntityError("boom", null, null, null, o),
+        ],
+        [
+          "TooManyRequestsError",
+          (o: object) => new TooManyRequestsError("boom", null, null, null, o),
+        ],
+        [
+          "InternalServerError",
+          (o: object) => new InternalServerError("boom", null, null, null, o),
+        ],
+        ["NetworkError", (o: object) => new NetworkError("boom", o)],
+        [
+          "NetworkTimeoutError",
+          (o: object) => new NetworkTimeoutError("boom", o),
+        ],
+      ];
+      for (const [, build] of rows) {
         const err = build({ requestMethod: "GET", requestPath: "/items/7" });
         expect(err.requestMethod).toBe("GET");
         expect(err.requestPath).toBe("/items/7");
-      },
-    );
+      }
+    });
 
     test("bhv errors 003 every status-specific error keeps an optional cause", () => {
       const inner = new Error("inner");
@@ -167,7 +175,7 @@ describe("ApiError", () => {
       expect(err.name).toBe("BadRequestError");
     });
 
-    test("status error constructors default the response context to null", () => {
+    test("bhv errors 055 status error constructors default the response context to null", () => {
       const bad = new BadRequestError();
       expect(bad.statusCode).toBe(400);
       expect(bad.message).toBe("");
@@ -387,38 +395,40 @@ describe("ApiError", () => {
   });
 
   describe("OAuth2ServerError message", () => {
-    test.each([
-      [
-        "a raw body when there is no error code",
-        null,
-        null,
-        "upstream down",
-        "Token request failed with status 502: upstream down",
-      ],
-      [
-        "the error code",
-        "invalid_client",
-        null,
-        "{}",
-        "Token request failed with status 400: invalid_client",
-      ],
-      [
-        "the error code and description",
-        "invalid_grant",
-        "refresh token expired",
-        "{}",
-        "Token request failed with status 400: invalid_grant -- refresh token expired",
-      ],
-    ])(
-      "bhv errors 046 renders the OAuth2 message in three forms: %s",
-      (_label, code, description, rawBody, expected) => {
+    test("bhv errors 046 renders the OAuth2 message in three forms", () => {
+      const rows: Array<
+        [string, string | null, string | null, string, string]
+      > = [
+        [
+          "a raw body when there is no error code",
+          null,
+          null,
+          "upstream down",
+          "Token request failed with status 502: upstream down",
+        ],
+        [
+          "the error code",
+          "invalid_client",
+          null,
+          "{}",
+          "Token request failed with status 400: invalid_client",
+        ],
+        [
+          "the error code and description",
+          "invalid_grant",
+          "refresh token expired",
+          "{}",
+          "Token request failed with status 400: invalid_grant -- refresh token expired",
+        ],
+      ];
+      for (const [, code, description, rawBody, expected] of rows) {
         const status = code === null ? 502 : 400;
         expect(
           new OAuth2ServerError(status, code, description, null, rawBody)
             .message,
         ).toBe(expected);
-      },
-    );
+      }
+    });
   });
 
   test("bhv errors 049 an OAuth2 server error names the status and the error code", () => {
@@ -428,6 +438,46 @@ describe("ApiError", () => {
   });
 
   describe("status mapping", () => {
+    test("bhv errors 037 the thrown error is the exact class for its status", () => {
+      expect(() => {
+        throw ApiError.fromResponse(404, {}, null);
+      }).toThrow(NotFoundError);
+      expect(() => {
+        throw ApiError.fromResponse(500, {}, null);
+      }).toThrow(InternalServerError);
+    });
+
+    test("bhv errors 048 a 418 response throws ClientError", () => {
+      const err = ApiError.fromResponse(418, {}, null);
+      expect(err.constructor).toBe(ClientError);
+      expect(err).toBeInstanceOf(ApiError);
+      expect(err.statusCode).toBe(418);
+    });
+
+    test("bhv errors 052 a typed client error is caught by a base API error catch and chains to the API error root", () => {
+      let caught: unknown;
+      try {
+        throw new NotFoundError("gone");
+      } catch (e) {
+        if (e instanceof ApiError) {
+          caught = e;
+        }
+      }
+      expect(caught).toBeInstanceOf(NotFoundError);
+      expect(caught).toBeInstanceOf(OpenAPIError);
+    });
+
+    test("bhv errors 053 each named error pins its own HTTP status code", () => {
+      expect(new BadRequestError("x").statusCode).toBe(400);
+      expect(new UnauthorizedError("x").statusCode).toBe(401);
+      expect(new ForbiddenError("x").statusCode).toBe(403);
+      expect(new NotFoundError("x").statusCode).toBe(404);
+      expect(new ConflictError("x").statusCode).toBe(409);
+      expect(new UnprocessableEntityError("x").statusCode).toBe(422);
+      expect(new TooManyRequestsError("x").statusCode).toBe(429);
+      expect(new InternalServerError("x").statusCode).toBe(500);
+    });
+
     test("bhv errors 058 a 400 response maps to the bad request error", () => {
       const err = ApiError.fromResponse(400, null, null);
       expect(err).toBeInstanceOf(BadRequestError);
@@ -525,21 +575,24 @@ describe("ApiError", () => {
       [500, InternalServerError],
       [503, ServerError],
       [302, ApiError],
-    ])("maps %i to its error", (status, expected) => {
-      const err = ApiError.fromResponse(
-        status,
-        { "x-request-id": "abc" },
-        '{"code":7}',
-      );
-      expect(err.constructor).toBe(expected);
-      expect(err).toBeInstanceOf(OpenAPIError);
-      expect(err.statusCode).toBe(status);
-      expect(err.responseHeaders).toEqual({ "x-request-id": "abc" });
-      expect(err.responseBody).toBe('{"code":7}');
-      expect(err.errorBody).toEqual({ code: 7 });
-    });
+    ])(
+      "maps status %i to its exception class and keeps the response context",
+      (status, expected) => {
+        const err = ApiError.fromResponse(
+          status,
+          { "x-request-id": "abc" },
+          '{"code":7}',
+        );
+        expect(err.constructor).toBe(expected);
+        expect(err).toBeInstanceOf(OpenAPIError);
+        expect(err.statusCode).toBe(status);
+        expect(err.responseHeaders).toEqual({ "x-request-id": "abc" });
+        expect(err.responseBody).toBe('{"code":7}');
+        expect(err.errorBody).toEqual({ code: 7 });
+      },
+    );
 
-    test("a status at or above 600 is not a server error", () => {
+    test("bhv errors 056 a status at or above 600 yields the base error and not a server error", () => {
       /* The 5xx arm is bounded at < 600: a status outside 400-599 yields the
        * base ApiError, never ServerError. */
       const err = ApiError.fromResponse(600, { "x-request-id": "abc" }, null);
@@ -717,6 +770,28 @@ describe("ApiError", () => {
     test("bhv errors 022 omits empty headers and an empty body", () => {
       const err = new ApiError(502, "bad gateway", {}, "", null);
       expect(err.toString()).toBe("bad gateway\nHTTP status code: 502");
+    });
+
+    test("bhv errors 050 response headers render as compact JSON with sorted keys and unescaped slashes", () => {
+      const err = new ApiError(
+        404,
+        "not found",
+        { "x-path": "/items/7", "a-first": "yes" },
+        null,
+        null,
+      );
+
+      expect(err.toString()).toBe(
+        'not found\nHTTP status code: 404\nResponse headers: {"a-first":"yes","x-path":"/items/7"}',
+      );
+    });
+
+    test("bhv errors 051 an empty error message falls back to the generic error line", () => {
+      const err = new ApiError(503, "");
+
+      expect(err.toString()).toBe(
+        "Error message: the server returns an error\nHTTP status code: 503",
+      );
     });
 
     test("bhv errors 064 an empty message renders the default text, like a missing one", () => {

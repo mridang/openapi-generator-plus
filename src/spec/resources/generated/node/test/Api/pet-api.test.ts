@@ -850,7 +850,7 @@ describe("PetApi form-urlencoded body serialization", () => {
 
   // #3 — spaces in a form-body value are encoded as '+', not %20, the
   // canonical application/x-www-form-urlencoded encoding.
-  test("bhv serializationwire 055 #3 space in a form value encodes as plus", async () => {
+  test("bhv serializationwire 055 a space in a form value encodes as plus", async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = {
@@ -1175,9 +1175,8 @@ describe("PetApi request content-type selector", () => {
 });
 
 describe("PetApi operation servers", () => {
-  test.each(["a$&b", "{version}", "unknown"])(
-    "bhv servers 020 a server variable value outside the declared enum is rejected: %s",
-    (value) => {
+  test("bhv servers 020 a server variable value outside the declared enum is rejected", () => {
+    for (const value of ["a$&b", "{version}", "unknown"]) {
       expect(
         () =>
           new GetStagingPetInfoServerStagingServer(
@@ -1185,8 +1184,8 @@ describe("PetApi operation servers", () => {
             GetStagingPetInfoServerVersion.V2,
           ),
       ).toThrow(/Invalid value .* for server variable 'environment'/);
-    },
-  );
+    }
+  });
 
   test("bhv servers 021 a server URL with special characters in its default and enum values resolves to the raw characters", () => {
     const server = Servers.SERVER_2;
@@ -1354,39 +1353,44 @@ describe("PetApi against a recording client", () => {
     ).toBe(true);
   });
 
-  test.each([
-    [
-      new GetMultiServerPetInfoServerPrimary(),
-      "https://primary.example.com/v1/",
-    ],
-    [
-      new GetMultiServerPetInfoServerRegional(
-        GetMultiServerPetInfoServerRegionalRegion.AP,
-      ),
-      "https://ap.example.com/v1/",
-    ],
-  ])(
-    "bhv operations 085 the multi-server operation offers a fixed and a templated server: %j",
-    async (server, prefix) => {
-      await recordingApi.getMultiServerPetInfo(1, server);
+  test("bhv operations 085 the multi-server operation offers a fixed and a templated server", async () => {
+    const rows: Array<[unknown, string]> = [
+      [
+        new GetMultiServerPetInfoServerPrimary(),
+        "https://primary.example.com/v1/",
+      ],
+      [
+        new GetMultiServerPetInfoServerRegional(
+          GetMultiServerPetInfoServerRegionalRegion.AP,
+        ),
+        "https://ap.example.com/v1/",
+      ],
+    ];
+    for (const [server, prefix] of rows) {
+      recorded.length = 0;
+      await recordingApi.getMultiServerPetInfo(
+        1,
+        server as Parameters<typeof recordingApi.getMultiServerPetInfo>[1],
+      );
 
       expect(recorded).toHaveLength(1);
       expect(recorded[0]!.url.startsWith(prefix)).toBe(true);
-    },
-  );
+    }
+  });
 
-  test.each([
-    [
-      GetMultiServerPetInfoServerChannel.A_B,
-      "https://eu.mirror.example.com/a&b/v1/pet/3/multi",
-    ],
-    [
-      GetMultiServerPetInfoServerChannel.IT_S,
-      "https://eu.mirror.example.com/it's/v1/pet/3/multi",
-    ],
-  ])(
-    "bhv operations 084 the mirror operation server resolves reserved characters raw for channel %s",
-    async (channel, expected) => {
+  test("bhv operations 084 the mirror operation server resolves reserved characters raw", async () => {
+    const rows: Array<[GetMultiServerPetInfoServerChannel, string]> = [
+      [
+        GetMultiServerPetInfoServerChannel.A_B,
+        "https://eu.mirror.example.com/a&b/v1/pet/3/multi",
+      ],
+      [
+        GetMultiServerPetInfoServerChannel.IT_S,
+        "https://eu.mirror.example.com/it's/v1/pet/3/multi",
+      ],
+    ];
+    for (const [channel, expected] of rows) {
+      recorded.length = 0;
       await recordingApi.getMultiServerPetInfo(
         3,
         new GetMultiServerPetInfoServerMirror(
@@ -1397,8 +1401,8 @@ describe("PetApi against a recording client", () => {
 
       expect(recorded).toHaveLength(1);
       expect(recorded[0]!.url).toBe(expected);
-    },
-  );
+    }
+  });
 
   test("bhv operations 051 getPetByName rejects a dot segment before dispatch", async () => {
     for (const name of [".", ".."]) {

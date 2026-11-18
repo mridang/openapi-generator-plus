@@ -535,17 +535,17 @@ describe("DefaultApiClient", () => {
     expect(response.statusCode).toBe(302);
   });
 
-  test.each([
-    ["no-location", '{"redirect":"no-location"}'],
-    ["malformed-location", '{"redirect":"malformed"}'],
-  ])(
-    "bhv redirects 010 a 302 with an unusable Location (%s) is returned untouched",
-    async (path, body) => {
-      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
-      const client = new DefaultApiClient(
-        TransportOptions.builder().followRedirects(true).build(),
-      );
+  test("bhv redirects 010 a 3xx whose Location is absent or unparseable comes back as the redirect response", async () => {
+    const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    const cases: Array<[string, string]> = [
+      ["no-location", '{"redirect":"no-location"}'],
+      ["malformed-location", '{"redirect":"malformed"}'],
+    ];
 
+    for (const [path, body] of cases) {
       const response = await client.sendRequest(
         "GET",
         `${chasmUrl}/test/redirect/${path}`,
@@ -555,8 +555,8 @@ describe("DefaultApiClient", () => {
 
       expect(response.statusCode).toBe(302);
       expect(JSON.parse(response.body as string)).toEqual(JSON.parse(body));
-    },
-  );
+    }
+  });
 
   test("bhv redirects 005 redirect 303 switches to GET and drops body", async () => {
     const chasmUrl = process.env["CHASM_HTTP_URL"]!;

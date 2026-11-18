@@ -200,40 +200,43 @@ describe("ObjectSerializer", () => {
     /* The error contract: every wire-shape failure throws exactly
      * SerializationError (no subclass, no library error), and that is an
      * instance of the SDK root so one catch handles it. */
-    test.each([
-      ["malformed JSON", () => ObjectSerializer.parseJson("{")],
-      [
-        "wrong primitive type",
-        () =>
-          ObjectSerializer.deserialize(
-            { id: "abc", name: "doggie", photoUrls: [] },
-            Pet,
-          ),
-      ],
-      [
-        "unknown enum value",
-        () =>
-          ObjectSerializer.deserialize(
-            { name: "doggie", photoUrls: [], status: "banana" },
-            Pet,
-          ),
-      ],
-      [
-        "missing required field",
-        () => ObjectSerializer.deserialize({ photoUrls: [] }, Pet),
-      ],
-      [
-        "malformed duration",
-        () => ObjectSerializer.deserialize({ retryAfter: "soon" }, EdgeCases),
-      ],
-      [
-        "malformed date-time",
-        () =>
-          ObjectSerializer.deserialize({ expiresAt: "not-a-date" }, EdgeCases),
-      ],
-    ])(
-      "bhv serializationobject 077 throws exactly SerializationError, a root error, for %s",
-      (_failure, decode) => {
+    test("bhv serializationobject 077 throws exactly SerializationError, a root error, for every wire-shape failure", () => {
+      const failures: Array<[string, () => unknown]> = [
+        ["malformed JSON", () => ObjectSerializer.parseJson("{")],
+        [
+          "wrong primitive type",
+          () =>
+            ObjectSerializer.deserialize(
+              { id: "abc", name: "doggie", photoUrls: [] },
+              Pet,
+            ),
+        ],
+        [
+          "missing required field",
+          () => ObjectSerializer.deserialize({ photoUrls: [] }, Pet),
+        ],
+        [
+          "unknown enum value",
+          () =>
+            ObjectSerializer.deserialize(
+              { name: "doggie", photoUrls: [], status: "banana" },
+              Pet,
+            ),
+        ],
+        [
+          "malformed duration",
+          () => ObjectSerializer.deserialize({ retryAfter: "soon" }, EdgeCases),
+        ],
+        [
+          "malformed date-time",
+          () =>
+            ObjectSerializer.deserialize(
+              { expiresAt: "not-a-date" },
+              EdgeCases,
+            ),
+        ],
+      ];
+      for (const [, decode] of failures) {
         let caught: unknown;
         try {
           decode();
@@ -242,8 +245,8 @@ describe("ObjectSerializer", () => {
         }
         expect((caught as Error).constructor).toBe(SerializationError);
         expect(caught).toBeInstanceOf(OpenAPIError);
-      },
-    );
+      }
+    });
 
     test("bhv serializationobject 102 serialize throws SerializationError on circular reference", () => {
       const a: Record<string, unknown> = {};
@@ -1581,20 +1584,19 @@ describe("ObjectSerializer", () => {
   });
 
   describe("date-time decode strictness", () => {
-    test.each([
-      "2024-01-01T10:00:00",
-      "01/02/2024 10:00",
-      "tomorrow",
-      "10:00",
-      "1700000000",
-    ])(
-      "bhv serializationobject 011 rejects the non-RFC 3339 date-time %p",
-      (shipDate) => {
+    test("bhv serializationobject 011 rejects every non-RFC 3339 date-time", () => {
+      for (const shipDate of [
+        "2024-01-01T10:00:00",
+        "01/02/2024 10:00",
+        "tomorrow",
+        "10:00",
+        "1700000000",
+      ]) {
         expect(() => ObjectSerializer.deserialize({ shipDate }, Order)).toThrow(
           SerializationError,
         );
-      },
-    );
+      }
+    });
 
     test.each([
       ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00.000Z"],
@@ -1606,33 +1608,31 @@ describe("ObjectSerializer", () => {
   });
 
   describe("format: uri decode", () => {
-    test.each([
-      "urn:isbn:0451450523",
-      "mailto:a@b.com",
-      "ftp://x.org/f",
-      "https://example.com/items/sample",
-    ])(
-      "bhv serializationobject 021 accepts the absolute URI %p and keeps its text",
-      (homepageUrl) => {
+    test("bhv serializationobject 021 accepts every absolute URI and keeps its text", () => {
+      for (const homepageUrl of [
+        "urn:isbn:0451450523",
+        "mailto:a@b.com",
+        "ftp://x.org/f",
+        "https://example.com/items/sample",
+      ]) {
         const pet = ObjectSerializer.deserialize(
           { name: "sample", photoUrls: [], homepageUrl },
           Pet,
         );
         expect(pet!.homepageUrl).toBe(homepageUrl);
-      },
-    );
+      }
+    });
 
-    test.each(["/relative", "not a uri", ""])(
-      "bhv serializationobject 008 rejects %p",
-      (homepageUrl) => {
+    test("bhv serializationobject 008 rejects a relative or non-URI homepage", () => {
+      for (const homepageUrl of ["/relative", "not a uri", ""]) {
         expect(() =>
           ObjectSerializer.deserialize(
             { name: "sample", photoUrls: [], homepageUrl },
             Pet,
           ),
         ).toThrow(SerializationError);
-      },
-    );
+      }
+    });
 
     test("bhv serializationobject 173 a uri-reference field still accepts a relative reference", () => {
       const pet = ObjectSerializer.deserialize(
@@ -2044,14 +2044,16 @@ describe("ObjectSerializer", () => {
           }
         });
 
-        test.each(["9999999999999999999999s", "-9999999999999999999999s"])(
-          "bhv serializationobject 080 raises SerializationError for the overflowing duration %p",
-          (value) => {
+        test("bhv serializationobject 080 raises SerializationError for an overflowing duration", () => {
+          for (const value of [
+            "9999999999999999999999s",
+            "-9999999999999999999999s",
+          ]) {
             expect(() => durationFromProtoJson(value)).toThrow(
               SerializationError,
             );
-          },
-        );
+          }
+        });
       });
 
       test("bhv serializationobject 145 round-trip: stringify then durationFromProtoJson is lossless", () => {
@@ -3322,17 +3324,16 @@ describe("toBinary", () => {
       });
     });
 
-    test.each(["In-Stock", "on-hold", "OUT_OF_STOCK"])(
-      "bhv serializationobject 022 the inline enum value %s round-trips",
-      (phase) => {
+    test("bhv serializationobject 022 an inline enum round-trips its non-identifier wire values", () => {
+      for (const phase of ["In-Stock", "on-hold", "OUT_OF_STOCK"]) {
         const decoded = ObjectSerializer.deserialize({ phase }, EdgeCases)!;
 
         expect(decoded.phase).toBe(phase);
         expect(JSON.parse(ObjectSerializer.serialize(decoded))).toMatchObject({
           phase,
         });
-      },
-    );
+      }
+    });
 
     test("bhv serializationobject 024 an unknown inline enum value is rejected", () => {
       expect(() =>

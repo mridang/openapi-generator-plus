@@ -2410,18 +2410,24 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     expect(TransportOptions.builder().build().maxRetries).toBe(2);
   });
 
-  it.each([408, 409, 429, 500, 502, 503, 504, 599])('bhv retries 021 retries a %i and returns the success that follows', async (status) => {
-    const response = await send(clientPlaying([reply(status), reply(200)]));
+  it('bhv retries 021 retries exactly the retryable statuses and returns the success that follows', async () => {
+    for (const status of [408, 409, 429, 500, 502, 503, 504, 599]) {
+      calls = [];
+      const response = await send(clientPlaying([reply(status), reply(200)]));
 
-    expect(response.statusCode).toBe(200);
-    expect(calls).toHaveLength(2);
+      expect(response.statusCode).toBe(200);
+      expect(calls).toHaveLength(2);
+    }
   });
 
-  it.each([400, 401, 404, 422, 501])('bhv retries 007 does not retry a %i', async (status) => {
-    const response = await send(clientPlaying([reply(status)]));
+  it('bhv retries 007 does not replay other statuses', async () => {
+    for (const status of [400, 401, 404, 422, 501]) {
+      calls = [];
+      const response = await send(clientPlaying([reply(status)]));
 
-    expect(response.statusCode).toBe(status);
-    expect(calls).toHaveLength(1);
+      expect(response.statusCode).toBe(status);
+      expect(calls).toHaveLength(1);
+    }
   });
 
   it('bhv retries 003 a multipart body is not retried after a 503', async () => {

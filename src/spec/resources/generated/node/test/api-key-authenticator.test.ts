@@ -327,34 +327,20 @@ describe("ApiKeyAuthenticator", () => {
     expect(String(auth)).not.toContain("key-secret-026");
   });
 
-  it.each([
-    [
-      "ApiKeyHeaderAuthenticator",
-      ApiKeyHeaderAuthenticator,
-      ApiKeyLocation.HEADER,
-      "X-API-Key",
-    ],
-    [
-      "InternalApiKeyAuthenticator",
-      InternalApiKeyAuthenticator,
-      ApiKeyLocation.HEADER,
-      "X-Internal-Key",
-    ],
-    [
-      "ApiKeyQueryAuthenticator",
-      ApiKeyQueryAuthenticator,
-      ApiKeyLocation.QUERY,
-      "api_key",
-    ],
-    [
-      "SessionCookieAuthenticator",
-      SessionCookieAuthenticator,
-      ApiKeyLocation.COOKIE,
-      "SESSION_ID",
-    ],
-  ])(
-    "bhv authapikey 007 %s emits its key at the location its scheme declares",
-    (_name, Wrapper, location, keyName) => {
+  it("bhv authapikey 007 generated scheme wrappers emit their key at their spec location", () => {
+    const wrappers: Array<
+      [
+        new (host: string, key: string) => ApiKeyAuthenticator,
+        ApiKeyLocation,
+        string,
+      ]
+    > = [
+      [ApiKeyHeaderAuthenticator, ApiKeyLocation.HEADER, "X-API-Key"],
+      [InternalApiKeyAuthenticator, ApiKeyLocation.HEADER, "X-Internal-Key"],
+      [ApiKeyQueryAuthenticator, ApiKeyLocation.QUERY, "api_key"],
+      [SessionCookieAuthenticator, ApiKeyLocation.COOKIE, "SESSION_ID"],
+    ];
+    for (const [Wrapper, location, keyName] of wrappers) {
       const auth = new Wrapper("https://api.example.com", "abc123");
       expect(auth.getAuthHeaders()).toEqual(
         location === ApiKeyLocation.HEADER ? { [keyName]: "abc123" } : {},
@@ -365,8 +351,8 @@ describe("ApiKeyAuthenticator", () => {
       expect(auth.getCookieParams()).toEqual(
         location === ApiKeyLocation.COOKIE ? { [keyName]: "abc123" } : {},
       );
-    },
-  );
+    }
+  });
 
   it.each([
     [ApiKeyLocation.HEADER, "X-Api-Key"],
@@ -418,9 +404,8 @@ describe("ApiKeyAuthenticator", () => {
     },
   );
 
-  it.each(["\u00a0", "\u2003"])(
-    "bhv authapikey 001 a Unicode space %j is not blank, so a query or cookie key accepts it",
-    (value) => {
+  it("bhv authapikey 001 a Unicode space is not blank and is a valid query key", () => {
+    for (const value of ["\u00a0", "\u2003"]) {
       expect(
         () =>
           new ApiKeyAuthenticator(
@@ -439,8 +424,8 @@ describe("ApiKeyAuthenticator", () => {
             ApiKeyLocation.COOKIE,
           ),
       ).not.toThrow();
-    },
-  );
+    }
+  });
 
   it("bhv authapikey 012 the redacted representation shows the host, key name and location", () => {
     const auth = new ApiKeyAuthenticator(
