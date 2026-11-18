@@ -1664,7 +1664,7 @@ class PetApiTest {
 
     /** A recording fake of the group: default methods run their body and land on the full form. */
     private static PetApiInterface fakeApi(
-            java.util.List<Object[]> calls, RuntimeException failWith) {
+            java.util.List<Object[]> calls, @javax.annotation.Nullable RuntimeException failWith) {
         return (PetApiInterface) java.lang.reflect.Proxy.newProxyInstance(
                 PetApiInterface.class.getClassLoader(),
                 new Class<?>[] {PetApiInterface.class},
@@ -1736,6 +1736,9 @@ class PetApiTest {
         lookUp(fakeApi(calls, null), 7L);
 
         assertThat(calls).hasSize(1);
-        assertThat(calls.get(0)).containsExactly(7L, null, null);
+        assertThat(calls.get(0)).hasSize(3);
+        assertThat(calls.get(0)[0]).isEqualTo(7L);
+        assertThat(calls.get(0)[1]).isNull();
+        assertThat(calls.get(0)[2]).isNull();
     }
 }

@@ -1894,6 +1894,7 @@ void main() {
           source,
           contains(
             "  @Deprecated('This operation is deprecated.')\n"
+            '  @override\n'
             '  Future<List<Pet>> findPetsByStatus(',
           ),
         );
@@ -1901,6 +1902,7 @@ void main() {
           source,
           contains(
             "  @Deprecated('This operation is deprecated.')\n"
+            '  @override\n'
             '  Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(',
           ),
         );
@@ -1908,6 +1910,7 @@ void main() {
           source,
           contains(
             "  @Deprecated('This operation is deprecated.')\n"
+            '  @override\n'
             '  Future<Pet> getPetById(',
           ),
         );
@@ -1944,6 +1947,7 @@ void main() {
         contains(
           '  /// `options` options carrying the per-call timeout, headers and retry budget\n'
           '  /// Throws `BadRequestException` on HTTP 400.\n'
+          '  @override\n'
           '  Future<Pet> addPet(',
         ),
       );
@@ -1952,6 +1956,7 @@ void main() {
         contains(
           '  /// `options` options for query, header, form, and cookie parameters\n'
           '  /// Throws `BadRequestException` on HTTP 400.\n'
+          '  @override\n'
           '  Future<void> deletePet(',
         ),
       );
@@ -1961,6 +1966,7 @@ void main() {
           '  /// `days` Extra dates to summarise\n'
           '  /// `options` options for query, header, form, and cookie parameters\n'
           '  /// Throws `NotFoundException` on HTTP 404.\n'
+          '  @override\n'
           '  Future<String> getPetSummary(',
         ),
       );

@@ -2211,8 +2211,8 @@ public class PetApiTest
         return (api, fake);
     }
 
-    private static Task<ApiResult<Pet>> CallThroughTheInterface(IPetApi group) =>
-        group.GetPetByIdWithHttpInfoAsync(1L);
+    private static Task<ApiResult<Pet>> CallThroughTheInterface<T>(T group)
+        where T : IPetApi => group.GetPetByIdWithHttpInfoAsync(1L);
 
     // Code under test: it takes the group interface, never the generated class.
     private static Task<Pet> LookUp(IPetApi group, long id) => group.GetPetByIdAsync(id);
