@@ -2019,5 +2019,6 @@ langjava053 | A credential made only of control characters, such as a newline, r
 langjava054 | A token provider's result that already carries the bearer prefix keeps it exactly once.
 langjava055 | An equals sign in a path value is written unencoded.
 langjava056 | A tilde in each element of a styled array value is left unencoded.
+langjava057 | The project manifest declares a description.
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
 langjava064 | A null path parameter beside a null required options object is the first violation reported.
