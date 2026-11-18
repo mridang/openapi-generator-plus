@@ -57,6 +57,7 @@ public final class TransportOptions {
       boolean injectRequestId,
       @Nullable java.net.http.HttpClient httpClient,
       int maxRetries) {
+    Builder.validateProxy(proxy);
     this.verifySsl = verifySsl;
     this.caCertPath = caCertPath;
     this.proxy = proxy;
@@ -493,7 +494,6 @@ public final class TransportOptions {
      * @return the configured transport options
      */
     public TransportOptions build() {
-      validateProxy(proxy);
       if (httpClient != null) {
         if (proxy != null || caCertPath != null || !verifySsl) {
           throw new IllegalArgumentException(

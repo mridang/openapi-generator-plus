@@ -436,7 +436,7 @@ class PetApiTest {
   }
 
   @Test
-  void testMalformedBodyOnBodyReturningOperationThrows() throws Exception {
+  void bhvOperations130MalformedBodyOnBodyReturningOperationThrows() throws Exception {
     // A 200 whose body is not valid JSON for the declared return type must
     // surface the deserialization failure loudly rather than handing back
     // the raw, un-parsed string. Truncated JSON ("{" never closes) forces
@@ -878,7 +878,7 @@ class PetApiTest {
   /* Passing null for a required Options object is the violation under test;
    * NullAway forbids it by design, so it is suppressed on this one method. */
   @SuppressWarnings("NullAway")
-  void nullRequiredOptionsNamesTheFirstRequiredField() {
+  void bhvOperations132NullRequiredOptionsNamesTheFirstRequiredField() {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
@@ -1014,7 +1014,7 @@ class PetApiTest {
   }
 
   @Test
-  void uploadPetDocumentSendsPartsInDeclarationOrder() throws Exception {
+  void bhvOperations147UploadPetDocumentSendsPartsInDeclarationOrder() throws Exception {
     final byte[][] capturedBody = new byte[1][];
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -1827,7 +1827,8 @@ class PetApiTest {
   }
 
   @Test
-  void testGetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes() throws Exception {
+  void bhvOperations138GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes()
+      throws Exception {
     Object[][] table = {
       {400, com.example.petstore.errors.BadRequestException.class},
       {401, com.example.petstore.errors.UnauthorizedException.class},

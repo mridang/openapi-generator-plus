@@ -92,6 +92,14 @@ class BaseApiTest {
       super(apiClient, config);
     }
 
+    TestableApi(ApiClient apiClient, Configuration config, Map<String, Authenticator> schemes) {
+      super(apiClient, config, null, schemes);
+    }
+
+    Authenticator firstHeld(String... schemes) {
+      return resolveSchemeAuth(schemes);
+    }
+
     TestableApi(ApiClient apiClient, String baseUrl, @Nullable Authenticator authenticator) {
       super(apiClient, new Configuration(baseUrl, Map.of()), authenticator);
     }
@@ -2591,6 +2599,47 @@ class BaseApiTest {
     }
   }
 
+  @Test
+  void bhvOperations153AnOperationWithNoChosenServerIsSentToTheClientBaseUrl() throws ApiException {
+    var client =
+        new CapturingApiClient() {
+          @Override
+          public ApiHttpResponse sendRequest(
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
+            this.capturedUrl = url;
+            return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+          }
+        };
+    var testApi = new TestableApi(client, "http://localhost:8080");
+    testApi.call(
+        "GET",
+        "/test/echo",
+        new HashMap<>(),
+        new HashMap<>(),
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        null,
+        null);
+    assertEquals("http://localhost:8080/test/echo", client.capturedUrl);
+  }
+
+  @Test
+  void bhvOperations148AnOperationUsesTheFirstHeldSchemeOfItsList() {
+    Authenticator first = new BearerAuthenticator("http://localhost", "first-token");
+    Authenticator second = new BearerAuthenticator("http://localhost", "second-token");
+    Configuration config = new Configuration("http://localhost", Map.of());
+
+    assertSame(
+        second,
+        new TestableApi(new CapturingApiClient(), config, Map.of("second", second))
+            .firstHeld("first", "second"));
+    assertSame(
+        first,
+        new TestableApi(new CapturingApiClient(), config, Map.of("first", first, "second", second))
+            .firstHeld("first", "second"));
+  }
+
   // ── Null body Content-Type tests (Gap 11) ──
 
   @Nested
@@ -2613,6 +2662,35 @@ class BaseApiTest {
       var testApi = new TestableApi(client, "http://localhost");
       testApi.call(
           "POST",
+          "/test/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          null,
+          null);
+      assertFalse(
+          client.capturedHeaders.containsKey("Content-Type"),
+          "Content-Type must NOT be sent when body is null");
+    }
+
+    @Test
+    @DisplayName("bhvOperations131 GET with null body does not send Content-Type")
+    void bhvOperations131NullBodyGetDoesNotSendContentType() throws ApiException {
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              this.capturedHeaders = headers;
+              this.capturedBody = body;
+              return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      testApi.call(
+          "GET",
           "/test/echo",
           new HashMap<>(),
           new HashMap<>(),

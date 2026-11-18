@@ -1224,14 +1224,26 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("empty propertyless object serializes to {}")
-    void emptyObjectSerializesToEmptyBraces() {
+    @DisplayName("bhvSerializationObject188 empty propertyless object serializes to {}")
+    void bhvSerializationObject188EmptyObjectSerializesToEmptyBraces() {
       // #3: an empty request body (settings.getGeneralSettings({})) must
       // serialize to "{}" rather than throwing InvalidDefinitionException
       // for a bean with no discoverable properties
       // (FAIL_ON_EMPTY_BEANS disabled).
       String json = serializer.serialize(new Object());
       assertEquals("{}", json);
+    }
+
+    @Test
+    void bhvSerializationObject189MutuallyRecursiveModelsDecodeFromNestedJson() {
+      String json =
+          "{\"name\":\"Eng\",\"lead\":{\"name\":\"Ada\",\"department\":{\"name\":\"Core\"}}}";
+      com.example.petstore.models.Department department =
+          serializer.deserialize(json, com.example.petstore.models.Department.class);
+      assertEquals("Eng", department.name);
+      com.example.petstore.models.Employee lead = java.util.Objects.requireNonNull(department.lead);
+      assertEquals("Ada", lead.name);
+      assertEquals("Core", java.util.Objects.requireNonNull(lead.department).name);
     }
 
     @Test

@@ -32,7 +32,7 @@ class SkillsTest {
   }
 
   @Test
-  void errorHandlingNamesTheRootAndTheSiblingsOfApiException() throws IOException {
+  void bhvSkills001ErrorHandlingNamesTheRootAndTheSiblingsOfApiException() throws IOException {
     String section = section("## Error Handling", "## Configuration");
     assertTrue(section.contains("`OpenAPIException` (root)"));
     assertTrue(section.contains("`SerializationException`"));
@@ -53,7 +53,7 @@ class SkillsTest {
   }
 
   @Test
-  void configurationDocumentsTheRetries() throws IOException {
+  void bhvSkills002ConfigurationDocumentsTheRetries() throws IOException {
     String section = section("## Configuration", "## API Methods");
     assertTrue(section.contains("### Retries"));
     assertTrue(section.contains("`maxRetries`"));
