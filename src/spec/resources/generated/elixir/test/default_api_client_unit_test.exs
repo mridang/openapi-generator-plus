@@ -481,6 +481,33 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert headers["accept"] == "application/json"
   end
 
+  test "bhv headers 030 a default header in another case replaces the negotiated one instead of being sent beside it" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:accept, Req.Request.get_header(request, "accept")})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new(
+        req_options: [adapter: adapter],
+        default_headers: %{"accept" => "text/plain"}
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "http://custom.invalid/echo",
+      %{"Accept" => "application/json"},
+      nil
+    )
+
+    assert_receive {:accept, ["application/json"]}
+  end
+
   test "bhv transport 026 a caller's lower-case accept-encoding suppresses the SDK's own" do
     {base_url, _port} = start_header_capture_server()
     client = PetstoreClient.DefaultApiClient.new()
@@ -1429,7 +1456,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   # Cancellation is the process exit that ends the call: a caller shut down
   # while its request is in flight ends with no reply, and the SDK never
   # surfaces an error of its own for it.
-  test "cancelling an in-flight call ends the caller without an SDK error" do
+  test "bhv transport 060 cancelling an in-flight call aborts the request without reporting a timeout" do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(socket)
     test_pid = self()
@@ -1482,6 +1509,23 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
+  test "bhv transport 065 a configured CA bundle replaces the system trust store instead of adding to it" do
+    ca_cert_path = System.fetch_env!("CA_CERT_PATH")
+    transport = PetstoreClient.TransportOptions.new(ca_cert_path: ca_cert_path)
+
+    # Erlang's ssl trusts exactly the cacertfile when one is given and loads
+    # no system roots, so the pinned bundle is the whole trust store.
+    transport_opts =
+      transport
+      |> PetstoreClient.DefaultApiClient.request_options()
+      |> Keyword.fetch!(:connect_options)
+      |> Keyword.fetch!(:transport_opts)
+
+    assert transport_opts[:verify] == :verify_peer
+    assert transport_opts[:cacertfile] == String.to_charlist(ca_cert_path)
+    refute Keyword.has_key?(transport_opts, :cacerts)
+  end
+
   # Every deadline this client is allowed to set is armed from the single
   # `:timeout` option: the idle timer and the connect handshake. Leaving one of
   # them at the library's own default is what makes the same expired budget
@@ -1496,6 +1540,43 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     # under `:finch` and refuses `:finch` alongside `:connect_options`. It is
     # covered by classification instead, above.
     refute Keyword.has_key?(opts, :finch)
+  end
+
+  test "bhv redirects 037 a redirect to the explicit default port of the same origin keeps the Authorization header" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:hop, request.url.path, Req.Request.get_header(request, "authorization")})
+
+      case request.url.path do
+        "/first" ->
+          {request,
+           Req.Response.new(
+             status: 302,
+             headers: [{"location", "https://custom.invalid:443/second"}],
+             body: ""
+           )}
+
+        _ ->
+          {request, Req.Response.new(status: 200, body: "")}
+      end
+    end
+
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://custom.invalid/first",
+        %{"Authorization" => "Bearer secret"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert_receive {:hop, "/first", ["Bearer secret"]}
+    assert_receive {:hop, "/second", ["Bearer secret"]}
   end
 
   test "bhv redirects 015 send_request/6 with no_redirect: true returns the raw 302 response" do

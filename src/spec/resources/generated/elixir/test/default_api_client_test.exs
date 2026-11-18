@@ -48,6 +48,76 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert json["method"] == "GET"
   end
 
+  test "bhv transport 062 with verify_ssl false a certificate that fails validation is accepted" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+
+    transport = PetstoreClient.TransportOptions.new(verify_ssl: false)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+  end
+
+  test "bhv transport 063 a proxy that requires credentials answers 407 when none are sent" do
+    chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
+    auth_proxy_url = System.fetch_env!("PROXY_AUTH_URL")
+
+    transport = PetstoreClient.TransportOptions.new(proxy: auth_proxy_url)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 407
+  end
+
+  # A bundle is several PEM certificates in one file. The first certificate
+  # here signs nothing the server presents, so only the second one, the CA
+  # that signed the fixture certificate, can make the handshake succeed.
+  test "bhv transport 066 a CA bundle file trusts every certificate it contains" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+    ca_cert_path = System.fetch_env!("CA_CERT_PATH")
+
+    %{cert: unrelated_der} = :public_key.pkix_test_root_cert(~c"CN=unrelated-bundle-ca", [])
+
+    unrelated_pem =
+      IO.iodata_to_binary(:public_key.pem_encode([{:Certificate, unrelated_der, :not_encrypted}]))
+
+    bundle_path =
+      Path.join(System.tmp_dir!(), "ca-bundle-#{System.unique_integer([:positive])}.pem")
+
+    File.write!(bundle_path, unrelated_pem <> File.read!(ca_cert_path))
+    on_exit(fn -> File.rm(bundle_path) end)
+
+    transport = PetstoreClient.TransportOptions.new(ca_cert_path: bundle_path)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+  end
+
   # TLS verification is on by default: the fixture server's certificate is
   # signed by a CA the system does not trust, so the handshake must fail.
   test "bhv transport 025 verify_ssl=true without the fixture CA rejects the server certificate" do

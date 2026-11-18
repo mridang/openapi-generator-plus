@@ -81,6 +81,70 @@ defmodule PetstoreClient.ComposedSchemaTest do
 
       assert serialized =~ "dry"
     end
+
+    test "bhv unions 029 oneOf wrappers have value equality and a matching hash" do
+      json = ~s({"foodType":"dry","weightKg":2.5})
+      first = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+      second = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+
+      other =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"foodType":"dry","weightKg":3.0}),
+          "PetFood"
+        )
+
+      assert first == second
+      assert :erlang.phash2(first) == :erlang.phash2(second)
+      refute first == other
+    end
+
+    test "bhv unions 030 a subtype whose discriminator key is absent is filled with the mapping default" do
+      result = PetstoreClient.ObjectSerializer.deserialize(~s({"weightKg":2.5}), "DryFood")
+
+      assert %PetstoreClient.Models.DryFood{} = result
+      assert result.food_type == "dry"
+    end
+
+    test "bhv unions 032 a oneOf wrapper built from a variant holds that variant and serializes it with its discriminator" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+
+      wrapped = PetstoreClient.Models.PetFood.from_dry_food(dry)
+
+      assert wrapped == dry
+      assert PetstoreClient.Models.PetFood.dry_food?(wrapped)
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(wrapped))["foodType"] ==
+               "dry"
+    end
+
+    test "bhv unions 033 an unknown, missing or empty discriminator fails with the SDK's serialization error" do
+      for json <- [
+            ~s({"foodType":"raw","calories":300}),
+            ~s({"weightKg":2.5}),
+            ~s({"foodType":"","weightKg":2.5})
+          ] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+        end
+      end
+    end
+
+    test "bhv unions 034 a oneOf wrapper's typed accessor returns the held variant and nothing for the other variant" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+      wrapped = PetstoreClient.Models.PetFood.from_dry_food(dry)
+
+      assert PetstoreClient.Models.PetFood.as_dry_food(wrapped) == dry
+      assert PetstoreClient.Models.PetFood.as_wet_food(wrapped) == nil
+    end
+
+    test "bhv unions 035 a discriminator value not listed in the mapping fails to deserialize" do
+      # Mapping keys are matched exactly, so a case-different value is unlisted.
+      json = ~s({"foodType":"DRY","weightKg":2.5})
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+      end
+    end
   end
 
   # -- anyOf without discriminator: PetTreatment --
