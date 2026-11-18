@@ -706,3 +706,6 @@ ruby | misc233 | the SDK writes a cookie value as the caller gives it (to_cookie
 dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
 kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
+ruby | misc256 | ruby writes a protobuf duration fraction at a fixed three-digit width, so 1.1s is written as 1.100s (see bhv_serializationobject_179) and trailing zeros are not trimmed
+ruby | misc267 | ruby's DefaultApiClient builds its own HTTP connection from TransportOptions and accepts no caller-supplied HTTP client, so there are no caller client default headers to send (default headers come from TransportOptions, see bhv_transport_011)
+ruby | misc268 | The fixture certificate names every host the test helpers reach it by (localhost, 127.0.0.1, chasm and the host gateway), so no reachable address is missing from its names and a hostname mismatch cannot be produced
