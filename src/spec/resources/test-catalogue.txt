@@ -2009,3 +2009,4 @@ langswift064 | A duration string with a unit designator such as days is rejected
 langswift065 | A value that construction accepts but that is not an absolute URI is refused when decoded
 langswift066 | An integer beyond the 64-bit range is rejected at decode
 langswift067 | A nested array of integers with a wrongly typed element is rejected
+langswift068 | A server configuration description defaults to an empty string
