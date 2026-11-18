@@ -704,3 +704,6 @@ java | misc149 | The Java copy method takes only the generated typed setters, so
 dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
 kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
+dart | misc231 | Dart's typed constructor takes an int for quantity, so a fractional number cannot be passed in code and the compiler refuses it before any run-time check
+dart | misc241 | Dart has no time-of-day type: a format: time property is a String passed through unchanged (serializationobject164), so there is no HH:mm:ss or millisecond truncation to test
+dart | misc242 | Dart sends a readOnly or writeOnly property like any other, as the generated model documents (models/model.mustache), so these properties do have a wire effect
