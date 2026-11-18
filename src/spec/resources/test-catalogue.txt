@@ -2019,6 +2019,14 @@ langswift074 | Each documentation comment in the generated sources is one contig
 langswift075 | A redirect chain that finishes inside the timeout budget completes with its final response
 ||||||| cef6fbad1
 ||||||| 33b2fa75d
+||||||| f622b5d59
+langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
+langnode002 | An error constructor accepts an optional cause
+langnode003 | Reading an error's message property returns the rendered text
+langnode004 | An error's message is null when no message was given
+langnode005 | A status maps to its exception class and keeps the response context
+langnode006 | A fallback error built from a response records the request it answers
+||||||| cef6fbad1
 langelixir001 | A server variable keeps its declared enum values after construction, so they can be checked later.
 langelixir002 | A server variable must declare a default value, and omitting it is an error.
 langelixir003 | An array body where an object is expected raises a serialization error rather than an access error.
@@ -2604,3 +2612,5 @@ langcsharp045 | An operation with no parameters or security leaves transport set
 langcsharp046 | An operation with no parameters or security has no auth field in its options
 langcsharp047 | A per-call timeout of zero is refused when the call is built
 langcsharp048 | A discovery endpoint served in clear text is rejected unless it is a loopback address
+langnode007 | A key location rejects a value with a carriage return, line feed or NUL
+langnode008 | A key location rejects an empty or whitespace-only key with a fixed message
