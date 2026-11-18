@@ -340,3 +340,102 @@ test('bhv lifecycle 016 with token fails when the token is empty', function (): 
     expect(fn () => {{clientClassName}}::withToken('{{{basePath}}}', ''))
         ->toThrow(\InvalidArgumentException::class);
 });
+
+test('bhv mocking 001 every group has an interface the class implements', function (): void {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect(is_subclass_of(\{{apiPackage}}\{{classname}}::class, \{{apiPackage}}\{{classname}}Interface::class))->toBeTrue();
+    ${{clientPropertyName}}Listed = get_class_methods(\{{apiPackage}}\{{classname}}Interface::class);
+{{#operation}}
+    expect(${{clientPropertyName}}Listed)->toContain('{{operationId}}')->toContain('{{operationId}}WithHttpInfo');
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+/**
+ * @param class-string $class
+ * @return list<string>
+ */
+function declaredPublicMethodNames(string $class): array
+{
+    $names = [];
+    foreach ((new \ReflectionClass($class))->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+        if ($method->class === $class && !$method->isConstructor()) {
+            $names[] = $method->getName();
+        }
+    }
+    sort($names);
+
+    return $names;
+}
+
+test('bhv mocking 002 the group interface lists exactly the public operations of the class', function (): void {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect(declaredPublicMethodNames(\{{apiPackage}}\{{classname}}Interface::class))
+        ->toBe(declaredPublicMethodNames(\{{apiPackage}}\{{classname}}::class));
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+test('bhv mocking 007 the client interface exposes every group typed as its interface and close', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+
+    expect($client)->toBeInstanceOf(\{{invokerPackage}}\{{clientClassName}}Interface::class);
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $returnType = (new \ReflectionMethod(\{{invokerPackage}}\{{clientClassName}}Interface::class, 'get{{clientAccessorSuffix}}'))->getReturnType();
+    assert($returnType instanceof \ReflectionNamedType);
+    expect($returnType->getName())->toBe(\{{apiPackage}}\{{classname}}Interface::class);
+    expect($client->get{{clientAccessorSuffix}}())->toBe($client->{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    $client->close();
+
+    expect(fn () => $client->pet->getPetById(1))->toThrow(\LogicException::class, 'closed');
+});
+
+test('bhv mocking 008 a client built from fakes never connects and closes without error', function (): void {
+    $fake = new class implements \{{invokerPackage}}\{{clientClassName}}Interface {
+        public int $closed = 0;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        public function get{{clientAccessorSuffix}}(): \{{apiPackage}}\{{classname}}Interface
+        {
+            $group = fakeGroup(\{{apiPackage}}\{{classname}}Interface::class);
+            assert($group instanceof \{{apiPackage}}\{{classname}}Interface);
+
+            return $group;
+        }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        public function close(): void
+        {
+            $this->closed++;
+        }
+    };
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect($fake->get{{clientAccessorSuffix}}())->toBeInstanceOf(\{{apiPackage}}\{{classname}}Interface::class);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    $fake->close();
+    $fake->close();
+
+    expect($fake->closed)->toBe(2);
+});

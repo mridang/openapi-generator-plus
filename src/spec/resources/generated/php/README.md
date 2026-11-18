@@ -165,6 +165,45 @@ follow from PSR-18 being a deliberately minimal, send-only contract:
   you build it. The options still honoured are the request-data ones: default
   headers, User-Agent, and X-Request-ID.
 
+### Testing your code
+
+Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```php
+<?php
+
+use PetstoreClient\Api\PetApiInterface;
+use PetstoreClient\ClientInterface;
+
+// Code under test takes the group interface, never the generated class.
+function useGroup(PetApiInterface $api): void
+{
+}
+
+// A fake is any class that implements the interface; this one is generated once for every
+// group and records each call it receives.
+function fake(string $interface): object
+{
+    $methods = '';
+    foreach ((new ReflectionClass($interface))->getMethods() as $method) {
+        $params = [];
+        foreach ($method->getParameters() as $param) {
+            $default = $param->isDefaultValueAvailable() ? ' = ' . var_export($param->getDefaultValue(), true) : '';
+            $params[] = ($param->getType() === null ? '' : $param->getType() . ' ') . '$' . $param->getName() . $default;
+        }
+        $returnType = $method->hasReturnType() ? ': ' . $method->getReturnType() : '';
+        $body = (string) $method->getReturnType() === 'void' ? '$this->calls[] = __FUNCTION__;' : 'throw new LogicException();';
+        $methods .= 'public function ' . $method->getName() . '(' . implode(', ', $params) . ')' . $returnType . ' { ' . $body . ' }';
+    }
+
+    return eval('return new class implements \\' . ltrim($interface, '\\') . ' { public array $calls = []; ' . $methods . ' };');
+}
+
+useGroup(fake(PetApiInterface::class));
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; generate the fake from the interface as above, or extend a base fake, so only the operation you fake is written.
+
 ## Build
 
 ```bash

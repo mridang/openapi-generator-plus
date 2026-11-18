@@ -1762,3 +1762,73 @@ test('bhv operations 033 deprecation markers sit on every variant of a deprecate
         expect($doc)->toContain('@deprecated This operation is deprecated.');
     }
 });
+
+// -- Mocking: a hand-written fake of the group stands in for the real class --
+
+/** Code under test: it takes the group interface, never the generated class. */
+function lookUpPet(\PetstoreClient\Api\PetApiInterface $group, int $id): \PetstoreClient\Models\Pet
+{
+    return $group->getPetById($id);
+}
+
+function classifyLookupError(callable $call): string
+{
+    try {
+        $call();
+
+        return 'none';
+    } catch (NotFoundException) {
+        return 'not found';
+    } catch (ApiException) {
+        return 'api error';
+    }
+}
+
+function fakePet(): \PetstoreClient\Models\Pet
+{
+    return new \PetstoreClient\Models\Pet('fake', new \Ds\Set());
+}
+
+test('bhv mocking 003 a fake is accepted where the interface is accepted and receives the arguments', function (): void {
+    $fake = fakeGroup(\PetstoreClient\Api\PetApiInterface::class, null, fakePet());
+    assert($fake instanceof \PetstoreClient\Api\PetApiInterface);
+
+    $pet = lookUpPet($fake, 42);
+
+    expect($pet->name)->toBe('fake');
+    expect($fake->calls)->toHaveCount(1);
+    expect($fake->calls[0][1][0])->toBe(42);
+});
+
+test('bhv mocking 004 a fake raises the typed error and the caller handles it like the real clients', function (): void {
+    $fake = fakeGroup(\PetstoreClient\Api\PetApiInterface::class, new NotFoundException('missing'));
+    assert($fake instanceof \PetstoreClient\Api\PetApiInterface);
+    $real = newPetApiForMock(404, 'application/json', '{"message":"Pet not found"}');
+
+    expect(classifyLookupError(fn () => lookUpPet($fake, 1)))->toBe('not found');
+    expect(classifyLookupError(fn () => lookUpPet($real, 1)))->toBe(classifyLookupError(fn () => lookUpPet($fake, 1)));
+    expect(fn () => lookUpPet($fake, 1))->toThrow(ApiException::class);
+});
+
+test('bhv mocking 005 an operation called through the interface sends the same request as the class call', function (): void {
+    $api = $this->api;
+    $viaInterface = $api;
+    assert($viaInterface instanceof \PetstoreClient\Api\PetApiInterface);
+
+    $direct = $api->getPetByIdWithHttpInfo(1);
+    $through = $viaInterface->getPetByIdWithHttpInfo(1);
+
+    expect($through->statusCode)->toBe($direct->statusCode);
+    expect($through->rawBody)->toBe($direct->rawBody);
+    expect($through->data?->id)->toBe($direct->data?->id);
+});
+
+test('bhv mocking 006 a call without the per-call options reaches the full signature with none set', function (): void {
+    $fake = fakeGroup(\PetstoreClient\Api\PetApiInterface::class, null, fakePet());
+    assert($fake instanceof \PetstoreClient\Api\PetApiInterface);
+
+    lookUpPet($fake, 7);
+
+    expect($fake->calls)->toHaveCount(1);
+    expect($fake->calls[0][1])->toBe([7, null, null]);
+});

@@ -47,7 +47,7 @@ use PetstoreClient\Api\StoreApi;
  * @category Class
  * @package  PetstoreClient
  */
-class Client
+class Client implements \PetstoreClient\ClientInterface
 {
     /** @var ApiClient The transport every API group sends through. */
     private readonly ApiClient $sdkTransport;
@@ -221,6 +221,24 @@ class Client
         $this->pet = new PetApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
         $this->problems = new ProblemsApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
         $this->store = new StoreApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
+    }
+
+    /** The API operations of the PetApi group, the interface form of `$pet`. */
+    public function getPet(): PetApi
+    {
+        return $this->pet;
+    }
+
+    /** The API operations of the ProblemsApi group, the interface form of `$problems`. */
+    public function getProblems(): ProblemsApi
+    {
+        return $this->problems;
+    }
+
+    /** The API operations of the StoreApi group, the interface form of `$store`. */
+    public function getStore(): StoreApi
+    {
+        return $this->store;
     }
 
     /**

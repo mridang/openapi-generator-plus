@@ -302,6 +302,9 @@ Why: WONTFIX, see the known-thin gates in the shared file.
 Where: `makefile.mustache`, `PhpFormattingSpec`, `PhpModernizationSpec`.
 Test: the two specs.
 
+### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
+Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `<Group>ApiInterface` and `ClientInterface` (one file each, PSR-4), with `get<Group>()` accessors beside the `readonly` properties because interface properties need PHP 8.4. `ClientInterface` is not the PSR-18 `Psr\Http\Client\ClientInterface`: `Client.php` imports the PSR one, so it names ours by its full name. The tests build fakes with `fakeGroup()` in `tests/bootstrap.php`, which generates a class from the interface with reflection and `eval`. Tests: tests/ClientTest.mustache (001, 002, 007, 008), tests/api/PetApiTest.mustache (003 to 006), tests/bootstrap.php (the fake builder). Where: the templates named above, `BetterPhpCodegen`, the README template (`Testing your code`), `docs/languages/php.md`.
+
 ## Decisions taken in batch 6
 
 ### Float text is the shortest round-trip form

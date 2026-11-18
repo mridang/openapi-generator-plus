@@ -51,7 +51,7 @@ use PetstoreClient\Api\Options\UploadPetDocumentOptions;
  * @see https://example.com/docs/pets Find out more about pets (it's *_/ here)
  * on two lines
  */
-class PetApi extends BaseApi
+class PetApi extends BaseApi implements PetApiInterface
 {
     /**
      * Add a new pet to the store

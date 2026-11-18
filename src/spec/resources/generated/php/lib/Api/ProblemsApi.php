@@ -31,7 +31,7 @@ use PetstoreClient\Api\Options\TakeLockOptions;
  * ProblemsApi provides methods for the Problems API group.
  * Operations that declare typed error responses
  */
-class ProblemsApi extends BaseApi
+class ProblemsApi extends BaseApi implements ProblemsApiInterface
 {
     /**
      * Read a fallback, declaring a default response
