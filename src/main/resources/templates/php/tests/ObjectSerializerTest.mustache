@@ -106,7 +106,7 @@ test('bhv serializationobject 168 to query value csv keeps slot for null element
     expect(ObjectSerializer::toQueryValue([1, null, 3]))->toBe('1,,3');
 });
 
-test('to query value csv explicit keeps slot for null element', function (): void {
+test('bhv serializationparam 115 a csv query array keeps an empty slot for a null element', function (): void {
     expect(ObjectSerializer::toQueryValue([1, null, 3], 'csv'))->toBe('1,,3');
 });
 
@@ -763,7 +763,7 @@ test('bhv serializationobject 089 deserialize throws on int overflow', function 
 
 // -- 4.6 deep map-of-model deserialization --
 
-test('deep deserialize map of model values into typed instances', function (): void {
+test('bhv serializationobject 229 deserializing a map of models returns a model instance for each value', function (): void {
     /* Without 4.6 qualification, recursive deserialize sees the
      * unqualified 'Category' short name, class_exists() returns
      * false, and the map values come back as raw arrays instead
@@ -1994,6 +1994,24 @@ test('bhv serializationobject 014 a readOnly property is decoded from a response
     expect($account->username)->toBe('ada');
 });
 
+test('bhv serializationobject 231 deserializing a payload that omits optional fields leaves them unset', function (): void {
+    $account = ObjectSerializer::deserialize('{"username":"ada"}', Account::class);
+
+    expect($account)->toBeInstanceOf(Account::class);
+    assert($account instanceof Account);
+    expect($account->id)->toBeNull();
+    expect($account->password)->toBeNull();
+});
+
+test('bhv serializationobject 230 a time value survives a stringify and parse round trip', function (): void {
+    $original = new \DateTimeImmutable('07:30:15');
+    $wire = json_encode(ObjectSerializer::formatTime($original));
+    /** @var \DateTimeImmutable $restored */
+    $restored = ObjectSerializer::deserialize($wire, \DateTimeImmutable::class);
+
+    expect($restored->format('H:i:s'))->toBe('07:30:15');
+});
+
 test('bhv serializationobject 018 a writeOnly property is serialized', function (): void {
     $json = ObjectSerializer::serialize(new Account('ada', null, 'hunter2'));
 
@@ -2091,7 +2109,7 @@ test('bhv serializationobject 173 uri-reference field still accepts a relative r
     expect($item->thumbnailRef)->toBe('/assets/thumb.png');
 });
 
-test('model external docs description reaches the doc comment unescaped', function (): void {
+test('bhv serializationobject 227 a model externalDocs description is documented verbatim without html entities', function (): void {
     $doc = (new \ReflectionClass(Account::class))->getDocComment();
     expect($doc)->toBe("/**\n * @see https://example.com/docs/account Account <docs> & \"notes\" it's here\n */");
 });

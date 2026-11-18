@@ -768,6 +768,10 @@ test('bhv serializationwire 044 multipart filename non ascii emits rfc 5987', fu
     expect($directive)->toStartWith('filename="');
 });
 
+test('bhv serializationwire 061 a multipart filename with an embedded quote is backslash escaped', function (): void {
+    expect(DefaultApiClient::buildFilenameDirective('a"b.txt'))->toBe('filename="a\\"b.txt"');
+});
+
 test('bhv serializationwire 041 multipart filename ascii only omits filename star', function (): void {
     $directive = DefaultApiClient::buildFilenameDirective('file.png');
     expect($directive)->toBe('filename="file.png"');
@@ -1902,7 +1906,7 @@ test('bhv serializationwire 048 multipart primitive parts are plain text and onl
     expect(substr_count($capturedBody, 'Content-Type:'))->toBe(1);
 });
 
-test('keeps an allowReserved query value byte for byte', function (): void {
+test('bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire', function (): void {
     $capturedUrl = '';
     $mockClient = new MockHttpClient(
         function (string $method, string $url) use (&$capturedUrl): MockResponse {
