@@ -3853,6 +3853,35 @@ class ObjectSerializerTest {
             assertNotEquals(TextMapHolder(mapOf("k" to "v")), TextMapHolder(mapOf("k" to "w")))
         }
     }
+
+    @Test
+    fun bhvMisc287WireKeyAdditionalPropertiesIsKeptAsAnExtra() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"additional_properties\":\"kept\"}")
+            assertEquals("kept", meta!!.additionalProperties["additional_properties"])
+        }
+
+    @Test
+    fun bhvMisc288SnakeCaseInputKeyAtTopLevelIsCapturedAsAnExtra() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"snake_key\":\"v\"}")
+            assertEquals("v", meta!!.additionalProperties["snake_key"])
+        }
+
+    @Test
+    fun bhvMisc289SnakeCaseInputKeyInsideAListElementIsCapturedAsAnExtra() =
+        runBlocking<Unit> {
+            val holder = serializer.deserialize<MetadataHolder>("{\"metas\":[{\"snake_key\":\"v\"}]}")
+            assertEquals("v", holder!!.metas!![0].additionalProperties["snake_key"])
+        }
+
+    @Test
+    fun bhvMisc290UndeclaredDictionaryValueSurvivesARoundTrip() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"nested\":{\"a\":1}}")
+            val back = serializer.deserialize<com.example.petstore.models.Metadata>(serializer.serialize(meta))
+            assertEquals(meta!!.additionalProperties["nested"], back!!.additionalProperties["nested"])
+        }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.
