@@ -1972,8 +1972,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         // the typeMapping layer to avoid collateral damage with `long`
         // and `integer`; we override at the property level here.
         final boolean isPlainNumber =
-                property.isNumber && (property.dataFormat == null);
-        final boolean isStringDecimal = "decimal".equals(property.dataFormat);
+                (property.isNumber || "number".equals(property.openApiType))
+                        && (property.dataFormat == null || "decimal".equals(property.dataFormat))
+                        && !"string".equals(property.openApiType);
+        final boolean isStringDecimal =
+                "decimal".equals(property.dataFormat) && !isPlainNumber;
         if (isPlainNumber || isStringDecimal) {
             property.dataType = "Decimal";
             property.datatypeWithEnum = "Decimal";

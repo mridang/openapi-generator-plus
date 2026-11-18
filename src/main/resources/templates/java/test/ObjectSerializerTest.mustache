@@ -2398,7 +2398,8 @@ class ObjectSerializerTest {
     class NativeValueFormatTests {
 
         private {{modelPackage}}.NativeValues decode(String json) {
-            return serializer.deserialize(json, {{modelPackage}}.NativeValues.class);
+            return java.util.Objects.requireNonNull(
+                    serializer.deserialize(json, {{modelPackage}}.NativeValues.class));
         }
 
         @Test
