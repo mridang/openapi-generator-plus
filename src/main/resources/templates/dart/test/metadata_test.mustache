@@ -358,6 +358,46 @@ void main() {
       expect(first.hashCode, equals(second.hashCode));
     });
 
+    test('bhv equality 001 models built from the same values are equal and a nested change makes them unequal', () {
+      final first = Metadata(
+        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        additionalProperties: {
+          'tags': ['a', 'b'],
+          'limits': {'max': 3},
+        },
+      );
+      final same = Metadata(
+        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        additionalProperties: {
+          'tags': ['a', 'b'],
+          'limits': {'max': 3},
+        },
+      );
+      final changedList = Metadata(
+        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        additionalProperties: {
+          'tags': ['a', 'c'],
+          'limits': {'max': 3},
+        },
+      );
+      final changedMap = Metadata(
+        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        additionalProperties: {
+          'tags': ['a', 'b'],
+          'limits': {'max': 4},
+        },
+      );
+      final Object? nothing = null;
+      final Object other = 'metadata';
+
+      expect(first, equals(same));
+      expect(first.hashCode, equals(same.hashCode));
+      expect(first, isNot(equals(changedList)));
+      expect(first, isNot(equals(changedMap)));
+      expect(first == other, isFalse);
+      expect(first == nothing, isFalse);
+    });
+
     test('toString dumps the fields and the additionalProperties map', () {
       final metadata = Metadata(
         createdAt: DateTime.utc(2024, 1, 15, 10, 30),
