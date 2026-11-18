@@ -1,0 +1,15 @@
+{{>api_info}}
+import 'server_exception.dart';
+
+/// Exception for HTTP 501 Not Implemented.
+class NotImplementedException extends ServerException {
+  const NotImplementedException({
+    super.message = '',
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  }) : super(statusCode: 501);
+}

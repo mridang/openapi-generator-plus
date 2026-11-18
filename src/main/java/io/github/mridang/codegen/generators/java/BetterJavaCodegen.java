@@ -511,6 +511,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("reflect_config.mustache", nativeImageFolder, "reflect-config.json"),
             new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".java"),
             new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.java"),
+            new SupportingFileSpec("errors/ErrorFactory.mustache", errorsFolder, "ErrorFactory.java"),
             new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.java"),
             new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.java"),
             new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.java"),
@@ -521,6 +522,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.java"),
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.java"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.java"),
+            new SupportingFileSpec("errors/PaymentRequiredException.mustache", errorsFolder, "PaymentRequiredException.java"),
+            new SupportingFileSpec("errors/MethodNotAllowedException.mustache", errorsFolder, "MethodNotAllowedException.java"),
+            new SupportingFileSpec("errors/RequestTimeoutException.mustache", errorsFolder, "RequestTimeoutException.java"),
+            new SupportingFileSpec("errors/GoneException.mustache", errorsFolder, "GoneException.java"),
+            new SupportingFileSpec("errors/PayloadTooLargeException.mustache", errorsFolder, "PayloadTooLargeException.java"),
+            new SupportingFileSpec("errors/UnsupportedMediaTypeException.mustache", errorsFolder, "UnsupportedMediaTypeException.java"),
+            new SupportingFileSpec("errors/LockedException.mustache", errorsFolder, "LockedException.java"),
+            new SupportingFileSpec("errors/NotImplementedException.mustache", errorsFolder, "NotImplementedException.java"),
+            new SupportingFileSpec("errors/BadGatewayException.mustache", errorsFolder, "BadGatewayException.java"),
+            new SupportingFileSpec("errors/ServiceUnavailableException.mustache", errorsFolder, "ServiceUnavailableException.java"),
+            new SupportingFileSpec("errors/GatewayTimeoutException.mustache", errorsFolder, "GatewayTimeoutException.java"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.java"),
             new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.java"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.java"),
@@ -897,6 +909,32 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     protected boolean setsDiscriminatorParent() {
         return true;
+    }
+
+    /**
+     * Builds the argument list a classic allOf child passes to its base
+     * constructor: the base's own properties, in the base's order, read from
+     * the child's builder. A required non-nullable property is checked here,
+     * so the base constructor can take it as non-null.
+     */
+    @Override
+    protected void decorateClassicDiscriminatorChild(
+            final CodegenModel child, final CodegenModel base) {
+        final List<String> args = new ArrayList<>();
+        for (final CodegenProperty property : base.vars) {
+            final String value = "builder." + property.name;
+            if (property.required && !property.isNullable) {
+                args.add(
+                        "java.util.Objects.requireNonNull("
+                                + value
+                                + ", \""
+                                + property.name
+                                + " is required\")");
+            } else {
+                args.add(value);
+            }
+        }
+        child.vendorExtensions.put("superArgs", String.join(", ", args));
     }
 
     /** {@inheritDoc} */
@@ -1641,6 +1679,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/SchemaException.mustache";
+    }
+
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, sourceFolder, invokerPackage.replace('.', '/'), "errors", className + ".java")
+                .toString();
+    }
+
     @Override
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         return Path.of(

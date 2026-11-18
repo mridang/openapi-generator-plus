@@ -149,6 +149,7 @@ describe 'Client' do
     client = Petstore::Client::Petstore.new(authenticator)
 
     _(client.pet).wont_be_nil
+    _(client.problems).wont_be_nil
     _(client.store).wont_be_nil
   end
 

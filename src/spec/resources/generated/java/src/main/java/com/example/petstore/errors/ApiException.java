@@ -184,11 +184,12 @@ public class ApiException extends OpenAPIException {
   /**
    * Map an HTTP response that was not a success to the exception for its status.
    *
-   * <p>400, 401, 403, 404, 409 and 422 map to their named {@link ClientException} subclasses and
-   * any other 4xx to {@link ClientException}; 500 maps to {@link InternalServerErrorException} and
-   * any other 5xx to {@link ServerException}; any other status maps to {@code ApiException} itself.
-   * A JSON body is decoded and exposed through {@link #getErrorBody()}; a body that is not JSON
-   * leaves the error body {@code null}.
+   * <p>400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named
+   * {@link ClientException} subclasses and any other 4xx to {@link ClientException}; 500, 501, 502,
+   * 503 and 504 map to their named {@link ServerException} subclasses and any other 5xx to {@link
+   * ServerException}; any other status maps to {@code ApiException} itself. A JSON body is decoded
+   * and exposed through {@link #getErrorBody()}; a body that is not JSON leaves the error body
+   * {@code null}.
    *
    * @param statusCode the HTTP status code of the response
    * @param responseHeaders the HTTP response headers, if available
@@ -226,8 +227,129 @@ public class ApiException extends OpenAPIException {
     return build(requestMethod, requestPath, statusCode, responseHeaders, responseBody);
   }
 
+  /**
+   * Map an HTTP response that was not a success to the exception for its status, using the error
+   * schemas the operation declares.
+   *
+   * <p>When {@code errorSchemas} has a factory for the status (an exact status first, then a {@code
+   * 4XX} or {@code 5XX} range, then {@code default}), the factory builds the exception of that
+   * error schema. A body that does not match the schema never hides the real error: the factory
+   * then returns the status exception of {@link #fromResponse(String, String, int, Map, String)}
+   * with the raw body and the decoding failure as its cause. Without a factory the result is the
+   * one of that method.
+   *
+   * @param requestMethod the HTTP method of the request
+   * @param requestPath the path or URL of the request; a query string is stripped
+   * @param statusCode the HTTP status code of the response
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param errorSchemas the operation's error factories by declared status, or null
+   * @return the exception for the status; the caller throws it
+   */
+  public static ApiException fromResponse(
+      String requestMethod,
+      String requestPath,
+      int statusCode,
+      @Nullable Map<String, String> responseHeaders,
+      @Nullable String responseBody,
+      @Nullable Map<String, ErrorFactory> errorSchemas) {
+    if (errorSchemas != null) {
+      ErrorFactory factory = errorSchemas.get(String.valueOf(statusCode));
+      if (factory == null && statusCode >= 400 && statusCode < 500) {
+        factory = errorSchemas.get("4XX");
+      }
+      if (factory == null && statusCode >= 500 && statusCode < 600) {
+        factory = errorSchemas.get("5XX");
+      }
+      if (factory == null) {
+        factory = errorSchemas.get("default");
+      }
+      if (factory != null) {
+        return factory.create(
+            requestMethod, requestPath, statusCode, responseHeaders, responseBody);
+      }
+    }
+    return build(requestMethod, requestPath, statusCode, responseHeaders, responseBody);
+  }
+
+  /**
+   * Decode a response body as the schema an operation declares for an error status.
+   *
+   * @param body the raw response body
+   * @param type the model class of the declared schema
+   * @param <T> the model type
+   * @return the decoded body
+   * @throws SerializationException if the body does not match the schema
+   */
+  static <T> T decodeErrorBody(String body, Class<T> type) {
+    T decoded = ERROR_BODY_SERIALIZER.deserialize(body, type);
+    if (decoded == null) {
+      throw new SerializationException("Error body is empty");
+    }
+    return decoded;
+  }
+
+  /**
+   * The status exception for a response whose body did not match its declared schema: the same
+   * exception {@link #fromResponse(String, String, int, Map, String)} gives, with the decoding
+   * failure as its cause.
+   *
+   * @param requestMethod the HTTP method of the request
+   * @param requestPath the path or URL of the request
+   * @param statusCode the HTTP status code of the response
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param cause why the body could not be decoded
+   * @return the status exception, carrying the raw body and the cause
+   */
+  static ApiException statusFallback(
+      String requestMethod,
+      String requestPath,
+      int statusCode,
+      @Nullable Map<String, String> responseHeaders,
+      @Nullable String responseBody,
+      Throwable cause) {
+    ApiException fallback =
+        build(requestMethod, requestPath, statusCode, responseHeaders, responseBody);
+    if (fallback.getCause() == null) {
+      fallback.initCause(cause);
+    }
+    return fallback;
+  }
+
+  /**
+   * Whether repeating the request can succeed: the status is 408, 409, 429 or a 5xx other than 501,
+   * the statuses the client itself retries.
+   *
+   * @return true for a status that is worth retrying
+   */
+  public boolean isRetryable() {
+    return statusCode == 408
+        || statusCode == 409
+        || statusCode == 429
+        || (statusCode >= 500 && statusCode < 600 && statusCode != 501);
+  }
+
+  /**
+   * The request id the server sent in the {@code x-request-id} response header.
+   *
+   * @return the request id, or null when the header is absent
+   */
+  @Nullable
+  public String getRequestId() {
+    if (responseHeaders == null) {
+      return null;
+    }
+    for (Map.Entry<String, String> header : responseHeaders.entrySet()) {
+      if ("x-request-id".equalsIgnoreCase(header.getKey())) {
+        return header.getValue();
+      }
+    }
+    return null;
+  }
+
   /** The path of a request path or URL, without its scheme, host, query string or fragment. */
-  private static String stripQuery(String pathOrUrl) {
+  static String stripQuery(String pathOrUrl) {
     String path = pathOrUrl;
     int end = path.length();
     int query = path.indexOf('?');
@@ -329,6 +451,69 @@ public class ApiException extends OpenAPIException {
                 null,
                 requestMethod,
                 requestPath);
+        case 402 ->
+            new PaymentRequiredException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 405 ->
+            new MethodNotAllowedException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 408 ->
+            new RequestTimeoutException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 410 ->
+            new GoneException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 413 ->
+            new PayloadTooLargeException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 415 ->
+            new UnsupportedMediaTypeException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 423 ->
+            new LockedException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
         default ->
             new ClientException(
                 statusCode,
@@ -342,18 +527,63 @@ public class ApiException extends OpenAPIException {
       };
     }
     if (statusCode >= 500 && statusCode < 600) {
-      return statusCode == 500
-          ? new InternalServerErrorException(
-              message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
-          : new ServerException(
-              statusCode,
-              message,
-              responseHeaders,
-              responseBody,
-              errorBody,
-              null,
-              requestMethod,
-              requestPath);
+      return switch (statusCode) {
+        case 500 ->
+            new InternalServerErrorException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 501 ->
+            new NotImplementedException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 502 ->
+            new BadGatewayException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 503 ->
+            new ServiceUnavailableException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        case 504 ->
+            new GatewayTimeoutException(
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+        default ->
+            new ServerException(
+                statusCode,
+                message,
+                responseHeaders,
+                responseBody,
+                errorBody,
+                null,
+                requestMethod,
+                requestPath);
+      };
     }
     return new ApiException(
         statusCode,

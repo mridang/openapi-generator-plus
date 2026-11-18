@@ -82,6 +82,7 @@ test('bhv lifecycle 001 api groups are accessible', function (): void {
     $client = new Client($this->authenticator);
 
     expect($client->pet)->toBeInstanceOf(\PetstoreClient\Api\PetApi::class);
+    expect($client->problems)->toBeInstanceOf(\PetstoreClient\Api\ProblemsApi::class);
     expect($client->store)->toBeInstanceOf(\PetstoreClient\Api\StoreApi::class);
 });
 
@@ -110,6 +111,8 @@ test('injected api client is wired into every api group', function (): void {
 
     $property = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))->getProperty('apiClient');
     expect($property->getValue($client->pet))->toBe($stub);
+    $property = (new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))->getProperty('apiClient');
+    expect($property->getValue($client->problems))->toBe($stub);
     $property = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))->getProperty('apiClient');
     expect($property->getValue($client->store))->toBe($stub);
 });
@@ -165,6 +168,11 @@ test('bhv lifecycle 013 close on a client that built its own transport rejects l
 
     $property = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))->getProperty('apiClient');
     $transport = $property->getValue($client->pet);
+    assert($transport instanceof ApiClient);
+    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
+        ->toThrow(\LogicException::class, 'closed');
+    $property = (new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))->getProperty('apiClient');
+    $transport = $property->getValue($client->problems);
     assert($transport instanceof ApiClient);
     expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
         ->toThrow(\LogicException::class, 'closed');
@@ -270,6 +278,9 @@ test('bhv transport 081 a supplied psr18 client receives the request from every 
     $clients[] = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))
         ->getProperty('apiClient')
         ->getValue($client->pet);
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))
+        ->getProperty('apiClient')
+        ->getValue($client->problems);
     $clients[] = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))
         ->getProperty('apiClient')
         ->getValue($client->store);

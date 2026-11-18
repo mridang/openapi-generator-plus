@@ -135,10 +135,11 @@ enum {{classname}} {
 @Deprecated('This schema is deprecated.')
 {{/isDeprecated}}
 {{#vars}}
+{{^vendorExtensions.dartInherited}}
 {{#isEnum}}
 {{#isInteger}}
 /// Typed integer enum for {{classname}}.{{name}}.
-enum {{classname}}{{enumName}} {
+enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
   /// Represents the value {{{value}}}.
@@ -148,13 +149,13 @@ enum {{classname}}{{enumName}} {
   ;
 
   final int value;
-  const {{classname}}{{enumName}}(this.value);
+  const {{vendorExtensions.dartOwner}}{{enumName}}(this.value);
 
   /// Returns the enum value matching the given [value], or throws.
-  static {{classname}}{{enumName}} fromJson(int value) {
-    return {{classname}}{{enumName}}.values.firstWhere(
+  static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(int value) {
+    return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{classname}}{{enumName}} value: $value'),
+      orElse: () => throw ArgumentError('Unknown {{vendorExtensions.dartOwner}}{{enumName}} value: $value'),
     );
   }
 
@@ -168,7 +169,7 @@ enum {{classname}}{{enumName}} {
 {{^isInteger}}
 {{#isLong}}
 /// Typed integer enum for {{classname}}.{{name}}.
-enum {{classname}}{{enumName}} {
+enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
   /// Represents the value {{{value}}}.
@@ -178,13 +179,13 @@ enum {{classname}}{{enumName}} {
   ;
 
   final int value;
-  const {{classname}}{{enumName}}(this.value);
+  const {{vendorExtensions.dartOwner}}{{enumName}}(this.value);
 
   /// Returns the enum value matching the given [value], or throws.
-  static {{classname}}{{enumName}} fromJson(int value) {
-    return {{classname}}{{enumName}}.values.firstWhere(
+  static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(int value) {
+    return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{classname}}{{enumName}} value: $value'),
+      orElse: () => throw ArgumentError('Unknown {{vendorExtensions.dartOwner}}{{enumName}} value: $value'),
     );
   }
 
@@ -197,7 +198,7 @@ enum {{classname}}{{enumName}} {
 {{/isLong}}
 {{^isLong}}
 /// Typed enum for {{classname}}.{{name}}.
-enum {{classname}}{{enumName}} {
+enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
   /// Represents the value {{{value}}}.
@@ -207,13 +208,13 @@ enum {{classname}}{{enumName}} {
   ;
 
   final String value;
-  const {{classname}}{{enumName}}(this.value);
+  const {{vendorExtensions.dartOwner}}{{enumName}}(this.value);
 
   /// Returns the enum value matching the given [value], or throws.
-  static {{classname}}{{enumName}} fromJson(String value) {
-    return {{classname}}{{enumName}}.values.firstWhere(
+  static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(String value) {
+    return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{classname}}{{enumName}} value: $value'),
+      orElse: () => throw ArgumentError('Unknown {{vendorExtensions.dartOwner}}{{enumName}} value: $value'),
     );
   }
 
@@ -226,9 +227,11 @@ enum {{classname}}{{enumName}} {
 {{/isLong}}
 {{/isInteger}}
 {{/isEnum}}
+{{/vendorExtensions.dartInherited}}
 {{/vars}}
-class {{classname}} {
+{{#vendorExtensions.dartAllOfBase}}abstract {{/vendorExtensions.dartAllOfBase}}class {{classname}}{{#vendorExtensions.dartAllOfChild}} extends {{vendorExtensions.dartAllOfParent}}{{/vendorExtensions.dartAllOfChild}} {
 {{#vars}}
+{{^vendorExtensions.dartInherited}}
 {{#description}}
   /// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
@@ -256,12 +259,13 @@ class {{classname}} {
   @Deprecated('This property is deprecated.')
 {{/deprecated}}
 {{#vendorExtensions.strictRequired}}
-  final {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
+  final {{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
 {{/vendorExtensions.strictRequired}}
 {{^vendorExtensions.strictRequired}}
-  final {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}};
+  final {{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}};
 {{/vendorExtensions.strictRequired}}
 
+{{/vendorExtensions.dartInherited}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
   /// Additional properties not defined in the schema.
@@ -273,14 +277,14 @@ class {{classname}} {
 {{#vars}}
 {{#required}}
 {{#isEnum}}
-    required this.{{name}},
+    required {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}},
 {{/isEnum}}
 {{^isEnum}}
 {{#defaultValue}}
-    this.{{name}} = {{{defaultValue}}},
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}} = {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
-    required this.{{name}},
+    required {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}},
 {{/defaultValue}}
 {{/isEnum}}
 {{/required}}
@@ -295,18 +299,18 @@ class {{classname}} {
      * default — i.e. the exact identifier the typed enum declares above — so
      * a non-lowercase wire value (e.g. `IN_STOCK`) still references a real
      * variant rather than a re-camelcased copy of the literal. */
-    this.{{name}} = {{classname}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}} = {{vendorExtensions.dartOwner}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
 {{/defaultValue}}
 {{^defaultValue}}
-    this.{{name}},
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}},
 {{/defaultValue}}
 {{/isEnum}}
 {{^isEnum}}
 {{#defaultValue}}
-    this.{{name}} = {{{defaultValue}}},
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}} = {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
-    this.{{name}},
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}},
 {{/defaultValue}}
 {{/isEnum}}
 {{/required}}
@@ -327,6 +331,27 @@ class {{classname}} {
 {{/isAdditionalPropertiesTrue}}
 {{/hasVars}}
 
+  {{#vendorExtensions.dartAllOfBase}}
+  /// Decodes the subtype that the discriminator value names. A payload without the
+  /// discriminator, or with a value no mapping lists, is a [SerializationException].
+  factory {{classname}}.fromJson(Map<String, dynamic> json) {
+    final disc = json['{{discriminator.propertyBaseName}}'];
+    if (disc == null) {
+      throw SerializationException(
+          "Missing discriminator property '{{discriminator.propertyBaseName}}' in payload for {{classname}}");
+    }
+    switch (disc) {
+{{#vendorExtensions.dartSubtypes}}
+      case '{{{mappingName}}}':
+        return {{{modelName}}}.fromJson(json);
+{{/vendorExtensions.dartSubtypes}}
+      default:
+        throw SerializationException(
+            "Discriminator value '$disc' on '{{discriminator.propertyBaseName}}' is not listed in the schema mapping for {{classname}}");
+    }
+  }
+  {{/vendorExtensions.dartAllOfBase}}
+  {{^vendorExtensions.dartAllOfBase}}
   /// Creates a [{{classname}}] from a JSON map.
   factory {{classname}}.fromJson(Map<String, dynamic> json) {
 {{#isAdditionalPropertiesTrue}}
@@ -419,14 +444,14 @@ class {{classname}} {
 {{#vendorExtensions.strictRequired}}
 {{#isEnum}}
 {{#isInteger}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
 {{/isInteger}}
 {{^isInteger}}
 {{#isLong}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
 {{/isLong}}
 {{^isLong}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'),
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'),
 {{/isLong}}
 {{/isInteger}}
 {{/isEnum}}
@@ -537,10 +562,10 @@ class {{classname}} {
       /* Cross-cutting `default-applies-only-when-absent`: apply the enum
          default solely when the key is OMITTED; an explicit `null` is
          preserved as null per the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{classname}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{vendorExtensions.dartOwner}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
 {{/defaultValue}}
 {{^defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
 {{/defaultValue}}
 {{/isInteger}}
 {{^isInteger}}
@@ -549,10 +574,10 @@ class {{classname}} {
       /* Cross-cutting `default-applies-only-when-absent`: apply the enum
          default solely when the key is OMITTED; an explicit `null` is
          preserved as null per the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{classname}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{vendorExtensions.dartOwner}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
 {{/defaultValue}}
 {{^defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
 {{/defaultValue}}
 {{/isLong}}
 {{^isLong}}
@@ -560,10 +585,10 @@ class {{classname}} {
       /* Cross-cutting `default-applies-only-when-absent`: apply the enum
          default solely when the key is OMITTED; an explicit `null` is
          preserved as null per the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null) : {{classname}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null) : {{vendorExtensions.dartOwner}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
 {{/defaultValue}}
 {{^defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
 {{/defaultValue}}
 {{/isLong}}
 {{/isInteger}}
@@ -698,8 +723,10 @@ class {{classname}} {
     }
   }
 
+  {{/vendorExtensions.dartAllOfBase}}
   /// Converts this [{{classname}}] to a JSON map.
-  Map<String, dynamic> toJson() {
+{{#vendorExtensions.dartAllOfChild}}  @override
+{{/vendorExtensions.dartAllOfChild}}  Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
 {{#vars}}
 {{#vendorExtensions.strictRequired}}
@@ -899,6 +926,7 @@ class {{classname}} {
     return json;
   }
 
+{{^vendorExtensions.dartAllOfBase}}
 {{#hasVars}}
   /// Returns a copy of this [{{classname}}] with the given fields replaced.
   ///
@@ -908,7 +936,7 @@ class {{classname}} {
   {{classname}} copyWith({
 {{#vars}}
 {{#vendorExtensions.strictRequired}}
-    {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}},
+    {{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}},
 {{/vendorExtensions.strictRequired}}
 {{^vendorExtensions.strictRequired}}
     Object? {{name}} = copyUnset,
@@ -924,7 +952,7 @@ class {{classname}} {
       {{name}}: {{name}} ?? this.{{name}},
 {{/vendorExtensions.strictRequired}}
 {{^vendorExtensions.strictRequired}}
-      {{name}}: copyField<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>({{name}}, this.{{name}}),
+      {{name}}: copyField<{{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>({{name}}, this.{{name}}),
 {{/vendorExtensions.strictRequired}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -944,7 +972,7 @@ class {{classname}} {
   {{classname}} copyWith({
 {{#vars}}
 {{#vendorExtensions.strictRequired}}
-    {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}},
+    {{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}},
 {{/vendorExtensions.strictRequired}}
 {{^vendorExtensions.strictRequired}}
     Object? {{name}} = copyUnset,
@@ -960,7 +988,7 @@ class {{classname}} {
       {{name}}: {{name}} ?? this.{{name}},
 {{/vendorExtensions.strictRequired}}
 {{^vendorExtensions.strictRequired}}
-      {{name}}: copyField<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>({{name}}, this.{{name}}),
+      {{name}}: copyField<{{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>({{name}}, this.{{name}}),
 {{/vendorExtensions.strictRequired}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -971,6 +999,7 @@ class {{classname}} {
 
 {{/isAdditionalPropertiesTrue}}
 {{/hasVars}}
+{{/vendorExtensions.dartAllOfBase}}
   /// Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including the
   /// additionalProperties map){{/isAdditionalPropertiesTrue}}. List, Map and Uint8List
   /// fields are compared element-wise via `DeepCollectionEquality` (Dart's

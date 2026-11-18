@@ -56,7 +56,14 @@ defmodule {{moduleName}}.Errors.ClientError do
     {{moduleName}}.Errors.NotFoundError,
     {{moduleName}}.Errors.ConflictError,
     {{moduleName}}.Errors.UnprocessableEntityError,
-    {{moduleName}}.Errors.TooManyRequestsError
+    {{moduleName}}.Errors.TooManyRequestsError,
+    {{moduleName}}.Errors.PaymentRequiredError,
+    {{moduleName}}.Errors.MethodNotAllowedError,
+    {{moduleName}}.Errors.RequestTimeoutError,
+    {{moduleName}}.Errors.GoneError,
+    {{moduleName}}.Errors.PayloadTooLargeError,
+    {{moduleName}}.Errors.UnsupportedMediaTypeError,
+    {{moduleName}}.Errors.LockedError
   ]
 
   @doc """
@@ -64,6 +71,6 @@ defmodule {{moduleName}}.Errors.ClientError do
   specialise it, `false` otherwise.
   """
   @spec client_error?(term()) :: boolean()
-  def client_error?(%module{}), do: module in @family
+  def client_error?(%module{} = error), do: module in @family or ApiError.specialises?(error, __MODULE__)
   def client_error?(_term), do: false
 end

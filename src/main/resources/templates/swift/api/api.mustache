@@ -105,6 +105,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/-last}}
 {{/consumes}}
 {{/vendorExtensions.op.signatureArgs.0}}
+{{>api/operation_doc_throws}}
 {{#allParams}}
 {{#vendorExtensions.pluralExamples}}
     ///
@@ -137,6 +138,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the {{operationId}} operation and returns the full API result.
+{{>api/operation_doc_throws}}
 {{#isDeprecated}}
     @available(*, deprecated, message: "This operation is deprecated.")
 {{/isDeprecated}}
@@ -493,7 +495,12 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             rawBody: true{{/isBinary}}{{/bodyParam}}{{#vendorExtensions.op.hasOptionsObject}},
             timeout: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}timeout,
             requestHeaders: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}headers,
-            maxRetries: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}maxRetries{{/vendorExtensions.op.hasOptionsObject}}
+            maxRetries: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}maxRetries{{/vendorExtensions.op.hasOptionsObject}}{{#vendorExtensions.op.hasErrorSchemaResponses}},
+            errorSchemas: [
+{{#vendorExtensions.op.errorSchemaResponses}}
+                "{{status}}": {{{schemaClassName}}}.fromErrorResponse{{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+            ]{{/vendorExtensions.op.hasErrorSchemaResponses}}
         )
 
 {{#returnType}}

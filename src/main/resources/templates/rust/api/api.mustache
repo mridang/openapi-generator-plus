@@ -146,6 +146,14 @@ impl {{classname}} {
 {{#isOptions}}    /// * `options`: Options for query, header, form, and cookie parameters.
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasErrorResponses}}
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+{{#vendorExtensions.op.errorResponses}}
+    /// * HTTP {{status}}: {{#hasSchema}}[`{{{schemaClassName}}}`](crate::errors::{{{schemaClassName}}}), a {{{statusClassName}}} with a [`{{{schemaName}}}`](crate::models::{{{schemaName}}}) body{{/hasSchema}}{{^hasSchema}}[`{{{statusClassName}}}`](crate::errors::{{{statusClassName}}}){{/hasSchema}}
+{{/vendorExtensions.op.errorResponses}}
+{{/vendorExtensions.op.hasErrorResponses}}
 {{#allParams}}{{#vendorExtensions.pluralExamples}}    /// ### `{{paramName}}` — {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
     /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
     /// ```json
@@ -908,6 +916,16 @@ impl {{classname}} {
             content_type: request_content_type,
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+            error_schemas: &[
+{{#vendorExtensions.op.errorSchemaResponses}}
+                ("{{{status}}}", crate::errors::{{{schemaClassName}}}::from_error_response as crate::errors::api_error::ErrorFactory),
+{{/vendorExtensions.op.errorSchemaResponses}}
+            ],
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.hasErrorSchemaResponses}}
+            error_schemas: &[],
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
 {{#hasAuthMethods}}
             /* Secured operation: pass the resolved per-call authenticator (or
              * None for no override, which lets BaseApi fall back to the

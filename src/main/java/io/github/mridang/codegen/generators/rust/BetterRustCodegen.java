@@ -9,7 +9,9 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.EnvVarNames;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.servers.Server;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,6 +21,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,6 +35,7 @@ import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenResponse;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
@@ -50,6 +54,11 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("unused")
 public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
+
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRustCodegen.class);
 
@@ -589,6 +598,28 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec(
                         "errors/conflict_error.mustache", "src/errors", "conflict_error.rs"),
                 new SupportingFileSpec(
+                        "errors/payment_required_error.mustache", "src/errors", "payment_required_error.rs"),
+                new SupportingFileSpec(
+                        "errors/method_not_allowed_error.mustache", "src/errors", "method_not_allowed_error.rs"),
+                new SupportingFileSpec(
+                        "errors/request_timeout_error.mustache", "src/errors", "request_timeout_error.rs"),
+                new SupportingFileSpec(
+                        "errors/gone_error.mustache", "src/errors", "gone_error.rs"),
+                new SupportingFileSpec(
+                        "errors/payload_too_large_error.mustache", "src/errors", "payload_too_large_error.rs"),
+                new SupportingFileSpec(
+                        "errors/unsupported_media_type_error.mustache", "src/errors", "unsupported_media_type_error.rs"),
+                new SupportingFileSpec(
+                        "errors/locked_error.mustache", "src/errors", "locked_error.rs"),
+                new SupportingFileSpec(
+                        "errors/not_implemented_error.mustache", "src/errors", "not_implemented_error.rs"),
+                new SupportingFileSpec(
+                        "errors/bad_gateway_error.mustache", "src/errors", "bad_gateway_error.rs"),
+                new SupportingFileSpec(
+                        "errors/service_unavailable_error.mustache", "src/errors", "service_unavailable_error.rs"),
+                new SupportingFileSpec(
+                        "errors/gateway_timeout_error.mustache", "src/errors", "gateway_timeout_error.rs"),
+                new SupportingFileSpec(
                         "errors/unprocessable_entity_error.mustache",
                         "src/errors",
                         "unprocessable_entity_error.rs"),
@@ -945,6 +976,29 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * A classic allOf base is realised as a discriminated union of its
+     * subtypes, as a oneOf with a discriminator is: Rust structs cannot be
+     * subclassed, and a flat base struct could not hold the subtype a
+     * discriminator names. Once the shared pass has marked the base, its mapped
+     * subtypes become its {@code oneOf} set, so the union template emits the
+     * enum, the payload per subtype and the hand-written dispatch that rejects
+     * an unknown or missing discriminator (S4, issue #104). Each subtype struct
+     * keeps every field, including the discriminator, which its own constructor
+     * sets to the mapping value, so a subtype serializes its discriminator.
+     */
+    private static void makeClassicBaseUnion(final org.openapitools.codegen.CodegenModel model) {
+        if (!Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
+            return;
+        }
+        final Set<String> variants = new LinkedHashSet<>();
+        for (final CodegenDiscriminator.MappedModel mapped :
+                model.discriminator.getMappedModels()) {
+            variants.add(mapped.getModelName());
+        }
+        model.oneOf = variants;
+    }
+
+    /**
      * Recomputes {@code hasDefaultedOptionalVars} once the discriminator
      * defaults have been injected. {@link #postProcessModels} runs per model,
      * before the base class's {@code postProcessAllModels} marks the
@@ -956,9 +1010,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
+                makeClassicBaseUnion(modelMap.getModel());
                 modelMap.put(
                         "hasDefaultedOptionalVars", hasDefaultedOptionalVars(modelMap.getModel()));
             }
+            /* The classic base's union members are set just above, so the glob
+             * decision is taken again here, once they are known. */
+            modelsMap.put("hasModelImports", hasSiblingModelReference(modelsMap));
         }
         return result;
     }
@@ -1019,23 +1077,74 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             && model.vars != null
                             && model.vars.stream().anyMatch(v -> v.isPassword));
         }
-        /* `use super::*;` only earns its place when the file names another
-         * generated model unqualified. The import list also carries collection
-         * and library types (`Vec<u8>`, `std::collections::HashMap`,
-         * `crate::date_time::DateTime`), which the templates already write
-         * out in full, so only a bare identifier counts. */
-        result.put(
-                "hasModelImports",
-                result.getImports().stream()
-                        .map(entry -> entry.get("import"))
-                        .filter(Objects::nonNull)
-                        .map(
-                                name ->
-                                        name.startsWith("models.")
-                                                ? name.substring("models.".length())
-                                                : name)
-                        .anyMatch(MODEL_IMPORT.asMatchPredicate()));
+        result.put("hasModelImports", hasSiblingModelReference(result));
         return result;
+    }
+
+    /**
+     * Decides whether a model file needs {@code use super::*;}, which brings the sibling
+     * models it names into scope.
+     *
+     * <p>A union names its members, so a union with a generated model as a member needs
+     * the glob. The generator also imports an allOf parent into each subtype, but the
+     * subtype file never writes the parent's name, so the parent counts only when a
+     * property of the file also names it. The import list carries collection and library
+     * types ({@code Vec<u8>}, {@code std::collections::HashMap}), which the templates
+     * write out in full, so only a bare identifier counts.
+     */
+    private boolean hasSiblingModelReference(final org.openapitools.codegen.model.ModelsMap result) {
+        final Set<String> parents = new HashSet<>();
+        final Set<String> identifiersInProperties = new HashSet<>();
+        for (final ModelMap modelMap : result.getModels()) {
+            final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+            if (model.parent != null) {
+                parents.add(model.parent);
+            }
+            if (namesAModelMember(model)) {
+                return true;
+            }
+            for (final org.openapitools.codegen.CodegenProperty property : model.allVars) {
+                final java.util.regex.Matcher matcher =
+                        MODEL_IMPORT.matcher(String.valueOf(property.dataType));
+                while (matcher.find()) {
+                    identifiersInProperties.add(matcher.group());
+                }
+            }
+        }
+        return result.getImports().stream()
+                .map(entry -> entry.get("import"))
+                .filter(Objects::nonNull)
+                .map(
+                        name ->
+                                name.startsWith("models.")
+                                        ? name.substring("models.".length())
+                                        : name)
+                .filter(MODEL_IMPORT.asMatchPredicate())
+                .anyMatch(name -> !parents.contains(name) || identifiersInProperties.contains(name));
+    }
+
+    /**
+     * True when a union's enum names one of its members as a generated model. A oneOf
+     * or anyOf of primitives ({@code Vec<u8>}) names no model and needs no glob, so only
+     * members flagged {@code isModel} count. A classic allOf base names its mapped
+     * subtypes, which {@link #makeClassicBaseUnion} sets before this check runs.
+     */
+    private static boolean namesAModelMember(final org.openapitools.codegen.CodegenModel model) {
+        if (model.getComposedSchemas() != null) {
+            final List<org.openapitools.codegen.CodegenProperty> members = new ArrayList<>();
+            if (model.getComposedSchemas().getOneOf() != null) {
+                members.addAll(model.getComposedSchemas().getOneOf());
+            }
+            if (model.getComposedSchemas().getAnyOf() != null) {
+                members.addAll(model.getComposedSchemas().getAnyOf());
+            }
+            if (members.stream().anyMatch(member -> member.isModel)) {
+                return true;
+            }
+        }
+        return Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))
+                && model.discriminator != null
+                && !model.discriminator.getMappedModels().isEmpty();
     }
 
     /**
@@ -1671,6 +1780,78 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                 && !parameter.items.complexType.isEmpty()
                                 && !parameter.items.isDate
                                 && !parameter.items.isDateTime));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(getOutputDir(), "src", "errors", NamingConvention.SNAKE_CASE.apply(className) + ".rs")
+                .toString();
+    }
+
+    /**
+     * Gives every distinct error schema the file stem of its error type ({@code snakeName}), for
+     * the {@code mod} declarations of the errors module.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final Object schemas = objs.get("errorSchemas");
+        if (schemas instanceof List) {
+            for (final Object schema : (List<Object>) schemas) {
+                if (schema instanceof Map) {
+                    final Map<String, Object> row = (Map<String, Object>) schema;
+                    row.put(
+                            "snakeName",
+                            NamingConvention.SNAKE_CASE.apply(Objects.requireNonNull((String) row.get("className"))));
+                }
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
+     * A response that names a model renamed by {@link #toModelName} (a schema called
+     * {@code Result}) still carries the raw schema name as its data type; every place that spells
+     * the return type or a declared error body then names the prelude item instead of the model.
+     */
+    @Override
+    public CodegenOperation fromOperation(
+            String path, String httpMethod, Operation operation, List<Server> servers) {
+        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        op.returnType = renamePreludeModels(op.returnType);
+        op.returnBaseType = renamePreludeModels(op.returnBaseType);
+        if (op.responses != null) {
+            for (final CodegenResponse response : op.responses) {
+                response.dataType = renamePreludeModels(response.dataType);
+                response.baseType = renamePreludeModels(response.baseType);
+            }
+        }
+        return op;
+    }
+
+    /**
+     * Points every whole-word mention of a renamed prelude model in a type at the renamed model.
+     *
+     * @param type a Rust type such as {@code Result} or {@code Vec<Result>}, or null
+     * @return the type with each renamed model spelled as the generator names it
+     */
+    @Nullable
+    static String renamePreludeModels(@Nullable String type) {
+        if (type == null) {
+            return null;
+        }
+        String renamed = type;
+        for (final String prelude : RUST_PRELUDE_TYPES) {
+            renamed = renamed.replaceAll("(?<![\\w:])" + prelude + "(?![\\w<])", "Model" + prelude);
+        }
+        return renamed;
     }
 
     /** {@inheritDoc} */

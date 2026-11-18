@@ -484,6 +484,58 @@ class ComposedSchemaTest {
     }
 
     @Nested
+    @DisplayName("allOf with discriminator - Vehicle and Shape")
+    inner class AllOfDiscriminatorTests {
+        @Test
+        @DisplayName("bhvUnions301 an allOf base decodes to the subtype its explicit mapping names")
+        fun testExplicitMappingDecodesTheSubtype() {
+            val result =
+                json.decodeFromString<Vehicle>(
+                    """{"vehicleType":"car","plate":"AB-12","doorCount":4}""",
+                )
+
+            assertTrue(result is Car)
+            assertEquals("AB-12", result.plate)
+            assertEquals(4, (result as Car).doorCount)
+            val truck = json.decodeFromString<Vehicle>("""{"vehicleType":"truck","plate":"T-1"}""")
+            assertTrue(truck is Truck)
+        }
+
+        @Test
+        @DisplayName("bhvUnions302 an allOf base decodes to the subtype its implicit schema name names")
+        fun testImplicitMappingDecodesTheSubtype() {
+            val result = json.decodeFromString<Shape>("""{"shapeType":"Circle","radius":1.5}""")
+
+            assertTrue(result is Circle)
+            assertEquals(1.5, (result as Circle).radius)
+        }
+
+        @Test
+        @DisplayName("bhvUnions303 an unknown allOf discriminator value fails and the error names it")
+        fun testUnknownDiscriminatorNamesTheValue() {
+            val serializer = com.example.petstore.ObjectSerializer()
+
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                    serializer.deserialize<Vehicle>("""{"vehicleType":"boat","plate":"B-1"}""")
+                }
+
+            val root = generateSequence<Throwable>(ex) { it.cause }.last()
+            assertTrue(root.message!!.contains("boat"), root.message)
+        }
+
+        @Test
+        @DisplayName("bhvUnions304 an allOf base payload without its discriminator fails")
+        fun testMissingDiscriminatorFails() {
+            val serializer = com.example.petstore.ObjectSerializer()
+
+            assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                serializer.deserialize<Vehicle>("""{"plate":"AB-12"}""")
+            }
+        }
+    }
+
+    @Nested
     @DisplayName("oneOf with format:byte variants - SetPetAvatarThumbnailRequest")
     inner class SetPetAvatarThumbnailRequestTests {
         // SetPetAvatarThumbnailRequest is a oneOf of [ a scalar format:byte value,

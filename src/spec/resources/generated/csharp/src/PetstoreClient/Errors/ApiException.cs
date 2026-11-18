@@ -17,9 +17,16 @@ namespace PetstoreClient.Errors;
 public class ApiException : OpenAPIException
 {
     public int StatusCode { get; }
-    public string? ResponseBody { get; }
-    public Dictionary<string, string>? ResponseHeaders { get; private init; }
-    public object? ErrorBody { get; }
+    public string? ResponseBody { get; private set; }
+    public Dictionary<string, string>? ResponseHeaders { get; private set; }
+
+    private object? errorBody;
+
+    /// <summary>
+    /// The decoded error body. A status exception holds the parsed JSON; the
+    /// exception of a declared error schema overrides this with its model type.
+    /// </summary>
+    public virtual object? ErrorBody => errorBody;
 
     /// <summary>
     /// The HTTP method of the request that failed, for example <c>GET</c>, or
@@ -84,15 +91,45 @@ public class ApiException : OpenAPIException
         StatusCode = statusCode;
         ResponseHeaders = responseHeaders;
         ResponseBody = responseBody;
-        ErrorBody = errorBody;
+        this.errorBody = errorBody;
+    }
+
+    /// <summary>
+    /// Whether repeating the request can succeed: the status is 408, 409, 429 or a
+    /// 5xx other than 501, the statuses the client itself retries.
+    /// </summary>
+    public bool IsRetryable =>
+        StatusCode is 408 or 409 or 429 || (StatusCode is >= 500 and < 600 and not 501);
+
+    /// <summary>
+    /// The request id the server sent in the <c>x-request-id</c> response header, or
+    /// null when the header is absent.
+    /// </summary>
+    public string? RequestId
+    {
+        get
+        {
+            if (ResponseHeaders is null)
+            {
+                return null;
+            }
+            foreach (KeyValuePair<string, string> header in ResponseHeaders)
+            {
+                if (string.Equals(header.Key, "x-request-id", StringComparison.OrdinalIgnoreCase))
+                {
+                    return header.Value;
+                }
+            }
+            return null;
+        }
     }
 
     /// <summary>
     /// Maps an HTTP response that was not a success to the exception for its
-    /// status: 400, 401, 403, 404, 409, 422 and 429 map to their named
+    /// status: 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named
     /// <see cref="ClientException"/> subclasses and any other 4xx to
-    /// <see cref="ClientException"/>; 500 maps to
-    /// <see cref="InternalServerErrorException"/> and any other 5xx to
+    /// <see cref="ClientException"/>; 500, 501, 502, 503 and 504
+    /// map to their named <see cref="ServerException"/> subclasses and any other 5xx to
     /// <see cref="ServerException"/>; any other status maps to
     /// <see cref="ApiException"/> itself. A JSON body is parsed into
     /// <see cref="ErrorBody"/>; a body that is not JSON leaves it null.
@@ -109,6 +146,122 @@ public class ApiException : OpenAPIException
         string? responseBody,
         string? requestMethod = null,
         string? requestPath = null
+    )
+    {
+        return Build(statusCode, responseHeaders, responseBody, requestMethod, requestPath, null);
+    }
+
+    /// <summary>
+    /// Maps an HTTP response that was not a success to the exception for its
+    /// status, using the error schemas the operation declares.
+    ///
+    /// When <paramref name="errorSchemas"/> has a factory for the status (an exact
+    /// status first, then a <c>4XX</c> or <c>5XX</c> range, then <c>default</c>),
+    /// the factory builds the exception of that error schema. A body that does not
+    /// match the schema never hides the real error: the factory then returns the
+    /// status exception with the raw body and the decoding failure as its inner
+    /// exception. Without a factory the result is the one of the overload without
+    /// a factory map.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code of the response.</param>
+    /// <param name="responseHeaders">The HTTP response headers, if available.</param>
+    /// <param name="responseBody">The raw HTTP response body, if available.</param>
+    /// <param name="requestMethod">The HTTP method of the request.</param>
+    /// <param name="requestPath">The path of the request without its query string.</param>
+    /// <param name="errorSchemas">The operation's error factories by declared status, or null.</param>
+    /// <returns>The exception for the status; the caller throws it.</returns>
+    public static ApiException FromResponse(
+        int statusCode,
+        IReadOnlyDictionary<string, string>? responseHeaders,
+        string? responseBody,
+        string? requestMethod,
+        string? requestPath,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas
+    )
+    {
+        if (errorSchemas is not null)
+        {
+            ErrorFactory? factory = null;
+            if (
+                !errorSchemas.TryGetValue(
+                    statusCode.ToString(CultureInfo.InvariantCulture),
+                    out factory
+                )
+            )
+            {
+                if (statusCode is >= 400 and < 500)
+                {
+                    errorSchemas.TryGetValue("4XX", out factory);
+                }
+                else if (statusCode is >= 500 and < 600)
+                {
+                    errorSchemas.TryGetValue("5XX", out factory);
+                }
+                if (factory is null)
+                {
+                    errorSchemas.TryGetValue("default", out factory);
+                }
+            }
+            if (factory is not null)
+            {
+                return factory(
+                    requestMethod ?? string.Empty,
+                    requestPath ?? string.Empty,
+                    statusCode,
+                    responseHeaders,
+                    responseBody
+                );
+            }
+        }
+        return Build(statusCode, responseHeaders, responseBody, requestMethod, requestPath, null);
+    }
+
+    /// <summary>
+    /// Decodes a response body as the schema an operation declares for an error status.
+    /// </summary>
+    /// <typeparam name="T">The model type of the declared schema.</typeparam>
+    /// <param name="body">The raw response body.</param>
+    /// <returns>The decoded body.</returns>
+    /// <exception cref="SerializationException">The body does not match the schema.</exception>
+    internal static T DecodeErrorBody<T>(string body)
+        where T : class
+    {
+        return new ObjectSerializer().Deserialize<T>(body)
+            ?? throw new SerializationException("Error body is empty");
+    }
+
+    /// <summary>
+    /// The status exception for a response whose body did not match its declared
+    /// schema: the same exception the plain <c>FromResponse</c> gives, with the
+    /// decoding failure as its inner exception.
+    /// </summary>
+    internal static ApiException StatusFallback(
+        int statusCode,
+        IReadOnlyDictionary<string, string>? responseHeaders,
+        string? responseBody,
+        string? requestMethod,
+        string? requestPath,
+        Exception cause
+    )
+    {
+        return Build(statusCode, responseHeaders, responseBody, requestMethod, requestPath, cause);
+    }
+
+    /// <summary>Records the request a built exception answers, once.</summary>
+    internal ApiException WithRequest(string? requestMethod, string? requestPath)
+    {
+        RequestMethod = string.IsNullOrEmpty(requestMethod) ? null : requestMethod;
+        RequestPath = string.IsNullOrEmpty(requestPath) ? null : StripQuery(requestPath);
+        return this;
+    }
+
+    private static ApiException Build(
+        int statusCode,
+        IReadOnlyDictionary<string, string>? responseHeaders,
+        string? responseBody,
+        string? requestMethod,
+        string? requestPath,
+        Exception? cause
     )
     {
         string message = $"API returned status code {statusCode}";
@@ -143,35 +296,81 @@ public class ApiException : OpenAPIException
             }
         }
 
-        ApiException built = statusCode switch
+        ApiException built;
+        if (cause is null)
         {
-            400 => new BadRequestException(message, headers, responseBody, errorBody),
-            401 => new UnauthorizedException(message, headers, responseBody, errorBody),
-            403 => new ForbiddenException(message, headers, responseBody, errorBody),
-            404 => new NotFoundException(message, headers, responseBody, errorBody),
-            409 => new ConflictException(message, headers, responseBody, errorBody),
-            422 => new UnprocessableEntityException(message, headers, responseBody, errorBody),
-            429 => new TooManyRequestsException(message, headers, responseBody, errorBody),
-            >= 400 and < 500 => new ClientException(
-                statusCode,
-                message,
-                headers,
-                responseBody,
-                errorBody
-            ),
-            500 => new InternalServerErrorException(message, headers, responseBody, errorBody),
-            >= 500 and < 600 => new ServerException(
-                statusCode,
-                message,
-                headers,
-                responseBody,
-                errorBody
-            ),
-            _ => new ApiException(statusCode, message, headers, responseBody, errorBody),
-        };
-        built.RequestMethod = string.IsNullOrEmpty(requestMethod) ? null : requestMethod;
-        built.RequestPath = string.IsNullOrEmpty(requestPath) ? null : StripQuery(requestPath);
-        return built;
+            built = statusCode switch
+            {
+                400 => new BadRequestException(message, headers, responseBody, errorBody),
+                401 => new UnauthorizedException(message, headers, responseBody, errorBody),
+                403 => new ForbiddenException(message, headers, responseBody, errorBody),
+                404 => new NotFoundException(message, headers, responseBody, errorBody),
+                409 => new ConflictException(message, headers, responseBody, errorBody),
+                422 => new UnprocessableEntityException(message, headers, responseBody, errorBody),
+                429 => new TooManyRequestsException(message, headers, responseBody, errorBody),
+                402 => new PaymentRequiredException(message, headers, responseBody, errorBody),
+                405 => new MethodNotAllowedException(message, headers, responseBody, errorBody),
+                408 => new RequestTimeoutException(message, headers, responseBody, errorBody),
+                410 => new GoneException(message, headers, responseBody, errorBody),
+                413 => new PayloadTooLargeException(message, headers, responseBody, errorBody),
+                415 => new UnsupportedMediaTypeException(message, headers, responseBody, errorBody),
+                423 => new LockedException(message, headers, responseBody, errorBody),
+                >= 400 and < 500 => new ClientException(
+                    statusCode,
+                    message,
+                    headers,
+                    responseBody,
+                    errorBody
+                ),
+                500 => new InternalServerErrorException(message, headers, responseBody, errorBody),
+                501 => new NotImplementedStatusException(message, headers, responseBody, errorBody),
+                502 => new BadGatewayException(message, headers, responseBody, errorBody),
+                503 => new ServiceUnavailableException(message, headers, responseBody, errorBody),
+                504 => new GatewayTimeoutException(message, headers, responseBody, errorBody),
+                >= 500 and < 600 => new ServerException(
+                    statusCode,
+                    message,
+                    headers,
+                    responseBody,
+                    errorBody
+                ),
+                _ => new ApiException(statusCode, message, headers, responseBody, errorBody),
+            };
+        }
+        else
+        {
+            /* The constructors that take a cause carry no headers or body, so the
+             * response is attached to the built exception afterwards. */
+            built = statusCode switch
+            {
+                400 => new BadRequestException(message, cause),
+                401 => new UnauthorizedException(message, cause),
+                403 => new ForbiddenException(message, cause),
+                404 => new NotFoundException(message, cause),
+                409 => new ConflictException(message, cause),
+                422 => new UnprocessableEntityException(message, cause),
+                429 => new TooManyRequestsException(message, cause),
+                402 => new PaymentRequiredException(message, cause),
+                405 => new MethodNotAllowedException(message, cause),
+                408 => new RequestTimeoutException(message, cause),
+                410 => new GoneException(message, cause),
+                413 => new PayloadTooLargeException(message, cause),
+                415 => new UnsupportedMediaTypeException(message, cause),
+                423 => new LockedException(message, cause),
+                >= 400 and < 500 => new ClientException(statusCode, message, cause),
+                500 => new InternalServerErrorException(message, cause),
+                501 => new NotImplementedStatusException(message, cause),
+                502 => new BadGatewayException(message, cause),
+                503 => new ServiceUnavailableException(message, cause),
+                504 => new GatewayTimeoutException(message, cause),
+                >= 500 and < 600 => new ServerException(statusCode, message, cause),
+                _ => new ApiException(statusCode, message, cause),
+            };
+            built.ResponseHeaders = headers;
+            built.ResponseBody = responseBody;
+            built.errorBody = errorBody;
+        }
+        return built.WithRequest(requestMethod, requestPath);
     }
 
     private static readonly char[] QueryDelimiters = ['?', '#'];

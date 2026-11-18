@@ -264,6 +264,10 @@ errors040 | Malformed request URL raises ArgumentError
 errors041 | Non-existent caCertPath throws ArgumentError at construction
 errors042 | Surfaces ApiError for an unsupported Content-Encoding
 errors043 | Wraps a body-read failure in NetworkException
+errors201 | An error is retryable exactly for the statuses the client retries | multi
+errors202 | An error exposes the x-request-id response header as its request id | multi
+errors203 | The error factory of an operation is chosen by exact status, then range, then default | multi
+errors204 | A body that does not match its declared error schema leaves the status error with the raw body and a cause
 headers001 | Defaults Content-Type to application/json when empty
 headers002 | Defaults Content-Type to application/json when nil
 headers003 | Does not reorder or prioritize JSON types
@@ -726,6 +730,7 @@ serializationobject178 | Wet subtype serialize auto-emits discriminator
 serializationobject179 | Whole-second datetime serializes with a fixed three-digit fraction
 serializationobject180 | Wrong primitive type throws SerializationException
 serializationobject181 | Zero Duration stringifies as 0s
+serializationobject301 | An allOf subtype writes its discriminator value when serialized
 serializationparam001 | A null array element keeps its empty slot | multi
 serializationparam002 | Allow reserved leaves reserved chars literal but still encodes others | multi
 serializationparam003 | Allow reserved still percent encodes non ascii
@@ -1402,3 +1407,8 @@ lifecycle037 | Closing a client while requests are in flight releases its resour
 lifecycle038 | A caller-supplied transport that offers no close operation is valid, and closing the client through the SDK succeeds, repeatedly, while requests keep being sent.
 lifecycle039 | Building a client with no host, or with an empty token, is refused at construction and returns no client, while a valid token builds one.
 lifecycle040 | Leaving a language's scoped-disposal construct for the client, or using its standard disposal hook, closes the client and releases its transport.
+unions301 | An allOf base decodes to the subtype its explicit discriminator mapping names
+unions302 | An allOf base decodes to the subtype its implicit schema name mapping names
+unions303 | An unknown allOf discriminator value fails and the error names the value
+unions304 | An allOf base payload without its discriminator fails
+errors205 | A decode failure of a response carries the status, the headers and the raw body

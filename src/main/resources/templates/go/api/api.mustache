@@ -146,6 +146,13 @@ var _ {{classname}}Interface = (*{{classname}})(nil)
 // Example for `{{paramName}}` — {{{summary}}}: {{{value}}}
 {{/vendorExtensions.pluralExamples}}
 {{/allParams}}
+{{#vendorExtensions.op.hasErrorResponses}}
+//
+// Declared errors:
+{{#vendorExtensions.op.errorResponses}}
+//   - HTTP {{status}}: *{{#hasSchema}}{{{schemaClassName}}}, whose Body is a {{{schemaName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}
+{{/vendorExtensions.op.errorResponses}}
+{{/vendorExtensions.op.hasErrorResponses}}
 //
 // {{httpMethod}} {{{path}}}
 {{#isDeprecated}}
@@ -555,6 +562,13 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		    per-call override (or nil for no-override), unchanged. }}
 		auth:         {{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{#hasAuthMethods}}nil{{/hasAuthMethods}},
 		schemes:      []string{ {{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}} },
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+		errorFactories: map[string]errorFactory{
+{{#vendorExtensions.op.errorSchemaResponses}}
+			"{{{status}}}": New{{{schemaClassName}}}FromResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+		},
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
 	})
 	if err != nil {
 		return nil, err
@@ -625,7 +639,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := {{#vendorExtensions.op.hasMultiple2xx}}decodeSuccess(response.StatusCode, []byte(response.Body), &data){{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}deserialize([]byte(response.Body), &data){{/vendorExtensions.op.hasMultiple2xx}}; err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "{{httpMethod}}", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -633,7 +647,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "{{httpMethod}}", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -644,7 +658,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for {{classname}}.{{operationId}}: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for {{classname}}.{{operationId}}: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "{{httpMethod}}", path)
 		}
 		dataPtr = &data
 	}

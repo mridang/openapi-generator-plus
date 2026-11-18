@@ -319,6 +319,17 @@ import Testing
     #expect(ConflictError(message: "x").statusCode == 409)
     #expect(UnprocessableEntityError(message: "x").statusCode == 422)
     #expect(TooManyRequestsError(message: "x").statusCode == 429)
+    #expect(PaymentRequiredError(message: "x").statusCode == 402)
+    #expect(MethodNotAllowedError(message: "x").statusCode == 405)
+    #expect(RequestTimeoutError(message: "x").statusCode == 408)
+    #expect(GoneError(message: "x").statusCode == 410)
+    #expect(PayloadTooLargeError(message: "x").statusCode == 413)
+    #expect(UnsupportedMediaTypeError(message: "x").statusCode == 415)
+    #expect(LockedError(message: "x").statusCode == 423)
+    #expect(NotImplementedError(message: "x").statusCode == 501)
+    #expect(BadGatewayError(message: "x").statusCode == 502)
+    #expect(ServiceUnavailableError(message: "x").statusCode == 503)
+    #expect(GatewayTimeoutError(message: "x").statusCode == 504)
     #expect(InternalServerError(message: "x").statusCode == 500)
     #expect(NotFoundError().statusCode == 404)
     let err = NotFoundError(message: "gone", responseBody: "{}", responseHeaders: ["a": "b"])
@@ -661,12 +672,107 @@ import Testing
       ConflictError(underlyingError: cause),
       UnprocessableEntityError(underlyingError: cause),
       TooManyRequestsError(underlyingError: cause),
+      PaymentRequiredError(underlyingError: cause),
+      MethodNotAllowedError(underlyingError: cause),
+      RequestTimeoutError(underlyingError: cause),
+      GoneError(underlyingError: cause),
+      PayloadTooLargeError(underlyingError: cause),
+      UnsupportedMediaTypeError(underlyingError: cause),
+      LockedError(underlyingError: cause),
+      NotImplementedError(underlyingError: cause),
+      BadGatewayError(underlyingError: cause),
+      ServiceUnavailableError(underlyingError: cause),
+      GatewayTimeoutError(underlyingError: cause),
       InternalServerError(underlyingError: cause),
     ]
     for error in errors {
       #expect((error.underlyingError as? URLError)?.code == .timedOut)
     }
     #expect(BadRequestError().underlyingError == nil)
+  }
+
+  // MARK: - Declared error schemas
+
+  /* The retry decision looks at the status only: the statuses the client retries. */
+  @Test func testBhvErrors201AnErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+    for status in [408, 409, 429, 500, 502, 503, 504, 599] {
+      let err = ApiError.fromResponse(statusCode: status, headers: [:], body: "")
+      #expect(err.isRetryable, "status \(status)")
+    }
+    for status in [302, 400, 401, 403, 404, 422, 501] {
+      let err = ApiError.fromResponse(statusCode: status, headers: [:], body: "")
+      #expect(!err.isRetryable, "status \(status)")
+    }
+    #expect(!NetworkError(statusCode: 0, message: "refused").isRetryable)
+  }
+
+  @Test func testBhvErrors202AnErrorExposesTheRequestIdHeaderAsItsRequestId() {
+    let upper = ApiError.fromResponse(statusCode: 500, headers: ["X-Request-ID": "abc"], body: "")
+    let lower = ApiError.fromResponse(statusCode: 500, headers: ["x-request-id": "abc"], body: "")
+    let other = ApiError.fromResponse(statusCode: 500, headers: ["other": "abc"], body: "")
+    #expect(upper.requestId == "abc")
+    #expect(lower.requestId == "abc")
+    #expect(other.requestId == nil)
+    #expect(ApiError(statusCode: 0, message: "no response").requestId == nil)
+  }
+
+  /* An operation hands its own map to the factory: the exact status wins over its range, and
+   * the range over the default; without a match the plain status error comes back. */
+  @Test func testBhvErrors203TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault()
+  {
+    func labelled(_ label: String) -> ErrorFactory {
+      return { status, headers, body, _, _ in
+        ApiError(statusCode: status, message: label, responseBody: body, responseHeaders: headers)
+      }
+    }
+    let factories: [String: ErrorFactory] = [
+      "404": labelled("exact"), "4XX": labelled("range"), "5XX": labelled("server range"),
+      "default": labelled("default"),
+    ]
+    func message(_ status: Int, _ schemas: [String: ErrorFactory]?) -> String {
+      return ApiError.fromResponse(
+        statusCode: status, headers: [:], body: "{}", requestMethod: "GET", requestPath: "/x",
+        errorSchemas: schemas
+      ).message
+    }
+    #expect(message(404, factories) == "exact")
+    #expect(message(418, factories) == "range")
+    #expect(message(503, factories) == "server range")
+    #expect(message(302, factories) == "default")
+    #expect(message(404, ["default": labelled("default")]) == "default")
+    let unmatched = ApiError.fromResponse(
+      statusCode: 502, headers: [:], body: "{}", requestMethod: "GET", requestPath: "/x",
+      errorSchemas: [:])
+    #expect(unmatched is BadGatewayError)
+    let without = ApiError.fromResponse(
+      statusCode: 404, headers: [:], body: "{}", requestMethod: "GET", requestPath: "/x",
+      errorSchemas: nil)
+    #expect(without is NotFoundError)
+  }
+
+  /* A body that does not match the declared schema never hides the real error. */
+  @Test
+  func
+    testBhvErrors204ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause()
+  {
+    let err = UnexpectedFailureError.fromErrorResponse(
+      statusCode: 400, headers: [:], body: "[1, 2", requestMethod: "GET", requestPath: "/x")
+    let status = ApiError.fromResponse(
+      statusCode: 400, headers: [:], body: "[1, 2", requestMethod: "GET", requestPath: "/x")
+
+    #expect(type(of: err) == type(of: status))
+    #expect(err.responseBody == "[1, 2")
+    #expect(err.statusCode == 400)
+    #expect(err.underlyingError != nil)
+  }
+
+  @Test func testASchemaErrorIsAStatusErrorWhoseTypedBodyIsNilUntilOneIsDecoded() {
+    let err = UnexpectedFailureError(statusCode: 400, message: "declared")
+
+    #expect(err.statusCode == 400)
+    #expect(err.message == "declared")
+    #expect(err.typedErrorBody == nil)
+    #expect(err.errorBody == nil)
   }
 
   @Test func testBhvErrors019SubclassConstructorsAcceptTheRequest() {

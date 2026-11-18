@@ -138,6 +138,10 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "dart", "environment", "dart platform detection used by the conditional imports");
     allow(ALLOWED_EXTRA, "dart", "environmentio", "dart:io platform detection");
     allow(ALLOWED_EXTRA, "dart", "environmentweb", "dart:html platform detection");
+    allow(ALLOWED_EXTRA, "csharp", "error:errorfactory", "csharp declares the factory that turns a declared error response into its typed error as its own type");
+    allow(ALLOWED_EXTRA, "java", "error:errorfactory", "java declares the factory that turns a declared error response into its typed error as its own type");
+    allow(ALLOWED_EXTRA, "kotlin", "error:errorfactory", "kotlin declares the factory that turns a declared error response into its typed error as its own type");
+    allow(ALLOWED_EXTRA, "swift", "error:errorfactory", "swift declares the factory that turns a declared error response into its typed error as its own type");
     allow(ALLOWED_EXTRA, "rust", "error:configuration", "rust error for an invalid client configuration");
     allow(ALLOWED_EXTRA, "swift", "error:configuration", "swift error for an invalid client configuration");
     allow(ALLOWED_EXTRA, "rust", "error:oauth2authorizationcode", "rust error of the authorization-code flow");

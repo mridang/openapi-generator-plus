@@ -17,11 +17,11 @@ from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
 from petstore_client.errors import OpenAPIException
 from petstore_client.errors import SerializationException
+from petstore_client.errors.bad_gateway_exception import BadGatewayException
 from petstore_client.errors.bad_request_exception import BadRequestException
 from petstore_client.errors.client_exception import ClientException
 from petstore_client.errors.conflict_exception import ConflictException
 from petstore_client.errors.forbidden_exception import ForbiddenException
-from petstore_client.errors.server_exception import ServerException
 from petstore_client.errors.unauthorized_exception import UnauthorizedException
 from petstore_client.errors.unprocessable_entity_exception import (
     UnprocessableEntityException,
@@ -248,7 +248,7 @@ class TestStoreApiErrorHandling:
             (409, ConflictException),
             (418, ClientException),
             (422, UnprocessableEntityException),
-            (502, ServerException),
+            (502, BadGatewayException),
         ],
     )
     async def test_bhv_operations_110_get_order_by_id_picks_the_status_specific_error_class(

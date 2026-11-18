@@ -165,6 +165,8 @@ public class StoreApi : BaseApi
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task DeleteOrderAsync(
         long orderId,
         DeleteOrderOptions? options = null,
@@ -187,6 +189,8 @@ public class StoreApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(
         long orderId,
         DeleteOrderOptions? options = null,
@@ -747,6 +751,8 @@ public class StoreApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<Order> GetOrderByIdAsync(
         long orderId,
         GetOrderByIdOptions? options = null,
@@ -791,6 +797,8 @@ public class StoreApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(
         long orderId,
         GetOrderByIdOptions? options = null,
@@ -1334,6 +1342,7 @@ public class StoreApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     public async Task<Order> PlaceOrderAsync(
         Order? order = null,
         PlaceOrderOptions? options = null,
@@ -1378,6 +1387,7 @@ public class StoreApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(
         Order? order = null,
         PlaceOrderOptions? options = null,
@@ -1416,6 +1426,7 @@ public class StoreApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[ReserveStockResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     public async Task<ReserveStockResponse> ReserveStockAsync(
         ReserveStockOptions? options = null,
         CancellationToken cancellationToken = default
@@ -1458,6 +1469,7 @@ public class StoreApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     public async Task<ApiResult<ReserveStockResponse>> ReserveStockWithHttpInfoAsync(
         ReserveStockOptions? options = null,
         CancellationToken cancellationToken = default

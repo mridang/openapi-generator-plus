@@ -54,4 +54,11 @@ defmodule PetstoreClient.Errors.InternalServerError do
   @impl true
   def message(%__MODULE__{} = error),
     do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+
+  @doc """
+  Returns `true` if `term` is an `InternalServerError` or an error generated for a declared error
+  schema that specialises it, `false` otherwise.
+  """
+  @spec internal_server_error?(term()) :: boolean()
+  def internal_server_error?(term), do: ApiError.specialises?(term, __MODULE__)
 end

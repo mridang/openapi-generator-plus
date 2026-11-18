@@ -16,6 +16,7 @@ import type { Authenticator } from "../src/auth/authenticator.js";
 import { ApiError } from "../src/errors/api-error.js";
 import { ClientError } from "../src/errors/client-error.js";
 import { ServerError } from "../src/errors/server-error.js";
+import { BadGatewayError } from "../src/errors/bad-gateway-error.js";
 import { BadRequestError } from "../src/errors/bad-request-error.js";
 import { UnauthorizedError } from "../src/errors/unauthorized-error.js";
 import { ForbiddenError } from "../src/errors/forbidden-error.js";
@@ -51,6 +52,7 @@ class CapturingApiClient implements ApiClient {
   capturedHeaders: Record<string, string> = {};
   capturedBody: string | Buffer | Record<string, unknown> | null = null;
   responseBody = "{}";
+  responseStatus = 200;
   responseHeaders: Record<string, string> = {
     "content-type": "application/json",
   };
@@ -64,7 +66,7 @@ class CapturingApiClient implements ApiClient {
     this.capturedHeaders = headers;
     this.capturedBody = body;
     return {
-      statusCode: 200,
+      statusCode: this.responseStatus,
       body: this.responseBody,
       headers: this.responseHeaders,
     };
@@ -202,7 +204,7 @@ describe("BaseApi", () => {
     [429, TooManyRequestsError],
     [418, ClientError],
     [500, InternalServerError],
-    [502, ServerError],
+    [502, BadGatewayError],
   ];
 
   test.each(cases)(
@@ -1722,8 +1724,8 @@ describe("BaseApi content-type deserialization guard", () => {
     client.responseHeaders = { "content-type": "text/plain" };
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
-    await expect(
-      testApi.call(
+    const error = await testApi
+      .call(
         "GET",
         "/test/echo",
         {},
@@ -1734,11 +1736,50 @@ describe("BaseApi content-type deserialization guard", () => {
         (json) => json as { id: number },
         undefined,
         "model",
-      ),
-    ).rejects.toThrow(
-      new SerializationError(
-        "Unexpected response Content-Type 'text/plain' for TestableApi.testOperation: expected a JSON body",
-      ),
+      )
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SerializationError);
+    expect((error as SerializationError).message).toBe(
+      "Unexpected response Content-Type 'text/plain' for TestableApi.testOperation: expected a JSON body",
+    );
+  });
+
+  test("bhv errors 205 a response body that cannot be decoded raises an error carrying the status, headers, raw body and request", async () => {
+    const client = new CapturingApiClient();
+    client.responseStatus = 203;
+    client.responseBody = "hello";
+    client.responseHeaders = {
+      "content-type": "text/plain",
+      "x-request-id": "req-1",
+    };
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    const error = await testApi
+      .call(
+        "GET",
+        "/test/echo",
+        { page: "2" },
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        (json) => json as { id: number },
+        undefined,
+        "model",
+      )
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SerializationError);
+    const decode = error as SerializationError;
+    expect(decode.statusCode).toBe(203);
+    expect(decode.responseHeaders).toEqual({
+      "content-type": "text/plain",
+      "x-request-id": "req-1",
+    });
+    expect(decode.responseBody).toBe("hello");
+    expect(decode.requestMethod).toBe("GET");
+    expect(decode.requestPath).toBe("/test/echo");
+    expect(decode.message).toContain(
+      "Unexpected response Content-Type 'text/plain'",
     );
   });
 

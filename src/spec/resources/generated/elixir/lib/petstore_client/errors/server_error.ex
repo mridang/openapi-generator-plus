@@ -57,7 +57,11 @@ defmodule PetstoreClient.Errors.ServerError do
 
   @family [
     PetstoreClient.Errors.ServerError,
-    PetstoreClient.Errors.InternalServerError
+    PetstoreClient.Errors.InternalServerError,
+    PetstoreClient.Errors.NotImplementedError,
+    PetstoreClient.Errors.BadGatewayError,
+    PetstoreClient.Errors.ServiceUnavailableError,
+    PetstoreClient.Errors.GatewayTimeoutError
   ]
 
   @doc """
@@ -65,6 +69,8 @@ defmodule PetstoreClient.Errors.ServerError do
   specialise it, `false` otherwise.
   """
   @spec server_error?(term()) :: boolean()
-  def server_error?(%module{}), do: module in @family
+  def server_error?(%module{} = error),
+    do: module in @family or ApiError.specialises?(error, __MODULE__)
+
   def server_error?(_term), do: false
 end

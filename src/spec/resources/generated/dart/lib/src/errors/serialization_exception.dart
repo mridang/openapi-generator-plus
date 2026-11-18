@@ -20,8 +20,61 @@ class SerializationException extends OpenAPIException {
   /// The underlying cause, if any.
   final Object? cause;
 
+  /// The HTTP status code of the response whose body could not be decoded, or
+  /// null when the failure did not come from a response.
+  final int? statusCode;
+
+  /// The headers of that response, or null.
+  final Map<String, String>? responseHeaders;
+
+  /// The raw body of that response, or null.
+  final String? responseBody;
+
+  /// The HTTP method of the request that drew that response, or null.
+  final String? requestMethod;
+
+  /// The path of that request with the query string stripped, or null.
+  final String? requestPath;
+
   /// Creates an exception with a detail message and an optional cause.
-  const SerializationException(this.message, [this.cause]);
+  const SerializationException(this.message, [this.cause])
+    : statusCode = null,
+      responseHeaders = null,
+      responseBody = null,
+      requestMethod = null,
+      requestPath = null;
+
+  const SerializationException._withResponse(
+    this.message,
+    this.cause,
+    this.statusCode,
+    this.responseHeaders,
+    this.responseBody,
+    this.requestMethod,
+    this.requestPath,
+  );
+
+  /// This error with the response whose body it could not decode recorded:
+  /// the status, the headers, the raw body and the request that drew it.
+  /// [requestPath] is cut at the first `?` or `#`.
+  SerializationException withResponse({
+    required int statusCode,
+    required Map<String, String> responseHeaders,
+    required String responseBody,
+    required String requestMethod,
+    required String requestPath,
+  }) {
+    final end = requestPath.indexOf(RegExp(r'[?#]'));
+    return SerializationException._withResponse(
+      message,
+      cause,
+      statusCode,
+      responseHeaders,
+      responseBody,
+      requestMethod,
+      end < 0 ? requestPath : requestPath.substring(0, end),
+    );
+  }
 
   @override
   String toString() {

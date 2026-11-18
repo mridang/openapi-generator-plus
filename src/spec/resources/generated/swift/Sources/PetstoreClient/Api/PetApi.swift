@@ -169,6 +169,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - pet: Create a new pet in the store
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   public func addPet(pet: Pet, options: AddPetOptions? = nil) async throws -> Pet {
     let result = try await addPetWithHTTPInfo(pet: pet, options: options)
     guard let data = result.data else {
@@ -183,6 +186,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the addPet operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   public func addPetWithHTTPInfo(pet: Pet, options: AddPetOptions? = nil) async throws -> ApiResult<
     Pet
   > {
@@ -219,6 +225,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: The petId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
     let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options)
     guard let data = result.data else {
@@ -233,6 +242,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the addPetPhotos operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws
     -> ApiResult<[Photo]>
   {
@@ -340,12 +352,18 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: Pet id to delete
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   public func deletePet(petId: Int64, options: DeletePetOptions? = nil) async throws {
     let result = try await deletePetWithHTTPInfo(petId: petId, options: options)
     _ = result
   }
 
   /// Performs the deletePet operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions? = nil) async throws
     -> ApiResult<Void>
   {
@@ -410,6 +428,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - petId: The petId path parameter.
   ///   - documentId: The documentId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func downloadPetDocument(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions? = nil
   ) async throws -> Data {
@@ -427,6 +448,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the downloadPetDocument operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func downloadPetDocumentWithHTTPInfo(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions? = nil
   ) async throws -> ApiResult<Data> {
@@ -530,6 +554,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///
   /// ### `status` — Available only
   /// Show only pets currently in stock
   /// ```json
@@ -556,6 +583,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the findPetsByStatus operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   @available(*, deprecated, message: "This operation is deprecated.")
   public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil) async throws
     -> ApiResult<[Pet]>
@@ -755,6 +785,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: The petId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions? = nil) async throws -> Data {
     let result = try await getPetAvatarWithHTTPInfo(petId: petId, options: options)
     guard let data = result.data else {
@@ -769,6 +802,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions? = nil)
     async throws -> ApiResult<Data>
   {
@@ -810,6 +846,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: The petId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetAvatarThumbnail(petId: Int64, options: GetPetAvatarThumbnailOptions? = nil)
     async throws -> Data
   {
@@ -826,6 +865,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetAvatarThumbnailWithHTTPInfo(
     petId: Int64, options: GetPetAvatarThumbnailOptions? = nil
   ) async throws -> ApiResult<Data> {
@@ -869,6 +911,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - server: Optional per-operation server override.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///   - ``NotFoundError`` on HTTP 404
+  ///
   /// ### `petId` — Small breed ID
   /// A common small-breed pet identifier
   /// ```json
@@ -897,6 +943,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getPetById operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///   - ``NotFoundError`` on HTTP 404
   @available(*, deprecated, message: "This operation is deprecated.")
   public func getPetByIdWithHTTPInfo(
     petId: Int64, server: (any GetPetByIdServer)? = nil, options: GetPetByIdOptions? = nil
@@ -1020,6 +1070,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: The petId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetPassport(petId: Int64, options: GetPetPassportOptions? = nil) async throws
     -> PetPassport
   {
@@ -1036,6 +1089,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetPassportWithHTTPInfo(petId: Int64, options: GetPetPassportOptions? = nil)
     async throws -> ApiResult<PetPassport>
   {
@@ -1078,6 +1134,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - petId: The petId path parameter.
   ///   - photoId: The photoId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions? = nil)
     async throws -> Data
   {
@@ -1094,6 +1153,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getPetPhoto operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetPhotoWithHTTPInfo(
     petId: Int64, photoId: Int64, options: GetPetPhotoOptions? = nil
   ) async throws -> ApiResult<Data> {
@@ -1141,6 +1203,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - petId: The petId path parameter.
   ///   - asOf: Summary date, sent as a matrix-style path segment
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
     -> String
   {
@@ -1157,6 +1222,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getPetSummary operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions)
     async throws -> ApiResult<String>
   {
@@ -1426,6 +1494,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - body: The request body.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   ///   - requestContentType: Optional request Content-Type, chosen from the declared types (image/jpeg, image/png, application/json). Defaults to the first declared type (image/jpeg) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func setPetAvatar(
     petId: Int64, body: Data, options: SetPetAvatarOptions? = nil, requestContentType: String? = nil
   ) async throws {
@@ -1435,6 +1506,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func setPetAvatarWithHTTPInfo(
     petId: Int64, body: Data, options: SetPetAvatarOptions? = nil, requestContentType: String? = nil
   ) async throws -> ApiResult<Void> {
@@ -1497,6 +1571,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - petId: The petId path parameter.
   ///   - setPetAvatarThumbnailRequest: The request body.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func setPetAvatarThumbnail(
     petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
     options: SetPetAvatarThumbnailOptions? = nil
@@ -1507,6 +1584,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the setPetAvatarThumbnail operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func setPetAvatarThumbnailWithHTTPInfo(
     petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
     options: SetPetAvatarThumbnailOptions? = nil
@@ -1549,6 +1629,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: The petId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws
     -> ApiResponse
   {
@@ -1565,6 +1648,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the setPetPreferences operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func setPetPreferencesWithHTTPInfo(petId: Int64, options: SetPetPreferencesOptions)
     async throws -> ApiResult<ApiResponse>
   {
@@ -1630,6 +1716,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - petId: ID of pet to update
   ///   - pet: Pet object that needs to be updated
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///   - ``NotFoundError`` on HTTP 404
   public func updatePet(petId: Int64, pet: Pet, options: UpdatePetOptions? = nil) async throws
     -> Pet
   {
@@ -1646,6 +1736,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the updatePet operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///   - ``NotFoundError`` on HTTP 404
   public func updatePetWithHTTPInfo(petId: Int64, pet: Pet, options: UpdatePetOptions? = nil)
     async throws -> ApiResult<Pet>
   {
@@ -1687,6 +1781,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: The petId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws
     -> ApiResponse
   {
@@ -1703,6 +1800,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions)
     async throws -> ApiResult<ApiResponse>
   {
@@ -1753,6 +1853,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - petId: The petId path parameter.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   ///   - requestContentType: Optional request Content-Type, chosen from the declared types (multipart/form-data, application/octet-stream). Defaults to the first declared type (multipart/form-data) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func uploadPetDocument(
     petId: Int64, options: UploadPetDocumentOptions, requestContentType: String? = nil
   ) async throws -> ApiResponse {
@@ -1770,6 +1873,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the uploadPetDocument operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``NotFoundError`` on HTTP 404
   public func uploadPetDocumentWithHTTPInfo(
     petId: Int64, options: UploadPetDocumentOptions, requestContentType: String? = nil
   ) async throws -> ApiResult<ApiResponse> {

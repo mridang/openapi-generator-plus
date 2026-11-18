@@ -118,21 +118,25 @@ func newBaseApi(apiClient ApiClient, config *Configuration, authenticator Authen
 
 // invokeApiParams holds the parameters for an invokeApi call.
 type invokeApiParams struct {
-	method       string            // HTTP method (GET, POST, PUT, DELETE, etc.)
-	path         string            // URL path (with path params already substituted)
-	queryParams  map[string]any    // query parameters
-	headerParams map[string]string // custom header parameters
-	body         any               // request body (model object or nil)
-	accepts      []string          // acceptable response content types
-	contentType  string            // request content type
-	returnType   string            // return type for deserialization (empty for void)
-	auth         Authenticator     // noAuth for an operation declared with `security: []`, otherwise nil
-	schemes      []string          // ids of the security schemes the operation accepts, in spec order
-	rawBody      bool              // body is a format:binary value sent verbatim under any contentType
-	ctx          context.Context   // per-call context; cancelling it aborts the request (nil means Background)
-	order        []string          // spec declaration order of the query and form parameter names
-	settings     *callSettings     // per-call options (timeout, headers, retries); nil means the client's own
+	method         string                  // HTTP method (GET, POST, PUT, DELETE, etc.)
+	path           string                  // URL path (with path params already substituted)
+	queryParams    map[string]any          // query parameters
+	headerParams   map[string]string       // custom header parameters
+	body           any                     // request body (model object or nil)
+	accepts        []string                // acceptable response content types
+	contentType    string                  // request content type
+	returnType     string                  // return type for deserialization (empty for void)
+	auth           Authenticator           // noAuth for an operation declared with `security: []`, otherwise nil
+	schemes        []string                // ids of the security schemes the operation accepts, in spec order
+	rawBody        bool                    // body is a format:binary value sent verbatim under any contentType
+	ctx            context.Context         // per-call context; cancelling it aborts the request (nil means Background)
+	order          []string                // spec declaration order of the query and form parameter names
+	settings       *callSettings           // per-call options (timeout, headers, retries); nil means the client's own
+	errorFactories map[string]errorFactory // the error factory of each error response the operation declares, by status, range or default; nil when it declares none
 }
+
+// errorFactory builds the error of one declared error schema for a response.
+type errorFactory = errors_pkg.ErrorFactory
 
 // invokeApiForResult invokes an API operation and returns the full response,
 // including the status code, headers, and raw body.
@@ -292,7 +296,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		mergeHeaders(headers, callHeaders)
 
 		/* Inject trace context */
-		InjectTraceContext(headers)
+		InjectTraceContext(ctx, headers)
 
 		/* Serialize body -- multipart/form-data is handled here so that
 		 * the boundary can be injected into the Content-Type header. */
@@ -391,7 +395,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		if response.StatusCode >= 200 && response.StatusCode < 300 {
 			return response, nil
 		}
-		failure := throwAPIError(response, params.method, requestPath)
+		failure := throwAPIError(response, params.method, requestPath, params.errorFactories)
 		if response.StatusCode == http.StatusUnauthorized && canReplay && !replayed {
 			invalidator.InvalidateAccessToken()
 			replayed = true
@@ -437,14 +441,7 @@ type retryPolicyProvider interface {
 
 // isRetryableStatus reports whether a response status is worth retrying.
 func isRetryableStatus(status int) bool {
-	switch status {
-	case http.StatusRequestTimeout, http.StatusConflict, http.StatusTooManyRequests:
-		return true
-	case http.StatusNotImplemented:
-		return false
-	default:
-		return status >= 500 && status <= 599
-	}
+	return errors_pkg.IsRetryableStatus(status)
 }
 
 // isRetryableTransportError reports whether a send failure is a network error
@@ -1072,10 +1069,21 @@ func newEmptyBodyError(operationID string, statusCode int, rawBody string, heade
 // throwAPIError converts a non-2xx response into the matching typed error via
 // the one status-to-error mapping, errors_pkg.FromResponse, and records the
 // request it answers.
-func throwAPIError(response *ApiHttpResponse, method, path string) error {
-	failure := errors_pkg.FromResponse(response.StatusCode, response.Headers, response.Body)
+func throwAPIError(response *ApiHttpResponse, method, path string, factories map[string]errorFactory) error {
+	failure := errors_pkg.FromResponseWith(method, path, response.StatusCode, response.Headers, response.Body, factories)
 	attachRequestContext(failure, method, path)
 	return failure
+}
+
+// attachResponseContext records the response and the request on a
+// *SerializationError raised while decoding a response body, so the caller can
+// see which response could not be decoded. Any other error is returned as it is.
+func attachResponseContext(err error, response *ApiHttpResponse, method, path string) error {
+	var serErr *errors_pkg.SerializationError
+	if errors.As(err, &serErr) {
+		serErr.AttachResponse(response.StatusCode, response.Headers, response.Body, method, requestPathOf(path))
+	}
+	return err
 }
 
 // attachRequestContext records the method and path of the request on an API

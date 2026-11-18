@@ -192,6 +192,7 @@ class PetApi : BaseApi {
 
      * @return Pet
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      */
     suspend fun addPet(
         pet: Pet,
@@ -245,6 +246,7 @@ class PetApi : BaseApi {
 
      * @return List<Photo>
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun addPetPhotos(
         petId: Long,
@@ -373,6 +375,7 @@ class PetApi : BaseApi {
      * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      */
     suspend fun deletePet(
         petId: Long,
@@ -446,6 +449,7 @@ class PetApi : BaseApi {
 
      * @return ByteArray
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun downloadPetDocument(
         petId: Long,
@@ -567,6 +571,7 @@ class PetApi : BaseApi {
 
      * @return List<Pet>
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      * @deprecated This operation is deprecated.
      * Find out more about filtering
      * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
@@ -799,6 +804,7 @@ class PetApi : BaseApi {
 
      * @return ByteArray
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun getPetAvatar(
         petId: Long,
@@ -857,6 +863,7 @@ class PetApi : BaseApi {
 
      * @return ByteArray
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun getPetAvatarThumbnail(
         petId: Long,
@@ -932,6 +939,8 @@ class PetApi : BaseApi {
 
      * @return Pet
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      * @deprecated This operation is deprecated.
      */
     @Deprecated("This operation is deprecated.")
@@ -1089,6 +1098,7 @@ class PetApi : BaseApi {
 
      * @return PetPassport
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun getPetPassport(
         petId: Long,
@@ -1148,6 +1158,7 @@ class PetApi : BaseApi {
 
      * @return ByteArray
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun getPetPhoto(
         petId: Long,
@@ -1215,6 +1226,7 @@ class PetApi : BaseApi {
 
      * @return String
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun getPetSummary(
         petId: Long,
@@ -1535,6 +1547,7 @@ class PetApi : BaseApi {
      * @param requestContentType one of the declared request content-types; when null the first declared type is used (defaults to the first declared content-type)
 
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun setPetAvatar(
         petId: Long,
@@ -1607,6 +1620,7 @@ class PetApi : BaseApi {
      * @param options the per-call timeout, headers and maxRetries
 
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun setPetAvatarThumbnail(
         petId: Long,
@@ -1664,6 +1678,7 @@ class PetApi : BaseApi {
 
      * @return ApiResponse
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun setPetPreferences(
         petId: Long,
@@ -1742,6 +1757,8 @@ class PetApi : BaseApi {
 
      * @return Pet
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun updatePet(
         petId: Long,
@@ -1805,6 +1822,7 @@ class PetApi : BaseApi {
 
      * @return ApiResponse
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun uploadPetCertificate(
         petId: Long,
@@ -1870,6 +1888,7 @@ class PetApi : BaseApi {
 
      * @return ApiResponse
      * @throws ApiException if fails to make API call
+     * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     suspend fun uploadPetDocument(
         petId: Long,

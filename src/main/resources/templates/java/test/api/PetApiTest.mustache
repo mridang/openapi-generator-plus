@@ -1663,7 +1663,7 @@ class PetApiTest {
             {409, {{invokerPackage}}.errors.ConflictException.class},
             {418, {{invokerPackage}}.errors.ClientException.class},
             {422, {{invokerPackage}}.errors.UnprocessableEntityException.class},
-            {502, {{invokerPackage}}.errors.ServerException.class},
+            {502, {{invokerPackage}}.errors.BadGatewayException.class},
         };
         for (Object[] row : table) {
             PetApi routed = new PetApi(

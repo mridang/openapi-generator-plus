@@ -92,7 +92,7 @@ func TestBaseApi_ErrorDispatch(t *testing.T) {
 		{409, "ConflictError"},
 		{422, "UnprocessableEntityError"},
 		{500, "InternalServerError"},
-		{502, "ServerError"},
+		{502, "BadGatewayError"},
 	}
 
 	for _, tc := range testCases {
@@ -100,7 +100,7 @@ func TestBaseApi_ErrorDispatch(t *testing.T) {
 			// Use the DefaultApiClient directly to call chasm status endpoints
 			client := {{packageName}}.NewDefaultApiClient(nil)
 			resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/status/"+strings.TrimSpace(
-				func() string { return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(tc.errType, "BadRequestError", "400"), "UnauthorizedError", "401"), "ForbiddenError", "403"), "NotFoundError", "404"), "ConflictError", "409"), "UnprocessableEntityError", "422"), "InternalServerError", "500"), "ServerError", "502") }()),
+				func() string { return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(tc.errType, "BadRequestError", "400"), "UnauthorizedError", "401"), "ForbiddenError", "403"), "NotFoundError", "404"), "ConflictError", "409"), "UnprocessableEntityError", "422"), "InternalServerError", "500"), "BadGatewayError", "502") }()),
 				map[string]string{}, nil)
 
 			// The raw client returns the response; BaseApi would dispatch the error
@@ -128,7 +128,7 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 		{409, "/test/status/409", "*apierrors.ConflictError"},
 		{422, "/test/status/422", "*apierrors.UnprocessableEntityError"},
 		{500, "/test/status/500", "*apierrors.InternalServerError"},
-		{502, "/test/status/502", "*apierrors.ServerError"},
+		{502, "/test/status/502", "*apierrors.BadGatewayError"},
 	}
 
 	for _, tc := range testCases {
@@ -198,6 +198,45 @@ func TestBhvErrors031_BaseApi_InternalServerErrorIsServerError(t *testing.T) {
 		t.Fatalf("expected *InternalServerError, got %T", err)
 	}
 	_ = ise
+}
+
+// ── Decode failure ──
+
+func TestBhvErrors205_BaseApi_ADecodeFailureOfAResponseCarriesTheStatusTheHeadersAndTheRawBody(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Trace", "t-1")
+		_, _ = w.Write([]byte(`{"id": [1, 2`))
+	}))
+	defer server.Close()
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(noRetryTransport(t)), config, nil, {{packageName}}.Credentials{})
+
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
+
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected a *SerializationError, got %T: %v", err, err)
+	}
+	if serErr.StatusCode() != 200 {
+		t.Errorf("expected status 200, got %d", serErr.StatusCode())
+	}
+	if serErr.ResponseBody() != `{"id": [1, 2` {
+		t.Errorf("expected the raw body, got %q", serErr.ResponseBody())
+	}
+	if serErr.ResponseHeaders()["x-trace"] != "t-1" {
+		t.Errorf("expected the response headers, got %v", serErr.ResponseHeaders())
+	}
+	if serErr.RequestMethod() != "GET" || serErr.RequestPath() != "/pet/1" {
+		t.Errorf("expected GET /pet/1, got %s %s", serErr.RequestMethod(), serErr.RequestPath())
+	}
+
+	cut := apierrors.NewSerializationError("bad", nil)
+	cut.AttachResponse(200, nil, "{", "GET", "/items?q=1#top")
+	if cut.RequestPath() != "/items" {
+		t.Errorf("expected the path without its query, got %q", cut.RequestPath())
+	}
 }
 
 // ── JSON response deserialization ──
@@ -292,6 +331,33 @@ func TestBhvAuthintegration017_BaseApi_SetsCookieFromAuth(t *testing.T) {
 	}
 	if got := client.capturedHeaders["Cookie"]; got != "session=abc123" {
 		t.Errorf("Cookie header = %q, want %q", got, "session=abc123")
+	}
+}
+
+type traceContextKey struct{}
+
+// The call context of an operation reaches the registered trace propagator, so
+// a span carried by it reaches the traceparent header of the request. The
+// propagator is package state, so this test does not run in parallel.
+func TestBaseApi_CallContextReachesTheTracePropagator(t *testing.T) {
+	const traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	{{packageName}}.SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
+		if value, ok := ctx.Value(traceContextKey{}).(string); ok {
+			headers["traceparent"] = value
+		}
+	})
+	t.Cleanup(func() { {{packageName}}.SetTraceContextPropagator(nil) })
+	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	auth := &baseApiAuth{headers: map[string]string{}, query: map[string]string{}}
+	api := {{packageName}}.NewPetApi(client, config, auth, {{packageName}}.Credentials{})
+
+	ctx := context.WithValue(context.Background(), traceContextKey{}, traceparent)
+	if _, err := api.AddPet(ctx, *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := client.capturedHeaders["traceparent"]; got != traceparent {
+		t.Errorf("traceparent header = %q, want %q", got, traceparent)
 	}
 }
 

@@ -446,6 +446,78 @@ void main() {
       );
     });
 
+    // allOf with a discriminator: the base decodes to its subtype
+
+    test(
+      'bhv unions 301 allOf: the base decodes to the subtype its explicit mapping names',
+      () {
+        final vehicle = Vehicle.fromJson(<String, dynamic>{
+          'vehicleType': 'car',
+          'plate': 'AB-12',
+          'doorCount': 4,
+        });
+
+        expect(vehicle, isA<Car>());
+        expect(vehicle.plate, equals('AB-12'));
+        expect((vehicle as Car).doorCount, equals(4));
+        expect(
+          Vehicle.fromJson(<String, dynamic>{
+            'vehicleType': 'truck',
+            'plate': 'T-1',
+          }),
+          isA<Truck>(),
+        );
+      },
+    );
+
+    test(
+      'bhv unions 302 allOf: the base decodes to the subtype its implicit schema name names',
+      () {
+        final shape = Shape.fromJson(<String, dynamic>{
+          'shapeType': 'Circle',
+          'radius': 1.5,
+        });
+
+        expect(shape, isA<Circle>());
+        expect((shape as Circle).radius, equals(1.5));
+      },
+    );
+
+    test(
+      'bhv unions 303 allOf: an unknown discriminator value fails and the error names it',
+      () {
+        expect(
+          () => Vehicle.fromJson(<String, dynamic>{
+            'vehicleType': 'boat',
+            'plate': 'B-1',
+          }),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.toString(),
+              'message',
+              contains('boat'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('bhv unions 304 allOf: a payload without its discriminator fails', () {
+      expect(
+        () => Vehicle.fromJson(<String, dynamic>{'plate': 'AB-12'}),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test(
+      'bhv serializationobject 301 allOf: a subtype writes its discriminator value',
+      () {
+        final car = Car(plate: 'AB-12', doorCount: 4);
+
+        expect(jsonEncode(car.toJson()), contains('"vehicleType":"car"'));
+      },
+    );
+
     // allOf: PetWithOwner extends Pet fields
 
     test('bhv unions 004 PetWithOwner deserialize', () {

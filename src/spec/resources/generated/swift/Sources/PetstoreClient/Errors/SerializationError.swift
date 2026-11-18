@@ -12,16 +12,56 @@ import Foundation
 /// It is `public` so callers can catch a serialization failure by type
 /// (`catch let error as SerializationError`), matching the public error types
 /// the other SDKs expose. It conforms to `Error` and `LocalizedError`.
+///
+/// When the failure is a response body that could not be decoded, the error
+/// also carries the response (status, headers and raw body) and the request
+/// (method and path without the query string), so the caller can see what the
+/// server sent. They are nil for any other serialization failure.
 public struct SerializationError: OpenAPIError, LocalizedError {
   /// The detail message.
   public let message: String
   /// The underlying cause, if any.
   public let cause: Error?
+  /// The HTTP status code of the response that could not be decoded, if any.
+  public let statusCode: Int?
+  /// The HTTP response headers of that response, if any.
+  public let responseHeaders: [String: String]?
+  /// The raw HTTP response body that could not be decoded, if any.
+  public let responseBody: String?
+  /// The HTTP method of the request that drew that response, if any.
+  public let requestMethod: String?
+  /// The path of that request, base path included and the query string left
+  /// out, if any.
+  public let requestPath: String?
 
   /// Creates an error with a detail message and an optional cause.
-  public init(message: String, cause: Error? = nil) {
+  public init(
+    message: String,
+    cause: Error? = nil,
+    statusCode: Int? = nil,
+    responseHeaders: [String: String]? = nil,
+    responseBody: String? = nil,
+    requestMethod: String? = nil,
+    requestPath: String? = nil
+  ) {
     self.message = message
     self.cause = cause
+    self.statusCode = statusCode
+    self.responseHeaders = responseHeaders
+    self.responseBody = responseBody
+    self.requestMethod = requestMethod
+    self.requestPath = requestPath.map { ApiError.pathWithoutQuery($0) }
+  }
+
+  /// The same error with the response that failed to decode and the request
+  /// that drew it attached.
+  func withResponse(
+    statusCode: Int, headers: [String: String], body: String,
+    requestMethod: String, requestPath: String
+  ) -> SerializationError {
+    return SerializationError(
+      message: message, cause: cause, statusCode: statusCode, responseHeaders: headers,
+      responseBody: body, requestMethod: requestMethod, requestPath: requestPath)
   }
 
   public var errorDescription: String? {

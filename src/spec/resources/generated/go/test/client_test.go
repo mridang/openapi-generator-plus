@@ -108,6 +108,9 @@ func TestBhvLifecycle001_Client_ApiGroupsAreAccessible(t *testing.T) {
 	if client.Pet == nil {
 		t.Fatal("expected non-nil Pet")
 	}
+	if client.Problems == nil {
+		t.Fatal("expected non-nil Problems")
+	}
 	if client.Store == nil {
 		t.Fatal("expected non-nil Store")
 	}

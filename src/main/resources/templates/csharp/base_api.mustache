@@ -131,6 +131,10 @@ public abstract class BaseApi
     /// <param name="timeout">Per-call end-to-end timeout in milliseconds, or null for the transport's.</param>
     /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
     /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">
+    /// The operation's error factories by declared status (<c>404</c>, <c>4XX</c>,
+    /// <c>default</c>), or null when it declares none.
+    /// </param>
     /// <param name="cancellationToken">Token that cancels the request.</param>
     protected async Task<ApiResult<T>> InvokeApiForResultAsync<T>(
         string method,
@@ -148,6 +152,7 @@ public abstract class BaseApi
         int? timeout = null,
         IReadOnlyDictionary<string, string>? extraHeaders = null,
         int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -467,13 +472,16 @@ public abstract class BaseApi
                 response.Headers,
                 response.Body,
                 method,
-                requestUri.AbsolutePath
+                requestUri.AbsolutePath,
+                errorSchemas
             );
         }
 
         T? data = default;
         if (returnType != null && !string.IsNullOrEmpty(response.Body))
         {
+            try
+            {
             string? responseContentType = response
                 .Headers.Where(h =>
                     string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
@@ -537,6 +545,19 @@ public abstract class BaseApi
             else
             {
                 data = Serializer.Deserialize<T>(response.Body);
+            }
+            }
+            catch (SerializationException e)
+            {
+                /* A body that cannot be decoded still says which response it was. */
+                e.AttachResponse(
+                    response.StatusCode,
+                    response.Headers,
+                    response.Body,
+                    method,
+                    requestUri.AbsolutePath
+                );
+                throw;
             }
         }
 

@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 504 Gateway Timeout.
+/// </summary>
+public class GatewayTimeoutException : ServerException
+{
+    public GatewayTimeoutException()
+        : this("Gateway Timeout") { }
+
+    public GatewayTimeoutException(string message)
+        : this(message, null, null, null) { }
+
+    public GatewayTimeoutException(string message, Exception innerException)
+        : base(504, message, innerException) { }
+
+    public GatewayTimeoutException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(504, message, responseHeaders, responseBody, errorBody) { }
+}

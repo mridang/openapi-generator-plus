@@ -344,6 +344,7 @@ void main() {
       final client = Client(authenticator: authenticator);
 
       expect(client.pet, isNotNull);
+      expect(client.problems, isNotNull);
       expect(client.store, isNotNull);
     });
 

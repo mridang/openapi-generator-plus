@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// UnsupportedMediaTypeError is the error for HTTP 415 Unsupported Media Type.
+type UnsupportedMediaTypeError struct {
+	ClientError
+}

@@ -141,6 +141,17 @@ var (
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.ConflictError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.UnprocessableEntityError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.TooManyRequestsError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.PaymentRequiredError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.MethodNotAllowedError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.RequestTimeoutError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.GoneError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.PayloadTooLargeError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.UnsupportedMediaTypeError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.LockedError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.NotImplementedError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.BadGatewayError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.ServiceUnavailableError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.GatewayTimeoutError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.InternalServerError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.NetworkError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.NetworkTimeoutError)(nil)
@@ -461,9 +472,20 @@ func TestBhvErrors006_ApiError_FromResponse_MapsEveryStatusToItsType(t *testing.
 		{409, "*errors.ConflictError"},
 		{422, "*errors.UnprocessableEntityError"},
 		{429, "*errors.TooManyRequestsError"},
+		{402, "*errors.PaymentRequiredError"},
+		{405, "*errors.MethodNotAllowedError"},
+		{408, "*errors.RequestTimeoutError"},
+		{410, "*errors.GoneError"},
+		{413, "*errors.PayloadTooLargeError"},
+		{415, "*errors.UnsupportedMediaTypeError"},
+		{423, "*errors.LockedError"},
+		{501, "*errors.NotImplementedError"},
+		{502, "*errors.BadGatewayError"},
+		{503, "*errors.ServiceUnavailableError"},
+		{504, "*errors.GatewayTimeoutError"},
 		{418, "*errors.ClientError"},
 		{500, "*errors.InternalServerError"},
-		{503, "*errors.ServerError"},
+		{599, "*errors.ServerError"},
 		{302, "*errors.ApiError"},
 		/* A status outside 400-599 is not a ClientError or a ServerError: the
 		 * 5xx arm stops at 599, so 600 yields the base *ApiError. */
@@ -512,6 +534,17 @@ func TestApiError_PackageRoot_ReexportsTheErrorTree(t *testing.T) {
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.ConflictError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.UnprocessableEntityError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.TooManyRequestsError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.PaymentRequiredError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.MethodNotAllowedError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.RequestTimeoutError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.GoneError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.PayloadTooLargeError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.UnsupportedMediaTypeError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.LockedError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.NotImplementedError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.BadGatewayError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.ServiceUnavailableError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.GatewayTimeoutError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.ServerError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.InternalServerError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.NetworkError)(nil)
@@ -807,8 +840,19 @@ func TestBhvErrors003_ApiError_EveryStatusSpecificErrorKeepsAnOptionalCause(t *t
 		"ConflictError":            &apierrors.ConflictError{ClientError: apierrors.ClientError{ApiError: base}},
 		"UnprocessableEntityError": &apierrors.UnprocessableEntityError{ClientError: apierrors.ClientError{ApiError: base}},
 		"TooManyRequestsError":     &apierrors.TooManyRequestsError{ClientError: apierrors.ClientError{ApiError: base}},
+		"PaymentRequiredError":     &apierrors.PaymentRequiredError{ClientError: apierrors.ClientError{ApiError: base}},
+		"MethodNotAllowedError":     &apierrors.MethodNotAllowedError{ClientError: apierrors.ClientError{ApiError: base}},
+		"RequestTimeoutError":     &apierrors.RequestTimeoutError{ClientError: apierrors.ClientError{ApiError: base}},
+		"GoneError":     &apierrors.GoneError{ClientError: apierrors.ClientError{ApiError: base}},
+		"PayloadTooLargeError":     &apierrors.PayloadTooLargeError{ClientError: apierrors.ClientError{ApiError: base}},
+		"UnsupportedMediaTypeError":     &apierrors.UnsupportedMediaTypeError{ClientError: apierrors.ClientError{ApiError: base}},
+		"LockedError":     &apierrors.LockedError{ClientError: apierrors.ClientError{ApiError: base}},
 		"ServerError":              &apierrors.ServerError{ApiError: base},
 		"InternalServerError":      &apierrors.InternalServerError{ServerError: apierrors.ServerError{ApiError: base}},
+		"NotImplementedError":      &apierrors.NotImplementedError{ServerError: apierrors.ServerError{ApiError: base}},
+		"BadGatewayError":      &apierrors.BadGatewayError{ServerError: apierrors.ServerError{ApiError: base}},
+		"ServiceUnavailableError":      &apierrors.ServiceUnavailableError{ServerError: apierrors.ServerError{ApiError: base}},
+		"GatewayTimeoutError":      &apierrors.GatewayTimeoutError{ServerError: apierrors.ServerError{ApiError: base}},
 	}
 	for name, err := range typed {
 		c, ok := err.(causer)
@@ -1231,3 +1275,139 @@ func TestBhvErrors084_ApiError_ErrorBuiltWithoutAResponseReportsStatusZero(t *te
 		t.Errorf("expected status 0 for a timeout error, got %d", got)
 	}
 }
+
+func TestBhvErrors201_ApiError_IsRetryableExactlyForTheStatusesTheClientRetries(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		status int
+		want   bool
+	}{
+		{408, true}, {409, true}, {429, true}, {500, true}, {502, true}, {503, true}, {504, true}, {599, true},
+		{400, false}, {401, false}, {403, false}, {404, false}, {422, false}, {501, false}, {302, false}, {0, false},
+	}
+	for _, tc := range cases {
+		var apiErr *apierrors.ApiError
+		if !errors.As(apierrors.FromResponse(tc.status, nil, ""), &apiErr) {
+			t.Fatalf("status %d: expected an *ApiError", tc.status)
+		}
+		if got := apiErr.IsRetryable(); got != tc.want {
+			t.Errorf("status %d: IsRetryable() = %v, want %v", tc.status, got, tc.want)
+		}
+		if got := apierrors.IsRetryableStatus(tc.status); got != tc.want {
+			t.Errorf("status %d: IsRetryableStatus() = %v, want %v", tc.status, got, tc.want)
+		}
+	}
+}
+
+func TestBhvErrors202_ApiError_ExposesTheRequestIdHeaderAsItsRequestId(t *testing.T) {
+	t.Parallel()
+	for name, headers := range map[string]map[string]string{
+		"mixed case": {"X-Request-ID": "abc"},
+		"lower case": {"x-request-id": "abc"},
+	} {
+		var apiErr *apierrors.ApiError
+		if !errors.As(apierrors.FromResponse(500, headers, ""), &apiErr) {
+			t.Fatalf("%s: expected an *ApiError", name)
+		}
+		if got := apiErr.RequestID(); got != "abc" {
+			t.Errorf("%s: RequestID() = %q, want abc", name, got)
+		}
+	}
+	var other *apierrors.ApiError
+	if !errors.As(apierrors.FromResponse(500, map[string]string{"other": "abc"}, ""), &other) || other.RequestID() != "" {
+		t.Errorf("a response without the header must have an empty request id")
+	}
+	if got := apierrors.NewApiError(0, "no response", "", nil, nil, nil).RequestID(); got != "" {
+		t.Errorf("an error with no response must have an empty request id, got %q", got)
+	}
+}
+
+func TestBhvErrors203_ApiError_TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault(t *testing.T) {
+	t.Parallel()
+	labelled := func(label string) apierrors.ErrorFactory {
+		return func(method, path string, statusCode int, headers map[string]string, body string) error {
+			return apierrors.NewApiError(statusCode, label, body, headers, nil, nil)
+		}
+	}
+	factories := map[string]apierrors.ErrorFactory{
+		"404":     labelled("exact"),
+		"4XX":     labelled("range"),
+		"default": labelled("default"),
+	}
+	for status, want := range map[int]string{404: "exact", 418: "range", 502: "default"} {
+		got := apierrors.FromResponseWith("GET", "/x", status, nil, "{}", factories)
+		var apiErr *apierrors.ApiError
+		if !errors.As(got, &apiErr) || apiErr.Msg() != want {
+			t.Errorf("status %d: got %v, want the %s factory", status, got, want)
+		}
+	}
+	for _, none := range []map[string]apierrors.ErrorFactory{nil, {}} {
+		if _, ok := apierrors.FromResponseWith("GET", "/x", 502, nil, "{}", none).(*apierrors.BadGatewayError); !ok {
+			t.Errorf("a status with no factory must give its status error")
+		}
+		if _, ok := apierrors.FromResponseWith("GET", "/x", 404, nil, "{}", none).(*apierrors.NotFoundError); !ok {
+			t.Errorf("a status with no factory must give its status error")
+		}
+	}
+}
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+func TestBhvErrors204_ApiError_ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause(t *testing.T) {
+	t.Parallel()
+	got := apierrors.New{{{className}}}FromResponse("GET", "/x?q=1", {{sampleStatus}}, map[string]string{"x-request-id": "r1"}, "[1, 2")
+	want := apierrors.FromResponse({{sampleStatus}}, nil, "[1, 2")
+	if reflect.TypeOf(got) != reflect.TypeOf(want) {
+		t.Fatalf("expected %T, got %T", want, got)
+	}
+	var apiErr *apierrors.ApiError
+	if !errors.As(got, &apiErr) {
+		t.Fatal("expected an *ApiError")
+	}
+	if apiErr.ResponseBody() != "[1, 2" || apiErr.StatusCode() != {{sampleStatus}} {
+		t.Errorf("expected the raw body and status, got %q and %d", apiErr.ResponseBody(), apiErr.StatusCode())
+	}
+	if apiErr.Cause() == nil {
+		t.Error("expected the decoding failure as the cause")
+	}
+	if apiErr.RequestPath() != "/x" {
+		t.Errorf("expected the request path without its query, got %q", apiErr.RequestPath())
+	}
+}
+{{/-first}}
+{{/errorSchemas}}
+
+{{#errorSchemas}}
+func TestApiError_{{{className}}}_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+	t.Parallel()
+	got := apierrors.New{{{className}}}FromResponse("GET", "/x?q=1", {{sampleStatus}}, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
+	typed, ok := got.(*apierrors.{{{className}}})
+	if !ok {
+		t.Fatalf("expected *{{{className}}}, got %T", got)
+	}
+	if typed.Body() == nil {
+		t.Error("expected the decoded body")
+	}
+	if typed.ErrorBody() == nil || typed.StatusCode() != {{sampleStatus}} || typed.RequestID() != "r1" {
+		t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
+	}
+	if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
+		t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
+	}
+	var parent *apierrors.{{{parentClassName}}}
+	if !errors.As(got, &parent) {
+		t.Error("expected errors.As to reach {{{parentClassName}}}")
+	}
+	var apiErr *apierrors.ApiError
+	if !errors.As(got, &apiErr) {
+		t.Error("expected errors.As to reach ApiError")
+	}
+	var root apierrors.{{errorPrefix}}Error
+	if !errors.As(got, &root) {
+		t.Error("expected errors.As to reach the {{errorPrefix}}Error root")
+	}
+}
+
+{{/errorSchemas}}
+{{/hasErrorSchemas}}

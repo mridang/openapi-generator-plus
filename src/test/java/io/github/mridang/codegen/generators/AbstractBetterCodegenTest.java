@@ -371,6 +371,44 @@ class AbstractBetterCodegenTest {
   }
 
   @Test
+  @DisplayName("a classic allOf base and its children are marked, and the inherited properties flagged")
+  void aClassicAllOfBaseAndItsChildrenAreMarked() {
+    final CodegenProperty id = new CodegenProperty();
+    id.baseName = "id";
+    final CodegenProperty extra = new CodegenProperty();
+    extra.baseName = "extra";
+    final CodegenModel base = unionOf("Base", "Child");
+    base.oneOf = new java.util.TreeSet<>();
+    base.vars = new ArrayList<>(List.of(id));
+    final CodegenProperty childId = new CodegenProperty();
+    childId.baseName = "id";
+    final CodegenModel child = new CodegenModel();
+    child.name = "Child";
+    child.classname = "Child";
+    child.parent = "Base";
+    child.vars = new ArrayList<>(List.of(childId, extra));
+    final Map<String, ModelsMap> all = new java.util.TreeMap<>();
+    all.put("Base", modelsMapOf(base));
+    all.put("Child", modelsMapOf(child));
+
+    codegen("java").markClassicDiscriminatorInheritance(all);
+
+    assertAll(
+        () -> assertTrue(AbstractBetterCodegen.isClassicDiscriminatorBase(base)),
+        () -> assertEquals(true, base.vendorExtensions.get("x-allof-base")),
+        () -> assertEquals(true, child.vendorExtensions.get("x-allof-child")),
+        () -> assertEquals(true, childId.vendorExtensions.get("x-inherited")),
+        () -> assertEquals(null, extra.vendorExtensions.get("x-inherited")),
+        () -> assertEquals("Base", child.vendorExtensions.get("x-allof-base-name")));
+  }
+
+  @Test
+  @DisplayName("a oneOf union is not a classic allOf base")
+  void aUnionIsNotAClassicAllOfBase() {
+    assertFalse(AbstractBetterCodegen.isClassicDiscriminatorBase(unionOf("PetFood", "DryFood")));
+  }
+
+  @Test
   @DisplayName("additionalProperties of a typed schema fills additionalPropertiesType when opted in")
   void typedAdditionalPropertiesFillTheModelType() {
     final Schema<?> typed = new Schema<>().type("object");

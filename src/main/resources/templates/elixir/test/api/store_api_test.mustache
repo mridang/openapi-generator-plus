@@ -192,7 +192,7 @@ defmodule {{moduleName}}.Api.StoreApiTest do
       {409, {{moduleName}}.Errors.ConflictError},
       {418, {{moduleName}}.Errors.ClientError},
       {422, {{moduleName}}.Errors.UnprocessableEntityError},
-      {502, {{moduleName}}.Errors.ServerError}
+      {502, {{moduleName}}.Errors.BadGatewayError}
     ]
 
     for {status, module} <- cases do

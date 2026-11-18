@@ -10,6 +10,69 @@ import (
 	"{{packageName}}/pkg/models"
 )
 
+// ── allOf with a discriminator: Vehicle and Shape ──
+
+func TestBhvUnions301_ComposedSchema_Vehicle_ExplicitMappingDecodesTheSubtype(t *testing.T) {
+	t.Parallel()
+	var vehicle models.Vehicle
+	if err := json.Unmarshal([]byte(`{"vehicleType":"car","plate":"AB-12","doorCount":4}`), &vehicle); err != nil {
+		t.Fatalf("failed to deserialize Vehicle: %v", err)
+	}
+	car, ok := vehicle.AsCar()
+	if !ok {
+		t.Fatalf("expected Car, got %T", vehicle.ActualInstance())
+	}
+	if car.Plate != "AB-12" || car.DoorCount != 4 {
+		t.Errorf("unexpected Car: %+v", car)
+	}
+}
+
+func TestBhvUnions302_ComposedSchema_Shape_ImplicitMappingDecodesTheSubtype(t *testing.T) {
+	t.Parallel()
+	var shape models.Shape
+	if err := json.Unmarshal([]byte(`{"shapeType":"Circle","radius":1.5}`), &shape); err != nil {
+		t.Fatalf("failed to deserialize Shape: %v", err)
+	}
+	circle, ok := shape.AsCircle()
+	if !ok {
+		t.Fatalf("expected Circle, got %T", shape.ActualInstance())
+	}
+	if circle.Radius != 1.5 {
+		t.Errorf("unexpected Circle: %+v", circle)
+	}
+}
+
+func TestBhvUnions303_ComposedSchema_Vehicle_UnknownDiscriminatorNamesTheValue(t *testing.T) {
+	t.Parallel()
+	var vehicle models.Vehicle
+	err := json.Unmarshal([]byte(`{"vehicleType":"boat","plate":"B-1"}`), &vehicle)
+	if err == nil {
+		t.Fatal("expected an error for the unknown discriminator value")
+	}
+	if !strings.Contains(err.Error(), `"boat"`) {
+		t.Errorf("expected the unknown value named in the error, got: %v", err)
+	}
+}
+
+func TestBhvUnions304_ComposedSchema_Vehicle_MissingDiscriminatorFails(t *testing.T) {
+	t.Parallel()
+	var vehicle models.Vehicle
+	if err := json.Unmarshal([]byte(`{"plate":"AB-12"}`), &vehicle); err == nil {
+		t.Fatal("expected an error when the discriminator is missing")
+	}
+}
+
+func TestBhvSerializationobject301_ComposedSchema_Vehicle_SubtypeWritesItsDiscriminator(t *testing.T) {
+	t.Parallel()
+	data, err := json.Marshal(models.NewCar("AB-12", 4))
+	if err != nil {
+		t.Fatalf("failed to serialize Car: %v", err)
+	}
+	if !strings.Contains(string(data), `"vehicleType":"car"`) {
+		t.Errorf("expected the discriminator in %s", data)
+	}
+}
+
 // ── oneOf with discriminator: PetFood ──
 
 func TestBhvUnions012_ComposedSchema_PetFood_DeserializeDryFood(t *testing.T) {

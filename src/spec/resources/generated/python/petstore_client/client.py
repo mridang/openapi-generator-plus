@@ -15,6 +15,7 @@ from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
 from petstore_client.api.pet_api import PetApi
+from petstore_client.api.problems_api import ProblemsApi
 from petstore_client.api.store_api import StoreApi
 
 
@@ -162,6 +163,10 @@ class Client:
         config = Configuration.builder().base_url(credentials[0].get_host()).build()
         # API operations for the PetApi group.
         self.pet: PetApi = PetApi(api_client, config, authenticator, schemes)
+        # API operations for the ProblemsApi group.
+        self.problems: ProblemsApi = ProblemsApi(
+            api_client, config, authenticator, schemes
+        )
         # API operations for the StoreApi group.
         self.store: StoreApi = StoreApi(api_client, config, authenticator, schemes)
 

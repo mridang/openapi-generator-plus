@@ -1,0 +1,39 @@
+    /// <summary>
+    /// Reads this base type by its discriminator and decodes the subtype that
+    /// the value names (classic allOf inheritance). A missing or unknown value
+    /// fails with a <see cref="System.Text.Json.JsonException"/> that names it.
+    /// </summary>
+    private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+    {
+        public override {{classname}}? Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
+            if (doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out System.Text.Json.JsonElement disc))
+            {
+                if (disc.ValueKind != System.Text.Json.JsonValueKind.String && disc.ValueKind != System.Text.Json.JsonValueKind.Null)
+                {
+                    throw new System.Text.Json.JsonException(
+                        $"Discriminator property '{{discriminator.propertyBaseName}}' of {{classname}} must be a string, got {disc.ValueKind}");
+                }
+                string? discValue = disc.GetString();
+                return discValue switch
+                {
+                    {{#discriminator}}
+                    {{#mappedModels}}
+                    "{{mappingName}}" => System.Text.Json.JsonSerializer.Deserialize<{{modelName}}>(raw, options),
+                    {{/mappedModels}}
+                    {{/discriminator}}
+                    _ => throw new System.Text.Json.JsonException(
+                        $"Unknown discriminator value for {{classname}}: '{discValue}'")
+                };
+            }
+            throw new System.Text.Json.JsonException("Missing discriminator property '{{discriminator.propertyBaseName}}'");
+        }
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, {{classname}} value, System.Text.Json.JsonSerializerOptions options)
+        {
+            System.Text.Json.JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        }
+    }
+

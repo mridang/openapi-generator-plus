@@ -20,6 +20,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use PetstoreClient\Api\PetApi;
+use PetstoreClient\Api\ProblemsApi;
 use PetstoreClient\Api\StoreApi;
 
 /**
@@ -59,6 +60,9 @@ class Client
 
     /** @var PetApi API operations for the PetApi group. */
     public readonly PetApi $pet;
+
+    /** @var ProblemsApi API operations for the ProblemsApi group. */
+    public readonly ProblemsApi $problems;
 
     /** @var StoreApi API operations for the StoreApi group. */
     public readonly StoreApi $store;
@@ -220,6 +224,7 @@ class Client
             ->baseUrl($hostAuthenticator->getHost())
             ->build();
         $this->pet = new PetApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
+        $this->problems = new ProblemsApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
         $this->store = new StoreApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
     }
 

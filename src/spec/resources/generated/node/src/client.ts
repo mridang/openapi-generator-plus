@@ -13,6 +13,7 @@ import { Configuration } from "./configuration.js";
 import { DefaultApiClient } from "#transport";
 import { TransportOptions } from "./transport-options.js";
 import { PetApi } from "./api/pet-api.js";
+import { ProblemsApi } from "./api/problems-api.js";
 import { StoreApi } from "./api/store-api.js";
 
 /**
@@ -139,6 +140,8 @@ export class Client {
 
   /** API operations for the PetApi group. */
   public readonly pet: PetApi;
+  /** API operations for the ProblemsApi group. */
+  public readonly problems: ProblemsApi;
   /** API operations for the StoreApi group. */
   public readonly store: StoreApi;
 
@@ -251,6 +254,7 @@ export class Client {
       .signal(clientOptions?.signal)
       .build();
     this.pet = new PetApi(apiClient, config, authenticator, schemes);
+    this.problems = new ProblemsApi(apiClient, config, authenticator, schemes);
     this.store = new StoreApi(apiClient, config, authenticator, schemes);
   }
 

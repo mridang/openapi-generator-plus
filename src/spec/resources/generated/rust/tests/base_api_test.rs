@@ -2031,7 +2031,7 @@ fn test_api_error_kind_client_error_fallback() {
 
 #[test]
 fn test_api_error_kind_server_error_fallback() {
-    let kind: petstore::ApiErrorKind = make_api_error(503).into();
+    let kind: petstore::ApiErrorKind = make_api_error(599).into();
     assert!(matches!(kind, petstore::ApiErrorKind::ServerError(_)));
 }
 

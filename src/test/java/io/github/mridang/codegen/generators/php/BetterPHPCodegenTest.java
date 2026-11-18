@@ -314,4 +314,11 @@ class BetterPHPCodegenTest {
         assertEquals(List.of("A", "B"), BetterPHPCodegen.authorList(List.of(" A ", "B", " ")));
         assertEquals(List.of(), BetterPHPCodegen.authorList(null));
     }
+
+    @Test
+    void anErrorSchemaIsNamedByItsBareModelClassNotItsQualifiedName() {
+        final BetterPHPCodegen codegen = new BetterPHPCodegen();
+        assertEquals("ProjectNotFound", codegen.errorSchemaModelName("\\Pkg\\Models\\ProjectNotFound"));
+        assertEquals("ProjectNotFound", codegen.errorSchemaModelName("ProjectNotFound"));
+    }
 }

@@ -42,6 +42,12 @@ from .upload_pet_certificate_options import (
 from .upload_pet_document_options import (
     UploadPetDocumentOptions as UploadPetDocumentOptions,
 )
+from .get_fallback_options import GetFallbackOptions as GetFallbackOptions
+from .get_member_options import GetMemberOptions as GetMemberOptions
+from .get_project_options import GetProjectOptions as GetProjectOptions
+from .get_range_options import GetRangeOptions as GetRangeOptions
+from .get_upstream_options import GetUpstreamOptions as GetUpstreamOptions
+from .take_lock_options import TakeLockOptions as TakeLockOptions
 from .create_account_options import CreateAccountOptions as CreateAccountOptions
 from .delete_order_options import DeleteOrderOptions as DeleteOrderOptions
 from .get_by_swatch_options import GetBySwatchOptions as GetBySwatchOptions

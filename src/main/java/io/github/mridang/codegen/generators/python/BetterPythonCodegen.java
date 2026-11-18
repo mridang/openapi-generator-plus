@@ -606,6 +606,17 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/forbidden_exception.mustache", errorsPath, "forbidden_exception.py"),
             new SupportingFileSpec("errors/not_found_exception.mustache", errorsPath, "not_found_exception.py"),
             new SupportingFileSpec("errors/conflict_exception.mustache", errorsPath, "conflict_exception.py"),
+            new SupportingFileSpec("errors/payment_required_exception.mustache", errorsPath, "payment_required_exception.py"),
+            new SupportingFileSpec("errors/method_not_allowed_exception.mustache", errorsPath, "method_not_allowed_exception.py"),
+            new SupportingFileSpec("errors/request_timeout_exception.mustache", errorsPath, "request_timeout_exception.py"),
+            new SupportingFileSpec("errors/gone_exception.mustache", errorsPath, "gone_exception.py"),
+            new SupportingFileSpec("errors/payload_too_large_exception.mustache", errorsPath, "payload_too_large_exception.py"),
+            new SupportingFileSpec("errors/unsupported_media_type_exception.mustache", errorsPath, "unsupported_media_type_exception.py"),
+            new SupportingFileSpec("errors/locked_exception.mustache", errorsPath, "locked_exception.py"),
+            new SupportingFileSpec("errors/not_implemented_exception.mustache", errorsPath, "not_implemented_exception.py"),
+            new SupportingFileSpec("errors/bad_gateway_exception.mustache", errorsPath, "bad_gateway_exception.py"),
+            new SupportingFileSpec("errors/service_unavailable_exception.mustache", errorsPath, "service_unavailable_exception.py"),
+            new SupportingFileSpec("errors/gateway_timeout_exception.mustache", errorsPath, "gateway_timeout_exception.py"),
             new SupportingFileSpec("errors/unprocessable_entity_exception.mustache", errorsPath, "unprocessable_entity_exception.py"),
             new SupportingFileSpec("errors/too_many_requests_exception.mustache", errorsPath, "too_many_requests_exception.py"),
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsPath, "internal_server_error_exception.py"),
@@ -1276,6 +1287,17 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     }
 
     /**
+     * A classic allOf child imports its base at the top of the module, because
+     * the class statement needs it; the generic bottom-of-file import list
+     * must not repeat it.
+     */
+    @Override
+    protected void decorateClassicDiscriminatorChild(
+            final CodegenModel child, final CodegenModel base) {
+        child.imports.remove(base.classname);
+    }
+
+    /**
      * Enables Gap K so polymorphic subtype Pydantic models auto-emit
      * the discriminator field with a {@code default='...'} on Field().
      * Without this, callers passing only the non-tag fields hit a
@@ -1812,6 +1834,39 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         context.put("requiredParams", requiredParams);
         context.put("optionalParams", optionalParams);
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_exception.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(
+                        outputFolder,
+                        packageName.replace('.', '/'),
+                        "errors",
+                        NamingConvention.SNAKE_CASE.apply(className) + ".py")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void decorateErrorSchema(Map<String, Object> schema) {
+        final String className = Objects.requireNonNull((String) schema.get("className"));
+        final String parentClassName = Objects.requireNonNull((String) schema.get("parentClassName"));
+        final boolean parentIsApi = "ApiException".equals(parentClassName);
+        schema.put("classFileName", NamingConvention.SNAKE_CASE.apply(className));
+        schema.put("parentIsApi", parentIsApi);
+        schema.put(
+                "parentImport",
+                parentIsApi
+                        ? packageName + ".errors"
+                        : packageName + ".errors." + NamingConvention.SNAKE_CASE.apply(parentClassName));
+        schema.put("modelFileName", toModelFilename(Objects.requireNonNull((String) schema.get("schemaName"))));
     }
 
     /** {@inheritDoc} */

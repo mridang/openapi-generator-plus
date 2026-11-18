@@ -84,6 +84,7 @@ class TestClient:
         client = Client(authenticator)
 
         assert client.pet is not None
+        assert client.problems is not None
         assert client.store is not None
 
 
@@ -368,6 +369,8 @@ class TestClientSchemeCredentials:
 
         assert client.pet._authenticator is default
         assert list(client.pet._scheme_authenticators.values()) == [held]
+        assert client.problems._authenticator is default
+        assert list(client.problems._scheme_authenticators.values()) == [held]
         assert client.store._authenticator is default
         assert list(client.store._scheme_authenticators.values()) == [held]
 

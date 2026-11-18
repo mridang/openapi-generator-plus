@@ -119,6 +119,8 @@ class StoreApi extends BaseApi
      * @param int $orderId ID of the order to delete
      * @param DeleteOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
+     * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function deleteOrder(int $orderId, ?DeleteOrderOptions $options = null): void
     {
@@ -130,6 +132,8 @@ class StoreApi extends BaseApi
      * @param DeleteOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
+     * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function deleteOrderWithHttpInfo(int $orderId, ?DeleteOrderOptions $options = null): ApiResult
     {
@@ -645,6 +649,8 @@ class StoreApi extends BaseApi
      * @param int $orderId ID of order to return
      * @param GetOrderByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
+     * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getOrderById(int $orderId, ?GetOrderByIdOptions $options = null): \PetstoreClient\Models\Order
     {
@@ -672,6 +678,8 @@ class StoreApi extends BaseApi
      * @param GetOrderByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
+     * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function getOrderByIdWithHttpInfo(int $orderId, ?GetOrderByIdOptions $options = null): ApiResult
     {
@@ -1172,6 +1180,7 @@ class StoreApi extends BaseApi
      * Place an order for a pet
      * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function placeOrder(\PetstoreClient\Models\Order|null $order = null, ?PlaceOrderOptions $options = null): \PetstoreClient\Models\Order
     {
@@ -1198,6 +1207,7 @@ class StoreApi extends BaseApi
      * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function placeOrderWithHttpInfo(\PetstoreClient\Models\Order|null $order = null, ?PlaceOrderOptions $options = null): ApiResult
     {
@@ -1240,6 +1250,7 @@ class StoreApi extends BaseApi
      * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
      * @param ReserveStockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function reserveStock(?ReserveStockOptions $options = null): \PetstoreClient\Models\ReserveStockResponse
     {
@@ -1266,6 +1277,7 @@ class StoreApi extends BaseApi
      * @param ReserveStockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\ReserveStockResponse>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function reserveStockWithHttpInfo(?ReserveStockOptions $options = null): ApiResult
     {

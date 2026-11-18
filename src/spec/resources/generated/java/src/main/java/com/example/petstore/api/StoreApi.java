@@ -226,6 +226,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -238,6 +239,8 @@ public class StoreApi extends BaseApi {
    *
    * @param orderId ID of the order to delete (required)
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public void deleteOrder(Long orderId) {
     deleteOrder(orderId, null);
@@ -253,6 +256,8 @@ public class StoreApi extends BaseApi {
    * @param orderId ID of the order to delete (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) {
     return deleteOrderWithHttpInfo(orderId, null);
@@ -264,6 +269,8 @@ public class StoreApi extends BaseApi {
    * @param orderId ID of the order to delete (required)
    * @param options options carrying the per-call timeout, retry count and headers
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public void deleteOrder(Long orderId, @Nullable DeleteOrderOptions options) {
     deleteOrderWithHttpInfo(orderId, options);
@@ -276,6 +283,8 @@ public class StoreApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Void> deleteOrderWithHttpInfo(
       Long orderId, @Nullable DeleteOrderOptions options) {
@@ -311,6 +320,7 @@ public class StoreApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -419,6 +429,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -491,6 +502,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -563,6 +575,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -637,6 +650,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -710,6 +724,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -782,6 +797,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -795,6 +811,8 @@ public class StoreApi extends BaseApi {
    * @param orderId ID of order to return (required)
    * @return {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public Order getOrderById(Long orderId) {
     return getOrderById(orderId, null);
@@ -810,6 +828,8 @@ public class StoreApi extends BaseApi {
    * @param orderId ID of order to return (required)
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) {
     return getOrderByIdWithHttpInfo(orderId, null);
@@ -822,6 +842,8 @@ public class StoreApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public Order getOrderById(Long orderId, @Nullable GetOrderByIdOptions options) {
     return requireBody(getOrderByIdWithHttpInfo(orderId, options), "getOrderById");
@@ -834,6 +856,8 @@ public class StoreApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Order> getOrderByIdWithHttpInfo(
       Long orderId, @Nullable GetOrderByIdOptions options) {
@@ -869,6 +893,7 @@ public class StoreApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -958,6 +983,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1038,6 +1064,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1110,6 +1137,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1183,6 +1211,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1257,6 +1286,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1329,6 +1359,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1342,6 +1373,7 @@ public class StoreApi extends BaseApi {
    * @param order (optional)
    * @return {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public Order placeOrder(@Nullable Order order) {
     return placeOrder(order, null);
@@ -1357,6 +1389,7 @@ public class StoreApi extends BaseApi {
    * @param order (optional)
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) {
     return placeOrderWithHttpInfo(order, null);
@@ -1369,6 +1402,7 @@ public class StoreApi extends BaseApi {
    *
    * @return {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public Order placeOrder() {
     return placeOrder(null);
@@ -1381,6 +1415,7 @@ public class StoreApi extends BaseApi {
    *
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<Order> placeOrderWithHttpInfo() {
     return placeOrderWithHttpInfo(null);
@@ -1393,6 +1428,7 @@ public class StoreApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public Order placeOrder(@Nullable Order order, @Nullable PlaceOrderOptions options) {
     return requireBody(placeOrderWithHttpInfo(order, options), "placeOrder");
@@ -1405,6 +1441,7 @@ public class StoreApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<Order> placeOrderWithHttpInfo(
       @Nullable Order order, @Nullable PlaceOrderOptions options) {
@@ -1430,6 +1467,7 @@ public class StoreApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1442,6 +1480,7 @@ public class StoreApi extends BaseApi {
    *
    * @return {@code ReserveStockResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ReserveStockResponse reserveStock() {
     return reserveStock(null);
@@ -1456,6 +1495,7 @@ public class StoreApi extends BaseApi {
    *
    * @return the API result wrapping {@code ReserveStockResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<ReserveStockResponse> reserveStockWithHttpInfo() {
     return reserveStockWithHttpInfo(null);
@@ -1469,6 +1509,7 @@ public class StoreApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code ReserveStockResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ReserveStockResponse reserveStock(@Nullable ReserveStockOptions options) {
     return requireBody(reserveStockWithHttpInfo(options), "reserveStock");
@@ -1482,6 +1523,7 @@ public class StoreApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code ReserveStockResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<ReserveStockResponse> reserveStockWithHttpInfo(
       @Nullable ReserveStockOptions options) {
@@ -1522,7 +1564,8 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
-        successDecoder);
+        successDecoder,
+        null);
   }
 
   /**
@@ -1616,6 +1659,7 @@ public class StoreApi extends BaseApi {
         NO_AUTH,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 

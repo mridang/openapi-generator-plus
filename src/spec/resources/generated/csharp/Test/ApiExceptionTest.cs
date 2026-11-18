@@ -385,9 +385,20 @@ public class ApiExceptionTest
     [InlineData(409, typeof(ConflictException))]
     [InlineData(422, typeof(UnprocessableEntityException))]
     [InlineData(429, typeof(TooManyRequestsException))]
+    [InlineData(402, typeof(PaymentRequiredException))]
+    [InlineData(405, typeof(MethodNotAllowedException))]
+    [InlineData(408, typeof(RequestTimeoutException))]
+    [InlineData(410, typeof(GoneException))]
+    [InlineData(413, typeof(PayloadTooLargeException))]
+    [InlineData(415, typeof(UnsupportedMediaTypeException))]
+    [InlineData(423, typeof(LockedException))]
+    [InlineData(501, typeof(NotImplementedStatusException))]
+    [InlineData(502, typeof(BadGatewayException))]
+    [InlineData(503, typeof(ServiceUnavailableException))]
+    [InlineData(504, typeof(GatewayTimeoutException))]
     [InlineData(418, typeof(ClientException))]
     [InlineData(500, typeof(InternalServerErrorException))]
-    [InlineData(503, typeof(ServerException))]
+    [InlineData(599, typeof(ServerException))]
     // 302 is below the client range and 600 above the server range: neither is
     // a ClientException or a ServerException, both are the base type.
     [InlineData(302, typeof(ApiException))]
@@ -412,7 +423,7 @@ public class ApiExceptionTest
     public void BhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson()
     {
         var ex = ApiException.FromResponse(
-            502,
+            599,
             new Dictionary<string, string>(),
             "<html>bad gateway</html>"
         );
@@ -434,6 +445,17 @@ public class ApiExceptionTest
     [InlineData(typeof(ConflictException))]
     [InlineData(typeof(UnprocessableEntityException))]
     [InlineData(typeof(TooManyRequestsException))]
+    [InlineData(typeof(PaymentRequiredException))]
+    [InlineData(typeof(MethodNotAllowedException))]
+    [InlineData(typeof(RequestTimeoutException))]
+    [InlineData(typeof(GoneException))]
+    [InlineData(typeof(PayloadTooLargeException))]
+    [InlineData(typeof(UnsupportedMediaTypeException))]
+    [InlineData(typeof(LockedException))]
+    [InlineData(typeof(NotImplementedStatusException))]
+    [InlineData(typeof(BadGatewayException))]
+    [InlineData(typeof(ServiceUnavailableException))]
+    [InlineData(typeof(GatewayTimeoutException))]
     [InlineData(typeof(InternalServerErrorException))]
     [InlineData(typeof(NetworkException))]
     [InlineData(typeof(NetworkTimeoutException))]
@@ -462,6 +484,17 @@ public class ApiExceptionTest
             (new ConflictException("boom", inner), 409),
             (new UnprocessableEntityException("boom", inner), 422),
             (new TooManyRequestsException("boom", inner), 429),
+            (new PaymentRequiredException("boom", inner), 402),
+            (new MethodNotAllowedException("boom", inner), 405),
+            (new RequestTimeoutException("boom", inner), 408),
+            (new GoneException("boom", inner), 410),
+            (new PayloadTooLargeException("boom", inner), 413),
+            (new UnsupportedMediaTypeException("boom", inner), 415),
+            (new LockedException("boom", inner), 423),
+            (new NotImplementedStatusException("boom", inner), 501),
+            (new BadGatewayException("boom", inner), 502),
+            (new ServiceUnavailableException("boom", inner), 503),
+            (new GatewayTimeoutException("boom", inner), 504),
             (new InternalServerErrorException("boom", inner), 500),
         };
 
@@ -551,6 +584,17 @@ public class ApiExceptionTest
         Assert.Same(cause, new ConflictException("conflict", cause).InnerException);
         Assert.Same(cause, new UnprocessableEntityException("invalid", cause).InnerException);
         Assert.Same(cause, new TooManyRequestsException("slow down", cause).InnerException);
+        Assert.Same(cause, new PaymentRequiredException("slow down", cause).InnerException);
+        Assert.Same(cause, new MethodNotAllowedException("slow down", cause).InnerException);
+        Assert.Same(cause, new RequestTimeoutException("slow down", cause).InnerException);
+        Assert.Same(cause, new GoneException("slow down", cause).InnerException);
+        Assert.Same(cause, new PayloadTooLargeException("slow down", cause).InnerException);
+        Assert.Same(cause, new UnsupportedMediaTypeException("slow down", cause).InnerException);
+        Assert.Same(cause, new LockedException("slow down", cause).InnerException);
+        Assert.Same(cause, new NotImplementedStatusException("slow down", cause).InnerException);
+        Assert.Same(cause, new BadGatewayException("slow down", cause).InnerException);
+        Assert.Same(cause, new ServiceUnavailableException("slow down", cause).InnerException);
+        Assert.Same(cause, new GatewayTimeoutException("slow down", cause).InnerException);
         Assert.Same(cause, new InternalServerErrorException("boom", cause).InnerException);
         Assert.Same(cause, new ClientException(418, "teapot", cause).InnerException);
         Assert.Same(cause, new ServerException(503, "unavailable", cause).InnerException);
@@ -565,8 +609,19 @@ public class ApiExceptionTest
     [InlineData(418, typeof(ClientException))]
     [InlineData(422, typeof(UnprocessableEntityException))]
     [InlineData(429, typeof(TooManyRequestsException))]
+    [InlineData(402, typeof(PaymentRequiredException))]
+    [InlineData(405, typeof(MethodNotAllowedException))]
+    [InlineData(408, typeof(RequestTimeoutException))]
+    [InlineData(410, typeof(GoneException))]
+    [InlineData(413, typeof(PayloadTooLargeException))]
+    [InlineData(415, typeof(UnsupportedMediaTypeException))]
+    [InlineData(423, typeof(LockedException))]
+    [InlineData(501, typeof(NotImplementedStatusException))]
+    [InlineData(502, typeof(BadGatewayException))]
+    [InlineData(503, typeof(ServiceUnavailableException))]
+    [InlineData(504, typeof(GatewayTimeoutException))]
     [InlineData(500, typeof(InternalServerErrorException))]
-    [InlineData(503, typeof(ServerException))]
+    [InlineData(599, typeof(ServerException))]
     [InlineData(302, typeof(ApiException))]
     public void BhvErrors006FromResponseMapsEveryStatusToItsException(int status, Type expected)
     {
@@ -695,6 +750,118 @@ public class ApiExceptionTest
         var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), "");
 
         Assert.Null(ex.GetTypedErrorBody<Category>());
+    }
+
+    [Theory]
+    [InlineData(408, true)]
+    [InlineData(409, true)]
+    [InlineData(429, true)]
+    [InlineData(500, true)]
+    [InlineData(502, true)]
+    [InlineData(503, true)]
+    [InlineData(504, true)]
+    [InlineData(599, true)]
+    [InlineData(400, false)]
+    [InlineData(401, false)]
+    [InlineData(403, false)]
+    [InlineData(404, false)]
+    [InlineData(422, false)]
+    [InlineData(501, false)]
+    [InlineData(302, false)]
+    public void BhvErrors201AnErrorIsRetryableExactlyForTheStatusesTheClientRetries(
+        int status,
+        bool expected
+    )
+    {
+        var ex = ApiException.FromResponse(status, new Dictionary<string, string>(), null);
+
+        Assert.Equal(expected, ex.IsRetryable);
+    }
+
+    [Theory]
+    [InlineData("X-Request-ID", "abc")]
+    [InlineData("x-request-id", "abc")]
+    [InlineData("other", null)]
+    public void BhvErrors202AnErrorExposesTheRequestIdHeaderAsItsRequestId(
+        string header,
+        string? expected
+    )
+    {
+        var ex = ApiException.FromResponse(
+            500,
+            new Dictionary<string, string> { { header, "abc" } },
+            null
+        );
+
+        Assert.Equal(expected, ex.RequestId);
+        Assert.Null(new ApiException(0, "no response", null, null).RequestId);
+    }
+
+    [Fact]
+    public void BhvErrors203TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault()
+    {
+        var factories = new Dictionary<string, ErrorFactory>
+        {
+            ["404"] = (m, p, s, h, b) => new ApiException(s, "exact", null, b),
+            ["4XX"] = (m, p, s, h, b) => new ApiException(s, "range", null, b),
+            ["default"] = (m, p, s, h, b) => new ApiException(s, "default", null, b),
+        };
+        var none = new Dictionary<string, string>();
+
+        Assert.Equal(
+            "exact",
+            ApiException.FromResponse(404, none, "{}", "GET", "/x", factories).Message
+        );
+        Assert.Equal(
+            "range",
+            ApiException.FromResponse(418, none, "{}", "GET", "/x", factories).Message
+        );
+        Assert.Equal(
+            "default",
+            ApiException.FromResponse(502, none, "{}", "GET", "/x", factories).Message
+        );
+        Assert.IsType<BadGatewayException>(
+            ApiException.FromResponse(
+                502,
+                none,
+                "{}",
+                "GET",
+                "/x",
+                new Dictionary<string, ErrorFactory>()
+            )
+        );
+        Assert.IsType<NotFoundException>(
+            ApiException.FromResponse(404, none, "{}", "GET", "/x", null)
+        );
+    }
+
+    [Fact]
+    public void BhvErrors204ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause()
+    {
+        ApiException ex = UnexpectedFailureException.FromErrorResponse(
+            "GET",
+            "/x",
+            400,
+            new Dictionary<string, string>(),
+            "[1, 2"
+        );
+
+        Assert.Equal(
+            ApiException.FromResponse(400, new Dictionary<string, string>(), null).GetType(),
+            ex.GetType()
+        );
+        Assert.Equal("[1, 2", ex.ResponseBody);
+        Assert.Equal(400, ex.StatusCode);
+        Assert.NotNull(ex.InnerException);
+    }
+
+    [Fact]
+    public void ADeclaredErrorSchemaExceptionSubclassesItsStatusClassAndHoldsAnAbsentTypedBody()
+    {
+        var ex = new UnexpectedFailureException(400, "declared");
+
+        Assert.IsAssignableFrom<ApiException>(ex);
+        Assert.Null(ex.ErrorBody);
     }
 
     [Fact]

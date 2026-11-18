@@ -336,7 +336,7 @@ public class BaseApiTest
         { 429, typeof(TooManyRequestsException) },
         { 418, typeof(ClientException) },
         { 500, typeof(InternalServerErrorException) },
-        { 502, typeof(ServerException) },
+        { 502, typeof(BadGatewayException) },
     };
 
     [Theory]
@@ -424,6 +424,25 @@ public class BaseApiTest
         Assert.IsType<ServerException>(ex, exactMatch: false);
         Assert.IsType<ApiException>(ex, exactMatch: false);
         Assert.IsType<{{errorPrefix}}Exception>(ex, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task BhvErrors205ADecodeFailureOfAResponseCarriesTheStatusTheHeadersAndTheRawBody()
+    {
+        var api = new TestableApi(new CallOptionsApiClient(200, "[1, 2"), "https://example.test");
+
+        SerializationException ex = await Assert.ThrowsAsync<SerializationException>(() =>
+            api.CallAsync<JsonNode>(
+                "GET", "/items/7",
+                new Dictionary<string, object?> { ["page"] = 2 },
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+
+        Assert.Equal(200, ex.StatusCode);
+        Assert.Equal("application/json", ex.ResponseHeaders!["Content-Type"]);
+        Assert.Equal("[1, 2", ex.ResponseBody);
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
     }
 
     [Fact]

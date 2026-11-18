@@ -30,6 +30,10 @@ module Petstore::Client
     # @return [::Petstore::Client::Api::PetApi]
     attr_reader :pet
 
+    # API operations for the ProblemsApi group.
+    # @return [::Petstore::Client::Api::ProblemsApi]
+    attr_reader :problems
+
     # API operations for the StoreApi group.
     # @return [::Petstore::Client::Api::StoreApi]
     attr_reader :store
@@ -95,6 +99,7 @@ module Petstore::Client
         .base_url(first_credential.host)
         .build
       @pet = Api::PetApi.new(api_client, config, authenticator, schemes)
+      @problems = Api::ProblemsApi.new(api_client, config, authenticator, schemes)
       @store = Api::StoreApi.new(api_client, config, authenticator, schemes)
     end
 

@@ -430,6 +430,47 @@ describe 'Composed Schema' do
     end
   end
 
+  describe 'allOf with a discriminator: Vehicle and Shape' do
+    it 'bhv_unions_301 decodes the base to the subtype its explicit mapping names' do
+      json = '{"vehicleType":"car","plate":"AB-12","doorCount":4}'
+      result = Petstore::Client::ObjectSerializer.deserialize(json, 'Vehicle')
+
+      _(result).must_be_kind_of(Petstore::Client::Models::Car)
+      _(result).must_be_kind_of(Petstore::Client::Models::Vehicle)
+      _(result.plate).must_equal('AB-12')
+      _(result.door_count).must_equal(4)
+      _(Petstore::Client::ObjectSerializer.deserialize('{"vehicleType":"truck","plate":"T-1"}', 'Vehicle'))
+        .must_be_kind_of(Petstore::Client::Models::Truck)
+    end
+
+    it 'bhv_unions_302 decodes the base to the subtype its implicit schema name names' do
+      result = Petstore::Client::ObjectSerializer.deserialize('{"shapeType":"Circle","radius":1.5}', 'Shape')
+
+      _(result).must_be_kind_of(Petstore::Client::Models::Circle)
+      _(result).must_be_kind_of(Petstore::Client::Models::Shape)
+      _(result.radius).must_equal(1.5)
+    end
+
+    it 'bhv_unions_303 fails on an unknown discriminator value and the error names it' do
+      json = '{"vehicleType":"boat","plate":"B-1"}'
+      err = _ { Petstore::Client::ObjectSerializer.deserialize(json, 'Vehicle') }
+            .must_raise Petstore::Client::Errors::SerializationError
+      _(err.message).must_include('boat')
+    end
+
+    it 'bhv_unions_304 fails when the base payload has no discriminator' do
+      _ { Petstore::Client::ObjectSerializer.deserialize('{"plate":"AB-12"}', 'Vehicle') }
+        .must_raise Petstore::Client::Errors::SerializationError
+    end
+
+    it 'bhv_serializationobject_301 writes the discriminator value when a subtype is serialized' do
+      car = Petstore::Client::Models::Car.new(plate: 'AB-12', door_count: 4)
+      serialized = Petstore::Client::ObjectSerializer.serialize(car)
+
+      _(serialized).must_include('"vehicleType":"car"')
+    end
+  end
+
   it 'bhv_unions_022 round-trips an array of byte values through base64 strings' do
     raws = [[0x01, 0x02].pack('C*'), [0x03, 0x04].pack('C*')]
     encoded = Petstore::Client::ObjectSerializer.encode_oneof_body(raws, 'SetPetAvatarThumbnailRequest')

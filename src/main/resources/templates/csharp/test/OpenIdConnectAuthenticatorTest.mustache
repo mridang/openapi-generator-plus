@@ -306,7 +306,7 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.ServerException>(
+        var ex = await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ServerException>(
             () => auth.BuildAuthorizationUrlAsync());
         Assert.Equal("GET", ex.RequestMethod);
         Assert.Equal("/.well-known/openid-configuration", ex.RequestPath);
@@ -388,7 +388,7 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.InternalServerErrorException>(
+        var ex = await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ServerException>(
             () => auth.BuildAuthorizationUrlAsync());
         Assert.Equal(500, ex.StatusCode);
         Assert.IsAssignableFrom<{{errorPrefix}}Exception>(ex);
@@ -546,6 +546,10 @@ public class OpenIdConnectAuthenticatorTest
         await Assert.ThrowsAsync<{{packageName}}.Errors.InternalServerErrorException>(
             () => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
         Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ServerException>(
+            () => auth.GetAuthHeadersAsync());
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
 
         Assert.Equal("Bearer at-1", headers["Authorization"]);
     }

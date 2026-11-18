@@ -824,6 +824,42 @@ export class ObjectSerializer {
       const discMapping = clsRecord['DISCRIMINATOR_MAPPING'] as Record<string, string> | undefined;
       const schemas = anyOfSchemas ?? oneOfSchemas;
 
+      /**
+       * A class-based base type (allOf plus a discriminator) owns the mapping
+       * itself: decode into the subtype the discriminator names. The check is
+       * on an own property because a subtype inherits the static members of
+       * its base, and a subtype decodes as itself.
+       */
+      if (
+        !schemas &&
+        discProp &&
+        discMapping &&
+        Object.prototype.hasOwnProperty.call(cls, 'DISCRIMINATOR_PROPERTY') &&
+        typeof json === 'object' &&
+        !Array.isArray(json)
+      ) {
+        const record = json as Record<string, unknown>;
+        if (!(discProp in record)) {
+          throw new SerializationError(
+            `Missing discriminator property '${discProp}' in payload.`
+          );
+        }
+        const discValue = record[discProp] as string;
+        const targetName = Object.prototype.hasOwnProperty.call(discMapping, discValue)
+          ? discMapping[discValue]
+          : undefined;
+        const targetCls = targetName
+          ? ((models as Record<string, unknown>)[targetName] as ClassConstructor<T> | undefined)
+          : undefined;
+        if (!targetCls) {
+          throw new SerializationError(
+            `Discriminator value '${discValue}' on '${discProp}' is not listed in ` +
+              `the schema mapping (allowed: ${Object.keys(discMapping).join(', ') || '<empty>'}).`
+          );
+        }
+        return ObjectSerializer.deserialize(json, targetCls);
+      }
+
       if (schemas && json && typeof json === 'object') {
         if (discProp && discMapping && discProp in (json as Record<string, unknown>)) {
           const discValue = (json as Record<string, unknown>)[discProp] as string;

@@ -226,7 +226,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
       {409, PetstoreClient.Errors.ConflictError},
       {418, PetstoreClient.Errors.ClientError},
       {422, PetstoreClient.Errors.UnprocessableEntityError},
-      {502, PetstoreClient.Errors.ServerError}
+      {502, PetstoreClient.Errors.BadGatewayError}
     ]
 
     for {status, module} <- cases do

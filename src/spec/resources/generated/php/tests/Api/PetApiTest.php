@@ -45,6 +45,7 @@ use PetstoreClient\Errors\ForbiddenException;
 use PetstoreClient\Errors\UnauthorizedException;
 use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\BadGatewayException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\ApiResponse as ApiResponseModel;
 use PetstoreClient\Models\Pet;
@@ -1213,7 +1214,7 @@ test('bhv operations 138 get pet by id picks the status specific error class', f
     [409, ConflictException::class],
     [418, ClientException::class],
     [422, UnprocessableEntityException::class],
-    [502, ServerException::class],
+    [502, BadGatewayException::class],
 ]);
 
 test('bhv operations 036 empty body for body returning op throws api exception', function (): void {

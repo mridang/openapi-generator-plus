@@ -609,6 +609,7 @@ describe("Client", () => {
     const client = new Client(authenticator);
 
     expect(client.pet).toBeDefined();
+    expect(client.problems).toBeDefined();
     expect(client.store).toBeDefined();
   });
 });

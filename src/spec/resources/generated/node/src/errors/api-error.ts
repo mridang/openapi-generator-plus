@@ -23,6 +23,27 @@ export type StatusErrorFactory = (
 ) => ApiError;
 
 /**
+ * Builds the error of one error schema an operation declares. An operation
+ * hands the factories of its own declared error responses to
+ * {@link ApiError.fromResponse}, which picks the one for the status that
+ * arrived.
+ */
+export type ErrorSchemaFactory = (
+  statusCode: number,
+  responseHeaders: Record<string, string> | null,
+  responseBody: string | null,
+  request?: { readonly method: string; readonly path: string },
+) => ApiError;
+
+/**
+ * The error factories of an operation by declared status: an exact status
+ * (`404`), a range (`4XX`, `5XX`) or `default`.
+ */
+export type ErrorSchemas = Readonly<
+  Partial<Record<string, ErrorSchemaFactory>>
+>;
+
+/**
  * Optional constructor details of an {@link ApiError}: the underlying `cause`
  * and the request the error answers (`requestMethod`, and `requestPath`
  * without its query string).
@@ -103,23 +124,96 @@ export class ApiError<T = unknown> extends OpenAPIError {
    * response with this status raises. The API classes and the OpenID
    * Connect discovery both use it.
    *
+   * When `errorSchemas` has a factory for the status (an exact status
+   * first, then a `4XX` or `5XX` range, then `default`), the factory builds
+   * the error of that error schema. A body that does not match the schema
+   * never hides the real error: the factory then returns the status error
+   * with the raw body and the decoding failure as its `cause`.
+   *
    * @param statusCode the HTTP status code of the response
    * @param responseHeaders the response headers
    * @param responseBody the raw response body, if any
    * @param request the method and path (without query string) of the request, if known
-   * @returns the status-specific subclass where there is one (for example
-   *   `NotFoundError` for 404), else `ClientError` for any other 4xx,
-   *   `ServerError` for any other 5xx, and `ApiError` for everything else
+   * @param errorSchemas the error factories the operation declares by status, if any
+   * @returns the error of the declared schema where the operation declares
+   *   one for the status, else the status-specific subclass where there is
+   *   one (for example `NotFoundError` for 404), else `ClientError` for any
+   *   other 4xx, `ServerError` for any other 5xx, and `ApiError` for
+   *   everything else
    */
   static fromResponse(
     statusCode: number,
     responseHeaders: Record<string, string> | null,
     responseBody: string | null,
     request?: { readonly method: string; readonly path: string },
+    errorSchemas?: ErrorSchemas,
+  ): ApiError {
+    if (errorSchemas != null) {
+      const factory =
+        errorSchemas[String(statusCode)] ??
+        (statusCode >= 400 && statusCode < 500
+          ? errorSchemas["4XX"]
+          : undefined) ??
+        (statusCode >= 500 && statusCode < 600
+          ? errorSchemas["5XX"]
+          : undefined) ??
+        errorSchemas["default"];
+      if (factory != null) {
+        return factory(statusCode, responseHeaders, responseBody, request);
+      }
+    }
+    return ApiError.statusError(
+      statusCode,
+      responseHeaders,
+      responseBody,
+      request,
+    );
+  }
+
+  /**
+   * The error of a response whose body did not match the error schema its
+   * operation declares: the status error of {@link ApiError.fromResponse}
+   * with the raw body and the decoding failure as its `cause`.
+   *
+   * @internal
+   * @param statusCode the HTTP status code of the response
+   * @param responseHeaders the response headers
+   * @param responseBody the raw response body
+   * @param request the method and path (without query string) of the request, if known
+   * @param cause why the body could not be decoded
+   * @returns the status error, carrying the raw body and the cause
+   */
+  static statusFallback(
+    statusCode: number,
+    responseHeaders: Record<string, string> | null,
+    responseBody: string | null,
+    request: { readonly method: string; readonly path: string } | undefined,
+    cause: unknown,
+  ): ApiError {
+    return ApiError.statusError(
+      statusCode,
+      responseHeaders,
+      responseBody,
+      request,
+      cause,
+    );
+  }
+
+  private static statusError(
+    statusCode: number,
+    responseHeaders: Record<string, string> | null,
+    responseBody: string | null,
+    request: { readonly method: string; readonly path: string } | undefined,
+    cause?: unknown,
   ): ApiError {
     const options: ApiErrorOptions | undefined =
-      request != null
-        ? { requestMethod: request.method, requestPath: request.path }
+      request != null || cause !== undefined
+        ? {
+            ...(cause !== undefined ? { cause } : {}),
+            ...(request != null
+              ? { requestMethod: request.method, requestPath: request.path }
+              : {}),
+          }
         : undefined;
     const message = `API returned status code ${statusCode}`;
     let errorBody: unknown = null;
@@ -152,6 +246,36 @@ export class ApiError<T = unknown> extends OpenAPIError {
           errorBody,
           options,
         );
+  }
+
+  /**
+   * Whether repeating the request can succeed: the status is 408, 409, 429
+   * or a 5xx other than 501, the statuses the client itself retries.
+   */
+  get isRetryable(): boolean {
+    const status = this.statusCode;
+    return (
+      status === 408 ||
+      status === 409 ||
+      status === 429 ||
+      (status >= 500 && status <= 599 && status !== 501)
+    );
+  }
+
+  /**
+   * The request id the server sent in the `x-request-id` response header,
+   * matched without regard to case, or null when the header is absent.
+   */
+  get requestId(): string | null {
+    if (this.responseHeaders === null) {
+      return null;
+    }
+    for (const [name, value] of Object.entries(this.responseHeaders)) {
+      if (name.toLowerCase() === "x-request-id") {
+        return value;
+      }
+    }
+    return null;
   }
 
   /**

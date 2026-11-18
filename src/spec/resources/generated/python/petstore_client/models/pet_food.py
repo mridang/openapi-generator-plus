@@ -62,7 +62,7 @@ class PetFood(ApiModel):
     _discriminator_property_name: ClassVar[str] = "foodType"
 
     @classmethod
-    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
         """Returns the discriminator value (object type) of the data.
 
         Gap AU: raises ValueError when the discriminator field is missing,

@@ -644,6 +644,7 @@ public sealed class ClientTest : IDisposable
         using var client = new Client(_authenticator);
 
         Assert.NotNull(client.Pet);
+        Assert.NotNull(client.Problems);
         Assert.NotNull(client.Store);
     }
 

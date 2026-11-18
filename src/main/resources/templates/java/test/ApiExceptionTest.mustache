@@ -321,6 +321,28 @@ class ApiExceptionTest {
         assertEquals(422, new {{invokerPackage}}.errors.UnprocessableEntityException("m", null, null, null, cause).getStatusCode());
         assertEquals(cause, new {{invokerPackage}}.errors.TooManyRequestsException("m", null, null, null, cause).getCause());
         assertEquals(429, new {{invokerPackage}}.errors.TooManyRequestsException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.PaymentRequiredException("m", null, null, null, cause).getCause());
+        assertEquals(402, new {{invokerPackage}}.errors.PaymentRequiredException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.MethodNotAllowedException("m", null, null, null, cause).getCause());
+        assertEquals(405, new {{invokerPackage}}.errors.MethodNotAllowedException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.RequestTimeoutException("m", null, null, null, cause).getCause());
+        assertEquals(408, new {{invokerPackage}}.errors.RequestTimeoutException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.GoneException("m", null, null, null, cause).getCause());
+        assertEquals(410, new {{invokerPackage}}.errors.GoneException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.PayloadTooLargeException("m", null, null, null, cause).getCause());
+        assertEquals(413, new {{invokerPackage}}.errors.PayloadTooLargeException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.UnsupportedMediaTypeException("m", null, null, null, cause).getCause());
+        assertEquals(415, new {{invokerPackage}}.errors.UnsupportedMediaTypeException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.LockedException("m", null, null, null, cause).getCause());
+        assertEquals(423, new {{invokerPackage}}.errors.LockedException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.NotImplementedException("m", null, null, null, cause).getCause());
+        assertEquals(501, new {{invokerPackage}}.errors.NotImplementedException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.BadGatewayException("m", null, null, null, cause).getCause());
+        assertEquals(502, new {{invokerPackage}}.errors.BadGatewayException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.ServiceUnavailableException("m", null, null, null, cause).getCause());
+        assertEquals(503, new {{invokerPackage}}.errors.ServiceUnavailableException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.GatewayTimeoutException("m", null, null, null, cause).getCause());
+        assertEquals(504, new {{invokerPackage}}.errors.GatewayTimeoutException("m", null, null, null, cause).getStatusCode());
         assertInstanceOf(
                 {{invokerPackage}}.errors.ClientException.class,
                 new {{invokerPackage}}.errors.TooManyRequestsException("m", null, null, null, cause));
@@ -329,6 +351,23 @@ class ApiExceptionTest {
         assertEquals(cause, new {{invokerPackage}}.errors.ClientException(418, "m", null, null, null, cause).getCause());
         assertEquals(cause, new {{invokerPackage}}.errors.ServerException(503, "m", null, null, null, cause).getCause());
         assertNull(new {{invokerPackage}}.errors.NotFoundException("m", null, null, null, null).getCause());
+        for (ApiException named : java.util.List.<ApiException>of(
+                new {{invokerPackage}}.errors.PaymentRequiredException("m"),
+                new {{invokerPackage}}.errors.MethodNotAllowedException("m"),
+                new {{invokerPackage}}.errors.RequestTimeoutException("m"),
+                new {{invokerPackage}}.errors.GoneException("m"),
+                new {{invokerPackage}}.errors.PayloadTooLargeException("m"),
+                new {{invokerPackage}}.errors.UnsupportedMediaTypeException("m"),
+                new {{invokerPackage}}.errors.LockedException("m"))) {
+            assertInstanceOf({{invokerPackage}}.errors.ClientException.class, named);
+        }
+        for (ApiException named : java.util.List.<ApiException>of(
+                new {{invokerPackage}}.errors.NotImplementedException("m"),
+                new {{invokerPackage}}.errors.BadGatewayException("m"),
+                new {{invokerPackage}}.errors.ServiceUnavailableException("m"),
+                new {{invokerPackage}}.errors.GatewayTimeoutException("m"))) {
+            assertInstanceOf({{invokerPackage}}.errors.ServerException.class, named);
+        }
     }
 
     @Test
@@ -354,9 +393,20 @@ class ApiExceptionTest {
                 Map.entry(409, {{invokerPackage}}.errors.ConflictException.class),
                 Map.entry(422, {{invokerPackage}}.errors.UnprocessableEntityException.class),
                 Map.entry(429, {{invokerPackage}}.errors.TooManyRequestsException.class),
+                Map.entry(402, {{invokerPackage}}.errors.PaymentRequiredException.class),
+                Map.entry(405, {{invokerPackage}}.errors.MethodNotAllowedException.class),
+                Map.entry(408, {{invokerPackage}}.errors.RequestTimeoutException.class),
+                Map.entry(410, {{invokerPackage}}.errors.GoneException.class),
+                Map.entry(413, {{invokerPackage}}.errors.PayloadTooLargeException.class),
+                Map.entry(415, {{invokerPackage}}.errors.UnsupportedMediaTypeException.class),
+                Map.entry(423, {{invokerPackage}}.errors.LockedException.class),
+                Map.entry(501, {{invokerPackage}}.errors.NotImplementedException.class),
+                Map.entry(502, {{invokerPackage}}.errors.BadGatewayException.class),
+                Map.entry(503, {{invokerPackage}}.errors.ServiceUnavailableException.class),
+                Map.entry(504, {{invokerPackage}}.errors.GatewayTimeoutException.class),
                 Map.entry(418, {{invokerPackage}}.errors.ClientException.class),
                 Map.entry(500, {{invokerPackage}}.errors.InternalServerErrorException.class),
-                Map.entry(503, {{invokerPackage}}.errors.ServerException.class),
+                Map.entry(599, {{invokerPackage}}.errors.ServerException.class),
                 Map.entry(302, ApiException.class),
                 Map.entry(600, ApiException.class));
         for (Map.Entry<Integer, Class<? extends ApiException>> entry : expected.entrySet()) {
@@ -517,7 +567,7 @@ class ApiExceptionTest {
 
     @Test
     void bhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
-        ApiException ex = ApiException.fromResponse(502, Map.of(), "<html>bad gateway</html>");
+        ApiException ex = ApiException.fromResponse(599, Map.of(), "<html>bad gateway</html>");
 
         assertEquals({{invokerPackage}}.errors.ServerException.class, ex.getClass());
         assertEquals("<html>bad gateway</html>", ex.getResponseBody());
@@ -538,6 +588,109 @@ class ApiExceptionTest {
                 {{invokerPackage}}.errors.ConflictException.class,
                 {{invokerPackage}}.errors.UnprocessableEntityException.class,
                 {{invokerPackage}}.errors.TooManyRequestsException.class,
+                {{invokerPackage}}.errors.PaymentRequiredException.class,
+                {{invokerPackage}}.errors.MethodNotAllowedException.class,
+                {{invokerPackage}}.errors.RequestTimeoutException.class,
+                {{invokerPackage}}.errors.GoneException.class,
+                {{invokerPackage}}.errors.PayloadTooLargeException.class,
+                {{invokerPackage}}.errors.UnsupportedMediaTypeException.class,
+                {{invokerPackage}}.errors.LockedException.class,
+                {{invokerPackage}}.errors.NotImplementedException.class,
+                {{invokerPackage}}.errors.BadGatewayException.class,
+                {{invokerPackage}}.errors.ServiceUnavailableException.class,
+                {{invokerPackage}}.errors.GatewayTimeoutException.class,
+                {{invokerPackage}}.errors.InternalServerErrorException.class,
+                {{invokerPackage}}.errors.NetworkException.class,
+                {{invokerPackage}}.errors.NetworkTimeoutException.class,
+                SerializationException.class,
+                {{invokerPackage}}.errors.OAuth2ServerException.class,
+                {{invokerPackage}}.errors.OAuth2TokenException.class);
+        for (Class<? extends RuntimeException> error : errors) {
+            assertEquals("{{invokerPackage}}.errors", error.getPackageName(), error.getName());
+            assertNull(error.getEnclosingClass(), error.getName());
+            assertTrue({{errorPrefix}}Exception.class.isAssignableFrom(error), error.getName());
+        }
+    }    @Test
+
+    void bhvErrors201AnErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+        for (int status : new int[] {408, 409, 429, 500, 502, 503, 504, 599}) {
+            assertTrue(ApiException.fromResponse(status, Map.of(), null).isRetryable(), "status " + status);
+        }
+        for (int status : new int[] {400, 401, 403, 404, 422, 501, 302}) {
+            assertFalse(ApiException.fromResponse(status, Map.of(), null).isRetryable(), "status " + status);
+        }
+    }
+
+    @Test
+    void bhvErrors202AnErrorExposesTheRequestIdHeaderAsItsRequestId() {
+        assertEquals("abc", ApiException.fromResponse(500, Map.of("X-Request-ID", "abc"), null).getRequestId());
+        assertEquals("abc", ApiException.fromResponse(500, Map.of("x-request-id", "abc"), null).getRequestId());
+        assertNull(ApiException.fromResponse(500, Map.of("other", "abc"), null).getRequestId());
+        assertNull(new ApiException(0, "no response", null, null).getRequestId());
+    }
+
+    @Test
+    void bhvErrors203TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+        Map<String, {{invokerPackage}}.errors.ErrorFactory> factories = Map.of(
+                "404", (m, p, s, h, b) -> new ApiException(s, "exact", h, b),
+                "4XX", (m, p, s, h, b) -> new ApiException(s, "range", h, b),
+                "default", (m, p, s, h, b) -> new ApiException(s, "default", h, b));
+
+        assertEquals("exact", ApiException.fromResponse("GET", "/x", 404, Map.of(), "{}", factories).getMessage());
+        assertEquals("range", ApiException.fromResponse("GET", "/x", 418, Map.of(), "{}", factories).getMessage());
+        assertEquals("default", ApiException.fromResponse("GET", "/x", 502, Map.of(), "{}", factories).getMessage());
+        assertEquals(
+                {{invokerPackage}}.errors.BadGatewayException.class,
+                ApiException.fromResponse("GET", "/x", 502, Map.of(), "{}", Map.of()).getClass());
+        assertEquals(
+                {{invokerPackage}}.errors.NotFoundException.class,
+                ApiException.fromResponse("GET", "/x", 404, Map.of(), "{}", null).getClass());
+    }
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+    @Test
+    void bhvErrors204ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+        ApiException ex = {{invokerPackage}}.errors.{{{className}}}.fromErrorResponse(
+                "GET", "/x", {{sampleStatus}}, Map.of(), "[1, 2");
+
+        assertEquals(
+                ApiException.fromResponse("GET", "/x", {{sampleStatus}}, Map.of(), "[1, 2").getClass(),
+                ex.getClass());
+        assertEquals("[1, 2", ex.getResponseBody());
+        assertEquals({{sampleStatus}}, ex.getStatusCode());
+        assertNotNull(ex.getCause());
+    }
+{{/-first}}
+{{/errorSchemas}}
+{{/hasErrorSchemas}}
+
+    @Test
+    void everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+        java.util.List<Class<? extends RuntimeException>> errors = java.util.List.of(
+                {{errorPrefix}}Exception.class,
+                ApiException.class,
+                {{invokerPackage}}.errors.ClientException.class,
+                {{invokerPackage}}.errors.ServerException.class,
+                {{invokerPackage}}.errors.BadRequestException.class,
+                {{invokerPackage}}.errors.UnauthorizedException.class,
+                {{invokerPackage}}.errors.ForbiddenException.class,
+                {{invokerPackage}}.errors.NotFoundException.class,
+                {{invokerPackage}}.errors.ConflictException.class,
+                {{invokerPackage}}.errors.UnprocessableEntityException.class,
+                {{invokerPackage}}.errors.TooManyRequestsException.class,
+                {{invokerPackage}}.errors.PaymentRequiredException.class,
+                {{invokerPackage}}.errors.MethodNotAllowedException.class,
+                {{invokerPackage}}.errors.RequestTimeoutException.class,
+                {{invokerPackage}}.errors.GoneException.class,
+                {{invokerPackage}}.errors.PayloadTooLargeException.class,
+                {{invokerPackage}}.errors.UnsupportedMediaTypeException.class,
+                {{invokerPackage}}.errors.LockedException.class,
+                {{invokerPackage}}.errors.NotImplementedException.class,
+                {{invokerPackage}}.errors.BadGatewayException.class,
+                {{invokerPackage}}.errors.ServiceUnavailableException.class,
+                {{invokerPackage}}.errors.GatewayTimeoutException.class,
                 {{invokerPackage}}.errors.InternalServerErrorException.class,
                 {{invokerPackage}}.errors.NetworkException.class,
                 {{invokerPackage}}.errors.NetworkTimeoutException.class,
@@ -588,6 +741,20 @@ class ApiExceptionTest {
         assertInstanceOf({{errorPrefix}}Exception.class, token);
         assertFalse(server instanceof ApiException);
         assertFalse(token instanceof ApiException);
+    }
+
+    void serializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery() {
+        SerializationException bare = new SerializationException("bad");
+        assertEquals(0, bare.getStatusCode());
+        assertNull(bare.getResponseHeaders());
+        assertNull(bare.getResponseBody());
+        assertNull(bare.getRequestMethod());
+        assertNull(bare.getRequestPath());
+
+        SerializationException withResponse = new SerializationException(
+                "bad", null, 200, Map.of("content-type", "text/plain"), "x", "GET", "http://h/a/b?token=1");
+        assertEquals(200, withResponse.getStatusCode());
+        assertEquals("/a/b", withResponse.getRequestPath());
     }
 
     @Test

@@ -110,11 +110,15 @@ class StoreApi extends BaseApi {
   /// Delete purchase order by ID
   /// `orderId` ID of the order to delete
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `BadRequestException` on HTTP 400.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<void> deleteOrder(int orderId, DeleteOrderOptions? options) async {
     await deleteOrderWithHttpInfo(orderId, options);
   }
 
   /// Performs the deleteOrder operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<void>> deleteOrderWithHttpInfo(
     int orderId,
     DeleteOrderOptions? options,
@@ -540,6 +544,8 @@ class StoreApi extends BaseApi {
   /// Find purchase order by ID
   /// `orderId` ID of order to return
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `BadRequestException` on HTTP 400.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<Order> getOrderById(int orderId, GetOrderByIdOptions? options) async {
     final result = await getOrderByIdWithHttpInfo(orderId, options);
     final data = result.data;
@@ -560,6 +566,8 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getOrderById operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
+  /// Throws `NotFoundException` on HTTP 404.
   Future<ApiResult<Order>> getOrderByIdWithHttpInfo(
     int orderId,
     GetOrderByIdOptions? options,
@@ -983,6 +991,7 @@ class StoreApi extends BaseApi {
 
   /// Place an order for a pet
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `BadRequestException` on HTTP 400.
   Future<Order> placeOrder(Order? order, PlaceOrderOptions? options) async {
     final result = await placeOrderWithHttpInfo(order, options);
     final data = result.data;
@@ -1003,6 +1012,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the placeOrder operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
   Future<ApiResult<Order>> placeOrderWithHttpInfo(
     Order? order,
     PlaceOrderOptions? options,
@@ -1037,6 +1047,7 @@ class StoreApi extends BaseApi {
   /// Reserve stock, answering with the existing or a new reservation
   /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Throws `BadRequestException` on HTTP 400.
   Future<ReserveStockResponse> reserveStock(
     ReserveStockOptions? options,
   ) async {
@@ -1059,6 +1070,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the reserveStock operation and returns the full API result.
+  /// Throws `BadRequestException` on HTTP 400.
   Future<ApiResult<ReserveStockResponse>> reserveStockWithHttpInfo(
     ReserveStockOptions? options,
   ) async {

@@ -24,8 +24,12 @@ open class ApiException : OpenAPIException {
     /** The raw HTTP response body, if available. */
     val responseBody: String?
 
+    /** The deserialized error body as stored by the constructor, or null if not available. */
+    private val decodedErrorBody: Any?
+
     /** The deserialized error body, or null if not available. */
-    val errorBody: Any?
+    open val errorBody: Any?
+        get() = decodedErrorBody
 
     /** The HTTP method of the request that failed (for example `GET`), or null when it is not known. */
     var requestMethod: String?
@@ -44,7 +48,7 @@ open class ApiException : OpenAPIException {
         this.statusCode = 0
         this.responseHeaders = null
         this.responseBody = null
-        this.errorBody = null
+        this.decodedErrorBody = null
         this.requestMethod = null
         this.requestPath = null
     }
@@ -71,7 +75,7 @@ open class ApiException : OpenAPIException {
         this.statusCode = 0
         this.responseHeaders = null
         this.responseBody = null
-        this.errorBody = null
+        this.decodedErrorBody = null
         this.requestMethod = requestMethod
         this.requestPath = requestPath
     }
@@ -91,7 +95,7 @@ open class ApiException : OpenAPIException {
         this.statusCode = statusCode
         this.responseHeaders = null
         this.responseBody = null
-        this.errorBody = null
+        this.decodedErrorBody = null
         this.requestMethod = null
         this.requestPath = null
     }
@@ -114,7 +118,7 @@ open class ApiException : OpenAPIException {
         this.statusCode = statusCode
         this.responseHeaders = responseHeaders?.toMap()
         this.responseBody = null
-        this.errorBody = null
+        this.decodedErrorBody = null
         this.requestMethod = null
         this.requestPath = null
     }
@@ -146,7 +150,7 @@ open class ApiException : OpenAPIException {
         // the caller after construction.
         this.responseHeaders = responseHeaders?.toMap()
         this.responseBody = responseBody
-        this.errorBody = errorBody
+        this.decodedErrorBody = errorBody
         this.requestMethod = requestMethod
         this.requestPath = requestPath
     }
@@ -155,9 +159,9 @@ open class ApiException : OpenAPIException {
         /**
          * Map an HTTP response that was not a success to the exception for its status.
          *
-         * 400, 401, 403, 404, 409, 422 and 429 map to their named [ClientException]
-         * subclasses and any other 4xx to [ClientException]; 500 maps to
-         * [InternalServerErrorException] and any other 5xx to [ServerException];
+         * 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named [ClientException]
+         * subclasses and any other 4xx to [ClientException]; 500, 501, 502, 503 and 504
+         * map to their named [ServerException] subclasses and any other 5xx to [ServerException];
          * any other status maps to `ApiException` itself. A JSON body is decoded
          * and exposed through [errorBody]; a body that is not JSON leaves
          * the error body `null`.
@@ -167,6 +171,9 @@ open class ApiException : OpenAPIException {
          * @param responseBody the raw HTTP response body, if available
          * @param requestMethod the HTTP method of the request that failed, if known
          * @param requestPath the path of the request that failed, without its query string, if known
+         * @param errorSchemas the operation's error factories by declared status (`404`, `4XX`, `default`),
+         *   or null; the factory for the exact status, then the range, then `default` builds the
+         *   exception of its error schema
          * @return the exception for the status; the caller throws it
          */
         @JvmStatic
@@ -177,6 +184,50 @@ open class ApiException : OpenAPIException {
             responseBody: String?,
             requestMethod: String? = null,
             requestPath: String? = null,
+            errorSchemas: Map<String, ErrorFactory>? = null,
+        ): ApiException {
+            if (errorSchemas != null) {
+                val factory =
+                    errorSchemas[statusCode.toString()]
+                        ?: (if (statusCode in 400..499) errorSchemas["4XX"] else null)
+                        ?: (if (statusCode in 500..599) errorSchemas["5XX"] else null)
+                        ?: errorSchemas["default"]
+                if (factory != null) {
+                    return factory.create(requestMethod, requestPath, statusCode, responseHeaders, responseBody)
+                }
+            }
+            return build(statusCode, responseHeaders, responseBody, requestMethod, requestPath, null)
+        }
+
+        /**
+         * The status exception for a response whose body did not match its declared error
+         * schema: the exception [fromResponse] gives, with the decoding failure as its cause.
+         *
+         * @param statusCode the HTTP status code of the response
+         * @param responseHeaders the HTTP response headers, if available
+         * @param responseBody the raw HTTP response body, if available
+         * @param requestMethod the HTTP method of the request that failed, if known
+         * @param requestPath the path of the request that failed, without its query string, if known
+         * @param cause why the body could not be decoded
+         * @return the status exception, carrying the raw body and the cause
+         */
+        @JvmStatic
+        fun statusFallback(
+            statusCode: Int,
+            responseHeaders: Map<String, String>?,
+            responseBody: String?,
+            requestMethod: String?,
+            requestPath: String?,
+            cause: Throwable,
+        ): ApiException = build(statusCode, responseHeaders, responseBody, requestMethod, requestPath, cause)
+
+        private fun build(
+            statusCode: Int,
+            responseHeaders: Map<String, String>?,
+            responseBody: String?,
+            requestMethod: String?,
+            requestPath: String?,
+            cause: Throwable?,
         ): ApiException {
             val message = "API returned status code $statusCode"
             // kotlinx reads a bare token such as <html> as a non-string primitive
@@ -199,13 +250,20 @@ open class ApiException : OpenAPIException {
                     }
                 }
             return when (statusCode) {
-                400 -> BadRequestException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
-                401 -> UnauthorizedException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
-                403 -> ForbiddenException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
-                404 -> NotFoundException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
-                409 -> ConflictException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
-                422 -> UnprocessableEntityException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
-                429 -> TooManyRequestsException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                400 -> BadRequestException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                401 -> UnauthorizedException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                403 -> ForbiddenException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                404 -> NotFoundException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                409 -> ConflictException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                422 -> UnprocessableEntityException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                429 -> TooManyRequestsException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                402 -> PaymentRequiredException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                405 -> MethodNotAllowedException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                408 -> RequestTimeoutException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                410 -> GoneException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                413 -> PayloadTooLargeException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                415 -> UnsupportedMediaTypeException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                423 -> LockedException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
                 in 400..499 ->
                     ClientException(
                         statusCode,
@@ -213,11 +271,15 @@ open class ApiException : OpenAPIException {
                         responseHeaders,
                         responseBody,
                         errorBody,
-                        null,
+                        cause,
                         requestMethod,
                         requestPath,
                     )
-                500 -> InternalServerErrorException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                500 -> InternalServerErrorException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                501 -> NotImplementedException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                502 -> BadGatewayException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                503 -> ServiceUnavailableException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
+                504 -> GatewayTimeoutException(message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
                 in 500..599 ->
                     ServerException(
                         statusCode,
@@ -225,14 +287,29 @@ open class ApiException : OpenAPIException {
                         responseHeaders,
                         responseBody,
                         errorBody,
-                        null,
+                        cause,
                         requestMethod,
                         requestPath,
                     )
-                else -> ApiException(statusCode, message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                else -> ApiException(statusCode, message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)
             }
         }
     }
+
+    /**
+     * Whether repeating the request can succeed: the status is 408, 409, 429 or a 5xx other than
+     * 501, the statuses the client itself retries.
+     */
+    val isRetryable: Boolean
+        get() =
+            statusCode == 408 ||
+                statusCode == 409 ||
+                statusCode == 429 ||
+                (statusCode in 500..599 && statusCode != 501)
+
+    /** The request id the server sent in the `x-request-id` response header, or null when it is absent. */
+    val requestId: String?
+        get() = responseHeaders?.entries?.firstOrNull { it.key.equals("x-request-id", ignoreCase = true) }?.value
 
     /**
      * Deserialize the raw response body into the given type.

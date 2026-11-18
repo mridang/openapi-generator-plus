@@ -521,4 +521,56 @@ public class ComposedSchemaTest
         Assert.Equal(original!.Name, restored!.Name);
         Assert.Equal(original.OwnerName, restored.OwnerName);
     }
+
+    // -- allOf with a discriminator: Vehicle and Shape --
+
+    [Fact]
+    public void BhvUnions301AllOfExplicitMappingDecodesTheSubtype()
+    {
+        var json = "{\"vehicleType\":\"car\",\"plate\":\"AB-12\",\"doorCount\":4}";
+        var result = _serializer.Deserialize<Vehicle>(json);
+
+        Assert.NotNull(result);
+        Assert.IsType<Car>(result);
+        Assert.Equal("AB-12", result!.Plate);
+        Assert.Equal(4, ((Car)result).DoorCount);
+    }
+
+    [Fact]
+    public void BhvUnions302AllOfImplicitMappingDecodesTheSubtype()
+    {
+        var json = "{\"shapeType\":\"Circle\",\"radius\":1.5}";
+        var result = _serializer.Deserialize<Shape>(json);
+
+        Assert.NotNull(result);
+        Assert.IsType<Circle>(result);
+        Assert.Equal(1.5, ((Circle)result!).Radius);
+    }
+
+    [Fact]
+    public void BhvUnions303AllOfUnknownDiscriminatorNamesTheValue()
+    {
+        var json = "{\"vehicleType\":\"boat\",\"plate\":\"B-1\"}";
+        var ex = Assert.Throws<SerializationException>(
+            () => _serializer.Deserialize<Vehicle>(json));
+        Assert.NotNull(ex.InnerException);
+        Assert.Contains("boat", ex.InnerException!.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvUnions304AllOfMissingDiscriminatorFails()
+    {
+        var json = "{\"plate\":\"AB-12\"}";
+        Assert.Throws<SerializationException>(
+            () => _serializer.Deserialize<Vehicle>(json));
+    }
+
+    [Fact]
+    public void BhvSerializationObject301AllOfSubtypeWritesItsDiscriminator()
+    {
+        var car = new Car("AB-12", 4);
+
+        var serialized = _serializer.Serialize(car);
+        Assert.Contains("\"vehicleType\":\"car\"", serialized, StringComparison.Ordinal);
+    }
 }

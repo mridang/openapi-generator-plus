@@ -2120,6 +2120,7 @@ void main() {
         source,
         contains(
           '  /// `options` options carrying the per-call timeout, headers and retry budget\n'
+          '  /// Throws `BadRequestException` on HTTP 400.\n'
           '  Future<Pet> addPet(',
         ),
       );
@@ -2127,6 +2128,7 @@ void main() {
         source,
         contains(
           '  /// `options` options for query, header, form, and cookie parameters\n'
+          '  /// Throws `BadRequestException` on HTTP 400.\n'
           '  Future<void> deletePet(',
         ),
       );
@@ -2135,6 +2137,7 @@ void main() {
         contains(
           '  /// `days` Extra dates to summarise\n'
           '  /// `options` options for query, header, form, and cookie parameters\n'
+          '  /// Throws `NotFoundException` on HTTP 404.\n'
           '  Future<String> getPetSummary(',
         ),
       );

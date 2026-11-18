@@ -2,12 +2,37 @@
 
 package {{invokerPackage}}.errors;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nullable;
+
 /**
  * Exception raised when serialization or deserialization fails.
+ *
+ * <p>A failure to decode a response body also carries that response: its status code, its
+ * headers and its raw body, and the method and path of the request without its query string.
+ * A failure with no response behind it, such as encoding a request body, has the status code
+ * {@code 0} and no response context.
  */
 public class SerializationException extends {{errorPrefix}}Exception {
     @java.io.Serial
     private static final long serialVersionUID = 1L;
+
+    /** The HTTP status of the response whose body failed to decode, or {@code 0} when there is none. */
+    private final int statusCode;
+
+    /** The headers of that response, or {@code null} when there is none. */
+    @Nullable private final HashMap<String, String> responseHeaders;
+
+    /** The raw body of that response, or {@code null} when there is none. */
+    @Nullable private final String responseBody;
+
+    /** The HTTP method of the request that drew that response, or {@code null} when unknown. */
+    @Nullable private final String requestMethod;
+
+    /** The path of that request with the query string stripped, or {@code null} when unknown. */
+    @Nullable private final String requestPath;
 
     /**
      * Creates an exception with a detail message and cause.
@@ -16,7 +41,7 @@ public class SerializationException extends {{errorPrefix}}Exception {
      * @param cause the underlying cause
      */
     public SerializationException(String message, Throwable cause) {
-        super(message, cause);
+        this(message, cause, 0, null, null, null, null);
     }
 
     /**
@@ -25,6 +50,85 @@ public class SerializationException extends {{errorPrefix}}Exception {
      * @param message the detail message
      */
     public SerializationException(String message) {
+        this(message, null, 0, null, null, null, null);
+    }
+
+    /**
+     * Creates an exception for a response body that failed to decode.
+     *
+     * @param message the detail message
+     * @param cause the underlying cause, if any
+     * @param statusCode the HTTP status code of the response
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param requestMethod the HTTP method of the request, if known
+     * @param requestPath the path or URL of the request, if known; a query string is stripped
+     */
+    public SerializationException(
+            String message,
+            @Nullable Throwable cause,
+            int statusCode,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable String requestMethod,
+            @Nullable String requestPath) {
         super(message);
+        if (cause != null) {
+            initCause(cause);
+        }
+        this.statusCode = statusCode;
+        this.responseHeaders = responseHeaders == null ? null : new HashMap<>(responseHeaders);
+        this.responseBody = responseBody;
+        this.requestMethod = requestMethod;
+        this.requestPath = requestPath == null ? null : ApiException.stripQuery(requestPath);
+    }
+
+    /**
+     * Get the HTTP status code of the response whose body failed to decode.
+     *
+     * @return the status code, or {@code 0} when no response was involved
+     */
+    public int getStatusCode() {
+        return statusCode;
+    }
+
+    /**
+     * Get the HTTP response headers of the response whose body failed to decode.
+     *
+     * @return the headers, or {@code null} when no response was involved
+     */
+    @Nullable
+    public Map<String, String> getResponseHeaders() {
+        return responseHeaders == null ? null : Collections.unmodifiableMap(responseHeaders);
+    }
+
+    /**
+     * Get the raw body of the response whose body failed to decode.
+     *
+     * @return the raw body, or {@code null} when no response was involved
+     */
+    @Nullable
+    public String getResponseBody() {
+        return responseBody;
+    }
+
+    /**
+     * Get the HTTP method of the request that drew the response.
+     *
+     * @return the HTTP method, or {@code null} when no request was involved
+     */
+    @Nullable
+    public String getRequestMethod() {
+        return requestMethod;
+    }
+
+    /**
+     * Get the path of the request that drew the response, without its query string.
+     *
+     * @return the request path, or {@code null} when no request was involved
+     */
+    @Nullable
+    public String getRequestPath() {
+        return requestPath;
     }
 }

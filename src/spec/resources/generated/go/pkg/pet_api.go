@@ -264,6 +264,9 @@ var _ PetApiInterface = (*PetApi)(nil)
 // param options: Options for this operation; it has no parameters of its own, so pass nil.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 //
+// Declared errors:
+//   - HTTP 400: *BadRequestError
+//
 // POST /pet
 func (a *PetApi) AddPet(ctx context.Context, pet Pet, options *opts.AddPetOptions, callOptions ...RequestOption) (*Pet, error) {
 	result, err := a.AddPetWithHTTPInfo(ctx, pet, options, callOptions...)
@@ -343,7 +346,7 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -351,7 +354,7 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -362,7 +365,7 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.AddPet: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.AddPet: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}
@@ -381,6 +384,9 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // POST /pet/{petId}/photos
 func (a *PetApi) AddPetPhotos(ctx context.Context, petId int64, options *opts.AddPetPhotosOptions, callOptions ...RequestOption) ([]Photo, error) {
@@ -481,7 +487,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -489,7 +495,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -500,7 +506,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.AddPetPhotos: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.AddPetPhotos: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}
@@ -606,7 +612,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -614,7 +620,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -625,7 +631,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.AddPetTreatment: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.AddPetTreatment: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}
@@ -644,6 +650,9 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 // param petId: Pet id to delete
 // param options: Options for query, header, form, and cookie parameters.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 400: *BadRequestError
 //
 // DELETE /pet/{petId}
 func (a *PetApi) DeletePet(ctx context.Context, petId int64, options *opts.DeletePetOptions, callOptions ...RequestOption) error {
@@ -725,6 +734,9 @@ func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // GET /pet/{petId}/documents/{documentId}
 func (a *PetApi) DownloadPetDocument(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) ([]byte, error) {
@@ -822,7 +834,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -830,7 +842,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -841,7 +853,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.DownloadPetDocument: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.DownloadPetDocument: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -946,7 +958,7 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -954,7 +966,7 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -965,7 +977,7 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.FindPetsBornOn: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.FindPetsBornOn: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -986,6 +998,9 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 // Example for `status` — Available only: available
 // Example for `status` — Sold pets: sold
+//
+// Declared errors:
+//   - HTTP 400: *BadRequestError
 //
 // GET /pet/findByStatus
 //
@@ -1097,7 +1112,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1105,7 +1120,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1116,7 +1131,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.FindPetsByStatus: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.FindPetsByStatus: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1227,7 +1242,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1235,7 +1250,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1246,7 +1261,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetExternalPetInfo: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetExternalPetInfo: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1357,7 +1372,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1365,7 +1380,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1376,7 +1391,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetMultiServerPetInfo: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetMultiServerPetInfo: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1394,6 +1409,9 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // GET /pet/{petId}/avatar
 func (a *PetApi) GetPetAvatar(ctx context.Context, petId int64, callOptions ...RequestOption) ([]byte, error) {
@@ -1483,7 +1501,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1491,7 +1509,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1502,7 +1520,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetAvatar: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetAvatar: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1520,6 +1538,9 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // GET /pet/{petId}/avatar/thumbnail
 func (a *PetApi) GetPetAvatarThumbnail(ctx context.Context, petId int64, callOptions ...RequestOption) ([]byte, error) {
@@ -1609,7 +1630,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1617,7 +1638,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1628,7 +1649,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetAvatarThumbnail: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetAvatarThumbnail: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1649,6 +1670,10 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 // Example for `petId` — Small breed ID: 1
 // Example for `petId` — Large breed ID: 42
+//
+// Declared errors:
+//   - HTTP 400: *BadRequestError
+//   - HTTP 404: *NotFoundError
 //
 // GET /pet/{petId}
 //
@@ -1747,7 +1772,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1755,7 +1780,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1766,7 +1791,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetById: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetById: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1886,7 +1911,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1894,7 +1919,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1905,7 +1930,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetByName: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetByName: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1923,6 +1948,9 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // GET /pet/{petId}/passport
 func (a *PetApi) GetPetPassport(ctx context.Context, petId int64, callOptions ...RequestOption) (*PetPassport, error) {
@@ -2011,7 +2039,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -2019,7 +2047,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -2030,7 +2058,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetPassport: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetPassport: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -2048,6 +2076,9 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // GET /pet/{petId}/photos/{photoId}
 func (a *PetApi) GetPetPhoto(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) ([]byte, error) {
@@ -2145,7 +2176,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -2153,7 +2184,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -2164,7 +2195,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetPhoto: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetPhoto: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -2184,6 +2215,9 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 // param asOf: Summary date, sent as a matrix-style path segment
 // param options: Options for query, header, form, and cookie parameters.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // GET /pet/{petId}/summary/{asOf}
 func (a *PetApi) GetPetSummary(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (string, error) {
@@ -2307,7 +2341,7 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -2315,7 +2349,7 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -2326,7 +2360,7 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetSummary: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetSummary: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -2481,7 +2515,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -2489,7 +2523,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -2500,7 +2534,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetTag: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetTag: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -2611,7 +2645,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -2619,7 +2653,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -2630,7 +2664,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetStagingPetInfo: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetStagingPetInfo: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -2648,6 +2682,9 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries and WithRequestContentType.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // PUT /pet/{petId}/avatar
 func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body io.Reader, callOptions ...RequestOption) error {
@@ -2749,6 +2786,9 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 //
+// Declared errors:
+//   - HTTP 404: *NotFoundError
+//
 // PUT /pet/{petId}/avatar/thumbnail
 func (a *PetApi) SetPetAvatarThumbnail(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest, callOptions ...RequestOption) error {
 	result, err := a.SetPetAvatarThumbnailWithHTTPInfo(ctx, petId, setPetAvatarThumbnailRequest, callOptions...)
@@ -2815,6 +2855,9 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // POST /pet/{petId}/preferences
 func (a *PetApi) SetPetPreferences(ctx context.Context, petId int64, options *opts.SetPetPreferencesOptions, callOptions ...RequestOption) (*ApiResponse, error) {
@@ -2925,7 +2968,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -2933,7 +2976,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -2944,7 +2987,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.SetPetPreferences: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.SetPetPreferences: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}
@@ -2963,6 +3006,10 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 // param petId: ID of pet to update
 // param pet: Pet object that needs to be updated
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 400: *BadRequestError
+//   - HTTP 404: *NotFoundError
 //
 // PUT /pet/{petId}
 func (a *PetApi) UpdatePet(ctx context.Context, petId int64, pet Pet, callOptions ...RequestOption) (*Pet, error) {
@@ -3051,7 +3098,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "PUT", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -3059,7 +3106,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "PUT", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -3070,7 +3117,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.UpdatePet: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.UpdatePet: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "PUT", path)
 		}
 		dataPtr = &data
 	}
@@ -3089,6 +3136,9 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // POST /pet/{petId}/certificate
 func (a *PetApi) UploadPetCertificate(ctx context.Context, petId int64, options *opts.UploadPetCertificateOptions, callOptions ...RequestOption) (*ApiResponse, error) {
@@ -3187,7 +3237,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -3195,7 +3245,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -3206,7 +3256,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.UploadPetCertificate: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.UploadPetCertificate: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}
@@ -3225,6 +3275,9 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries and WithRequestContentType.
+//
+// Declared errors:
+//   - HTTP 404: *NotFoundError
 //
 // POST /pet/{petId}/documents
 func (a *PetApi) UploadPetDocument(ctx context.Context, petId int64, options *opts.UploadPetDocumentOptions, callOptions ...RequestOption) (*ApiResponse, error) {
@@ -3383,7 +3436,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -3391,7 +3444,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -3402,7 +3455,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.UploadPetDocument: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.UploadPetDocument: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}

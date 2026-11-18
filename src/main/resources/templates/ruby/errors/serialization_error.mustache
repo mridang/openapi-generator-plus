@@ -13,10 +13,34 @@ module {{moduleName}}
     # one constant named after it can resolve this class directly.
     class SerializationError < {{apiErrorParent}}
       attr_reader :cause
+      # The response whose body could not be decoded: its status, headers and raw
+      # body, and the method and path (never the query string) of the request.
+      # All are nil for a failure that did not come from a response.
+      attr_reader :status_code, :response_headers, :response_body, :request_method, :request_path
 
       def initialize(message, cause = nil)
         super(message)
         @cause = cause
+      end
+
+      # Attaches the response a body could not be decoded from, once: a
+      # response already attached is kept.
+      #
+      # @param status_code [Integer] the HTTP status code of the response
+      # @param headers [Hash{String => String}, nil] the response headers
+      # @param body [String, nil] the raw response body
+      # @param request_method [String, nil] the HTTP method of the request
+      # @param request_path [String, nil] the path of the request; a query string is dropped
+      # @return [SerializationError] self
+      def with_response(status_code:, headers:, body:, request_method:, request_path:)
+        return self unless @status_code.nil?
+
+        @status_code = status_code
+        @response_headers = headers
+        @response_body = body
+        @request_method = request_method.to_s.upcase
+        @request_path = request_path.to_s.split('?', 2).first
+        self
       end
     end
   end

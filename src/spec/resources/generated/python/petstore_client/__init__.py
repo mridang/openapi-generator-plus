@@ -10,6 +10,7 @@ __version__ = "1.0.0"
 # Define package exports
 __all__ = [
     "PetApi",
+    "ProblemsApi",
     "StoreApi",
     "Authenticator",
     "Client",
@@ -29,6 +30,17 @@ __all__ = [
     "ConflictException",
     "UnprocessableEntityException",
     "TooManyRequestsException",
+    "PaymentRequiredException",
+    "MethodNotAllowedException",
+    "RequestTimeoutException",
+    "GoneException",
+    "PayloadTooLargeException",
+    "UnsupportedMediaTypeException",
+    "LockedException",
+    "NotImplementedException",
+    "BadGatewayException",
+    "ServiceUnavailableException",
+    "GatewayTimeoutException",
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",
@@ -39,7 +51,9 @@ __all__ = [
     "ApiResponse",
     "Availability",
     "BinaryVault",
+    "Car",
     "Category",
+    "Circle",
     "Color",
     "Defaults",
     "Department",
@@ -48,6 +62,7 @@ __all__ = [
     "Employee",
     "Error",
     "Medication",
+    "MemberNotFound",
     "Metadata",
     "Order",
     "Pet",
@@ -60,6 +75,8 @@ __all__ = [
     "PhotoMetadata",
     "PhotoMetadataLocation",
     "Priority",
+    "ProjectNotFound",
+    "RejectedRequest",
     "RequiredNullable",
     "Reservation",
     "ReservationReceipt",
@@ -68,6 +85,9 @@ __all__ = [
     "Separator",
     "SetPetAvatarRequest",
     "SetPetAvatarThumbnailRequest",
+    "Shape",
+    "Square",
+    "StateConflict",
     "StockItem",
     "StrictTag",
     "Surgery",
@@ -75,11 +95,16 @@ __all__ = [
     "Tag",
     "TreatmentRecord",
     "TreeNode",
+    "Truck",
+    "UnexpectedFailure",
+    "UpstreamFailure",
+    "Vehicle",
     "WetFood",
 ]
 
 # import apis into sdk package
 from petstore_client.api.pet_api import PetApi as PetApi
+from petstore_client.api.problems_api import ProblemsApi as ProblemsApi
 from petstore_client.api.store_api import StoreApi as StoreApi
 
 # import ApiClient
@@ -105,6 +130,23 @@ from petstore_client.errors import (
     UnprocessableEntityException as UnprocessableEntityException,
 )
 from petstore_client.errors import TooManyRequestsException as TooManyRequestsException
+from petstore_client.errors import PaymentRequiredException as PaymentRequiredException
+from petstore_client.errors import (
+    MethodNotAllowedException as MethodNotAllowedException,
+)
+from petstore_client.errors import RequestTimeoutException as RequestTimeoutException
+from petstore_client.errors import GoneException as GoneException
+from petstore_client.errors import PayloadTooLargeException as PayloadTooLargeException
+from petstore_client.errors import (
+    UnsupportedMediaTypeException as UnsupportedMediaTypeException,
+)
+from petstore_client.errors import LockedException as LockedException
+from petstore_client.errors import NotImplementedException as NotImplementedException
+from petstore_client.errors import BadGatewayException as BadGatewayException
+from petstore_client.errors import (
+    ServiceUnavailableException as ServiceUnavailableException,
+)
+from petstore_client.errors import GatewayTimeoutException as GatewayTimeoutException
 from petstore_client.errors import (
     InternalServerErrorException as InternalServerErrorException,
 )
@@ -127,8 +169,14 @@ from petstore_client.models.availability import (
 from petstore_client.models.binary_vault import (
     BinaryVault as BinaryVault,
 )
+from petstore_client.models.car import (
+    Car as Car,
+)
 from petstore_client.models.category import (
     Category as Category,
+)
+from petstore_client.models.circle import (
+    Circle as Circle,
 )
 from petstore_client.models.color import (
     Color as Color,
@@ -153,6 +201,9 @@ from petstore_client.models.error import (
 )
 from petstore_client.models.medication import (
     Medication as Medication,
+)
+from petstore_client.models.member_not_found import (
+    MemberNotFound as MemberNotFound,
 )
 from petstore_client.models.metadata import (
     Metadata as Metadata,
@@ -190,6 +241,12 @@ from petstore_client.models.photo_metadata_location import (
 from petstore_client.models.priority import (
     Priority as Priority,
 )
+from petstore_client.models.project_not_found import (
+    ProjectNotFound as ProjectNotFound,
+)
+from petstore_client.models.rejected_request import (
+    RejectedRequest as RejectedRequest,
+)
 from petstore_client.models.required_nullable import (
     RequiredNullable as RequiredNullable,
 )
@@ -214,6 +271,15 @@ from petstore_client.models.set_pet_avatar_request import (
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
 )
+from petstore_client.models.shape import (
+    Shape as Shape,
+)
+from petstore_client.models.square import (
+    Square as Square,
+)
+from petstore_client.models.state_conflict import (
+    StateConflict as StateConflict,
+)
 from petstore_client.models.stock_item import (
     StockItem as StockItem,
 )
@@ -234,6 +300,18 @@ from petstore_client.models.treatment_record import (
 )
 from petstore_client.models.tree_node import (
     TreeNode as TreeNode,
+)
+from petstore_client.models.truck import (
+    Truck as Truck,
+)
+from petstore_client.models.unexpected_failure import (
+    UnexpectedFailure as UnexpectedFailure,
+)
+from petstore_client.models.upstream_failure import (
+    UpstreamFailure as UpstreamFailure,
+)
+from petstore_client.models.vehicle import (
+    Vehicle as Vehicle,
 )
 from petstore_client.models.wet_food import (
     WetFood as WetFood,

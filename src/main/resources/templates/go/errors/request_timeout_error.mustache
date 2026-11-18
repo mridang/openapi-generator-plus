@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// RequestTimeoutError is the error for HTTP 408 Request Timeout.
+type RequestTimeoutError struct {
+	ClientError
+}

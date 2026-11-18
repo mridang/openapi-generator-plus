@@ -9,6 +9,9 @@ import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
 import '../errors/api_exception.dart';
+{{#errorImports}}
+import '../errors/{{classFilename}}.dart';
+{{/errorImports}}
 {{#imports}}
 import '../models/{{filename}}.dart';
 {{/imports}}
@@ -110,6 +113,7 @@ class {{classname}} extends BaseApi {
 {{#externalDocs}}
   /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/externalDocs}}
+{{>api/operation_doc_throws}}
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
@@ -138,6 +142,7 @@ class {{classname}} extends BaseApi {
   }
 
   /// Performs the {{operationId}} operation and returns the full API result.
+{{>api/operation_doc_throws}}
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
@@ -521,6 +526,13 @@ class {{classname}} extends BaseApi {
       maxRetries: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries,
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+      errorSchemas: const {
+{{#vendorExtensions.op.errorSchemaResponses}}
+        '{{{status}}}': {{{schemaClassName}}}.fromErrorResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+      },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
 {{#vendorExtensions.op.hasMultiple2xx}}
 {{! Several distinct 2xx schemas: the body is decoded by the status code the }}
 {{! server answered with, never by trying the variants in turn. }}

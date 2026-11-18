@@ -93,6 +93,7 @@ Rule: the allOf+discriminator parent is a base class and subtypes inherit; a mod
 Why: Ruby has single inheritance, so inheritance is reserved for the one parent.
 Where: `models/model.mustache`, `BetterRubyCodegen.setsDiscriminatorDefaultOnChildren` and `formatDiscriminatorDefaultValue`.
 Test: `composed_schema_test.mustache`, `metadata_test.mustache`.
+Landed (#104): the base class carries `OPENAPI_DISCRIMINATOR_NAME` and `OPENAPI_DISCRIMINATOR_MAPPING` and `build_subtype`, which `ObjectSerializer.convert_to_type` calls for a base (a const check without inheritance, so a subtype decodes as itself); a missing, empty or unknown value raises `Errors::SerializationError` naming it. A child file requires its base first (the loader sorts alphabetically, so `car.rb` would otherwise load before `vehicle.rb`). Test: `composed_schema_test.mustache` (bhv_unions_301-304, bhv_serializationobject_301).
 
 ### Required plus nullable (S5, D66)
 Rule: the key must be present on decode (absent raises), an explicit `nil` is kept, and encode always writes the key (`null` when unset); the attribute is `Types::X.optional` with the key required.

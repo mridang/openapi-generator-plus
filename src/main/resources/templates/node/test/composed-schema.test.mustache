@@ -2,7 +2,7 @@
 
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
 import { SerializationError } from '../src/errors/serialization-error{{importFileExtension}}';
-import { PetWithOwner, PetFood, DryFood, WetFood, PetTreatment, TreatmentRecord, Medication, Surgery } from '../src/models/index{{importFileExtension}}';
+import { PetWithOwner, PetFood, DryFood, WetFood, PetTreatment, TreatmentRecord, Medication, Surgery, Vehicle, Car, Truck, Shape, Circle } from '../src/models/index{{importFileExtension}}';
 
 describe('Composed Schema', () => {
   // -- oneOf with discriminator: PetFood --
@@ -146,6 +146,39 @@ describe('Composed Schema', () => {
   test('bhv unions 035 a discriminator value not listed in the mapping fails to deserialize', () => {
     const data = { foodType: 'DRY', weightKg: 2.5 };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+  });
+
+  // -- allOf with a discriminator: Vehicle and Shape --
+
+  test('bhv unions 301 allOf: the base decodes to the subtype its explicit mapping names', () => {
+    const data = { vehicleType: 'car', plate: 'AB-12', doorCount: 4 };
+    const result = ObjectSerializer.deserialize(data, Vehicle);
+    expect(result).toBeInstanceOf(Car);
+    expect(result).toBeInstanceOf(Vehicle);
+    expect(result!.plate).toBe('AB-12');
+    expect((result as Car).doorCount).toBe(4);
+    expect(ObjectSerializer.deserialize({ vehicleType: 'truck', plate: 'T-1' }, Vehicle)).toBeInstanceOf(Truck);
+  });
+
+  test('bhv unions 302 allOf: the base decodes to the subtype its implicit schema name names', () => {
+    const result = ObjectSerializer.deserialize({ shapeType: 'Circle', radius: 1.5 }, Shape);
+    expect(result).toBeInstanceOf(Circle);
+    expect((result as Circle).radius).toBe(1.5);
+  });
+
+  test('bhv unions 303 allOf: an unknown discriminator value fails and the error names it', () => {
+    const data = { vehicleType: 'boat', plate: 'B-1' };
+    expect(() => ObjectSerializer.deserialize(data, Vehicle)).toThrow(SerializationError);
+    expect(() => ObjectSerializer.deserialize(data, Vehicle)).toThrow(/boat/);
+  });
+
+  test('bhv unions 304 allOf: a payload without its discriminator fails', () => {
+    expect(() => ObjectSerializer.deserialize({ plate: 'AB-12' }, Vehicle)).toThrow(SerializationError);
+  });
+
+  test('bhv serializationobject 301 allOf: a subtype writes its discriminator value', () => {
+    const car = new Car({ plate: 'AB-12', doorCount: 4 });
+    expect(JSON.parse(ObjectSerializer.serialize(car)).vehicleType).toBe('car');
   });
 
   // -- anyOf without discriminator: PetTreatment --

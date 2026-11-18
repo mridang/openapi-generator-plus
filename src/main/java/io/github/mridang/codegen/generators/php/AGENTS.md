@@ -16,7 +16,7 @@ This folder holds `BetterPHPCodegen` (generator name `php-plus`), which turns an
 | Path | What lives there | Edit this to change |
 |---|---|---|
 | `BetterPHPCodegen.java` | type mapping, reserved words, defaults, enum case names, supporting-file registration, formatter commands, mustache lambdas (`phpdocDescription`, `phpSingleQuoted`) | naming, type mapping, which files are emitted, the formatter chain |
-| `templates/php/errors/*.mustache`, `api_error.mustache`, `root_exception.mustache` | `ApiException` and its status leaves, `OAuth2ServerException`, `SerializationException`, `NetworkException` | error classes, message rendering, response-header rendering |
+| `templates/php/errors/*.mustache`, `api_error.mustache`, `root_exception.mustache` | `ApiException` and its status leaves, `OAuth2ServerException`, `SerializationException`, `NetworkException` | error classes, message rendering, response-header rendering; `errors/SchemaException.mustache` renders one typed error per declared error schema (`<Model>Exception`, class hierarchy, `getErrorBody()` typed by the model, static `fromErrorResponse`); each operation passes its own status-to-`fromErrorResponse(...)` map as `errorSchemas:` and `BaseApi` hands it to `ApiException::fromResponse`; `SerializationException::withResponse` attaches the response status, headers, raw body, method and path to a response decode failure |
 | `templates/php/auth/`, `auth/oauth/` | authenticators, `NoAuth`, OAuth2 token manager, OIDC | auth, scopes, token handling |
 | `templates/php/default_api_client.mustache`, `psr18_api_client.mustache`, `abstract_api_client.mustache` | the two transports and the shared redirect, decompression, charset and header-injection loop | transport behaviour, TLS, proxy, redirects, multipart parts |
 | `templates/php/transport_options*.mustache`, `configuration*.mustache`, `server_*.mustache`, `servers.mustache` | `TransportOptions` and builder, `Configuration` and `ConfigurationBuilder`, server configuration | options and their validation |
@@ -77,7 +77,8 @@ Test: README golden.
 Rule: php models the `allOf` plus discriminator parent as a parent class and subtypes extend it; a model reused in two unions is not re-parented (unions use interfaces and wrappers, not inheritance).
 Why: PHP has single inheritance but class inheritance, so the natural shape works; re-parenting would break the second union.
 Where: `models/model.mustache`, `BetterPHPCodegen` discriminator defaults (subtype constructor defaults the discriminator and demotes it behind required parameters).
-Test: `ComposedSchemaTest`, `ObjectSerializerTest`.
+Status (#104): a classic base (`x-allof-base`) gets `DISCRIMINATOR_MAPPING` and a public static `subtypeClass(array)` that names the subtype or throws on a missing, non-string or unknown value; `ObjectSerializer::deserializeInternal` calls it before the union branch and decodes to the subtype it returns (a subtype returns itself, so decoding stops). Subtypes keep their own constructors and readonly fields, which write the discriminator default, so an encode writes `vehicleType`/`shapeType`.
+Test: `ComposedSchemaTest` (bhv unions 301-304, bhv serializationobject 301).
 
 ### Required plus nullable (S5, D66, 2026-11-16)
 Rule: the key must be present on decode (missing is an error), an explicit `null` is kept, and encode always writes the key (`null` when unset).

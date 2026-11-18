@@ -265,6 +265,17 @@ defmodule PetstoreClient.ApiErrorTest do
       PetstoreClient.Errors.ConflictError,
       PetstoreClient.Errors.UnprocessableEntityError,
       PetstoreClient.Errors.TooManyRequestsError,
+      PetstoreClient.Errors.PaymentRequiredError,
+      PetstoreClient.Errors.MethodNotAllowedError,
+      PetstoreClient.Errors.RequestTimeoutError,
+      PetstoreClient.Errors.GoneError,
+      PetstoreClient.Errors.PayloadTooLargeError,
+      PetstoreClient.Errors.UnsupportedMediaTypeError,
+      PetstoreClient.Errors.LockedError,
+      PetstoreClient.Errors.NotImplementedError,
+      PetstoreClient.Errors.BadGatewayError,
+      PetstoreClient.Errors.ServiceUnavailableError,
+      PetstoreClient.Errors.GatewayTimeoutError,
       PetstoreClient.Errors.ServerError,
       PetstoreClient.Errors.InternalServerError,
       PetstoreClient.Errors.NetworkError,
@@ -452,6 +463,97 @@ defmodule PetstoreClient.ApiErrorTest do
     assert body.name == "Cat"
   end
 
+  test "bhv errors 201 an error is retryable exactly for the statuses the client retries" do
+    for status <- [408, 409, 429, 500, 502, 503, 504, 599] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, nil)
+      assert PetstoreClient.Errors.ApiError.retryable?(error), "status #{status}"
+    end
+
+    for status <- [400, 401, 403, 404, 422, 501, 302] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, nil)
+      refute PetstoreClient.Errors.ApiError.retryable?(error), "status #{status}"
+    end
+  end
+
+  test "bhv errors 202 an error exposes the x-request-id header as its request id" do
+    from = fn headers -> PetstoreClient.Errors.ApiError.from_response(500, headers, nil) end
+
+    assert PetstoreClient.Errors.ApiError.request_id(from.(%{"X-Request-ID" => "abc"})) == "abc"
+    assert PetstoreClient.Errors.ApiError.request_id(from.(%{"x-request-id" => "abc"})) == "abc"
+    assert PetstoreClient.Errors.ApiError.request_id(from.(%{"other" => "abc"})) == nil
+
+    assert PetstoreClient.Errors.ApiError.request_id(
+             PetstoreClient.Errors.ApiError.exception(message: "no response")
+           ) == nil
+  end
+
+  defmodule ExactFactory do
+    def from_error_response(status, headers, body),
+      do:
+        PetstoreClient.Errors.ApiError.exception(
+          message: "exact",
+          status_code: status,
+          response_headers: headers,
+          response_body: body
+        )
+  end
+
+  defmodule RangeFactory do
+    def from_error_response(status, headers, body),
+      do:
+        PetstoreClient.Errors.ApiError.exception(
+          message: "range",
+          status_code: status,
+          response_headers: headers,
+          response_body: body
+        )
+  end
+
+  defmodule DefaultFactory do
+    def from_error_response(status, headers, body),
+      do:
+        PetstoreClient.Errors.ApiError.exception(
+          message: "default",
+          status_code: status,
+          response_headers: headers,
+          response_body: body
+        )
+  end
+
+  test "bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default" do
+    errors = %{"404" => ExactFactory, "4XX" => RangeFactory, "default" => DefaultFactory}
+
+    from = fn status, map ->
+      PetstoreClient.Errors.ApiError.from_response(status, %{}, "{}", map)
+    end
+
+    assert from.(404, errors).message == "exact"
+    assert from.(418, errors).message == "range"
+    assert from.(502, errors).message == "default"
+    assert %PetstoreClient.Errors.BadGatewayError{} = from.(502, %{})
+    assert %PetstoreClient.Errors.NotFoundError{} = from.(404, %{"5XX" => RangeFactory})
+  end
+
+  test "bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause" do
+    error = PetstoreClient.Errors.UnexpectedFailureError.from_error_response(400, %{}, "[1, 2")
+
+    assert error.__struct__ ==
+             PetstoreClient.Errors.ApiError.from_response(400, %{}, "[1, 2").__struct__
+
+    assert error.response_body == "[1, 2"
+    assert error.status_code == 400
+    assert %PetstoreClient.Errors.SerializationError{} = error.cause
+  end
+
+  test "the error of a declared error schema is an ApiError and every error above it" do
+    error = PetstoreClient.Errors.UnexpectedFailureError.exception(%{})
+
+    assert PetstoreClient.Errors.ApiError.api_error?(error)
+    assert PetstoreClient.Errors.ApiError.specialises?(error, PetstoreClient.Errors.ApiError)
+    assert PetstoreClient.Errors.UnexpectedFailureError.typed_error_body(error) == nil
+    assert PetstoreClient.Errors.OpenAPIError.open_api_error?(error)
+  end
+
   describe "SDK error grouping" do
     test "bhv errors 025 ApiError, a typed error and the Serialization error are all recognised" do
       api_error = PetstoreClient.Errors.ApiError.exception(status_code: 500, message: "boom")
@@ -543,6 +645,17 @@ defmodule PetstoreClient.ApiErrorTest do
             PetstoreClient.Errors.ConflictError,
             PetstoreClient.Errors.UnprocessableEntityError,
             PetstoreClient.Errors.TooManyRequestsError,
+            PetstoreClient.Errors.PaymentRequiredError,
+            PetstoreClient.Errors.MethodNotAllowedError,
+            PetstoreClient.Errors.RequestTimeoutError,
+            PetstoreClient.Errors.GoneError,
+            PetstoreClient.Errors.PayloadTooLargeError,
+            PetstoreClient.Errors.UnsupportedMediaTypeError,
+            PetstoreClient.Errors.LockedError,
+            PetstoreClient.Errors.NotImplementedError,
+            PetstoreClient.Errors.BadGatewayError,
+            PetstoreClient.Errors.ServiceUnavailableError,
+            PetstoreClient.Errors.GatewayTimeoutError,
             PetstoreClient.Errors.InternalServerError,
             PetstoreClient.Errors.ClientError,
             PetstoreClient.Errors.ServerError
@@ -644,9 +757,20 @@ defmodule PetstoreClient.ApiErrorTest do
             {409, PetstoreClient.Errors.ConflictError},
             {422, PetstoreClient.Errors.UnprocessableEntityError},
             {429, PetstoreClient.Errors.TooManyRequestsError},
+            {402, PetstoreClient.Errors.PaymentRequiredError},
+            {405, PetstoreClient.Errors.MethodNotAllowedError},
+            {408, PetstoreClient.Errors.RequestTimeoutError},
+            {410, PetstoreClient.Errors.GoneError},
+            {413, PetstoreClient.Errors.PayloadTooLargeError},
+            {415, PetstoreClient.Errors.UnsupportedMediaTypeError},
+            {423, PetstoreClient.Errors.LockedError},
+            {501, PetstoreClient.Errors.NotImplementedError},
+            {502, PetstoreClient.Errors.BadGatewayError},
+            {503, PetstoreClient.Errors.ServiceUnavailableError},
+            {504, PetstoreClient.Errors.GatewayTimeoutError},
             {418, PetstoreClient.Errors.ClientError},
             {500, PetstoreClient.Errors.InternalServerError},
-            {503, PetstoreClient.Errors.ServerError},
+            {599, PetstoreClient.Errors.ServerError},
             {302, PetstoreClient.Errors.ApiError},
             # A status outside 400-599 is neither a ClientError nor a
             # ServerError: the 5xx arm stops at 599, so 600 is an ApiError.

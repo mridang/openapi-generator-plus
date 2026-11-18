@@ -28,10 +28,22 @@ module Petstore::Client
       # @param body [String, nil] the raw response body
       # @param request_method [String, nil] the HTTP method of the request
       # @param request_path [String, nil] the path of the request; a query string is dropped
-      # @return [ApiError] the status-specific subclass where there is one (for
+      # @param error_schemas [Hash{String => Class}, nil] the error classes the operation
+      #   declares, by declared status (+'404'+, +'4XX'+, +'5XX'+ or +'default'+). The class
+      #   for the status is chosen by the exact status first, then the range, then
+      #   +default+, and builds the error through its +from_error_response+.
+      # @return [ApiError] the declared schema error where the operation has one for the
+      #   status, else the status-specific subclass where there is one (for
       #   example NotFoundError for 404), else ClientError for any other 4xx,
       #   ServerError for any other 5xx, and ApiError for everything else
-      def self.from_response(status_code, headers, body, request_method: nil, request_path: nil)
+      def self.from_response(status_code, headers, body, request_method: nil, request_path: nil, error_schemas: nil)
+        factory = declared_error_class(error_schemas, status_code)
+        if factory
+          return factory.from_error_response(
+            status_code, headers, body, request_method: request_method, request_path: request_path
+          )
+        end
+
         opts = {
           message: "API returned status code #{status_code}",
           response_body: body,
@@ -48,10 +60,58 @@ module Petstore::Client
         when 409 then ConflictError.new(**opts)
         when 422 then UnprocessableEntityError.new(**opts)
         when 429 then TooManyRequestsError.new(**opts)
+        when 402 then PaymentRequiredError.new(**opts)
+        when 405 then MethodNotAllowedError.new(**opts)
+        when 408 then RequestTimeoutError.new(**opts)
+        when 410 then GoneError.new(**opts)
+        when 413 then PayloadTooLargeError.new(**opts)
+        when 415 then UnsupportedMediaTypeError.new(**opts)
+        when 423 then LockedError.new(**opts)
         when 500 then InternalServerError.new(**opts)
+        when 501 then NotImplementedError.new(**opts)
+        when 502 then BadGatewayError.new(**opts)
+        when 503 then ServiceUnavailableError.new(**opts)
+        when 504 then GatewayTimeoutError.new(**opts)
         when 400..499 then ClientError.new(status_code: status_code, **opts)
         when 500..599 then ServerError.new(status_code: status_code, **opts)
         else ApiError.new(status_code: status_code, **opts)
+        end
+      end
+
+      # The error class an operation declares for a status: the exact status, then
+      # its +4XX+ or +5XX+ range, then +default+.
+      #
+      # @param error_schemas [Hash{String => Class}, nil] the operation's declared error classes
+      # @param status_code [Integer] the HTTP status code of the response
+      # @return [Class, nil] the class to build the error with, or nil when none is declared
+      def self.declared_error_class(error_schemas, status_code)
+        return nil if error_schemas.nil?
+
+        error_schemas[status_code.to_s] ||
+          (status_code.between?(400, 499) && error_schemas['4XX']) ||
+          (status_code.between?(500, 599) && error_schemas['5XX']) ||
+          error_schemas['default'] ||
+          nil
+      end
+      private_class_method :declared_error_class
+
+      # The status error for a response whose body did not match its declared
+      # schema: what #from_response gives, with the raw body and the decoding
+      # failure as its +cause+.
+      #
+      # @param status_code [Integer] the HTTP status code of the response
+      # @param headers [Hash{String => String}, nil] the response headers
+      # @param body [String, nil] the raw response body
+      # @param cause [Exception] why the body could not be decoded
+      # @param request_method [String, nil] the HTTP method of the request
+      # @param request_path [String, nil] the path of the request; a query string is dropped
+      # @return [ApiError] the status error, with +cause+ set
+      def self.status_fallback(status_code, headers, body, cause, request_method: nil, request_path: nil)
+        status = from_response(status_code, headers, body, request_method: request_method, request_path: request_path)
+        begin
+          raise status, cause: cause
+        rescue ApiError => e
+          e
         end
       end
 
@@ -97,6 +157,24 @@ module Petstore::Client
         # string, which can hold a credential.
         @request_method = @request_method.to_s.upcase unless @request_method.nil?
         @request_path = @request_path.to_s.split('?', 2).first unless @request_path.nil?
+      end
+
+      # Whether repeating the request can succeed: the status is 408, 409, 429 or
+      # a 5xx other than 501, the statuses the client itself retries.
+      #
+      # @return [Boolean] true for a status that is worth retrying
+      def retryable?
+        [408, 409, 429].include?(status_code) || (status_code.between?(500, 599) && status_code != 501)
+      end
+
+      # The request id the server sent in the +x-request-id+ response header.
+      #
+      # @return [String, nil] the request id, or nil when the header is absent
+      def request_id
+        return nil if response_headers.nil?
+
+        pair = response_headers.find { |name, _| name.to_s.casecmp?('x-request-id') }
+        pair&.last
       end
 
       # Override to_s to display a friendly error message

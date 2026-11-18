@@ -7,6 +7,13 @@ require 'time'
 require 'tod'
 require 'dry-struct'
 require_relative '../types'
+{{#models}}
+{{#model}}
+{{#vendorExtensions.x-allof-child}}
+require '{{modulePath}}/models/{{vendorExtensions.x-allof-base-filename}}'
+{{/vendorExtensions.x-allof-child}}
+{{/model}}
+{{/models}}
 
 # :nodoc:
 module {{moduleName}}
@@ -591,6 +598,47 @@ module {{moduleName}}
 
         self.class.new(**attributes, **changes)
       end
+
+{{#vendorExtensions.x-allof-base}}
+      # The discriminator of this allOf base type and the subtype each of its
+      # values names. Subtypes inherit this class but not these constants, so
+      # ObjectSerializer decodes a subtype as itself and only the base routes.
+      OPENAPI_DISCRIMINATOR_NAME = '{{discriminator.propertyBaseName}}'
+      OPENAPI_DISCRIMINATOR_MAPPING = {
+        {{#discriminator}}
+        {{#mappedModels}}
+        '{{{mappingName}}}' => '{{{modelName}}}'{{^-last}},{{/-last}}
+        {{/mappedModels}}
+        {{/discriminator}}
+      }.freeze
+
+      # Decodes a payload into the subtype its discriminator value names.
+      #
+      # @param data [Object] the parsed payload
+      # @return [{{classname}}] the subtype instance
+      # @raise [Errors::SerializationError] if the payload is not an object, the
+      #   discriminator is missing, or its value is not in the mapping
+      def self.build_subtype(data)
+        unless data.is_a?(Hash)
+          raise ::{{moduleName}}::Errors::SerializationError,
+                "Expected a JSON object for {{classname}}, got #{data.class}: #{data.inspect}"
+        end
+
+        discriminator_value = data.transform_keys(&:to_s)[OPENAPI_DISCRIMINATOR_NAME]
+        if discriminator_value.nil?
+          raise ::{{moduleName}}::Errors::SerializationError,
+                "Missing discriminator '#{OPENAPI_DISCRIMINATOR_NAME}' for {{classname}}"
+        end
+
+        klass_name = OPENAPI_DISCRIMINATOR_MAPPING[discriminator_value.to_s]
+        unless klass_name
+          raise ::{{moduleName}}::Errors::SerializationError,
+                "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
+        end
+
+        ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name)
+      end
+{{/vendorExtensions.x-allof-base}}
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|

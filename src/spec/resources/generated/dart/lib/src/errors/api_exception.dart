@@ -8,19 +8,43 @@
 import 'dart:convert';
 
 import '../object_serializer.dart';
+import 'bad_gateway_exception.dart';
 import 'bad_request_exception.dart';
 import 'client_exception.dart';
 import 'conflict_exception.dart';
 import 'forbidden_exception.dart';
+import 'gateway_timeout_exception.dart';
+import 'gone_exception.dart';
 import 'internal_server_error_exception.dart';
+import 'locked_exception.dart';
+import 'method_not_allowed_exception.dart';
 import 'network_exception.dart';
 import 'network_timeout_exception.dart';
 import 'not_found_exception.dart';
+import 'not_implemented_exception.dart';
 import 'open_api_exception.dart';
+import 'payload_too_large_exception.dart';
+import 'payment_required_exception.dart';
+import 'request_timeout_exception.dart';
 import 'server_exception.dart';
+import 'service_unavailable_exception.dart';
 import 'too_many_requests_exception.dart';
 import 'unauthorized_exception.dart';
 import 'unprocessable_entity_exception.dart';
+import 'unsupported_media_type_exception.dart';
+
+/// Builds the exception for one error schema an operation declares. An
+/// operation hands the factories of its own declared error responses to
+/// [ApiException.fromResponse], which picks the one for the status that
+/// arrived.
+typedef ErrorFactory =
+    ApiException Function({
+      required int statusCode,
+      Map<String, String>? responseHeaders,
+      String? responseBody,
+      String? requestMethod,
+      String? requestPath,
+    });
 
 /// Exception thrown when an API call fails.
 ///
@@ -92,6 +116,13 @@ class ApiException extends OpenAPIException {
   /// [ServerException] for any other 5xx, and [ApiException] for everything
   /// else. The caller throws it.
   ///
+  /// When [errorSchemas] has a factory for the status (an exact status first,
+  /// then a `4XX` or `5XX` range, then `default`), that factory builds the
+  /// exception of the error schema the operation declares. A body that does
+  /// not match the schema never hides the real error: the factory then
+  /// returns the status exception of this method with the raw body, and the
+  /// decoding failure as its [cause].
+  ///
   /// [requestMethod] and [requestPath] name the request that failed; when both
   /// are given the message is `<METHOD> <path> returned status code <n>`,
   /// otherwise `API returned status code <n>`. [requestPath] is cut at the
@@ -102,7 +133,19 @@ class ApiException extends OpenAPIException {
     String? responseBody, {
     String? requestMethod,
     String? requestPath,
+    Map<String, ErrorFactory>? errorSchemas,
+    Object? cause,
   }) {
+    final factory = _factoryFor(errorSchemas, statusCode);
+    if (factory != null) {
+      return factory(
+        statusCode: statusCode,
+        responseHeaders: responseHeaders,
+        responseBody: responseBody,
+        requestMethod: requestMethod,
+        requestPath: requestPath,
+      );
+    }
     final path = requestPath == null ? null : stripQuery(requestPath);
     final message = requestMethod != null && path != null
         ? '$requestMethod $path returned status code $statusCode'
@@ -123,6 +166,7 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          cause: cause,
           requestMethod: requestMethod,
           requestPath: path,
         );
@@ -132,6 +176,7 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          cause: cause,
           requestMethod: requestMethod,
           requestPath: path,
         );
@@ -141,6 +186,7 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          cause: cause,
           requestMethod: requestMethod,
           requestPath: path,
         );
@@ -150,6 +196,7 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          cause: cause,
           requestMethod: requestMethod,
           requestPath: path,
         );
@@ -159,6 +206,7 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          cause: cause,
           requestMethod: requestMethod,
           requestPath: path,
         );
@@ -168,6 +216,7 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          cause: cause,
           requestMethod: requestMethod,
           requestPath: path,
         );
@@ -177,6 +226,77 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 402:
+        return PaymentRequiredException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 405:
+        return MethodNotAllowedException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 408:
+        return RequestTimeoutException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 410:
+        return GoneException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 413:
+        return PayloadTooLargeException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 415:
+        return UnsupportedMediaTypeException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 423:
+        return LockedException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
           requestMethod: requestMethod,
           requestPath: path,
         );
@@ -186,6 +306,47 @@ class ApiException extends OpenAPIException {
           responseBody: responseBody,
           responseHeaders: responseHeaders,
           errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 501:
+        return NotImplementedException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 502:
+        return BadGatewayException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 503:
+        return ServiceUnavailableException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
+          requestMethod: requestMethod,
+          requestPath: path,
+        );
+      case 504:
+        return GatewayTimeoutException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+          cause: cause,
           requestMethod: requestMethod,
           requestPath: path,
         );
@@ -197,6 +358,7 @@ class ApiException extends OpenAPIException {
         responseBody: responseBody,
         responseHeaders: responseHeaders,
         errorBody: errorBody,
+        cause: cause,
         requestMethod: requestMethod,
         requestPath: path,
       );
@@ -208,6 +370,7 @@ class ApiException extends OpenAPIException {
         responseBody: responseBody,
         responseHeaders: responseHeaders,
         errorBody: errorBody,
+        cause: cause,
         requestMethod: requestMethod,
         requestPath: path,
       );
@@ -218,9 +381,52 @@ class ApiException extends OpenAPIException {
       responseBody: responseBody,
       responseHeaders: responseHeaders,
       errorBody: errorBody,
+      cause: cause,
       requestMethod: requestMethod,
       requestPath: path,
     );
+  }
+
+  /// The factory of [errorSchemas] for [statusCode]: the exact status, then
+  /// the `4XX` or `5XX` range, then `default`; null when there is none.
+  static ErrorFactory? _factoryFor(
+    Map<String, ErrorFactory>? errorSchemas,
+    int statusCode,
+  ) {
+    if (errorSchemas == null) {
+      return null;
+    }
+    var factory = errorSchemas['$statusCode'];
+    if (factory == null && statusCode >= 400 && statusCode < 500) {
+      factory = errorSchemas['4XX'];
+    }
+    if (factory == null && statusCode >= 500 && statusCode < 600) {
+      factory = errorSchemas['5XX'];
+    }
+    return factory ?? errorSchemas['default'];
+  }
+
+  /// Whether repeating the request can succeed: the status is 408, 409, 429 or
+  /// a 5xx other than 501, the statuses the client itself retries.
+  bool get isRetryable =>
+      statusCode == 408 ||
+      statusCode == 409 ||
+      statusCode == 429 ||
+      (statusCode >= 500 && statusCode <= 599 && statusCode != 501);
+
+  /// The request id the server sent in the `x-request-id` response header, or
+  /// null when the header is absent.
+  String? get requestId {
+    final headers = responseHeaders;
+    if (headers == null) {
+      return null;
+    }
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == 'x-request-id') {
+        return entry.value;
+      }
+    }
+    return null;
   }
 
   /// This error with the request that raised it recorded.

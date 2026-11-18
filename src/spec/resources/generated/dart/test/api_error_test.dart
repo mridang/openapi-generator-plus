@@ -309,6 +309,76 @@ void main() {
         isA<ClientException>(),
       );
       expect(
+        const PaymentRequiredException(message: 'x').statusCode,
+        equals(402),
+      );
+      expect(
+        const PaymentRequiredException(message: 'x'),
+        isA<ClientException>(),
+      );
+      expect(
+        const MethodNotAllowedException(message: 'x').statusCode,
+        equals(405),
+      );
+      expect(
+        const MethodNotAllowedException(message: 'x'),
+        isA<ClientException>(),
+      );
+      expect(
+        const RequestTimeoutException(message: 'x').statusCode,
+        equals(408),
+      );
+      expect(
+        const RequestTimeoutException(message: 'x'),
+        isA<ClientException>(),
+      );
+      expect(const GoneException(message: 'x').statusCode, equals(410));
+      expect(const GoneException(message: 'x'), isA<ClientException>());
+      expect(
+        const PayloadTooLargeException(message: 'x').statusCode,
+        equals(413),
+      );
+      expect(
+        const PayloadTooLargeException(message: 'x'),
+        isA<ClientException>(),
+      );
+      expect(
+        const UnsupportedMediaTypeException(message: 'x').statusCode,
+        equals(415),
+      );
+      expect(
+        const UnsupportedMediaTypeException(message: 'x'),
+        isA<ClientException>(),
+      );
+      expect(const LockedException(message: 'x').statusCode, equals(423));
+      expect(const LockedException(message: 'x'), isA<ClientException>());
+      expect(
+        const NotImplementedException(message: 'x').statusCode,
+        equals(501),
+      );
+      expect(
+        const NotImplementedException(message: 'x'),
+        isA<ServerException>(),
+      );
+      expect(const BadGatewayException(message: 'x').statusCode, equals(502));
+      expect(const BadGatewayException(message: 'x'), isA<ServerException>());
+      expect(
+        const ServiceUnavailableException(message: 'x').statusCode,
+        equals(503),
+      );
+      expect(
+        const ServiceUnavailableException(message: 'x'),
+        isA<ServerException>(),
+      );
+      expect(
+        const GatewayTimeoutException(message: 'x').statusCode,
+        equals(504),
+      );
+      expect(
+        const GatewayTimeoutException(message: 'x'),
+        isA<ServerException>(),
+      );
+      expect(
         const InternalServerErrorException(message: 'x').statusCode,
         equals(500),
       );
@@ -341,6 +411,17 @@ void main() {
         ConflictException(cause: cause),
         UnprocessableEntityException(cause: cause),
         TooManyRequestsException(cause: cause),
+        PaymentRequiredException(cause: cause),
+        MethodNotAllowedException(cause: cause),
+        RequestTimeoutException(cause: cause),
+        GoneException(cause: cause),
+        PayloadTooLargeException(cause: cause),
+        UnsupportedMediaTypeException(cause: cause),
+        LockedException(cause: cause),
+        NotImplementedException(cause: cause),
+        BadGatewayException(cause: cause),
+        ServiceUnavailableException(cause: cause),
+        GatewayTimeoutException(cause: cause),
         InternalServerErrorException(cause: cause),
         ClientException(statusCode: 418, message: 'x', cause: cause),
         ServerException(statusCode: 503, message: 'x', cause: cause),
@@ -387,9 +468,20 @@ void main() {
         409: ConflictException,
         422: UnprocessableEntityException,
         429: TooManyRequestsException,
+        402: PaymentRequiredException,
+        405: MethodNotAllowedException,
+        408: RequestTimeoutException,
+        410: GoneException,
+        413: PayloadTooLargeException,
+        415: UnsupportedMediaTypeException,
+        423: LockedException,
+        501: NotImplementedException,
+        502: BadGatewayException,
+        503: ServiceUnavailableException,
+        504: GatewayTimeoutException,
         418: ClientException,
         500: InternalServerErrorException,
-        503: ServerException,
+        599: ServerException,
         302: ApiException,
       };
 
@@ -565,6 +657,137 @@ void main() {
         expect(b.runtimeType, equals(ApiException));
         expect(b.requestMethod, equals('PUT'));
         expect(identical(c, a), isTrue);
+      },
+    );
+  });
+
+  group('typed errors', () {
+    test(
+      'bhv errors 201 an error is retryable exactly for the statuses the client retries',
+      () {
+        for (final status in [408, 409, 429, 500, 502, 503, 504, 599]) {
+          expect(
+            ApiException.fromResponse(status, const {}, null).isRetryable,
+            isTrue,
+            reason: 'status $status',
+          );
+        }
+        for (final status in [400, 401, 403, 404, 422, 501, 302]) {
+          expect(
+            ApiException.fromResponse(status, const {}, null).isRetryable,
+            isFalse,
+            reason: 'status $status',
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv errors 202 an error exposes the x-request-id response header as its request id',
+      () {
+        expect(
+          ApiException.fromResponse(500, const {
+            'X-Request-ID': 'abc',
+          }, null).requestId,
+          equals('abc'),
+        );
+        expect(
+          ApiException.fromResponse(500, const {
+            'x-request-id': 'abc',
+          }, null).requestId,
+          equals('abc'),
+        );
+        expect(
+          ApiException.fromResponse(500, const {
+            'other': 'abc',
+          }, null).requestId,
+          isNull,
+        );
+        expect(
+          const ApiException(statusCode: 0, message: 'no response').requestId,
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default',
+      () {
+        ErrorFactory factory(String message) =>
+            ({
+              required statusCode,
+              responseHeaders,
+              responseBody,
+              requestMethod,
+              requestPath,
+            }) => ApiException(statusCode: statusCode, message: message);
+        final factories = <String, ErrorFactory>{
+          '404': factory('exact'),
+          '4XX': factory('range'),
+          'default': factory('default'),
+        };
+
+        expect(
+          ApiException.fromResponse(
+            404,
+            const {},
+            '{}',
+            errorSchemas: factories,
+          ).message,
+          equals('exact'),
+        );
+        expect(
+          ApiException.fromResponse(
+            418,
+            const {},
+            '{}',
+            errorSchemas: factories,
+          ).message,
+          equals('range'),
+        );
+        expect(
+          ApiException.fromResponse(
+            502,
+            const {},
+            '{}',
+            errorSchemas: factories,
+          ).message,
+          equals('default'),
+        );
+        expect(
+          ApiException.fromResponse(
+            502,
+            const {},
+            '{}',
+            errorSchemas: const <String, ErrorFactory>{},
+          ),
+          isA<BadGatewayException>(),
+        );
+        expect(
+          ApiException.fromResponse(404, const {}, '{}'),
+          isA<NotFoundException>(),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause',
+      () {
+        final err = UnexpectedFailureException.fromErrorResponse(
+          statusCode: 400,
+          responseHeaders: const {},
+          responseBody: '[1, 2',
+          requestMethod: 'GET',
+          requestPath: '/x',
+        );
+
+        expect(
+          err.runtimeType,
+          equals(ApiException.fromResponse(400, const {}, '[1, 2').runtimeType),
+        );
+        expect(err.responseBody, equals('[1, 2'));
+        expect(err.statusCode, equals(400));
+        expect(err.cause, isNotNull);
       },
     );
   });

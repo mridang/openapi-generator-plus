@@ -76,7 +76,8 @@ Test: `test/api/*ApiTest.mustache` (golden `PetApiTest`).
 Rule: only the allOf-plus-discriminator parent is a superclass (`extends {{parent}}` in `model.mustache`); a model reused in two unions is not re-parented, unions use the polymorphic base and `@JsonTypeInfo`/`@JsonSubTypes`.
 Why: a Java class has one parent. F802 (the `DeprecatedFood` union re-parents `DryFood` and `WetFood`) is the bug this closes.
 Where: `models/model.mustache`. Not landed: F802 needs a shared-Java fix (`AbstractBetterCodegen.setParentOnChild` keeps the first union that claims a child).
-Test: `test/ComposedSchemaTest.mustache`.
+Landed (#104): the shared pass `markClassicDiscriminatorInheritance` marks the base (`x-allof-base`), its children (`x-allof-child`) and the inherited properties (`x-inherited`). The base is an abstract class with `@JsonTypeInfo`/`@JsonSubTypes`, the common fields and one protected constructor and no builder; a child declares only its own fields, passes the common ones through `super(...)` (`superArgs`, set by `BetterJavaCodegen.decorateClassicDiscriminatorChild`) and repeats the type info with `defaultImpl` so it still decodes as itself. Why no builder on the base: a static `builder()` or `toBuilder()` in both classes would clash on the return type. An unknown value fails with Jackson's invalid-type-id error naming it.
+Test: `test/ComposedSchemaTest.mustache` (`AllOfDiscriminatorTests`, bhv unions 301-304, bhv serializationobject 301).
 
 ### Required plus nullable keeps the key (S5, D66, 2026-11-16)
 Rule: a required nullable property must be present on decode (missing is an error), an explicit null is a legal value and is kept, and encode always writes the key, null when unset.
@@ -143,6 +144,13 @@ Rule: OIDC always requests `openid` first (the configured scopes are deduplicate
 Why: OIDC Core 3.1.2.1, RFC 6749 sections 4.1.1 and 5.1, and byte-identical wire output.
 Where: `auth/oauth/*.mustache`.
 Test: the per-flow `OAuth2*AuthenticatorTest`, `OAuth2TokenManagerTest`.
+
+### A decode failure carries the response (errors205)
+Rule: a response body that fails to decode into its return type (JSON parse, a schema mismatch, a Content-Type that is not JSON for a non-string return, the decoder of an operation with several 2xx schemas) raises the same `SerializationException` as before, now carrying the status code, the lower-cased headers, the raw body, and the request method and the path with its query stripped. A `SerializationException` with no response behind it has status `0` and null fields. It stays a `SerializationException` and not an `ApiException` because decisions.md promises the serialization error for a decode failure (unknown enum values included).
+Why: a 200 whose body does not parse is otherwise an unexplained failure; the status and raw body are what a caller logs.
+Where: `errors/SerializationException.mustache` (new constructor and getters; `ApiException.stripQuery` is package-private and shared), `base_api.mustache` (the success decode of `invokeApiForResult` is wrapped and rethrown with the response), `api_error.mustache`.
+Not covered: a Content-Encoding that cannot be decompressed is raised by `default_api_client.mustache` as `ApiException` with a null body and no method or path (D13); the catalogue promise names the raw body, so the owner decides whether that path changes.
+Test: `BaseApiTest` (`bhvErrors205ADecodeFailureCarriesTheStatusHeadersRawBodyAndRequestWithoutItsQuery`), `ApiExceptionTest` (`serializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery`, unnumbered).
 
 ### The error carries the real response (D13)
 Rule: an `ApiException` for a response that arrived but was unusable (decompress failure, redirect refusals) carries the real status and the lower-cased response header map, null body, and the failure as cause; `ApiException(int, String, Map, Throwable)` replaces the old three-argument constructor. `responseHeaders` null means no HTTP response arrived and is never defaulted to an empty map (see the shared "Forced divergences").

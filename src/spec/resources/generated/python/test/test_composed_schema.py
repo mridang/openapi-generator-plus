@@ -6,6 +6,11 @@ from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.dry_food import DryFood
 from petstore_client.models.pet_food import PetFood
 from petstore_client.models.wet_food import WetFood
+from petstore_client.models.vehicle import Vehicle
+from petstore_client.models.car import Car
+from petstore_client.models.truck import Truck
+from petstore_client.models.shape import Shape
+from petstore_client.models.circle import Circle
 from petstore_client.models.medication import Medication
 from petstore_client.models.surgery import Surgery
 from petstore_client.models.pet_treatment import PetTreatment
@@ -135,6 +140,45 @@ class TestOneOfPetFood:
     ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "PetFood")
+
+
+class TestAllOfVehicle:
+    """allOf with a discriminator: Vehicle and Shape"""
+
+    def test_bhv_unions_301_explicit_mapping_decodes_the_subtype(self) -> None:
+        json_str = '{"vehicleType":"car","plate":"AB-12","doorCount":4}'
+        result = ObjectSerializer().deserialize(json_str, "Vehicle")
+        assert isinstance(result, Car)
+        assert isinstance(result, Vehicle)
+        assert result.door_count == 4
+        truck = ObjectSerializer().deserialize(
+            '{"vehicleType":"truck","plate":"T-1"}', Vehicle
+        )
+        assert isinstance(truck, Truck)
+
+    def test_bhv_unions_302_implicit_mapping_decodes_the_subtype(self) -> None:
+        json_str = '{"shapeType":"Circle","radius":1.5}'
+        result = ObjectSerializer().deserialize(json_str, "Shape")
+        assert isinstance(result, Circle)
+        assert isinstance(result, Shape)
+        assert result.radius == 1.5
+
+    def test_bhv_unions_303_unknown_discriminator_names_the_value(self) -> None:
+        json_str = '{"vehicleType":"boat","plate":"B-1"}'
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().deserialize(json_str, "Vehicle")
+        assert "'boat'" in str(exc_info.value)
+
+    def test_bhv_unions_304_missing_discriminator_raises(self) -> None:
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().deserialize('{"plate":"AB-12"}', "Vehicle")
+        assert "Missing discriminator" in str(exc_info.value)
+
+    def test_bhv_serializationobject_301_subtype_writes_its_discriminator(self) -> None:
+        car = Car(plate="AB-12", doorCount=4)
+        assert '"vehicleType":"car"' in ObjectSerializer().serialize(car).replace(
+            " ", ""
+        )
 
 
 class TestAnyOfPetTreatment:

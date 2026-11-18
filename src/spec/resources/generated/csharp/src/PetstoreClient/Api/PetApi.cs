@@ -325,6 +325,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     public async Task<Pet> AddPetAsync(
         Pet pet,
         AddPetOptions? options = null,
@@ -365,6 +366,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     public async Task<ApiResult<Pet>> AddPetWithHttpInfoAsync(
         Pet pet,
         AddPetOptions? options = null,
@@ -404,6 +406,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Photo>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<List<Photo>> AddPetPhotosAsync(
         long petId,
         AddPetPhotosOptions options,
@@ -449,6 +452,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<List<Photo>>> AddPetPhotosWithHttpInfoAsync(
         long petId,
         AddPetPhotosOptions options,
@@ -632,6 +636,7 @@ public class PetApi : BaseApi
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     public async Task DeletePetAsync(
         long petId,
         DeletePetOptions? options = null,
@@ -654,6 +659,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     public async Task<ApiResult<object?>> DeletePetWithHttpInfoAsync(
         long petId,
         DeletePetOptions? options = null,
@@ -748,6 +754,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<System.IO.Stream> DownloadPetDocumentAsync(
         long petId,
         long documentId,
@@ -796,6 +803,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<System.IO.Stream>> DownloadPetDocumentWithHttpInfoAsync(
         long petId,
         long documentId,
@@ -962,6 +970,7 @@ public class PetApi : BaseApi
     /// <returns><![CDATA[List<Pet>]]></returns>
     /// <seealso href="https://example.com/docs/filtering">Find out more about filtering</seealso>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     [Obsolete("This operation is deprecated.")]
     public async Task<List<Pet>> FindPetsByStatusAsync(
         FindPetsByStatusOptions? options = null,
@@ -1004,6 +1013,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
     [Obsolete("This operation is deprecated.")]
     public async Task<ApiResult<List<Pet>>> FindPetsByStatusWithHttpInfoAsync(
         FindPetsByStatusOptions? options = null,
@@ -1338,6 +1348,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<System.IO.Stream> GetPetAvatarAsync(
         long petId,
         GetPetAvatarOptions? options = null,
@@ -1383,6 +1394,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<System.IO.Stream>> GetPetAvatarWithHttpInfoAsync(
         long petId,
         GetPetAvatarOptions? options = null,
@@ -1437,6 +1449,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[byte[]]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<byte[]> GetPetAvatarThumbnailAsync(
         long petId,
         GetPetAvatarThumbnailOptions? options = null,
@@ -1482,6 +1495,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<byte[]>> GetPetAvatarThumbnailWithHttpInfoAsync(
         long petId,
         GetPetAvatarThumbnailOptions? options = null,
@@ -1539,6 +1553,8 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     [Obsolete("This operation is deprecated.")]
     public async Task<Pet> GetPetByIdAsync(
         long petId,
@@ -1588,6 +1604,8 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     [Obsolete("This operation is deprecated.")]
     public async Task<ApiResult<Pet>> GetPetByIdWithHttpInfoAsync(
         long petId,
@@ -1824,6 +1842,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[PetPassport]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<PetPassport> GetPetPassportAsync(
         long petId,
         GetPetPassportOptions? options = null,
@@ -1869,6 +1888,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<PetPassport>> GetPetPassportWithHttpInfoAsync(
         long petId,
         GetPetPassportOptions? options = null,
@@ -1924,6 +1944,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<System.IO.Stream> GetPetPhotoAsync(
         long petId,
         long photoId,
@@ -1972,6 +1993,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<System.IO.Stream>> GetPetPhotoWithHttpInfoAsync(
         long petId,
         long photoId,
@@ -2043,6 +2065,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[string]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<string> GetPetSummaryAsync(
         long petId,
         DateOnly asOf,
@@ -2091,6 +2114,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<string>> GetPetSummaryWithHttpInfoAsync(
         long petId,
         DateOnly asOf,
@@ -2619,6 +2643,7 @@ public class PetApi : BaseApi
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types (image/jpeg, image/png, application/json). Defaults to the first declared type when null.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task SetPetAvatarAsync(
         long petId,
         System.IO.Stream body,
@@ -2648,6 +2673,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<object?>> SetPetAvatarWithHttpInfoAsync(
         long petId,
         System.IO.Stream body,
@@ -2722,6 +2748,7 @@ public class PetApi : BaseApi
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task SetPetAvatarThumbnailAsync(
         long petId,
         SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -2748,6 +2775,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<object?>> SetPetAvatarThumbnailWithHttpInfoAsync(
         long petId,
         SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -2803,6 +2831,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResponse> SetPetPreferencesAsync(
         long petId,
         SetPetPreferencesOptions options,
@@ -2848,6 +2877,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<ApiResponse>> SetPetPreferencesWithHttpInfoAsync(
         long petId,
         SetPetPreferencesOptions options,
@@ -2943,6 +2973,8 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<Pet> UpdatePetAsync(
         long petId,
         Pet pet,
@@ -2990,6 +3022,8 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="BadRequestException">Thrown on HTTP 400.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<Pet>> UpdatePetWithHttpInfoAsync(
         long petId,
         Pet pet,
@@ -3045,6 +3079,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResponse> UploadPetCertificateAsync(
         long petId,
         UploadPetCertificateOptions options,
@@ -3090,6 +3125,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<ApiResponse>> UploadPetCertificateWithHttpInfoAsync(
         long petId,
         UploadPetCertificateOptions options,
@@ -3163,6 +3199,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResponse> UploadPetDocumentAsync(
         long petId,
         UploadPetDocumentOptions options,
@@ -3211,6 +3248,7 @@ public class PetApi : BaseApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<ApiResponse>> UploadPetDocumentWithHttpInfoAsync(
         long petId,
         UploadPetDocumentOptions options,

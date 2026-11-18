@@ -1856,6 +1856,34 @@ import Testing
         }
     }
 
+    /* A response body that cannot be decoded raises an error that still holds what the server
+     * sent and the request that drew it, without the query string. */
+    @Test func testBhvErrors205ADecodeFailureOfAResponseCarriesTheStatusTheHeadersAndTheRawBody() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "[1, 2"
+        mockClient.responseHeaders = ["Content-Type": "application/json", "X-Request-Id": "req-9"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let params = BaseApi.InvokeAPIParams(
+            method: "GET", path: "/items", queryParams: ["key": "secret-value"],
+            headerParams: [:], body: nil, accepts: ["application/json"],
+            contentType: "application/json", returnType: "[String: String]", auth: BaseApi.noAuthSentinel)
+
+        do {
+            _ = try await api.invokeAPIForResult(params, as: [String: String].self)
+            Issue.record("expected a SerializationError")
+        } catch let error as SerializationError {
+            #expect(error.statusCode == 200)
+            #expect(error.responseHeaders?["X-Request-Id"] == "req-9")
+            #expect(error.responseBody == "[1, 2")
+            #expect(error.requestMethod == "GET")
+            #expect(error.requestPath == "/items")
+            #expect(error.cause != nil)
+            #expect(error.errorDescription?.contains("secret-value") == false)
+        }
+    }
+
     /* A failure that arrived without a response names the request too. */
     @Test func testTransportFailureNamesTheRequest() async throws {
         let config = ConfigurationBuilder().baseURL("https://example.com").build()

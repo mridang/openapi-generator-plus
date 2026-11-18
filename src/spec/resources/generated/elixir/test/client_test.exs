@@ -480,6 +480,7 @@ defmodule PetstoreClient.ClientTest do
     client = PetstoreClient.Client.new(authenticator)
 
     assert client.pet != nil
+    assert client.problems != nil
     assert client.store != nil
   end
 

@@ -2202,11 +2202,19 @@ fn test_pet_api_default_constructs_without_arguments() {
 #[test]
 fn test_bhv_operations_082_operations_document_their_options_argument() {
     let source = include_str!("../src/api/pet_api.rs");
-    let documented =
-        "    /// * `options`: Options for query, header, form, and cookie parameters.\n    \
-pub async fn add_pet(";
+    let add_pet = source
+        .find("pub async fn add_pet(")
+        .expect("add_pet is generated");
+    let doc_block: Vec<&str> = source[..add_pet]
+        .trim_end()
+        .lines()
+        .rev()
+        .take_while(|line| line.trim_start().starts_with("///"))
+        .map(str::trim)
+        .collect();
     assert!(
-        source.contains(documented),
+        doc_block
+            .contains(&"/// * `options`: Options for query, header, form, and cookie parameters."),
         "add_pet must document options without an authenticator"
     );
     assert!(

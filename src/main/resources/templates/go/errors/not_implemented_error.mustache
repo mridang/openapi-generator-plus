@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// NotImplementedError is the error for HTTP 501 Not Implemented.
+type NotImplementedError struct {
+	ServerError
+}

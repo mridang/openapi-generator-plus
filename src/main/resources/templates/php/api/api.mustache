@@ -83,6 +83,7 @@ class {{classname}} extends BaseApi
      * @return {{{vendorExtensions.phpDocReturnType}}}
 {{/returnType}}
      * @throws \{{invokerPackage}}\Errors\ApiException
+{{>api/operation_doc_throws}}
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
@@ -151,6 +152,7 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.hasMultipleConsumes}}
      * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
      * @throws \{{invokerPackage}}\Errors\ApiException
+{{>api/operation_doc_throws}}
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
@@ -516,6 +518,7 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.hasMultipleConsumes}}
      * @return ApiResult<null>
      * @throws \{{invokerPackage}}\Errors\ApiException
+{{>api/operation_doc_throws}}
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}

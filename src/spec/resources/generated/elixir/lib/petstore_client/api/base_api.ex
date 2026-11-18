@@ -17,7 +17,7 @@ defmodule PetstoreClient.Api.BaseApi do
   #
   # An operation declared with `security: []` in the spec opts out of all
   # authentication. Its generated function passes this sentinel as the `auth`
-  # argument so that `invoke_api_for_result/10` can distinguish three states
+  # argument so that `invoke_api_for_result/12` can distinguish three states
   # that a plain `nil` could not:
   #
   #   * `@no_auth` - the operation is unauthenticated; the client-level
@@ -133,7 +133,7 @@ defmodule PetstoreClient.Api.BaseApi do
   @doc """
   Invoke an API operation.
 
-  Delegates to `invoke_api_for_result/10` and returns just the deserialized
+  Delegates to `invoke_api_for_result/12` and returns just the deserialized
   data (`nil` for void responses).
 
   ## Parameters
@@ -157,6 +157,9 @@ defmodule PetstoreClient.Api.BaseApi do
       the client-level authenticator.
     * `call` - Per-call settings (`:timeout`, `:headers`, `:max_retries`), as
       built by `call_settings/2`. Defaults to none.
+    * `errors` - The error module of each error schema the operation declares, by
+      declared status (`"404"`, `"4XX"`, `"5XX"` or `"default"`); see
+      `PetstoreClient.Errors.ApiError.from_response/4`. Defaults to none.
 
   ## Returns
 
@@ -173,7 +176,8 @@ defmodule PetstoreClient.Api.BaseApi do
           String.t() | nil,
           return_type(),
           map() | :"$openapi_generator_plus_no_auth$" | nil,
-          keyword()
+          keyword(),
+          %{optional(String.t()) => module()}
         ) :: {:ok, term()} | {:error, Exception.t()}
   def invoke_api(
         state,
@@ -186,7 +190,8 @@ defmodule PetstoreClient.Api.BaseApi do
         content_type,
         return_type,
         auth \\ nil,
-        call \\ []
+        call \\ [],
+        errors \\ %{}
       ) do
     case invoke_api_for_result(
            state,
@@ -199,7 +204,8 @@ defmodule PetstoreClient.Api.BaseApi do
            content_type,
            return_type,
            auth,
-           call
+           call,
+           errors
          ) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -210,7 +216,7 @@ defmodule PetstoreClient.Api.BaseApi do
   Invoke an API operation and return the full result including status code,
   headers, and raw body alongside the deserialized data.
 
-  Takes the same parameters as `invoke_api/11`.
+  Takes the same parameters as `invoke_api/12`.
 
   ## Returns
 
@@ -228,7 +234,8 @@ defmodule PetstoreClient.Api.BaseApi do
           String.t() | nil,
           return_type(),
           map() | :"$openapi_generator_plus_no_auth$" | nil,
-          keyword()
+          keyword(),
+          %{optional(String.t()) => module()}
         ) :: {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def invoke_api_for_result(
         state,
@@ -241,7 +248,8 @@ defmodule PetstoreClient.Api.BaseApi do
         content_type,
         return_type,
         auth \\ nil,
-        call \\ []
+        call \\ [],
+        errors \\ %{}
       ) do
     # A call that starts after `close/1` fails with the one canonical error. A
     # call admitted before it runs to the end: the processes its authenticators
@@ -262,7 +270,8 @@ defmodule PetstoreClient.Api.BaseApi do
         content_type,
         return_type,
         auth,
-        call
+        call,
+        errors
       )
     after
       leave(state, api_client)
@@ -292,7 +301,8 @@ defmodule PetstoreClient.Api.BaseApi do
          content_type,
          return_type,
          auth,
-         call
+         call,
+         errors
        ) do
     method =
       if is_atom(method),
@@ -350,12 +360,36 @@ defmodule PetstoreClient.Api.BaseApi do
         if response.status_code < 200 or response.status_code >= 300 do
           {:error,
            response.status_code
-           |> PetstoreClient.Errors.ApiError.from_response(response.headers, response.body)
+           |> PetstoreClient.Errors.ApiError.from_response(
+             response.headers,
+             response.body,
+             errors
+           )
            |> PetstoreClient.Errors.ApiError.with_request(method, url)}
         else
-          decode_success_body(response, return_type)
+          decode_with_context(response, return_type, method, url)
         end
     end
+  end
+
+  # A response body that cannot be decoded raises a SerializationError. The error
+  # names the response it could not decode (status, headers and raw body) and the
+  # request (method and path without the query string), so the failure can be
+  # diagnosed without repeating the call.
+  defp decode_with_context(response, return_type, method, url) do
+    decode_success_body(response, return_type)
+  rescue
+    error in [PetstoreClient.Errors.SerializationError] ->
+      reraise(
+        %{
+          error
+          | status_code: response.status_code,
+            response_headers: response.headers,
+            response_body: response.body
+        }
+        |> PetstoreClient.Errors.ApiError.with_request(method, url),
+        __STACKTRACE__
+      )
   end
 
   # Builds one request: the URL with its query string, the headers (selected,

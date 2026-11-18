@@ -45,6 +45,7 @@ use {{invokerPackage}}\Errors\ForbiddenException;
 use {{invokerPackage}}\Errors\UnauthorizedException;
 use {{invokerPackage}}\Errors\UnprocessableEntityException;
 use {{invokerPackage}}\Errors\NotFoundException;
+use {{invokerPackage}}\Errors\BadGatewayException;
 use {{invokerPackage}}\Errors\ServerException;
 use {{invokerPackage}}\Models\ApiResponse as ApiResponseModel;
 use {{invokerPackage}}\Models\Pet;
@@ -1213,7 +1214,7 @@ test('bhv operations 138 get pet by id picks the status specific error class', f
     [409, ConflictException::class],
     [418, ClientException::class],
     [422, UnprocessableEntityException::class],
-    [502, ServerException::class],
+    [502, BadGatewayException::class],
 ]);
 
 test('bhv operations 036 empty body for body returning op throws api exception', function (): void {

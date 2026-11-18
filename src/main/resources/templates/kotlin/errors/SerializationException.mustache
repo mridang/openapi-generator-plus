@@ -9,10 +9,34 @@ package {{invokerPackage}}.errors
  * declared variant. The underlying kotlinx-serialization or parsing exception,
  * when there is one, is kept as the cause.
  *
+ * A failure to decode a response carries that response's status, headers and raw body and
+ * the request's method and path without its query string; one raised without a response
+ * leaves them empty.
+ *
  * Catchable by callers alongside the typed [ApiException] hierarchy; both
  * share the branded [{{errorPrefix}}Exception] root.
  */
 class SerializationException : {{errorPrefix}}Exception {
+    /** The HTTP status code of the response whose body could not be decoded, or 0 when there is none. */
+    var statusCode: Int = 0
+        internal set
+
+    /** The HTTP response headers of that response, or null when there is none. */
+    var responseHeaders: Map<String, String>? = null
+        internal set
+
+    /** The raw HTTP body of that response, or null when there is none. */
+    var responseBody: String? = null
+        internal set
+
+    /** The HTTP method of the request the response belongs to, or null when there is none. */
+    var requestMethod: String? = null
+        internal set
+
+    /** The path of that request, without its query string, or null when there is none. */
+    var requestPath: String? = null
+        internal set
+
     /**
      * Creates an exception with a detail message and cause.
      *

@@ -1325,3 +1325,59 @@ fn test_bhv_unions_043_a_discriminator_set_on_a_subtype_is_written_as_given() {
     let wire = serde_json::to_value(PetFood::DryFood(food)).expect("serializes");
     assert_eq!(wire["foodType"], serde_json::json!("custom"));
 }
+
+// -- allOf with a discriminator: Vehicle and Shape --
+
+#[test]
+fn test_bhv_unions_301_allof_base_decodes_to_the_subtype_its_explicit_mapping_names() {
+    let vehicle: Vehicle =
+        serde_json::from_str(r#"{"vehicleType":"car","plate":"AB-12","doorCount":4}"#)
+            .expect("failed to deserialize Vehicle as Car");
+
+    match vehicle {
+        Vehicle::Car(car) => {
+            assert_eq!("AB-12", car.plate);
+            assert_eq!(4, car.door_count);
+        }
+        other => panic!("expected Car variant, got {:?}", other),
+    }
+
+    let truck: Vehicle = serde_json::from_str(r#"{"vehicleType":"truck","plate":"T-1"}"#)
+        .expect("failed to deserialize Vehicle as Truck");
+    assert!(matches!(truck, Vehicle::Truck(_)), "expected Truck variant, got {:?}", truck);
+}
+
+#[test]
+fn test_bhv_unions_302_allof_base_decodes_to_the_subtype_its_implicit_schema_name_names() {
+    let shape: Shape = serde_json::from_str(r#"{"shapeType":"Circle","radius":1.5}"#)
+        .expect("failed to deserialize Shape as Circle");
+
+    match shape {
+        Shape::Circle(circle) => assert_eq!(1.5, circle.radius),
+        other => panic!("expected Circle variant, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_bhv_unions_303_allof_unknown_discriminator_value_fails_and_names_it() {
+    let err = serde_json::from_str::<Vehicle>(r#"{"vehicleType":"boat","plate":"B-1"}"#)
+        .expect_err("an unknown discriminator value must fail");
+
+    assert!(err.to_string().contains("boat"), "the error must name the value, got: {err}");
+}
+
+#[test]
+fn test_bhv_unions_304_allof_base_payload_without_its_discriminator_fails() {
+    assert!(
+        serde_json::from_str::<Vehicle>(r#"{"plate":"AB-12"}"#).is_err(),
+        "a payload without its discriminator must fail"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_301_allof_subtype_writes_its_discriminator_value() {
+    let car = Car::new("AB-12".to_string(), 4);
+    let json = serde_json::to_string(&car).expect("failed to serialize Car");
+
+    assert!(json.contains(r#""vehicleType":"car""#), "got: {json}");
+}

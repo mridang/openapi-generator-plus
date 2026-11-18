@@ -93,7 +93,7 @@ func TestBhvOperations110_StoreApi_GetOrderByIdPicksTheStatusSpecificErrorClass(
 		{409, func(err error) bool { var e *pkgerrors.ConflictError; return errors.As(err, &e) }},
 		{418, func(err error) bool { var e *pkgerrors.ClientError; return errors.As(err, &e) }},
 		{422, func(err error) bool { var e *pkgerrors.UnprocessableEntityError; return errors.As(err, &e) }},
-		{502, func(err error) bool { var e *pkgerrors.ServerError; return errors.As(err, &e) }},
+		{502, func(err error) bool { var e *pkgerrors.BadGatewayError; return errors.As(err, &e) }},
 	}
 	for _, tc := range cases {
 		config := {{packageName}}.NewConfigurationBuilder().
