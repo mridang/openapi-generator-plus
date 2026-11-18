@@ -3241,11 +3241,7 @@ async fn test_bhv_transport_081_the_caller_supplied_client_sends_the_url_and_hea
 fn read_whole_request(stream: &mut std::net::TcpStream) -> String {
     let mut data = Vec::new();
     let mut chunk = [0u8; 1024];
-    loop {
-        let n = match stream.read(&mut chunk) {
-            Ok(n) => n,
-            Err(_) => break,
-        };
+    while let Ok(n) = stream.read(&mut chunk) {
         if n == 0 {
             break;
         }
