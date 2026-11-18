@@ -35,6 +35,11 @@ class TestOneOfPetFood:
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, WetFood)
 
+    def test_bhv_serialization_082_a_missing_discriminator_fails_with_an_error_naming_it(self) -> None:
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().deserialize('{"weightKg":2.5}', 'PetFood')
+        assert 'discriminator' in str(exc_info.value)
+
     def test_bhv_unions_015_missing_discriminator_raises(self) -> None:
         """Gap AU: missing discriminator field must raise, not silently wrap."""
         json_str = '{"weightKg":2.5}'

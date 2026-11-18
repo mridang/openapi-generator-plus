@@ -569,6 +569,39 @@ class TestCollectionsOfModelsUseTheModelWireForm:
 
 
 class TestStringify:
+    def test_bhv_serialization_106_a_non_exploded_array_query_value_joins_with_commas(
+        self,
+    ) -> None:
+        assert ObjectSerializer.to_query_value(["a", "b"]) == "a,b"
+
+    def test_bhv_serialization_088_bytes_are_written_as_base64_including_each_list_element(
+        self,
+    ) -> None:
+        import json
+
+        assert ObjectSerializer.stringify(b"hi") == "aGk="
+        assert json.loads(ObjectSerializer().serialize([b"hi"])) == ["aGk="]
+
+    def test_bhv_serialization_089_a_base64_wire_string_decodes_into_bytes(
+        self,
+    ) -> None:
+        assert ObjectSerializer()._deserialize("aGk=", "bytes") == b"hi"
+
+    def test_bhv_serialization_090_malformed_base64_is_rejected_not_repaired(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer()._deserialize("aGk", "bytes")
+
+    def test_bhv_serialization_091_bytes_with_the_high_bit_set_survive_a_round_trip(
+        self,
+    ) -> None:
+        data = b"\xff\x80\x00"
+        assert (
+            ObjectSerializer()._deserialize(ObjectSerializer.stringify(data), "bytes")
+            == data
+        )
+
     def test_bhv_serializationobject_110_none_returns_empty_string(self) -> None:
         assert ObjectSerializer.stringify(None) == ""
 
@@ -791,6 +824,37 @@ class TestToCookieValue:
 
 
 class TestSerialize:
+    def test_bhv_serialization_094_html_ampersand_and_slash_in_a_model_field_are_written_verbatim(
+        self,
+    ) -> None:
+        import json
+
+        text = ObjectSerializer().serialize(Pet(name="<a>&/b", photoUrls=set()))
+        assert json.loads(text)["name"] == "<a>&/b"
+        assert "\\u003c" not in text
+        assert "\\u0026" not in text
+
+    def test_bhv_serialization_098_an_unset_optional_field_is_omitted_at_depth(
+        self,
+    ) -> None:
+        import json
+
+        data = json.loads(
+            ObjectSerializer().serialize({"current": Category(id=None, name="Dogs")})
+        )
+        assert "id" not in data["current"]
+        assert data["current"]["name"] == "Dogs"
+
+    def test_bhv_serialization_093_a_date_time_keeps_its_sub_seconds_and_a_numeric_offset(
+        self,
+    ) -> None:
+        moment = datetime.datetime(
+            2024, 1, 2, 3, 4, 5, 5000, tzinfo=datetime.timezone.utc
+        )
+        out = ObjectSerializer.stringify(moment)
+        assert out.endswith("+00:00")
+        assert ".005" in out
+
     def test_bhv_serializationobject_152_serializes_model_to_valid_json(self) -> None:
         import json
 
@@ -919,7 +983,9 @@ class TestFixtureModelsOnTheWire:
         )
         assert wire["trackingId"] == self._TRACKING_ID.lower()
 
-    def test_an_upper_case_uuid_decodes_and_comes_back_lowercase(self) -> None:
+    def test_bhv_serialization_104_an_upper_case_uuid_decodes_and_comes_back_lowercase(
+        self,
+    ) -> None:
         import json
         from petstore_client.models.order import Order
 
@@ -1208,6 +1274,91 @@ class TestExcludeNoneOnSerialize:
 
 
 class TestDeserialize:
+    def test_bhv_serialization_083_a_serialization_error_is_the_library_error_type_with_a_message(
+        self,
+    ) -> None:
+        with pytest.raises(OpenAPIException) as exc_info:
+            ObjectSerializer().deserialize("{", "Pet")
+        assert str(exc_info.value)
+
+    def test_bhv_serialization_085_a_date_time_field_decodes_from_its_iso_string(
+        self,
+    ) -> None:
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z"}', "Metadata"
+        )
+        assert isinstance(metadata.created_at, datetime.datetime)
+
+    def test_bhv_serialization_095_an_explicit_null_on_the_wire_replaces_the_default(
+        self,
+    ) -> None:
+        from petstore_client.models.defaults import Defaults
+
+        assert ObjectSerializer().deserialize('{"label":null}', Defaults).label is None
+
+    def test_bhv_serialization_096_an_absent_field_decodes_to_its_declared_default(
+        self,
+    ) -> None:
+        from petstore_client.models.defaults import Defaults
+
+        assert ObjectSerializer().deserialize("{}", Defaults).retries == 3
+
+    def test_bhv_serialization_097_an_enum_default_is_written_when_the_field_is_serialized(
+        self,
+    ) -> None:
+        import json
+
+        order = ObjectSerializer().deserialize('{"id":10,"petId":198772}', "Order")
+        assert json.loads(ObjectSerializer().serialize(order))["status"] == "placed"
+
+    def test_bhv_serialization_099_a_strict_model_rejects_an_undeclared_key_and_a_plain_model_drops_it(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(
+                '{"id":1,"name":"x","unexpected":true}', "StrictTag"
+            )
+        assert (
+            ObjectSerializer()
+            .deserialize('{"id":1,"name":"x","unexpected":true}', "Category")
+            .id
+            == 1
+        )
+
+    def test_bhv_serialization_100_every_declared_field_of_a_valid_payload_decodes(
+        self,
+    ) -> None:
+        pet = ObjectSerializer().deserialize(
+            '{"id":1,"name":"Fido","photoUrls":["x"],"category":{"id":2,"name":"Dogs"}}',
+            "Pet",
+        )
+        assert pet.id == 1
+        assert pet.name == "Fido"
+        assert pet.category.name == "Dogs"
+
+    def test_bhv_serialization_102_a_zulu_timestamp_decodes_to_the_same_instant_as_its_offset_form(
+        self,
+    ) -> None:
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z"}', "Metadata"
+        )
+        assert metadata.created_at == datetime.datetime(
+            2024, 1, 1, tzinfo=datetime.timezone.utc
+        )
+
+    def test_bhv_serialization_103_a_malformed_document_error_describes_it(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer.parse_json('{"a":')
+        assert str(exc_info.value)
+
+    def test_bhv_serialization_105_an_enum_value_with_the_wrong_case_raises(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('"PLACED"', OrderStatusEnum)
+
     def test_bhv_serializationobject_231_omitting_an_optional_field_leaves_it_unset(
         self,
     ) -> None:
@@ -1672,6 +1823,17 @@ class TestModelsAreImmutable:
 
 
 class TestTimeFormat:
+    def test_bhv_serialization_092_a_time_of_day_round_trips_through_its_string_form(
+        self,
+    ) -> None:
+        original = datetime.time(23, 59, 59)
+        assert (
+            ObjectSerializer()._deserialize(
+                ObjectSerializer.stringify(original), "datetime.time"
+            )
+            == original
+        )
+
     """4.8: ``format: time`` round-trips through ``datetime.time``."""
 
     def test_bhv_serializationobject_158_stringify_time_emits_iso8601(self) -> None:
@@ -1758,6 +1920,35 @@ class TestTimeFormat:
 
 
 class TestDurationFormat:
+    def test_bhv_serialization_084_protobuf_fractions_parse_to_their_exact_value_with_padding(
+        self,
+    ) -> None:
+        assert ObjectSerializer()._deserialize(
+            "1.5s", "datetime.timedelta"
+        ) == datetime.timedelta(seconds=1, microseconds=500000)
+        assert ObjectSerializer()._deserialize(
+            "0.1s", "datetime.timedelta"
+        ) == datetime.timedelta(microseconds=100000)
+        assert ObjectSerializer()._deserialize(
+            "1.000001s", "datetime.timedelta"
+        ) == datetime.timedelta(seconds=1, microseconds=1)
+
+    def test_bhv_serialization_086_a_duration_is_written_as_protobuf_seconds_with_days_folded_in(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer.stringify(datetime.timedelta(days=1, seconds=5))
+            == "86405s"
+        )
+        assert ObjectSerializer.stringify(datetime.timedelta(seconds=2)) == "2s"
+
+    def test_bhv_serialization_087_a_tiny_duration_is_fixed_point_never_scientific(
+        self,
+    ) -> None:
+        out = ObjectSerializer.stringify(datetime.timedelta(microseconds=1))
+        assert out == "0.000001s"
+        assert "e" not in out.lower()
+
     """4.8: ``format: duration`` round-trips through ``datetime.timedelta``
     using the protobuf-JSON duration grammar (``-?[0-9]+(\\.[0-9]{1,9})?s``).
     A protobuf-JSON API validates google.protobuf.Duration, so the wire form is a
@@ -2010,6 +2201,13 @@ class TestDiscriminatorAutoInjection:
 
 
 class TestIntegerBackedEnum:
+    def test_bhv_serialization_101_an_integer_enum_decodes_from_a_json_number_to_its_member(
+        self,
+    ) -> None:
+        from petstore_client.models.priority import Priority
+
+        assert ObjectSerializer().deserialize("2", Priority) == Priority(2)
+
     """Scenario 1 — an integer-backed enum (Priority) must round-trip as a
     JSON NUMBER, not a quoted string. The model template mixes `int` (not
     `str`) into the enum so a member serializes to `2` and deserializing the
