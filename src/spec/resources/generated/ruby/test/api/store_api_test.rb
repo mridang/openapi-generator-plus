@@ -88,7 +88,7 @@ describe Petstore::Client::Api::StoreApi do
       begin
         at = Petstore::Client::ObjectSerializer.convert_to_type('10:30:00.123', 'Tod::TimeOfDay')
         api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(at: at))
-        query = captured.pop[:request_line].split('?', 2).last.to_s.split(' ').first
+        query = captured.pop[:request_line].split('?', 2).last.to_s.split.first
         _(URI.decode_www_form(query).to_h['at']).must_equal '10:30:00.123'
       ensure
         server.close

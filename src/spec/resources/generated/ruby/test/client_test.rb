@@ -366,7 +366,7 @@ describe 'Client' do
   end
 
   it 'bhv_lifecycle_039 a client with no host or an empty token is refused at construction and a valid token builds one' do
-    _(-> { Petstore::Client::Petstore.with_token(nil, 'test-token') }).must_raise ArgumentError
+    _(-> { Petstore::Client::Petstore.with_token(nil, 'test-token') }).must_raise ArgumentError # steep:ignore ArgumentTypeMismatch
     _(-> { Petstore::Client::Petstore.with_token('', 'test-token') }).must_raise ArgumentError
     _(-> { Petstore::Client::Petstore.with_token('/api/v3', '') }).must_raise ArgumentError
     _(Petstore::Client::Petstore.with_token('/api/v3', 'test-token')).wont_be_nil

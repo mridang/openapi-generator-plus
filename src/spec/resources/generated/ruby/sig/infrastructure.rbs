@@ -55,6 +55,7 @@ module Petstore::Client
     attr_reader connection: untyped
     def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?max_retries: Integer, ?connection: untyped) -> void
     def self.builder: () -> TransportOptions::Builder
+    def self.follows_redirects?: (untyped) -> bool
     def self.validate_proxy!: (String?) -> void
     def self.validate_max_retries!: (untyped) -> Integer
     def self.validate_max_redirects!: (untyped) -> untyped

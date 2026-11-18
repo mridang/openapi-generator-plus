@@ -371,7 +371,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_errors_044 every error class is defined in the Errors namespace' do
     klasses = Petstore::Client::Errors.constants.map { |name| Petstore::Client::Errors.const_get(name) }
-                                    .select { |const| const.is_a?(Class) }
+                                    .grep(Class)
     _(klasses).wont_be_empty
     klasses.each { |klass| _(klass.name).must_start_with 'Petstore::Client::Errors::' }
   end

@@ -172,7 +172,7 @@ module Petstore::Client
         if text.bytesize > MAX_RENDERED_BODY_BYTES
           # A cut can fall inside a multi-byte character: drop that partial
           # character rather than replacing it, and count what was left out.
-          kept = text.byteslice(0, MAX_RENDERED_BODY_BYTES).scrub('')
+          kept = text.byteslice(0, MAX_RENDERED_BODY_BYTES).to_s.scrub('')
           excess = text.bytesize - kept.bytesize
           text = kept
         end

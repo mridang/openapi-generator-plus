@@ -382,7 +382,7 @@ describe 'Client' do
   end
 
   it 'bhv_lifecycle_039 a client with no host or an empty token is refused at construction and a valid token builds one' do
-    _(-> { {{moduleName}}::{{clientClassName}}.with_token(nil, 'test-token') }).must_raise ArgumentError
+    _(-> { {{moduleName}}::{{clientClassName}}.with_token(nil, 'test-token') }).must_raise ArgumentError # steep:ignore ArgumentTypeMismatch
     _(-> { {{moduleName}}::{{clientClassName}}.with_token('', 'test-token') }).must_raise ArgumentError
     _(-> { {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', '') }).must_raise ArgumentError
     _({{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'test-token')).wont_be_nil
