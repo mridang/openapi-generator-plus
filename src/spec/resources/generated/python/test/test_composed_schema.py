@@ -348,7 +348,7 @@ class TestOneOfNonDiscriminatorValidator:
         assert restored is not None
         assert restored.actual_instance == raw
 
-    def test_first_variant_match_returns_value(self) -> None:
+    def test_bhv_unions_037_first_variant_match_returns_value(self) -> None:
         req = SetPetAvatarThumbnailRequest(actual_instance=b"avatar-bytes")
         assert req.actual_instance == b"avatar-bytes"
 
@@ -369,7 +369,9 @@ class TestOneOfNonDiscriminatorValidator:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"unrelated": 1}', ReserveStockResponse)
 
-    def test_the_constructor_keeps_a_value_no_variant_accepts(self) -> None:
+    def test_bhv_unions_039_the_constructor_keeps_a_value_no_variant_accepts(
+        self,
+    ) -> None:
         """F316: building a wrapper never validates; decoding does."""
         value = object()
 
@@ -417,3 +419,51 @@ class TestAllOfPetWithOwner:
         assert restored is not None
         assert restored.name == original.name
         assert restored.owner_name == original.owner_name
+
+
+class TestUnionWrapperBehaviours:
+    def test_bhv_unions_038_an_undecodable_union_body_raises_the_serialization_error(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"foodType":3}', "PetFood")
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"foodType":"fish"}', "PetFood")
+
+    def test_bhv_unions_040_the_wrapper_holds_the_variant_it_was_built_from(
+        self,
+    ) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=b"avatar-bytes")
+
+        assert isinstance(req.actual_instance, bytes)
+        assert not isinstance(req.actual_instance, list)
+
+    def test_bhv_unions_041_a_oneof_without_a_discriminator_decodes_each_shape_to_its_variant(
+        self,
+    ) -> None:
+        single = ObjectSerializer().deserialize(
+            '"aGk="', "SetPetAvatarThumbnailRequest"
+        )
+        many = ObjectSerializer().deserialize(
+            '["aGk=", "aGk="]', "SetPetAvatarThumbnailRequest"
+        )
+
+        assert single.actual_instance == b"hi"
+        assert many.actual_instance == [b"hi", b"hi"]
+
+    def test_bhv_unions_042_a_wrapper_built_with_no_variant_holds_no_instance(
+        self,
+    ) -> None:
+        assert SetPetAvatarThumbnailRequest().actual_instance is None
+        assert (
+            SetPetAvatarThumbnailRequest(actual_instance=None).actual_instance is None
+        )
+
+    def test_bhv_unions_043_a_discriminator_set_on_a_subtype_is_written_as_given(
+        self,
+    ) -> None:
+        import json
+
+        food = DryFood(food_type="custom", weight_kg=2.5)
+
+        assert json.loads(ObjectSerializer().serialize(food))["foodType"] == "custom"

@@ -2278,3 +2278,23 @@ class TestModelDefaultsAndRanges:
     def test_bhv_serialization_031_an_integer_at_the_top_of_its_range_decodes_exactly(self) -> None:
         assert ObjectSerializer().deserialize('{"id": 2147483647}', Tag).id == 2147483647
         assert ObjectSerializer().deserialize('{"id": 9223372036854775807}', Tag).id == 9223372036854775807
+
+
+class TestCollectionDecoding:
+    def test_bhv_serialization_026_a_json_object_decodes_to_a_map_of_typed_values(self) -> None:
+        decoded = ObjectSerializer().deserialize('{"first": {"id": 1}}', 'Dict[str, Tag]')
+
+        assert decoded['first'].id == 1
+        assert ObjectSerializer().deserialize('{}', 'Dict[str, Tag]') == {}
+
+    def test_bhv_serialization_027_an_empty_json_array_decodes_to_an_empty_list(self) -> None:
+        decoded = ObjectSerializer().deserialize('[]', 'List[Tag]')
+
+        assert decoded == []
+        assert decoded is not None
+
+    def test_bhv_serialization_065_a_null_in_an_array_is_kept_in_its_own_position(self) -> None:
+        decoded = ObjectSerializer().deserialize('[null, {"id": 2}]', 'List[Tag]')
+
+        assert decoded[0] is None
+        assert decoded[1].id == 2

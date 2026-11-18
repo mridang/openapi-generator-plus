@@ -42,7 +42,7 @@ class TestServerVariable:
 
         assert "dev" not in var.enum_values
 
-    def test_enum_values_cannot_be_changed_through_the_list_they_were_built_from(
+    def test_bhv_servers_026_enum_values_cannot_be_changed_through_the_list_they_were_built_from(
         self,
     ) -> None:
         allowed = ["prod", "staging"]
@@ -57,3 +57,11 @@ class TestServerVariable:
 
         assert isinstance(var.enum_values, tuple)
         assert not hasattr(var.enum_values, "append")
+
+
+class TestServerVariableEquality:
+    def test_bhv_servers_027_two_variables_built_alike_are_equal(self) -> None:
+        first = ServerVariable(default_value="1", enum_values=["1", "2"])
+        second = ServerVariable(default_value="1", enum_values=["1", "2"])
+
+        assert first == second

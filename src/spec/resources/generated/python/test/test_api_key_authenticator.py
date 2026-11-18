@@ -336,3 +336,30 @@ class TestApiKeySchemeWrappers:
 
         assert "topsecret" not in str(auth)
         assert "topsecret" not in repr(auth)
+
+
+class TestApiKeyBehaviours:
+    def test_bhv_auth_006_an_api_key_header_is_sent_under_the_declared_name(
+        self,
+    ) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="X-Custom-Key",
+            api_key="k1",
+            location=ApiKeyLocation.HEADER,
+        )
+
+        assert auth.get_auth_headers() == {"X-Custom-Key": "k1"}
+
+    def test_bhv_auth_007_a_generic_authenticator_built_without_credentials_reads_no_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("X_API_KEY", "from-environment")
+
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host="https://api.example.com",
+                key_param_name="X-API-Key",
+                api_key="",
+                location=ApiKeyLocation.HEADER,
+            )

@@ -388,7 +388,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()["Authorization"] == "Bearer live"
 
-    def test_a_token_provider_needs_no_environment_token(
+    def test_bhv_auth_022_a_token_provider_needs_no_environment_token(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -407,7 +407,7 @@ class TestBearerSchemeAuthenticator:
         with pytest.raises(ValueError, match="not both"):
             _scheme_class(module, name)(HOST, "explicit", token_provider=lambda: "live")
 
-    def test_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment(
+    def test_bhv_auth_023_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,

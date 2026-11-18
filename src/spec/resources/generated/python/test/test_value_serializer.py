@@ -490,7 +490,9 @@ class TestDeepObjectSerialization:
         )
         assert result == {"filter[id]": "3", "filter[name]": "Dogs"}
 
-    def test_a_nested_object_leaf_in_a_deep_object_is_refused(self) -> None:
+    def test_bhv_serialization_018_a_nested_object_leaf_in_a_deep_object_is_refused(
+        self,
+    ) -> None:
         from petstore_client.errors import SerializationException
 
         with pytest.raises(SerializationException):
@@ -685,7 +687,7 @@ class TestValueSerializerFormatDatePath:
     """
 
     @pytest.mark.parametrize("location", ["path", "query", "header"])
-    def test_a_datetime_for_a_date_parameter_sends_only_the_date(
+    def test_bhv_serialization_044_a_datetime_for_a_date_parameter_sends_only_the_date(
         self, location: str
     ) -> None:
         moment = datetime.datetime(
@@ -811,7 +813,9 @@ class TestPathSegmentCharacterSet:
             ("a{b}", "a%7Bb%7D"),
         ],
     )
-    def test_everything_else_is_percent_encoded(self, raw: str, encoded: str) -> None:
+    def test_bhv_serialization_005_everything_else_is_percent_encoded(
+        self, raw: str, encoded: str
+    ) -> None:
         assert ValueSerializer.serialize(raw, "path", "string") == encoded
 
 
@@ -843,7 +847,7 @@ class TestEncodeContent:
     def test_header_value_is_sent_verbatim(self) -> None:
         assert ValueSerializer.encode_content("h", '{"a":1}', "header") == '{"a":1}'
 
-    def test_header_value_with_a_line_break_is_rejected(self) -> None:
+    def test_bhv_headers_031_header_value_with_a_line_break_is_rejected(self) -> None:
         with pytest.raises(ValueError):
             ValueSerializer.encode_content("h", '{"a":"x\ny"}', "header")
 
@@ -884,7 +888,7 @@ class TestObjectValuedParameters:
         )
         assert result == "breed=lab,min_age=3"
 
-    def test_matrix_and_label_path_styles(self) -> None:
+    def test_bhv_serialization_015_matrix_and_label_path_styles(self) -> None:
         matrix = ValueSerializer.serialize_styled(
             "c", self._FIELDS, "path", "Obj", None, "matrix", True
         )
@@ -902,7 +906,7 @@ class TestObjectValuedParameters:
         )
         assert result == "a%20b,x%2Fy"
 
-    def test_an_empty_object_query_is_omitted(self) -> None:
+    def test_bhv_serialization_014_an_empty_object_query_is_omitted(self) -> None:
         assert (
             ValueSerializer.serialize_styled(
                 "c", {}, "query", "Obj", None, "form", True
@@ -931,3 +935,19 @@ class TestObjectValuedParameters:
         wrapped = ValueSerializer.maybe_allow_reserved({"a": "x/y"}, True)
         assert isinstance(wrapped, dict)
         assert isinstance(wrapped["a"], AllowReservedValue)
+
+
+class TestValueSerializerBehaviours:
+    def test_bhv_serialization_008_a_content_parameter_is_encoded_once_for_its_location(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.encode_content("filter", '{"a":1}', "path")
+            == "%7B%22a%22%3A1%7D"
+        )
+        assert ValueSerializer.encode_content("filter", '{"a":1}', "query") == '{"a":1}'
+
+    def test_bhv_serialization_013_an_array_in_a_header_is_written_as_its_items(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize(["a", "b"], "header", "array") == "a,b"

@@ -537,7 +537,7 @@ class TestMultipleSuccessResponses:
 
     BOTH = '{"reservationId":1,"quantity":2,"receiptCode":"rcpt","expiresAt":"2030-01-01T00:00:00Z"}'
 
-    async def test_status_200_decodes_the_first_schema_even_when_the_body_fits_both(
+    async def test_bhv_unions_036_status_200_decodes_the_first_schema_even_when_the_body_fits_both(
         self,
     ) -> None:
         api = StoreApi(
@@ -1332,7 +1332,7 @@ class TestSchemeCredentials:
 
         assert client.captured_headers["Authorization"] == "Bearer b"
 
-    async def test_no_credential_is_sent_when_no_scheme_matches_and_there_is_no_default(
+    async def test_bhv_auth_021_no_credential_is_sent_when_no_scheme_matches_and_there_is_no_default(
         self,
     ) -> None:
         client = JsonReplyApiClient(_PET_REPLY)
@@ -3334,7 +3334,7 @@ class TestUnauthorizedReplay:
 
         assert len(server.requests) == 1
 
-    async def test_the_replay_does_not_run_without_authentication(
+    async def test_bhv_retries_043_the_replay_does_not_run_without_authentication(
         self, scripted: Any
     ) -> None:
         server = scripted((401, {}, "{}"), _OK)

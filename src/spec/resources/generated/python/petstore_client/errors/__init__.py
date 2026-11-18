@@ -126,7 +126,14 @@ class ApiException(OpenAPIException):
         return self._request_path
 
     def _with_request(self, method: str, path: str) -> "ApiException":
-        """Record the request this error answers; the SDK calls it where it builds the error."""
+        """Record the request this error answers; the SDK calls it where it builds the error.
+
+        The first complete attachment wins: a later one, or one missing its method or path, is ignored.
+        """
+        if self._request_method and self._request_path:
+            return self
+        if not method or not path:
+            return self
         self._request_method = method
         self._request_path = path.split("?", 1)[0]
         return self
