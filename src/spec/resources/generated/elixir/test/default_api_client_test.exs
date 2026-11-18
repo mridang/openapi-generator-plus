@@ -340,6 +340,18 @@ defmodule PetstoreClient.DefaultApiClientTest do
              200
   end
 
+  test "bhv misc 263 a per-call timeout longer than the client's timeout lets a slow response complete" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    chain = "#{chasm_url}/test/redirect/chain/1"
+
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 1200))
+
+    assert PetstoreClient.DefaultApiClient.send_request(client, :get, chain, %{}, nil,
+             timeout: 5000
+           ).status_code == 200
+  end
+
   test "bhv retries 015 a Set-Cookie of one response is never replayed on the next request" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()

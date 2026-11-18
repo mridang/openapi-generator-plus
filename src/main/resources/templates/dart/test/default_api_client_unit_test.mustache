@@ -2676,6 +2676,31 @@ void main() {
     Future<String> readBodyAsLatin1(HttpRequest request) async =>
         (await readBodyAsLatin1Raw(request)).toLowerCase();
 
+    test('bhv misc 096 a text part carries only its Content-Disposition', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {'title': 'hello'},
+        );
+        expect(body, contains('content-disposition: form-data; name="title"'));
+        expect(body, isNot(contains('content-transfer-encoding')));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv serializationwire 039 multipart .png field sets image/png Content-Type', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
