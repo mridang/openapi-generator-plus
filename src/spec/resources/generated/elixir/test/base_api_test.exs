@@ -132,6 +132,25 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert %{"method" => "GET"} = Jason.decode!(body)
   end
 
+  test "bhv serialization 128 a response declared as a string is returned unchanged whatever its content type",
+       %{state: state} do
+    assert {:ok, text} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["text/plain", "application/json"],
+               "application/json",
+               "String.t()"
+             )
+
+    assert is_binary(text)
+    assert Jason.decode!(text)["method"] == "GET"
+  end
+
   test "bhv errors 058 raises BadRequestError for status 400", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
@@ -1291,6 +1310,25 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert IO.iodata_to_binary(request.body) == "k=a~b%2Ac%21d%27e%28f%29g"
   end
 
+  test "bhv serialization 125 form-urlencoded keys and values percent-encode reserved characters and send a plus sign as %2B" do
+    state = retry_state([200])
+
+    PetstoreClient.Api.BaseApi.invoke_api(
+      state,
+      :post,
+      "/things",
+      %{},
+      %{},
+      %{"k" => "a+b c&d=e"},
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      nil
+    )
+
+    assert [request] = attempts()
+    assert IO.iodata_to_binary(request.body) == "k=a%2Bb+c%26d%3De"
+  end
+
   test "bhv serializationwire 021 serializes form-urlencoded body", %{state: state} do
     body = %{"name" => "alice", "age" => "30"}
 
@@ -2359,6 +2397,14 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "bhv serialization 057 a multipart field name containing a NUL byte or a line break is refused before any request is sent" do
     for name <- ["a\0b", "a\r\nX-Injected: yes"] do
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.DefaultApiClient.build_multipart_body(%{name => "value"}, "BOUNDARY")
+      end
+    end
+  end
+
+  test "bhv serialization 123 a multipart field name or filename with CR, LF, NUL or a quote is refused rather than written" do
+    for name <- ["a\rb", "a\nb", "a\0b", "a\"b"] do
       assert_raise ArgumentError, fn ->
         PetstoreClient.DefaultApiClient.build_multipart_body(%{name => "value"}, "BOUNDARY")
       end
@@ -3581,6 +3627,25 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv serialization 122 a form-urlencoded body repeats the key for each element of an array property" do
+    state = retry_state([200])
+
+    PetstoreClient.Api.BaseApi.invoke_api(
+      state,
+      :post,
+      "/things",
+      %{},
+      %{},
+      %{"tag" => ["x", "y"]},
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      nil
+    )
+
+    assert [request] = attempts()
+    assert IO.iodata_to_binary(request.body) == "tag=x&tag=y"
+  end
+
   # Behavior #2: an absent/nil optional form field is omitted from the body.
   # set_pet_preferences declares optional `tags` and `note`; only `nickname`
   # (required) is supplied here, so neither optional key must appear.
@@ -3755,6 +3820,21 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "Expected octet-stream fallback for extension-less raw bytes, got: #{serialized}"
   end
 
+  test "bhv serialization 127 primitive multipart parts are sent as plain text and only model parts are sent as JSON" do
+    body = %{
+      "count" => 3,
+      "meta" => %PetstoreClient.Models.Metadata{created_at: ~U[2024-01-02 03:04:05Z]}
+    }
+
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "name=\"count\"\r\n\r\n3\r\n"),
+           "Expected the plain text count, got: #{serialized}"
+
+    assert String.contains?(serialized, "Content-Type: application/json"),
+           "Expected the model part as JSON, got: #{serialized}"
+  end
+
   test "bhv serialization 058 a multipart part with no filename is sent as application/octet-stream" do
     serialized =
       PetstoreClient.DefaultApiClient.build_multipart_body(
@@ -3800,6 +3880,14 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "Field name must not be transliterated to ?, got: #{serialized}"
   end
 
+  test "bhv serialization 126 a non-ASCII multipart field name is preserved as UTF-8 in the part header" do
+    serialized =
+      PetstoreClient.DefaultApiClient.build_multipart_body(%{"名" => "value"}, "BOUNDARY")
+
+    assert String.contains?(serialized, "name=\"名\""),
+           "Expected the field name as UTF-8, got: #{serialized}"
+  end
+
   test "bhv serializationwire 045 multipart model part uses wire property names and date time format" do
     pet = %PetstoreClient.Models.Pet{name: "rex", photo_urls: []}
     body = %{"pet" => pet}
@@ -3815,6 +3903,20 @@ defmodule PetstoreClient.Api.BaseApiTest do
       PetstoreClient.DefaultApiClient.build_multipart_body(%{"at" => when_sent}, "BOUNDARY")
 
     assert String.contains?(stamped, "2024-01-02T03:04:05.000+00:00")
+  end
+
+  test "bhv serialization 121 a model sent as a multipart part is serialized with its wire property names and the SDK's date-time format" do
+    body = %{"meta" => %PetstoreClient.Models.Metadata{created_at: ~U[2024-01-02 03:04:05Z]}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "\"createdAt\""),
+           "Expected the wire name, got: #{serialized}"
+
+    refute String.contains?(serialized, "created_at"),
+           "Expected no Elixir field name, got: #{serialized}"
+
+    assert String.contains?(serialized, "2024-01-02T03:04:05.000Z"),
+           "Expected the SDK date-time format, got: #{serialized}"
   end
 
   # Behavior #6: deserializing an out-of-schema enum value raises the SDK
@@ -5160,5 +5262,91 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert {:error, %PetstoreClient.Errors.NetworkTimeoutError{} = error} = get_thing(state)
     assert error.request_method == "GET"
     assert error.request_path == "/things"
+  end
+
+  test "bhv misc 159 a 401 is replayed once even when retries are off, when the authenticator can supply fresh credentials" do
+    client =
+      ScriptedApiClient.new(
+        token_answer(fn
+          "Bearer tok1" -> 401
+          _ -> 200
+        end)
+      )
+
+    assert {:ok, _} = put_thing(oauth_state(client), nil, "application/json")
+    assert length(api_requests(client)) == 2
+  end
+
+  test "bhv misc 160 an error that is not a network failure is never retried" do
+    state = retry_state([400, 200], max_retries: 2)
+
+    assert {:error, %PetstoreClient.Errors.BadRequestError{status_code: 400}} = get_thing(state)
+    assert length(attempts()) == 1
+  end
+
+  test "bhv misc 162 an idempotent request whose connection drops before any response is sent again exactly once" do
+    state = retry_state([{:transport_error, :closed}, 200], max_retries: 2)
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+  end
+
+  test "bhv misc 163 a request body holding a one-shot stream is not replayed on retry" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, 200])
+    body = Stream.repeatedly(fn -> "payload" end) |> Stream.take(1)
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{status_code: 503}} =
+             put_thing(state, body, "application/octet-stream")
+
+    assert length(attempts()) == 1
+  end
+
+  test "bhv misc 164 a retry whose wait fits within the remaining timeout budget is sent" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, 200], timeout: 5000)
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+  end
+
+  test "bhv misc 167 an operation that keeps receiving a retryable status is attempted up to the retry limit and then raises it" do
+    state = retry_state([{503, [{"retry-after", "0"}]}])
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{status_code: 503}} =
+             get_thing(state)
+
+    assert length(attempts()) == 3
+  end
+
+  test "bhv misc 168 with no retry setting a failing request pauses half a second and then one second between attempts" do
+    assert PetstoreClient.TransportOptions.new().max_retries == 2
+    assert PetstoreClient.Api.BaseApi.backoff_delay(1, 0.0) == 500
+    assert PetstoreClient.Api.BaseApi.backoff_delay(2, 0.0) == 1000
+  end
+
+  test "bhv misc 169 the pause between retries starts at half a second, doubles on each attempt and never exceeds eight seconds" do
+    assert PetstoreClient.Api.BaseApi.backoff_delay(1, 0.0) == 500
+    assert PetstoreClient.Api.BaseApi.backoff_delay(2, 0.0) == 1000
+    assert PetstoreClient.Api.BaseApi.backoff_delay(10, 0.0) == 8000
+  end
+
+  test "bhv misc 171 a per-call max_retries larger than the transport limit applies to that call and allows more attempts" do
+    state = retry_state([{500, [{"retry-after", "0"}]}], max_retries: 1)
+
+    assert {:error, _} = get_thing_with(state, max_retries: 3)
+    assert length(attempts()) == 4
+  end
+
+  test "bhv misc 172 a request to a token endpoint is sent once and is not retried when the server answers 503" do
+    client =
+      ScriptedApiClient.new(fn url, _headers, _requests ->
+        if String.ends_with?(url, "/token") do
+          %PetstoreClient.ApiHttpResponse{status_code: 503, headers: %{}, body: ""}
+        else
+          %PetstoreClient.ApiHttpResponse{status_code: 200, headers: %{}, body: ""}
+        end
+      end)
+
+    assert {:error, _} = put_thing(oauth_state(client), nil, "application/json")
+    assert length(token_requests(client)) == 1
   end
 end

@@ -295,6 +295,23 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
+  test "bhv transport 087 a connection that cannot be established raises the SDK's network error" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:1/refused",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 0
+  end
+
   test "bhv transport 070 a per-call timeout bounds the request deadline, not the transport timeout" do
     adapter = fn request ->
       Process.sleep(2_000)
@@ -2581,6 +2598,40 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute PetstoreClient.Errors.NetworkError.network_error?(err)
   end
 
+  test "bhv transport 088 a validly gzip-encoded response body is decoded before it is returned" do
+    client =
+      routed_client(%{
+        "https://gzip.invalid/x" => {200, [{"content-encoding", "gzip"}], :zlib.gzip("hello")}
+      })
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://gzip.invalid/x",
+        %{},
+        nil
+      )
+
+    assert response.body == "hello"
+  end
+
+  test "bhv transport 089 a declared Content-Encoding that does not match the body raises the SDK's API error" do
+    base_url =
+      start_server(
+        200,
+        "application/json",
+        "this is not gzip-compressed data",
+        [{"Content-Encoding", "gzip"}]
+      )
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    assert_raise PetstoreClient.Errors.ApiError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
+    end
+  end
+
   # An unrecognised Content-Encoding the client cannot decode hits the
   # decompressor's default clause and must surface a typed ApiError carrying the
   # response status, never a NetworkError and never the body still encoded.
@@ -2802,6 +2853,14 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert String.contains?(cd, "filename*=UTF-8''")
     assert String.contains?(cd, "%E6%97%A5%E6%9C%AC")
     assert String.contains?(cd, "filename=\"")
+  end
+
+  test "bhv serialization 124 a non-ASCII multipart filename is sent with an ASCII fallback and an RFC 5987 encoded form" do
+    cd = PetstoreClient.DefaultApiClient.build_content_disposition("file", "日本.pdf")
+    assert String.contains?(cd, "filename=\"__.pdf\""), "Expected the ASCII fallback, got: #{cd}"
+
+    assert String.contains?(cd, "filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf"),
+           "Expected the RFC 5987 form, got: #{cd}"
   end
 
   test "bhv serializationwire 028 build_content_disposition falls back to one underscore per code point" do
@@ -3158,5 +3217,14 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
       assert [_only] = collect_hops()
     end
+  end
+
+  test "bhv misc 165 a request body is replayed across a redirect that keeps the same plain-text scheme" do
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(
+             307,
+             "http://api.example.com/x",
+             "http://api.example.com/y",
+             ~s({"a":1})
+           )
   end
 end
