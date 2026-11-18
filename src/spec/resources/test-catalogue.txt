@@ -1961,3 +1961,7 @@ langswift016 | Basic credentials that cannot be encoded are rejected when the au
 langswift017 | The configuration builder sets the call hook and passing nil clears it
 langswift018 | The string forms of a configuration do not reveal the call hook
 langswift019 | A type-erased value holding a dictionary compares and hashes independently of key order
+langswift020 | The spec directory is part of the test target so its files ship with the test run
+langswift021 | A token provider is called before every request and takes precedence over the environment token
+langswift022 | An environment variable supplies the credential when none is passed explicitly
+langswift023 | Every named client factory and the environment factory accept the call hook
