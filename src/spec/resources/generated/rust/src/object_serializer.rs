@@ -1462,9 +1462,10 @@ mod tests {
     fn test_bhv_serializationobject_202_a_null_field_is_omitted_while_non_null_fields_are_kept() {
         /* Category has an optional `name` and an optional `id`. A None `name` is
          * left out of the wire form, and the `id` that is set is kept. */
-        let mut cat = crate::models::Category::default();
-        cat.id = Some(3);
-        cat.name = None;
+        let cat = crate::models::Category {
+            id: Some(3),
+            ..Default::default()
+        };
         let json = object_serializer::serialize(&cat).expect("serialize must succeed");
         assert_eq!(r#"{"id":3}"#, json);
     }
