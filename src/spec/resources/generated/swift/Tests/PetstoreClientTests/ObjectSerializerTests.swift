@@ -12,6 +12,59 @@ import Testing
 
 @Suite final class ObjectSerializerTests {
 
+  /* A duration written to its wire string and decoded back is the same duration, across the edge values. */
+  @Test(arguments: [0.0, -1.5, 0.25, 259200.0, 1_000_000_000.0])
+  func testBhvSerialization077DurationRoundTripsThroughItsWireString(seconds: TimeInterval) throws {
+    let literal = try ObjectSerializer.encodeDuration(seconds)
+    #expect(try ObjectSerializer.decodeDuration(literal) == seconds)
+  }
+
+  /* A JSON null decodes to nil where the type is optional, rather than failing. */
+  @Test func testBhvSerialization070JsonNullDecodesToNilForAnOptionalType() throws {
+    let value = try ObjectSerializer.deserialize(Data("null".utf8), as: String?.self)
+    #expect(value == nil)
+  }
+
+  /* Keys the model does not declare are skipped, whether scalar or nested. */
+  @Test func testBhvSerialization072UndeclaredKeysAreSkipped() throws {
+    let json =
+      #"{"id":1,"name":"Fido","photoUrls":[],"extra":"x","nested":{"a":[1,2]},"more":true}"#
+    let pet = try ObjectSerializer.decodeFromData(Data(json.utf8), as: Pet.self)
+    #expect(pet.name == "Fido")
+  }
+
+  /* A required field that is missing fails decoding with an error that names it. */
+  @Test func testBhvSerialization073MissingRequiredFieldFailsNamingTheField() throws {
+    let json = #"{"id":1,"photoUrls":[]}"#
+    let error = #expect(throws: DecodingError.self) {
+      _ = try ObjectSerializer.decodeFromData(Data(json.utf8), as: Pet.self)
+    }
+    #expect(String(describing: error).contains("name"))
+  }
+
+  /* Nested arrays serialize back to the same nested shape they were decoded from. */
+  @Test func testBhvSerialization074NestedArraysRoundTripToTheSameShape() throws {
+    let data = try ObjectSerializer.encodeToData([[1, 2], [3]])
+    let back = try ObjectSerializer.decodeFromData(data, as: [[Int]].self)
+    #expect(back == [[1, 2], [3]])
+  }
+
+  /* A quoted number where the schema wants an integer is a type mismatch and is refused. */
+  @Test func testBhvSerialization081QuotedNumberWhereAnIntegerIsExpectedIsRefused() throws {
+    let json = #"{"id":"7","name":"Fido","photoUrls":[]}"#
+    #expect(throws: DecodingError.self) {
+      _ = try ObjectSerializer.decodeFromData(Data(json.utf8), as: Pet.self)
+    }
+  }
+
+  /* The protobuf duration bound is inclusive: the largest second count decodes and one second past it is rejected. */
+  @Test func testBhvSerialization080ProtobufDurationUpperBoundIsInclusive() throws {
+    _ = try ObjectSerializer.decodeDuration("315576000000s")
+    #expect(throws: Error.self) {
+      _ = try ObjectSerializer.decodeDuration("315576000001s")
+    }
+  }
+
   @Test func testBhvSerializationobject147SerializeMapToJSON() throws {
     let input: [String: Any] = ["name": "Fido", "age": 3]
     let jsonString = try ObjectSerializer.serialize(input)

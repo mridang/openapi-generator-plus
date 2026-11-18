@@ -810,6 +810,19 @@ final class PetApiTests {
         }
     }
 
+    /* A call to an operation with a per-operation server variant is sent to that variant's URL. */
+    @Test func testBhvOperations160ExternalVariantCallUsesTheGeneratedServerUrl() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":7,\"name\":\"Fido\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let server = GetMultiServerPetInfoServerRegional(region: .US)
+        _ = try await api.getMultiServerPetInfoWithHTTPInfo(petId: 7, server: server)
+        #expect(mockClient.lastURL.hasPrefix("https://us.example.com/v1"))
+    }
+
     // convenience-empty-body-handling: a body-returning operation that
     // receives a 2xx with an empty/undecodable body must throw a typed
     // ApiError from the plain (non-WithHTTPInfo) convenience method rather

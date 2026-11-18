@@ -436,3 +436,7 @@ python | misc068 | python keeps an explicitly passed empty credential and reject
 ruby | misc061 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no caller cancellation or context value reaches an authenticator
 ruby | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
 node | auth042 | the Node Basic and OAuth2 wrappers keep an explicit empty username, password or secret as given and do not refuse it at construction, while the bearer and API-key wrappers refuse it; the refusal is therefore tested for those two only, by the existing authbearer and authapikey tests
+swift | operations157 | the fixture has no operation with a binary (format: binary) request body, so no generated call sends raw bytes to test
+swift | operations161 | the fixture has no operation whose success response is text/plain, so no generated call returns a raw text body to test
+swift | operations162 | the fixture has no date-only (format: date) parameter in form, query, header or path positions; its only temporal values are date-time fields
+swift | serialization078 | Swift maps format: time to String, as the idiom table in the swift AGENTS file records, so the SDK never formats a time of day itself and there is no zero-padding or fraction rule to test
