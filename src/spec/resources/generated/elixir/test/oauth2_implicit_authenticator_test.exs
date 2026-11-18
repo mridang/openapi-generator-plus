@@ -206,5 +206,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert shown =~ ~s(client_id: "my-client-id")
       assert shown =~ ~s(authorization_url: "https://auth.example.com/authorize")
     end
+
+    test "bhv auth 049 the implicit flow builds an authorize URL with response_type token and %20 scopes" do
+      auth = create_authenticator()
+
+      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+
+      assert String.contains?(url, "response_type=token")
+      assert String.contains?(url, "scope=read%20write")
+    end
   end
 end

@@ -20,6 +20,18 @@ defmodule {{moduleName}}.Models.TestEnumStatus do
   def from_value(value), do: {:error, value}
 end
 
+# Fixture for bhv serialization 097: a field whose schema default is an enum value.
+defmodule {{moduleName}}.Models.TestDefaultedStatus do
+  defstruct status: "available"
+end
+
+# Fixture for bhv serialization 101: an integer-backed enum mapping its numbers to members.
+defmodule {{moduleName}}.Models.TestPriority do
+  def from_value(1), do: :low
+  def from_value(2), do: :high
+  def from_value(value), do: {:error, value}
+end
+
 defmodule {{moduleName}}.ObjectSerializerTest do
   use ExUnit.Case, async: true
 
@@ -2481,5 +2493,289 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert member_doc({{moduleName}}.Models.Tier, :large) == "The largest tier. Ends with */ and \#{x} and $x."
     end
   end
+    test "bhv serialization 067 extra properties are written as top-level keys beside the declared fields" do
+      metadata = %{{moduleName}}.Models.Metadata{additional_properties: %{"customField" => "hello"}}
+
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(metadata)) == %{"customField" => "hello"}
+    end
+
+    test "bhv serialization 068 a model built in code is not validated and keeps wrong types and unknown values" do
+      pet = %{{moduleName}}.Models.Pet{name: 123, status: "not-a-status"}
+
+      assert pet.name == 123
+      assert pet.status == "not-a-status"
+    end
+
+    test "bhv serialization 069 a value outside a declared bound is decoded and kept rather than rejected" do
+      order = {{moduleName}}.ObjectSerializer.deserialize(~s({"quantity":-5}), "Order")
+
+      assert order.quantity == -5
+    end
+
+    test "bhv serialization 070 a JSON null for an optional field decodes to nil instead of failing" do
+      pet = {{moduleName}}.ObjectSerializer.deserialize(~s({"name":"Rex","photoUrls":[],"category":null}), "Pet")
+
+      assert pet.category == nil
+    end
+
+    test "bhv serialization 071 JSON nested deeper than the allowed depth is refused with a fixed error before parsing" do
+      deep = String.duplicate("[", 1001) <> String.duplicate("]", 1001)
+
+      assert {:error, "JSON nesting depth 1001 exceeds limit 1000"} = {{moduleName}}.ObjectSerializer.parse_json(deep)
+    end
+
+    test "bhv serialization 072 keys the model does not declare are skipped without error, scalar and nested alike" do
+      pet =
+        {{moduleName}}.ObjectSerializer.deserialize(
+          ~s({"name":"Rex","photoUrls":[],"extraOne":1,"extraTwo":{"deep":[1,2]}}),
+          "Pet"
+        )
+
+      assert pet.name == "Rex"
+    end
+
+    test "bhv serialization 073 a missing required field fails decoding with an error naming that field" do
+      error =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.deserialize(~s({"name":"Rex"}), "Pet")
+        end
+
+      assert error.message =~ "photoUrls"
+    end
+
+    test "bhv serialization 074 nested arrays serialize back to the same nested shape they were decoded from" do
+      nested = [[1, 2], [], [3, [4, 5]]]
+
+      assert {{moduleName}}.ObjectSerializer.sanitize_for_serialization(nested) == nested
+    end
+
+    test "bhv serialization 075 a known enum value decodes from its wire casing to the matching member" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type("pending", "TestEnumStatus") == :pending
+    end
+
+    test "bhv serialization 076 a union value that matches none of its candidates raises a serialization error" do
+      json = ~s({"unrelatedKey":"value","anotherUnknown":123})
+
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "PetTreatment")
+      end
+    end
+
+    test "bhv serialization 077 a duration written to its wire string and decoded back is the same" do
+      for duration <- [
+            %Duration{second: 0, microsecond: {0, 6}},
+            %Duration{second: -90, microsecond: {0, 6}},
+            %Duration{second: 1, microsecond: {500_000, 6}},
+            %Duration{second: 3 * 86_400, microsecond: {0, 6}},
+            %Duration{second: 315_576_000_000, microsecond: {0, 6}}
+          ] do
+        wire = {{moduleName}}.ObjectSerializer.stringify(duration)
+        decoded = {{moduleName}}.ObjectSerializer.convert_to_type(wire, "Duration")
+
+        assert decoded.second == duration.second
+        assert decoded.microsecond == duration.microsecond
+      end
+    end
+
+    test "bhv serialization 078 a time of day is written as zero-padded HH:MM:SS with a fraction only when sub-second" do
+      assert {{moduleName}}.ObjectSerializer.stringify(~T[09:05:03]) == "09:05:03"
+      assert {{moduleName}}.ObjectSerializer.stringify(~T[09:05:03.250]) == "09:05:03.250"
+    end
+
+    test "bhv serialization 080 a protobuf duration accepts the largest protobuf second count and rejects one past it" do
+      assert %Duration{second: 315_576_000_000} =
+               {{moduleName}}.ObjectSerializer.convert_to_type("315576000000s", "Duration")
+
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("315576000001s", "Duration")
+      end
+    end
+
+    test "bhv serialization 081 a quoted number where an integer is expected raises and is never coerced" do
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("5", "integer()")
+      end
+    end
+
+    test "bhv serialization 083 a serialization error is the library's error type and carries a non-empty message" do
+      error =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.convert_to_type("banana", "TestEnumStatus")
+        end
+
+      assert error.message != ""
+    end
+
+    test "bhv serialization 084 the fraction of a protobuf duration string parses to its exact value, padding short fractions" do
+      assert %Duration{second: 1, microsecond: {500_000, 6}} =
+               {{moduleName}}.ObjectSerializer.convert_to_type("1.5s", "Duration")
+
+      assert %Duration{second: 1, microsecond: {50_000, 6}} =
+               {{moduleName}}.ObjectSerializer.convert_to_type("1.05s", "Duration")
+    end
+
+    test "bhv serialization 085 a date-time field decodes from its ISO-8601 string into a date-time value" do
+      assert %DateTime{} = {{moduleName}}.ObjectSerializer.convert_to_type("2024-03-05T14:45:30Z", "DateTime")
+    end
+
+    test "bhv serialization 086 a duration is written as a protobuf seconds string with days folded into the total" do
+      assert {{moduleName}}.ObjectSerializer.stringify(%Duration{second: 90_061, microsecond: {0, 6}}) == "90061s"
+    end
+
+    test "bhv serialization 087 a very small or precise duration is written as fixed-point digits, never scientific notation" do
+      wire = {{moduleName}}.ObjectSerializer.stringify(%Duration{second: 0, microsecond: {1, 6}})
+
+      assert wire =~ ~r/\A\d+(\.\d+)?s\z/
+      refute wire =~ ~r/[eE]/
+    end
+
+    test "bhv serialization 088 byte values are written as base64 strings, including each element of a list" do
+      assert {{moduleName}}.ObjectSerializer.encode_base64_param([<<"hi">>, <<"ok">>]) == ["aGk=", "b2s="]
+    end
+
+    test "bhv serialization 089 a base64 string on the wire decodes into a byte value" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type("aGk=", "ByteArray") == "hi"
+    end
+
+    test "bhv serialization 090 base64 decodes only as strict RFC 4648 text, rejecting non-strict input inside an array" do
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type(["dGVzdA"], "Array<ByteArray>")
+      end
+    end
+
+    test "bhv serialization 091 byte values with the high bit set survive an encode and decode round trip" do
+      bytes = <<0xFF, 0x80>>
+      wire = {{moduleName}}.ObjectSerializer.encode_base64_param(bytes)
+
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(wire, "ByteArray") == bytes
+    end
+
+    test "bhv serialization 092 a time of day round-trips through its string form back to the same time" do
+      time = ~T[09:05:03.250]
+      wire = {{moduleName}}.ObjectSerializer.stringify(time)
+
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(wire, "Time") == time
+    end
+
+    test "bhv serialization 093 a date-time is written with a numeric UTC offset, never Z, and keeps its sub-second digits" do
+      dt = {{moduleName}}.ObjectSerializer.convert_to_type("2024-01-01T12:30:45.123Z", "DateTime")
+      wire = {{moduleName}}.ObjectSerializer.stringify(dt)
+
+      refute wire =~ ~r/Z\z/
+      assert wire =~ ~r/[+-]\d{2}:\d{2}\z/
+      assert wire =~ ".123"
+    end
+
+    test "bhv serialization 094 strings are written verbatim, with HTML characters, ampersands and slashes left unescaped" do
+      metadata = %{{moduleName}}.Models.Metadata{additional_properties: %{"html" => "<a&b/>"}}
+
+      assert {{moduleName}}.ObjectSerializer.serialize(metadata) =~ "<a&b/>"
+    end
+
+    test "bhv serialization 095 a value on the wire, including an explicit null, replaces the schema default when decoding" do
+      defaults = {{moduleName}}.ObjectSerializer.deserialize(~s({"label":null}), "Defaults")
+
+      assert defaults.label == nil
+    end
+
+    test "bhv serialization 096 an absent field decodes to its declared schema default" do
+      defaults = {{moduleName}}.ObjectSerializer.deserialize(~s({}), "Defaults")
+
+      assert defaults.label == "untitled"
+    end
+
+    test "bhv serialization 098 an unset optional field is left out of the serialized JSON" do
+      pet = %{{moduleName}}.Models.Pet{name: "Rex", photo_urls: []}
+      decoded = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(pet))
+
+      refute Map.has_key?(decoded, "category")
+    end
+
+    test "bhv serialization 099 a plain model discards an undeclared key without raising" do
+      pet =
+        {{moduleName}}.ObjectSerializer.deserialize(~s({"name":"Rex","photoUrls":[],"extra":true}), "Pet")
+
+      assert pet.name == "Rex"
+    end
+
+    test "bhv serialization 100 a valid payload with several declared fields decodes every field through the typed decoder" do
+      pet =
+        {{moduleName}}.ObjectSerializer.deserialize(
+          ~s({"id":7,"name":"Rex","photoUrls":["u"],"status":"available"}),
+          "Pet"
+        )
+
+      assert pet.id == 7
+      assert pet.name == "Rex"
+      assert pet.photo_urls == ["u"]
+    end
+
+    test "bhv serialization 102 a date-time keeps a non-UTC offset on the wire and a Z timestamp decodes to offset zero" do
+      offset = {{moduleName}}.ObjectSerializer.convert_to_type("2024-01-01T12:30:45+05:30", "DateTime")
+      zulu = {{moduleName}}.ObjectSerializer.convert_to_type("2024-01-01T12:30:45Z", "DateTime")
+
+      assert {{moduleName}}.ObjectSerializer.stringify(offset) =~ "+05:30"
+      assert zulu.utc_offset == 0
+    end
+
+    test "bhv serialization 103 a body that is not well-formed JSON is rejected with a malformed-document error" do
+      assert {:error, _} = {{moduleName}}.ObjectSerializer.parse_json("{")
+    end
+
+    test "bhv serialization 104 a UUID is written in lowercase and an uppercase UUID from the wire is returned in lowercase" do
+      upper = "ABCDEF01-2345-4678-9ABC-DEF012345678"
+      lower = "abcdef01-2345-4678-9abc-def012345678"
+
+      assert {{moduleName}}.ObjectSerializer.encode_uuid_param(upper) == lower
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(upper, "UUID") == lower
+    end
+
+    test "bhv serialization 105 a wrong-case match of a declared enum member raises a serialization error" do
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("Available", "TestEnumStatus")
+      end
+    end
+
+    test "bhv serialization 106 a non-exploded array query parameter joins its values with commas" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b"]) == "a,b"
+    end
+
+    test "bhv serialization 082 a missing or null discriminator property fails decoding with an error naming that key" do
+      for json <- [~s({"weightKg":2.5}), ~s({"foodType":null,"weightKg":2.5})] do
+        error =
+          assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+            {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood")
+          end
+
+        assert error.message =~ "foodType"
+      end
+    end
+
+    test "bhv serialization 097 an enum field with a schema default is written with that default when serialized" do
+      decoded =
+        Jason.decode!({{moduleName}}.ObjectSerializer.serialize(%{{moduleName}}.Models.TestDefaultedStatus{}))
+
+      assert decoded == %{"status" => "available"}
+    end
+
+    test "bhv serialization 101 an integer-backed enum decodes from its JSON number back to its member" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(2, "TestPriority") == :high
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(1, "TestPriority") == :low
+    end
+
+    test "bhv serialization 115 an integral JSON number decoded into a floating-point field becomes a float" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(3, "Float") === 3.0
+    end
+
+    test "bhv serialization 117 a protobuf duration string decodes into a duration value as a standalone value" do
+      assert %Duration{second: 90} = {{moduleName}}.ObjectSerializer.convert_to_type("90s", "Duration")
+    end
+
+    test "bhv serialization 118 a date-time keeps its full time and offset rather than being cut to the date" do
+      dt = {{moduleName}}.ObjectSerializer.convert_to_type("2024-01-02T03:04:05+02:00", "DateTime")
+
+      assert {{moduleName}}.ObjectSerializer.stringify(dt) =~ "T03:04:05"
+      assert {{moduleName}}.ObjectSerializer.stringify(dt) =~ "+02:00"
+    end
 end
 {{/generateTests}}

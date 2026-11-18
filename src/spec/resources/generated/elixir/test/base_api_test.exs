@@ -390,7 +390,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Content-Type check -- non-JSON response skips deserialization
 
-  test "returns raw body when Content-Type is text/plain", %{state: state} do
+  test "bhv operations 161 returns raw body when Content-Type is text/plain", %{state: state} do
     assert {:ok, result} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -957,6 +957,54 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
+  defmodule CapturingBodyApiClient do
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> nil end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured_body(name), do: Agent.get(name, & &1)
+
+    def send_request(_method, _url, _headers, body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> body end)
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
+    end
+  end
+
+  test "bhv operations 157 a binary body is sent as its exact raw bytes with no multipart encoding" do
+    {:ok, name} = CapturingBodyApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingBodyApiClient}
+    body = <<0x00, 0xFF, 0x10>>
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/test/echo",
+        %{},
+        %{},
+        body,
+        ["application/octet-stream"],
+        "application/octet-stream",
+        nil
+      )
+
+    assert CapturingBodyApiClient.captured_body(name) == body
+
+    Agent.stop(name)
+  end
+
   test "bhv operations 014 passes binary body as-is for octet-stream", %{state: state} do
     body = <<0x01, 0x02, 0x03>>
 
@@ -1201,7 +1249,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert PetstoreClient.Api.BaseApi.scheme_auth(api, ["first", "second"]) == first
   end
 
-  test "scheme_auth returns nil when the client holds none of the listed schemes" do
+  test "bhv auth 047 scheme_auth returns nil when the client holds none of the listed schemes" do
     held = %{
       scheme_authenticators: %{"first" => %TestAuthenticator{host_url: "https://one.invalid"}}
     }
@@ -1615,6 +1663,30 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     refute Map.has_key?(headers, "Content-Type"),
            "Content-Type must NOT be sent when body is nil"
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 163 a request with no body sends no Content-Type header" do
+    {:ok, name} = CapturingHeadersApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingHeadersApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :delete,
+        "/test/echo",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    headers = CapturingHeadersApiClient.captured_headers(name)
+    refute Map.has_key?(headers, "Content-Type")
 
     Agent.stop(name)
   end
@@ -2149,6 +2221,38 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # sentinel) and BaseApi falls back to the client-level authenticator. A
   # configured client credential MUST reach the wire — the regression that
   # silently dropped auth on every inherited-security operation.
+  test "bhv auth 044 an operation that declares no security sends no credential from the client authenticator" do
+    {:ok, name} = AuthAppliedCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "secret-token-123")
+
+    api = PetstoreClient.Api.StoreApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+    _result = PetstoreClient.Api.StoreApi.get_inventory(api)
+
+    captured = AuthAppliedCapturingApiClient.captured(name)
+    refute Map.has_key?(captured.headers, "Authorization")
+
+    Agent.stop(name)
+  end
+
+  test "bhv auth 046 an operation that inherits the document security receives the client authenticator" do
+    {:ok, name} = AuthAppliedCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("http://localhost", "secret-token-123")
+
+    api = PetstoreClient.Api.PetApi.new(AuthAppliedCapturingApiClient, config, authenticator)
+    _result = PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
+
+    captured = AuthAppliedCapturingApiClient.captured(name)
+    assert captured.headers["Authorization"] == "Bearer secret-token-123"
+
+    Agent.stop(name)
+  end
+
   test "bhv authintegration 012 inherited-security operation applies the configured client authenticator" do
     {:ok, name} = AuthAppliedCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
@@ -3295,6 +3399,13 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
+  test "bhv retries 049 max_retries of n allows n retries after the first attempt, so n plus one requests" do
+    state = retry_state([503, 503, 503, 503], max_retries: 3)
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(state)
+    assert length(attempts()) == 4
+  end
+
   test "bhv retries 018 max_retries 0 sends the request once" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
 
@@ -3341,6 +3452,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
+  test "bhv retries 047 all attempts and their waits stay within the caller timeout and an overrunning wait is not taken" do
+    started = System.monotonic_time(:millisecond)
+
+    asked = retry_state([{503, [{"retry-after", "5"}]}, 200], timeout: 300)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(asked)
+    assert length(attempts()) == 1
+
+    assert System.monotonic_time(:millisecond) - started < 1_000
+  end
+
   test "bhv retries 025 a retry never waits past the end-to-end timeout" do
     started = System.monotonic_time(:millisecond)
 
@@ -3381,6 +3502,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
            ]
   end
 
+  test "bhv retries 045 a streamed request body is sent only once and is not replayed after a 401" do
+    client = ScriptedApiClient.new(token_answer(fn _ -> 401 end))
+    body = fn -> "not rewindable" end
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{}} =
+             put_thing(oauth_state(client), body, "application/octet-stream")
+
+    assert length(api_requests(client)) == 1
+  end
+
   test "bhv retries 032 a stream body is never retried" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200])
     body = Stream.repeatedly(fn -> "payload" end) |> Stream.take(1)
@@ -3403,6 +3534,23 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert {:ok, _} = put_thing(state, "payload", "text/plain")
     assert Enum.map(attempts(), & &1.body) == ["payload", "payload", "payload"]
+  end
+
+  test "bhv retries 048 a 503 is retried and the later success is returned" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200])
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 3
+  end
+
+  test "bhv retries 050 a Retry-After given as an HTTP date is honoured and the request is retried" do
+    date =
+      Calendar.strftime(DateTime.add(DateTime.utc_now(), 1, :second), "%a, %d %b %Y %H:%M:%S GMT")
+
+    state = retry_state([{429, [{"retry-after", date}]}, 200])
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
   end
 
   test "bhv retries 038 a 503 is sent again until it succeeds" do

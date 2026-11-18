@@ -508,7 +508,7 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "req_options finch conflicts with verify_ssl false" do
+  test "bhv lifecycle 041 req_options finch conflicts with verify_ssl false" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
       PetstoreClient.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
     end

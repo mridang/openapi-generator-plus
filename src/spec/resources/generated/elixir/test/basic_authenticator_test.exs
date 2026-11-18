@@ -6,6 +6,12 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   alias PetstoreClient.Auth.BearerAuthenticator
 
   describe "BasicAuthenticator" do
+    test "bhv auth 036 a username containing a colon is rejected at construction" do
+      assert_raise ArgumentError, ~r/must not contain ':'/, fn ->
+        BasicAuthenticator.new("https://api.example.com", "us:er", "s3cret")
+      end
+    end
+
     test "bhv authbasic 011 valid credentials produce basic header" do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
       headers = BasicAuthenticator.auth_headers(auth)

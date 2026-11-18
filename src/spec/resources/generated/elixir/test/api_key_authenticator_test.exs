@@ -423,5 +423,76 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "", :header)
       end
     end
+
+    test "bhv auth 031 an API key is sent in the fixed header name with its exact value" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
+      assert ApiKeyAuthenticator.auth_headers(auth) == %{"X-Api-Key" => "abc123"}
+    end
+
+    test "bhv auth 032 a session-cookie key is sent as the SESSION_ID cookie with its exact value" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "SESSION_ID", "abc123", :cookie)
+      assert ApiKeyAuthenticator.cookie_params(auth) == %{"SESSION_ID" => "abc123"}
+    end
+
+    test "bhv auth 033 inspecting an API key authenticator never reveals the key" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
+      refute inspect(auth) =~ "abc123"
+    end
+
+    test "bhv auth 034 a blank API key is rejected at construction" do
+      assert_raise ArgumentError, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "   ", :header)
+      end
+    end
+
+    test "bhv auth 035 a key holding a control, NUL or non-ASCII character is rejected at construction" do
+      for bad <- ["abc\x00def", "abc\rdef", "abcé"] do
+        assert_raise ArgumentError, fn ->
+          ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", bad, :header)
+        end
+      end
+    end
+
+    test "bhv auth 037 a key provider is called again for every request and its current value is sent" do
+      counter = :counters.new(1, [])
+
+      provider = fn ->
+        :counters.add(counter, 1, 1)
+        "key-#{:counters.get(counter, 1)}"
+      end
+
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", provider, :header)
+      assert ApiKeyAuthenticator.auth_headers(auth) == %{"X-Api-Key" => "key-1"}
+      assert ApiKeyAuthenticator.auth_headers(auth) == %{"X-Api-Key" => "key-2"}
+    end
+
+    test "bhv auth 040 an empty API key environment variable is treated as unset" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
+      System.put_env(name, "")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/Missing the credential 'api_key'/, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", nil, :header)
+      end
+    end
+
+    test "bhv auth 041 an explicitly passed key takes precedence over the environment variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "explicit", :header)
+      assert ApiKeyAuthenticator.auth_headers(auth) == %{"X-Api-Key" => "explicit"}
+    end
+
+    test "bhv auth 042 an explicitly passed empty key is rejected by its own check and not replaced by the environment" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/must not be empty/, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "", :header)
+      end
+    end
   end
 end

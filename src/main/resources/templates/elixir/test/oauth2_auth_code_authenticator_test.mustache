@@ -35,6 +35,12 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     )
   end
 
+  defmodule NetworkFailingApiClient do
+    defstruct []
+
+    def send_request(%__MODULE__{}, _method, _url, _headers, _body), do: raise(RuntimeError, "connection reset")
+  end
+
   # Every authorization URL ends in its own PKCE challenge, so a comparison of two
   # URLs drops it first.
   defp strip_pkce(url) do
@@ -720,6 +726,65 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
       assert url =~ "scope=read%20write"
       refute url =~ "+"
+    end
+    test "bhv auth 048 the authorization-code flow builds the authorize URL with the declared scopes" do
+      auth = create_authenticator()
+
+      url = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+
+      assert String.starts_with?(url, "https://auth.example.com/authorize?")
+      assert query_params(url)["scope"] == "read write"
+    end
+
+    test "bhv auth 053 exchanging a code discards the refresh token previously held" do
+      fake_client =
+        FakeApiClient.new([
+          %{{moduleName}}.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
+          },
+          %{{moduleName}}.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, fake_client)
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "first")
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "second")
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(auth.token_manager) == nil
+    end
+
+    test "bhv auth 054 a non-success token response surfaces as OAuth2ServerError naming the status and body" do
+      fake_client =
+        FakeApiClient.new([
+          %{{moduleName}}.ApiHttpResponse{
+            status_code: 400,
+            body: Jason.encode!(%{"error" => "invalid_grant"})
+          }
+        ])
+
+      auth = create_authenticator()
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, fake_client)
+
+      error =
+        assert_raise {{moduleName}}.Errors.OAuth2ServerError, fn ->
+          {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "auth-code-xyz")
+        end
+
+      assert error.status_code == 400
+      assert error.message =~ "invalid_grant"
+    end
+
+    test "bhv auth 055 a network failure during a token request reaches the caller unchanged" do
+      auth = create_authenticator()
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, %NetworkFailingApiClient{})
+
+      assert_raise RuntimeError, "connection reset", fn ->
+        {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "auth-code-xyz")
+      end
     end
   end
 end
