@@ -118,7 +118,7 @@ Why: backlog issues #53, #70, #78, #88, #90 were closed as out of scope.
 Where: `readme.mustache`.
 Test: golden README.
 
-### Call hook and OpenTelemetry adapter (D95, D96, issues 158 and 108)
+### Call hook and OpenTelemetry adapter (D102, D103, issues 158 and 108)
 Rule: one optional `ICallHook` on `Configuration` runs once per operation call (both variants, retries and the 401 replay inside it, a supplied transport too). `Start` runs in `BaseApi.InvokeApiForResultAsync` on the final header set (after the per-call headers, so a hook can read and replace any of them) and before the body is encoded; its edits are kept as a delta and reapplied on every rebuild of the headers, except that the fresh authentication headers of a 401 replay win over a hook header of the same name. `Finish` runs in a `finally`, exactly once, with the very exception the caller receives; an error from `Start` propagates, an error from `Finish` is swallowed (`when` filter, CA1031). `operationId` is `operationIdOriginal` and `urlTemplate` is the spec path, both passed by `api/api.mustache`.
 Why: one hook for editing, observing and tracing in all twelve; the `ActivitySource` and `Meter` types are in the base class library, so the adapter ships in the core assembly with no package. The adapter restores `Activity.Current` after starting its span and writes `traceparent` itself; it accepts an `IMeterFactory`, which is the only provider concept .NET has.
 Where: `call_hook`, `call_observer`, `call_info`, `call_outcome`, `chained_call_hook`, `open_telemetry_call_hook`, `base_api`, `configuration`, `client`, `api/api.mustache`.

@@ -80,7 +80,7 @@ Why: the canonical behaviour is shared by all twelve; the `required_nullable` de
 Where: `models/model.mustache` (`requiredNullablePlain`), `object_serializer.mustache` (`required_nullable`).
 Test: `test_required_nullable_null_is_kept`, `test_required_nullable_missing_key_rejected` and `test_required_nullable_writes_null_key` in `object_serializer.mustache`; `test/composed_schema_test.mustache` nullable `label` case.
 
-Query side (D95): a required nullable query parameter is an `Option<T>` field that `new(...)` still requires; `None` pushes `(name, String::new(), false)`.
+Query side (D98): a required nullable query parameter is an `Option<T>` field that `new(...)` still requires; `None` pushes `(name, String::new(), false)`.
 
 ### uniqueItems order unspecified (S6, D69)
 Rule: sets are sent in the language's natural order; for rust the D69 rule applies and scalar sets are written sorted (numbers numerically, strings by code point, booleans false first) through `object_serializer::sorted_set::serialize` (and `::option`). Byte-array items are excluded. Do not add sorting elsewhere.

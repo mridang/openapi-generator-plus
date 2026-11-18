@@ -61,7 +61,7 @@ Rule: intended. Each subtype is a flat struct; the base module carries a dispatc
 
 Rule: a required, nullable property must be present when decoding (missing is a `SerializationError`), an explicit `nil` is kept, and encoding always writes the key. Why: the key and its value are separate facts. Where: `models/model.mustache` (`required_fields/0` for required non-nullable keys, `required_nullable_fields/0` for key presence only). Test: `test/composed_schema_test.mustache`, `test/object_serializer_test.mustache`.
 
-Query side (D95): the Options typespec is `T | nil`; struct fields default to `nil` whether required or not, so an omitted key and an explicit `nil` both send the key with an empty value.
+Query side (D98): the Options typespec is `T | nil`; struct fields default to `nil` whether required or not, so an omitted key and an explicit `nil` both send the key with an empty value.
 
 ### Content parameters use the SDK serializer (S2, 2026-11-16)
 
