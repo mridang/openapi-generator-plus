@@ -2127,3 +2127,6 @@ langcsharp041 | A byte array is encoded as one base64 string rather than a list
 langcsharp042 | A cross-origin redirect drops any header whose name looks like a credential
 langcsharp043 | A 307 redirect replays a byte array body with its content type
 langcsharp044 | A 307 redirect replays a text body with a bare content type
+langcsharp045 | An operation with no parameters or security leaves transport settings unchanged
+langcsharp046 | An operation with no parameters or security has no auth field in its options
+langcsharp047 | A per-call timeout of zero is refused when the call is built
