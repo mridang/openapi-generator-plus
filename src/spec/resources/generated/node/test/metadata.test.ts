@@ -9,7 +9,7 @@ import * as fs from "node:fs";
 import * as util from "node:util";
 import * as path from "node:path";
 import { ObjectSerializer } from "../src/object-serializer.js";
-import { Metadata, Pet } from "../src/models/index.js";
+import { Category, Metadata, Pet } from "../src/models/index.js";
 
 describe("Metadata", () => {
   describe("package.json manifest", () => {
@@ -279,6 +279,18 @@ describe("Metadata", () => {
       });
       expect(metadata.additionalProperties).toEqual({});
       expect(new Metadata().additionalProperties).toEqual({});
+    });
+
+    test("bhv models 022 a generated model whose schema allows undeclared properties reports that it does", () => {
+      expect(
+        Object.getOwnPropertyDescriptor(
+          Metadata.prototype,
+          "additionalProperties",
+        )?.get,
+      ).toBeDefined();
+      expect(
+        "additionalProperties" in new Category({ id: 1, name: "Dogs" }),
+      ).toBe(false);
     });
 
     test("is typed like the index signature so typed values read without a cast", () => {

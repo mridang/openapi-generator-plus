@@ -1270,6 +1270,14 @@ describe("ValueSerializer", () => {
       ).toThrow(TypeError);
     });
 
+    test("bhv serialization 044 a date-time given for a date-format parameter is written as its calendar date only", () => {
+      expect(
+        ValueSerializer.stringifyDate(
+          new Date(Date.UTC(2024, 0, 15, 23, 59, 59)),
+        ),
+      ).toBe("2024-01-15");
+    });
+
     test("bhv serializationparam 054 a styled matrix path value keeps the date part only", () => {
       expect(
         ValueSerializer.serializeStyled(

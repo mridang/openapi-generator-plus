@@ -475,6 +475,12 @@ describe("TransportOptions", () => {
   describe("custom fetch", () => {
     const customFetch = (async () => new Response("{}")) as typeof fetch;
 
+    test("bhv redirects 045 a fetchOptions redirect of follow is refused, because the SDK manages redirects itself", () => {
+      expect(() =>
+        TransportOptions.builder().fetchOptions({ redirect: "follow" }).build(),
+      ).toThrow(TypeError);
+    });
+
     test("bhv options 059 fetch and fetchOptions default to null", () => {
       const opts = TransportOptions.builder().build();
       expect(opts.fetch).toBeNull();

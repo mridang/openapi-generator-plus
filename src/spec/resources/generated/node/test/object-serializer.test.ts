@@ -118,6 +118,30 @@ describe("ObjectSerializer", () => {
       expect(back!.takenAt!.getTime()).toBe(takenAt.getTime());
     });
 
+    test("bhv serialization 038 a date-time with digits finer than a millisecond is truncated to milliseconds, never rounded up", () => {
+      const decoded = ObjectSerializer.deserialize(
+        { expiresAt: "2024-01-01T00:00:00.999999Z" },
+        EdgeCases,
+      )!;
+      expect(decoded.expiresAt!.toISOString()).toBe("2024-01-01T00:00:00.999Z");
+    });
+
+    test("bhv serialization 039 a date-time is read from any RFC 3339 spelling to the same instant", () => {
+      const instants = [
+        "2024-01-01T01:00:00+01:00",
+        "2024-01-01T00:00:00Z",
+        "2024-01-01T00:00:00.0Z",
+        "2024-01-01T00:00:00.000000000Z",
+      ].map((expiresAt) =>
+        ObjectSerializer.deserialize(
+          { expiresAt },
+          EdgeCases,
+        )!.expiresAt!.getTime(),
+      );
+      expect(new Set(instants).size).toBe(1);
+      expect(instants[0]).toBe(Date.UTC(2024, 0, 1));
+    });
+
     test("bhv serializationobject 179 whole-second datetime includes the fixed .000 fraction", () => {
       const date = new Date("2024-01-01T00:00:00.000Z");
       const result = ObjectSerializer.stringify(date);
@@ -183,6 +207,18 @@ describe("ObjectSerializer", () => {
   });
 
   describe("SerializationErrorWrappingTests", () => {
+    test("bhv serialization 035 the non-standard NaN and Infinity literals are refused when a payload is decoded", () => {
+      expect(() => ObjectSerializer.parseJson('{"n": NaN}')).toThrow(
+        SerializationError,
+      );
+      expect(() => ObjectSerializer.parseJson('{"n": Infinity}')).toThrow(
+        SerializationError,
+      );
+      expect(() => ObjectSerializer.parseJson('{"n": -Infinity}')).toThrow(
+        SerializationError,
+      );
+    });
+
     test("bhv serializationobject 170 truncated JSON throws SerializationError not raw parse error", () => {
       expect(() => ObjectSerializer.parseJson("{")).toThrow(SerializationError);
     });
@@ -799,6 +835,12 @@ describe("ObjectSerializer", () => {
   });
 
   describe("DeserializeDiscardsExtraneousFields", () => {
+    test("bhv serialization 050 a property whose name begins with a digit reads and writes under its exact wire name", () => {
+      const decoded = ObjectSerializer.deserialize({ "2fa": true }, EdgeCases)!;
+      expect(decoded.n2fa).toBe(true);
+      expect(ObjectSerializer.serialize(decoded)).toContain('"2fa":true');
+    });
+
     test("bhv serializationobject 082 unknown JSON keys do not appear on the deserialized instance", () => {
       const json: Record<string, unknown> = {
         id: 7,
@@ -826,6 +868,19 @@ describe("ObjectSerializer", () => {
     // excludeExtraneousValues. Without the __strictDeclaredKeys gate this
     // payload would deserialize cleanly and lose the extra key, leaving the
     // OAS 3.1 strict contract unenforced.
+
+    test("bhv serialization 051 a strict model exposes no separate public method for its unknown-key check", () => {
+      const members = [
+        ...Object.getOwnPropertyNames(StrictTag.prototype),
+        ...Object.getOwnPropertyNames(StrictTag),
+      ];
+      expect(
+        members.filter(
+          (name) =>
+            /unknown|undeclared|strict/i.test(name) && !name.startsWith("__"),
+        ),
+      ).toEqual([]);
+    });
 
     test("bhv serializationobject 154 deserialize throws on an undeclared wire key for a strict model", () => {
       const json: Record<string, unknown> = {
@@ -1822,6 +1877,16 @@ describe("ObjectSerializer", () => {
         expect(JSON.parse(json)).toEqual({ cutoff: "10:30:00.123" });
       });
 
+      test("bhv serialization 041 a time string in hours, minutes and seconds form parses into a time value with those fields", () => {
+        const decoded = ObjectSerializer.deserialize(
+          { cutoff: "10:30:15" },
+          EdgeCases,
+        )!;
+        expect(decoded.cutoff!.hour).toBe(10);
+        expect(decoded.cutoff!.minute).toBe(30);
+        expect(decoded.cutoff!.second).toBe(15);
+      });
+
       test("bhv serializationobject 163 serialize: a time model field is truncated to milliseconds and decodes back", () => {
         const json = ObjectSerializer.serialize(
           new EdgeCases({
@@ -1880,6 +1945,20 @@ describe("ObjectSerializer", () => {
     // server: "3600s" -> 201, "3600.000000001s" -> 201, "PT1H" -> 400,
     // 3600 -> 400.
     describe("Temporal.Duration (protobuf-JSON)", () => {
+      test("bhv serialization 047 a duration too large for a 64-bit nanosecond count is formatted without overflow", () => {
+        const json = ObjectSerializer.serialize(
+          new EdgeCases({
+            retryAfter: Temporal.Duration.from({ seconds: 1e12 }),
+          }),
+        );
+        expect(JSON.parse(json)).toEqual({ retryAfter: "1000000000000s" });
+        const decoded = ObjectSerializer.deserialize(
+          JSON.parse(json),
+          EdgeCases,
+        )!;
+        expect(decoded.retryAfter!.seconds).toBe(1e12);
+      });
+
       test('bhv serializationobject 081 stringify: whole-second duration emits "<secs>s"', () => {
         const d = Temporal.Duration.from({ minutes: 15 });
         expect(ObjectSerializer.stringify(d)).toBe("900s");
