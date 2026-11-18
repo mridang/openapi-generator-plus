@@ -280,21 +280,40 @@ void main() {
   });
 
   group('OAuth2ClientCredentialsAuthenticator wire format', () {
-    test('the token body carries the scopes joined with a plus', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1","expires_in":3600}');
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+    test(
+      'bhv auth 056 an expires_in that is not a decimal number marks the token stale so the next call fetches again',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":"soon"}');
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
 
-      expect(
-        client.lastBody,
-        equals(
-          'grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write',
-        ),
-      );
-    });
+        expect(client.bodies, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv auth 050 the token body carries the scopes joined with a plus',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+
+        expect(
+          client.lastBody,
+          equals(
+            'grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write',
+          ),
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwoclientcred 006 the token body keeps ~ literal and percent-encodes * ! \' ( )',

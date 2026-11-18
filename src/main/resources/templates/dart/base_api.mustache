@@ -315,7 +315,7 @@ class BaseApi {
         serializedBody = _serializeBody(body, contentType, rawBody: rawBody);
       }
       if (serializedBody == null) {
-        headers.remove('Content-Type');
+        headers.removeWhere((name, _) => name.toLowerCase() == 'content-type');
       }
 
       final send = first && admitting != null

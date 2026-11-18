@@ -2449,6 +2449,67 @@ void main() {
       }
     });
 
+    test(
+      'bhv operations 157 a binary request body is sent as its exact raw bytes with no multipart encoding',
+      () async {
+        List<int> receivedBytes = [];
+        String? receivedType;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          receivedType = request.headers.contentType?.mimeType;
+          receivedBytes = await request.fold<List<int>>(
+            <int>[],
+            (acc, chunk) => acc..addAll(chunk),
+          );
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/upload',
+            {'Content-Type': 'application/octet-stream'},
+            Uint8List.fromList([0x01, 0x02, 0x03]),
+          );
+
+          expect(receivedType, equals('application/octet-stream'));
+          expect(receivedBytes, equals([0x01, 0x02, 0x03]));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 161 a text/plain response is returned as the raw text and never decoded, even when it looks like base64',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.text
+            ..write('aGVsbG8=')
+            ..close();
+        });
+
+        try {
+          final response = await DefaultApiClient().sendRequest(
+            'GET',
+            'http://localhost:${server.port}/text',
+            {},
+            null,
+          );
+
+          expect(response.body, equals('aGVsbG8='));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('bhv operations 016 sends no body when body is null', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
@@ -3893,6 +3954,24 @@ void main() {
         expect(client.sentHeaders.single['x-trace'], equals('call'));
         expect(client.sentHeaders.single.containsKey('X-Trace'), isFalse);
         expect(client.sentHeaders.single['X-Extra'], equals('1'));
+      },
+    );
+
+    test(
+      'bhv operations 158 a header supplied on an individual call is sent with that call',
+      () async {
+        final client = _ScriptedApiClient([_reply(200), _reply(200)]);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/x',
+          callHeaders: {'X-Once': 'yes'},
+        );
+        await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(client.sentHeaders.first['X-Once'], equals('yes'));
+        expect(client.sentHeaders.last.containsKey('X-Once'), isFalse);
       },
     );
 

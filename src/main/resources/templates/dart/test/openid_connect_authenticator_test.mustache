@@ -447,7 +447,7 @@ void main() {
       await expectLater(auth.buildAuthorizationUrl(), throwsA(same(failure)));
     });
 
-    test('a transport failure during the token exchange reaches the caller unchanged', () async {
+    test('bhv auth 055 a transport failure during the token exchange reaches the caller unchanged', () async {
       const failure = NetworkException(message: 'connection refused');
       final client = _FakeApiClient();
       client.enqueue(document);

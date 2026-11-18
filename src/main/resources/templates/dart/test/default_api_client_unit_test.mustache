@@ -109,6 +109,399 @@ void main() {
       expect(custom.closed, isFalse);
     });
 
+    test('bhv redirects 048 a 301 or 302 turns a POST follow-up into a GET with no body and keeps the other methods', () async {
+      const rows = <(int, String, String)>[
+        (301, 'POST', 'GET'),
+        (302, 'POST', 'GET'),
+        (301, 'PATCH', 'PATCH'),
+        (302, 'DELETE', 'DELETE'),
+        (301, 'GET', 'GET'),
+      ];
+      var landedMethod = '';
+      var landedBody = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (request.uri.path == '/start') {
+          await request.drain<void>();
+          request.response
+            ..statusCode = int.parse(request.uri.queryParameters['status']!)
+            ..headers.set('Location', '/landed')
+            ..close();
+          return;
+        }
+        landedMethod = request.method;
+        landedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().followRedirects(true).build(),
+        );
+        for (final row in rows) {
+          landedMethod = '';
+          landedBody = '';
+          await client.sendRequest(
+            row.$2,
+            'http://localhost:${server.port}/start?status=${row.$1}',
+            {'Content-Type': 'text/plain'},
+            row.$2 == 'GET' ? null : 'payload',
+          );
+          expect(landedMethod, equals(row.$3), reason: '${row.$1} ${row.$2}');
+          if (row.$2 == 'POST') {
+            expect(landedBody, isEmpty, reason: '${row.$1} POST');
+          }
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv redirects 046 a chain within the limit reaches its target and a chain past it raises the 3xx status and message', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await request.drain<void>();
+        if (request.uri.path == '/a') {
+          request.response..statusCode = 302..headers.set('Location', '/b')..close();
+        } else if (request.uri.path == '/b') {
+          request.response..statusCode = 302..headers.set('Location', '/c')..close();
+        } else if (request.uri.path == '/c') {
+          request.response..statusCode = 200..write('done')..close();
+        } else {
+          request.response..statusCode = 302..headers.set('Location', '/loop')..close();
+        }
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().maxRedirects(3).build(),
+        );
+        final ok = await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/a',
+          {},
+          null,
+        );
+        expect(ok.statusCode, equals(200));
+
+        await expectLater(
+          client.sendRequest('GET', 'http://127.0.0.1:${server.port}/loop', {}, null),
+          throwsA(isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 302)
+              .having((e) => e.message, 'message', equals('Too many redirects (exceeded 3)'))),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv redirects 052 a redirect to a different origin removes Authorization, Cookie, Proxy-Authorization and a secret-named header', () async {
+      final received = <String, String?>{};
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        received['authorization'] = request.headers.value('authorization');
+        received['cookie'] = request.headers.value('cookie');
+        received['proxy-authorization'] = request.headers.value('proxy-authorization');
+        received['x-access-token'] = request.headers.value('x-access-token');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      source.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${source.port}/start',
+          {
+            'Authorization': 'Bearer secret',
+            'Cookie': 'sid=1',
+            'Proxy-Authorization': 'Basic c2VjcmV0',
+            'X-Access-Token': 'secret',
+          },
+          null,
+        );
+
+        expect(received.values, everyElement(isNull));
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    test('bhv redirects 053 Authorization is kept on a same-origin redirect and removed when the scheme changes between https and http', () async {
+      final certDir = 'test/fixtures/certs';
+      final tlsContext = SecurityContext()
+        ..useCertificateChain('$certDir/server.pem')
+        ..usePrivateKey('$certDir/server-key.pem');
+
+      String? sameOriginAuth;
+      final plain = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      plain.listen((request) {
+        if (request.uri.path == '/start') {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', '/landed')
+            ..close();
+          return;
+        }
+        sameOriginAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      String? downgradeAuth;
+      final plainTarget = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      plainTarget.listen((request) {
+        downgradeAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+      final secureSource = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      secureSource.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${plainTarget.port}/landed')
+          ..close();
+      });
+
+      String? upgradeAuth;
+      final secureTarget = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      secureTarget.listen((request) {
+        upgradeAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+      final plainSource = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      plainSource.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'https://127.0.0.1:${secureTarget.port}/landed')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().verifySsl(false).build(),
+        );
+
+        await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${plain.port}/start',
+          {'Authorization': 'Bearer t'},
+          null,
+        );
+        expect(sameOriginAuth, equals('Bearer t'));
+
+        await client.sendRequest(
+          'GET',
+          'https://127.0.0.1:${secureSource.port}/start',
+          {'Authorization': 'Bearer t'},
+          null,
+        );
+        expect(downgradeAuth, isNull);
+
+        await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${plainSource.port}/start',
+          {'Authorization': 'Bearer t'},
+          null,
+        );
+        expect(upgradeAuth, isNull);
+      } finally {
+        await plain.close();
+        await plainTarget.close();
+        await secureSource.close();
+        await secureTarget.close();
+        await plainSource.close();
+      }
+    });
+
+    test('bhv redirects 050 the follow-up method matches the RFC 9110 table for 301, 302, 303, 307 and 308', () async {
+      const rows = <(int, String, String)>[
+        (301, 'POST', 'GET'),
+        (301, 'GET', 'GET'),
+        (302, 'POST', 'GET'),
+        (302, 'GET', 'GET'),
+        (303, 'POST', 'GET'),
+        (303, 'HEAD', 'HEAD'),
+        (307, 'POST', 'POST'),
+        (307, 'GET', 'GET'),
+        (308, 'POST', 'POST'),
+        (308, 'PUT', 'PUT'),
+      ];
+      var landedMethod = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (request.uri.path == '/start') {
+          await request.drain<void>();
+          request.response
+            ..statusCode = int.parse(request.uri.queryParameters['status']!)
+            ..headers.set('Location', '/landed')
+            ..close();
+          return;
+        }
+        landedMethod = request.method;
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().followRedirects(true).build(),
+        );
+        for (final row in rows) {
+          landedMethod = '';
+          await client.sendRequest(
+            row.$2,
+            'http://localhost:${server.port}/start?status=${row.$1}',
+            {},
+            null,
+          );
+          expect(landedMethod, equals(row.$3), reason: '${row.$1} ${row.$2}');
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv redirects 049 a 307 redirect repeats the same method and body and redirects are followed by default', () async {
+      var landedMethod = '';
+      var landedBody = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (request.uri.path == '/start') {
+          await request.drain<void>();
+          request.response
+            ..statusCode = 307
+            ..headers.set('Location', '/landed')
+            ..close();
+          return;
+        }
+        landedMethod = request.method;
+        landedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://localhost:${server.port}/start',
+          {'Content-Type': 'text/plain'},
+          'payload',
+        );
+
+        expect(landedMethod, equals('POST'));
+        expect(landedBody, equals('payload'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv redirects 051 a 303 redirect turns a PUT into a GET and keeps a HEAD as HEAD', () async {
+      const rows = <(String, String)>[('PUT', 'GET'), ('HEAD', 'HEAD')];
+      var landedMethod = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (request.uri.path == '/start') {
+          await request.drain<void>();
+          request.response
+            ..statusCode = 303
+            ..headers.set('Location', '/landed')
+            ..close();
+          return;
+        }
+        landedMethod = request.method;
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().followRedirects(true).build(),
+        );
+        for (final row in rows) {
+          landedMethod = '';
+          await client.sendRequest(
+            row.$1,
+            'http://localhost:${server.port}/start',
+            {},
+            null,
+          );
+          expect(landedMethod, equals(row.$2), reason: row.$1);
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv redirects 047 a refused redirect does not change the outcome of a request running at the same time', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (request.uri.path == '/loop') {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', '/loop')
+            ..close();
+          return;
+        }
+        request.response
+          ..statusCode = 200
+          ..write('fine')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().maxRedirects(2).build(),
+        );
+        final refused = client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/loop',
+          {},
+          null,
+        );
+        final ok = client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/ok',
+          {},
+          null,
+        );
+
+        await expectLater(refused, throwsA(isA<ApiException>()));
+        final response = await ok;
+        expect(response.statusCode, equals(200));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv redirects 029 redirects rewrite the method only as RFC 9110 15.4 allows', () async {
       const rows = <(int, String, String)>[
         (301, 'POST', 'GET'),

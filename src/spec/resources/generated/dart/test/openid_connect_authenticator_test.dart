@@ -560,7 +560,7 @@ void main() {
     );
 
     test(
-      'a transport failure during the token exchange reaches the caller unchanged',
+      'bhv auth 055 a transport failure during the token exchange reaches the caller unchanged',
       () async {
         const failure = NetworkException(message: 'connection refused');
         final client = _FakeApiClient();

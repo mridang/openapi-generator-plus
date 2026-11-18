@@ -174,7 +174,7 @@ void main() {
 
     for (final location in ApiKeyLocation.values) {
       for (final key in ['', '   ', ' \t\n\r\f\v ']) {
-        test('${location.name} rejects the blank key of ${key.length} characters', () {
+        test('bhv auth 034 ${location.name} rejects the blank key of ${key.length} characters', () {
           expect(
             () => build(key, location),
             throwsA(
@@ -224,6 +224,46 @@ void main() {
             ),
           ),
         ),
+      );
+    });
+
+    test('bhv auth 035 a header key with a control character other than tab is rejected', () {
+      expect(
+        () => build('a\x01b', ApiKeyLocation.header),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          contains('printable ASCII'),
+        )),
+      );
+    });
+
+    test('bhv auth 041 a key passed to the constructor takes precedence over the same environment variable', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'explicit',
+        location: ApiKeyLocation.query,
+        environment: {ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(auth.queryParams(), equals({'api_key': 'explicit'}));
+    });
+
+    test('bhv auth 042 an explicitly passed empty key is rejected by its own validation, not replaced by the environment', () {
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'api_key',
+          apiKey: '',
+          location: ApiKeyLocation.query,
+          environment: {ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+        ),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          equals("API key value for 'api_key' must not be empty"),
+        )),
       );
     });
 
@@ -318,7 +358,7 @@ void main() {
       }
     });
 
-    test('ApiKeyHeaderAuthenticator sends X-API-Key as a header', () {
+    test('bhv auth 031 ApiKeyHeaderAuthenticator sends X-API-Key as a header', () {
       final auth = builders['ApiKeyHeaderAuthenticator']!('k1');
 
       expect(auth.authHeaders(), equals({'X-API-Key': 'k1'}));
@@ -342,7 +382,7 @@ void main() {
       expect(auth.cookieParams(), isEmpty);
     });
 
-    test('SessionCookieAuthenticator sends SESSION_ID as a cookie', () {
+    test('bhv auth 032 SessionCookieAuthenticator sends SESSION_ID as a cookie', () {
       final auth = builders['SessionCookieAuthenticator']!('k1');
 
       expect(auth.cookieParams(), equals({'SESSION_ID': 'k1'}));
@@ -413,7 +453,7 @@ void main() {
         expect(() => build(''), throwsArgumentError);
       });
 
-      test('$name masks the key in toString', () {
+      test('bhv auth 033 $name masks the key in toString', () {
         final repr = build('abc123').toString();
 
         expect(repr, startsWith('$name(host: {{{basePath}}}, keyParamName: '));

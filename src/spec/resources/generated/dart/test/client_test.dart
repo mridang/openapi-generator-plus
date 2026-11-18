@@ -385,6 +385,126 @@ void main() {
     });
 
     test(
+      'bhv lifecycle 041 a supplied httpClient combined with a proxy is refused at build',
+      () {
+        expect(
+          () => TransportOptionsBuilder()
+              .httpClient(MockClient((_) async => http.Response('', 200)))
+              .proxy('http://proxy.example.com:3128')
+              .build(),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'bhv lifecycle 042 a client built on a caller-supplied transport sends its requests through that transport',
+      () async {
+        final requests = <Uri>[];
+        final custom = MockClient((request) async {
+          requests.add(request.url);
+          return http.Response(
+            '{"id":1,"name":"Fido","photoUrls":[]}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'tok',
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(custom)
+              .build(),
+        );
+
+        await client.pet.getPetTag(1, 'favorite', null);
+
+        expect(requests, hasLength(1));
+        expect(requests.single.host, equals('api.example.com'));
+      },
+    );
+
+    test(
+      'bhv lifecycle 043 a request after close throws a StateError and never reaches the network',
+      () async {
+        final requests = <Uri>[];
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'tok',
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(
+                MockClient((request) async {
+                  requests.add(request.url);
+                  return http.Response('{}', 200);
+                }),
+              )
+              .build(),
+        );
+
+        client.close();
+
+        await expectLater(
+          client.pet.getPetTag(1, 'favorite', null),
+          throwsA(isA<StateError>()),
+        );
+        expect(requests, isEmpty);
+      },
+    );
+
+    test(
+      'bhv lifecycle 044 a request in flight when the client is closed still completes successfully',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final client = Client.withToken(
+            host: 'http://localhost:${server.port}',
+            accessToken: 'tok',
+          );
+          final pending = client.pet.getPetTag(1, 'favorite', null);
+          client.close();
+
+          final pet = await pending;
+          expect(pet.name, equals('Fido'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv lifecycle 045 closing the client leaves a caller-supplied http client open for the caller to keep using',
+      () async {
+        final supplied = _CloseTrackingClient(
+          MockClient((_) async => http.Response('ok', 200)),
+        );
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'tok',
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(supplied)
+              .build(),
+        );
+
+        client.close();
+
+        final response = await supplied.get(
+          Uri.parse('https://api.example.com/ping'),
+        );
+        expect(response.statusCode, equals(200));
+        expect(supplied.closed, isFalse);
+      },
+    );
+
+    test(
       'bhv lifecycle 036 closing a client a second time raises no error and releases nothing further',
       () {
         final client = Client.withToken(

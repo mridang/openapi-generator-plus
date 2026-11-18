@@ -200,14 +200,17 @@ void main() {
       expect(() => auth.authHeaders(), throwsStateError);
     });
 
-    test('the authorize URL is exact and separates scopes with %20', () {
-      expect(
-        _createAuthenticator().buildAuthorizationUrl(),
-        equals(
-          'https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write',
-        ),
-      );
-    });
+    test(
+      'bhv auth 049 the authorize URL is exact and separates scopes with %20',
+      () {
+        expect(
+          _createAuthenticator().buildAuthorizationUrl(),
+          equals(
+            'https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write',
+          ),
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwoimplicit 001 the authorize URL keeps ~ literal and percent-encodes * ! \' ( )',

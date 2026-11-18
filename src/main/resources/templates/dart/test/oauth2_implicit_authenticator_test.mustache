@@ -155,7 +155,7 @@ void main() {
       expect(() => auth.authHeaders(), throwsStateError);
     });
 
-    test('the authorize URL is exact and separates scopes with %20', () {
+    test('bhv auth 049 the authorize URL is exact and separates scopes with %20', () {
       expect(
         _createAuthenticator().buildAuthorizationUrl(),
         equals(

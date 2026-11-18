@@ -89,7 +89,7 @@ void main() {
       },
     );
 
-    test('the provider is asked on every request', () {
+    test('bhv auth 037 the provider is asked on every request', () {
       var calls = 0;
       final auth = BasicAuthenticator(
         host: 'https://api.example.com',
@@ -282,7 +282,7 @@ void main() {
         },
       );
 
-      test('$name still rejects a colon in the username', () {
+      test('bhv auth 036 $name still rejects a colon in the username', () {
         expect(() => build('ali:ce', 's3cret'), throwsArgumentError);
       });
 

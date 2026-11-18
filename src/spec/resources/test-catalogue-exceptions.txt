@@ -391,3 +391,7 @@ ruby | operations159 | the generated Ruby client returns nil for a value-returni
 ruby | misc029 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a caller's cancellation is never seen or surfaced by the SDK
 ruby | misc035 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can carry an already-aborted signal
 node | auth039 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal (the same case as authbearer026)
+dart | auth038 | F862 credential order: dart reads the environment variable before the token provider, so an environment value is the fixed token and the provider is never asked
+dart | operations164 | Dart's sound null safety makes a nil required parameter unrepresentable: passing null is a compile error, so no ArgumentError can be raised at runtime; empty required values are covered by bhv operations 050
+dart | operations162 | the fixture has no date-only path parameter
+dart | operations165 | the fixture has no operation with a path serialization style

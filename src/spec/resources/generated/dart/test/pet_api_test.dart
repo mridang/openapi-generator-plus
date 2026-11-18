@@ -66,6 +66,15 @@ class _MockGetExternalPetInfoServer extends GetExternalPetInfoServer {
   String getUrl() => chasmUrl;
 }
 
+class _LocalExternalPetInfoServer extends GetExternalPetInfoServer {
+  _LocalExternalPetInfoServer(this._url);
+
+  final String _url;
+
+  @override
+  String getUrl() => _url;
+}
+
 PetApi _newPetApiForIntegration({Map<String, Authenticator>? schemes}) {
   final config = ConfigurationBuilder()
       .baseUrl(chasmUrl)
@@ -941,6 +950,67 @@ void main() {
      * typed ApiException from the plain convenience method (parity with
      * C#/Swift), not a Dart runtime TypeError from `null as Pet`. */
     test(
+      'bhv operations 160 a call to an external-variant operation is sent to the URL of the generated server variant',
+      () async {
+        var received = false;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          received = true;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"x","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://127.0.0.1:1')
+              .defaultHeader('Authorization', 'Bearer test-token')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getExternalPetInfo(
+            1,
+            _LocalExternalPetInfoServer('http://localhost:${server.port}'),
+            null,
+          );
+
+          expect(received, isTrue);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 159 a call that returns a value raises a typed ApiException when a success response has an empty body',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetById(1, null, null),
+            throwsA(isA<ApiException>()),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv operations 036 emptyBodyMock throws ApiException from convenience method',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1431,39 +1501,45 @@ void main() {
     /* F857: the credential configured for the scheme an operation's spec
      * names (schemeAuthenticators) is applied to the outgoing request,
      * overriding the client's default header. There is no per-call override. */
-    test('addPet auth supplied for its scheme is applied', () async {
-      String? capturedAuth;
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        capturedAuth = request.headers.value('authorization');
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"x","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'bhv auth 045 addPet auth supplied for its scheme is applied',
+      () async {
+        String? capturedAuth;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"x","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .defaultHeader('Authorization', 'Bearer default-token')
-            .build();
-        final api = PetApi(
-          apiClient: DefaultApiClient(),
-          config: config,
-          schemeAuthenticators: {'petStoreBearer': _PerCallAuth()},
-        );
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('Authorization', 'Bearer default-token')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'petStoreBearer': _PerCallAuth()},
+          );
 
-        await api.addPet(
-          Pet(name: 'OptDog', photoUrls: <String>{'http://example.com/p.jpg'}),
-          null,
-        );
+          await api.addPet(
+            Pet(
+              name: 'OptDog',
+              photoUrls: <String>{'http://example.com/p.jpg'},
+            ),
+            null,
+          );
 
-        expect(capturedAuth, equals('Bearer per-call-token'));
-      } finally {
-        await server.close();
-      }
-    });
+          expect(capturedAuth, equals('Bearer per-call-token'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* auth-omitted-uses-config-default: when no auth is supplied on the
      * Options object, the call must fall back to the Configuration's
@@ -1529,6 +1605,204 @@ void main() {
           final result = await api.getPetById(7, null, null);
           expect(result, isNotNull);
           expect(result.id, equals(7));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv auth 043 an operation sends the credential of one scheme it names and never both',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {
+              'apiKeyHeader': _FixedHeaderAuth('X-API-Key', 'key-token'),
+              'petStoreBearer': _FixedHeaderAuth(
+                'Authorization',
+                'Bearer bearer-token',
+              ),
+            },
+          );
+
+          await api.addPet(
+            Pet(
+              name: 'Fido',
+              photoUrls: <String>{'http://example.com/fido.jpg'},
+            ),
+            null,
+          );
+
+          expect(
+            received.containsKey('x-api-key') !=
+                received.containsKey('authorization'),
+            isTrue,
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv auth 044 an operation with no security requirement sends no credential on the wire',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":7,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {
+              'petStoreBearer': _FixedHeaderAuth(
+                'Authorization',
+                'Bearer bearer-token',
+              ),
+            },
+          );
+
+          await api.getPetById(7, null, null);
+
+          expect(received.containsKey('authorization'), isFalse);
+          expect(received.containsKey('x-api-key'), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv auth 046 an operation that inherits the document-level security receives the client authenticator on the wire',
+      () async {
+        String? capturedAuth;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"x","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('Authorization', 'Bearer client-token')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.addPet(
+            Pet(
+              name: 'Inherit',
+              photoUrls: <String>{'http://example.com/p.jpg'},
+            ),
+            null,
+          );
+
+          expect(capturedAuth, equals('Bearer client-token'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv auth 047 an operation with several schemes sends no scheme credential when the client holds none',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.addPet(
+            Pet(
+              name: 'Fido',
+              photoUrls: <String>{'http://example.com/fido.jpg'},
+            ),
+            null,
+          );
+
+          expect(received.containsKey('authorization'), isFalse);
+          expect(received.containsKey('x-api-key'), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 163 a request with no body sends no Content-Type header whatever the case of a default header name',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":7,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('CONTENT-TYPE', 'text/plain')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetById(7, null, null);
+
+          expect(received.containsKey('content-type'), isFalse);
         } finally {
           await server.close();
         }
