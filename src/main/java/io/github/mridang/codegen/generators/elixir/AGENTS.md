@@ -53,7 +53,7 @@ Rule: Elixir follows the shared decisions S1 to S16 (strict containers, content 
 
 ### allOf with a discriminator flattens into each struct (S4, 2026-11-16)
 
-Rule: intended. Each subtype is a flat struct; the base module carries a dispatch function that reads the discriminator, and a behaviour declares the shared accessors. A model reused in two unions is never re-parented. Why: structs cannot inherit; a class-style parent was rejected. Where: `models/model.mustache`, `BetterElixirCodegen` (`setsDiscriminatorDefaultOnChildren` already fills the discriminator default on subtypes). The behaviour and the allOf flattening are not in the template yet. Test: `test/composed_schema_test.mustache`.
+Rule: intended. Each subtype is a flat struct; the base module carries a dispatch function that reads the discriminator, and a behaviour declares the shared accessors. A model reused in two unions is never re-parented. Why: structs cannot inherit; a class-style parent was rejected. Where: `models/model.mustache`, `BetterElixirCodegen` (`setsDiscriminatorDefaultOnChildren` already fills the discriminator default on subtypes). The base module's `build/1` dispatches a payload to the subtype its mapping names (`hasChildren` plus `discriminator` gate it), and `ObjectSerializer.convert_to_type/2` routes to it. The shared behaviour for accessors is not in the template yet. Test: `test/composed_schema_test.mustache`.
 
 ### Required plus nullable (S5, D66, 2026-11-16)
 

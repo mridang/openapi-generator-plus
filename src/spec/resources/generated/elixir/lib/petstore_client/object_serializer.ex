@@ -963,6 +963,9 @@ defmodule PetstoreClient.ObjectSerializer do
           function_exported?(module, :openapi_any_of, 0) ->
         module.build(data)
 
+      function_exported?(module, :openapi_discriminator_mapping, 0) ->
+        module.build(data)
+
       function_exported?(module, :openapi_types, 0) ->
         deserialize_model(data, module)
 
