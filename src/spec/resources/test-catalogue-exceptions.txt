@@ -477,6 +477,16 @@ php | misc033 | libcurl and the TLS stack build the chain from the CA file, and 
 php | misc034 | PHP has one caller transport, the PSR-18 client, so there is no separate HTTP client option to combine with it
 php | misc035 | PHP has no abort signal to pass to a call, so an already aborted call cannot exist
 ||||||| 3e71877dc
+||||||| 42ed26df5
+node | misc030 | Node's per-call timeout is a duration, not an absolute deadline, so there is no past deadline to pass; a timeout of zero or less is refused before any request is sent (bhv options 056).
+node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementation and there is no separate transport object, so there is no client and transport pair to refuse at build.
+||||||| 9f854cdf4
+||||||| f5c1c903c
+java | misc030 | Java has no caller deadline API: the only bound is the transport timeout, which starts when the request is sent, so no call can arrive with a deadline already past
+java | misc033 | The JDK exposes no public API to issue a certificate, so a server presenting a root-linked intermediate cannot be built in-process to test a root-only CA file
+java | misc044 | Java rejects a body declared as gzip that lacks the gzip signature with an ApiException (bhvTransport073), so it is never returned as the plain body
+||||||| 3e71877dc
+||||||| 376fc4ff0
 csharp | misc030 | C# has no request deadline: its timeout is a duration that starts when the call starts, so no call can begin already past its deadline
 ||||||| 103ccb42b
 elixir | misc029 | The SDK has no cancellation argument (readme: a caller stops a call by terminating its process), so the SDK never sees a caller's cancellation and cannot wrap it in its error type
