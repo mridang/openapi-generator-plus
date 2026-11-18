@@ -2854,3 +2854,13 @@ test('bhv serialization 057 a multipart name holding a line break is refused bef
     expect(fn () => DefaultApiClient::validateMultipartFilename("a\rb.pdf"))
         ->toThrow(\InvalidArgumentException::class);
 });
+
+test('bhv lifecycle 036 closing a client a second time raises no error and releases nothing further', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+
+    $client->close();
+    $client->close();
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
+        ->toThrow(\LogicException::class);
+});
