@@ -8,7 +8,10 @@
 import * as fs from "node:fs";
 import * as util from "node:util";
 import * as path from "node:path";
-import { ObjectSerializer } from "../src/object-serializer.js";
+import {
+  ObjectSerializer,
+  reattachAdditionalProperties,
+} from "../src/object-serializer.js";
 import { SerializationError } from "../src/errors/index.js";
 import {
   Blobs,
@@ -425,5 +428,28 @@ describe("Metadata", () => {
       } as unknown as Partial<Metadata>);
       expect(built.additionalProperties).toEqual({ additionalProperties: "y" });
     });
+  });
+});
+
+describe("Metadata additional properties misc behaviours", () => {
+  it("bhv misc 142 additional properties are returned unchanged by key and the map holds exactly the stored entries", () => {
+    const meta = ObjectSerializer.deserialize(
+      '{"note":"x","owner":"ann"}',
+      Metadata,
+    ) as Metadata;
+    expect(meta.additionalProperties["note"]).toBe("x");
+    expect(Object.keys(meta.additionalProperties)).toEqual(["note", "owner"]);
+  });
+
+  it("bhv misc 143 a copy keeps the additional properties and compares equal to the original", () => {
+    const original = reattachAdditionalProperties(new Metadata({}), {
+      customField: "a",
+    });
+    const copy = ObjectSerializer.deserialize(
+      ObjectSerializer.serialize(original),
+      Metadata,
+    ) as Metadata;
+    expect(copy.additionalProperties).toEqual({ customField: "a" });
+    expect(copy).toEqual(original);
   });
 });
