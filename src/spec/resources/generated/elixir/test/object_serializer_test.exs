@@ -3049,4 +3049,33 @@ defmodule PetstoreClient.ObjectSerializerTest do
     assert PetstoreClient.ObjectSerializer.stringify(dt) =~ "T03:04:05"
     assert PetstoreClient.ObjectSerializer.stringify(dt) =~ "+02:00"
   end
+
+  describe "misc parity" do
+    test "bhv misc 102 a binary value keeps exactly the bytes it was given" do
+      assert PetstoreClient.ObjectSerializer.sanitize_for_serialization(<<0, 255, 16>>) ==
+               <<0, 255, 16>>
+    end
+
+    test "bhv misc 104 a string declared with the email format decodes to a plain string without validation" do
+      assert PetstoreClient.ObjectSerializer.deserialize("\"not an email\"", "String") ==
+               "not an email"
+    end
+
+    test "bhv misc 106 a null element in an array body keeps its position when serialized" do
+      assert PetstoreClient.ObjectSerializer.serialize([nil, "a"]) == ~s([null,"a"])
+    end
+
+    test "bhv misc 107 a scalar query parameter is emitted as its string value" do
+      assert PetstoreClient.ObjectSerializer.to_query_value(3) == "3"
+    end
+
+    test "bhv misc 111 a collection of unique strings is written in code point order" do
+      assert PetstoreClient.ObjectSerializer.sanitize_for_serialization(MapSet.new(["b", "a"])) ==
+               ["a", "b"]
+    end
+
+    test "bhv misc 115 serializing a bare string value yields a quoted JSON string" do
+      assert PetstoreClient.ObjectSerializer.serialize("abc") == ~s("abc")
+    end
+  end
 end
