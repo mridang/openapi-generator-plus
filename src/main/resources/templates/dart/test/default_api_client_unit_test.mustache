@@ -1250,7 +1250,7 @@ void main() {
     });
 
     test(
-      'deflate Content-Encoding with non-deflate body surfaces ApiException, not crash',
+      'bhv langdart 086 deflate Content-Encoding with non-deflate body surfaces ApiException, not crash',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -1849,7 +1849,7 @@ void main() {
       );
     });
 
-    test('the header-value ArgumentError never carries the secret value',
+    test('bhv misc 174 the header-value ArgumentError never carries the secret value',
         () async {
       final client = DefaultApiClient();
       await expectLater(
@@ -1990,7 +1990,7 @@ void main() {
       }
     });
 
-    test('decodes a quoted charset="windows-1252" parameter', () async {
+    test('bhv langdart 041 decodes a quoted charset="windows-1252" parameter', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -2369,7 +2369,7 @@ void main() {
       }
     });
 
-    test('a server that never answers throws NetworkTimeoutException', () async {
+    test('bhv langdart 042 a server that never answers throws NetworkTimeoutException', () async {
       final sockets = <Socket>[];
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       server.listen(sockets.add);
@@ -2902,7 +2902,7 @@ void main() {
       }
     });
 
-    test('multipart array field sends one part per element', () async {
+    test('bhv misc 097 multipart array field sends one part per element', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
@@ -3009,7 +3009,7 @@ void main() {
       }
     });
 
-    test('multipart scalar field is still sent as a single part', () async {
+    test('bhv langdart 043 multipart scalar field is still sent as a single part', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
@@ -3638,7 +3638,7 @@ void main() {
     ]) {
       final url = target[0] as String;
       final sent = target[1] as bool;
-      test('$url ${sent ? 'carries' : 'does not carry'} the proxy credential',
+      test('bhv misc 031 $url ${sent ? 'carries' : 'does not carry'} the proxy credential',
           () async {
         Map<String, String>? seen;
         final stub = MockClient((request) async {

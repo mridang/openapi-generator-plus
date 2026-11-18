@@ -1085,7 +1085,7 @@ void main() {
     );
 
     test(
-      'bare JSON null body throws ApiException from a list operation',
+      'bhv misc 005 bare JSON null body throws ApiException from a list operation',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -2451,7 +2451,7 @@ void main() {
     );
 
     test(
-      'a value with a space, semicolon, comma, quote or backslash fails before sending',
+      'bhv langdart 001 a value with a space, semicolon, comma, quote or backslash fails before sending',
       () async {
         for (final value in ['a b', 'a;b', 'a,b', 'a"b', r'a\b', 'caf\u00e9']) {
           final (cookie, error) = await callWithSession(value);
@@ -2558,7 +2558,7 @@ void main() {
 
     /* Spec prose reaches the doc comment as written: no HTML entity and no
      * string-literal backslash before a quote. */
-    test('render spec prose verbatim', () {
+    test('bhv langdart 002 render spec prose verbatim', () {
       expect(
         source,
         contains("  /// Get a <plain> \"text\" summary & it's short\n"),
@@ -2588,22 +2588,25 @@ void main() {
       );
     });
 
-    test('the templated staging variant substitutes its variables', () {
-      expect(
-        GetStagingPetInfoServerStagingServer(
-          GetStagingPetInfoServerEnvironment.SANDBOX,
-          GetStagingPetInfoServerVersion.V2,
-        ).getUrl(),
-        equals('https://sandbox.example.com/api/v2'),
-      );
-      expect(
-        GetStagingPetInfoServerStagingServer(
-          GetStagingPetInfoServerEnvironment.STAGING,
-          GetStagingPetInfoServerVersion.V3,
-        ).getUrl(),
-        equals('https://staging.example.com/api/v3'),
-      );
-    });
+    test(
+      'bhv langdart 003 the templated staging variant substitutes its variables',
+      () {
+        expect(
+          GetStagingPetInfoServerStagingServer(
+            GetStagingPetInfoServerEnvironment.SANDBOX,
+            GetStagingPetInfoServerVersion.V2,
+          ).getUrl(),
+          equals('https://sandbox.example.com/api/v2'),
+        );
+        expect(
+          GetStagingPetInfoServerStagingServer(
+            GetStagingPetInfoServerEnvironment.STAGING,
+            GetStagingPetInfoServerVersion.V3,
+          ).getUrl(),
+          equals('https://staging.example.com/api/v3'),
+        );
+      },
+    );
 
     test(
       'bhv operations 085 the multi-server operation offers a fixed and a templated server',

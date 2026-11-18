@@ -234,7 +234,7 @@ void main() {
   });
 
   group('BaseApi', () {
-    test('error dispatch', () async {
+    test('bhv langdart 010 error dispatch', () async {
       // The Chasm mock serves only these status routes. Every status-to-exception
       // pair is pinned without a server by bhv errors 006 in the api error test.
       final testCases = <int, Type>{
@@ -276,7 +276,7 @@ void main() {
      * distinguishable from an empty body / no headers. A transport
      * ApiException carries null for both. The `== null` assertions below
      * only compile when the fields are typed as nullable. */
-    test('ApiException responseBody and responseHeaders are nullable', () async {
+    test('bhv langdart 011 ApiException responseBody and responseHeaders are nullable', () async {
       final client = DefaultApiClient();
       try {
         // Nothing listens on port 1: the request gets no HTTP response.
@@ -294,7 +294,7 @@ void main() {
     // Cross-cutting `bearer-no-empty-token-guard`: BearerAuthenticator must
     // reject an empty / whitespace-only token at construction so it can
     // never emit a bare `Authorization: Bearer ` header.
-    test('BearerAuthenticator rejects empty or whitespace token', () {
+    test('bhv langdart 012 BearerAuthenticator rejects empty or whitespace token', () {
       expect(
         () => BearerAuthenticator(host: 'https://api.example.com', token: ''),
         throwsArgumentError,
@@ -1423,7 +1423,7 @@ void main() {
       }
     });
 
-    test('serializes number query params', () async {
+    test('bhv misc 238 serializes number query params', () async {
       final client = _CapturingApiClient();
       final api = _RecordingApi(client);
 
@@ -1768,7 +1768,7 @@ void main() {
           contains('nickname=a~b%2Ac%21d%27e%28f%29g+h'));
     });
 
-    test('query key keeps only the unreserved set literal', () async {
+    test('bhv serialization 111 query key keeps only the unreserved set literal', () async {
       final client = _CapturingApiClient();
       final api = BaseApi(
         apiClient: client,
@@ -1964,7 +1964,7 @@ void main() {
      * `filename="..."` fallback). Exercised on the live builder
      * (BaseApi._buildMultipartBody via the public buildFilenameDirective
      * the builder uses) and end-to-end through DefaultApiClient. */
-    test('multipart non-ASCII filename emits RFC 5987 filename*', () async {
+    test('bhv misc 099 multipart non-ASCII filename emits RFC 5987 filename*', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -2015,7 +2015,7 @@ void main() {
      * addPetPhotos operation) against a loopback server that captures the
      * raw multipart bytes. The cross-language contract must hold byte-for-
      * byte across all 12 SDKs. */
-    test('multipart model part serializes with wire keys and date-time format', () async {
+    test('bhv langdart 013 multipart model part serializes with wire keys and date-time format', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -2582,7 +2582,7 @@ void main() {
       }
     });
 
-    test('falls back to UTF-8 for unknown charset without throwing', () async {
+    test('bhv langdart 014 falls back to UTF-8 for unknown charset without throwing', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -2991,7 +2991,7 @@ void main() {
       expect(auth.invalidations, equals(0));
     });
 
-    test('a 401 is replayed even when retries are disabled', () async {
+    test('bhv misc 159 a 401 is replayed even when retries are disabled', () async {
       final auth = _RotatingAuth();
       final client = _ScriptedApiClient([_reply(401), _reply(200)], maxRetries: 0);
       final api = _RecordingApi(client, authenticator: auth);
@@ -3003,7 +3003,7 @@ void main() {
   });
 
   group('BaseApi retries', () {
-    test('a 503 is sent again once after about half a second', () async {
+    test('bhv langdart 015 a 503 is sent again once after about half a second', () async {
       final client = _ScriptedApiClient([_reply(503), _reply(200)]);
       final api = _RecordingApi(client);
 
@@ -3039,7 +3039,7 @@ void main() {
       }
     });
 
-    test('408, 409, 429 and 502 are retried', () async {
+    test('bhv langdart 016 retries on 408, 409, 429 and 502 responses', () async {
       for (final status in [408, 409, 429, 502]) {
         final client = _ScriptedApiClient([_reply(status), _reply(200)]);
         final api = _RecordingApi(client);
@@ -3050,7 +3050,7 @@ void main() {
       }
     });
 
-    test('400, 404, 422 and 501 are not retried', () async {
+    test('bhv langdart 017 never retries 400, 404, 422 or 501 responses', () async {
       for (final status in [400, 404, 422, 501]) {
         final client = _ScriptedApiClient([_reply(status), _reply(200)]);
         final api = _RecordingApi(client);
@@ -3226,7 +3226,7 @@ void main() {
       expect(client.sentHeaders, hasLength(3));
     });
 
-    test('an error that is not a network failure is not retried', () async {
+    test('bhv misc 160 an error that is not a network failure is not retried', () async {
       final client = _ScriptedApiClient([
         const ApiException(statusCode: 0, message: 'bad encoding'),
         _reply(200),
@@ -3806,14 +3806,14 @@ void main() {
         body: body,
         headers: {'content-type': 'application/json'});
 
-    test('a map of int32 leaves decodes integers', () async {
+    test('bhv langdart 018 a map of int32 leaves decodes integers', () async {
       final client = _ScriptedApiClient([jsonReply('{"a":1,"b":-2147483648}')]);
 
       expect(await storeApi(client).getInventory(null),
           equals({'a': 1, 'b': -2147483648}));
     });
 
-    test('a map leaf that is fractional, quoted or out of range is refused', () async {
+    test('bhv misc 116 a map leaf that is fractional, quoted or out of range is refused', () async {
       for (final leaf in ['1.5', '"1"', '2147483648', '-2147483649', 'null']) {
         final client = _ScriptedApiClient([jsonReply('{"a":$leaf}')]);
 
@@ -3823,7 +3823,7 @@ void main() {
       }
     });
 
-    test('a nested array of int32 leaves is checked leaf by leaf', () async {
+    test('bhv langdart 019 a nested array of int32 leaves is checked leaf by leaf', () async {
       final ok = _ScriptedApiClient([jsonReply('[[1,2],[3]]')]);
       expect(await storeApi(ok).getMatrix(null), equals([[1, 2], [3]]));
 
@@ -3836,7 +3836,7 @@ void main() {
       }
     });
 
-    test('a model property is checked against its integer width', () async {
+    test('bhv langdart 020 a model property is checked against its integer width', () async {
       expect(deserialize<Order>('{"quantity":2147483647}', Order.fromJson)!.quantity,
           equals(2147483647));
       for (final value in ['2147483648', '1.5', '"7"']) {
@@ -3885,7 +3885,7 @@ void main() {
       );
     });
 
-    test('a timeout stays a timeout and carries the request', () async {
+    test('bhv misc 027 a timeout stays a timeout and carries the request', () async {
       final client = _ScriptedApiClient(
           [const NetworkTimeoutException(message: 'slow')],
           maxRetries: 0);

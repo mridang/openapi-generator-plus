@@ -299,7 +299,7 @@ void main() {
       expect(client.requestCount, equals(1));
     });
 
-    test('a re-grant without expires_in clears the stale expiry', () async {
+    test('bhv langdart 063 a re-grant without expires_in clears the stale expiry', () async {
       // F911: no expires_in means no expiry, so the next call is cached.
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":0}');
@@ -796,7 +796,7 @@ void main() {
       }
     });
 
-    test('OAuth2TokenException is a {{errorPrefix}}Exception (branded root)', () {
+    test('bhv errors 094 OAuth2TokenException is a {{errorPrefix}}Exception (branded root)', () {
       final err = OAuth2TokenException('boom');
 
       expect(err, isA<OAuth2TokenException>());

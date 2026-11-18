@@ -135,7 +135,7 @@ void main() {
       },
     );
 
-    test('a finite double still decodes', () {
+    test('bhv langdart 064 a finite double still decodes', () {
       final pet = deserialize<Pet>(
         '{"name":"a","photoUrls":[],"weightKg":1.5e300}',
         Pet.fromJson,
@@ -158,11 +158,14 @@ void main() {
       },
     );
 
-    test('copyWith without arguments is equal to the original', () {
-      const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
+    test(
+      'bhv misc 146 copyWith without arguments is equal to the original',
+      () {
+        const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
 
-      expect(original.copyWith(), equals(original));
-    });
+        expect(original.copyWith(), equals(original));
+      },
+    );
 
     test(
       'bhv models 016 copyWith sets a nullable field to null only when null is passed',
@@ -185,7 +188,7 @@ void main() {
       },
     );
 
-    test('deserializeRaw JSON to map', () {
+    test('bhv langdart 065 deserializeRaw JSON to map', () {
       final input = '{"name":"Fido","age":3}';
 
       final result = deserializeRaw(input) as Map<String, dynamic>;
@@ -328,19 +331,22 @@ void main() {
       },
     );
 
-    test('deserialize reports a JSON nesting depth over the limit', () {
-      final deep = '[' * 1001 + ']' * 1001;
-      expect(
-        () => deserialize<Category>(deep, Category.fromJson),
-        throwsA(
-          isA<SerializationException>().having(
-            (e) => e.message,
-            'message',
-            'JSON nesting depth 1001 exceeds limit 1000',
+    test(
+      'bhv langdart 066 deserialize reports a JSON nesting depth over the limit',
+      () {
+        final deep = '[' * 1001 + ']' * 1001;
+        expect(
+          () => deserialize<Category>(deep, Category.fromJson),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              'JSON nesting depth 1001 exceeds limit 1000',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test(
       'bhv serializationobject 004 deserialize prefixes a parse failure with Failed to deserialize JSON',
@@ -477,7 +483,7 @@ void main() {
       expect(toFormValue('hello'), equals('hello'));
     });
 
-    test('toFormValue int', () {
+    test('bhv langdart 067 toFormValue int', () {
       expect(toFormValue(123), equals('123'));
     });
 
@@ -720,10 +726,13 @@ void main() {
       },
     );
 
-    test('microsecond component is truncated to a fixed 3-digit fraction', () {
-      final dt = DateTime.utc(2020, 1, 2, 3, 4, 5, 123, 456);
-      expect(stringify(dt), equals('2020-01-02T03:04:05.123+00:00'));
-    });
+    test(
+      'bhv langdart 068 microsecond component is truncated to a fixed 3-digit fraction',
+      () {
+        final dt = DateTime.utc(2020, 1, 2, 3, 4, 5, 123, 456);
+        expect(stringify(dt), equals('2020-01-02T03:04:05.123+00:00'));
+      },
+    );
 
     test(
       'bhv serializationobject 045 a date-time model field keeps its sub-second fraction on the wire',
@@ -1209,7 +1218,7 @@ void main() {
     );
 
     test(
-      'a null element of a nested array of int32 raises SerializationException',
+      'bhv langdart 069 a null element of a nested array of int32 raises SerializationException',
       () {
         expect(
           () => deserializeArray<List<int>>(<Object?>[
@@ -1575,36 +1584,42 @@ void main() {
       },
     );
 
-    test('toJson includes optional fields when explicitly set', () {
-      final pet = Pet(
-        id: 7,
-        name: 'Fido',
-        photoUrls: <String>{'http://x/y.jpg'},
-      );
-      final json = pet.toJson();
-      expect(json['id'], equals(7));
-    });
+    test(
+      'bhv langdart 070 toJson includes optional fields when explicitly set',
+      () {
+        final pet = Pet(
+          id: 7,
+          name: 'Fido',
+          photoUrls: <String>{'http://x/y.jpg'},
+        );
+        final json = pet.toJson();
+        expect(json['id'], equals(7));
+      },
+    );
 
     // -- ByteMapWireTests --
     //
     // A `format: byte` map value is native bytes in memory and a base64 string
     // on the wire, exactly like a byte scalar or array. A plain assignment
     // would hand jsonEncode a Uint8List, which it writes as an int array.
-    test('serialize writes format:byte map values as base64 strings', () {
-      final vault = BinaryVault(
-        labels: <String, Uint8List>{
-          'a': Uint8List.fromList(<int>[1, 2, 3]),
-          'b': Uint8List.fromList(<int>[255]),
-        },
-      );
+    test(
+      'bhv serialization 088 serialize writes format:byte map values as base64 strings',
+      () {
+        final vault = BinaryVault(
+          labels: <String, Uint8List>{
+            'a': Uint8List.fromList(<int>[1, 2, 3]),
+            'b': Uint8List.fromList(<int>[255]),
+          },
+        );
 
-      final wire = jsonDecode(serialize(vault)) as Map<String, dynamic>;
+        final wire = jsonDecode(serialize(vault)) as Map<String, dynamic>;
 
-      expect(
-        wire['labels'],
-        equals(<String, dynamic>{'a': 'AQID', 'b': '/w=='}),
-      );
-    });
+        expect(
+          wire['labels'],
+          equals(<String, dynamic>{'a': 'AQID', 'b': '/w=='}),
+        );
+      },
+    );
 
     test(
       'bhv serializationobject 026 format:byte map values round-trip through the wire form',
@@ -2020,12 +2035,15 @@ void main() {
       },
     );
 
-    test('parseProtobufDuration parses a large second count', () {
-      expect(
-        parseProtobufDuration('93784s'),
-        equals(const Duration(days: 1, hours: 2, minutes: 3, seconds: 4)),
-      );
-    });
+    test(
+      'bhv serialization 080 parseProtobufDuration parses a large second count',
+      () {
+        expect(
+          parseProtobufDuration('93784s'),
+          equals(const Duration(days: 1, hours: 2, minutes: 3, seconds: 4)),
+        );
+      },
+    );
 
     test('bhv serializationobject 181 parseProtobufDuration parses zero', () {
       expect(parseProtobufDuration('0s'), equals(Duration.zero));
@@ -2045,11 +2063,14 @@ void main() {
       },
     );
 
-    test('parseProtobufDuration truncates sub-microsecond digits', () {
-      // Nanosecond resolution on the wire, microsecond resolution in
-      // memory — digits below 1µs are truncated.
-      expect(parseProtobufDuration('0.000000999s'), equals(Duration.zero));
-    });
+    test(
+      'bhv langdart 071 parseProtobufDuration truncates sub-microsecond digits',
+      () {
+        // Nanosecond resolution on the wire, microsecond resolution in
+        // memory — digits below 1µs are truncated.
+        expect(parseProtobufDuration('0.000000999s'), equals(Duration.zero));
+      },
+    );
 
     test(
       'bhv serializationobject 223 a protobuf duration at the bound of plus or minus 315576000000 seconds is accepted and one past it is rejected',
@@ -2197,7 +2218,7 @@ void main() {
     // outside Flutter), but the generated helper validates the wire shape
     // so callers opting into validation get a useful failure mode.
 
-    test('validatePartialTime accepts HH:MM:SS', () {
+    test('bhv langdart 072 validatePartialTime accepts HH:MM:SS', () {
       expect(validatePartialTime('14:30:00'), equals('14:30:00'));
     });
 
@@ -2231,22 +2252,25 @@ void main() {
       },
     );
 
-    test('fromJson then toJson does not leak unknown fields back to wire', () {
-      final input = <String, dynamic>{
-        'id': 9,
-        'name': 'Rex',
-        'photoUrls': <String>['http://x/z.jpg'],
-        'unknownLeak': 'should not appear',
-      };
-      final pet = Pet.fromJson(input);
-      final round = pet.toJson();
-      expect(
-        round.containsKey('unknownLeak'),
-        isFalse,
-        reason:
-            'unknown fields read by fromJson must NOT be re-emitted by toJson',
-      );
-    });
+    test(
+      'bhv langdart 073 fromJson then toJson does not leak unknown fields back to wire',
+      () {
+        final input = <String, dynamic>{
+          'id': 9,
+          'name': 'Rex',
+          'photoUrls': <String>['http://x/z.jpg'],
+          'unknownLeak': 'should not appear',
+        };
+        final pet = Pet.fromJson(input);
+        final round = pet.toJson();
+        expect(
+          round.containsKey('unknownLeak'),
+          isFalse,
+          reason:
+              'unknown fields read by fromJson must NOT be re-emitted by toJson',
+        );
+      },
+    );
 
     // -- IntegerBackedEnumWireFormTests (canonical scenario 1) --
     //
@@ -2711,16 +2735,19 @@ void main() {
       },
     );
 
-    test('an RFC 3339 date-time with any fraction and offset is accepted', () {
-      expect(
-        parseDateTime('2024-01-01T10:00:00Z'),
-        equals(DateTime.utc(2024, 1, 1, 10)),
-      );
-      expect(
-        parseDateTime('2024-01-01T10:00:00.123456789+05:30'),
-        equals(DateTime.utc(2024, 1, 1, 4, 30, 0, 123, 456)),
-      );
-    });
+    test(
+      'bhv langdart 074 an RFC 3339 date-time with any fraction and offset is accepted',
+      () {
+        expect(
+          parseDateTime('2024-01-01T10:00:00Z'),
+          equals(DateTime.utc(2024, 1, 1, 10)),
+        );
+        expect(
+          parseDateTime('2024-01-01T10:00:00.123456789+05:30'),
+          equals(DateTime.utc(2024, 1, 1, 4, 30, 0, 123, 456)),
+        );
+      },
+    );
 
     for (final text in ['dGVzdA', 'dGVz dA==', 'dGVz\ndA==', '-_8=', '!!!!']) {
       test(
@@ -2789,7 +2816,7 @@ void main() {
     );
 
     for (final uri in ['/relative', 'not a uri', '']) {
-      test('a non-absolute URI "$uri" is rejected', () {
+      test('bhv langdart 075 a non-absolute URI "$uri" is rejected', () {
         expect(() => parseUri(uri), throwsA(isA<SerializationException>()));
       });
     }

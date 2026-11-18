@@ -118,7 +118,7 @@ void main() {
       );
     });
 
-    test('no token anywhere fails when the authenticator is built', () {
+    test('bhv langdart 022 no token anywhere fails when the authenticator is built', () {
       expect(
         () => BearerAuthenticator(host: '{{{basePath}}}', environment: const {}),
         throwsA(isA<ArgumentError>()),
@@ -255,7 +255,7 @@ void main() {
       expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
     });
 
-    test('uppercase bearer prefix is stripped', () {
+    test('bhv misc 194 uppercase bearer prefix is stripped', () {
       final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'BEARER xyz');
 
       expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
@@ -369,7 +369,7 @@ void main() {
         );
       });
 
-      test('fails to build naming the variable when none is set', () {
+      test('bhv langdart 023 fails to build naming the variable when none is set', () {
         expect(
           () => {{className}}(host: '{{{basePath}}}', environment: const {}),
           throwsA(isA<ArgumentError>().having(
@@ -415,7 +415,7 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals('Bearer fixed'));
     });
 
-    test('an unset environment variable and no other source fails at construction', () {
+    test('bhv langdart 025 an unset environment variable and no other source fails at construction', () {
       expect(
         () => BearerAuthenticator(
           host: '{{{basePath}}}',

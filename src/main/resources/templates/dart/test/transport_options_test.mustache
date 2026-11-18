@@ -45,7 +45,7 @@ void main() {
       expect(() => TransportOptionsBuilder().maxRetries(-1), throwsArgumentError);
     });
 
-    test('the default client exposes the retry policy of its options', () {
+    test('bhv langdart 079 the default client exposes the retry policy of its options', () {
       final client = DefaultApiClient(
         transportOptions: TransportOptionsBuilder().maxRetries(4).timeout(2500).build(),
       );

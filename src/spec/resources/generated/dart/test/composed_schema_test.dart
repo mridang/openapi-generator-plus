@@ -111,7 +111,7 @@ void main() {
       },
     );
 
-    test('DryFood rejects an explicit null discriminator', () {
+    test('bhv langdart 029 DryFood rejects an explicit null discriminator', () {
       expect(
         () => DryFood.fromJson(<String, dynamic>{
           'foodType': null,
@@ -182,13 +182,16 @@ void main() {
       },
     );
 
-    test('PetFood constructor round trips through fromJson', () {
-      final wire =
-          jsonDecode(jsonEncode(PetFood(WetFood(volumeMl: 400)).toJson()))
-              as Map<String, dynamic>;
+    test(
+      'bhv langdart 030 PetFood constructor round trips through fromJson',
+      () {
+        final wire =
+            jsonDecode(jsonEncode(PetFood(WetFood(volumeMl: 400)).toJson()))
+                as Map<String, dynamic>;
 
-      expect(PetFood.fromJson(wire).actualInstance, isA<WetFood>());
-    });
+        expect(PetFood.fromJson(wire).actualInstance, isA<WetFood>());
+      },
+    );
 
     test(
       'bhv unions 032 PetFood typed constructors, is and as accessors name the variant',
@@ -210,7 +213,7 @@ void main() {
     );
 
     test(
-      'a result decoded by status code exposes its variant through the accessors',
+      'bhv langdart 031 a result decoded by status code exposes its variant through the accessors',
       () {
         final reservation = ReserveStockResponse.reservation(
           const Reservation(reservationId: 1, quantity: 2),
@@ -221,17 +224,20 @@ void main() {
       },
     );
 
-    test('PetTreatment typed constructors and accessors name the variant', () {
-      final surgery = PetTreatment.surgery(
-        Surgery(procedureName: 'Spay', durationMinutes: 45),
-      );
+    test(
+      'bhv langdart 032 PetTreatment typed constructors and accessors name the variant',
+      () {
+        final surgery = PetTreatment.surgery(
+          Surgery(procedureName: 'Spay', durationMinutes: 45),
+        );
 
-      expect(surgery.isSurgery, isTrue);
-      expect(surgery.isMedication, isFalse);
-      expect(surgery.asSurgery!.procedureName, equals('Spay'));
-      expect(surgery.asMedication, isNull);
-      expect(surgery.matchedInstances, hasLength(1));
-    });
+        expect(surgery.isSurgery, isTrue);
+        expect(surgery.isMedication, isFalse);
+        expect(surgery.asSurgery!.procedureName, equals('Spay'));
+        expect(surgery.asMedication, isNull);
+        expect(surgery.matchedInstances, hasLength(1));
+      },
+    );
 
     // anyOf without discriminator: PetTreatment
 
@@ -425,26 +431,29 @@ void main() {
       },
     );
 
-    test('oneOf unions decoded from identical JSON are equal', () {
-      final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
+    test(
+      'bhv langdart 033 oneOf unions decoded from identical JSON are equal',
+      () {
+        final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
 
-      final a = PetFood.fromJson(json);
-      final b = PetFood.fromJson(json);
+        final a = PetFood.fromJson(json);
+        final b = PetFood.fromJson(json);
 
-      expect(a, equals(b));
-      expect(a.hashCode, equals(b.hashCode));
-      expect(
-        a,
-        isNot(
-          equals(
-            PetFood.fromJson(<String, dynamic>{
-              'foodType': 'dry',
-              'weightKg': 3.5,
-            }),
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        expect(
+          a,
+          isNot(
+            equals(
+              PetFood.fromJson(<String, dynamic>{
+                'foodType': 'dry',
+                'weightKg': 3.5,
+              }),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     // allOf with a discriminator: the base decodes to its subtype
 
@@ -640,29 +649,32 @@ void main() {
       },
     );
 
-    test('SetPetAvatarThumbnailRequest byte unions decoded from identical wire '
-        'bytes are value-equal and hash equally', () {
-      // M5 regression: the scalar `byte` variant decodes to a fresh Uint8List
-      // per call, whose built-in `==` is identity. Two unions built from the
-      // SAME base64 wire string must still compare equal and hash equally —
-      // otherwise they wrongly collide in Sets/Maps. The union ==/hashCode
-      // must use DeepCollectionEquality, like the rest of the SDK.
-      final wire = base64Encode(Uint8List.fromList(<int>[0x01, 0x02, 0x03]));
+    test(
+      'bhv langdart 083 SetPetAvatarThumbnailRequest byte unions decoded from identical wire '
+      'bytes are value-equal and hash equally',
+      () {
+        // M5 regression: the scalar `byte` variant decodes to a fresh Uint8List
+        // per call, whose built-in `==` is identity. Two unions built from the
+        // SAME base64 wire string must still compare equal and hash equally —
+        // otherwise they wrongly collide in Sets/Maps. The union ==/hashCode
+        // must use DeepCollectionEquality, like the rest of the SDK.
+        final wire = base64Encode(Uint8List.fromList(<int>[0x01, 0x02, 0x03]));
 
-      final a = SetPetAvatarThumbnailRequest.fromJson(wire);
-      final b = SetPetAvatarThumbnailRequest.fromJson(wire);
+        final a = SetPetAvatarThumbnailRequest.fromJson(wire);
+        final b = SetPetAvatarThumbnailRequest.fromJson(wire);
 
-      // Distinct underlying Uint8List instances (identity-unequal)...
-      expect(identical(a.actualInstance, b.actualInstance), isFalse);
-      // ...but the unions are value-equal and hash-consistent.
-      expect(a, equals(b));
-      expect(a.hashCode, equals(b.hashCode));
-      // Usable as a Set key without duplicating.
-      expect(<SetPetAvatarThumbnailRequest>{a, b}, hasLength(1));
-    });
+        // Distinct underlying Uint8List instances (identity-unequal)...
+        expect(identical(a.actualInstance, b.actualInstance), isFalse);
+        // ...but the unions are value-equal and hash-consistent.
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        // Usable as a Set key without duplicating.
+        expect(<SetPetAvatarThumbnailRequest>{a, b}, hasLength(1));
+      },
+    );
 
     test(
-      'SetPetAvatarThumbnailRequest array unions decoded from identical wire '
+      'bhv langdart 084 SetPetAvatarThumbnailRequest array unions decoded from identical wire '
       'bytes are value-equal and hash equally',
       () {
         // M5 regression for the ARRAY variant (List<Uint8List>): nested byte
@@ -683,7 +695,7 @@ void main() {
     );
 
     test(
-      'SetPetAvatarThumbnailRequest unions with differing bytes are unequal',
+      'bhv langdart 085 SetPetAvatarThumbnailRequest unions with differing bytes are unequal',
       () {
         // Sanity: deep-equality must still distinguish genuinely different
         // payloads — the fix must not collapse all unions to "equal".
