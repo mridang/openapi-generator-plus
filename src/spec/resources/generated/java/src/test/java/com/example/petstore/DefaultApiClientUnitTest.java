@@ -600,7 +600,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void closingTheClientNeverClosesAnInjectedHttpClient() {
+  void bhvLangjava001ClosingTheClientNeverClosesAnInjectedHttpClient() {
     RecordingHttpClient transport = new RecordingHttpClient();
     DefaultApiClient client =
         new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
@@ -974,7 +974,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void callerHeadersWinRegardlessOfCase() throws Exception {
+  void bhvLangjava002CallerHeadersWinRegardlessOfCase() throws Exception {
     TransportOptions transport =
         TransportOptions.builder()
             .injectRequestId(true)
@@ -1122,7 +1122,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void sensitiveHeaderNamesEntriesAreLowercased() {
+  void bhvLangjava003SensitiveHeaderNamesEntriesAreLowercased() {
     for (String name : DefaultApiClient.SENSITIVE_HEADER_NAMES) {
       assertEquals(
           name.toLowerCase(java.util.Locale.ROOT),
@@ -1403,7 +1403,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void httpsToHttpBodyReplayGuardIgnoredForSameSchemeRedirects() {
+  void bhvLangjava004HttpsToHttpBodyReplayGuardIgnoredForSameSchemeRedirects() {
     java.net.URI httpOrig = java.net.URI.create("http://api.example.com/x");
     java.net.URI httpTarg = java.net.URI.create("http://api.example.com/y");
     java.net.URI httpsOrig = java.net.URI.create("https://api.example.com/x");
@@ -1593,7 +1593,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartInputStreamPartIsReadButNeverClosed() throws Exception {
+  void bhvMisc098MultipartInputStreamPartIsReadButNeverClosed() throws Exception {
     java.util.concurrent.atomic.AtomicBoolean closed =
         new java.util.concurrent.atomic.AtomicBoolean();
     java.io.InputStream stream =
@@ -1802,7 +1802,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void multipartFilenameStarKeepsOnlyUnreservedLiteral() {
+  void bhvLangjava005MultipartFilenameStarKeepsOnlyUnreservedLiteral() {
     String directive = DefaultApiClient.buildFilenameDirective("日本 *~.pdf");
     assertEquals(
         "filename=\"__ *~.pdf\"; filename*=UTF-8''%E6%97%A5%E6%9C%AC%20%2A~.pdf", directive);
@@ -2248,7 +2248,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void queryOnlyRedirectLocationKeepsTheBasePath() throws Exception {
+  void bhvMisc127QueryOnlyRedirectLocationKeepsTheBasePath() throws Exception {
     // RFC 3986 section 5.2: a query-only reference swaps the query and keeps the
     // path; java.net.URI.resolve (RFC 2396) would have requested the directory.
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
@@ -2375,7 +2375,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void interruptionSurfacesAsCancellationNotAnSdkError() throws Exception {
+  void bhvLangjava006InterruptionSurfacesAsCancellationNotAnSdkError() throws Exception {
     // Thread interruption is Java's cancellation signal: it must surface as
     // the platform's CancellationException (the InterruptedException as its
     // cause) with the interrupt flag restored, never as an SDK error. The
@@ -2452,7 +2452,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void queryIsReplayedAsAnIdempotentMethodAndPostIsNot() {
+  void bhvLangjava007QueryIsReplayedAsAnIdempotentMethodAndPostIsNot() {
     assertTrue(DefaultApiClient.isIdempotentMethod("QUERY"));
     assertTrue(DefaultApiClient.isIdempotentMethod("put"));
     assertFalse(DefaultApiClient.isIdempotentMethod("POST"));
@@ -2648,7 +2648,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void postIsNotReplayedWhenTheConnectionDropsWithoutAResponse() throws Exception {
+  void bhvLangjava008PostIsNotReplayedWhenTheConnectionDropsWithoutAResponse() throws Exception {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
       String url = "http://127.0.0.1:" + silent.getLocalPort() + "/create";
@@ -2662,7 +2662,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void getIsReplayedOnceWhenTheConnectionDropsWithoutAResponse() throws Exception {
+  void bhvLangjava009GetIsReplayedOnceWhenTheConnectionDropsWithoutAResponse() throws Exception {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
       String url = "http://127.0.0.1:" + silent.getLocalPort() + "/read";
@@ -2741,7 +2741,8 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void connectionClosedAfterTheHeadersRaisesNetworkExceptionKeepingTheCause() throws Exception {
+  void bhvLangjava010ConnectionClosedAfterTheHeadersRaisesNetworkExceptionKeepingTheCause()
+      throws Exception {
     // The status line and headers arrive, promising 100 bytes; three follow
     // and the connection closes. That is a transport failure with no usable
     // response, status 0, never an ApiException carrying the 200.
@@ -2802,7 +2803,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void absentZstdLibraryRaisesInsteadOfReturningEncodedBytes() {
+  void bhvLangjava011AbsentZstdLibraryRaisesInsteadOfReturningEncodedBytes() {
     IOException ex =
         assertThrowsExactly(
             IOException.class,
@@ -2814,7 +2815,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void corruptZstdBodyIsNotReportedAsAnUnavailableLibrary() {
+  void bhvLangjava012CorruptZstdBodyIsNotReportedAsAnUnavailableLibrary() {
     IOException ex =
         assertThrows(
             IOException.class,
@@ -3285,7 +3286,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void onlyStreamsAndMultipartHandlesHoldingOneAreNotReplayable() {
+  void bhvMisc163OnlyStreamsAndMultipartHandlesHoldingOneAreNotReplayable() {
     assertTrue(DefaultApiClient.isReplayableBody(null));
     assertTrue(DefaultApiClient.isReplayableBody("text"));
     assertTrue(DefaultApiClient.isReplayableBody(new byte[] {1}));
@@ -3418,7 +3419,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void requestWithoutDefaultHeadersSendsOnlyItsOwn() throws Exception {
+  void bhvLangjava013RequestWithoutDefaultHeadersSendsOnlyItsOwn() throws Exception {
     var seen = new java.util.concurrent.atomic.AtomicReference<String>("unset");
     HttpServer echo = HttpServer.create(new InetSocketAddress(0), 0);
     echo.createContext(
