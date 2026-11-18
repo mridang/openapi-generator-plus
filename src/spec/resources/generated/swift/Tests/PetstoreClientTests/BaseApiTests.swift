@@ -111,7 +111,7 @@ import Testing
 
   // MARK: - Mock ApiClient
 
-  private final class MockApiClient: ApiClient, @unchecked Sendable {
+  fileprivate final class MockApiClient: ApiClient, @unchecked Sendable {
     var lastMethod: String = ""
     var lastURL: String = ""
     var lastHeaders: [String: String] = [:]
@@ -2019,8 +2019,13 @@ import Testing
     #expect(result.data == nil)
   }
 
-  // MARK: - Trace context from the caller
+}
 
+// MARK: - Trace context from the caller
+
+/// The operation tests live beside the helper tests because the propagator hook is
+/// process-wide state: one serialized suite keeps the two from racing.
+extension TraceContextUtilTests {
   /// The caller's ambient scope: a task-local the tracing hook reads. The hook is
   /// process-wide state, so these tests run one at a time and restore it.
   private enum CallerScope {
@@ -2036,62 +2041,64 @@ import Testing
     }
   }
 
-  @Suite(.serialized) final class TraceContext {
-    private static let spanA = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
-    private static let spanB = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+  private static let traceSpanA = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+  private static let traceSpanB = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
 
-    init() {
-      TraceContextUtil.propagator = { headers in
-        if let span = CallerScope.span {
-          headers["traceparent"] = span
-        }
+  private static func installCallerScopeHook() {
+    TraceContextUtil.propagator = { headers in
+      if let span = CallerScope.span {
+        headers["traceparent"] = span
       }
     }
+  }
 
-    deinit {
-      TraceContextUtil.propagator = nil
+  /// Runs one operation under the given span and returns the headers it sent.
+  private func call(under span: String?, authenticator: Authenticator? = nil) async throws
+    -> [String: String]
+  {
+    let mockClient = BaseApiTests.MockApiClient()
+    mockClient.responseBody = "{\"name\":\"test\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config, authenticator: authenticator)
+    _ = try await CallerScope.$span.withValue(span) {
+      try await api.addPet(pet: Pet(name: "test", photoUrls: []))
     }
+    return mockClient.lastHeaders
+  }
 
-    /// Runs one operation under the given span and returns the headers it sent.
-    private func call(under span: String?, authenticator: Authenticator? = nil) async throws
-      -> [String: String]
-    {
-      let mockClient = MockApiClient()
-      mockClient.responseBody = "{\"name\":\"test\",\"photoUrls\":[]}"
-      let config = ConfigurationBuilder().baseURL("https://example.com").build()
-      let api = PetApi(apiClient: mockClient, config: config, authenticator: authenticator)
-      _ = try await CallerScope.$span.withValue(span) {
-        try await api.addPet(pet: Pet(name: "test", photoUrls: []))
-      }
-      return mockClient.lastHeaders
-    }
+  @Test func testBhvTracing013OperationSendsTheTraceparentOfTheCallerSpan() async throws {
+    Self.installCallerScopeHook()
+    defer { TraceContextUtil.propagator = nil }
+    let headers = try await call(under: Self.traceSpanA)
+    #expect(headers["traceparent"] == Self.traceSpanA)
+  }
 
-    @Test func testBhvTracing013OperationSendsTheTraceparentOfTheCallerSpan() async throws {
-      let headers = try await call(under: Self.spanA)
-      #expect(headers["traceparent"] == Self.spanA)
-    }
+  @Test func testBhvTracing014SpanReachesTraceparentWhenBuildingHeadersWaitsOnCredentials()
+    async throws
+  {
+    Self.installCallerScopeHook()
+    defer { TraceContextUtil.propagator = nil }
+    let headers = try await call(under: Self.traceSpanA, authenticator: SlowAuth())
+    #expect(headers["traceparent"] == Self.traceSpanA)
+  }
 
-    @Test func testBhvTracing014SpanReachesTraceparentWhenBuildingHeadersWaitsOnCredentials()
-      async throws
-    {
-      let headers = try await call(under: Self.spanA, authenticator: SlowAuth())
-      #expect(headers["traceparent"] == Self.spanA)
-    }
+  @Test func testBhvTracing015ConcurrentOperationsEachSendTheirOwnCallerSpan() async throws {
+    Self.installCallerScopeHook()
+    defer { TraceContextUtil.propagator = nil }
+    async let first = call(under: Self.traceSpanA, authenticator: SlowAuth())
+    async let second = call(under: Self.traceSpanB, authenticator: SlowAuth())
+    let (firstHeaders, secondHeaders) = try await (first, second)
+    #expect(firstHeaders["traceparent"] == Self.traceSpanA)
+    #expect(secondHeaders["traceparent"] == Self.traceSpanB)
+  }
 
-    @Test func testBhvTracing015ConcurrentOperationsEachSendTheirOwnCallerSpan() async throws {
-      async let first = call(under: Self.spanA, authenticator: SlowAuth())
-      async let second = call(under: Self.spanB, authenticator: SlowAuth())
-      let (firstHeaders, secondHeaders) = try await (first, second)
-      #expect(firstHeaders["traceparent"] == Self.spanA)
-      #expect(secondHeaders["traceparent"] == Self.spanB)
-    }
-
-    @Test func testBhvTracing016OperationWithNoActiveSpanSendsNoTraceparent() async throws {
-      let traced = try await call(under: Self.spanA)
-      #expect(traced["traceparent"] == Self.spanA)
-      let untraced = try await call(under: nil)
-      #expect(untraced["traceparent"] == nil)
-    }
+  @Test func testBhvTracing016OperationWithNoActiveSpanSendsNoTraceparent() async throws {
+    Self.installCallerScopeHook()
+    defer { TraceContextUtil.propagator = nil }
+    let traced = try await call(under: Self.traceSpanA)
+    #expect(traced["traceparent"] == Self.traceSpanA)
+    let untraced = try await call(under: nil)
+    #expect(untraced["traceparent"] == nil)
   }
 }
 

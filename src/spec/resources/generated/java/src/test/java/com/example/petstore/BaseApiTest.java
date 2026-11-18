@@ -2315,10 +2315,11 @@ class BaseApiTest {
           + span.getSpanContext().getTraceFlags().asHex();
     }
 
-    private Map<String, String> callUnder(Span span) throws ApiException {
+    private Map<String, String> callUnder(@Nullable Span span) throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
-      try (Scope ignored = span == null ? Context.root().makeCurrent() : span.makeCurrent()) {
+      Scope scope = span == null ? Context.root().makeCurrent() : span.makeCurrent();
+      try {
         testApi.call(
             "GET",
             "/test/echo",
@@ -2329,6 +2330,8 @@ class BaseApiTest {
             "application/json",
             null,
             null);
+      } finally {
+        scope.close();
       }
       return client.capturedHeaders;
     }
