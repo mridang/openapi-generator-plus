@@ -565,10 +565,11 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     var queryParams: OrderedParams<Any?> = [:]
     if let options = options, let val = options.status {
-      queryParams["status"] = ValueSerializer.maybeAllowReserved(
-        ValueSerializer.serializeStyled(
-          "status", value: val, location: "query", schemaType: "String", collectionFormat: "",
-          style: "form", explode: true), allowReserved: false)
+      queryParams["status"] = ValueSerializer.allowEmptyQuery(
+        ValueSerializer.maybeAllowReserved(
+          ValueSerializer.serializeStyled(
+            "status", value: val, location: "query", schemaType: "String", collectionFormat: "",
+            style: "form", explode: true), allowReserved: false))
     }
     if let options = options, let val = options.filter {
       for (k, v) in try ValueSerializer.serializeDeepObjectValue("filter", value: val) {
@@ -1281,10 +1282,11 @@ public final class PetApi: BaseApi, @unchecked Sendable {
           style: "spaceDelimited", explode: false), allowReserved: false)
     }
     if let options = options, let val = options.filter {
-      queryParams["filter"] = ValueSerializer.maybeAllowReserved(
-        ValueSerializer.serializeStyled(
-          "filter", value: val, location: "query", schemaType: "String", collectionFormat: "",
-          style: "form", explode: true), allowReserved: false)
+      queryParams["filter"] = ValueSerializer.allowEmptyQuery(
+        ValueSerializer.maybeAllowReserved(
+          ValueSerializer.serializeStyled(
+            "filter", value: val, location: "query", schemaType: "String", collectionFormat: "",
+            style: "form", explode: true), allowReserved: false))
     }
     if let options = options, let val = options.revision {
       queryParams["revision"] = ValueSerializer.maybeAllowReserved(

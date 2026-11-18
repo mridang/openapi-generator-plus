@@ -129,6 +129,23 @@ internal enum ValueSerializer {
         return AllowReservedValue(value: value)
     }
 
+    /// Wraps a query value of an `allowEmptyValue` parameter so the query-string
+    /// builder sends an empty string as `key=` instead of leaving the key out.
+    struct AllowEmptyValue {
+        let value: Any
+    }
+
+    /// Wraps `value` in an ``AllowEmptyValue``; a nil value stays nil.
+    ///
+    /// - Parameter value: The serialized query value, possibly already wrapped.
+    /// - Returns: The value wrapped for the query builder, or nil.
+    static func allowEmptyQuery(_ value: Any?) -> Any? {
+        guard let value = value else {
+            return nil
+        }
+        return AllowEmptyValue(value: value)
+    }
+
     /// Rejects an empty path parameter.
     ///
     /// Path parameters are required components of the URL — accepting an
