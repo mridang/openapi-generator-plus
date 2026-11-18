@@ -239,10 +239,10 @@ test('bhv unions 002 any of shared property collision keeps the later declared v
 });
 
 test('any of variants with only numeric additional properties serialize as an object', function (): void {
-    /** @var \Ds\Map<string, mixed> $firstExtra */
+    /** @var \Ds\Map<string, string> $firstExtra */
     $firstExtra = new \Ds\Map(['0' => 'x']);
     $first = (new Metadata())->withAdditionalProperties($firstExtra);
-    /** @var \Ds\Map<string, mixed> $secondExtra */
+    /** @var \Ds\Map<string, string> $secondExtra */
     $secondExtra = new \Ds\Map(['1' => 'y']);
     $second = (new Metadata())->withAdditionalProperties($secondExtra);
 

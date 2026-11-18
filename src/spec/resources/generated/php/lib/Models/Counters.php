@@ -23,6 +23,9 @@ class Counters
      */
     protected const string ADDITIONAL_PROPERTIES_TYPE = 'int';
 
+    /** The value schema is a 32-bit integer, so a decoded additional property outside that range is refused. */
+    protected const bool ADDITIONAL_PROPERTIES_INT32 = true;
+
     #[SerializedName('label')]
     public readonly ?string $label;
 

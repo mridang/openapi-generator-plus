@@ -23,6 +23,7 @@ use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Exception\NotNormalizableValueException;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
 use Symfony\Component\Serializer\Mapping\Loader\AttributeLoader;
 use Symfony\Component\Serializer\NameConverter\MetadataAwareNameConverter;
@@ -1185,6 +1186,7 @@ class ObjectSerializer
         /* Only a raw body is JSON text. A container element is already a decoded
          * value, so a string element is never parsed again into an object. */
         if (!$decoded && is_string($data)) {
+            $payload = null;
             try {
                 $payload = json_decode($data, true, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
                 /* A bare JSON `null` body decodes to a null return, matching the
@@ -1217,7 +1219,7 @@ class ObjectSerializer
             } catch (SerializationException $e) {
                 throw $e;
             } catch (\Throwable $e) {
-                throw new SerializationException('Failed to deserialize JSON: ' . $e->getMessage(), 0, $e);
+                throw new SerializationException(self::decodeFailureMessage($e, $payload), 0, $e);
             }
         }
 
@@ -1245,8 +1247,37 @@ class ObjectSerializer
         } catch (SerializationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            throw new SerializationException('Failed to deserialize JSON: ' . $e->getMessage(), 0, $e);
+            throw new SerializationException(self::decodeFailureMessage($e, $data), 0, $e);
         }
+    }
+
+    /**
+     * The message of a decode failure. The Symfony enum and type errors name the expected
+     * type but not the value that was refused, so when the failure carries the path of the
+     * property it came from, the wire value found at that path in the decoded payload is
+     * added, as a JSON literal.
+     */
+    private static function decodeFailureMessage(\Throwable $e, mixed $payload): string
+    {
+        $message = 'Failed to deserialize JSON: ' . $e->getMessage();
+        if (!($e instanceof NotNormalizableValueException) || !is_array($payload)) {
+            return $message;
+        }
+        $path = $e->getPath();
+        if ($path === null || $path === '') {
+            return $message;
+        }
+        $value = $payload;
+        foreach (explode('.', $path) as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return $message;
+            }
+            $value = $value[$segment];
+        }
+        if (!is_scalar($value)) {
+            return $message;
+        }
+        return $message . sprintf(' (got %s at "%s")', json_encode($value, JSON_UNESCAPED_SLASHES), $path);
     }
 
     /**
@@ -1638,6 +1669,7 @@ class ObjectSerializer
         }
 
         [$valueType, $nullable] = self::additionalPropertiesType($result::class);
+        $int32 = $reflection->getReflectionConstant('ADDITIONAL_PROPERTIES_INT32') !== false;
 
         /** @var array<string, mixed> $extra */
         $extra = [];
@@ -1655,6 +1687,11 @@ class ObjectSerializer
                     );
                 }
                 $value = self::deserializeInternal($value, self::qualifySchemaName($valueType), null, true);
+                if ($int32 && is_int($value) && ($value < -2147483648 || $value > 2147483647)) {
+                    throw new \InvalidArgumentException(
+                        sprintf("Additional property '%s' is outside the int32 range", (string) $key)
+                    );
+                }
             }
             $extra[(string) $key] = $value;
         }

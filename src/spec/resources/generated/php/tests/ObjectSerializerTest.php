@@ -1936,14 +1936,14 @@ test('bhv serializationobject 205 an extra key survives a full deserialize then 
 });
 
 test('a model whose only fields are numeric additional properties serializes as an object', function (): void {
-    /** @var \Ds\Map<string, mixed> $extra */
+    /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['0' => 'x', '1' => 'y']);
     $meta = (new Metadata())->withAdditionalProperties($extra);
     expect(ObjectSerializer::serialize($meta))->toBe('{"0":"x","1":"y"}');
 });
 
 test('a model with numeric and named fields keeps both as an object', function (): void {
-    /** @var \Ds\Map<string, mixed> $extra */
+    /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['0' => 'x']);
     $meta = (new Metadata(new \DateTime('2024-01-01T00:00:00+00:00')))->withAdditionalProperties($extra);
     expect(ObjectSerializer::serialize($meta))->toBe('{"createdAt":"2024-01-01T00:00:00.000+00:00","0":"x"}');
@@ -2483,8 +2483,8 @@ test('bhv serialization 047 a duration at the bound round trips without overflow
 });
 
 test('bhv serialization 054 a free form value keeps its json type', function (): void {
-    $meta = ObjectSerializer::deserialize('{"s":"5","n":null}', Metadata::class);
-    \assert($meta instanceof Metadata);
+    $meta = ObjectSerializer::deserialize('{"s":"5","n":null}', \PetstoreClient\Models\Freeform::class);
+    \assert($meta instanceof \PetstoreClient\Models\Freeform);
 
     expect($meta->additionalProperties->get('s'))->toBe('5');
     expect($meta->additionalProperties->hasKey('n'))->toBeTrue();
@@ -2583,6 +2583,7 @@ test('bhv enums 001 a string enum member named by an array exposes the given nam
     expect(\PetstoreClient\Models\Tier::MEDIUM->value)->toBe('m');
     expect(\PetstoreClient\Models\Tier::LARGE->value)->toBe('l');
     $item = ObjectSerializer::deserialize('{"rank":1,"tier":"m"}', \PetstoreClient\Models\Subscription::class);
+    \assert($item instanceof \PetstoreClient\Models\Subscription);
     expect($item->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
 });
 
@@ -2591,13 +2592,16 @@ test('bhv enums 002 an integer enum member named by an array exposes the given n
     expect(\PetstoreClient\Models\Rank::MEDIUM->value)->toBe(2);
     expect(\PetstoreClient\Models\Rank::HIGH->value)->toBe(3);
     $item = ObjectSerializer::deserialize('{"rank":3}', \PetstoreClient\Models\Subscription::class);
+    \assert($item instanceof \PetstoreClient\Models\Subscription);
     expect($item->rank)->toBe(\PetstoreClient\Models\Rank::HIGH);
     expect(ObjectSerializer::serialize($item))->toContain('"rank":3');
 });
 
 test('bhv enums 003 an enum named by an object keyed by wire value names the members it lists', function (): void {
     $paused = ObjectSerializer::deserialize('{"rank":1,"stage":"paused"}', \PetstoreClient\Models\Subscription::class);
+    \assert($paused instanceof \PetstoreClient\Models\Subscription);
     $active = ObjectSerializer::deserialize('{"rank":1,"stage":"active"}', \PetstoreClient\Models\Subscription::class);
+    \assert($active instanceof \PetstoreClient\Models\Subscription);
     expect($paused->stage)->toBe(\PetstoreClient\Models\Stage::ON_HOLD);
     expect($active->stage)->toBe(\PetstoreClient\Models\Stage::ACTIVE);
 });
@@ -2610,6 +2614,7 @@ test('bhv enums 005 two supplied names that collide after casing keep distinct n
     expect(\PetstoreClient\Models\Stage::ACTIVE->value)->toBe('active');
     expect(\PetstoreClient\Models\Stage::ACTIVE2->value)->toBe('live');
     $item = ObjectSerializer::deserialize('{"rank":1,"stage":"live"}', \PetstoreClient\Models\Subscription::class);
+    \assert($item instanceof \PetstoreClient\Models\Subscription);
     expect($item->stage)->toBe(\PetstoreClient\Models\Stage::ACTIVE2);
 });
 
@@ -2621,6 +2626,7 @@ test('bhv enums 006 an inline property enum takes its member names from its own 
 test('bhv enums 007 a default on a referenced enum property starts at the member with the supplied name', function (): void {
     expect((new \PetstoreClient\Models\Subscription(\PetstoreClient\Models\Rank::LOW))->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
     $item = ObjectSerializer::deserialize('{"rank":1}', \PetstoreClient\Models\Subscription::class);
+    \assert($item instanceof \PetstoreClient\Models\Subscription);
     expect($item->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
 });
 
