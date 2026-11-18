@@ -1209,6 +1209,16 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   @sample_pet ~s({"name":"sample","photoUrls":[]})
 
+  test "bhv operations 153 an operation with no chosen server is sent to the client base URL" do
+    {name, api} = stub_pet_api(@sample_pet)
+
+    assert {:ok, _result} = PetstoreClient.Api.PetApi.get_external_pet_info(api, 1)
+
+    assert StubResponseApiClient.captured(name).url == "http://localhost/pet/1/external"
+
+    Agent.stop(name)
+  end
+
   test "get_external_pet_info sends the request to the generated variant's URL" do
     {name, api} = stub_pet_api(@sample_pet)
 
@@ -1485,7 +1495,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "upload_pet_document sends the multipart parts in declaration order" do
+  test "bhv operations 147 upload_pet_document sends the multipart parts in declaration order" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)

@@ -642,4 +642,13 @@ defmodule PetstoreClient.ApiErrorTest do
       refute PetstoreClient.Errors.OpenAPIError.open_api_error?(%{message: "plain map"})
     end
   end
+
+  test "bhv skills 001 the skills guide names the root error and the error types that are siblings of ApiError" do
+    skills = File.read!("SKILLS.md")
+
+    assert skills =~ "root grouping"
+    assert skills =~ "`SerializationError` (a body could not be encoded or decoded)"
+    assert skills =~ "`OAuth2ServerError` (token endpoint answered 4xx or 5xx)"
+    assert skills =~ "`OAuth2TokenError` (token endpoint answered unusably)"
+  end
 end

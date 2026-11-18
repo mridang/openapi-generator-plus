@@ -226,4 +226,10 @@ defmodule PetstoreClient.ConfigurationTest do
     assert shown =~ "application/json"
     assert config.default_headers["Authorization"] == "Bearer abc123"
   end
+
+  test "bhv skills 002 the skills guide documents the retries in its configuration section" do
+    skills = File.read!("SKILLS.md")
+
+    assert skills =~ ~r/## Configuration.*### Retries.*max_retries/s
+  end
 end

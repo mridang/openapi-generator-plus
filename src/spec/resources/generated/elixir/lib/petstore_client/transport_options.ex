@@ -196,6 +196,12 @@ defmodule PetstoreClient.TransportOptions do
             "Invalid timeout: must be a positive number of milliseconds (got #{result.timeout})"
     end
 
+    unless is_nil(result.max_redirects) or
+             (is_integer(result.max_redirects) and result.max_redirects >= 0) do
+      raise ArgumentError,
+            "Invalid max_redirects: must be a non-negative integer (got #{inspect(result.max_redirects)})"
+    end
+
     if result.proxy do
       # URI.parse/1 accepts an IPv6 host with no closing bracket, so it is refused here.
       if String.contains?(result.proxy, "[") and not String.contains?(result.proxy, "]") do
