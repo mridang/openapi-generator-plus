@@ -185,6 +185,48 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
       expect(s256(verifier!)).toBe(second);
     });
 
+    test("bhv auth 008 the S256 challenge of the RFC 7636 appendix B verifier is the published challenge", () => {
+      const appendixVerifier = Buffer.from(
+        "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+        "base64url",
+      );
+      const spy = jest
+        .spyOn(globalThis.crypto, "getRandomValues")
+        .mockImplementation(((array: Uint8Array) => {
+          array.set(appendixVerifier);
+          return array;
+        }) as unknown as typeof globalThis.crypto.getRandomValues);
+      try {
+        const query = new URL(authenticator.buildAuthorizationUrl())
+          .searchParams;
+        expect(query.get("code_challenge")).toBe(
+          "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        );
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    test("bhv auth 020 the refresh grant carries no code verifier", async () => {
+      mockClient.queued = [
+        {
+          status: 200,
+          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
+        },
+        { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
+      ];
+      authenticator.buildAuthorizationUrl();
+      await authenticator.exchangeCode("first-code");
+
+      await authenticator.getAuthHeadersAsync();
+
+      expect(mockClient.calls[0]!.params.has("code_verifier")).toBe(true);
+      expect(mockClient.calls[1]!.params.get("grant_type")).toBe(
+        "refresh_token",
+      );
+      expect(mockClient.calls[1]!.params.has("code_verifier")).toBe(false);
+    });
+
     test("bhv authoauthtwoauthcode 001 a used verifier is not sent again", async () => {
       mockClient.responseBody = tokenBody;
       authenticator.buildAuthorizationUrl();
@@ -542,5 +584,49 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
       clientId: "my-client-id",
       clientSecret: "***",
     });
+  });
+  test("bhv auth 014 the authorization URL encodes the spaces between scopes as %20 and never as a plus sign", () => {
+    const scoped = new OAuth2AuthorizationCodeAuthenticator(
+      "https://api.example.com",
+      "my-client-id",
+      "my-client-secret",
+      "https://auth.example.com/authorize",
+      "https://auth.example.com/token",
+      "https://myapp.example.com/callback",
+      ["read all", "write"],
+    );
+    const url = scoped.buildAuthorizationUrl();
+    expect(url).toContain("scope=read%20all%20write&");
+    expect(url).not.toContain("+");
+  });
+
+  test("bhv auth 019 the authorization URL lists its parameters in one fixed order", () => {
+    const keys = [
+      ...new URL(
+        authenticator.buildAuthorizationUrl("csrf"),
+      ).searchParams.keys(),
+    ];
+    expect(keys).toEqual([
+      "response_type",
+      "client_id",
+      "redirect_uri",
+      "scope",
+      "state",
+      "code_challenge",
+      "code_challenge_method",
+    ]);
+  });
+
+  test("bhv auth 028 a failed first code exchange records no session and the client still reports it as unexchanged", async () => {
+    mockClient.queued = [{ status: 400, body: { error: "invalid_grant" } }];
+
+    const error = await authenticator
+      .exchangeCode("bad-code")
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OAuth2ServerError);
+    await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow(
+      "Must call exchangeCode() before making API requests",
+    );
   });
 });
