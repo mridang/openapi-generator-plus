@@ -425,6 +425,26 @@ func TestBhvServers023_ServerConfiguration_URLSubstitutesReplacementPatternsLite
 	}
 }
 
+// The generated server and its variables cannot be changed through the values
+// handed out: a changed copy has no effect on the next read.
+func TestBhvServers028_ServerConfiguration_ChangingReturnedVariablesDoesNotChangeTheGeneratedServer(t *testing.T) {
+	t.Parallel()
+	vars := {{packageName}}.Server1.Variables()
+	delete(vars, "environment")
+	vars["version"] = {{packageName}}.NewServerVariable("x", "x", []string{"x"})
+	if _, ok := {{packageName}}.Server1.Variables()["environment"]; !ok {
+		t.Error("expected the environment variable kept")
+	}
+	if got := {{packageName}}.Server1.Variables()["version"].DefaultValue(); got != "v3" {
+		t.Errorf("expected the version default v3 kept, got %q", got)
+	}
+	enum := {{packageName}}.Server1.Variables()["environment"].EnumValues()
+	enum[0] = "changed"
+	if got := {{packageName}}.Server1.Variables()["environment"].EnumValues(); len(got) == 0 || got[0] != "api" {
+		t.Errorf("expected the allowed values kept, got %v", got)
+	}
+}
+
 func TestBhvServers025_ServerConfiguration_ChangingTheVariablesMapAfterBuildDoesNotChangeIt(t *testing.T) {
 	t.Parallel()
 	variables := map[string]{{packageName}}.ServerVariable{
