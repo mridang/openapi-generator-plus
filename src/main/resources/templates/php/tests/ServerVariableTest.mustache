@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use {{invokerPackage}}\ServerVariable;
 
-test('default value is exposed', function (): void {
+test('bhv langphp 066 default value is exposed', function (): void {
     $variable = new ServerVariable(defaultValue: 'v3');
 
     expect($variable->defaultValue)->toBe('v3');
