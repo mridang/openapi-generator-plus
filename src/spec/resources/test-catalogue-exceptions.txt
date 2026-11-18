@@ -522,3 +522,7 @@ python | misc052 | Python passes per-call options as keyword arguments, so givin
 python | misc056 | the Python proxy setter takes None to clear a proxy and rejects an empty string as a URL with no scheme (TransportOptions builder raises ValueError), so an empty string cannot clear a proxy
 python | misc065 | Python takes each scheme credential as its own keyword argument and copies them into a dict inside the constructor, so no caller-owned map exists that could change after the API is built
 python | misc074 | Python sends one credential per operation, the first configured scheme its requirement lists (BaseApi._scheme_authenticator), so an alternative that names two schemes sends only one
+kotlin | misc051 | Kotlin builders and operation option classes are typed, so an option the builder does not know is a compile error rather than a refusal at runtime
+kotlin | misc052 | Kotlin named arguments can be passed only once per call, so a repeated per-call option cannot be written and there is no second value to resolve
+kotlin | misc056 | the Kotlin proxy setter takes null to clear a proxy and an empty string is not a URL with a scheme, so an empty string cannot clear a proxy
+kotlin | misc060 | the Kotlin API-key authenticator takes an explicit key ahead of its provider and does not refuse both (bhvAuthscheme009 pins that precedence)
