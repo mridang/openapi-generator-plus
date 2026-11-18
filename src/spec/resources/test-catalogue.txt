@@ -2539,3 +2539,10 @@ langcsharp050 | The configured authorization endpoint is kept verbatim in the au
 ||||||| 6c36124f1
 langnode007 | A key location rejects a value with a carriage return, line feed or NUL
 langnode008 | A key location rejects an empty or whitespace-only key with a fixed message
+langnode009 | An operation called without an options object still applies the per-call settings
+langnode010 | A server variant documents itself with the operation's server description
+langnode011 | A parameter description keeps quotes, angle brackets and ampersands unescaped
+langnode012 | No generated doc comment carries an HTML entity
+langnode013 | An operation's options argument is documented
+langnode014 | A path value containing replacement patterns is inserted literally
+langnode015 | A cookie value that cannot be sent is refused before the request goes out
