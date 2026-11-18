@@ -59,7 +59,7 @@ final class PetApiTests {
      directly above its first token, and only from the last contiguous block.
      A blank line inside the comment, or an attribute placed before the
      remaining doc lines, silently drops everything above or below it. */
-  @Test func testApiDocCommentsAreOneContiguousBlockAboveAttributes() throws {
+  @Test func testBhvLangswift074ApiDocCommentsAreOneContiguousBlockAboveAttributes() throws {
     let files = try FileManager.default.contentsOfDirectory(
       at: apiSourceDirectory(), includingPropertiesForKeys: nil
     ).filter { $0.pathExtension == "swift" }
@@ -116,7 +116,7 @@ final class PetApiTests {
 
   /* A request that gets no HTTP response (connection refused) is a
      NetworkError: an ApiError with status 0 in the OpenAPIError hierarchy. */
-  @Test func testConnectionRefusedThrowsNetworkError() async throws {
+  @Test func testBhvTransport087ConnectionRefusedThrowsNetworkError() async throws {
     let client = DefaultApiClient()
     let error = await #expect(throws: NetworkError.self) {
       _ = try await client.sendRequest(
@@ -1048,7 +1048,7 @@ final class PetApiTests {
 
   // form-optional-omitted: an optional form field left nil must be omitted
   // from the body entirely — never sent as an empty `note=` pair.
-  @Test func testFormOptionalNilOmitted() async throws {
+  @Test func testBhvSerialization098FormOptionalNilOmitted() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
@@ -1474,7 +1474,7 @@ final class PetApiTests {
 
   /* A response header repeated by the server keeps every value, and header
      names are lower-cased. */
-  @Test func testRepeatedResponseHeadersKeepEveryValue() async throws {
+  @Test func testBhvTransport090RepeatedResponseHeadersKeepEveryValue() async throws {
     let client = DefaultApiClient()
     let response = try await client.sendRequest(
       method: "GET", url: "\(chasmHttpUrl)/test/response-headers", headers: [:], body: nil)
@@ -1534,7 +1534,7 @@ final class PetApiTests {
 
   /* One timeout is the budget of the whole redirect chain (three hops of
      500 ms each): too small a budget fails, a sufficient one completes. */
-  @Test func testRedirectChainFailsWithinOneTimeoutBudget() async throws {
+  @Test func testBhvRedirects054RedirectChainFailsWithinOneTimeoutBudget() async throws {
     let transport = try TransportOptionsBuilder().timeout(1200).build()
     let client = try DefaultApiClient(transportOptions: transport)
     let error = await #expect(throws: NetworkTimeoutError.self) {
@@ -1544,7 +1544,7 @@ final class PetApiTests {
     #expect(error?.statusCode == 0)
   }
 
-  @Test func testRedirectChainInsideTheBudgetCompletes() async throws {
+  @Test func testBhvLangswift075RedirectChainInsideTheBudgetCompletes() async throws {
     let transport = try TransportOptionsBuilder().timeout(5000).build()
     let client = try DefaultApiClient(transportOptions: transport)
     let response = try await client.sendRequest(
