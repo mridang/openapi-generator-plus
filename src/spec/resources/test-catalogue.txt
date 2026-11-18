@@ -2217,3 +2217,11 @@ langnode078 | Two URLs with different origins are recognised as different origin
 langnode079 | A redirect status follows with the stated method and keeps or drops the body
 langnode080 | A maxRetries value of the wrong type is rejected
 langnode081 | A self-signed token endpoint is rejected when certificate verification stays on
+langnode082 | Side effects are declared so a bundler can drop unused operations
+langnode083 | A constrained property lists its pattern and bounds as doc tags
+langnode084 | Schema constraints are not enforced at runtime
+langnode085 | A deprecated parameter is marked deprecated in options
+langnode086 | Undeclared wire keys survive deserialization
+langnode087 | A constructed instance exposes its undeclared keys
+langnode088 | The undeclared-keys map is typed like an index signature
+langnode089 | The undeclared-keys map is not serialised as a data key
