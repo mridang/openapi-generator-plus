@@ -9,9 +9,16 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.DefaultApiClient
+import com.example.petstore.TransportOptions
 import com.example.petstore.errors.OAuth2ServerException
 import com.example.petstore.errors.OAuth2TokenException
 import com.example.petstore.errors.OpenAPIException
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -76,6 +83,37 @@ class OAuth2TokenManagerTest {
             } finally {
                 cancelled = true
             }
+    }
+
+    @Test
+    @DisplayName("bhvMisc172 a token request is sent once and not retried when the server answers 503")
+    fun bhvMisc172TokenRequestIsNotRetriedOn503() {
+        var attempts = 0
+        val engine =
+            MockEngine { _ ->
+                attempts++
+                respond(
+                    "{\"error\":\"temporarily_unavailable\"}",
+                    HttpStatusCode.ServiceUnavailable,
+                    headersOf("Content-Type", "application/json"),
+                )
+            }
+        val manager = OAuth2TokenManager()
+        manager.apiClient =
+            DefaultApiClient(
+                HttpClient(engine) { followRedirects = false },
+                TransportOptions
+                    .builder()
+                    .timeout(null)
+                    .maxRetries(2)
+                    .build(),
+            )
+        assertThrows(OAuth2ServerException::class.java) {
+            runBlocking {
+                manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+            }
+        }
+        assertEquals(1, attempts)
     }
 
     @Test
@@ -1336,6 +1374,21 @@ class OAuth2TokenManagerTest {
                 "original grant re-run",
             )
         }
+    }
+
+    @Test
+    @DisplayName("bhvMisc172 a token request is sent once and is not retried, even when the server answers 503")
+    fun bhvMisc172ATokenRequestIsSentOnceEvenWhenTheServerAnswers503() {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"temporarily_unavailable"}""", statusCode = 503)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking {
+                manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+            }
+        }
+        assertEquals(1, client.bodies.size)
     }
 
     @Test
