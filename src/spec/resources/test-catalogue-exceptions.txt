@@ -589,6 +589,12 @@ swift | misc074 | The petstore fixture has no operation whose security requireme
 swift | misc075 | The client takes one named credential per declared scheme, so a credential keyed to an undeclared scheme cannot be passed to it
 swift | misc081 | A binary response is returned as Data because an operation's return type comes from its spec, so no operation returns a String from a base64 binary body
 swift | misc083 | The Swift client has no entry point that takes a query as raw text: every query parameter is typed and percent-encoded one at a time by the generated operation
+swift | misc087 | Swift has no decimal value type that reaches the wire: a decimal schema value is a Double (documented in the readme), and a loose body cannot carry a Decimal through JSONSerialization
+swift | misc088 | A decimal schema value is stored as a Double (documented in the readme), which keeps no trailing decimal places, so there is no written places form to keep
+swift | misc091 | The Swift generator emits no schema constraint or pattern checks into its models, so decoding never checks a declared constraint
+swift | misc098 | The Swift multipart builder takes only Data, String and model values as parts, so a caller-supplied stream can never be a part; a caller body stream is covered by the transport tests
+swift | misc100 | The Swift client always sends multipart/form-data with its own boundary and ignores a declared multipart subtype, so the declared subtype is never kept
+swift | misc101 | Swift multipart parts are Data, String or model values already in memory, so a part source cannot fail to read at send time
 ||||||| 80c094f97
 java | misc068 | java keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 java | misc074 | BaseApi.resolveSchemeAuth returns the credential of the first listed scheme the client holds, so an alternative naming two schemes applies one credential and never both
