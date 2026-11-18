@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-func TestRequestOption_NewCallSettings_NoOptionsLeavesEverythingToTheClient(t *testing.T) {
+func TestBhvOptions055_RequestOption_NewCallSettings_NoOptionsLeavesEverythingToTheClient(t *testing.T) {
 	t.Parallel()
 	settings, err := newCallSettings(nil)
 	if err != nil {
@@ -26,7 +26,7 @@ func TestRequestOption_NewCallSettings_NoOptionsLeavesEverythingToTheClient(t *t
 	}
 }
 
-func TestRequestOption_NewCallSettings_AppliesEveryOption(t *testing.T) {
+func TestBhvOptions053_RequestOption_NewCallSettings_AppliesEveryOption(t *testing.T) {
 	t.Parallel()
 	settings, err := newCallSettings([]RequestOption{
 		WithTimeout(1500 * time.Millisecond),
@@ -86,7 +86,7 @@ func TestRequestOption_WithHeaders_CopiesTheMapWhenTheOptionIsBuilt(t *testing.T
 	}
 }
 
-func TestRequestOption_NewCallSettings_RejectsAnInvalidTimeout(t *testing.T) {
+func TestBhvOptions057_RequestOption_NewCallSettings_RejectsAnInvalidTimeout(t *testing.T) {
 	t.Parallel()
 	for _, timeout := range []time.Duration{0, -time.Second, time.Microsecond} {
 		if _, err := newCallSettings([]RequestOption{WithTimeout(timeout)}); !errors.Is(err, ErrInvalidTimeout) {

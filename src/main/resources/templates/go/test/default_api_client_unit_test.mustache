@@ -3233,3 +3233,41 @@ func TestBhvAuthoidc008_DefaultApiClientUnit_DiscoveryDoesNotSendTheTransportDef
 		t.Errorf("expected no transport default header on the discovery request, got %q", got)
 	}
 }
+
+func TestBhvOptions058_DefaultApiClientUnit_InjectedHttpClientIsNoneUnlessSupplied(t *testing.T) {
+	t.Parallel()
+	plain, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.httpClient != nil {
+		t.Errorf("expected no injected HTTP client, got %v", plain.httpClient)
+	}
+	var doer HttpDoer = &http.Client{}
+	built, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if built.httpClient != doer {
+		t.Errorf("expected the supplied client kept as the same instance, got %v", built.httpClient)
+	}
+}
+
+func TestBhvOptions059_DefaultApiClientUnit_InjectedTransportHookIsUnsetUnlessGiven(t *testing.T) {
+	t.Parallel()
+	plain, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.roundTripper != nil {
+		t.Errorf("expected no injected transport hook, got %v", plain.roundTripper)
+	}
+	var hook http.RoundTripper = http.DefaultTransport
+	built, err := NewTransportOptionsBuilder().RoundTripper(hook).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if built.roundTripper != hook {
+		t.Errorf("expected the supplied transport kept unchanged, got %v", built.roundTripper)
+	}
+}
