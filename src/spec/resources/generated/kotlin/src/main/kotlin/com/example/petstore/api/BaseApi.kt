@@ -229,6 +229,8 @@ abstract class BaseApi {
 
         val isMultipart = "multipart/form-data" == contentType
         val headers = headerSelector.selectHeaders(accepts, contentType, isMultipart)
+        // A default header replaces a negotiated one of the same name in any letter case.
+        headers.keys.removeAll { name -> config.defaultHeaders.keys.any { it.equals(name, ignoreCase = true) } }
         headers.putAll(config.defaultHeaders)
         headers.putAll(headerParams)
         if (effectiveAuth != null) {

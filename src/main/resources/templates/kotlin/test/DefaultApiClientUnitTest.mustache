@@ -1463,6 +1463,27 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvTransport064 the intermediate response of a refused redirect is released")
+        fun refusedRedirectReleasesItsResponse() {
+            val redirectBody = io.ktor.utils.io.ByteReadChannel("moved")
+            val engine = MockEngine { _ ->
+                respond(
+                    content = redirectBody,
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "file:///etc/passwd"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            assertThrowsExactly(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://first.example.com/start", emptyMap(), null)
+                }
+            }
+            assertTrue(redirectBody.isClosedForRead, "the refused redirect's body must be read and released")
+        }
+
+        @Test
         @DisplayName("bhvRetries017 Gap 3.3: refuses to replay body on HTTPS->HTTP downgrade")
         fun refusesBodyReplayOnHttpsToHttpDowngrade() {
             val engine = MockEngine { _ ->
@@ -2679,6 +2700,8 @@ class DefaultApiClientUnitTest {
 
         @Test
         @DisplayName("a timeout is not retried")
+
+        @DisplayName("bhvRetries042 a timeout is not retried")
         fun aTimeoutIsNotRetried() {
             val apiClient = retrying(listOf(java.net.SocketTimeoutException("socket timed out")))
 
