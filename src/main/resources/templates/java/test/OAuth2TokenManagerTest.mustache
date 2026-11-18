@@ -1460,4 +1460,20 @@ class OAuth2TokenManagerTest {
                         manager.getAccessToken("https://auth.example.com/token", params));
         assertTrue(ex.getMessage().contains("access_token"), ex.getMessage());
     }
+
+    @Test
+    void bhvMisc172ATokenRequestIsSentOnceEvenWhenTheServerAnswers503() {
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            callCount.incrementAndGet();
+            return new ApiHttpResponse(503, "{\"error\":\"temporarily_unavailable\"}", Map.of());
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        org.junit.jupiter.api.Assertions.assertThrows(OAuth2ServerException.class,
+                () -> manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(1, callCount.get());
+    }
 }
