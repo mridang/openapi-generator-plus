@@ -536,6 +536,14 @@ class TestDeepObjectSerialization:
         with pytest.raises(SerializationException):
             ValueSerializer.serialize_deep_object("filter", {"a": {"b": 1}})
 
+    def test_bhv_misc_120_an_object_parameter_is_sorted_by_wire_name_and_omits_absent_values(
+        self,
+    ) -> None:
+        result = ValueSerializer.serialize_deep_object(
+            "filter", {"b": "2", "c": None, "a": "1"}
+        )
+        assert list(result) == ["filter[a]", "filter[b]"]
+
     def test_bhv_serializationparam_061_null_returns_empty_dict(self) -> None:
         result = ValueSerializer.serialize_deep_object("filter", None)
         assert result == {}

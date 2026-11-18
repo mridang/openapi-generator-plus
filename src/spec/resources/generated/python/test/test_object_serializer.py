@@ -45,6 +45,14 @@ class TestDateTimeOffsetPreservation:
         result = ObjectSerializer.stringify(dt)
         assert ".123" in result
 
+    def test_bhv_misc_121_an_object_with_no_declared_schema_is_written_as_a_json_object(
+        self,
+    ) -> None:
+        assert json.loads(ObjectSerializer().serialize({"a": 1, "b": "x"})) == {
+            "a": 1,
+            "b": "x",
+        }
+
     def test_bhv_serializationobject_044_date_only_serializes_as_iso8601_date(
         self,
     ) -> None:
@@ -1317,6 +1325,23 @@ class TestFixtureModelsOnTheWire:
         assert isinstance(decoded, EdgeCases)
         assert decoded.phase == EdgeCasesPhaseEnum(wire)
         assert json.loads(ObjectSerializer().serialize(decoded)) == {"phase": wire}
+
+    def test_bhv_misc_137_a_generated_enum_lists_its_declared_values_and_rejects_others(
+        self,
+    ) -> None:
+        from petstore_client.models.separator import Separator
+
+        assert [member.value for member in Separator] == [" ", "@@", "a-b", "a_b"]
+        with pytest.raises(ValueError):
+            Separator("not-declared")
+
+    def test_bhv_misc_138_converting_an_enum_member_to_text_yields_its_wire_value(
+        self,
+    ) -> None:
+        from petstore_client.models.separator import Separator
+
+        assert str(Separator.A_B) == "a-b"
+        assert f"{Separator.SPACE_1}" == " "
 
     def test_bhv_serializationobject_161_separator_wire_values_decode_to_distinct_members_and_re_encode(
         self,
