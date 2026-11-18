@@ -192,7 +192,10 @@ test('bhv options 055 a call without per call options keeps the transport timeou
             $headers[strtolower($name)] = $value;
         }
         $seen[] = ['headers' => $headers, 'duration' => $options['max_duration'] ?? null];
-        return array_shift($responses);
+        $next = array_shift($responses);
+        \assert($next instanceof MockResponse);
+
+        return $next;
     };
     $transport = TransportOptions::builder()->timeout(5000)->maxRetries(1)->defaultHeader('X-Client', 'kept')->build();
     $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
@@ -221,7 +224,10 @@ test('bhv retries 044 every retry carries a request id that differs from the att
                 $ids[] = $value;
             }
         }
-        return array_shift($responses);
+        $next = array_shift($responses);
+        \assert($next instanceof MockResponse);
+
+        return $next;
     };
     $transport = TransportOptions::builder()->injectRequestId(true)->maxRetries(2)->build();
     $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
@@ -1066,18 +1072,19 @@ test('bhv redirects 037 a redirect to the explicit default port of the same orig
 
 test('bhv transport 064 the intermediate response of a refused redirect is released', function (): void {
     /* The probe flips its flag when the 3xx response object is destroyed, so the test observes the release itself. */
-    $probe = new \stdClass();
-    $probe->released = false;
+    /** @var \ArrayObject<string, mixed> $probe */
+    $probe = new \ArrayObject(['released' => false]);
     $mock = new MockHttpClient(function () use ($probe): MockResponse {
         return new class ('', ['http_code' => 302, 'response_headers' => ['Location' => 'ftp://example.com/next']], $probe) extends MockResponse {
-            public function __construct(string $body, array $info, private \stdClass $probe)
+            /** @param array<string, mixed> $info */
+            public function __construct(string $body, array $info, private \ArrayObject $probe)
             {
                 parent::__construct($body, $info);
             }
 
             public function __destruct()
             {
-                $this->probe->released = true;
+                $this->probe['released'] = true;
             }
         };
     });
@@ -1085,7 +1092,7 @@ test('bhv transport 064 the intermediate response of a refused redirect is relea
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/start', [], null))
         ->toThrow(\{{invokerPackage}}\Errors\ApiException::class);
-    expect($probe->released)->toBeTrue();
+    expect($probe['released'])->toBeTrue();
 });
 
 test('bhv redirects 012 cross origin redirect strips authorization and cookie', function (): void {
@@ -2956,7 +2963,9 @@ test('bhv transport 071 a single configured timeout is passed to every timed pha
 
     $client->sendWithRetries('GET', 'http://example.com/a', static fn (): array => [], null);
 
-    expect((float) $seen[0]['timeout'])->toBe(1.0);
+    /* The budget is one end-to-end deadline, so each phase gets what is left of the one
+     * second after the request started: just under 1.0, never more. */
+    expect((float) $seen[0]['timeout'])->toBeGreaterThan(0.9)->toBeLessThanOrEqual(1.0);
     expect((float) $seen[0]['max_duration'])->toBeGreaterThan(0.0);
 });
 

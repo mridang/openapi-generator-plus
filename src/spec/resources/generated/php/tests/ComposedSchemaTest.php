@@ -85,6 +85,7 @@ test('bhv unions 020 one of serializes dry food', function (): void {
 
 test('bhv unions 030 a subtype whose discriminator key is absent is filled with the mapping default', function (): void {
     $food = ObjectSerializer::deserialize('{"weightKg":2.5}', DryFood::class);
+    \assert($food instanceof DryFood);
 
     expect($food->foodType)->toBe('dry');
 });
@@ -95,6 +96,7 @@ test('bhv unions 032 a one of wrapper built from a variant serializes it with it
 
     expect($food->getActualInstance())->toBe($dry);
     $decoded = json_decode(ObjectSerializer::serialize($food), true);
+    \assert(is_array($decoded));
     expect($decoded['foodType'] ?? null)->toBe('dry');
 });
 
@@ -182,6 +184,7 @@ test('bhv unions 009 any of retains all matching variants (medication and surger
     expect($serialized)->toContain('durationMinutes');
     /** @var array<string, mixed> $roundTripped */
     $roundTripped = json_decode($serialized, true);
+    \assert(is_array($roundTripped));
     expect($roundTripped)->toMatchArray([
         'drugName' => 'Amoxicillin',
         'dosage' => '250mg',
@@ -254,6 +257,7 @@ test('bhv unions 003 any of single variant still round-trips after retain-all', 
     $serialized = ObjectSerializer::serialize($result);
     /** @var array<string, mixed> $roundTripped */
     $roundTripped = json_decode($serialized, true);
+    \assert(is_array($roundTripped));
     expect($roundTripped)->toMatchArray(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);
     expect($roundTripped)->not->toHaveKey('procedureName');
 });
@@ -402,8 +406,11 @@ test('bhv unions 011 any of wrappers compare by value', function (): void {
 
 test('bhv unions 029 one of wrappers have value equality', function (): void {
     $first = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    \assert($first instanceof SetPetAvatarThumbnailRequest);
     $second = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    \assert($second instanceof SetPetAvatarThumbnailRequest);
     $other = ObjectSerializer::deserialize('"BQYHCA=="', SetPetAvatarThumbnailRequest::class);
+    \assert($other instanceof SetPetAvatarThumbnailRequest);
 
     expect($first == $second)->toBeTrue();
     expect($first == $other)->toBeFalse();
@@ -459,6 +466,7 @@ test('bhv unions 043 a discriminator value already set on a subtype is written a
     $dry = new DryFood(weightKg: 1.0, foodType: 'custom');
 
     $decoded = json_decode(ObjectSerializer::serialize($dry), true);
+    \assert(is_array($decoded));
 
     expect($decoded['foodType'] ?? null)->toBe('custom');
 });

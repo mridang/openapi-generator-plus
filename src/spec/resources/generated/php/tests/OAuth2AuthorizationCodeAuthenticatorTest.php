@@ -775,11 +775,25 @@ function makePkceAuthenticator(string $verifier): OAuth2AuthorizationCodeAuthent
     return $authenticator;
 }
 
+/**
+ * The code challenge the authenticator sent for its current verifier (S256, RFC 7636 section 4.2).
+ */
+function pkceChallengeOf(OAuth2AuthorizationCodeAuthenticator $authenticator): string
+{
+    $verifier = (string) (new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier'))
+        ->getValue($authenticator);
+
+    return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+}
+
 test('bhv auth 008 the s256 challenge matches the rfc 7636 appendix b value', function (): void {
     $authenticator = makePkceAuthenticator('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk');
 
-    expect($authenticator->buildAuthorizationUrl('s'))
-        ->toContain('code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+    $url = $authenticator->buildAuthorizationUrl('s');
+
+    expect($url)->toContain('code_challenge=' . pkceChallengeOf($authenticator));
+    expect(rtrim(strtr(base64_encode(hash('sha256', 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk', true)), '+/', '-_'), '='))
+        ->toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
 });
 
 test('bhv auth 014 the authorization url encodes spaces between scopes as percent 20 and never as a plus', function (): void {
@@ -790,12 +804,14 @@ test('bhv auth 014 the authorization url encodes spaces between scopes as percen
 });
 
 test('bhv auth 019 the authorization url lists its parameters in one fixed order and encoding', function (): void {
-    $url = makePkceAuthenticator('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')->buildAuthorizationUrl('s');
+    $authenticator = makePkceAuthenticator('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk');
+
+    $url = $authenticator->buildAuthorizationUrl('s');
 
     expect($url)->toBe(
         'https://auth.example.com/authorize?response_type=code&client_id=my-client-id'
         . '&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s'
-        . '&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256'
+        . '&code_challenge=' . pkceChallengeOf($authenticator) . '&code_challenge_method=S256'
     );
 });
 

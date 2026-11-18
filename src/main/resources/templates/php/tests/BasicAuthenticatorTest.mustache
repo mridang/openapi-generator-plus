@@ -226,9 +226,9 @@ function assertBasicWrappersRefuseEmptyVariable(string $field, string $user, str
             continue;
         }
         $matched++;
-        $variables = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+        $variables = basicWrapperEnvVariables($class);
         withBasicEnvValues([$variables['username'] => $user, $variables['password'] => $secret], function () use ($class, $variables, $field): void {
-            expect(fn () => new $class('https://api.example.com'))
+            expect(fn () => basicWrapper($class, 'https://api.example.com'))
                 ->toThrow(\InvalidArgumentException::class, $variables[$field]);
         });
     }
@@ -252,7 +252,7 @@ test('bhv authbasic 019 generated basic scheme wrappers emit the same basic head
             continue;
         }
         $wrappers++;
-        $auth = new $class('https://api.example.com', 'wrapper-user', 'wrapper-pass');
+        $auth = basicWrapper($class, 'https://api.example.com', 'wrapper-user', 'wrapper-pass');
         expect($auth->getAuthHeaders())->toBe($expected);
     }
     expect($wrappers)->toBeGreaterThan(0);
@@ -272,3 +272,27 @@ test('bhv errors 081 a refused credential names whether the username or the pass
     expect(fn () => new BasicAuthenticator('https://api.example.com', 'user', "bad\npassword"))
         ->toThrow(\InvalidArgumentException::class, 'password');
 });
+
+/**
+ * Builds a generated basic wrapper by its class name; the wrappers take their arguments from the base constructor.
+ */
+function basicWrapper(string $class, string ...$args): BasicAuthenticator
+{
+    $wrapper = new $class(...$args);
+    \assert($wrapper instanceof BasicAuthenticator);
+
+    return $wrapper;
+}
+
+/**
+ * The environment variable names a generated basic wrapper reads its user and password from.
+ *
+ * @return array<string, string>
+ */
+function basicWrapperEnvVariables(string $class): array
+{
+    $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+    \assert(is_array($constants));
+
+    return array_map(static fn (mixed $name): string => (string) $name, $constants);
+}

@@ -50,7 +50,10 @@ test('bhv servers 019 enum does not contain a value outside the allowed set', fu
 test('bhv servers 024 the enum values cannot be mutated', function (): void {
     $variable = new ServerVariable(defaultValue: 'v3', enumValues: ['v2', 'v3']);
 
-    expect(fn (): mixed => $variable->enumValues[] = 'v4')->toThrow(\Error::class);
+    $property = 'enumValues';
+    expect(function () use ($variable, $property): void {
+        $variable->{$property}[] = 'v4';
+    })->toThrow(\Error::class);
 });
 
 test('bhv servers 026 changing the allowed values list after building leaves them unchanged', function (): void {

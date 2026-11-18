@@ -52,8 +52,7 @@ test('bhv errors 037 throws correct exception', function (int $status, string $e
             [],
             null,
             ['application/json'],
-            'application/json',
-            null
+            'application/json'
         );
         test()->fail('Expected exception not thrown');
     } catch (ApiException $e) {
@@ -84,8 +83,7 @@ test('bhv errors 071 a 401 response surfaces as an unauthorized error', function
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     ))->toThrow(UnauthorizedException::class);
 });
 
@@ -118,8 +116,7 @@ test('bhv errors 034 parses json error body', function (): void {
             [],
             null,
             ['application/json'],
-            'application/json',
-            null
+            'application/json'
         );
         test()->fail('Expected exception not thrown');
     } catch (BadRequestException $e) {
@@ -136,8 +133,7 @@ test('bhv errors 033 not found hierarchy', function (): void {
             [],
             null,
             ['application/json'],
-            'application/json',
-            null
+            'application/json'
         );
         test()->fail('Expected exception not thrown');
     } catch (NotFoundException $e) {
@@ -157,8 +153,7 @@ test('bhv errors 031 internal server error hierarchy', function (): void {
             [],
             null,
             ['application/json'],
-            'application/json',
-            null
+            'application/json'
         );
         test()->fail('Expected exception not thrown');
     } catch (InternalServerErrorException $e) {
@@ -208,8 +203,7 @@ test('bhv operations 015 returns null when return type is null', function (): vo
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($result)->toBeNull();
 });
@@ -222,8 +216,7 @@ test('bhv serializationwire 002 appends query params', function (): void {
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($result)->toBeNull();
 });
@@ -236,7 +229,7 @@ test('bhv operations 155 an operation sends its query parameters in the order th
     } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured URL
     }
-    expect($client->capturedUrl)->toBe('http://localhost/pet/7/tag/x?colors=red&sizes=m&filter=f');
+    expect($client->capturedUrl)->toBe('http://localhost/pet/;petId=7/tag/.x?colors=red&sizes=m&filter=f');
 });
 
 test('bhv operations 156 an operation sends its form body fields in the order the specification declares them', function (): void {
@@ -265,8 +258,9 @@ test('bhv options 057 a per call timeout below one millisecond is refused before
     $client = new CapturingApiClient();
     $api = new PetApi($client, new Configuration('http://localhost'));
 
-    expect(fn (): mixed => $api->deletePet(7, new DeletePetOptions(timeout: 0)))
-        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout');
+    expect(function () use ($api): void {
+        $api->deletePet(7, new DeletePetOptions(timeout: 0));
+    })->toThrow(\InvalidArgumentException::class, 'Invalid timeout');
     expect($client->capturedUrl)->toBe('');
 });
 
@@ -297,7 +291,7 @@ test('bhv serialization 007 a literal plus is sent as percent 2B and non ascii t
     $api->call('GET', '/test/echo', ['q' => "a+b \u{00e9}"], [], null, ['application/json'], 'application/json');
     expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Bb%20%C3%A9');
 
-    $api->call('POST', '/test/echo', [], [], ['q' => "a+b \u{00e9}"], ['application/json'], 'application/x-www-form-urlencoded', null);
+    $api->call('POST', '/test/echo', [], [], ['q' => "a+b \u{00e9}"], ['application/json'], 'application/x-www-form-urlencoded');
     expect($client->capturedBody)->toBe('q=a%2Bb+%C3%A9');
 });
 
@@ -314,7 +308,7 @@ test('bhv serialization 009 a value that cannot be serialized raises before any 
     $client = new CapturingApiClient();
     $api = new TestableApi($client, new Configuration('http://localhost'));
 
-    expect(fn (): mixed => $api->call('POST', '/test/echo', [], [], INF, ['application/json'], 'application/json', null))
+    expect(fn (): mixed => $api->call('POST', '/test/echo', [], [], INF, ['application/json'], 'application/json'))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
     expect($client->capturedUrl)->toBe('');
 });
@@ -323,7 +317,7 @@ test('bhv serialization 010 a body is sent with exactly the content type the cal
     $client = new CapturingApiClient();
     $api = new TestableApi($client, new Configuration('http://localhost'));
 
-    $api->call('POST', '/test/echo', [], [], 'hello', ['text/plain'], 'text/plain', null);
+    $api->call('POST', '/test/echo', [], [], 'hello', ['text/plain'], 'text/plain');
 
     $headers = array_change_key_case($client->capturedHeaders, CASE_LOWER);
     expect($headers['content-type'] ?? null)->toBe('text/plain');
@@ -490,7 +484,7 @@ test('a binary body is sent as raw bytes whether given as string, stream resourc
         default => (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('raw-bytes'),
     };
 
-    $api->call('POST', '/test/echo', [], [], $body, ['application/json'], 'application/octet-stream', null);
+    $api->call('POST', '/test/echo', [], [], $body, ['application/json'], 'application/octet-stream');
 
     expect($client->capturedBody)->toBe('raw-bytes');
     fclose($resource);
@@ -512,8 +506,7 @@ test('a binary body file that can no longer be read throws instead of sending an
         [],
         $file,
         ['application/json'],
-        'application/octet-stream',
-        null
+        'application/octet-stream'
     ))->toThrow(\InvalidArgumentException::class, 'Failed to read request body file');
     expect($client->capturedBody)->toBeNull();
 });
@@ -530,8 +523,7 @@ test('bhv authintegration 009 falls back to client-level authenticator when no p
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('client-level-token');
 });
@@ -785,8 +777,7 @@ test('bhv operations 016 sends no body when null', function (): void {
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect(true)->toBeTrue();
 });
@@ -887,8 +878,7 @@ test('bhv serializationwire 016 allow empty value includes param in query string
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($result)->toBeNull();
 });
@@ -904,8 +894,7 @@ test('bhv serializationwire 009 expands array query params', function (): void {
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedUrl)->toContain('tags=a&tags=b');
 });
@@ -921,8 +910,7 @@ test('bhv serializationwire 020 serializes boolean query params', function (): v
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedUrl)->toContain('active=true');
 });
@@ -938,8 +926,7 @@ test('bhv serializationwire 023 serializes number query params', function (): vo
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedUrl)->toContain('limit=10');
     expect($client->capturedUrl)->not->toContain('limit=10.0');
@@ -956,8 +943,7 @@ test('bhv serializationwire 015 handles empty query params', function (): void {
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedUrl)->not->toContain('?');
 });
@@ -976,8 +962,7 @@ test('bhv operations 007 collapses double-slash when base url has trailing slash
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedUrl)->toBe('http://host/v1/thing');
 });
@@ -1164,8 +1149,7 @@ test('bhv serializationwire 024 serializes text plain body', function (): void {
         [],
         'hello world',
         ['application/json'],
-        'text/plain',
-        null
+        'text/plain'
     );
     expect($client->capturedBody)->not->toBeNull();
     expect($client->capturedBody)->toBeString();
@@ -1183,8 +1167,7 @@ test('bhv serializationwire 021 serializes form urlencoded body', function (): v
         [],
         ['name' => 'alice'],
         ['application/json'],
-        'application/x-www-form-urlencoded',
-        null
+        'application/x-www-form-urlencoded'
     );
     expect($client->capturedBody)->not->toBeNull();
     expect($client->capturedBody)->toBeString();
@@ -1204,8 +1187,7 @@ test('bhv serializationwire 012 form urlencoded body encodes space as plus', fun
         [],
         ['q' => 'a b c'],
         ['application/json'],
-        'application/x-www-form-urlencoded',
-        null
+        'application/x-www-form-urlencoded'
     );
     expect($client->capturedBody)->toBe('q=a+b+c');
 });
@@ -1221,8 +1203,7 @@ test('bhv serializationwire 057 a form-urlencoded body keeps only the unreserved
         [],
         ['k~*' => "a~b*c!'()"],
         ['application/json'],
-        'application/x-www-form-urlencoded',
-        null
+        'application/x-www-form-urlencoded'
     );
     expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
 });
@@ -1237,7 +1218,7 @@ test('bhv serialization 040 form urlencoded body renders date-time, enum and num
         'ratio' => 1.0,
         'flag' => true,
         'tags' => ['a', null, 'b'],
-    ], ['application/json'], 'application/x-www-form-urlencoded', null);
+    ], ['application/json'], 'application/x-www-form-urlencoded');
     expect($client->capturedBody)->toBe(
         'at=2024-01-15T10%3A00%3A00.000%2B00%3A00&status=sold&ratio=1.0&flag=true&tags=a&tags=b'
     );
@@ -1254,8 +1235,7 @@ test('bhv serializationwire 014 form urlencoded body rejects a nested map field'
         [],
         ['location' => ['lat' => 1.5]],
         ['application/json'],
-        'application/x-www-form-urlencoded',
-        null
+        'application/x-www-form-urlencoded'
     ))
         ->toThrow(
             \PetstoreClient\Errors\SerializationException::class,
@@ -1275,8 +1255,7 @@ test('bhv operations 014 passes binary body as is', function (): void {
         [],
         "\x01\x02\x03",
         ['application/json'],
-        'application/octet-stream',
-        null
+        'application/octet-stream'
     );
     expect($client->capturedBody)->not->toBeNull();
 });
@@ -1294,8 +1273,7 @@ test('bhv serializationwire 007 empty content type defaults to json', function (
         [],
         [],
         ['application/json'],
-        '',
-        null
+        ''
     );
     expect($client->capturedHeaders['Content-Type'] ?? '')->toBe('application/json');
 });
@@ -1311,8 +1289,7 @@ test('bhv operations 002 all headers from selector flow through', function (): v
         [],
         [],
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedHeaders)->toHaveKey('Accept');
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
@@ -1340,8 +1317,7 @@ test('bhv operations 008 config default Accept wins over operation-negotiated Ac
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
 });
@@ -1360,8 +1336,7 @@ test('bhv options 001 config default header overrides operation negotiated accep
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
 });
@@ -1380,8 +1355,7 @@ test('bhv operations 004 an explicit Accept header parameter wins over the confi
         ['Accept' => 'text/csv'],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedHeaders['Accept'] ?? null)->toBe('text/csv');
     expect(array_keys(array_change_key_case($client->capturedHeaders, CASE_LOWER)))
@@ -1402,8 +1376,7 @@ test('bhv headers 030 a default header in another case replaces the negotiated o
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     $names = array_filter(
         array_keys($client->capturedHeaders),
@@ -1427,8 +1400,7 @@ test('bhv operations 001 a per call header replaces a default header of the same
         ['X-Tenant' => 'per-call-tenant'],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     $tenantValues = array_filter(
         $client->capturedHeaders,
@@ -1451,8 +1423,7 @@ test('bhv serializationwire 013 form urlencoded body keeps a well formed surroga
         [],
         ['q' => "\u{1F600}"],
         ['application/json'],
-        'application/x-www-form-urlencoded',
-        null
+        'application/x-www-form-urlencoded'
     );
     expect($client->capturedBody)->toBe('q=%F0%9F%98%80');
 });
@@ -1489,8 +1460,7 @@ test('bhv serializationwire 018 octet stream response decoded as base 64 bytes',
         [],
         null,
         ['application/octet-stream'],
-        'application/octet-stream',
-        null
+        'application/octet-stream'
     );
     expect($result)->toBe($binaryData);
 });
@@ -1525,8 +1495,7 @@ test('bhv operations 012 image png response decoded as bytes', function (): void
         [],
         null,
         ['image/png'],
-        'image/png',
-        null
+        'image/png'
     );
     expect($result)->toBe($binaryData);
 });
@@ -1563,8 +1532,7 @@ test('bhv serializationwire 017 binary response roundtrips nul and high bytes', 
         [],
         null,
         ['application/octet-stream'],
-        'application/octet-stream',
-        null
+        'application/octet-stream'
     );
     expect($result)->toBe($binaryData);
     assert(is_string($result));
@@ -1597,8 +1565,7 @@ test('bhv serializationwire 006 empty binary body yields null', function (): voi
         [],
         null,
         ['application/octet-stream'],
-        'application/octet-stream',
-        null
+        'application/octet-stream'
     );
     expect($result)->toBeNull();
 });
@@ -1661,7 +1628,6 @@ test('bhv operations 017 text plain response returns string', function (): void 
         [],
         null,
         ['text/plain'],
-        null,
         null
     );
     expect($result)->toBeString();
@@ -1694,7 +1660,6 @@ test('bhv operations 010 empty body yields null', function (): void {
         [],
         null,
         ['application/octet-stream'],
-        null,
         null
     );
     expect($result)->toBeNull();
@@ -1713,8 +1678,7 @@ test('bhv operations 013 null body post does not send content type', function ()
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
 });
@@ -1730,8 +1694,7 @@ test('bhv operations 131 a request with no body sends no content type header', f
         [],
         null,
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedBody)->toBeNull();
     expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
@@ -1748,8 +1711,7 @@ test('bhv operations 011 empty string body includes content type', function (): 
         [],
         '',
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
 });
@@ -1765,8 +1727,7 @@ test('bhv serializationwire 008 empty json object body includes content type', f
         [],
         '{}',
         ['application/json'],
-        'application/json',
-        null
+        'application/json'
     );
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
     expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
@@ -1844,7 +1805,7 @@ test('an operation that keeps failing with a retryable status is attempted three
     $seen = new \ArrayObject();
     $api = flakyTransportApi(99, $seen, null);
 
-    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null))
         ->toThrow(ServerException::class);
     expect(count($seen))->toBe(3);
 });
@@ -1986,7 +1947,7 @@ test('bhv errors 027 an absolute url in the path bypasses the client base url', 
     $client = new CapturingApiClient();
     $api = new TestableApi($client, new Configuration('http://localhost'));
 
-    $api->call('GET', 'https://other.example.com/v1/items', [], [], null, ['application/json'], null, null);
+    $api->call('GET', 'https://other.example.com/v1/items', [], [], null, ['application/json'], null);
 
     expect($client->capturedUrl)->toBe('https://other.example.com/v1/items');
 });

@@ -12,7 +12,8 @@ test('bhv results 006 the headers of a result are a copy taken when it is built 
 
     expect($result->headers)->toBe(['X-Request-Id' => 'abc']);
     expect(function () use ($result): void {
-        $result->headers['X-Injected'] = 'x';
+        $property = 'headers';
+        $result->{$property}['X-Injected'] = 'x';
     })->toThrow(\Error::class);
 });
 

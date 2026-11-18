@@ -22,7 +22,7 @@ class TestableApi extends BaseApi
         mixed $body,
         array $accepts,
         ?string $contentType,
-        ?string $returnType,
+        ?string $returnType = null,
         ?Authenticator $auth = null
     ): mixed {
         return $this->invokeApi(

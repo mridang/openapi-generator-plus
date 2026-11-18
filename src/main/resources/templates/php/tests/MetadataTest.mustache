@@ -196,7 +196,9 @@ test('bhv models 016 a copy clears an optional field only when null is passed an
     $original = new Metadata(new \DateTime('2024-01-01T00:00:00+00:00'));
 
     expect($original->withCreatedAt(null)->createdAt)->toBeNull();
-    expect($original->withAdditionalProperties(new \Ds\Map(['k' => 'v']))->createdAt)->toEqual($original->createdAt);
+    /** @var array<string, mixed> $extraValues */
+    $extraValues = ['k' => 'v'];
+    expect($original->withAdditionalProperties(new \Ds\Map($extraValues))->createdAt)->toEqual($original->createdAt);
     expect($original->createdAt)->not->toBeNull();
 });
 

@@ -1510,7 +1510,8 @@ test('bhv operations 049 get pet by name throws when required query param is emp
 });
 
 test('bhv operations 132 an options object missing a required field names that field', function (): void {
-    expect(fn () => new GetPetByNameOptions(xCorrelationId: 'abc'))
+    /* Built by reflection: the static analyser would reject the call that omits a required argument. */
+    expect(fn (): object => (new \ReflectionClass(GetPetByNameOptions::class))->newInstance(xCorrelationId: 'abc'))
         ->toThrow(\ArgumentCountError::class, 'Argument #1 ($category) not passed');
 });
 

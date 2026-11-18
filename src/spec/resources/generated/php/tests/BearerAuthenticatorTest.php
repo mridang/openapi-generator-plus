@@ -331,9 +331,9 @@ test('bhv authbearer 019 an empty environment value counts as unset and fails co
             continue;
         }
         $wrappers++;
-        $variable = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'))[0];
+        $variable = bearerWrapperEnvVariable($class);
         withBearerEnvValues([$variable => ''], function () use ($class, $variable): void {
-            expect(fn () => new $class('https://api.example.com'))
+            expect(fn () => bearerWrapper($class, 'https://api.example.com'))
                 ->toThrow(\InvalidArgumentException::class, $variable);
         });
     }
@@ -348,7 +348,7 @@ test('bhv authbearer 023 generated bearer scheme wrappers emit a bearer header a
             continue;
         }
         $wrappers++;
-        $auth = new $class('https://api.example.com', 'wrapper-token');
+        $auth = bearerWrapper($class, 'https://api.example.com', 'wrapper-token');
         expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer wrapper-token']);
         expect($auth::class)->toBe($class);
     }
@@ -363,9 +363,9 @@ test('bhv authbearer 025 the environment variable is read once, at construction'
             continue;
         }
         $wrappers++;
-        $variable = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'))[0];
+        $variable = bearerWrapperEnvVariable($class);
         withBearerEnvValues([$variable => 'first'], function () use ($class, $variable): void {
-            $auth = new $class('https://api.example.com');
+            $auth = bearerWrapper($class, 'https://api.example.com');
             putenv($variable . '=second');
             expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer first']);
         });
@@ -399,6 +399,7 @@ test('a bearer token from a provider that holds a line feed is refused when the 
 });
 
 test('bhv auth 012 each refused bearer token states why it was refused', function (): void {
+    /** @var list<string> $messages */
     $messages = [];
     foreach (['', "abc\ndef", "tökén"] as $token) {
         try {
@@ -438,3 +439,25 @@ test('the printable form of a bearer authenticator names its type and never show
     expect($printR)->toContain('BearerAuthenticator');
     expect($printR)->not->toContain('tok-secret-123');
 });
+
+/**
+ * Builds a generated bearer wrapper by its class name; the wrappers take their arguments from the base constructor.
+ */
+function bearerWrapper(string $class, string ...$args): BearerAuthenticator
+{
+    $wrapper = new $class(...$args);
+    \assert($wrapper instanceof BearerAuthenticator);
+
+    return $wrapper;
+}
+
+/**
+ * The environment variable a generated bearer wrapper reads its token from.
+ */
+function bearerWrapperEnvVariable(string $class): string
+{
+    $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+    \assert(is_array($constants));
+
+    return (string) array_values($constants)[0];
+}

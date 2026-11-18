@@ -397,7 +397,7 @@ function assertApiKeyWrappersRefuseEmptyVariable(string $where): void
         if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
             continue;
         }
-        $probe = new $class('https://api.example.com', 'probe-key');
+        $probe = newApiKeyWrapper($class, 'https://api.example.com', 'probe-key');
         $emitted = match ($where) {
             'header' => $probe->getAuthHeaders(),
             'query' => $probe->getQueryParams(),
@@ -407,9 +407,9 @@ function assertApiKeyWrappersRefuseEmptyVariable(string $where): void
             continue;
         }
         $matched++;
-        $variable = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'))[0];
+        $variable = apiKeyWrapperEnvVariable($class);
         withApiKeyEnvValues([$variable => ''], function () use ($class, $variable): void {
-            expect(fn () => new $class('https://api.example.com'))
+            expect(fn () => newApiKeyWrapper($class, 'https://api.example.com'))
                 ->toThrow(\InvalidArgumentException::class, $variable);
         });
     }
@@ -424,10 +424,10 @@ test('bhv authapikey 021 an api key is read from the environment when none is pa
             continue;
         }
         $wrappers++;
-        $variable = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'))[0];
+        $variable = apiKeyWrapperEnvVariable($class);
         withApiKeyEnvValues([$variable => 'from-environment'], function () use ($class): void {
-            expect(apiKeysSentBy(new $class('https://api.example.com')))->toBe(['from-environment']);
-            expect(apiKeysSentBy(new $class('https://api.example.com', 'explicit')))->toBe(['explicit']);
+            expect(apiKeysSentBy(newApiKeyWrapper($class, 'https://api.example.com')))->toBe(['from-environment']);
+            expect(apiKeysSentBy(newApiKeyWrapper($class, 'https://api.example.com', 'explicit')))->toBe(['explicit']);
         });
     }
     expect($wrappers)->toBeGreaterThan(0);
@@ -461,7 +461,7 @@ test('bhv authapikey 025 generated api key scheme wrappers mask the key in their
             continue;
         }
         $wrappers++;
-        $auth = new $class('https://api.example.com', 'wrapper-key-3');
+        $auth = newApiKeyWrapper($class, 'https://api.example.com', 'wrapper-key-3');
 
         expect(print_r($auth, true))->toContain('***');
         expect(print_r($auth, true))->not->toContain('wrapper-key-3');
@@ -505,3 +505,26 @@ test('bhv auth 016 the printable form of an api key authenticator names its type
     expect($varDump)->not->toContain('key-secret-789');
     expect(print_r($auth, true))->toContain('ApiKeyAuthenticator');
 });
+
+/**
+ * Builds a generated api key wrapper by its class name. The wrappers take their arguments
+ * from the base constructor only, so the call is typed here instead of at each site.
+ */
+function newApiKeyWrapper(string $class, string ...$args): ApiKeyAuthenticator
+{
+    $wrapper = new $class(...$args);
+    \assert($wrapper instanceof ApiKeyAuthenticator);
+
+    return $wrapper;
+}
+
+/**
+ * The environment variable a generated api key wrapper reads its key from.
+ */
+function apiKeyWrapperEnvVariable(string $class): string
+{
+    $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+    \assert(is_array($constants));
+
+    return (string) array_values($constants)[0];
+}

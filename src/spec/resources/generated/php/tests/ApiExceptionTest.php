@@ -289,7 +289,9 @@ test('bhv errors 051 an empty error message falls back to the generic error line
 });
 
 test('bhv errors 053 each named error pins its own status code', function (string $class, int $status): void {
-    expect((new $class('x'))->getStatusCode())->toBe($status);
+    $error = new $class('x');
+    \assert($error instanceof \PetstoreClient\Errors\ApiException);
+    expect($error->getStatusCode())->toBe($status);
 })->with([
     [\PetstoreClient\Errors\BadRequestException::class, 400],
     [\PetstoreClient\Errors\UnauthorizedException::class, 401],
