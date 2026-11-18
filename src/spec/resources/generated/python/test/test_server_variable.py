@@ -52,7 +52,7 @@ class TestServerVariable:
 
         assert var.enum_values == ("prod", "staging")
 
-    def test_enum_values_are_an_immutable_tuple(self) -> None:
+    def test_bhv_servers_024_enum_values_are_an_immutable_tuple(self) -> None:
         var = ServerVariable(default_value="prod", enum_values=["prod", "staging"])
 
         assert isinstance(var.enum_values, tuple)

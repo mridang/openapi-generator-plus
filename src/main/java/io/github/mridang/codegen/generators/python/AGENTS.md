@@ -321,7 +321,7 @@ Where: `value_serializer.mustache`, `api/api.mustache`, `base_api.mustache`. Tes
 ### Not done in batch 7 (python)
 - F1080 (bounded, redacted ApiError rendering) changes the shared D14/D17 rendering of all twelve SDKs; it needs one cross-language decision first.
 - F1058, F1060, F1055 need the shared codegen (`AbstractBetterCodegen`); F1100 is an API-shape decision.
-- F1152 (compile the README and SKILLS fences) is a gate change, F1151 is already covered for multipart parts by `test_multipart_body_leaves_a_caller_supplied_handle_open`.
+- F1152 (compile the README and SKILLS fences) is a gate change, F1151 is already covered for multipart parts by `test_bhv_transport_061_multipart_body_leaves_a_caller_supplied_handle_open`.
 
 ### Earlier not-done list (kept for the record)
 - F1056 (header parameters named Accept, Content-Type, Authorization) needs the shared codegen filter.
