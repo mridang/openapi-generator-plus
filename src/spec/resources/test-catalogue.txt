@@ -2128,3 +2128,5 @@ langpython185 | Non matching value is rejected on decode.
 langpython186 | Non matching value is kept by the constructor.
 langpython187 | A payload nested past the depth limit is refused.
 langpython188 | A loopback http endpoint is accepted.
+langpython001 | Operation prose reaches the docstring verbatim.
+langpython002 | Path parameter doc carries the required label.
