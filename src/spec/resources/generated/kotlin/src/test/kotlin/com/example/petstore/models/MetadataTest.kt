@@ -103,8 +103,8 @@ class MetadataTest {
         otherDate.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "b"))
         assertNotEquals(first, otherDate)
 
-        assertNotEquals<Any?>(first, "metadata")
-        assertNotEquals<Any?>(first, null)
+        assertFalse(first.equals("metadata"))
+        assertFalse(first.equals(null))
     }
 
     @Test

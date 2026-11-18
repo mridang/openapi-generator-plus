@@ -65,9 +65,9 @@ class Tag
      * models, lists, maps and date-times are compared by value. A value of another class, or null,
      * is never equal.
      */
-    public function equals(?self $other): bool
+    public function equals(?object $other): bool
     {
-        return $other instanceof \PetstoreClient\Models\Tag
+        return $other !== null
             && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
