@@ -2210,10 +2210,10 @@ func TestBhvOperations024_PetApi_AddPetTreatmentSendsTheChosenVariantAsTheBody(t
 	}
 }
 
-// fakePetApi is a hand-written fake of the group interface. It embeds the
+// recordingPetApi is a hand-written fake of the group interface. It embeds the
 // interface so that only the operation under test is written, and it records
 // what the caller passed.
-type fakePetApi struct {
+type recordingPetApi struct {
 	petstore.PetApiInterface
 	calls  int
 	gotId  int64
@@ -2221,7 +2221,7 @@ type fakePetApi struct {
 	err    error
 }
 
-func (f *fakePetApi) GetPetById(ctx context.Context, petId int64, server petstore.GetPetByIdServer, callOptions ...petstore.RequestOption) (*models.Pet, error) {
+func (f *recordingPetApi) GetPetById(ctx context.Context, petId int64, server petstore.GetPetByIdServer, callOptions ...petstore.RequestOption) (*models.Pet, error) {
 	f.calls++
 	f.gotId = petId
 	f.gotSrv = server
@@ -2251,7 +2251,7 @@ func classifyLookupError(err error) string {
 
 func TestBhvMocking003_PetApi_FakeIsAcceptedWhereTheInterfaceIsAccepted(t *testing.T) {
 	t.Parallel()
-	fake := &fakePetApi{}
+	fake := &recordingPetApi{}
 
 	pet, err := lookupPet(fake, 42)
 
@@ -2266,7 +2266,7 @@ func TestBhvMocking003_PetApi_FakeIsAcceptedWhereTheInterfaceIsAccepted(t *testi
 func TestBhvMocking004_PetApi_FakeRaisesTheTypedErrorTheCallerHandles(t *testing.T) {
 	t.Parallel()
 	typed := &pkgerrors.NotFoundError{ClientError: pkgerrors.ClientError{ApiError: *pkgerrors.NewApiError(404, "not found", "", nil, nil, nil)}}
-	fake := &fakePetApi{err: typed}
+	fake := &recordingPetApi{err: typed}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
@@ -2310,7 +2310,7 @@ func TestBhvMocking005_PetApi_InterfaceCallSendsTheSameRequestAsTheClassCall(t *
 
 func TestBhvMocking006_PetApi_CallWithoutOptionsReachesTheFullSignatureWithNoneSet(t *testing.T) {
 	t.Parallel()
-	fake := &fakePetApi{}
+	fake := &recordingPetApi{}
 
 	_, err := lookupPet(fake, 7)
 
