@@ -182,3 +182,12 @@ func TestBhvErrors081_BasicAuthenticator_RefusalNamesTheFaultyField(t *testing.T
 	}
 }
 
+
+// The username of a Basic authenticator may not contain a colon (RFC 7617 section 2).
+func TestBhvAuth036_BasicAuthenticator_RefusesAUsernameWithAColon(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewBasicAuthenticator("https://api.example.com", "user:name", "secret")
+	if !errors.Is(err, auth.ErrBasicAuthUsernameColon) || a != nil {
+		t.Errorf("expected ErrBasicAuthUsernameColon and no authenticator, got %v %v", a, err)
+	}
+}

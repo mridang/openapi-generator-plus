@@ -1821,7 +1821,7 @@ func TestBhvOperations080_PetApi_AddPetPrefersTheFirstAcceptedSchemeInSpecOrder(
 }
 
 // F857: an operation declared without security sends no credential at all.
-func TestPetApi_AnOperationWithoutSecuritySendsNoCredential(t *testing.T) {
+func TestBhvAuth044_PetApi_AnOperationWithoutSecuritySendsNoCredential(t *testing.T) {
 	t.Parallel()
 	var gotAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

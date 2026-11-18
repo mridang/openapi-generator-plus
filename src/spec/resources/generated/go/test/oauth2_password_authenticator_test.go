@@ -610,3 +610,37 @@ func TestBhvAuthoauthtwopassword004_OAuth2PasswordAuthenticator_InvalidateAccess
 		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
 	}
 }
+
+// The password grant posts the declared scopes to tokenUrl, and the refresh grant goes to refreshUrl.
+func TestBhvAuth051_OAuth2PasswordAuthenticator_PostsScopesToTokenUrlAndRefreshesAtRefreshUrl(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := oauth.NewOAuth2PasswordAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://auth.example.com/token",
+		"testuser",
+		"testpass",
+		[]string{"read", "write"},
+		"https://auth.example.com/refresh",
+	)
+	authObj.SetApiClient(client)
+
+	authObj.AuthHeaders()
+	authObj.AuthHeaders()
+
+	if client.requestCount() != 2 {
+		t.Fatalf("expected 2 token requests, got %d", client.requestCount())
+	}
+	first := client.requests[0]
+	if first.url != "https://auth.example.com/token" || !strings.Contains(first.body, "grant_type=password") || !strings.Contains(first.body, "scope=read+write") {
+		t.Errorf("expected the password grant with the declared scopes at tokenUrl, got %q %q", first.url, first.body)
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/refresh" {
+		t.Errorf("expected the refresh grant at refreshUrl, got %q", got)
+	}
+}

@@ -2,6 +2,7 @@
 package {{packageName}}_test
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -874,5 +875,33 @@ func TestBhvAuth028_OAuth2AuthorizationCodeAuthenticator_FailedFirstExchangeReco
 	}
 	if _, err := authObj.AuthHeadersOrError(); err == nil {
 		t.Error("expected the client to still report the code as unexchanged")
+	}
+}
+
+// The authorization-code flow builds the authorize URL with the declared scopes and the exact fixed parameters.
+func TestBhvAuth048_OAuth2AuthorizationCodeAuthenticator_BuildsTheExactAuthorizeUrl(t *testing.T) {
+	t.Parallel()
+	a := createAuthCodeAuthenticator()
+
+	got := a.BuildAuthorizationURL("xyz")
+	prefix := "https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=xyz&code_challenge="
+	if !strings.HasPrefix(got, prefix) || !strings.HasSuffix(got, "&code_challenge_method=S256") {
+		t.Errorf("expected the exact authorize URL prefix %q, got %q", prefix, got)
+	}
+}
+
+// Before a code is exchanged the authenticator holds no token, so it refuses to produce auth headers.
+func TestBhvAuth052_OAuth2AuthorizationCodeAuthenticator_RefusesHeadersBeforeAnExchange(t *testing.T) {
+	t.Parallel()
+	a := createAuthCodeAuthenticator()
+
+	if _, err := a.AuthHeadersOrError(); err == nil {
+		t.Error("expected AuthHeadersOrError to refuse before an exchange")
+	}
+	if _, err := a.AuthHeadersOrErrorContext(context.Background()); err == nil {
+		t.Error("expected AuthHeadersOrErrorContext to refuse before an exchange")
+	}
+	if headers := a.AuthHeaders(); len(headers) != 0 {
+		t.Errorf("expected no headers before an exchange, got %v", headers)
 	}
 }
