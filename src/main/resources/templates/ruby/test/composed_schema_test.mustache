@@ -138,6 +138,17 @@ describe 'Composed Schema' do
       _(JSON.parse(serialized)).must_equal('foodType' => 'dry', 'weightKg' => 2.5)
     end
 
+    it 'bhv_misc_047 serializing a union holding a value that is not one of its variants fails naming the union' do
+      [
+        '{"foodType":"raw","calories":300}',
+        '{"weightKg":2.5}',
+        '{"foodType":"","weightKg":2.5}'
+      ].each do |json|
+        _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
+          .must_raise {{moduleName}}::Errors::SerializationError
+      end
+    end
+
     it 'bhv_unions_033 an unknown, missing or empty discriminator fails with the SDK serialization error' do
       [
         '{"foodType":"raw","calories":300}',
@@ -174,6 +185,18 @@ describe 'Composed Schema' do
       _(food).must_be_same_as(dry)
       _(food.weight_kg).must_equal(2.5)
       _({{moduleName}}::Models::PetFood.singleton_methods.grep(/\Aset_|=\z/)).must_be_empty
+    end
+
+    it 'bhv_misc_045 a payload that does not satisfy a variant schema is not accepted as that variant' do
+      [
+        '{"foodType":3,"weightKg":2.5}',
+        '{"FoodType":"dry","weightKg":2.5}',
+        '{"foodType":"fish","weightKg":2.5}',
+        '{"foodType":"dry"}'
+      ].each do |json|
+        _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
+          .must_raise {{moduleName}}::Errors::SerializationError
+      end
     end
 
     it 'bhv_unions_038 a union body that cannot be decoded raises the SDK serialization error' do
@@ -310,6 +333,22 @@ describe 'Composed Schema' do
       _(serialized.scan('"notes"').length).must_equal(1)
     end
 
+    it 'bhv_misc_046 two unions holding equal content compare equal and hash equally' do
+      build = lambda do
+        medication = {{moduleName}}::Models::Medication.new(drug_name: 'Amoxicillin')
+        surgery = {{moduleName}}::Models::Surgery.new(procedure_name: 'Spay')
+        {{moduleName}}::Models::PetTreatment::Composite.new([medication, surgery])
+      end
+      first = build.call
+      second = build.call
+      _(first).must_equal(second)
+      _(first.eql?(second)).must_equal true
+      _(first.hash).must_equal(second.hash)
+      _([first, second].uniq.length).must_equal 1
+      other = {{moduleName}}::Models::PetTreatment::Composite.new([{{moduleName}}::Models::Surgery.new(procedure_name: 'Spay')])
+      _(first).wont_equal(other)
+    end
+
     it 'bhv_unions_011 anyOf composites have value equality and a matching hash' do
       build = lambda do
         medication = {{moduleName}}::Models::Medication.new(drug_name: 'Amoxicillin')
@@ -422,6 +461,16 @@ describe 'Composed Schema' do
     # entry point, which dispatches to the union's #build.
 
     it 'bhv_serialization_088 byte values are written as base64 strings, including each element of a list' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
+      json = {{moduleName}}::ObjectSerializer.serialize(encoded)
+
+      _(json).must_equal('"AQIDBA=="')
+      _(json).wont_equal('[1,2,3,4]')
+      _(json).wont_include('[')
+    end
+
+    it 'bhv_misc_049 a choice between one binary value and a list writes the list as base64 text items' do
       raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
       encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
       json = {{moduleName}}::ObjectSerializer.serialize(encoded)

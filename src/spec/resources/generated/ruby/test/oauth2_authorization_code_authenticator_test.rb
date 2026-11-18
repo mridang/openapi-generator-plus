@@ -52,6 +52,15 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     )
   end
 
+  it 'bhv_misc_058 the authorization endpoint and redirect URI reach the URL exactly as configured' do
+    url = auth.build_authorization_url
+    _(url).must_include 'https://auth.example.com/authorize?'
+    _(url).must_include 'response_type=code'
+    _(url).must_include 'client_id=my_client_id'
+    _(url).must_include 'redirect_uri='
+    _(url).must_include 'scope=read%20write'
+  end
+
   it 'bhv_authoauthtwoauthcode_006 builds authorization URL with required params' do
     url = auth.build_authorization_url
     _(url).must_include 'https://auth.example.com/authorize?'

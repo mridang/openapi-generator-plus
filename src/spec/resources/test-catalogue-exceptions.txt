@@ -333,3 +333,4 @@ ruby | transport085 | The SDK has no cancellation API of its own (readme and ski
 ruby | operations159 | the generated Ruby client returns nil for a value-returning call with an empty success body instead of raising a typed ApiError; the cross-language contract is not settled yet
 ruby | misc029 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a caller's cancellation is never seen or surfaced by the SDK
 ruby | misc035 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can carry an already-aborted signal
+ruby | misc061 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no caller cancellation or context value reaches an authenticator

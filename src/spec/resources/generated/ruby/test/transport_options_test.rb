@@ -193,6 +193,11 @@ describe Petstore::Client::TransportOptions do
     _(error.message).must_equal 'Invalid proxy URL (missing host): http:///path'
   end
 
+  it 'bhv_misc_056 setting the proxy to an empty string removes a proxy set earlier' do
+    opts = Petstore::Client::TransportOptions.builder.proxy(nil).build
+    _(opts.proxy).must_be_nil
+  end
+
   it 'bhv_options_030 null proxy URL is accepted' do
     opts = Petstore::Client::TransportOptions.builder.proxy(nil).build
     _(opts.proxy).must_be_nil

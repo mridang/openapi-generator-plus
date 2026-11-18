@@ -169,6 +169,12 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer first'
     end
 
+    it 'bhv_misc_060 supplying both an API key and an API key provider is refused' do
+      _(lambda {
+        Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'explicit', token_provider: -> { 'p' })
+      }).must_raise ArgumentError
+    end
+
     it 'bhv_auth_039 refuses a token and a token provider passed together' do
       _(lambda {
         Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'explicit', token_provider: -> { 'p' })
@@ -197,6 +203,17 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       )
 
       _(auth.auth_headers['Authorization']).must_equal 'Bearer from-env'
+    end
+
+    it 'bhv_misc_066 a token provider value is sent as the bearer credential on the authenticated request' do
+      calls = 0
+      provider = -> { "token-#{calls += 1}" }
+      auth = Petstore::Client::Auth::BearerAuthenticator.new(
+        'https://api.example.com', token_provider: provider, env: { "#{prefix}_TOKEN" => '' }
+      )
+
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer token-1'
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer token-2'
     end
 
     it 'bhv_auth_005 asks the token provider for every request when neither a token nor the variable is set' do

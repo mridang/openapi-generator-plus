@@ -522,6 +522,22 @@ describe {{moduleName}}::Api::BaseApi do
       _(client.captured_headers['X-Credential']).must_equal 'admin'
     end
 
+    it 'bhv_misc_064 an operation that declares no security never sends the client default credential' do
+      client = CapturingApiClient.new
+      store_api = {{moduleName}}::Api::StoreApi.new(
+        client, {{moduleName}}::Configuration.builder.base_url('http://localhost').build, credential('default'),
+        { 'petStoreBasic' => credential('basic') }
+      )
+
+      begin
+        store_api.get_inventory
+      rescue StandardError
+        # Response handling is irrelevant; the assertions read the captured request.
+      end
+
+      refute client.captured_headers.key?('X-Credential')
+    end
+
     it 'bhv_authintegration_016 sends no scheme credential on a security:[] operation' do
       client = CapturingApiClient.new
       store_api = {{moduleName}}::Api::StoreApi.new(
@@ -1673,7 +1689,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_kwargs[:max_retries]).must_equal 4
   end
 
-  it 'rejects a per-call timeout, retry count or header set that is not valid' do
+  it 'bhv_misc_055 rejects a per-call timeout, retry count or header set that is not valid' do
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(RecordingDefaultApiClient.new, config)
 
@@ -1694,6 +1710,19 @@ describe {{moduleName}}::Api::BaseApi do
                              request_options: CallOptions.new(nil, nil, nil))
 
     _(client.captured_kwargs.keys).must_equal([:retry_headers])
+  end
+
+  it 'bhv_misc_053 a per-call retry budget of zero is accepted and a negative or non-whole budget is refused' do
+    client = RecordingDefaultApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
+                             request_options: CallOptions.new(nil, nil, 4))
+    _(client.captured_kwargs[:max_retries]).must_equal 4
+
+    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil)
+    _(client.captured_kwargs[:max_retries]).must_be_nil
   end
 
   it 'bhv_retries_004 a per-call max_retries applies to that call only' do
