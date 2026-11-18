@@ -359,6 +359,34 @@ async fn test_bhv_authoidc_016_malformed_discovery_document_raises_serialization
     );
 }
 
+/// A transport failure during the authorization code exchange reaches the caller
+/// as the same `NetworkError`, with its message intact.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_028_a_transport_failure_during_the_code_exchange_is_returned_unchanged() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+    client.enqueue_error(Box::new(
+        NetworkError::try_from(ApiError::new(0, "connection reset".to_string(), None, None))
+            .expect("status 0"),
+    ));
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+    let err = auth
+        .exchange_code("oidc-code")
+        .await
+        .expect_err("a failed exchange must fail");
+    let network = err
+        .downcast_ref::<NetworkError>()
+        .unwrap_or_else(|| panic!("expected NetworkError, got: {}", err));
+    assert_eq!(network.api_error().message(), "connection reset");
+}
+
 /// A discovery transport failure passes through as the `NetworkError` or
 /// `NetworkTimeoutError` it already is.
 #[tokio::test(flavor = "multi_thread")]
@@ -1169,4 +1197,62 @@ async fn test_bhv_auth_029_after_the_cached_discovery_expires_later_calls_use_th
         "{}",
         second
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_070_a_discovery_document_that_is_not_an_object_keeps_no_cause_and_hides_its_body(
+) {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"["leaked-body"]"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a discovery document that is not an object must fail");
+
+    assert!(
+        err.downcast_ref::<SerializationError>().is_some(),
+        "{}",
+        err
+    );
+    assert!(
+        err.to_string()
+            .contains("OIDC discovery document is not a JSON object"),
+        "{}",
+        err
+    );
+    assert!(err.source().is_none());
+    assert!(!err.to_string().contains("leaked-body"), "{}", err);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_no_nonce() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let url = auth
+        .build_authorization_url("")
+        .await
+        .expect("should succeed");
+
+    let query = url.split_once('?').expect("a query string").1;
+    let pairs: Vec<&str> = query.split('&').collect();
+    assert!(pairs.contains(&"code_challenge_method=S256"), "{}", url);
+    let challenge = pairs
+        .iter()
+        .find_map(|p| p.strip_prefix("code_challenge="))
+        .expect("a code_challenge");
+    assert_eq!(43, challenge.len(), "{}", challenge);
+    assert!(
+        challenge
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+        "{}",
+        challenge
+    );
+    assert!(!pairs.iter().any(|p| p.starts_with("nonce=")), "{}", url);
 }

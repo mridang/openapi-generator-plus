@@ -25,6 +25,18 @@ class TestApiKeyAuthenticator:
         )
         assert auth.get_auth_headers() == {"X-API-Key": "abc123"}
 
+    def test_bhv_misc_057_a_header_key_is_never_sent_as_a_query_or_cookie_value(
+        self,
+    ) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="X-API-Key",
+            api_key="abc123",
+            location=ApiKeyLocation.HEADER,
+        )
+        assert auth.get_query_params() == {}
+        assert auth.get_cookie_params() == {}
+
     def test_bhv_auth_032_session_cookie_is_sent_as_session_id(self) -> None:
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",

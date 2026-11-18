@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
+import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator;
 import com.example.petstore.errors.ApiException;
@@ -736,5 +737,59 @@ class ClientTest {
       supplied.close();
       server.stop(0);
     }
+  }
+
+  @Test
+  void bhvMisc071ACredentialThatNeedsHttpReceivesTheClientsTransport() throws Exception {
+    // The credential has no transport of its own: the token request it sends must go
+    // through the transport the client was built with, which reaches this server.
+    HttpServer tokenServer = HttpServer.create(new InetSocketAddress(0), 0);
+    tokenServer.createContext(
+        "/token",
+        exchange -> {
+          byte[] body =
+              "{\"access_token\":\"from-transport\",\"expires_in\":3600}"
+                  .getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    tokenServer.start();
+    try {
+      String tokenUrl = "http://127.0.0.1:" + tokenServer.getAddress().getPort() + "/token";
+      OAuth2ClientCredentialsAuthenticator credential =
+          new OAuth2ClientCredentialsAuthenticator(
+              "/api/v3", "client-id", "client-secret", tokenUrl, List.of());
+      try (Client client = new Client(credential, TransportOptions.builder().build())) {
+        assertNotNull(client);
+        assertEquals("Bearer from-transport", credential.getAuthHeaders().get("Authorization"));
+      }
+    } finally {
+      tokenServer.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+    java.util.stream.Stream.of(
+            com.example.petstore.auth.PetStoreBasicAuthenticator.class,
+            com.example.petstore.auth.AdminBasicAuthenticator.class,
+            com.example.petstore.auth.PetStoreBearerAuthenticator.class,
+            com.example.petstore.auth.ServiceTokenAuthenticator.class,
+            com.example.petstore.auth.ApiKeyHeaderAuthenticator.class,
+            com.example.petstore.auth.InternalApiKeyAuthenticator.class,
+            com.example.petstore.auth.ApiKeyQueryAuthenticator.class,
+            com.example.petstore.auth.SessionCookieAuthenticator.class,
+            com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator.class,
+            com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator.class,
+            com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator.class,
+            com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator.class,
+            com.example.petstore.auth.oauth.SsoAuthAuthenticator.class,
+            Authenticator.class)
+        .forEach(
+            wrapper ->
+                assertTrue(Authenticator.class.isAssignableFrom(wrapper), wrapper.getName()));
   }
 }

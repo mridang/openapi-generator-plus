@@ -520,6 +520,141 @@ defmodule PetstoreClient.ClientTest do
     assert Agent.get(authenticator.token_manager, & &1.api_client) == client.api_client
   end
 
+  test "bhv misc 064 an operation that declares no security never sends the client's default credential" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:authorization, Req.Request.get_header(request, "authorization")})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "default-token")
+    client = PetstoreClient.Client.new(authenticator, transport)
+
+    state = %{
+      api_client: client.api_client,
+      authenticator: client.authenticator,
+      scheme_authenticators: client.schemes,
+      config: PetstoreClient.Configuration.new(base_url: "http://closing.invalid")
+    }
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               state,
+               :get,
+               "/slow",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil,
+               PetstoreClient.Api.BaseApi.no_auth()
+             )
+
+    assert_received {:authorization, []}
+  end
+
+  test "bhv misc 066 a token provider's value is sent as the bearer on the authenticated request" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:authorization, Req.Request.get_header(request, "authorization")})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", fn -> "provider-token" end)
+
+    client = PetstoreClient.Client.new(authenticator, transport)
+
+    state = %{
+      api_client: client.api_client,
+      authenticator: client.authenticator,
+      scheme_authenticators: client.schemes,
+      config: PetstoreClient.Configuration.new(base_url: "http://closing.invalid")
+    }
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               state,
+               :get,
+               "/slow",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil,
+               PetstoreClient.Api.BaseApi.scheme_auth(state, [])
+             )
+
+    assert_received {:authorization, ["Bearer provider-token"]}
+  end
+
+  test "bhv misc 067 a token provider that raises fails the request with that same error" do
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", fn ->
+        raise RuntimeError, "vault unavailable"
+      end)
+
+    assert_raise RuntimeError, "vault unavailable", fn ->
+      PetstoreClient.Auth.BearerAuthenticator.auth_headers(authenticator)
+    end
+  end
+
+  test "bhv misc 065 scheme credentials are copied when the client is built" do
+    credential = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "first-token")
+
+    client =
+      PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+
+    credential = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "second-token")
+
+    assert PetstoreClient.Auth.BearerAuthenticator.auth_headers(client.schemes["petStoreBasic"])[
+             "Authorization"
+           ] == "Bearer first-token"
+
+    assert credential != client.schemes["petStoreBasic"]
+  end
+
+  test "bhv misc 071 a client-level credential that sends HTTP requests is given the client's transport" do
+    authenticator =
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "/api/v3",
+        "id",
+        "secret",
+        "https://auth.example.com/token",
+        []
+      )
+
+    client = PetstoreClient.Client.new(authenticator)
+
+    assert Agent.get(authenticator.token_manager, & &1.api_client) == client.api_client
+  end
+
+  test "bhv misc 072 each API group holds the default credential and the scheme credentials the client was built with" do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "default-token")
+    credential = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "scheme-token")
+
+    client =
+      PetstoreClient.Client.new(authenticator, nil, pet_store_basic: credential)
+
+    assert client.pet.authenticator == authenticator
+    assert client.pet.scheme_authenticators == client.schemes
+  end
+
+  test "bhv misc 075 a credential keyed to a scheme the API does not declare is refused when the client is built" do
+    credential = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "scheme-token")
+
+    assert_raise ArgumentError, ~r/unknown keys \[:undeclared_scheme\]/, fn ->
+      PetstoreClient.Client.new(credential, nil, undeclared_scheme: credential)
+    end
+  end
+
   test "bhv mocking 001 every group has a behaviour the module implements" do
     pet_behaviours =
       PetstoreClient.Api.PetApi.module_info(:attributes)

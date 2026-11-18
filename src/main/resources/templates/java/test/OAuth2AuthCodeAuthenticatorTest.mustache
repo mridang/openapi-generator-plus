@@ -131,6 +131,25 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
+    void bhvMisc058TheAuthorizationEndpointAndRedirectUriReachTheUrlExactly() {
+        String url = createAuthenticator().buildAuthorizationUrl(null);
+
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"), url);
+        assertTrue(
+                url.matches(".*[?&]redirect_uri=https%3A%2F%2Fapp\\.example\\.com%2Fcallback(&.*)?"),
+                url);
+    }
+
+    @Test
+    void bhvMisc062TheAuthorizationUrlCarriesTheSchemeDeclaredScopes() {
+        UserAuthAuthorizationCodeAuthenticator auth = new UserAuthAuthorizationCodeAuthenticator(
+                "https://api.example.com", "my-client-id", "my-client-secret",
+                "https://app.example.com/callback");
+
+        assertTrue(auth.buildAuthorizationUrl(null).contains("scope=pets%3Aread%20pets%3Awrite"));
+    }
+
+    @Test
     void bhvAuthOauthTwoAuthCode020SchemeWrapperSendsTheSpecScopesAndUrls() {
         List<String> urls = new java.util.ArrayList<>();
         ApiClient client = (method, url, headers, body) -> {
@@ -762,5 +781,35 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         String refresh = bodies.get(bodies.size() - 1);
         assertTrue(refresh.contains("grant_type=refresh_token"), refresh);
         assertFalse(refresh.contains("refresh_token=r1"), refresh);
+    }
+
+    @Test
+    void bhvMisc028ATransportFailureDuringTheCodeExchangeReachesTheCallerUnchanged() {
+        RuntimeException cause = new IllegalStateException("connection reset");
+        OAuth2AuthorizationCodeAuthenticator auth = new OAuth2AuthorizationCodeAuthenticator(
+                "https://api.example.com",
+                "my-client-id",
+                "my-client-secret",
+                "https://auth.example.com/authorize",
+                "https://auth.example.com/token",
+                "https://app.example.com/callback",
+                List.of("read"),
+                "https://auth.example.com/oauth/refresh");
+        auth.setApiClient((method, url, headers, body) -> {
+            throw cause;
+        });
+        RuntimeException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, () -> auth.exchangeCode("the-code"));
+        org.junit.jupiter.api.Assertions.assertSame(cause, thrown);
+    }
+
+    @Test
+    void bhvMisc077AGeneratedPkceVerifierIsFortyThreeCharactersAndDiffersPerCall() {
+        String first = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
+        String second = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
+
+        assertEquals(43, first.length());
+        assertTrue(first.matches("[A-Za-z0-9_-]{43}"), first);
+        assertNotEquals(first, second);
     }
 }

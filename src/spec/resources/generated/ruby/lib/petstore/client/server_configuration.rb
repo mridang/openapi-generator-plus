@@ -39,7 +39,7 @@ module Petstore::Client
     def initialize(url_template:, description: nil, variables: {})
       @url_template = url_template
       @description = description
-      @variables = variables.freeze
+      @variables = variables.dup.freeze
       freeze
     end
 

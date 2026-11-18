@@ -2241,4 +2241,133 @@ class PetApiTest {
         new com.example.petstore.api.options.GetPetSummaryOptions("abc"));
     assertThat(String.valueOf(recording.capturedUrl)).contains("/pet/7/summary/;asOf=2024-01-15");
   }
+
+  @Test
+  void bhvAuth046InheritedSecurityReceivesTheClientAuthenticator() throws Exception {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}", Map.of());
+        };
+    PetStoreBearerAuthenticator bearer =
+        new PetStoreBearerAuthenticator("http://localhost", "client-token");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build(), bearer);
+
+    petApi.getPetById(7L);
+
+    assertThat(sent.get("Authorization")).isEqualTo(bearer.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvMisc003AnAllOptionalOperationSendsNoOmittedParameter() {
+    UrlRecording recording = new UrlRecording("[]");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.findPetsByStatus();
+    assertThat(String.valueOf(recording.capturedUrl)).doesNotContain("?");
+  }
+
+  @Test
+  void bhvMisc004AMissingRequiredOptionsFieldIsNamedInTheArgumentError() {
+    ApiClient unused = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+    PetApi petApi = new PetApi(unused, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(
+            () ->
+                petApi.getPetSummary(
+                    7L,
+                    LocalDate.of(2024, 1, 15),
+                    new com.example.petstore.api.options.GetPetSummaryOptions("")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("session");
+  }
+
+  @Test
+  void bhvMisc005ABareNullListBodyIsAnApiError() {
+    ApiClient nullBody = (method, url, headers, body) -> new ApiHttpResponse(200, "null", Map.of());
+    PetApi petApi =
+        new PetApi(nullBody, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.findPetsByStatus())
+        .isInstanceOf(com.example.petstore.errors.ApiException.class);
+  }
+
+  @Test
+  void bhvMisc006ABareNullResponseGivesNoDataAndKeepsTheRawBody() {
+    ApiClient nullBody = (method, url, headers, body) -> new ApiHttpResponse(200, "null", Map.of());
+    PetApi petApi =
+        new PetApi(nullBody, Configuration.builder().baseUrl("http://localhost").build());
+    var result = petApi.getPetByIdWithHttpInfo(7L);
+    assertThat(result.data()).isNull();
+    assertThat(result.rawBody()).isEqualTo("null");
+  }
+
+  @Test
+  void bhvMisc007AMissingPathParameterIsNamedAndNothingIsSent() {
+    int[] sends = new int[1];
+    ApiClient counting =
+        (method, url, headers, body) -> {
+          sends[0]++;
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(counting, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.getPetSummary(7L, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("asOf");
+    assertThat(sends[0]).isZero();
+  }
+
+  @Test
+  void bhvMisc008ARequiredCookieParameterIsSentInTheCookieHeader() {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "\"ok\"", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getPetSummary(
+        7L,
+        LocalDate.of(2024, 1, 15),
+        new com.example.petstore.api.options.GetPetSummaryOptions("abc123"));
+    assertThat(sent.get("Cookie")).contains("session=abc123");
+  }
+
+  @Test
+  void bhvMisc009ACallWithoutOptionsSendsNoPerCallHeaders() {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getPetById(7L);
+    assertThat(sent).doesNotContainKey("X-Per-Call");
+  }
+
+  @Test
+  void bhvMisc010AnOptionsObjectWithRequiredFieldsIsRefusedWhenOmitted() {
+    ApiClient unused = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+    PetApi petApi = new PetApi(unused, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.getPetSummary(7L, LocalDate.of(2024, 1, 15), null))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void bhvErrors091StatusErrorNamesTheMethodAndTheSubstitutedPath() {
+    ApiClient failing = (method, url, headers, body) -> new ApiHttpResponse(500, "", Map.of());
+    PetApi petApi =
+        new PetApi(failing, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.getPetById(7L))
+        .isInstanceOfSatisfying(
+            com.example.petstore.errors.ApiException.class,
+            err -> {
+              assertThat(err.getRequestMethod()).isEqualTo("GET");
+              assertThat(err.getRequestPath()).isEqualTo("/pet/7");
+            });
+  }
 }

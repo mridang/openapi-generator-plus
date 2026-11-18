@@ -112,7 +112,8 @@ module Petstore::Client
       # when one is declared.
       additional_properties_default = {} # : Hash[String, untyped]
       attribute :additional_properties,
-                Types::Hash.optional.meta(omittable: true).default(additional_properties_default.freeze)
+                Types::Hash.optional.constructor { |value| value&.dup&.freeze }.meta(omittable: true)
+                .default(additional_properties_default.freeze)
       attribute :label, Types::Any.optional.meta(omittable: true)
     end
   end

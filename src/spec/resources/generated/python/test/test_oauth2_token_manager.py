@@ -1430,6 +1430,37 @@ class TestTokenWithoutExpiresIn:
         assert (first, second) == ("forever", "forever")
         assert client.send_request.call_count == 1
 
+    @pytest.mark.parametrize("lifetime", ["NaN", "Infinity", "-Infinity", "1e999"])
+    def test_bhv_misc_059_a_token_whose_lifetime_is_not_finite_is_not_cached(
+        self, lifetime: str
+    ) -> None:
+        manager, _ = _manager_replying(
+            ApiHttpResponse(
+                status_code=200,
+                body='{"access_token": "first", "expires_in": ' + lifetime + "}",
+                headers={"content-type": "application/json"},
+            ),
+            _token_reply(access_token="second", expires_in=3600),
+        )
+
+        assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "first"
+        assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "second"
+
+    @pytest.mark.parametrize(
+        "body", ['{"access_token": 42}', '{"access_token": ["x"]}']
+    )
+    def test_bhv_misc_069_a_non_string_access_token_is_refused_naming_the_field(
+        self, body: str
+    ) -> None:
+        manager, _ = _manager_replying(
+            ApiHttpResponse(
+                status_code=200, body=body, headers={"content-type": "application/json"}
+            ),
+        )
+
+        with pytest.raises(OAuth2TokenException, match="access_token"):
+            manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
 
 class TestNonStringRefreshToken:
     @pytest.mark.parametrize("value", [12345, True, ["r"], {"a": 1}])

@@ -61,6 +61,12 @@ class TestStoreApi:
 
         assert isinstance(result, dict)
 
+    async def test_bhv_misc_013_a_no_parameter_operation_returns_its_result(
+        self,
+    ) -> None:
+        api, _ = _create_mock_server(200, "application/json", '{"available":3}')
+        assert await api.get_inventory() == {"available": 3}
+
     async def test_bhv_operations_117_place_order(self) -> None:
         order = Order(
             id=1,
@@ -543,6 +549,20 @@ class TestStoreApiFixtureOperations:
         assert all(isinstance(number, int) for row in result for number in row)
 
     async def test_bhv_operations_120_reserve_stock_decodes_a_201_body_as_the_new_receipt(
+        self,
+    ) -> None:
+        api, _ = _create_mock_server(
+            201,
+            "application/json",
+            '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+        )
+
+        result = await api.reserve_stock()
+
+        assert isinstance(result.actual_instance, ReservationReceipt)
+        assert result.actual_instance.receipt_code == "R-1"
+
+    async def test_bhv_misc_114_a_success_response_is_decoded_for_the_status_actually_received(
         self,
     ) -> None:
         api, _ = _create_mock_server(

@@ -14,7 +14,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"math"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -3759,5 +3761,331 @@ func TestBhvHooks021_BaseApi_TheUrlGivenToTheHookNeverCarriesTheQueryStringOrThe
 	}
 	if got := hook.infos[0].URL; got != "https://api.example.com/base/pet/findByStatus" || strings.ContainsAny(got, "?#") {
 		t.Errorf("expected the url without query string and fragment, got %q", got)
+	}
+}
+
+func TestBhvMisc159_BaseApi_A401IsReplayedOnceWithRetriesTurnedOff(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 0)
+	client := replayClient(t, srv)
+
+	if _, err := client.Pet.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("expected the replayed request to succeed, got %v", err)
+	}
+	if got := srv.apiHits.Load(); got != 2 {
+		t.Errorf("expected the request sent twice, got %d", got)
+	}
+}
+
+func TestBhvMisc160_BaseApi_ANonNetworkErrorIsNeverRetried(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 400, retryAfter: "0"})
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(3) }, nil)
+
+	if err := addPetCall(api); err == nil {
+		t.Error("expected an error")
+	}
+	if got := srv.hits.Load(); got != 1 {
+		t.Errorf("expected one request, got %d", got)
+	}
+}
+
+// newDroppingServer answers no request: it closes each connection as it arrives
+// and counts the connections in hits.
+func newDroppingServer(t *testing.T) *scriptedServer {
+	t.Helper()
+	srv := &scriptedServer{}
+	srv.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv.hits.Add(1)
+		if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
+			_ = conn.Close()
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestBhvMisc161_BaseApi_ANonIdempotentRequestIsSentExactlyOnceWhenTheConnectionDrops(t *testing.T) {
+	t.Parallel()
+	srv := newDroppingServer(t)
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(2) }, nil)
+
+	if err := addPetCall(api); err == nil {
+		t.Error("expected an error")
+	}
+	if got := srv.hits.Load(); got != 1 {
+		t.Errorf("expected one request, got %d", got)
+	}
+}
+
+func TestBhvMisc162_BaseApi_AnIdempotentRequestIsSentAgainExactlyOnceWhenTheConnectionDrops(t *testing.T) {
+	t.Parallel()
+	srv := newDroppingServer(t)
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(1) }, nil)
+
+	if _, err := api.GetPetById(context.Background(), int64(1), nil); err == nil {
+		t.Error("expected an error")
+	}
+	if got := srv.hits.Load(); got != 2 {
+		t.Errorf("expected the request sent twice, got %d", got)
+	}
+}
+
+func TestBhvMisc163_BaseApi_AOneShotStreamIsNotReplayedOnRetry(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503}, scriptedReply{status: 200})
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(2) }, nil)
+
+	_, _ = api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: strings.NewReader("document-bytes")})
+	if got := srv.hits.Load(); got != 1 {
+		t.Errorf("expected the stream sent once, got %d", got)
+	}
+}
+
+func TestBhvMisc164_BaseApi_ARetryWhoseWaitFitsTheTimeoutBudgetIsSent(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: "0"}, scriptedReply{status: 200})
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { ms := 5000; b.Timeout(&ms) }, nil)
+
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if got := srv.hits.Load(); got != 2 {
+		t.Errorf("expected 2 requests, got %d", got)
+	}
+}
+
+func TestBhvMisc165_BaseApi_ARequestBodyIsReplayedAcrossAPlainHttpRedirect(t *testing.T) {
+	t.Parallel()
+	var received atomic.Value
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		received.Store(string(body))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	t.Cleanup(target.Close)
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+r.URL.Path, http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(origin.Close)
+	api := retryApi(t, &scriptedServer{Server: origin}, func(b *petstore.TransportOptionsBuilder) { b.FollowRedirects(true) }, nil)
+
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("expected the redirected request to succeed, got %v", err)
+	}
+	if body, _ := received.Load().(string); !strings.Contains(body, `"name"`) {
+		t.Errorf("expected the body replayed to the target, got %q", body)
+	}
+}
+
+func TestBhvMisc166_BaseApi_ACallThatDisablesItsDeadlineIsNotCutShortWhileWaitingToRetry(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: "1"}, scriptedReply{status: 200})
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.Timeout(nil) }, nil)
+
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if got := srv.hits.Load(); got != 2 {
+		t.Errorf("expected 2 requests, got %d", got)
+	}
+}
+
+func TestBhvMisc167_BaseApi_ARetryableStatusIsAttemptedUpToTheLimitThenRaised(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503})
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(2) }, nil)
+
+	var unavailable *apierrors.ServiceUnavailableError
+	if err := addPetCall(api); !errors.As(err, &unavailable) {
+		t.Fatalf("expected *ServiceUnavailableError, got %T: %v", err, err)
+	}
+	if got := srv.hits.Load(); got != 3 {
+		t.Errorf("expected 3 requests, got %d", got)
+	}
+}
+
+func TestBhvMisc168_BaseApi_WithNoRetrySettingAFailingRequestIsSentThreeTimesWithTheDefaultPauses(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 500})
+	api := retryApi(t, srv, nil, nil)
+
+	started := time.Now()
+	_ = addPetCall(api)
+	if elapsed := time.Since(started); elapsed < 1100*time.Millisecond {
+		t.Errorf("expected the pauses to total about 1.5 s, waited %v", elapsed)
+	}
+	if got := srv.hits.Load(); got != 3 {
+		t.Errorf("expected 3 requests, got %d", got)
+	}
+}
+
+func TestBhvMisc170_BaseApi_ATlsFailureIsANetworkErrorAndIsNeverRetried(t *testing.T) {
+	t.Parallel()
+	var connections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connections.Add(1)
+		}
+	}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(2) }, nil)
+
+	var networkErr *apierrors.NetworkError
+	if err := addPetCall(api); !errors.As(err, &networkErr) {
+		t.Fatalf("expected a *NetworkError, got %T: %v", err, err)
+	}
+	if got := connections.Load(); got != 1 {
+		t.Errorf("expected one connection attempt, got %d", got)
+	}
+}
+
+func TestBhvMisc171_BaseApi_APerCallMaxRetriesAboveTheTransportLimitAllowsMoreAttempts(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 500})
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(1) }, nil)
+
+	_, _ = api.GetPetById(context.Background(), int64(1), nil, petstore.WithMaxRetries(3))
+	if got := srv.hits.Load(); got != 4 {
+		t.Errorf("expected 4 requests, got %d", got)
+	}
+}
+
+func TestBhvMisc172_BaseApi_ATokenRequestIsSentOnceEvenWhenTheServerAnswers503(t *testing.T) {
+	t.Parallel()
+	var tokenHits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			tokenHits.Add(1)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	authObj := oauth.NewOAuth2ClientCredentialsAuthenticator(server.URL, "id", "secret", server.URL+"/token", nil)
+	transport, err := petstore.NewTransportOptionsBuilder().MaxRetries(2).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := petstore.NewClient(authObj, transport)
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := tokenHits.Load(); got != 1 {
+		t.Errorf("expected one token request, got %d", got)
+	}
+}
+
+func TestBhvMisc173_BaseApi_AStreamedBodyIsRefusedAcrossAnHttpsToHttpRedirect(t *testing.T) {
+	t.Parallel()
+	var targetHits atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetHits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(target.Close)
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+r.URL.Path, http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(origin.Close)
+	api := retryApi(t, &scriptedServer{Server: origin}, func(b *petstore.TransportOptionsBuilder) { b.FollowRedirects(true).VerifySsl(false) }, nil)
+
+	if _, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: strings.NewReader("document-bytes")}); err == nil {
+		t.Error("expected the redirect to be refused")
+	}
+	if got := targetHits.Load(); got != 0 {
+		t.Errorf("expected the target never reached, got %d requests", got)
+	}
+}
+
+func TestBhvMisc177_BaseApi_ADefaultContentTypeInAnyCaseIsNotSentWithoutABody(t *testing.T) {
+	t.Parallel()
+	var contentType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentType = r.Header.Get("Content-Type")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	transport, err := petstore.NewTransportOptionsBuilder().DefaultHeaders(map[string]string{"content-type": "application/json"}).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(transport), config, nil, petstore.Credentials{})
+
+	if _, err := api.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if contentType != "" {
+		t.Errorf("expected no Content-Type without a body, got %q", contentType)
+	}
+}
+
+// The headers of a received response are copied onto the error raised for that response.
+func TestBhvMisc281_BaseApi_TheResponseHeadersAreCopiedOntoTheRaisedError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Trace", "trace-281")
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	api := retryApi(t, &scriptedServer{Server: server}, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+
+	err := addPetCall(api)
+	headered, ok := err.(interface{ ResponseHeaders() map[string]string })
+	if !ok {
+		t.Fatalf("expected the error to carry the response headers, got %T", err)
+	}
+	if got := headered.ResponseHeaders()["x-trace"]; got != "trace-281" {
+		t.Errorf("expected the copied X-Trace header, got %q", got)
+	}
+}
+
+// A network failure after the connection drops keeps the transport error as its cause.
+func TestBhvMisc282_BaseApi_ANetworkFailureKeepsTheTransportErrorAsItsCause(t *testing.T) {
+	t.Parallel()
+	srv := newDroppingServer(t)
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+
+	var netErr *apierrors.NetworkError
+	err := addPetCall(api)
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected a *NetworkError, got %T: %v", err, err)
+	}
+	if netErr.Cause() == nil {
+		t.Error("expected the transport error to be kept as the cause")
+	}
+}
+
+// A generated call raises the typed error that matches each status it receives.
+func TestBhvMisc284_BaseApi_AGeneratedCallRaisesTheTypedErrorForEachStatus(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		status int
+		typed  any
+	}{
+		{http.StatusBadRequest, &apierrors.BadRequestError{}},
+		{http.StatusForbidden, &apierrors.ForbiddenError{}},
+		{http.StatusNotFound, &apierrors.NotFoundError{}},
+		{http.StatusConflict, &apierrors.ConflictError{}},
+		{http.StatusUnprocessableEntity, &apierrors.UnprocessableEntityError{}},
+		{http.StatusTooManyRequests, &apierrors.TooManyRequestsError{}},
+		{http.StatusInternalServerError, &apierrors.InternalServerError{}},
+		{http.StatusBadGateway, &apierrors.BadGatewayError{}},
+	}
+	for _, c := range cases {
+		srv := newScriptedServer(t, scriptedReply{status: c.status})
+		api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+		if got := reflect.TypeOf(addPetCall(api)); got != reflect.TypeOf(c.typed) {
+			t.Errorf("status %d: expected %v, got %v", c.status, reflect.TypeOf(c.typed), got)
+		}
 	}
 }

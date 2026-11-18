@@ -18,10 +18,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.errors.BadRequestException;
+import com.example.petstore.errors.ClientException;
 import com.example.petstore.errors.ConflictException;
+import com.example.petstore.errors.InternalServerErrorException;
+import com.example.petstore.errors.NotFoundException;
 import com.example.petstore.errors.OAuth2ServerException;
 import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.SerializationException;
+import com.example.petstore.errors.ServerException;
 import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
@@ -992,5 +996,119 @@ class ApiExceptionTest {
   void bhvErrors056AStatusAtOrAbove600IsTheBaseErrorAndNotAServerError() {
     ApiException ex = ApiException.fromResponse(600, Map.of(), null);
     assertEquals(ApiException.class, ex.getClass());
+  }
+
+  @Test
+  void bhvErrors088RenderedMessageLeavesOutTheAbsentParts() {
+    assertEquals(
+        "bad gateway\n"
+            + "HTTP status code: 502\n"
+            + "Response headers: {\"retry-after\":\"5\"}\n"
+            + "Response body: upstream down",
+        new ApiException(502, "bad gateway", Map.of("retry-after", "5"), "upstream down")
+            .toString());
+    assertEquals(
+        "m\nHTTP status code: 200\nResponse headers: {\"a\":\"1\",\"b\":\"<2>\"}",
+        new ApiException(200, "m", Map.of("b", "<2>", "a", "1"), "").toString());
+    assertEquals(
+        "missing\nHTTP status code: 404",
+        new ApiException(404, "missing", Map.of(), "").toString());
+    assertEquals(
+        "connection reset", new ApiException(0, "connection reset", Map.of(), "").toString());
+  }
+
+  @Test
+  void bhvErrors089AnEmptyOrMissingMessageRendersADefaultText() {
+    assertEquals(
+        "Error message: the server returns an error\nHTTP status code: 500",
+        new ApiException(500, "", null, null).toString());
+    assertEquals(
+        "Error message: the server returns an error\nHTTP status code: 500",
+        new ApiException(500, null, null, null).toString());
+  }
+
+  @Test
+  void bhvErrors093ABomPrefixedErrorBodyStillParsesAndKeepsTheRawBody() {
+    String body = "\uFEFF{\"a\":1}";
+    ApiException err = ApiException.fromResponse(400, Map.of(), body);
+    assertNotNull(err.getErrorBody());
+    assertEquals(body, err.getResponseBody());
+  }
+
+  @Test
+  void bhvErrors095TypedErrorsMatchTheirFamilyAndTheRootType() {
+    ApiException notFound = ApiException.fromResponse(404, Map.of(), "{}");
+    assertInstanceOf(NotFoundException.class, notFound);
+    assertInstanceOf(ClientException.class, notFound);
+    assertFalse(notFound instanceof ServerException);
+    ApiException internal = ApiException.fromResponse(500, Map.of(), "{}");
+    assertInstanceOf(InternalServerErrorException.class, internal);
+    assertInstanceOf(ServerException.class, internal);
+    assertInstanceOf(ApiException.class, internal);
+  }
+
+  @Test
+  void bhvErrors096AStatusOutsideItsClassFallsBackToTheBaseError() {
+    assertEquals(ApiException.class, ApiException.fromResponse(399, Map.of(), "{}").getClass());
+    assertEquals(ApiException.class, ApiException.fromResponse(600, Map.of(), "{}").getClass());
+  }
+
+  @Test
+  void bhvErrors097AnUnrecognisedClientStatusIsTheGenericClientError() {
+    assertEquals(ClientException.class, ApiException.fromResponse(499, Map.of(), "{}").getClass());
+  }
+
+  @Test
+  void bhvMisc015ATypedErrorBodyOfTheWrongJsonShapeIsRefused() {
+    ApiException err = ApiException.fromResponse(400, Map.of(), "[1,2]");
+    assertThrows(
+        SerializationException.class,
+        () -> err.getTypedErrorBody(com.example.petstore.models.Category.class));
+  }
+
+  @Test
+  void bhvMisc016RenderedBodyShowsAtMostAFixedNumberOfBytesAndCountsTheRest() {
+    ApiException err = new ApiException(502, "bad gateway", Map.of(), "a".repeat(3000), null);
+    assertTrue(err.toString().contains("more bytes"));
+    assertTrue(err.toString().length() < 1500);
+  }
+
+  @Test
+  void bhvMisc018NonJsonTokenErrorExposesStatusNoCodeAndTheRawBody() {
+    OAuth2ServerException err =
+        new OAuth2ServerException(500, null, null, null, "upstream exploded");
+    assertEquals(500, err.getStatusCode());
+    assertNull(err.getCode());
+    assertEquals("upstream exploded", err.getRawBody());
+  }
+
+  @Test
+  void bhvMisc019ARequestTargetInAnErrorIsReducedToItsPath() {
+    ApiException err =
+        ApiException.fromResponse(
+            "GET", "https://host.example:8443/v2/items?x=1#frag", 404, Map.of(), "");
+    assertEquals("/v2/items", err.getRequestPath());
+    assertFalse(err.toString().contains("host.example"));
+    assertFalse(err.toString().contains("x=1"));
+  }
+
+  @Test
+  void bhvMisc020ARequestLineIsShownOnlyWhenTheMethodAndPathAreBothKnown() {
+    ApiException err = ApiException.fromResponse(null, "/items", 500, Map.of(), "x");
+    assertFalse(err.toString().contains("Request:"));
+  }
+
+  @Test
+  void bhvMisc022AServerErrorIsAnSdkRootErrorAndAnApiError() {
+    ApiException err = ApiException.fromResponse(503, Map.of(), "{}");
+    assertInstanceOf(ServerException.class, err);
+    assertInstanceOf(OpenAPIException.class, err);
+  }
+
+  @Test
+  void bhvMisc023AnUnmappedStatusFallsBackToTheGenericServerOrOtherError() {
+    assertEquals(ServerException.class, ApiException.fromResponse(520, Map.of(), null).getClass());
+    assertEquals(ApiException.class, ApiException.fromResponse(399, Map.of(), null).getClass());
+    assertEquals(ApiException.class, ApiException.fromResponse(600, Map.of(), null).getClass());
   }
 }

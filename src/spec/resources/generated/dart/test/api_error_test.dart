@@ -1378,4 +1378,64 @@ void main() {
       },
     );
   });
+  test(
+    'bhv misc 016 the rendered body is capped and states the bytes omitted',
+    () {
+      final err = ApiException(
+        statusCode: 502,
+        message: 'bad gateway',
+        responseBody: List.filled(3000, 'a').join(),
+      );
+
+      expect(err.toString(), contains('more bytes'));
+      expect(err.toString().length, lessThan(1500));
+    },
+  );
+
+  test(
+    'bhv misc 020 the request line shows only when both the method and the path are known',
+    () {
+      final pathOnly = ApiException.fromResponse(
+        404,
+        null,
+        null,
+        requestPath: '/items/7',
+      );
+      expect(pathOnly.message, equals('API returned status code 404'));
+
+      final both = ApiException.fromResponse(
+        404,
+        null,
+        null,
+        requestMethod: 'GET',
+        requestPath: '/items/7',
+      );
+      expect(both.message, equals('GET /items/7 returned status code 404'));
+    },
+  );
+
+  test(
+    'bhv misc 022 a server error is an instance of the root exception and the server class',
+    () {
+      final err = ApiException.fromResponse(503, const {}, '{}');
+
+      expect(err, isA<OpenAPIException>());
+      expect(err, isA<ServerException>());
+    },
+  );
+
+  test(
+    'bhv misc 023 an unmapped 5xx is the generic server error and another unmapped status the base error',
+    () {
+      expect(
+        ApiException.fromResponse(599, const {}, '{}'),
+        isA<ServerException>(),
+      );
+
+      final other = ApiException.fromResponse(399, const {}, '{}');
+      expect(other, isA<ApiException>());
+      expect(other, isNot(isA<ServerException>()));
+      expect(other, isNot(isA<ClientException>()));
+    },
+  );
 }

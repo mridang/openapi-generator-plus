@@ -502,6 +502,36 @@ void main() {
       }
     });
 
+    test('bhv misc 066 a token provider value is sent as the bearer credential on the authenticated request', () async {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () async => 'live',
+      );
+
+      final headers = await auth.authHeadersAsync();
+      expect(headers['Authorization'], equals('Bearer live'));
+    });
+
+    test('bhv misc 067 a token provider that raises fails the request with that same error', () async {
+      final cause = StateError('provider boom');
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () => throw cause,
+      );
+
+      await expectLater(auth.authHeadersAsync(), throwsA(same(cause)));
+    });
+
+    test('bhv misc 068 an empty token counts as not passed, so the value is read from the environment', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: '',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'from-env'},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer from-env'));
+    });
+
     test('bhv config 025 an empty token environment value counts as unset, so construction fails naming the missing variable', () {
       expect(
         () => BearerAuthenticator(

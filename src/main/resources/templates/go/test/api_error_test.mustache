@@ -1575,3 +1575,46 @@ func TestBhvMisc025_PetApi_AClientErrorStatusFailsTheCall(t *testing.T) {
 		t.Errorf("expected the call to fail with the 404 API error, got %T: %v", err, err)
 	}
 }
+
+func TestBhvErrors093_ApiError_FromResponseExposesTheDecodedBodyBesideTheRawBody(t *testing.T) {
+	t.Parallel()
+	body := `{"code":"E1"}`
+	err := apierrors.FromResponse(422, nil, body)
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected an ApiError, got %T", err)
+	}
+	decoded, ok := apiErr.ErrorBody().(map[string]any)
+	if !ok || decoded["code"] != "E1" {
+		t.Errorf("expected the decoded error body, got %#v", apiErr.ErrorBody())
+	}
+	if apiErr.ResponseBody() != body {
+		t.Errorf("expected the raw body kept as received, got %q", apiErr.ResponseBody())
+	}
+}
+
+func TestBhvMisc095_ApiError_InvalidBytesInABodyRenderAsReplacementCharacters(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(500, nil, "a\xffb\xfe")
+	if !strings.Contains(err.Error(), "a�b�") {
+		t.Errorf("expected each invalid byte replaced by U+FFFD, got %q", err.Error())
+	}
+}
+
+// A rendered error body that is cut short states how many bytes were left out.
+func TestBhvMisc280_ApiError_ATruncatedBodyStatesHowManyBytesWereLeftOut(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(500, map[string]string{}, strings.Repeat("a", 1500))
+	if want := "(476 more bytes)"; !strings.Contains(err.Error(), want) {
+		t.Errorf("expected the message to state %q, got %q", want, err.Error())
+	}
+}
+
+// An OAuth2 server error names both its HTTP status and its OAuth error code.
+func TestBhvMisc286_ApiError_AnOAuth2ServerErrorNamesItsStatusAndItsErrorCode(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewOAuth2ServerError(401, "invalid_client", "", "", "{}")
+	if msg := err.Error(); !strings.Contains(msg, "401") || !strings.Contains(msg, "invalid_client") {
+		t.Errorf("expected the status and the error code in the message, got %q", msg)
+	}
+}
