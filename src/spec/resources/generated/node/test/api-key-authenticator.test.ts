@@ -581,3 +581,25 @@ describe("ApiKeyAuthenticator", () => {
     }
   });
 });
+
+describe("API key authenticator misc behaviours", () => {
+  it("bhv misc 189 the API-key query wrapper sends its key as the api_key query parameter", () => {
+    const auth = new ApiKeyAuthenticator(
+      "https://api.example.com",
+      "api_key",
+      "abc123",
+      ApiKeyLocation.QUERY,
+    );
+    expect(auth.getQueryParams()).toEqual({ api_key: "abc123" });
+  });
+
+  it("bhv misc 190 the printed output of the authenticator hides the secret", () => {
+    const auth = new ApiKeyAuthenticator(
+      "https://api.example.com",
+      "X-API-Key",
+      "abc123",
+      ApiKeyLocation.HEADER,
+    );
+    expect(util.inspect(auth)).not.toContain("abc123");
+  });
+});
