@@ -1805,3 +1805,25 @@ func TestBhvMisc059_OAuth2TokenManager_ANonFiniteLifetimeIsNotCached(t *testing.
 		}
 	}
 }
+
+// A token response whose access token is empty, not a string, or whose body is not an object is refused with a named problem.
+func TestBhvMisc069_OAuth2TokenManager_AnUnusableTokenResponseIsRefusedWithAProblem(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		body string
+		want string
+	}{
+		{`{"access_token":""}`, "access_token"},
+		{`{"access_token":5}`, "access_token"},
+		{`[1,2]`, "JSON object"},
+	}
+	for _, tc := range cases {
+		client := &recordingTokenClient{responses: []fakeResponse{ {body: tc.body, statusCode: 200} }}
+		m := oauth.NewOAuth2TokenManager()
+		m.SetApiClient(client)
+		_, err := m.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"})
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: expected an error naming %q, got %v", tc.body, tc.want, err)
+		}
+	}
+}

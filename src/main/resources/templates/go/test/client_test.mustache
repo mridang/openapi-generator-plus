@@ -907,3 +907,40 @@ func TestBhvMisc057_Client_AnApiKeyIsOnlySentAtItsConfiguredLocation(t *testing.
 		t.Errorf("expected the header key sent, got %v", key.AuthHeaders())
 	}
 }
+
+// An empty string passed for a credential counts as not passed, so the value is read from its environment variable.
+func TestBhvMisc068_Client_AnEmptyCredentialReadsTheEnvironment(t *testing.T) {
+	t.Setenv("{{envVarPrefix}}_TOKEN", "env-token")
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "", nil)
+	if err != nil {
+		t.Fatalf("expected the environment to supply the token, got %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("GetPetById failed: %v", err)
+	}
+	if gotAuth != "Bearer env-token" {
+		t.Errorf("expected the environment token, got %q", gotAuth)
+	}
+}
+
+// Every generated authenticator wrapper class exists for a security scheme the spec declares.
+func TestBhvMisc073_Client_EveryDeclaredSchemeHasAWrapperClass(t *testing.T) {
+	t.Parallel()
+	var _ *auth.PetStoreBasicAuthenticator
+	var _ *auth.AdminBasicAuthenticator
+	var _ *auth.PetStoreBearerAuthenticator
+	var _ *auth.ServiceTokenAuthenticator
+	var _ *auth.ApiKeyHeaderAuthenticator
+	var _ *auth.InternalApiKeyAuthenticator
+	var _ *auth.ApiKeyQueryAuthenticator
+	var _ *auth.SessionCookieAuthenticator
+}

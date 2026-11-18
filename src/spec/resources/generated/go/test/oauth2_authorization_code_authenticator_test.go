@@ -955,3 +955,20 @@ func TestBhvMisc062_OAuth2AuthorizationCodeAuthenticator_TheDeclaredScopesReachT
 		t.Errorf("expected the declared scopes in the authorize URL, got %q", got)
 	}
 }
+
+// A generated PKCE verifier is 43 characters from the unreserved set and differs on every call.
+func TestBhvMisc077_OAuth2AuthorizationCodeAuthenticator_PkceChallengeIsFreshEachCall(t *testing.T) {
+	t.Parallel()
+	challengeOf := func(raw string) string {
+		parsed, err := neturl.Parse(raw)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return parsed.Query().Get("code_challenge")
+	}
+	first := challengeOf(createAuthCodeAuthenticator().BuildAuthorizationURL("s"))
+	second := challengeOf(createAuthCodeAuthenticator().BuildAuthorizationURL("s"))
+	if len(first) != 43 || first == second {
+		t.Errorf("expected a 43-character challenge that differs per call, got %q and %q", first, second)
+	}
+}

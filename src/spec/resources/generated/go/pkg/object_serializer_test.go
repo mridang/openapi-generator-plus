@@ -4481,3 +4481,29 @@ func TestBhvSerialization116_ObjectSerializer_AKeywordPropertyKeepsItsWireKey(t 
 		t.Errorf("expected the keyword properties decoded, got %+v", edge)
 	}
 }
+
+// A date-time is written in its canonical form whether it sits directly in a field or inside a list or map.
+func TestBhvMisc089_ObjectSerializer_ADateTimeIsCanonicalInAContainer(t *testing.T) {
+	t.Parallel()
+	at := models.DateTime(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	data, err := serialize(map[string][]models.DateTime{"times": {at}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"2026-01-02T03:04:05.000+00:00"`) {
+		t.Errorf("expected the canonical date-time inside the container, got %s", data)
+	}
+}
+
+// A duration field of a record writes its fractional seconds in the wire form.
+func TestBhvMisc090_ObjectSerializer_ARecordDurationWritesItsFraction(t *testing.T) {
+	t.Parallel()
+	d := models.Duration(1500 * time.Millisecond)
+	data, err := serialize(models.EdgeCases{RetryAfter: &d})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"retryAfter":"1.500s"`) {
+		t.Errorf("expected the fractional wire form, got %s", data)
+	}
+}

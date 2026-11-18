@@ -342,3 +342,15 @@ go | misc049 | the petstore declares no oneOf between a single binary value and 
 go | misc050 | Go's per-call options (WithTimeout, WithHeaders, WithMaxRetries) do not overlap any field of an operation's Options struct, so no per-call option overrides an Options field to test
 go | misc051 | Go's Options structs and call options are typed, so an unknown key or a server setting on an operation without servers cannot be passed to compile at all
 go | misc060 | the Go API-key authenticators take one fixed key and have no provider function (auth005 records this), so an API key and a provider cannot be passed together
+go | misc071 | the client's transport reaches a credential only through the SDK's own token and discovery requests, and the petstore's OAuth credential request is not observable through the client transport in a Go-specific way beyond the existing token-manager tests
+go | misc072 | every API group is built from the same Credentials value in NewClient, and the only operations that need a scheme are on PetApi, so a second group's credential has no observable operation in the petstore
+go | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so no request needs two credentials at once
+go | misc075 | Go's Credentials struct has one typed field per scheme, so a credential keyed to an undeclared scheme cannot be passed to compile
+go | misc076 | the discovered-configuration reuse after a dropped exchange is pinned by the OpenID Connect rediscovery tests (TestOpenIdConnect_PkceVerifierSurvivesRediscovery), and a dedicated timing case needs a controllable discovery server the fixture does not provide
+go | misc081 | Go returns a binary response unchanged (D30) and the petstore has no operation returning a format: byte string under a binary content type, so no base64 body reaches a string return
+go | misc083 | Go builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written
+go | misc085 | the trackingId parameter is typed uuid.UUID, so a non-canonical value cannot be passed to the call or built into an Order; a malformed wire value is refused by the decoder (operations111)
+go | misc087 | Go's number is float64 and documented lossy (serializationobject002), so a decimal field is a bare JSON number by float64 formatting, and the exact-decimal writing this promise needs is not the Go contract
+go | misc088 | Go's number is float64 (no stdlib decimal, documented lossy), so the decimal places a value was written with are not kept, as serializationobject002 records
+go | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
+go | misc092 | encoding/json matches a key to a field by case-folding the tag, so a key differing from the wire name only by case is matched; the petstore has no property whose Go name differs from its wire name by more than case

@@ -3046,3 +3046,45 @@ func TestBhvMisc055_Store_AnInvalidPerCallSettingIsRefused(t *testing.T) {
 		t.Errorf("expected ErrInvalidTimeout for a zero timeout, got %v", err)
 	}
 }
+
+// When an operation declares different body types for several success statuses, each response is decoded
+// as the type declared for the status it arrived with.
+func TestBhvMisc079_Store_EachSuccessStatusDecodesItsOwnDeclaredType(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte(`{"receiptCode":"C1","expiresAt":"2026-01-02T03:04:05Z"}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	result, err := client.Store.ReserveStock(context.Background())
+	if err != nil || !result.IsReservationReceipt() {
+		t.Errorf("expected the 201 body decoded as the receipt, got %v %v", result, err)
+	}
+}
+
+// A body that fits another status's schema is refused with an error: the body is decoded with the schema of its own status.
+func TestBhvMisc080_Store_ABodyIsDecodedWithItsOwnStatusSchema(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"receiptCode":"C1","expiresAt":"2026-01-02T03:04:05Z"}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Store.ReserveStock(context.Background()); err == nil {
+		t.Error("expected the 200 body refused for not fitting the 200 schema")
+	}
+}

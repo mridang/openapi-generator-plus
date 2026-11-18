@@ -1521,3 +1521,22 @@ func TestBhvSerialization129_ValueSerializer_ANanosecondDurationHasANineDigitFra
 		t.Errorf("expected a nine-digit fraction, got %s", data)
 	}
 }
+
+// An enum value given in a path, query or header parameter is sent as its wire value.
+func TestBhvMisc082_ValueSerializer_AnEnumIsSentAsItsWireValue(t *testing.T) {
+	t.Parallel()
+	for _, location := range []string{"path", "query", "header"} {
+		if got := fmt.Sprint(serializeValue(models.AvailabilityOnHold, location, "string", "")); got != "on-hold" {
+			t.Errorf("%s: expected the wire value on-hold, got %q", location, got)
+		}
+	}
+}
+
+// A container element that holds JSON text is taken as its own value and never decoded a second time.
+func TestBhvMisc086_ValueSerializer_AnElementHoldingJsonTextIsNotDecodedAgain(t *testing.T) {
+	t.Parallel()
+	got := fmt.Sprint(serializeStyled("tags", []string{`{"a":1}`}, "query", "array", "", "form", false))
+	if !strings.Contains(got, `{"a":1}`) {
+		t.Errorf("expected the element kept as its own text, got %s", got)
+	}
+}
