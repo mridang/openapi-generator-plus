@@ -518,6 +518,7 @@ public sealed class SchemeAuthenticatorTest
         );
     }
 
+    [Fact]
     public void BhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsVariable()
     {
         WithEnvironment(
@@ -805,7 +806,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBasicAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme003PetStoreBasicAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in PetStoreBasicAuthenticatorVariables)
         {
@@ -912,7 +913,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void AdminBasicAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme004AdminBasicAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in AdminBasicAuthenticatorVariables)
         {
@@ -1339,7 +1340,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme012ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme005ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in ApiKeyHeaderAuthenticatorVariables)
         {
@@ -1527,7 +1528,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme012ApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme006ApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in ApiKeyQueryAuthenticatorVariables)
         {
@@ -1621,7 +1622,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme012SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme007SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in SessionCookieAuthenticatorVariables)
         {
@@ -2241,7 +2242,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SsoAuthAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BhvAuthscheme008SsoAuthAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in SsoAuthAuthenticatorVariables)
         {

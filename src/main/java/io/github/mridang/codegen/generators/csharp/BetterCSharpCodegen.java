@@ -48,6 +48,18 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     /** One entry per per-scheme authenticator, read by {@code SchemeAuthenticatorTest}. */
     private final List<Map<String, Object>> schemeAuthTests = new ArrayList<>();
 
+    /**
+     * The behaviour token of the empty-variable failure test of each named scheme authenticator:
+     * authscheme003 to authscheme008 name the scheme, so one test name carries one id.
+     */
+    private static final Map<String, String> EMPTY_VARIABLE_BHV = Map.of(
+            "PetStoreBasicAuthenticator", "BhvAuthscheme003",
+            "AdminBasicAuthenticator", "BhvAuthscheme004",
+            "ApiKeyHeaderAuthenticator", "BhvAuthscheme005",
+            "ApiKeyQueryAuthenticator", "BhvAuthscheme006",
+            "SessionCookieAuthenticator", "BhvAuthscheme007",
+            "SsoAuthAuthenticator", "BhvAuthscheme008");
+
     protected String sourceFolder = "src";
     protected String packageName = "OpenApi";
 
@@ -997,6 +1009,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             final List<Map<String, Object>> envVars) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        entry.put("emptyVariableBhv", EMPTY_VARIABLE_BHV.getOrDefault((String) entry.get("className"), ""));
         if (namespaceSuffix != null) {
             entry.put("namespaceSuffix", namespaceSuffix);
         }
