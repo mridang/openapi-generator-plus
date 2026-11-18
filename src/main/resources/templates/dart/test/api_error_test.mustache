@@ -1107,6 +1107,12 @@ void main() {
       expect(ApiException.fromResponse(500, null, null), isA<InternalServerErrorException>());
       expect(ApiException.fromResponse(502, null, null), isA<BadGatewayException>());
     });
+    test('bhv misc 286 An OAuth server error message names both its HTTP status and its OAuth error code', () {
+      final err = OAuth2ServerException(401, 'invalid_client', null, null, '{}');
+
+      expect(err.toString(), contains('401'));
+      expect(err.toString(), contains('invalid_client'));
+    });
   });
 }
 {{/generateTests}}

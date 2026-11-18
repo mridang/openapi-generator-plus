@@ -128,6 +128,12 @@ export class BinaryVault {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
+    if (Array.isArray(this.shards)) {
+      this.shards = Object.freeze([...this.shards]) as typeof this.shards;
+    }
+    if (this.labels != null && typeof this.labels === "object") {
+      this.labels = Object.freeze({ ...this.labels }) as typeof this.labels;
+    }
   }
 
   /**

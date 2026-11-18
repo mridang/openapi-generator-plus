@@ -2134,4 +2134,16 @@ class PetApiTest {
                     assertThat(err.getRequestPath()).isEqualTo("/pet/7");
                 });
     }
+
+    @Test
+    void bhvMisc179AFormUrlencodedBodySendsItsContentType() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.setPetPreferences(1L, new SetPetPreferencesOptions("a"));
+
+        assertThat(capturing.capturedHeaders)
+                .containsEntry("Content-Type", "application/x-www-form-urlencoded");
+    }
 }
