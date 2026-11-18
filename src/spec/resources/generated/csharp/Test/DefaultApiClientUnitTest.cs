@@ -6691,4 +6691,77 @@ public sealed class MultipartShadeConverter
             await Decode(Encoding.UTF8.GetBytes("héllo"), "text/plain; charset=not-a-real-charset")
         );
     }
+
+    private sealed class GzipLieHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes("plain text, not gzip")),
+            };
+            response.Content.Headers.ContentEncoding.Add("gzip");
+            return Task.FromResult(response);
+        }
+    }
+
+    [Fact]
+    public async Task BhvTransport089AContentEncodingThatDoesNotMatchTheBodyRaisesTheApiError()
+    {
+        var client = new DefaultApiClient(new HttpClient(new GzipLieHandler()));
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/bad-gzip"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(typeof(ApiException), ex.GetType());
+    }
+
+    [Fact]
+    public async Task BhvTransport091ACallerSuppliedUploadStreamIsLeftOpenAfterSending()
+    {
+        var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+        var client = new DefaultApiClient(
+            new HttpClient(new CapturingHandler(_ => Task.CompletedTask))
+        );
+        var formData = new Dictionary<string, object> { { "upload.bin", stream } };
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.True(stream.CanRead);
+    }
+
+    [Fact]
+    public async Task BhvTransport092TheSuppliedHttpClientReceivesTheRequest()
+    {
+        Uri? received = null;
+        var handler = new CapturingHandler(req =>
+        {
+            received = req.RequestUri;
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal("/echo", received?.AbsolutePath);
+    }
 }
