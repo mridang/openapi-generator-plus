@@ -20,6 +20,16 @@ class TestApiResult:
         assert result.raw_body == '{"id": 1}'
         assert result.headers == {"Content-Type": "application/json"}
 
+    def test_bhv_results_004_an_api_result_exposes_the_deserialized_data(self) -> None:
+        result = ApiResult(status_code=200, data={"id": 2}, raw_body="", headers={})
+
+        assert result.data == {"id": 2}
+
+    def test_bhv_results_005_a_result_exposes_the_raw_response_body(self) -> None:
+        result = ApiResult(status_code=200, data=None, raw_body='{"id": 2}', headers={})
+
+        assert result.raw_body == '{"id": 2}'
+
     def test_bhv_results_001_data_may_be_none_for_empty_response(self) -> None:
         # A 204 No Content carries no deserialized payload, but raw_body is
         # always populated (an empty string when the server sent no body).

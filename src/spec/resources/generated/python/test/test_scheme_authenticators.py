@@ -168,6 +168,20 @@ def _explicit(variables: List[Tuple[str, str]]) -> dict[str, str]:
     return {parameter: "explicit-" + parameter for parameter, _ in variables}
 
 
+def _assert_each_empty_variable_is_unset(
+    monkeypatch: pytest.MonkeyPatch,
+    module: str,
+    name: str,
+    variables: List[Tuple[str, str]],
+) -> None:
+    for _, empty in variables:
+        _set_all(monkeypatch, variables)
+        monkeypatch.setenv(empty, "")
+
+        with pytest.raises(ValueError, match=empty):
+            _scheme_class(module, name)(HOST)
+
+
 @pytest.mark.parametrize("module,name,variables,bearer,basic,api_key", SCHEMES)
 class TestSchemeAuthenticatorEnvironment:
     def test_it_builds_from_its_environment_variables_alone(
@@ -306,6 +320,15 @@ class TestBearerSchemeAuthenticator:
 
         with pytest.raises(ValueError, match=variables[0][1]):
             _scheme_class(module, name)(HOST)
+
+    def test_bhv_authscheme_011_an_empty_bearer_credential_variable_is_unset_for_each_variable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
 
     def test_bhv_lifecycle_025_the_environment_is_read_once_when_it_is_built(
         self,
@@ -485,3 +508,185 @@ class TestApiKeySchemeAuthenticator:
 
         assert _scheme_class(module, name)(HOST).api_key == "from-environment"
         assert _scheme_class(module, name)(HOST, "explicit").api_key == "explicit"
+
+    def test_bhv_authscheme_012_an_empty_api_key_variable_is_unset_for_each_variable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+# (module, class name, [(parameter, environment variable)]) for each OAuth flow wrapper, by flow
+FLOW_SCHEMES: List[Tuple[str, str, str, List[Tuple[str, str]]]] = [
+    (
+        "none",
+        "petstore_client.auth.pet_store_basic_authenticator",
+        "PetStoreBasicAuthenticator",
+        [
+            ("username", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME"),
+            ("password", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD"),
+        ],
+    ),
+    (
+        "none",
+        "petstore_client.auth.admin_basic_authenticator",
+        "AdminBasicAuthenticator",
+        [
+            ("username", "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME"),
+            ("password", "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD"),
+        ],
+    ),
+    (
+        "none",
+        "petstore_client.auth.pet_store_bearer_authenticator",
+        "PetStoreBearerAuthenticator",
+        [("token", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.service_token_authenticator",
+        "ServiceTokenAuthenticator",
+        [("token", "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.api_key_header_authenticator",
+        "ApiKeyHeaderAuthenticator",
+        [("api_key", "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.internal_api_key_authenticator",
+        "InternalApiKeyAuthenticator",
+        [("api_key", "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.api_key_query_authenticator",
+        "ApiKeyQueryAuthenticator",
+        [("api_key", "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.session_cookie_authenticator",
+        "SessionCookieAuthenticator",
+        [("api_key", "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY")],
+    ),
+    (
+        "client_credentials",
+        "petstore_client.auth.oauth.machine_auth_client_credentials_authenticator",
+        "MachineAuthClientCredentialsAuthenticator",
+        [
+            ("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID"),
+            (
+                "client_secret",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET",
+            ),
+        ],
+    ),
+    (
+        "password",
+        "petstore_client.auth.oauth.legacy_auth_password_authenticator",
+        "LegacyAuthPasswordAuthenticator",
+        [
+            ("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID"),
+            (
+                "client_secret",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET",
+            ),
+            ("username", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"),
+            ("password", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD"),
+        ],
+    ),
+    (
+        "authorization_code",
+        "petstore_client.auth.oauth.user_auth_authorization_code_authenticator",
+        "UserAuthAuthorizationCodeAuthenticator",
+        [
+            ("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"),
+            ("client_secret", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET"),
+            ("redirect_uri", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI"),
+        ],
+    ),
+    (
+        "implicit",
+        "petstore_client.auth.oauth.browser_auth_implicit_authenticator",
+        "BrowserAuthImplicitAuthenticator",
+        [("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.oauth.sso_auth_authenticator",
+        "SsoAuthAuthenticator",
+        [
+            ("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID"),
+            ("client_secret", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET"),
+            ("redirect_uri", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI"),
+        ],
+    ),
+]
+
+
+def _with_flow(flow: str) -> List[Tuple[str, str, List[Tuple[str, str]]]]:
+    return [
+        (module, name, variables)
+        for entry_flow, module, name, variables in FLOW_SCHEMES
+        if entry_flow == flow
+    ]
+
+
+CLIENT_CREDENTIALS_SCHEMES = _with_flow("client_credentials")
+PASSWORD_SCHEMES = _with_flow("password")
+AUTHORIZATION_CODE_SCHEMES = _with_flow("authorization_code")
+IMPLICIT_SCHEMES = _with_flow("implicit")
+
+
+@pytest.mark.parametrize("module,name,variables", CLIENT_CREDENTIALS_SCHEMES)
+class TestClientCredentialsSchemeEnvironment:
+    def test_bhv_authscheme_013_an_empty_client_credentials_variable_is_unset_and_names_it(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize("module,name,variables", PASSWORD_SCHEMES)
+class TestPasswordSchemeEnvironment:
+    def test_bhv_authscheme_014_an_empty_password_variable_is_unset_and_names_it(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize("module,name,variables", AUTHORIZATION_CODE_SCHEMES)
+class TestAuthorizationCodeSchemeEnvironment:
+    def test_bhv_authscheme_015_an_empty_authorization_code_variable_is_unset_and_names_it(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize("module,name,variables", IMPLICIT_SCHEMES)
+class TestImplicitSchemeEnvironment:
+    def test_bhv_authscheme_016_an_empty_implicit_variable_is_unset_and_names_it(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)

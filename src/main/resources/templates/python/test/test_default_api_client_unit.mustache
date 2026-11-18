@@ -1415,7 +1415,7 @@ class TestRedirectExhaustion:
         assert len(responses) == 4
         assert all(response.released for response in responses)
 
-    def test_terminal_redirect_without_location_does_not_raise(self) -> None:
+    def test_bhv_redirects_031_a_3xx_without_location_is_returned_unchanged(self) -> None:
         # A 3xx with no Location header is a legitimate terminal response and
         # must NOT be treated as redirect exhaustion.
         class _Pool:
@@ -2008,7 +2008,7 @@ class TestRedirectCredentialForwarding:
             ("http://example.com/start", "http://example.com:443/dest"),
         ],
     )
-    def test_a_different_port_is_a_different_origin(
+    def test_bhv_redirects_033_a_redirect_to_a_different_port_drops_the_credentials(
         self, start: str, location: str
     ) -> None:
         followed = _headers_on_second_hop(
@@ -2016,6 +2016,25 @@ class TestRedirectCredentialForwarding:
         )
 
         assert "authorization" not in followed
+
+    def test_bhv_redirects_030_an_explicit_default_port_is_the_same_origin_as_the_implicit_one(
+        self,
+    ) -> None:
+        assert DefaultApiClient._same_origin("https://example.com/a", "https://example.com:443/b") is True
+        assert DefaultApiClient._same_origin("http://example.com:80/a", "http://example.com/b") is True
+
+    @pytest.mark.parametrize(
+        ("start", "location"),
+        [
+            ("https://example.com/start", "http://example.com/dest"),
+            ("https://example.com/start", "https://other.example.com/dest"),
+            ("https://example.com/start", "https://example.com:8443/dest"),
+        ],
+    )
+    def test_bhv_redirects_034_origin_comparison_separates_a_different_scheme_host_or_port(
+        self, start: str, location: str
+    ) -> None:
+        assert DefaultApiClient._same_origin(start, location) is False
 
 
 class TestRedirectCookieAndAuthorizationOnSameOrigin:
@@ -2238,9 +2257,14 @@ class TestRetryPolicy:
     ) -> None:
         assert _retry_delay(attempt, jitter=0.0) == expected
 
-    def test_jitter_takes_up_to_a_quarter_off(self) -> None:
+    def test_bhv_retries_030_the_jitter_takes_at_most_a_quarter_off_the_delay(self) -> None:
         assert _retry_delay(2, jitter=1.0) == 1.5
         assert 1.5 <= _retry_delay(2) <= 2.0
+
+    def test_bhv_retries_041_the_backoff_starts_at_half_a_second_and_takes_up_to_a_quarter_off(self) -> None:
+        assert [_retry_delay(attempt, jitter=0.0) for attempt in range(6)] == [0.5, 1.0, 2.0, 4.0, 8.0, 8.0]
+        assert _retry_delay(0, jitter=1.0) == 0.375
+        assert 0.375 <= _retry_delay(0) <= 0.5
 
     @pytest.mark.parametrize(
         ("header", "expected"),

@@ -2826,18 +2826,19 @@ class ScriptedServer:
     def __init__(self, script: list[Reply]) -> None:
         self.script = script
         self.requests: list[dict[str, str]] = []
+        self.bodies: list[str] = []
         self._lock = threading.Lock()
         owner = self
 
         class Handler(BaseHTTPRequestHandler):
             def handle_any(self) -> None:
                 length = int(self.headers.get("Content-Length") or 0)
-                if length:
-                    self.rfile.read(length)
+                received = self.rfile.read(length).decode("utf-8") if length else ""
                 with owner._lock:
                     owner.requests.append(
                         {k.lower(): v for k, v in self.headers.items()}
                     )
+                    owner.bodies.append(received)
                     reply = owner.script[
                         min(len(owner.requests), len(owner.script)) - 1
                     ]
@@ -2929,6 +2930,15 @@ class TestAutomaticRetries:
 
         assert excinfo.value.status_code == status
         assert len(server.requests) == 1
+
+    async def test_bhv_retries_038_a_503_is_sent_again_until_it_succeeds(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, _SOON, "{}"), (503, _SOON, "{}"), _OK)
+
+        await _get(_retry_api(server))
+
+        assert len(server.requests) == 3
 
     async def test_bhv_retries_024_stops_after_max_retries_and_raises_the_last_status(
         self, scripted: Any
@@ -3037,7 +3047,7 @@ class TestAutomaticRetries:
 
         assert pool.calls == 1
 
-    async def test_a_dropped_connection_surfaces_once_the_retries_are_spent(
+    async def test_bhv_retries_033_the_last_network_error_is_reported_once_the_retries_are_spent(
         self, scripted: Any
     ) -> None:
         server = scripted(None)
@@ -3100,7 +3110,48 @@ class TestAutomaticRetries:
             "Bearer t2",
         ]
 
-    async def test_a_stream_body_is_never_retried(self, scripted: Any) -> None:
+    async def test_bhv_retries_039_every_retry_carries_the_same_authentication_headers(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, _SOON, "{}"), (503, _SOON, "{}"), _OK)
+        api = _retry_api(server)
+
+        await api.call(
+            "GET",
+            "/x",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            StubAuthenticator(headers={"Authorization": "Bearer fixed"}),
+        )
+
+        assert [r["authorization"] for r in server.requests] == ["Bearer fixed"] * 3
+
+    async def test_bhv_retries_034_a_string_body_is_sent_again_unchanged(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, _SOON, "{}"), _OK)
+        api = _retry_api(server)
+
+        await api.call(
+            "POST",
+            "/x",
+            {},
+            {},
+            "plain payload",
+            ["application/json"],
+            "text/plain",
+            None,
+        )
+
+        assert server.bodies == ["plain payload", "plain payload"]
+
+    async def test_bhv_retries_032_a_stream_body_is_never_retried(
+        self, scripted: Any
+    ) -> None:
         server = scripted((503, _SOON, "{}"), _OK)
         api = _retry_api(server)
 
