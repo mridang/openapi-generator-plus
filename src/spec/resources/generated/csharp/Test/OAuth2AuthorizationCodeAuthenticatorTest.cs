@@ -62,7 +62,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
-    public void TokenExchangedFieldIsVolatile()
+    public void BhvLangcsharp049TokenExchangedFieldIsVolatile()
     {
         FieldInfo field = typeof(OAuth2AuthorizationCodeAuthenticator).GetField(
             "_tokenExchanged",
@@ -478,7 +478,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         "https://App.Example.com:443/cb",
         "redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcb&"
     )]
-    public void AuthorizationUrlSendsRedirectUriVerbatim(string redirect, string expected)
+    public void BhvMisc058AuthorizationUrlSendsRedirectUriVerbatim(string redirect, string expected)
     {
         var auth = CreateAuthenticatorWithRedirect(new Uri(redirect));
 
@@ -492,7 +492,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     /// configured: no default port dropped and no host lower-casing.
     /// </summary>
     [Fact]
-    public void AuthorizationUrlKeepsConfiguredEndpointVerbatim()
+    public void BhvLangcsharp050AuthorizationUrlKeepsConfiguredEndpointVerbatim()
     {
         var auth = new OAuth2AuthorizationCodeAuthenticator(
             "https://api.example.com",
