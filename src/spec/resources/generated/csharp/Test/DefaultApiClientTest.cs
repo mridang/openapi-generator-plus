@@ -495,9 +495,12 @@ public class DefaultApiClientTest
     [Fact]
     public async Task BhvMisc272CredentialsInTheProxyUrlAreAcceptedByAnAuthenticatingProxy()
     {
-        var client = new DefaultApiClient(
-            TransportOptions.Builder().Proxy(_fixture.AuthProxyUrl).Build()
+        var authenticated = _fixture.AuthProxyUrl.Replace(
+            "http://",
+            "http://svc:fixture@",
+            StringComparison.Ordinal
         );
+        var client = new DefaultApiClient(TransportOptions.Builder().Proxy(authenticated).Build());
         var response = await client.SendRequestAsync(
             "GET",
             new Uri(_fixture.InternalHttpUrl + "/test/echo"),

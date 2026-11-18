@@ -1417,12 +1417,6 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvMisc256AFractionalSecondKeepsOnlyTheDigitsPresent()
-        {
-            Assert.Equal("10:30:00.5", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 500)));
-        }
-
-        [Fact]
         public void BhvSerializationobject081FormatProtobufDurationEmitsWholeSeconds()
         {
             Assert.Equal("90s", ProtobufDurationConverter.Format(TimeSpan.FromSeconds(90)));

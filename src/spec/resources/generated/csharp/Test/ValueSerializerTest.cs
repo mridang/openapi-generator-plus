@@ -388,18 +388,6 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void BhvMisc254AnUnmarkedQueryValueEncodesReservedCharacters()
-    {
-        Assert.Equal("a%2Fb%3Ac", ValueSerializer.Serialize("a/b:c", "query", "string"));
-    }
-
-    [Fact]
-    public void BhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20()
-    {
-        Assert.Equal("hello%20world", ValueSerializer.Serialize("hello world", "query", "string"));
-    }
-
-    [Fact]
     public void BhvSerializationparam122AllowReservedKeepsReservedCharsLiteral()
     {
         Assert.Equal("a/b:c?d=e&f;g", ValueSerializer.EncodeQueryAllowingReserved("a/b:c?d=e&f;g"));

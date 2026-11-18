@@ -153,6 +153,7 @@ public class BaseApiTest
         public int? Timeout { get; private set; }
         public int? MaxRetries { get; private set; }
         public Dictionary<string, string> Headers { get; private set; } = [];
+        public Uri? Url { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
@@ -161,6 +162,7 @@ public class BaseApiTest
             object? requestBody
         )
         {
+            Url = url;
             Headers = new Dictionary<string, string>(headers);
             return Task.FromResult(
                 new ApiHttpResponse(
@@ -183,6 +185,7 @@ public class BaseApiTest
             CancellationToken cancellationToken
         )
         {
+            Url = url;
             Timeout = timeout;
             MaxRetries = maxRetries;
             return SendRequestAsync(method, url, headers, requestBody);
@@ -843,6 +846,44 @@ public class BaseApiTest
                 )
             );
         }
+    }
+
+    [Fact]
+    public async Task BhvMisc254AnUnmarkedQueryValueEncodesReservedCharacters()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        await api.CallAsync<object>(
+            "GET",
+            "/x",
+            new Dictionary<string, object?> { ["q"] = "a/b:c" },
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        Assert.Equal("?q=a%2Fb%3Ac", client.Url!.Query);
+    }
+
+    [Fact]
+    public async Task BhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        await api.CallAsync<object>(
+            "GET",
+            "/x",
+            new Dictionary<string, object?> { ["q"] = "hello world" },
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        Assert.Equal("?q=hello%20world", client.Url!.Query);
     }
 
     [Fact]
