@@ -536,7 +536,7 @@ import Testing
      Both expire as URLError.timedOut, so the assertion covers both paths:
      the session is proved to carry both deadlines, and the classifier is
      proved to map that code to the timeout type. */
-  @Test func testEveryConfiguredDeadlineClassifiesAsTimeout() throws {
+  @Test func testBhvTransport071EveryConfiguredDeadlineClassifiesAsTimeout() throws {
     let opts = try TransportOptionsBuilder().timeout(1500).build()
     let (session, _) = try DefaultApiClient.buildSession(opts)
 
@@ -549,7 +549,7 @@ import Testing
     #expect((expired as? ApiError)?.statusCode == 0)
   }
 
-  @Test func testCancelledTaskSurfacesCancellationError() async throws {
+  @Test func testBhvTransport068CancelledTaskSurfacesCancellationError() async throws {
     // The SDK does not wrap the platform's cancellation: a request made
     // from a Swift Task that is already cancelled throws CancellationError
     // and is never started, instead of an ApiError with status 0.
@@ -716,5 +716,72 @@ import Testing
     let error = ApiError(statusCode: 500, message: "no body")
     let typed: Detail? = try error.getTypedErrorBody(Detail.self)
     #expect(typed == nil)
+  }
+
+  // MARK: - Behaviour catalogue: diagnostics and error classification
+
+  /* An error with no HTTP response renders its message alone, with no status line. */
+  @Test func testBhvErrors074ErrorWithoutAResponseRendersTheMessageAlone() {
+    let error = ApiError(message: "connection reset")
+    #expect(error.errorDescription == "connection reset")
+  }
+
+  /* Without a response an error reports a status code of zero. */
+  @Test func testBhvErrors084ErrorWithoutAResponseReportsStatusZero() {
+    #expect(ApiError(message: "connection reset").statusCode == 0)
+  }
+
+  /* A rendered body cut at its size limit never ends inside a multi-byte character. */
+  @Test func testBhvErrors075RenderedBodyCutNeverSplitsACharacter() {
+    let body = String(repeating: "a", count: 1023) + "\u{00E9}" + String(repeating: "b", count: 10)
+    let rendered = ApiError.renderedBody(body)
+    #expect(!rendered.contains("\u{FFFD}"))
+    #expect(rendered.hasPrefix(String(repeating: "a", count: 1023)))
+    #expect(rendered.hasSuffix("... (12 more bytes)"))
+  }
+
+  /* An error the SDK did not raise is not one of its own errors, even when it wraps one. */
+  @Test func testBhvErrors076ForeignErrorIsNotClassifiedAsAnSdkError() {
+    struct ForeignError: Error {}
+    let foreign: Error = ForeignError()
+    #expect(!(foreign is ApiError))
+    #expect(!(foreign is NetworkError))
+    let wrapped = ApiError(statusCode: 0, message: "wrapped", underlyingError: foreign)
+    #expect(wrapped.underlyingError is ForeignError)
+    #expect(!(wrapped.underlyingError is ApiError))
+  }
+
+  /* A transport failure message never shows the query string of the request URL. */
+  @Test func testBhvErrors078TransportFailureMessageNeverShowsTheQueryString() {
+    let error = NetworkError(statusCode: 0, message: "connection reset")
+    error.attachRequest(method: "GET", path: "/items?key=secret#frag")
+    #expect(error.message == "connection reset for GET /items")
+    #expect(!(error.errorDescription ?? "").contains("secret"))
+  }
+
+  /* Attaching request details keeps the first complete request and ignores an incomplete one. */
+  @Test func testBhvErrors079AttachRequestKeepsTheFirstCompleteRequest() {
+    let error = NetworkError(statusCode: 0, message: "connection reset")
+    error.attachRequest(method: "", path: "/incomplete")
+    #expect(error.requestMethod == nil)
+    error.attachRequest(method: "GET", path: "/items/7")
+    error.attachRequest(method: "POST", path: "/other")
+    #expect(error.requestMethod == "GET")
+    #expect(error.requestPath == "/items/7")
+    #expect(error.message == "connection reset for GET /items/7")
+  }
+
+  /* A typed HTTP error is caught by a handler for the SDK root error type and keeps its status code. */
+  @Test func testBhvErrors080TypedHttpErrorIsCaughtByTheRootErrorTypeWithItsStatus() {
+    let error: any OpenAPIError = ApiError.fromResponse(statusCode: 404, headers: nil, body: "")
+    #expect(error is NotFoundError)
+    #expect((error as? ApiError)?.statusCode == 404)
+  }
+
+  /* A nested error body within the depth limit, beyond common parser defaults, is kept as data. */
+  @Test func testBhvErrors073DeeplyNestedErrorBodyIsKeptAsStructuredData() {
+    let body = String(repeating: "[", count: 200) + "1" + String(repeating: "]", count: 200)
+    let error = ApiError.fromResponse(statusCode: 400, headers: nil, body: body)
+    #expect(error.errorBody != nil)
   }
 }

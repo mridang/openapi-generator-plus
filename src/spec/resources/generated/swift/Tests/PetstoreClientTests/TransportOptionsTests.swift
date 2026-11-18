@@ -101,7 +101,7 @@ import Testing
     #expect(error?.errorDescription?.contains("must use http or https scheme") == true)
   }
 
-  @Test func testSessionDefaultsToNil() throws {
+  @Test func testBhvOptions058SessionDefaultsToNil() throws {
     #expect(try TransportOptionsBuilder().build().session == nil)
   }
 
@@ -129,7 +129,7 @@ import Testing
   /* A supplied session cannot be combined with the SDK's own proxy, TLS or
      redirect settings: build() fails fast. */
   @Test(arguments: ["proxy", "caCertPath", "verifySsl", "followRedirects", "maxRedirects"])
-  func testSessionConflictsWithOwnSettings(setting: String) {
+  func testBhvTransport078SessionConflictsWithOwnSettings(setting: String) {
     let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
     switch setting {
     case "proxy": builder.proxy("http://proxy.example.com:8080")
@@ -441,7 +441,7 @@ import Testing
   }
 
   #if os(Linux)
-    @Test func testSettingProxyRaisesOnLinux() throws {
+    @Test func testBhvTransport080SettingProxyRaisesOnLinux() throws {
       // On Linux, URLSession does not support proxy configuration.
       // TransportOptions accepts the proxy value; DefaultApiClient's init
       // rejects it with ConfigurationError.invalidProxy rather than

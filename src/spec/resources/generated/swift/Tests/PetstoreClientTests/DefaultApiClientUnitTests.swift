@@ -308,7 +308,7 @@ import Testing
     }
   }
 
-  @Test func testMultipartFilenameWithNewlineThrows() {
+  @Test func testBhvSerialization057MultipartFilenameWithNewlineThrows() {
     let formParts: [String: Any] = ["foo\nbar": Data([0x01])]
     #expect(throws: ConfigurationError.self) {
       _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
@@ -1121,7 +1121,7 @@ import Testing
 
   /* A client that built its own session still honours it: the call goes through a
    * one-off copy of the session that carries the per-call timeout. */
-  @Test func testPerCallTimeoutReachesASessionTheSdkBuilt() async throws {
+  @Test func testBhvTransport070PerCallTimeoutReachesASessionTheSdkBuilt() async throws {
     var seen: [TimeInterval] = []
     let client = try retryClient(maxRetries: 0, timeout: 10000) { request in
       seen.append(request.timeoutInterval)
@@ -1368,7 +1368,7 @@ import Testing
     #expect(seen == ["Bearer 0", "Bearer 1", "Bearer 2"])
   }
 
-  @Test func testEveryRetryIsAFreshRequestWithItsOwnRequestId() async throws {
+  @Test func testBhvRetries044EveryRetryIsAFreshRequestWithItsOwnRequestId() async throws {
     var ids: [String?] = []
     var calls = 0
     let transport = try TransportOptionsBuilder().injectRequestID(true).build()
@@ -1786,7 +1786,7 @@ import Testing
 
   /* A minimal custom transport that does not implement close() is still
    * closable: the protocol extension supplies a no-op. */
-  @Test func testCloseHasANoOpDefaultForAMinimalTransport() {
+  @Test func testBhvLifecycle038CloseHasANoOpDefaultForAMinimalTransport() {
     struct MinimalClient: ApiClient {
       func sendRequest(
         method: String, url: String, headers: [String: String], body: Any?
@@ -2027,7 +2027,7 @@ import Testing
   #if os(Linux)
     /* URLSession on Linux cannot apply either TLS override, so asking for one
        must fail loudly instead of being silently dropped. */
-    @Test func testDisablingVerificationIsRefusedOnLinux() throws {
+    @Test func testBhvTransport079DisablingVerificationIsRefusedOnLinux() throws {
       let transport = try TransportOptionsBuilder().verifySsl(false).build()
       #expect(
         throws: ConfigurationError.invalidCACertificate(
@@ -2037,7 +2037,7 @@ import Testing
       }
     }
 
-    @Test func testCaCertificateIsRefusedOnLinux() throws {
+    @Test func testBhvTransport077CaCertificateIsRefusedOnLinux() throws {
       let file = FileManager.default.temporaryDirectory
         .appendingPathComponent("der-\(UUID().uuidString).der")
       try Data([0x30, 0x03, 0x02, 0x01, 0x05]).write(to: file)

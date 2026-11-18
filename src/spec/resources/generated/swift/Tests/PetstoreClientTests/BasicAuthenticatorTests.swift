@@ -54,7 +54,7 @@ import Testing
     ("alice", "s3c\nret", "Basic auth password must not contain CR, LF, or NUL characters"),
     ("ali:ce", "s3cret", "Basic auth username must not contain ':' (RFC 7617 \u{A7}2)"),
   ])
-  func testRejectionMessagesNameTheOffendingField(
+  func testBhvErrors081RejectionMessagesNameTheOffendingField(
     username: String, password: String, message: String
   ) {
     #expect(throws: ConfigurationError.invalidArgument(message)) {

@@ -135,8 +135,9 @@ import Testing
       "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
     ),
   ])
-  func testRejectionMessagesNameTheBranch(apiKey: String, location: ApiKeyLocation, message: String)
-  {
+  func testBhvAuth012RejectionMessagesNameTheBranch(
+    apiKey: String, location: ApiKeyLocation, message: String
+  ) {
     #expect(throws: ConfigurationError.invalidArgument(message)) {
       _ = try ApiKeyAuthenticator(
         host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: apiKey,

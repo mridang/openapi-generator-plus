@@ -826,7 +826,7 @@ import Testing
     #expect(message == "form-urlencoded field location must be a scalar or array of scalars")
   }
 
-  @Test func testFormUrlencodedEncodesLiteralPlusAsPercent2B() {
+  @Test func testBhvSerialization007FormUrlencodedEncodesLiteralPlusAsPercent2B() {
     let params: [String: Any] = ["q": "a+b"]
     let result = try? BaseApi.serializeBody(
       params, contentType: "application/x-www-form-urlencoded")
@@ -1181,7 +1181,7 @@ import Testing
       "only A-Za-z0-9-._~ stays literal in a query value, got: \(encoded)")
   }
 
-  @Test func testUnmarkedQueryValueEncodesReservedCharacters() {
+  @Test func testBhvSerialization006UnmarkedQueryValueEncodesReservedCharacters() {
     let encoded = BaseApi.buildQueryString(["revision": "v1.0/beta:rc1"])
     #expect(
       encoded == "revision=v1.0%2Fbeta%3Arc1",
@@ -1192,7 +1192,7 @@ import Testing
 
   /* Query pairs, form fields and multipart parts are written in the order
      the spec declares them, not in a per-process random hash order. */
-  @Test func testQueryStringKeepsDeclarationOrder() {
+  @Test func testBhvOperations155QueryStringKeepsDeclarationOrder() {
     var params: OrderedParams<Any?> = [:]
     let names = ["zulu", "alpha", "mike", "bravo", "yankee", "charlie", "x", "delta", "kilo"]
     for (index, name) in names.enumerated() {
@@ -2046,7 +2046,8 @@ import Testing
     #expect(mockClient.lastHeaders["X-Extra"] == "1")
   }
 
-  @Test func testAnOperationWithoutParametersValidatesItsPerCallSettings() async throws {
+  @Test func testBhvOptions056AnOperationWithoutParametersValidatesItsPerCallSettings() async throws
+  {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = StoreApi(apiClient: mockClient, config: config)
@@ -2085,7 +2086,7 @@ import Testing
   }
 
   /* A 201 body that happens to fit the 200 schema is still read as the 201 schema. */
-  @Test func testStatusDecidesTheSchemaNotTheShapeOfTheBody() async throws {
+  @Test func testBhvUnions036StatusDecidesTheSchemaNotTheShapeOfTheBody() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 201
     mockClient.responseBody = "{\"reservationId\":31,\"quantity\":4}"
@@ -2137,4 +2138,50 @@ private enum MultipartEnumFixture: String, Codable {
 private struct MultipartModelPartFixture: Codable {
   let isEnabled: Bool
   let recordedAt: Date
+  // MARK: - Behaviour catalogue: status, body and query serialization
+
+  /* A 201 body that matches neither the 201 schema nor any other is refused. */
+  @Test func testBhvOperations154ResponseBodyMatchingNoStatusSchemaIsRefused() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 201
+    mockClient.responseBody = "{\"unexpected\":true}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    await #expect(throws: SerializationError.self) {
+      _ = try await api.reserveStockWithHTTPInfo()
+    }
+  }
+
+  /* A JSON body is sent with exactly the content type the caller declared, not a charset variant. */
+  @Test func testBhvSerialization010JsonBodyIsSentWithExactlyTheDeclaredContentType() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try? await api.addPet(pet: Pet(name: "Fido", photoUrls: []))
+    #expect(mockClient.lastHeaders["Content-Type"] == "application/json")
+    #expect(mockClient.lastHeaders["Content-Type"]?.contains("charset") == false)
+  }
+
+  /* A value that cannot be encoded raises the serialization error and nothing is produced. */
+  @Test func testBhvSerialization009UnencodableValueRaisesSerializationError() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.serialize(Double.nan)
+    }
+  }
+
+  /* An empty query value is left out, as an unset one is, and other entries are kept. */
+  @Test func testBhvSerialization014EmptyAndUnsetQueryValuesProduceNoEntry() {
+    var onlyEmpty: OrderedParams<Any?> = [:]
+    onlyEmpty["q"] = ""
+    #expect(BaseApi.buildQueryString(onlyEmpty) == "")
+
+    var mixed: OrderedParams<Any?> = [:]
+    mixed["q"] = ""
+    mixed["unset"] = nil
+    mixed["status"] = "available"
+    #expect(BaseApi.buildQueryString(mixed) == "status=available")
+  }
 }

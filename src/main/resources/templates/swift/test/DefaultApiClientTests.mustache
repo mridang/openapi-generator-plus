@@ -137,7 +137,7 @@ import FoundationNetworking
     /* The stub answers at once, so no deadline fires here; this only proves a
      * 1 ms timeout is accepted. The deadlines themselves are asserted on the
      * built session and on the timeout error mapping in ApiErrorTests. */
-    @Test func testAcceptsTimeoutConfiguration() async throws {
+    @Test func testBhvTransport082AcceptsTimeoutConfiguration() async throws {
         let transport = try TransportOptionsBuilder().timeout(1).build()
         let client = makeClient(transport: transport) { _ in
             return (self.jsonBody(), 200, [:])
@@ -397,7 +397,7 @@ import FoundationNetworking
         #expect(resp.body.contains("userId"))
     }
 
-    @Test func testCorruptGzipKeepsTheResponseHeaders() async throws {
+    @Test func testBhvTransport073CorruptGzipKeepsTheResponseHeaders() async throws {
         let client = makeClient { _ in
             return (
                 Data([0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02]), 200,
@@ -716,7 +716,7 @@ import FoundationNetworking
         }
     }
 
-    @Test func testRedirect303DropsContentLengthOnFollowUp() async throws {
+    @Test func testBhvRedirects041Redirect303DropsContentLengthOnFollowUp() async throws {
         let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
         let hopCount = HopCounter()
         var capturedContentLength: String?
@@ -1287,7 +1287,7 @@ private final class RedirectStubURLProtocol: URLProtocol {
         }
     }
 
-    @Test func testCloseReleasesUnderlyingClient() async throws {
+    @Test func testBhvLifecycle036CloseReleasesUnderlyingClient() async throws {
         let client = DefaultApiClient()
         client.close()
         client.close()

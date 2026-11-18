@@ -196,6 +196,10 @@ internal enum ValueSerializer {
       guard let value = value else {
         return location == "query" ? nil : "" as Any
       }
+      if items == nil, let object = objectFields(value) {
+        return styledObjectValue(
+          object, style: "matrix", paramName: paramName, explode: explode, encode: encodeIfPath)
+      }
       if let items = items {
         if explode {
           return items.map { ";\(paramName)=\(encodeIfPath($0))" }.joined()
@@ -207,6 +211,10 @@ internal enum ValueSerializer {
     case "label":
       guard let value = value else {
         return location == "query" ? nil : "" as Any
+      }
+      if items == nil, let object = objectFields(value) {
+        return styledObjectValue(
+          object, style: "label", paramName: paramName, explode: explode, encode: encodeIfPath)
       }
       if let items = items {
         if explode {
@@ -220,6 +228,11 @@ internal enum ValueSerializer {
       guard let value = value else {
         return location == "query" ? nil : "" as Any
       }
+      if items == nil, let object = objectFields(value) {
+        return styledObjectValue(
+          object, style: "spaceDelimited", paramName: paramName, explode: explode,
+          encode: encodeIfPath)
+      }
       if let items = items {
         if explode {
           return items
@@ -231,6 +244,11 @@ internal enum ValueSerializer {
     case "pipeDelimited":
       guard let value = value else {
         return location == "query" ? nil : "" as Any
+      }
+      if items == nil, let object = objectFields(value) {
+        return styledObjectValue(
+          object, style: "pipeDelimited", paramName: paramName, explode: explode,
+          encode: encodeIfPath)
       }
       if let items = items {
         if explode {
@@ -325,6 +343,39 @@ internal enum ValueSerializer {
       }
     }
     return .success(pairs)
+  }
+
+  /// Renders an object-valued parameter in the matrix, label, spaceDelimited or
+  /// pipeDelimited style (OAS 3.0 section 4.8.12.4). Unexploded, the fields are
+  /// alternating names and values joined by the style's separator, and exploded
+  /// each field is its own `name=value` pair, with the matrix and label prefixes.
+  private static func styledObjectValue(
+    _ object: Result<[(name: String, value: String)], SerializationError>,
+    style: String,
+    paramName: String,
+    explode: Bool,
+    encode: (String) -> String
+  ) -> Any? {
+    switch object {
+    case .failure(let error):
+      return ObjectParameter(fields: [], failure: error)
+    case .success(let fields):
+      let flat = fields.flatMap { [encode($0.name), encode($0.value)] }
+      let pairs = fields.map { "\(encode($0.name))=\(encode($0.value))" }
+      switch style {
+      case "matrix":
+        if explode {
+          return fields.map { ";\(encode($0.name))=\(encode($0.value))" }.joined()
+        }
+        return ";\(paramName)=" + flat.joined(separator: ",")
+      case "label":
+        return "." + (explode ? pairs.joined(separator: ".") : flat.joined(separator: ","))
+      case "pipeDelimited":
+        return explode ? pairs.joined(separator: "|") : flat.joined(separator: "|")
+      default:
+        return explode ? pairs.joined(separator: " ") : flat.joined(separator: " ")
+      }
+    }
   }
 
   /// Renders an object-valued parameter for `style` (OAS 3.0 section 4.8.12.4):

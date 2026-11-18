@@ -25,7 +25,7 @@ import Testing
 
   /* The token is set from the redirect callback while requests read it from
      other threads; every read sees a complete token, never a torn one. */
-  @Test func testConcurrentSetAndReadOfTheAccessToken() async throws {
+  @Test func testBhvAuth030ConcurrentSetAndReadOfTheAccessToken() async throws {
     let auth = createAuthenticator()
     try auth.setAccessToken("token-0")
     let headers = await withTaskGroup(of: String?.self) { group in
@@ -203,7 +203,7 @@ import Testing
   }
 
   /* The authorize URL parameters are emitted in the fixed cross-SDK order. */
-  @Test func testAuthorizationUrlUsesFixedParameterOrder() throws {
+  @Test func testBhvAuth014AuthorizationUrlUsesFixedParameterOrder() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL(state: "s")

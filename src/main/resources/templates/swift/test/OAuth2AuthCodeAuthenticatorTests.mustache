@@ -406,7 +406,7 @@ import Testing
     }
 
     /* The authorize URL parameters are emitted in the fixed cross-SDK order. */
-    @Test func testAuthorizationUrlUsesFixedParameterOrder() throws {
+    @Test func testBhvAuth019AuthorizationUrlUsesFixedParameterOrder() throws {
         let auth = createAuthenticator()
 
         let url = try auth.buildAuthorizationURL(state: "s")
@@ -450,7 +450,7 @@ import Testing
     }
 
     /* RFC 7636 appendix B: the S256 challenge of the specification's verifier. */
-    @Test func testS256ChallengeMatchesRfc7636AppendixB() {
+    @Test func testBhvAuth008S256ChallengeMatchesRfc7636AppendixB() {
         #expect(
             PKCE.challenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
                 == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")

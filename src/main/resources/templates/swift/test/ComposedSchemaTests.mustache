@@ -101,7 +101,7 @@ import Testing
         "[1,2,3]",
         "\"dry\"",
     ])
-    func testPetFoodDecodeFailuresSurfaceAsSerializationError(json: String) {
+    func testBhvUnions038PetFoodDecodeFailuresSurfaceAsSerializationError(json: String) {
         let error = #expect(throws: SerializationError.self) {
             _ = try ObjectSerializer.deserialize(json, as: PetFood.self)
         }
@@ -516,7 +516,7 @@ import Testing
     /// dictionaries STRUCTURALLY rather than falling to `default: false`, and
     /// Hashable must fold their contents in (not collapse every container to
     /// `combine(0)`). This guards the recursion added to `==`/`hash(into:)`.
-    @Test func testAnyCodableArrayEquatableAndHashable() {
+    @Test func testBhvSerialization021AnyCodableArrayEquatableAndHashable() {
         let a = AnyCodable([1, "two", true])
         let b = AnyCodable([1, "two", true])
         let c = AnyCodable([1, "two", false])

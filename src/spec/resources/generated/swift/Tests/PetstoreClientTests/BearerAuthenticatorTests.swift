@@ -57,7 +57,7 @@ import Testing
   /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
    * included, so the redacted description is not enough: the reflection
    * must hide the secret too. */
-  @Test func testDumpDoesNotLeakSecret() async throws {
+  @Test func testBhvAuth016DumpDoesNotLeakSecret() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "dump-secret-token")
     var dumped = ""
     dump(auth, to: &dumped)
