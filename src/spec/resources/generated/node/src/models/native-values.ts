@@ -112,6 +112,11 @@ export class NativeValues {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
+    if (Array.isArray(this.addresses)) {
+      this.addresses = Object.freeze([
+        ...this.addresses,
+      ]) as typeof this.addresses;
+    }
   }
 
   /**
