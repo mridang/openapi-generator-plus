@@ -536,6 +536,7 @@ elixir | transport085 | Elixir has no cancellation token or signal argument (S7)
 elixir | serialization129 | Elixir Duration holds microseconds only, so a nanosecond fraction cannot be held: the formatter writes at most six digits and the parser truncates digits past microseconds (bhv serializationobject 054)
 ||||||| 721d0e950
 elixir | misc153 | Elixir has no cancel signal for a call or the client: a call is cancelled by ending the calling process, so no signal set anywhere reaches the in-flight request as a value
+elixir | transport091 | Elixir has no caller-supplied stream: a file or upload part is an in-memory binary the SDK never opens, so there is no handle for it to leave open (the same reason as transport061)
 rust | misc047 | Rust unions are enums, so a value that is not one of the variants cannot be built and the compiler admits only variants when serializing, so no run-time error naming the union exists
 rust | misc050 | RequestOptions is a plain struct whose flags default to false, so an unset per-call flag cannot be told apart from an explicit false and cannot fall through to the transport options
 rust | misc051 | Rust builders expose only typed setters, so an option the builder does not have cannot be passed and the compiler rejects it before any run-time check

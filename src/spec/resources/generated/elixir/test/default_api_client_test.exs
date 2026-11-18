@@ -165,6 +165,24 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert err.status_code == 0
   end
 
+  test "bhv transport 093 a server whose certificate is signed by a CA other than the configured one is rejected with a network error" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+    client = PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new())
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{chasm_url}/test/echo",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 0
+  end
+
   test "bhv misc 269 a self-signed endpoint is reached when verification is off and rejected when it is on" do
     chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
 
