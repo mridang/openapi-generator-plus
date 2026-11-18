@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	. "{{packageName}}/pkg"
 	pkgerrors "{{packageName}}/pkg/errors"
 )
@@ -1352,7 +1353,7 @@ func TestBhvLifecycle020_DefaultApiClient_CloseNeverClosesACallerSuppliedClient(
 	_ = resp.Body.Close()
 }
 
-func TestDefaultApiClient_AnAlreadyCancelledContextSendsNothing(t *testing.T) {
+func TestBhvTransport068_DefaultApiClient_AnAlreadyCancelledContextSendsNothing(t *testing.T) {
 	t.Parallel()
 	var hits int
 	var mu sync.Mutex
@@ -1463,7 +1464,7 @@ func TestBhvLifecycle007_DefaultApiClient_ClosedClientRejectsRequestsAndLeavesSu
 	}
 }
 
-func TestDefaultApiClient_CustomHttpDoerReceivesTheRequest(t *testing.T) {
+func TestBhvTransport081_DefaultApiClient_CustomHttpDoerReceivesTheRequest(t *testing.T) {
 	t.Parallel()
 	doer := &recordingDoer{}
 	transport, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
@@ -2002,5 +2003,183 @@ func TestBhvRetries016_DefaultApiClient_Https307ToHttpsReplaysTheBody(t *testing
 	}
 	if got := <-received; got != form {
 		t.Errorf("expected the target to receive the body %q, got %q", form, got)
+	}
+}
+
+func TestBhvTransport067_DefaultApiClient_EmptySuccessBodyIsReturnedWithoutError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("DELETE", server.URL+"/items/1", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("expected a success without an error, got %v", err)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", resp.StatusCode)
+	}
+	if resp.Body != "" {
+		t.Errorf("expected an empty body, got %q", resp.Body)
+	}
+}
+
+func TestBhvTransport071_DefaultApiClient_OneTimeoutBoundsEveryPhaseOfTheExchange(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	defer close(release)
+
+	timeout := 200
+	transport, err := NewTransportOptionsBuilder().Timeout(&timeout).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/slow", map[string]string{}, nil)
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected the single timeout to end the slow response, got %T: %v", err, err)
+	}
+}
+
+func TestBhvTransport072_DefaultApiClient_ExpiredDeadlineIsATimeoutButAClosedPortIsNot(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	defer close(release)
+
+	timeout := 200
+	transport, err := NewTransportOptionsBuilder().Timeout(&timeout).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("POST", server.URL+"/slow", map[string]string{}, []byte("payload"))
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected *NetworkTimeoutError for an expired deadline, got %T: %v", err, err)
+	}
+
+	closed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	closedURL := closed.URL
+	closed.Close()
+	_, err = NewDefaultApiClient(nil).SendRequest("GET", closedURL+"/gone", map[string]string{}, nil)
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected *NetworkError for a refused connection, got %T: %v", err, err)
+	}
+	if errors.As(err, &timeoutErr) {
+		t.Errorf("an unrelated connection failure must not be a timeout, got %v", err)
+	}
+}
+
+func TestBhvTransport073_DefaultApiClient_CorruptCompressedBodyRaisesApiError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("definitely not gzip"))
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/corrupt", map[string]string{}, nil)
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError for a corrupt gzip body, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode() != http.StatusOK {
+		t.Errorf("expected the response status 200 on the error, got %d", apiErr.StatusCode())
+	}
+	if resp != nil {
+		t.Errorf("expected no response with the raw bytes, got %q", resp.Body)
+	}
+}
+
+func TestBhvTransport074_DefaultApiClient_UnsupportedCodecRaisesInsteadOfReturningEncodedBytes(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "x-unavailable-codec")
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("still encoded"))
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/codec", map[string]string{}, nil)
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError for an unsupported codec, got %T: %v", err, err)
+	}
+	if resp != nil {
+		t.Errorf("expected no response with the still-encoded body, got %q", resp.Body)
+	}
+}
+
+func TestBhvTransport075_DefaultApiClient_ZstdFrameWithoutDeclaredSizeIsDecodedFully(t *testing.T) {
+	t.Parallel()
+	payload := strings.Repeat("a", 4<<20)
+	var encoded bytes.Buffer
+	writer, err := zstd.NewWriter(&encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Write([]byte(payload)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "zstd")
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write(encoded.Bytes())
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/zstd", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resp.Body) != len(payload) {
+		t.Errorf("expected the whole %d-byte payload, got %d bytes", len(payload), len(resp.Body))
+	}
+}
+
+func TestBhvTransport082_DefaultApiClient_DefaultAndTimeoutOnlyClientsComplete(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	timeout := 5000
+	timed, err := NewTransportOptionsBuilder().Timeout(&timeout).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, client := range map[string]*DefaultApiClient{
+		"default":      NewDefaultApiClient(nil),
+		"timeout only": NewDefaultApiClient(timed),
+	} {
+		resp, err := client.SendRequest("GET", server.URL+"/ok", map[string]string{}, nil)
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", name, err)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK || resp.Body != "ok" {
+			t.Errorf("%s: expected 200 with body ok, got %d %q", name, resp.StatusCode, resp.Body)
+		}
 	}
 }

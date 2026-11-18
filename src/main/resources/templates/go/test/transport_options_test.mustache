@@ -613,7 +613,7 @@ func TestBhvOptions031_TransportOptions_ProxyRejectionMessages(t *testing.T) {
 
 // An empty file and a directory are told apart: the empty file is readable but
 // holds no certificate, a directory cannot be read.
-func TestTransportOptions_EmptyCaCertFileAndDirectoryGetTheirOwnMessages(t *testing.T) {
+func TestBhvTransport077_TransportOptions_EmptyCaCertFileAndDirectoryGetTheirOwnMessages(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	empty := filepath.Join(dir, "empty.pem")
@@ -921,5 +921,60 @@ func TestBhvOptions067_TransportOptions_BuildKeepsAValidProxyAndLeavesItUnsetWhe
 	}
 	if none.Proxy() != nil {
 		t.Errorf("expected no proxy, got %v", none.Proxy())
+	}
+}
+
+func TestBhvTransport076_TransportOptions_ProxyUserinfoIsPercentDecoded(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://us%40er:p%2Bss+x@proxy.example.com:8080").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opts.Proxy().User.Username(); got != "us@er" {
+		t.Errorf("expected the username decoded to us@er, got %q", got)
+	}
+	if got, _ := opts.Proxy().User.Password(); got != "p+ss+x" {
+		t.Errorf("expected the password decoded with its literal plus sign, got %q", got)
+	}
+}
+
+func TestBhvTransport078_TransportOptions_SuppliedClientWithProxyIsRefusedAtConstruction(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		HttpClient(&http.Client{}).
+		Proxy("http://proxy.example.com:8080").
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions for a conflicting configuration")
+	}
+}
+
+func TestBhvTransport079_TransportOptions_DisablingVerificationOnASuppliedClientFailsAtConstruction(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		HttpClient(&http.Client{}).
+		VerifySsl(false).
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict for VerifySsl(false) on a supplied client, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions when verification cannot be turned off")
+	}
+}
+
+func TestBhvTransport080_TransportOptions_AProxyTheClientCannotApplyFailsConstruction(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy("socks5://proxy.example.com:1080").Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Errorf("expected ErrInvalidProxyURL, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions when the proxy cannot be applied")
 	}
 }

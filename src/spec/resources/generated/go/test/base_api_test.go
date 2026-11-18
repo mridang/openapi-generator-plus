@@ -1908,7 +1908,7 @@ type ctxKey struct{}
 
 // Every operation takes the caller's context first and hands it to the
 // transport, so cancelling it can abort the request.
-func TestBaseApi_OperationPassesTheCallContextToTheTransport(t *testing.T) {
+func TestBhvTransport069_BaseApi_OperationPassesTheCallContextToTheTransport(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -2545,7 +2545,7 @@ func TestBhvOperations001_BaseApi_PerCallHeadersReachTheTransportAndReplaceADefa
 	}
 }
 
-func TestBaseApi_PerCallTimeoutIsHandedToTheTransportAndBoundsTheContext(t *testing.T) {
+func TestBhvTransport070_BaseApi_PerCallTimeoutIsHandedToTheTransportAndBoundsTheContext(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
