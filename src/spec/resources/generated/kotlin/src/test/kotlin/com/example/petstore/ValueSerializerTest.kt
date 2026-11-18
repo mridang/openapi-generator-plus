@@ -873,6 +873,17 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName(
+            "bhvSerializationobject224 a content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal",
+        )
+        fun contentCookieIsTheSerializerJsonPercentEncoded() {
+            assertEquals(
+                "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
+                ValueSerializer.serializeContent("p", mapOf("k" to "a b~*\u00e9"), "cookie"),
+            )
+        }
+
+        @Test
         @DisplayName("bhvSerializationparam104 cookie keeps only the unreserved set literal and encodes the rest as UTF-8")
         fun cookieKeepsOnlyTheUnreservedSetLiteral() {
             assertEquals(
