@@ -419,7 +419,7 @@ Rule: `Client.new/1` refuses an authenticator or scheme credential whose host is
 
 ### No User-Agent header when the transport user agent is nil
 
-Rule: `TransportOptions.user_agent: nil` sends no `User-Agent` header. Req adds `req/<version>` through its `put_user_agent` request step unless that step is removed, so `DefaultApiClient` removes it from the base request when the user agent is nil; a caller-set `User-Agent` still goes out as given. Where: `default_api_client.mustache` (`base_request/1`). Test: `test/default_api_client_unit_test.mustache` (`bhv options 061`).
+Rule: `TransportOptions.user_agent: nil` removes the SDK's own default. Req adds `req/<version>` through its `put_user_agent` request step, so `DefaultApiClient` removes that step from the base request when the user agent is nil. Mint 1.11.0 then adds `mint/<version>` itself, because `Mint.HTTP1.add_default_headers/2` runs `Headers.put_new("User-Agent", ...)` on every request that has no user-agent, and no connect or request option turns it off (Finch 0.24 and Req 0.5.18 pass the request straight to Mint). Omitting the header entirely would need a bypass of Mint's HTTP/1 request path, which is not done. A caller-set `User-Agent` still goes out as given. Where: `default_api_client.mustache` (`base_request/1`). Test: `test/default_api_client_unit_test.mustache` (`bhv options 061`, which asserts the wire value is nil or `mint/`, never the SDK default).
 
 ### Header values with CR or LF are refused before sending
 
