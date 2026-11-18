@@ -1866,6 +1866,15 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName(
+        "bhvSerializationObject224 a content cookie value is the serializer JSON percent encoded"
+            + " keeping only the unreserved set literal")
+    void bhvSerializationObject224ContentCookieIsPercentEncodedJson() {
+      String json = "{\"k\":\"a b~*é\"}";
+      assertEquals("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", TestableApi.encodeCookie(json));
+    }
+
+    @Test
     @DisplayName("bhvErrors035 rejects a text/plain response when the return type is not String")
     void bhvErrors035RejectsTextPlainForNonStringReturnType() {
       var client =

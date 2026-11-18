@@ -364,6 +364,10 @@ public final class ObjectSerializer {
       nanos = Integer.parseInt(padded);
     }
     Duration duration = Duration.ofSeconds(secs, nanos);
+    /* google.protobuf.Duration is bounded to +/-315576000000 seconds. */
+    if (duration.compareTo(Duration.ofSeconds(315_576_000_000L)) > 0) {
+      throw new SerializationException("Invalid protobuf duration: " + text);
+    }
     return negative ? duration.negated() : duration;
   }
 
