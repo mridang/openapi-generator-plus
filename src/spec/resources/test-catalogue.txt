@@ -2035,3 +2035,192 @@ langelixir090 | A credential held by a scheme is used in preference to the clien
 langelixir091 | A mis-cased enum value raises rather than matching case-insensitively.
 langelixir092 | A byte value survives a round trip through base64 encoding and decoding.
 langelixir093 | A UUID whose segments have the wrong lengths is rejected on decode.
+||||||| cef6fbad1
+langgo001 | Multipart model part uses wire keys.
+langgo002 | Multipart file part content type from extension.
+langgo003 | Upload field accepts an io reader.
+langgo004 | New takes the credentials of each scheme.
+langgo005 | Operation doc comments attach to the method.
+langgo006 | Parameter docs keep the spec prose verbatim.
+langgo007 | Operation doc ends with the method and path.
+langgo008 | Nested container operations decode typed leaves.
+langgo009 | Error implements error interface.
+langgo010 | Error fields are immutable.
+langgo011 | Result holds struct data.
+langgo012 | Base http response public type name and fields.
+langgo013 | Base error dispatch.
+langgo014 | Base error dispatch via.
+langgo015 | Base form urlencoded wire format.
+langgo016 | Base null body place order with order still sends jsonbody.
+langgo017 | Base retries anetwork error that happened before aresponse.
+langgo018 | Base per call timeout longer than the clients lets aslow response through.
+langgo019 | Base attach request context is kept once and ignores other errors.
+langgo020 | Call hook chain of hooks that observe nothing returns no observer.
+langgo021 | Call hook chain finishes the observers already started when alater hook fails to start.
+langgo022 | Call hook anew call info cuts the query and the fragment and reads the host.
+langgo023 | Client sub accessors use short group names.
+langgo024 | Client with token fails when acredential cannot be resolved.
+langgo025 | Composed schema food constructed from apointer stores the variant by value.
+langgo026 | Composed schema dry food null discriminator property is still rejected.
+langgo027 | Composed schema treatment marshal rejects avalue that is not avariant.
+langgo028 | Composed schema set avatar thumbnail request typed constructors name their variants.
+langgo029 | Composed schema model with returns acopy and leaves the receiver alone.
+langgo030 | Configuration call hook is held by the configuration and never printed.
+langgo031 | Default client redirect method rewriting.
+langgo032 | Default client unit validate multipart field name rejects crlf.
+langgo033 | Default client unit drops303 content length on coerced get.
+langgo034 | Default client unit demoted get drops entity headers.
+langgo035 | Default client unit build httpclient transport has standard timeouts and no implicit proxy.
+langgo036 | Header selector is text mime.
+langgo037 | Header selector media type strips parameters and lowercases.
+langgo038 | Iso8601 marshal duration proto json zero.
+langgo039 | Iso8601 marshal duration proto json hours minutes.
+langgo040 | Iso8601 marshal duration proto json seconds only.
+langgo041 | Iso8601 marshal duration proto json fractional seconds.
+langgo042 | Iso8601 marshal duration proto json nanos.
+langgo043 | Iso8601 marshal duration proto json negative.
+langgo044 | Iso8601 unmarshal duration proto json nanos.
+langgo045 | Iso8601 unmarshal duration proto json negative.
+langgo046 | Iso8601 unmarshal duration proto json rejects overflow.
+langgo047 | Iso8601 duration round trip.
+langgo048 | Iso8601 format time of day midnight.
+langgo049 | Iso8601 parse time of day with fraction.
+langgo050 | Iso8601 parse time of day invalid.
+langgo051 | Iso8601 time of day round trip.
+langgo052 | Metadata deserialize from json.
+langgo053 | Metadata miscased key is an additional property not the declared field.
+langgo054 | Metadata exact key wins over miscased duplicate.
+langgo055 | Model deprecated schema carries adeprecated paragraph.
+langgo056 | Model deprecated field keeps its description and starts adeprecated paragraph.
+langgo057 | Model enums expose their allowed values.
+langgo058 | Model avalue sent next to asibling default wins on decode.
+langgo059 | Oauth2 authorization code authenticator user auth wrapper authorization url carries declared scopes.
+langgo060 | Oauth2 authorization code authenticator exchange code is safe against concurrent requests.
+langgo061 | Oauth2 implicit authenticator authorize url encodes scope spaces as percent20.
+langgo062 | Oauth2 token manager redacts stored tokens.
+langgo063 | Object serializer serialize nested model strings are not htmlescaped.
+langgo064 | Object serializer serialize additional properties are not htmlescaped.
+langgo065 | Object serializer serialize any of merged variants are not htmlescaped.
+langgo066 | Object serializer serialize set items are not htmlescaped.
+langgo067 | Object serializer serialize invalid type.
+langgo068 | Object serializer to path value nil.
+langgo069 | Object serializer to query value string slice tsv.
+langgo070 | Object serializer to query value string slice pipes.
+langgo071 | Object serializer stringify time.
+langgo072 | Object serializer stringify string pointer.
+langgo073 | Object serializer stringify nil string pointer.
+langgo074 | Object serializer stringify nil scalar pointers.
+langgo075 | Object serializer serialization error is catchable via errors as.
+langgo076 | Object serializer serialize declared enum value is written.
+langgo077 | Object serializer model equal identical.
+langgo078 | Object serializer model equal different.
+langgo079 | Object serializer model equal map bearing model.
+langgo080 | Object serializer serialize nil emits null.
+langgo081 | Object serializer is jsonnull.
+langgo082 | Object serializer looks like jsondocument.
+langgo083 | Object serializer date time returns iso8601 string.
+langgo084 | Readme lint note names only the linters the config runs.
+langgo085 | Readme lint command checks the generated sources.
+langgo086 | Readme schema constraints section says what go validates and that unique items are not sorted.
+langgo087 | Readme cancellation section describes the context parameter.
+langgo088 | Readme configuration section documents the retries.
+langgo089 | Readme has the shared sections in the shared order.
+langgo090 | Readme skills configuration has the shared subsections in the shared order.
+langgo091 | Request option with headers copies the map when the option is built.
+langgo092 | Request option new call settings rejects anegative retry limit.
+langgo093 | Request option new call settings reports the first invalid option.
+langgo094 | Server configuration accessors expose immutable state.
+langgo095 | Server variable constructor copies enum slice.
+langgo096 | Skills upload parameters are documented as io reader.
+langgo097 | Skills error handling example ends with the base error arm.
+langgo098 | Main.
+langgo099 | Trace context util concurrent set and inject is race free.
+langgo100 | Trace context util registered propagator is used.
+langgo101 | Trace context util propagator reads the span from the call context.
+langgo102 | Transport options user agent default then set.
+langgo103 | Value serializer serialize styled optional scalar pointers send their value.
+langgo104 | Value serializer serialize styled simple scalar path encodes slash.
+langgo105 | Value serializer serialize styled no style path encodes slash.
+langgo106 | Value serializer serialize styled pipe delimited pointer to slice.
+langgo107 | Value serializer serialize styled space delimited pointer to slice.
+langgo108 | Value serializer serialize styled form explode pointer to slice returns list.
+langgo109 | Value serializer serialize styled form typed enum slice.
+langgo110 | Value serializer serialize styled pipe delimited pointer to typed enum slice.
+langgo111 | Value serializer serialize styled path pointer to slice array.
+langgo112 | Value serializer to string slice pointer to slice.
+langgo113 | Value serializer to string slice nil pointer is not array.
+langgo114 | Value serializer to string slice typed enum slice.
+langgo115 | Value serializer serialize styled object with no set properties is omitted from the query.
+langgo116 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo117 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo118 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo119 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo120 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo121 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo122 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo123 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo124 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo125 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo126 | A typed error matches every level of its hierarchy above it | multi
+||||||| cef6fbad1
+langjava001 | Closing a client leaves a transport the caller injected open, so another client can reuse it.
+langjava002 | A default header the caller sets wins over the SDK header of the same name, whatever the case of the name.
+langjava003 | The sensitive header names the SDK masks are stored lowercased so that lookups ignore case.
+langjava004 | The https-to-http body refusal applies only to a downgrade; same-scheme and upgrading redirects are not refused.
+langjava005 | A non-ASCII multipart filename gets an RFC 5987 filename star that percent-encodes all but unreserved characters.
+langjava006 | An interrupted caller thread surfaces as a cancellation exception, never as an SDK error.
+langjava007 | Only idempotent methods, including QUERY, are replayable on a dropped connection; POST and PATCH are not.
+langjava008 | A POST whose connection drops before any response is sent once and raises a network error.
+langjava009 | A GET whose connection drops before any response is replayed exactly once before a network error is raised.
+langjava010 | A connection closed after the headers raises a network exception that keeps the original cause.
+langjava011 | A zstd body whose decoder library is missing raises an error naming the unavailable library, never the encoded bytes.
+langjava012 | A corrupt zstd body raises a decoding error that does not blame a missing library.
+langjava013 | A request sent without default headers carries only the headers the caller passed for that request.
+||||||| cef6fbad1
+langcsharp001 | Constructing a model with an unknown enum value keeps that value without throwing
+langcsharp002 | Malformed JSON raises the library serialization error and no native parser error escapes
+langcsharp003 | A null in a free-form field stays null after decoding
+langcsharp004 | An optional field on a model body accepts an explicit null value
+langcsharp005 | Several unknown properties in a body are skipped without error
+langcsharp006 | An unknown nested object inside a body is skipped without error
+langcsharp007 | A duration round trip keeps both its day and its time components
+langcsharp008 | A duration with a nanosecond fraction parses to the exact amount
+langcsharp009 | A duration survives a full round trip through the object serializer
+langcsharp010 | A duration beyond the protobuf bound is refused as a serialization error
+langcsharp011 | A malformed uuid inside a model fails decoding with the serialization error
+langcsharp012 | A string enum with non-lowercase wire values deserializes from its exact wire casing
+langcsharp013 | A hyphenated string enum wire value deserializes to its member
+langcsharp014 | An array of integer arrays round trips to the same values
+langcsharp015 | The string form of a model shows collection and byte contents rather than identities
+langcsharp016 | An inline enum member keeps its exact wire value through a round trip
+langcsharp017 | A bare number read in exponent notation is written back in plain notation
+langcsharp018 | A duplicate key inside a nested object keeps the last value
+langcsharp019 | A copy with changed fields keeps every other field of the source model
+langcsharp020 | A copy of a model keeps its concrete type when held through its base type
+langcsharp021 | An operation whose parameters are all optional runs with no arguments and does not throw
+langcsharp022 | A missing options object names the first required field of the operation
+langcsharp023 | A cookie parameter with a control character is refused before any request is sent
+langcsharp024 | A per-operation server with variables sends its request to the resolved URL
+langcsharp025 | Each operation receives only the credential of the scheme it requires
+langcsharp026 | A JSON null body from an operation that returns a collection raises the API error
+langcsharp027 | A date-time form field is written in its canonical string form
+langcsharp028 | An operation that is not deprecated carries no deprecation marker
+langcsharp029 | A new model starts with an empty additional properties collection and never a null one
+langcsharp030 | An additional property entry is written flat at the top level of the body
+langcsharp031 | Every dev dependency the test suite uses is declared in the project manifest
+langcsharp032 | The project file writes the documentation file and packs the readme and symbols
+langcsharp033 | The readme documents the behaviour that most surprises callers
+langcsharp034 | The readme names the versioning policy the package follows
+langcsharp035 | The skills model sample supplies every required field
+langcsharp036 | The makefile carries a dependency audit target
+langcsharp037 | An enum query parameter is sent as its wire value
+langcsharp038 | An enum header parameter is sent as its wire value
+langcsharp039 | A set query parameter with a multi collection format expands to one entry per value
+langcsharp040 | A null element in a multi query array keeps an empty entry
+langcsharp041 | A byte array is encoded as one base64 string rather than a list
+langcsharp042 | A cross-origin redirect drops any header whose name looks like a credential
+langcsharp043 | A 307 redirect replays a byte array body with its content type
+langcsharp044 | A 307 redirect replays a text body with a bare content type
+langcsharp045 | An operation with no parameters or security leaves transport settings unchanged
+langcsharp046 | An operation with no parameters or security has no auth field in its options
+langcsharp047 | A per-call timeout of zero is refused when the call is built

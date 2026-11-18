@@ -37,7 +37,7 @@ func TestBhvOptions044_Readme_SocksNoteNamesTheGoProxySetter(t *testing.T) {
 	}
 }
 
-func TestReadme_LintNoteNamesOnlyTheLintersTheConfigRuns(t *testing.T) {
+func TestBhvLanggo084_Readme_LintNoteNamesOnlyTheLintersTheConfigRuns(t *testing.T) {
 	t.Parallel()
 	readme := readSourceFile(t, "../README.md")
 	if !strings.Contains(readme, "# Lint (runs errcheck, govet, ineffassign, staticcheck and unused)") {
@@ -53,7 +53,7 @@ func TestReadme_LintNoteNamesOnlyTheLintersTheConfigRuns(t *testing.T) {
 // Every generated file carries the "Code generated" marker, which golangci-lint
 // skips unless the config turns that exclusion off, so the lint command the
 // README documents would otherwise check nothing.
-func TestReadme_LintCommandChecksTheGeneratedSources(t *testing.T) {
+func TestBhvLanggo085_Readme_LintCommandChecksTheGeneratedSources(t *testing.T) {
 	t.Parallel()
 	readme := readSourceFile(t, "../README.md")
 	if !strings.Contains(readme, "over the generated sources as well") {
@@ -65,7 +65,7 @@ func TestReadme_LintCommandChecksTheGeneratedSources(t *testing.T) {
 	}
 }
 
-func TestReadme_SchemaConstraintsSectionSaysWhatGoValidatesAndThatUniqueItemsAreNotSorted(t *testing.T) {
+func TestBhvLanggo086_Readme_SchemaConstraintsSectionSaysWhatGoValidatesAndThatUniqueItemsAreNotSorted(t *testing.T) {
 	t.Parallel()
 	readme := readSourceFile(t, "../README.md")
 	for _, want := range []string{"### Schema constraints", "validated by the server", "uniqueItems", "not sorted"} {
@@ -75,7 +75,7 @@ func TestReadme_SchemaConstraintsSectionSaysWhatGoValidatesAndThatUniqueItemsAre
 	}
 }
 
-func TestReadme_CancellationSectionDescribesTheContextParameter(t *testing.T) {
+func TestBhvLanggo087_Readme_CancellationSectionDescribesTheContextParameter(t *testing.T) {
 	t.Parallel()
 	readme := readSourceFile(t, "../README.md")
 	if !strings.Contains(readme, "`ctx context.Context` as its first parameter") {
@@ -83,7 +83,7 @@ func TestReadme_CancellationSectionDescribesTheContextParameter(t *testing.T) {
 	}
 }
 
-func TestReadme_ConfigurationSectionDocumentsTheRetries(t *testing.T) {
+func TestBhvLanggo088_Readme_ConfigurationSectionDocumentsTheRetries(t *testing.T) {
 	t.Parallel()
 	readme := readSourceFile(t, "../README.md")
 	for _, want := range []string{"## Configuration", "### Retries", "`MaxRetries(0)` disables retries", "`Retry-After`", "408, 409, 429 and 500-599 except 501", "`InvalidateAccessToken`"} {
@@ -93,7 +93,7 @@ func TestReadme_ConfigurationSectionDocumentsTheRetries(t *testing.T) {
 	}
 }
 
-func TestReadme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) {
+func TestBhvLanggo089_Readme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) {
 	t.Parallel()
 	readme := readSourceFile(t, "../README.md")
 	position := -1
@@ -118,7 +118,7 @@ func TestReadme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) {
 	}
 }
 
-func TestReadme_Skills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder(t *testing.T) {
+func TestBhvLanggo090_Readme_Skills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder(t *testing.T) {
 	t.Parallel()
 	skills := readSourceFile(t, "../SKILLS.md")
 	position := -1

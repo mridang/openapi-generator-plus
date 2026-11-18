@@ -63,7 +63,7 @@ func TestBhvMisc052_RequestOption_NewCallSettings_ALaterOptionOfTheSameKindWins(
 	}
 }
 
-func TestRequestOption_WithHeaders_CopiesTheMapWhenTheOptionIsBuilt(t *testing.T) {
+func TestBhvLanggo091_RequestOption_WithHeaders_CopiesTheMapWhenTheOptionIsBuilt(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{"X-One": "1"}
 	option := WithHeaders(headers)
@@ -87,14 +87,14 @@ func TestBhvOptions057_RequestOption_NewCallSettings_RejectsAnInvalidTimeout(t *
 	}
 }
 
-func TestRequestOption_NewCallSettings_RejectsANegativeRetryLimit(t *testing.T) {
+func TestBhvLanggo092_RequestOption_NewCallSettings_RejectsANegativeRetryLimit(t *testing.T) {
 	t.Parallel()
 	if _, err := newCallSettings([]RequestOption{WithMaxRetries(-1)}); !errors.Is(err, ErrInvalidMaxRetries) {
 		t.Errorf("expected ErrInvalidMaxRetries, got %v", err)
 	}
 }
 
-func TestRequestOption_NewCallSettings_ReportsTheFirstInvalidOption(t *testing.T) {
+func TestBhvLanggo093_RequestOption_NewCallSettings_ReportsTheFirstInvalidOption(t *testing.T) {
 	t.Parallel()
 	_, err := newCallSettings([]RequestOption{WithMaxRetries(-1), WithTimeout(0)})
 	if !errors.Is(err, ErrInvalidMaxRetries) || errors.Is(err, ErrInvalidTimeout) {

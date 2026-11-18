@@ -596,14 +596,14 @@ async fn test_bhv_serializationobject_014_store_api_create_account_keeps_the_rea
 /// The API group can be built without wiring a client, configuration or
 /// authenticator, like the no-argument constructors in the other SDKs.
 #[test]
-fn test_store_api_default_constructs_without_arguments() {
+fn test_bhv_langrust_049_store_api_default_constructs_without_arguments() {
     let _api = StoreApi::default();
 }
 
 /// Operations that declare no alternative request content-type carry no comment
 /// about a request-content-type selector that is not generated.
 #[test]
-fn test_operations_without_a_content_type_selector_do_not_mention_one() {
+fn test_bhv_langrust_050_operations_without_a_content_type_selector_do_not_mention_one() {
     let source = include_str!("../src/api/store_api.rs");
     assert!(!source.contains("optional-request-content-type-selector"));
     assert!(!source.contains("as request content-types"));
@@ -613,7 +613,7 @@ fn test_operations_without_a_content_type_selector_do_not_mention_one() {
 /// Parameter prose keeps its backticks as code spans instead of the HTML
 /// entity a double-brace tag would emit for each one.
 #[test]
-fn test_parameter_description_keeps_backticks() {
+fn test_bhv_langrust_051_parameter_description_keeps_backticks() {
     let source = include_str!("../src/api/store_api.rs");
     assert!(source.contains(
         "    /// * `q`: JSON-encoded query parameter (OAS `content`, not `schema`)\n"

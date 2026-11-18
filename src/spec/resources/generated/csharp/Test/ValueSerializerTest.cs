@@ -19,19 +19,19 @@ public class ValueSerializerTest
     //    member name (TestHue.Red -> "red", not "Red") --
 
     [Fact]
-    public void EnumPathParameterSerializesWireValue()
+    public void BhvMisc082EnumPathParameterSerializesWireValue()
     {
         Assert.Equal("red", ValueSerializer.Serialize(TestHue.Red, "path", "TestHue"));
     }
 
     [Fact]
-    public void EnumQueryParameterSerializesWireValue()
+    public void BhvLangcsharp037EnumQueryParameterSerializesWireValue()
     {
         Assert.Equal("blue", ValueSerializer.Serialize(TestHue.Blue, "query", "TestHue"));
     }
 
     [Fact]
-    public void EnumHeaderParameterSerializesWireValue()
+    public void BhvLangcsharp038EnumHeaderParameterSerializesWireValue()
     {
         Assert.Equal("green", ValueSerializer.Serialize(TestHue.Green, "header", "TestHue"));
     }
@@ -45,7 +45,7 @@ public class ValueSerializerTest
     // -- uniqueItems sets expand exactly like lists --
 
     [Fact]
-    public void QuerySetExpandsLikeListNonExploded()
+    public void BhvSerialization106QuerySetExpandsLikeListNonExploded()
     {
         var set = new HashSet<string> { "red" };
         Assert.Equal(
@@ -79,7 +79,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QuerySetWithMultiCollectionFormatExpands()
+    public void BhvLangcsharp039QuerySetWithMultiCollectionFormatExpands()
     {
         var two = new SortedSet<string> { "blue", "red" };
         Assert.Equal(
@@ -249,7 +249,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryMultiArrayKeepsAnEmptyEntryForANullElement()
+    public void BhvLangcsharp040QueryMultiArrayKeepsAnEmptyEntryForANullElement()
     {
         var result = ValueSerializer.Serialize(
             new List<object?> { 1, null, 3 },
@@ -1325,7 +1325,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void SerializeEncodesByteArrayAsBase64NotAList()
+    public void BhvLangcsharp041SerializeEncodesByteArrayAsBase64NotAList()
     {
         Assert.Equal(
             "aGk=",

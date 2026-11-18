@@ -46,7 +46,7 @@ fn test_bhv_results_001_data_is_none_for_no_content() {
 }
 
 #[test]
-fn test_into_data_consumes_result() {
+fn test_bhv_langrust_016_into_data_consumes_result() {
     let result: ApiResult<String> = ApiResult::new(
         200,
         Some("payload".to_string()),

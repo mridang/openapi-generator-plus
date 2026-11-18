@@ -566,7 +566,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NestingBeyondTheDepthLimitIsRefusedBeforeParsing()
+        public void BhvSerialization071NestingBeyondTheDepthLimitIsRefusedBeforeParsing()
         {
             // D15: the SDK's own pre-scan reports the first depth over the cap.
             string json = new string('[', 1001) + new string(']', 1001);
@@ -715,7 +715,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DecodingANullRequiredValueFailsLoudly()
+        public void BhvSerialization073DecodingANullRequiredValueFailsLoudly()
         {
             // F316: the null is refused at decode, with the property named.
             var ex = Assert.Throws<SerializationException>(() =>
@@ -726,7 +726,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ConstructingAModelWithAnUnknownEnumValueDoesNotThrow()
+        public void BhvLangcsharp001ConstructingAModelWithAnUnknownEnumValueDoesNotThrow()
         {
             // F316: an enum value outside the declared set is only refused when decoded.
             var pet = new Pet("Rex", new HashSet<string>()) { Status = (Pet.StatusEnum)999 };
@@ -774,7 +774,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void MalformedJsonDoesNotLeakNativeJsonException()
+        public void BhvLangcsharp002MalformedJsonDoesNotLeakNativeJsonException()
         {
             // The raw System.Text.Json.JsonException must never escape the
             // public deserialize entry point.
@@ -930,7 +930,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void FreeFormNullStaysNullAfterDecoding()
+        public void BhvLangcsharp003FreeFormNullStaysNullAfterDecoding()
         {
             Assert.Null(_serializer.Deserialize<EdgeCases>("{\"freeFormAny\":null}")!.FreeFormAny);
         }
@@ -1032,7 +1032,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void OptionalFieldsMayBeExplicitlyNull()
+        public void BhvLangcsharp004OptionalFieldsMayBeExplicitlyNull()
         {
             // An optional field explicitly null is tolerated (only required
             // fields hard-fail on null).
@@ -1260,7 +1260,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void MultipleUnknownPropertiesAreSilentlySkipped()
+        public void BhvLangcsharp005MultipleUnknownPropertiesAreSilentlySkipped()
         {
             var json =
                 "{\"extra1\":1,\"id\":42,\"extra2\":true,\"name\":\"Cats\",\"extra3\":[1,2,3]}";
@@ -1271,7 +1271,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NestedUnknownObjectIsSilentlySkipped()
+        public void BhvLangcsharp006NestedUnknownObjectIsSilentlySkipped()
         {
             var json = "{\"id\":1,\"name\":\"Dogs\",\"meta\":{\"nested\":{\"a\":1}}}";
             var category = _serializer.Deserialize<Category>(json);
@@ -1288,7 +1288,7 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void TimeOnlyStringifiesAsHourMinuteSecond()
+        public void BhvSerialization078TimeOnlyStringifiesAsHourMinuteSecond()
         {
             var t = new TimeOnly(9, 30, 15);
             Assert.Equal("09:30:15", ObjectSerializer.Stringify(t));
@@ -1449,7 +1449,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRoundTripDaysAndTime()
+        public void BhvLangcsharp007DurationConverterRoundTripDaysAndTime()
         {
             // 3d4h5m6s → 273906 seconds → "273906s"
             var original = new TimeSpan(3, 4, 5, 6);
@@ -1489,7 +1489,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterParsesNanosecondFraction()
+        public void BhvLangcsharp008DurationConverterParsesNanosecondFraction()
         {
             // "3600.000000001s" rounds to 0 ticks of fraction (100ns resolution).
             TimeSpan parsed = ProtobufDurationConverter.Parse("3600.000000001s");
@@ -1543,7 +1543,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationFullRoundTripThroughObjectSerializer()
+        public void BhvLangcsharp009DurationFullRoundTripThroughObjectSerializer()
         {
             var original = new TimeSpan(1, 2, 30, 45);
             string json = _serializer.Serialize(original);
@@ -1602,7 +1602,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationBeyondTheProtobufBoundIsRefusedAsASerializationError()
+        public void BhvLangcsharp010DurationBeyondTheProtobufBoundIsRefusedAsASerializationError()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<TimeSpan>("\"315576000001s\"")
@@ -1685,7 +1685,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void MalformedGuidFailsWithinModel()
+        public void BhvLangcsharp011MalformedGuidFailsWithinModel()
         {
             Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<GuidHolder>("{\"id\":\"not-a-guid\"}")
@@ -1830,7 +1830,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void AvailabilityDeserializesFromWireCasing()
+        public void BhvLangcsharp012AvailabilityDeserializesFromWireCasing()
         {
             var item = _serializer.Deserialize<StockItem>(
                 "{\"priority\":1,\"availability\":\"Available\"}"
@@ -1840,7 +1840,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void AvailabilityDeserializesHyphenatedWireValue()
+        public void BhvLangcsharp013AvailabilityDeserializesHyphenatedWireValue()
         {
             var item = _serializer.Deserialize<StockItem>(
                 "{\"priority\":1,\"availability\":\"on-hold\"}"
@@ -2119,7 +2119,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ArrayOfIntArraysRoundTripsIdentically()
+        public void BhvLangcsharp014ArrayOfIntArraysRoundTripsIdentically()
         {
             var item = _serializer.Deserialize<StockItem>(
                 "{\"priority\":2,\"matrix\":[[7,8],[9]]}"
@@ -2352,7 +2352,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void ToStringRendersCollectionsAndBytesByContent()
+        public void BhvLangcsharp015ToStringRendersCollectionsAndBytesByContent()
         {
             var text = VaultOf().ToString();
 
@@ -2645,7 +2645,10 @@ public static class ObjectSerializerTest
         [InlineData("In-Stock", EdgeCases.PhaseEnum.InStock)]
         [InlineData("on-hold", EdgeCases.PhaseEnum.OnHold)]
         [InlineData("OUT_OF_STOCK", EdgeCases.PhaseEnum.OUTOFSTOCK)]
-        public void InlineEnumKeepsItsExactWireValue(string wire, EdgeCases.PhaseEnum member)
+        public void BhvLangcsharp016InlineEnumKeepsItsExactWireValue(
+            string wire,
+            EdgeCases.PhaseEnum member
+        )
         {
             EdgeCases? decoded = _serializer.Deserialize<EdgeCases>("{\"phase\":\"" + wire + "\"}");
 
@@ -2769,7 +2772,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BareNumberReadInExponentNotationIsWrittenBackInPlainNotation()
+        public void BhvLangcsharp017BareNumberReadInExponentNotationIsWrittenBackInPlainNotation()
         {
             Pet? decoded = _serializer.Deserialize<Pet>(
                 "{\"name\":\"a\",\"photoUrls\":[],\"weightKg\":1E+3}"
@@ -2917,7 +2920,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DuplicateKeyInANestedObjectKeepsTheLastValue()
+        public void BhvLangcsharp018DuplicateKeyInANestedObjectKeepsTheLastValue()
         {
             Department? department = _serializer.Deserialize<Department>(
                 "{\"name\":\"ops\",\"lead\":{\"name\":\"a\",\"name\":\"b\"}}"
@@ -2987,7 +2990,7 @@ public static class ObjectSerializerTest
     public class ModelCopyTests
     {
         [Fact]
-        public void AWithExpressionCopiesTheModelAndChangesOnlyWhatItNames()
+        public void BhvLangcsharp019AWithExpressionCopiesTheModelAndChangesOnlyWhatItNames()
         {
             var original = new Reservation(31L, 4);
 
@@ -3012,7 +3015,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void AModelCopyKeepsItsRuntimeTypeBehindABaseType()
+        public void BhvLangcsharp020AModelCopyKeepsItsRuntimeTypeBehindABaseType()
         {
             PetFood food = new DryFood { FoodType = "dry", WeightKg = 2.5 };
 

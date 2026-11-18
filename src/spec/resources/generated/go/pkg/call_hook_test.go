@@ -65,7 +65,7 @@ func TestBhvHooks020_CallHook_ChainStartsTheHooksInOrderAndFinishesTheirObserver
 	}
 }
 
-func TestCallHook_ChainOfHooksThatObserveNothingReturnsNoObserver(t *testing.T) {
+func TestBhvLanggo020_CallHook_ChainOfHooksThatObserveNothingReturnsNoObserver(t *testing.T) {
 	t.Parallel()
 	var log []string
 	observer, err := ChainCallHooks(&orderHook{name: "a", log: &log}).Start(context.Background(), CallInfo{}, nil)
@@ -74,7 +74,7 @@ func TestCallHook_ChainOfHooksThatObserveNothingReturnsNoObserver(t *testing.T) 
 	}
 }
 
-func TestCallHook_ChainFinishesTheObserversAlreadyStartedWhenALaterHookFailsToStart(t *testing.T) {
+func TestBhvLanggo021_CallHook_ChainFinishesTheObserversAlreadyStartedWhenALaterHookFailsToStart(t *testing.T) {
 	t.Parallel()
 	var log []string
 	refusal := errors.New("refused")
@@ -93,7 +93,7 @@ func TestCallHook_ChainFinishesTheObserversAlreadyStartedWhenALaterHookFailsToSt
 	}
 }
 
-func TestCallHook_ANewCallInfoCutsTheQueryAndTheFragmentAndReadsTheHost(t *testing.T) {
+func TestBhvLanggo022_CallHook_ANewCallInfoCutsTheQueryAndTheFragmentAndReadsTheHost(t *testing.T) {
 	t.Parallel()
 	info := newCallInfo("op", "get", "/items/{id}", "https://Host.Example:8443/items/1?a=1#x")
 	if info.URL != "https://Host.Example:8443/items/1" || info.ServerAddress != "host.example" || info.Method != "GET" {
