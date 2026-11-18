@@ -559,3 +559,20 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow('Must call exchangeCode() before making API requests');
   });
 });
+
+describe('OAuth2AuthorizationCodeAuthenticator misc behaviours', () => {
+  test('bhv misc 028 a transport failure during the code exchange reaches the caller unchanged', async () => {
+    const failure = new Error('connection reset');
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      'https://api.example.com',
+      'client-id',
+      'client-secret',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://myapp.example.com/callback',
+      []
+    );
+    auth.setApiClient({ sendRequest: () => Promise.reject(failure) } as never);
+    await expect(auth.exchangeCode('my-auth-code')).rejects.toBe(failure);
+  });
+});
