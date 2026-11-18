@@ -1888,6 +1888,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return null;
         }
         final Schema values = (Schema) schema.getAdditionalProperties();
+        // The upstream map handling names the value type as the model's parent; the
+        // extras are a bucket, not inheritance, unless the schema really composes one.
+        if (built.parent != null && (schema.getAllOf() == null || schema.getAllOf().isEmpty())) {
+            built.parent = null;
+            built.parentSchema = null;
+        }
         final boolean typed = values.get$ref() != null
                 || values.getType() != null
                 || (values.getTypes() != null && !values.getTypes().isEmpty());
@@ -6388,7 +6394,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 if (buildsFqnModelImports()) {
                     final TreeSet<String> fullImports = new TreeSet<>();
                     if (!typeImportMap.isEmpty()) {
-                        for (final CodegenProperty prop : model.allVars) {
+                        final List<CodegenProperty> scanned = new ArrayList<>(model.allVars);
+                        if (model.vendorExtensions.get("additionalPropertiesValue")
+                                instanceof CodegenProperty bucket) {
+                            scanned.add(bucket);
+                        }
+                        for (final CodegenProperty prop : scanned) {
                             final String imp = typeImportMap.get(prop.dataType);
                             if (imp != null) {
                                 fullImports.add(imp);
