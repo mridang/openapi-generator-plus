@@ -435,3 +435,4 @@ kotlin | operations164 | a required parameter is a non-null Kotlin type, so a ni
 python | misc068 | python keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 ruby | misc061 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no caller cancellation or context value reaches an authenticator
 ruby | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
+node | auth042 | the Node Basic and OAuth2 wrappers keep an explicit empty username, password or secret as given and do not refuse it at construction, while the bearer and API-key wrappers refuse it; the refusal is therefore tested for those two only, by the existing authbearer and authapikey tests
