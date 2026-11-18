@@ -1942,6 +1942,133 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langgo001 | Multipart model part uses wire keys.
+langgo002 | Multipart file part content type from extension.
+langgo003 | Upload field accepts an io reader.
+langgo004 | New takes the credentials of each scheme.
+langgo005 | Operation doc comments attach to the method.
+langgo006 | Parameter docs keep the spec prose verbatim.
+langgo007 | Operation doc ends with the method and path.
+langgo008 | Nested container operations decode typed leaves.
+langgo009 | Error implements error interface.
+langgo010 | Error fields are immutable.
+langgo011 | Result holds struct data.
+langgo012 | Base http response public type name and fields.
+langgo013 | Base error dispatch.
+langgo014 | Base error dispatch via.
+langgo015 | Base form urlencoded wire format.
+langgo016 | Base null body place order with order still sends jsonbody.
+langgo017 | Base retries anetwork error that happened before aresponse.
+langgo018 | Base per call timeout longer than the clients lets aslow response through.
+langgo019 | Base attach request context is kept once and ignores other errors.
+langgo020 | Call hook chain of hooks that observe nothing returns no observer.
+langgo021 | Call hook chain finishes the observers already started when alater hook fails to start.
+langgo022 | Call hook anew call info cuts the query and the fragment and reads the host.
+langgo023 | Client sub accessors use short group names.
+langgo024 | Client with token fails when acredential cannot be resolved.
+langgo025 | Composed schema food constructed from apointer stores the variant by value.
+langgo026 | Composed schema dry food null discriminator property is still rejected.
+langgo027 | Composed schema treatment marshal rejects avalue that is not avariant.
+langgo028 | Composed schema set avatar thumbnail request typed constructors name their variants.
+langgo029 | Composed schema model with returns acopy and leaves the receiver alone.
+langgo030 | Configuration call hook is held by the configuration and never printed.
+langgo031 | Default client redirect method rewriting.
+langgo032 | Default client unit validate multipart field name rejects crlf.
+langgo033 | Default client unit drops303 content length on coerced get.
+langgo034 | Default client unit demoted get drops entity headers.
+langgo035 | Default client unit build httpclient transport has standard timeouts and no implicit proxy.
+langgo036 | Header selector is text mime.
+langgo037 | Header selector media type strips parameters and lowercases.
+langgo038 | Iso8601 marshal duration proto json zero.
+langgo039 | Iso8601 marshal duration proto json hours minutes.
+langgo040 | Iso8601 marshal duration proto json seconds only.
+langgo041 | Iso8601 marshal duration proto json fractional seconds.
+langgo042 | Iso8601 marshal duration proto json nanos.
+langgo043 | Iso8601 marshal duration proto json negative.
+langgo044 | Iso8601 unmarshal duration proto json nanos.
+langgo045 | Iso8601 unmarshal duration proto json negative.
+langgo046 | Iso8601 unmarshal duration proto json rejects overflow.
+langgo047 | Iso8601 duration round trip.
+langgo048 | Iso8601 format time of day midnight.
+langgo049 | Iso8601 parse time of day with fraction.
+langgo050 | Iso8601 parse time of day invalid.
+langgo051 | Iso8601 time of day round trip.
+langgo052 | Metadata deserialize from json.
+langgo053 | Metadata miscased key is an additional property not the declared field.
+langgo054 | Metadata exact key wins over miscased duplicate.
+langgo055 | Model deprecated schema carries adeprecated paragraph.
+langgo056 | Model deprecated field keeps its description and starts adeprecated paragraph.
+langgo057 | Model enums expose their allowed values.
+langgo058 | Model avalue sent next to asibling default wins on decode.
+langgo059 | Oauth2 authorization code authenticator user auth wrapper authorization url carries declared scopes.
+langgo060 | Oauth2 authorization code authenticator exchange code is safe against concurrent requests.
+langgo061 | Oauth2 implicit authenticator authorize url encodes scope spaces as percent20.
+langgo062 | Oauth2 token manager redacts stored tokens.
+langgo063 | Object serializer serialize nested model strings are not htmlescaped.
+langgo064 | Object serializer serialize additional properties are not htmlescaped.
+langgo065 | Object serializer serialize any of merged variants are not htmlescaped.
+langgo066 | Object serializer serialize set items are not htmlescaped.
+langgo067 | Object serializer serialize invalid type.
+langgo068 | Object serializer to path value nil.
+langgo069 | Object serializer to query value string slice tsv.
+langgo070 | Object serializer to query value string slice pipes.
+langgo071 | Object serializer stringify time.
+langgo072 | Object serializer stringify string pointer.
+langgo073 | Object serializer stringify nil string pointer.
+langgo074 | Object serializer stringify nil scalar pointers.
+langgo075 | Object serializer serialization error is catchable via errors as.
+langgo076 | Object serializer serialize declared enum value is written.
+langgo077 | Object serializer model equal identical.
+langgo078 | Object serializer model equal different.
+langgo079 | Object serializer model equal map bearing model.
+langgo080 | Object serializer serialize nil emits null.
+langgo081 | Object serializer is jsonnull.
+langgo082 | Object serializer looks like jsondocument.
+langgo083 | Object serializer date time returns iso8601 string.
+langgo084 | Readme lint note names only the linters the config runs.
+langgo085 | Readme lint command checks the generated sources.
+langgo086 | Readme schema constraints section says what go validates and that unique items are not sorted.
+langgo087 | Readme cancellation section describes the context parameter.
+langgo088 | Readme configuration section documents the retries.
+langgo089 | Readme has the shared sections in the shared order.
+langgo090 | Readme skills configuration has the shared subsections in the shared order.
+langgo091 | Request option with headers copies the map when the option is built.
+langgo092 | Request option new call settings rejects anegative retry limit.
+langgo093 | Request option new call settings reports the first invalid option.
+langgo094 | Server configuration accessors expose immutable state.
+langgo095 | Server variable constructor copies enum slice.
+langgo096 | Skills upload parameters are documented as io reader.
+langgo097 | Skills error handling example ends with the base error arm.
+langgo098 | Main.
+langgo099 | Trace context util concurrent set and inject is race free.
+langgo100 | Trace context util registered propagator is used.
+langgo101 | Trace context util propagator reads the span from the call context.
+langgo102 | Transport options user agent default then set.
+langgo103 | Value serializer serialize styled optional scalar pointers send their value.
+langgo104 | Value serializer serialize styled simple scalar path encodes slash.
+langgo105 | Value serializer serialize styled no style path encodes slash.
+langgo106 | Value serializer serialize styled pipe delimited pointer to slice.
+langgo107 | Value serializer serialize styled space delimited pointer to slice.
+langgo108 | Value serializer serialize styled form explode pointer to slice returns list.
+langgo109 | Value serializer serialize styled form typed enum slice.
+langgo110 | Value serializer serialize styled pipe delimited pointer to typed enum slice.
+langgo111 | Value serializer serialize styled path pointer to slice array.
+langgo112 | Value serializer to string slice pointer to slice.
+langgo113 | Value serializer to string slice nil pointer is not array.
+langgo114 | Value serializer to string slice typed enum slice.
+langgo115 | Value serializer serialize styled object with no set properties is omitted from the query.
+langgo116 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo117 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo118 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo119 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo120 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo121 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo122 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo123 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo124 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo125 | Each per-scheme authenticator behaves the same way for its scheme | multi
+langgo126 | A typed error matches every level of its hierarchy above it | multi
+||||||| cef6fbad1
 langjava001 | Closing a client leaves a transport the caller injected open, so another client can reuse it.
 langjava002 | A default header the caller sets wins over the SDK header of the same name, whatever the case of the name.
 langjava003 | The sensitive header names the SDK masks are stored lowercased so that lookups ignore case.

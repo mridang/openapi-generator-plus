@@ -23,7 +23,7 @@ import (
 // An optional integer, number or boolean parameter is a pointer in the Options
 // struct; the query, header and cookie paths must send its value, not the
 // pointer address.
-func TestValueSerializer_SerializeStyled_OptionalScalarPointersSendTheirValue(t *testing.T) {
+func TestBhvLanggo103_ValueSerializer_SerializeStyled_OptionalScalarPointersSendTheirValue(t *testing.T) {
 	t.Parallel()
 	limit := int64(5)
 	ratio := 1.5
@@ -618,7 +618,7 @@ func TestBhvSerializationparam087_ValueSerializer_SerializeStyled_SimpleScalarPa
 // %2F so it cannot inject extra path segments. This is asserted both for the
 // simple style and for the no-style (empty) path, since api/api.mustache routes
 // every path param through SerializeStyled.
-func TestValueSerializer_SerializeStyled_SimpleScalarPathEncodesSlash(t *testing.T) {
+func TestBhvLanggo104_ValueSerializer_SerializeStyled_SimpleScalarPathEncodesSlash(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "a/b", "path", "string", "", "simple", false)
 	if result != "a%2Fb" {
@@ -626,7 +626,7 @@ func TestValueSerializer_SerializeStyled_SimpleScalarPathEncodesSlash(t *testing
 	}
 }
 
-func TestValueSerializer_SerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
+func TestBhvLanggo105_ValueSerializer_SerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "a/b", "path", "string", "", "", false)
 	if result != "a%2Fb" {
@@ -778,7 +778,7 @@ func TestBhvSerializationparam076_ValueSerializer_SerializeStyled_PipeDelimitedS
 // reflection path is exercised without importing the models package.
 type myColorEnum string
 
-func TestValueSerializer_SerializeStyled_PipeDelimitedPointerToSlice(t *testing.T) {
+func TestBhvLanggo106_ValueSerializer_SerializeStyled_PipeDelimitedPointerToSlice(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	// *[]string is the shape of an OPTIONAL array query param.
@@ -791,7 +791,7 @@ func TestValueSerializer_SerializeStyled_PipeDelimitedPointerToSlice(t *testing.
 	}
 }
 
-func TestValueSerializer_SerializeStyled_SpaceDelimitedPointerToSlice(t *testing.T) {
+func TestBhvLanggo107_ValueSerializer_SerializeStyled_SpaceDelimitedPointerToSlice(t *testing.T) {
 	t.Parallel()
 	sizes := []string{"S", "M"}
 	result := serializeStyled("sizes", &sizes, "query", "array", "ssv", "spaceDelimited", false)
@@ -800,7 +800,7 @@ func TestValueSerializer_SerializeStyled_SpaceDelimitedPointerToSlice(t *testing
 	}
 }
 
-func TestValueSerializer_SerializeStyled_FormExplodePointerToSliceReturnsList(t *testing.T) {
+func TestBhvLanggo108_ValueSerializer_SerializeStyled_FormExplodePointerToSliceReturnsList(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	result := serializeStyled("colors", &colors, "query", "array", "", "form", true)
@@ -813,7 +813,7 @@ func TestValueSerializer_SerializeStyled_FormExplodePointerToSliceReturnsList(t 
 	}
 }
 
-func TestValueSerializer_SerializeStyled_FormTypedEnumSlice(t *testing.T) {
+func TestBhvLanggo109_ValueSerializer_SerializeStyled_FormTypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	colors := []myColorEnum{"blue", "black"}
 	// A slice of a named element type must reflect per-element, not %v the slice.
@@ -823,7 +823,7 @@ func TestValueSerializer_SerializeStyled_FormTypedEnumSlice(t *testing.T) {
 	}
 }
 
-func TestValueSerializer_SerializeStyled_PipeDelimitedPointerToTypedEnumSlice(t *testing.T) {
+func TestBhvLanggo110_ValueSerializer_SerializeStyled_PipeDelimitedPointerToTypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	colors := []myColorEnum{"blue", "black"}
 	// *[]EnumType — optional array of a named enum: both deref and per-element
@@ -844,7 +844,7 @@ func TestBhvSerializationparam082_ValueSerializer_SerializeStyled_SimpleHeaderPo
 	}
 }
 
-func TestValueSerializer_SerializeStyled_PathPointerToSliceArray(t *testing.T) {
+func TestBhvLanggo111_ValueSerializer_SerializeStyled_PathPointerToSliceArray(t *testing.T) {
 	t.Parallel()
 	colors := []string{"red", "green"}
 	// Styled path-array branch must also dereference the pointer and encode
@@ -859,7 +859,7 @@ func TestValueSerializer_SerializeStyled_PathPointerToSliceArray(t *testing.T) {
 // pointer-to-slice and a typed slice as arrays, and report nil pointers as
 // non-arrays so the caller omits the param rather than emitting a bogus value.
 
-func TestValueSerializer_ToStringSlice_PointerToSlice(t *testing.T) {
+func TestBhvLanggo112_ValueSerializer_ToStringSlice_PointerToSlice(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	items, ok := toStringSlice(&colors)
@@ -871,7 +871,7 @@ func TestValueSerializer_ToStringSlice_PointerToSlice(t *testing.T) {
 	}
 }
 
-func TestValueSerializer_ToStringSlice_NilPointerIsNotArray(t *testing.T) {
+func TestBhvLanggo113_ValueSerializer_ToStringSlice_NilPointerIsNotArray(t *testing.T) {
 	t.Parallel()
 	var colors *[]string
 	if _, ok := toStringSlice(colors); ok {
@@ -879,7 +879,7 @@ func TestValueSerializer_ToStringSlice_NilPointerIsNotArray(t *testing.T) {
 	}
 }
 
-func TestValueSerializer_ToStringSlice_TypedEnumSlice(t *testing.T) {
+func TestBhvLanggo114_ValueSerializer_ToStringSlice_TypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	items, ok := toStringSlice([]myColorEnum{"blue", "black"})
 	if !ok {
@@ -1334,7 +1334,7 @@ func TestBhvSerialization015_ValueSerializer_SerializeStyled_ObjectValuedParamet
 	}
 }
 
-func TestValueSerializer_SerializeStyled_ObjectWithNoSetPropertiesIsOmittedFromTheQuery(t *testing.T) {
+func TestBhvLanggo115_ValueSerializer_SerializeStyled_ObjectWithNoSetPropertiesIsOmittedFromTheQuery(t *testing.T) {
 	t.Parallel()
 	if got := serializeStyled("criteria", &styledCriteria{}, "query", "styledCriteria", "", "form", true); got != nil {
 		t.Errorf("expected the parameter to be omitted, got %v", got)

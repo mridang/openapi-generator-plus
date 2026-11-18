@@ -366,7 +366,7 @@ func TestBhvSerializationobject124_ObjectSerializer_Serialize_LineSeparatorsAreN
 	}
 }
 
-func TestObjectSerializer_Serialize_NestedModelStringsAreNotHTMLEscaped(t *testing.T) {
+func TestBhvLanggo063_ObjectSerializer_Serialize_NestedModelStringsAreNotHTMLEscaped(t *testing.T) {
 	t.Parallel()
 	pet := models.NewPet("a<b>", []string{"http://x/?a=1&b=2"})
 
@@ -381,7 +381,7 @@ func TestObjectSerializer_Serialize_NestedModelStringsAreNotHTMLEscaped(t *testi
 	}
 }
 
-func TestObjectSerializer_Serialize_AdditionalPropertiesAreNotHTMLEscaped(t *testing.T) {
+func TestBhvLanggo064_ObjectSerializer_Serialize_AdditionalPropertiesAreNotHTMLEscaped(t *testing.T) {
 	t.Parallel()
 	metadata := models.Metadata{AdditionalProperties: map[string]string{"q": "a<b>&c"}}
 
@@ -394,7 +394,7 @@ func TestObjectSerializer_Serialize_AdditionalPropertiesAreNotHTMLEscaped(t *tes
 	}
 }
 
-func TestObjectSerializer_Serialize_AnyOfMergedVariantsAreNotHTMLEscaped(t *testing.T) {
+func TestBhvLanggo065_ObjectSerializer_Serialize_AnyOfMergedVariantsAreNotHTMLEscaped(t *testing.T) {
 	t.Parallel()
 	treatment := models.NewPetTreatment(models.Medication{DrugName: "a<b>&c"})
 
@@ -407,7 +407,7 @@ func TestObjectSerializer_Serialize_AnyOfMergedVariantsAreNotHTMLEscaped(t *test
 	}
 }
 
-func TestObjectSerializer_Serialize_SetItemsAreNotHTMLEscaped(t *testing.T) {
+func TestBhvLanggo066_ObjectSerializer_Serialize_SetItemsAreNotHTMLEscaped(t *testing.T) {
 	t.Parallel()
 	data, err := models.Set[string]{"a&b", "<c>"}.MarshalJSON()
 	if err != nil {
@@ -787,7 +787,7 @@ func TestBhvSerializationobject066_ObjectSerializer_Deserialize_InvalidJSON(t *t
 	}
 }
 
-func TestObjectSerializer_Serialize_InvalidType(t *testing.T) {
+func TestBhvLanggo067_ObjectSerializer_Serialize_InvalidType(t *testing.T) {
 	t.Parallel()
 	// Channels cannot be serialized to JSON
 	ch := make(chan int)
@@ -826,7 +826,7 @@ func TestBhvSerializationobject166_ObjectSerializer_ToPathValue_Bool(t *testing.
 	}
 }
 
-func TestObjectSerializer_ToPathValue_Nil(t *testing.T) {
+func TestBhvLanggo068_ObjectSerializer_ToPathValue_Nil(t *testing.T) {
 	t.Parallel()
 	result := toPathValue(nil)
 	if result != "" {
@@ -866,7 +866,7 @@ func TestBhvSerializationobject169_ObjectSerializer_ToQueryValue_StringSliceSSV(
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_StringSliceTSV(t *testing.T) {
+func TestBhvLanggo069_ObjectSerializer_ToQueryValue_StringSliceTSV(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue([]string{"a", "b", "c"}, "tsv")
 	str, ok := result.(string)
@@ -878,7 +878,7 @@ func TestObjectSerializer_ToQueryValue_StringSliceTSV(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_StringSlicePipes(t *testing.T) {
+func TestBhvLanggo070_ObjectSerializer_ToQueryValue_StringSlicePipes(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue([]string{"a", "b", "c"}, "pipes")
 	str, ok := result.(string)
@@ -1093,7 +1093,7 @@ func TestBhvSerializationobject230_ObjectSerializer_TimeStringifyAndParseRoundTr
 	}
 }
 
-func TestObjectSerializer_Stringify_Time(t *testing.T) {
+func TestBhvLanggo071_ObjectSerializer_Stringify_Time(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	if got := stringify(ts); got != "2024-01-15T10:30:00.000+00:00" {
@@ -1109,7 +1109,7 @@ func TestBhvSerializationparam062_ObjectSerializer_Stringify_NullReturnsEmptyStr
 	}
 }
 
-func TestObjectSerializer_Stringify_StringPointer(t *testing.T) {
+func TestBhvLanggo072_ObjectSerializer_Stringify_StringPointer(t *testing.T) {
 	t.Parallel()
 	s := "hello"
 	result := stringify(&s)
@@ -1118,7 +1118,7 @@ func TestObjectSerializer_Stringify_StringPointer(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Stringify_NilStringPointer(t *testing.T) {
+func TestBhvLanggo073_ObjectSerializer_Stringify_NilStringPointer(t *testing.T) {
 	t.Parallel()
 	var s *string
 	result := stringify(s)
@@ -1178,7 +1178,7 @@ func TestBhvSerializationobject156_ObjectSerializer_Stringify_BytesAreStandardBa
 	}
 }
 
-func TestObjectSerializer_Stringify_NilScalarPointers(t *testing.T) {
+func TestBhvLanggo074_ObjectSerializer_Stringify_NilScalarPointers(t *testing.T) {
 	t.Parallel()
 	var i64 *int64
 	var f64 *float64
@@ -1423,7 +1423,7 @@ func TestBhvSerializationobject162_ObjectSerializer_DeserializationError_ErrorHa
 // identify a serialization failure by type via errors.As. A package-private
 // type would be uncatchable across the package boundary, breaking parity with
 // the other SDKs whose serialization error type is public.
-func TestObjectSerializer_SerializationError_IsCatchableViaErrorsAs(t *testing.T) {
+func TestBhvLanggo075_ObjectSerializer_SerializationError_IsCatchableViaErrorsAs(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
 	err := deserialize([]byte("not json"), &result)
@@ -2038,7 +2038,7 @@ func TestBhvSerializationobject172_ObjectSerializer_Serialize_UndeclaredEnumValu
 	}
 }
 
-func TestObjectSerializer_Serialize_DeclaredEnumValueIsWritten(t *testing.T) {
+func TestBhvLanggo076_ObjectSerializer_Serialize_DeclaredEnumValueIsWritten(t *testing.T) {
 	t.Parallel()
 	placed := models.OrderStatusEnumPlaced
 	data, err := serialize(models.Order{Status: &placed})
@@ -2131,7 +2131,7 @@ func TestBhvSerializationobject053_ObjectSerializer_Deserialize_AppliesSchemaDef
 
 // ── model-equality-swift-go: Equal() value equality ──
 
-func TestObjectSerializer_ModelEqual_Identical(t *testing.T) {
+func TestBhvLanggo077_ObjectSerializer_ModelEqual_Identical(t *testing.T) {
 	t.Parallel()
 	id := int64(7)
 	name := "Fido"
@@ -2144,7 +2144,7 @@ func TestObjectSerializer_ModelEqual_Identical(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ModelEqual_Different(t *testing.T) {
+func TestBhvLanggo078_ObjectSerializer_ModelEqual_Different(t *testing.T) {
 	t.Parallel()
 	name := "Fido"
 	other := "Rex"
@@ -2172,7 +2172,7 @@ func TestBhvSerializationobject090_ObjectSerializer_ModelEqual_SliceBearingModel
 
 // A Metadata carries a map field (AdditionalProperties). A value of this type is
 // not even comparable with `==` (it would fail to compile); Equal() must work.
-func TestObjectSerializer_ModelEqual_MapBearingModel(t *testing.T) {
+func TestBhvLanggo079_ObjectSerializer_ModelEqual_MapBearingModel(t *testing.T) {
 	t.Parallel()
 	a := models.Metadata{AdditionalProperties: map[string]string{"k": "v"}}
 	b := models.Metadata{AdditionalProperties: map[string]string{"k": "v"}}
@@ -2612,7 +2612,7 @@ func TestBhvSerializationobject153_ObjectSerializer_Serialize_NonFiniteFloatIsSe
 }
 
 // serialize(nil) emits the literal JSON null.
-func TestObjectSerializer_Serialize_NilEmitsNull(t *testing.T) {
+func TestBhvLanggo080_ObjectSerializer_Serialize_NilEmitsNull(t *testing.T) {
 	t.Parallel()
 	data, err := serialize(nil)
 	if err != nil {
@@ -2634,7 +2634,7 @@ func TestBhvSerializationobject067_ObjectSerializer_Deserialize_LiteralNullBodyI
 	}
 }
 
-func TestObjectSerializer_IsJSONNull(t *testing.T) {
+func TestBhvLanggo081_ObjectSerializer_IsJSONNull(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		body string
@@ -2916,7 +2916,7 @@ func TestBhvSerializationobject104_ObjectSerializer_Error_SchemaNamedErrorKeepsI
 	}
 }
 
-func TestObjectSerializer_LooksLikeJSONDocument(t *testing.T) {
+func TestBhvLanggo082_ObjectSerializer_LooksLikeJSONDocument(t *testing.T) {
 	for body, want := range map[string]bool{
 		`{"id":7}`:   true,
 		"  \n[1,2]":  true,
@@ -3032,7 +3032,7 @@ func TestBhvSerializationobject087_ObjectSerializer_HandlesNull(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_DateTimeReturnsIso8601String(t *testing.T) {
+func TestBhvLanggo083_ObjectSerializer_DateTimeReturnsIso8601String(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	if got := stringify(models.DateTime(ts)); got != "2024-01-15T10:30:00.000+00:00" {
