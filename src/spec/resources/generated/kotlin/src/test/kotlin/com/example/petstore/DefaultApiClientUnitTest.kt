@@ -3966,4 +3966,76 @@ class DefaultApiClientUnitTest {
             assertTrue(contentType!!.startsWith("multipart/mixed; boundary="), contentType)
         }
     }
+
+    @Test
+    @DisplayName("bhvMisc182 removing a header matches its name without regard to letter case so every spelling is removed")
+    fun bhvMisc182RemovingAHeaderMatchesEverySpellingOfItsName() =
+        runBlocking<Unit> {
+            listOf("Authorization", "authorization", "AUTHORIZATION").forEach { spelling ->
+                val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+                val engine =
+                    MockEngine { request ->
+                        seen.add(request)
+                        if (request.url.host == "origin.example.com") {
+                            respond(
+                                "",
+                                HttpStatusCode.TemporaryRedirect,
+                                headersOf(io.ktor.http.HttpHeaders.Location, "https://target.example.net/"),
+                            )
+                        } else {
+                            respond("", HttpStatusCode.OK)
+                        }
+                    }
+                val options =
+                    TransportOptions
+                        .builder()
+                        .followRedirects(true)
+                        .defaultHeader(spelling, "Bearer secret")
+                        .build()
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }, options)
+                    .sendRequest("GET", "http://origin.example.com/", emptyMap(), null)
+                assertEquals(2, seen.size)
+                assertNull(seen[1].headers[io.ktor.http.HttpHeaders.Authorization], "the $spelling header must not follow the redirect")
+            }
+        }
+
+    @Test
+    @DisplayName("bhvMisc183 closing a client whose credentials hold nothing that needs releasing succeeds")
+    fun bhvMisc183ClosingAClientWithNothingToReleaseSucceeds() {
+        val apiClient = DefaultApiClient(HttpClient(MockEngine { respond("", HttpStatusCode.OK) }) { followRedirects = false })
+        org.junit.jupiter.api.Assertions
+            .assertDoesNotThrow { apiClient.close() }
+    }
+
+    @Test
+    @DisplayName("bhvMisc184 closing a client returns without waiting for a request still running and does not cancel it")
+    fun bhvMisc184CloseDoesNotWaitForOrCancelAnInFlightRequest() =
+        runBlocking<Unit> {
+            val served = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val engine =
+                MockEngine { _ ->
+                    served.complete(Unit)
+                    release.await()
+                    respond("ok", HttpStatusCode.OK)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val pending = async { apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null) }
+            served.await()
+            apiClient.close()
+            release.complete(Unit)
+            assertEquals(200, pending.await().statusCode)
+        }
+
+    @Test
+    @DisplayName("bhvMisc188 a client rejects requests only after close has been called on it")
+    fun bhvMisc188ClientRejectsRequestsOnlyAfterClose() =
+        runBlocking<Unit> {
+            val apiClient = DefaultApiClient(HttpClient(MockEngine { respond("ok", HttpStatusCode.OK) }) { followRedirects = false })
+            assertEquals(200, apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null).statusCode)
+            apiClient.close()
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking { apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null) }
+            }
+        }
 }

@@ -696,3 +696,5 @@ kotlin | misc101 | Kotlin request bodies and multipart parts are ByteArray or St
 kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema forbids cannot be passed to it, and the generated models never validate on copy (misc051 pins the typed arguments)
 ||||||| 7b31d005e
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
+kotlin | misc185 | Kotlin's OAuth2 token manager exposes no stop operation, so a second stop and a token request after stop cannot be made; the token manager has no lifecycle to end
+kotlin | misc187 | Kotlin's withToken takes the host as a required argument, so a missing host is refused at compile time and there is no environment fallback for it; the token fallback is pinned by bhv lifecycle 014

@@ -414,6 +414,72 @@ class BaseApiTest {
         )
     }
 
+    @Test
+    @DisplayName("bhvMisc176 a required cookie parameter is sent in the Cookie header with its value")
+    fun bhvMisc176RequiredCookieParamIsSentInTheCookieHeaderWithItsValue() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        val auth = TestAuthenticator(emptyMap(), emptyMap(), mapOf("session" to "abc123"))
+        TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", auth = auth)
+        assertEquals("session=abc123", client.capturedHeaders["Cookie"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc177 a default Content-Type header given in any letter case is not sent when the request has no body")
+    fun bhvMisc177DefaultContentTypeInAnyCaseIsNotSentWithoutABody() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        val config = Configuration.builder().baseUrl("http://localhost").defaultHeader("content-type", "application/json").build()
+        TestableApiWithConfig(client, config).call("GET", "/test/echo")
+        assertFalse(client.capturedHeaders.keys.any { it.equals("Content-Type", ignoreCase = true) })
+    }
+
+    @Test
+    @DisplayName("bhvMisc178 a declared multipart content type other than form-data reaches the transport unchanged")
+    fun bhvMisc178DeclaredMultipartTypeReachesTheTransportUnchanged() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        TestableApiWithClient(client, "http://localhost")
+            .call("POST", "/test/echo", body = "part", contentType = "multipart/mixed")
+        val type = client.capturedHeaders.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value
+        assertEquals("multipart/mixed", type)
+    }
+
+    @Test
+    @DisplayName("bhvMisc179 an operation whose body is form-urlencoded sends the application/x-www-form-urlencoded Content-Type")
+    fun bhvMisc179FormUrlencodedBodySendsItsContentType() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        TestableApiWithClient(client, "http://localhost")
+            .call("POST", "/test/echo", body = "a=b", contentType = "application/x-www-form-urlencoded")
+        val type = client.capturedHeaders.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value
+        assertEquals("application/x-www-form-urlencoded", type)
+    }
+
+    @Test
+    @DisplayName("bhvMisc181 content placed in a header is sent exactly as serialised with no percent-encoding applied")
+    fun bhvMisc181HeaderContentIsSentWithoutPercentEncoding() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", headerParams = mutableMapOf("X-Raw" to "a b/c%20d"))
+        assertEquals("a b/c%20d", client.capturedHeaders["X-Raw"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc191 an auth cookie with a character RFC 6265 forbids raises an IllegalArgumentException that is not an OpenAPI error")
+    fun bhvMisc191ForbiddenCookieCharacterIsNotAnOpenApiError() {
+        val client = CapturingApiClient()
+        val auth = TestAuthenticator(emptyMap(), emptyMap(), mapOf("bad;name" to "value"))
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", auth = auth) }
+        }
+        assertFalse(ex is ApiException, ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvMisc192 an auth cookie made only of legal cookie octets is sent exactly as given")
+    fun bhvMisc192LegalAuthCookieIsSentExactlyAsGiven() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        val auth = TestAuthenticator(emptyMap(), emptyMap(), mapOf("session" to "abc-123_XYZ.~"))
+        TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", auth = auth)
+        assertEquals("session=abc-123_XYZ.~", client.capturedHeaders["Cookie"])
+    }
+
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
     /* A BaseApi that forwards the per-call settings an operation's options carry. */

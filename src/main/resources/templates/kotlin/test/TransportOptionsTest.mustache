@@ -645,4 +645,12 @@ class TransportOptionsTest {
             assertNull(TransportOptions.builder().build().proxy)
         }
     }
+    @Test
+    @DisplayName("bhvMisc186 combining a ready-made connection with a CA bundle setting is rejected when the options are built")
+    fun bhvMisc186ReadyMadeConnectionWithCaBundleIsRejectedAtBuild() {
+        assertThrows(IllegalArgumentException::class.java) {
+            TransportOptions.builder().httpClient(HttpClient(MockEngine { respondOk() })).caCertPath("ca.pem").build()
+        }
+    }
+
 }
