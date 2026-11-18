@@ -943,7 +943,7 @@ import Testing
     return makeClient(transport: transport, handler: handler)
   }
 
-  @Test func testServerErrorIsRetriedUntilItSucceeds() async throws {
+  @Test func testBhvRetries038ServerErrorIsRetriedUntilItSucceeds() async throws {
     var calls = 0
     let client = try retryClient { _ in
       calls += 1
@@ -977,6 +977,58 @@ import Testing
       method: "GET", url: "http://localhost/once", headers: [:], body: nil)
     #expect(response.statusCode == 503)
     #expect(calls == 1)
+  }
+
+  /* A network error before any response is retried; once the retries are spent the last one is thrown. */
+  @Test func testBhvRetries033TheLastNetworkErrorIsThrownOnceTheRetriesAreSpent() async throws {
+    var calls = 0
+    let client = try retryClient(maxRetries: 2) { _ in
+      calls += 1
+      return (Data(), 200, [UnitStubURLProtocol.failBeforeResponseHeader: "networkConnectionLost"])
+    }
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://localhost/down", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+    #expect(calls == 3)
+  }
+
+  /* A string body goes out byte for byte the same on the first send and on every retry. */
+  @Test func testBhvRetries034AStringBodyIsSentAgainUnchangedOnEveryRetry() async throws {
+    var bodies: [String] = []
+    let client = try retryClient(maxRetries: 2) { request in
+      let sent = UnitStubURLProtocol.withBody(request).httpBody ?? Data()
+      bodies.append(String(decoding: sent, as: UTF8.self))
+      return bodies.count < 3 ? (Data(), 503, ["Retry-After": "0"]) : (Data("{}".utf8), 200, [:])
+    }
+    let response = try await client.sendRequest(
+      method: "POST", url: "http://localhost/body", headers: [:], body: "{\"a\":1}")
+    #expect(response.statusCode == 200)
+    #expect(bodies == ["{\"a\":1}", "{\"a\":1}", "{\"a\":1}"])
+  }
+
+  /* Every retry is a fresh request, and each one carries the same authentication header again. */
+  @Test func testBhvRetries039EveryRetryCarriesTheSameAuthenticationHeaders() async throws {
+    var authorizations: [String?] = []
+    var requestIds: [String?] = []
+    var calls = 0
+    let transport = try TransportOptionsBuilder()
+      .injectRequestID(true)
+      .defaultHeader(name: "Authorization", value: "Bearer abc")
+      .maxRetries(1)
+      .build()
+    let client = makeClient(transport: transport) { request in
+      calls += 1
+      authorizations.append(request.value(forHTTPHeaderField: "Authorization"))
+      requestIds.append(request.value(forHTTPHeaderField: "X-Request-ID"))
+      return calls < 2 ? (Data(), 503, ["Retry-After": "0"]) : (Data("{}".utf8), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/auth", headers: [:], body: nil)
+    #expect(calls == 2)
+    #expect(authorizations == ["Bearer abc", "Bearer abc"])
+    #expect(Set(requestIds.compactMap { $0 }).count == 2)
   }
 
   // MARK: - Per-call settings
@@ -1258,7 +1310,7 @@ import Testing
     #expect(calls == 1)
   }
 
-  @Test func testStreamBodyIsNeverRetried() async throws {
+  @Test func testBhvRetries032StreamBodyIsNeverRetried() async throws {
     var calls = 0
     let client = try retryClient { _ in
       calls += 1
@@ -1324,9 +1376,16 @@ import Testing
     #expect(steps == [0.5, 1, 2, 4, 8, 8, 8])
   }
 
-  @Test func testJitterTakesAtMostAQuarterOff() {
+  @Test func testBhvRetries030JitterTakesAtMostAQuarterOff() {
     #expect(DefaultApiClient.retryDelay(attempt: 1, retryAfter: nil, jitter: 1) == 0.75)
     #expect(DefaultApiClient.retryDelay(attempt: 1, retryAfter: nil, jitter: 0.5) == 0.875)
+  }
+
+  /* The backoff starts at half a second, doubles up to 8 s, and takes up to a quarter off with jitter. */
+  @Test func testBhvRetries041BackoffStartsAtHalfASecondAndDoublesToEightWithJitterOff() {
+    #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: nil, jitter: 0) == 0.5)
+    #expect(DefaultApiClient.retryDelay(attempt: 4, retryAfter: nil, jitter: 0) == 8)
+    #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: nil, jitter: 1) == 0.375)
   }
 
   @Test func testBhvRetries023RetryAfterSecondsAreHonouredAndCappedAtSixtySeconds() {
@@ -1444,7 +1503,7 @@ import Testing
    * the comparison must treat an implicit and an explicit default port as
    * the same origin (https://h and https://h:443) and must not do so for
    * any other difference in scheme, host or port. */
-  @Test func testSameOriginComparesSchemeHostAndEffectivePort() throws {
+  @Test func testBhvRedirects034SameOriginComparesSchemeHostAndEffectivePort() throws {
     let cases: [(String, String, Bool)] = [
       ("https://example.com/a", "https://example.com:443/b", true),
       ("https://example.com:443/a", "https://example.com/b", true),
@@ -1465,6 +1524,14 @@ import Testing
         DefaultApiClient.sameOrigin(a, b) == expected,
         "sameOrigin(\(left), \(right)) should be \(expected)")
     }
+  }
+
+  /* An explicit default port names the same origin as an omitted one, so the redirect keeps its credentials. */
+  @Test func testBhvRedirects030ExplicitDefaultPortIsTheSameOriginAsTheImplicitOne() throws {
+    let implicit = try #require(URL(string: "https://example.com/a"))
+    let explicit = try #require(URL(string: "https://example.com:443/b"))
+    #expect(DefaultApiClient.sameOrigin(implicit, explicit))
+    #expect(DefaultApiClient.sameOrigin(explicit, implicit))
   }
 
   // MARK: - Accept-Encoding
@@ -1993,8 +2060,18 @@ import Testing
     (303, "POST", "GET"), (303, "PUT", "GET"), (303, "DELETE", "GET"), (303, "HEAD", "HEAD"),
     (307, "POST", "POST"), (307, "PUT", "PUT"), (308, "DELETE", "DELETE"),
   ])
-  func testRedirectMethodFollowsRfc9110(status: Int, method: String, expected: String) {
+  func testBhvRedirects029RedirectMethodFollowsRfc9110(
+    status: Int, method: String, expected: String
+  ) {
     #expect(DefaultApiClient.redirectMethod(status: status, method: method) == expected)
+  }
+
+  /* RFC 9110 15.4: a 303 turns every method except HEAD into GET. */
+  @Test func testBhvRedirects036A303TurnsEveryMethodButHeadIntoGet() {
+    for method in ["POST", "PUT", "PATCH", "DELETE", "GET"] {
+      #expect(DefaultApiClient.redirectMethod(status: 303, method: method) == "GET")
+    }
+    #expect(DefaultApiClient.redirectMethod(status: 303, method: "HEAD") == "HEAD")
   }
 }
 

@@ -1288,7 +1288,7 @@ final class PetApiTests {
     // MARK: - Redirects through the mock server
 
     /* A 3xx without a Location header is returned as the response. */
-    @Test func testRedirectWithoutLocationIsReturnedAsIs() async throws {
+    @Test func testBhvRedirects031RedirectWithoutLocationIsReturnedAsIs() async throws {
         let client = DefaultApiClient()
         let response = try await client.sendRequest(
             method: "GET", url: "\(chasmHttpUrl)/test/redirect/no-location", headers: [:], body: nil)

@@ -55,6 +55,17 @@ import Testing
     #expect(result.headers == ["X-Trace": "abc"])
   }
 
+  @Test func testBhvResults004ExposesTheDeserializedData() {
+    let result = ApiResult<String>(
+      statusCode: 200, data: "payload", rawBody: "\"payload\"", headers: [:])
+    #expect(result.data == "payload")
+  }
+
+  @Test func testBhvResults005ExposesTheRawResponseBody() {
+    let result = ApiResult<String>(statusCode: 200, data: nil, rawBody: "{\"id\":1}", headers: [:])
+    #expect(result.rawBody == "{\"id\":1}")
+  }
+
   @Test func testBhvResults003ExposesStatusCodeDataRawBodyAndHeaders() {
     let result = ApiResult(
       statusCode: 201, data: "payload", rawBody: "\"payload\"", headers: ["X-A": "1"])

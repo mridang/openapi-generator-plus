@@ -211,6 +211,14 @@ import Testing
     }
   }
 
+  /* An unknown enum string fails when it is decoded, with the decoder failure kept as the cause. */
+  @Test func testBhvSerializationobject192AnUnknownEnumStringFailsWhenDecoded() {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("\"teleported\"", as: OrderStatusEnum.self)
+    }
+    #expect(error?.cause is DecodingError)
+  }
+
   /* An unknown enum value on a scalar deserialize throws, never falling back to a default case. */
   @Test func testBhvSerializationobject182UnknownEnumValueOnScalarDeserializeThrows() {
     #expect(throws: SerializationError.self) {
@@ -323,6 +331,12 @@ import Testing
 
   @Test func testStringifyInt64() {
     #expect(ObjectSerializer.stringify(Int64(9_999_999_999)) == "9999999999")
+  }
+
+  /* A long is written as its exact decimal digits, at both ends of the 64-bit range. */
+  @Test func testBhvSerializationobject190LongIsStringifiedToItsExactDecimalDigits() {
+    #expect(ObjectSerializer.stringify(Int64.max) == "9223372036854775807")
+    #expect(ObjectSerializer.stringify(Int64.min) == "-9223372036854775808")
   }
 
   @Test func testStringifyFloat64() {
@@ -1046,6 +1060,13 @@ import Testing
         == "Failed to deserialize JSON: a number with a fraction or an exponent cannot be decoded into an integer field"
     )
     #expect(error?.cause is DecodingError)
+  }
+
+  /* An int64 above 2^53 is decoded exactly: a Double would drop the low digits. */
+  @Test func testBhvSerializationobject191AnInt64AboveTwoToThe53KeepsEveryDigitWhenDecoded() throws
+  {
+    let order = try ObjectSerializer.deserialize("{\"id\":9007199254740993}", as: Order.self)
+    #expect(order?.id == 9_007_199_254_740_993)
   }
 
   @Test func testFractionalLiteralInInt64FieldIsRejected() {
