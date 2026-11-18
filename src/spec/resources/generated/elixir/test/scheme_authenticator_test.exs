@@ -228,6 +228,26 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
     end
   end
 
+  test "bhv misc 073 the generated module exists for every security scheme the spec declares" do
+    for module <- [
+          PetstoreClient.Auth.PetStoreBasicAuthenticator,
+          PetstoreClient.Auth.AdminBasicAuthenticator,
+          PetstoreClient.Auth.PetStoreBearerAuthenticator,
+          PetstoreClient.Auth.ServiceTokenAuthenticator,
+          PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
+          PetstoreClient.Auth.InternalApiKeyAuthenticator,
+          PetstoreClient.Auth.ApiKeyQueryAuthenticator,
+          PetstoreClient.Auth.SessionCookieAuthenticator,
+          PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator,
+          PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator,
+          PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator,
+          PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator,
+          PetstoreClient.Auth.OAuth.SsoAuthAuthenticator
+        ] do
+      assert Code.ensure_loaded?(module)
+    end
+  end
+
   test "bhv authscheme 003 a scheme authenticator fails at construction naming the variable when its environment variable is empty" do
     Enum.each(@schemes, fn {module, _vars} -> assert_empty_variables_are_named(module) end)
   end

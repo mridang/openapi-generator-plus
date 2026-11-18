@@ -651,6 +651,22 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    @DisplayName("bhvMisc059 a token whose lifetime is not finite, including one that overflows, is not cached")
+    fun bhvMisc059NonFiniteLifetimeIsNotCached() {
+        for (raw in listOf("Infinity", "-Infinity", "NaN", "1e400")) {
+            val client = FakeApiClient()
+            client.enqueue("""{"access_token":"first","expires_in":"$raw"}""")
+            client.enqueue("""{"access_token":"second","expires_in":3600}""")
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+            val params = mapOf("grant_type" to "client_credentials")
+            val tokenUrl = "https://auth.example.com/token"
+            assertEquals("first", runBlocking { manager.getAccessToken(tokenUrl, params) }, raw)
+            assertEquals("second", runBlocking { manager.getAccessToken(tokenUrl, params) }, raw)
+        }
+    }
+
+    @Test
     fun bhvAuthoauthtwotokenmgr011ExpiresInNegativeSkipsCaching() {
         // D1: a negative expires_in (e.g. -1) must mark the token as
         // immediately stale so the very next call refetches.

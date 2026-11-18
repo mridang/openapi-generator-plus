@@ -21,6 +21,7 @@ import { SessionCookieAuthenticator } from '../src/auth/session-cookie-authentic
 import { SsoAuthAuthenticator } from '../src/auth/oauth/sso-auth-authenticator{{importFileExtension}}';
 import { UserAuthAuthorizationCodeAuthenticator } from '../src/auth/oauth/user-auth-authorization-code-authenticator{{importFileExtension}}';
 import type { ApiClient } from '../src/api-client{{importFileExtension}}';
+import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../src/api-http-response{{importFileExtension}}';
 import * as entryPoint from '../src/index{{importFileExtension}}';
 {{#apiInfo}}
@@ -896,5 +897,56 @@ describe('mockable client', () => {
     await fake.close();
 
     expect(closed).toBe(2);
+  });
+});
+
+describe('client credentials and API groups', () => {
+  const host = 'https://api.example.com';
+
+  function groupsOf(client: object): object[] {
+    return Object.values(client).filter(
+      (group): group is object => typeof group === 'object' && group !== null && 'schemeAuthenticators' in group
+    );
+  }
+
+  it('bhv misc 071 a credential that needs HTTP receives the client transport', () => {
+    const received: unknown[] = [];
+    class TransportAware extends BearerAuthenticator {
+      setApiClient(apiClient: ApiClient): void {
+        received.push(apiClient);
+      }
+    }
+
+    new {{clientClassName}}(new TransportAware(host, 'tok'));
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toBeInstanceOf(DefaultApiClient);
+  });
+
+  it('bhv misc 065 scheme credentials are copied when the client is built', () => {
+    const held = new BearerAuthenticator(host, 'first');
+    const credentials: { serviceToken?: BearerAuthenticator } = { serviceToken: held };
+    const client = new {{clientClassName}}(credentials);
+    credentials.serviceToken = new BearerAuthenticator(host, 'second');
+
+    const groups = groupsOf(client);
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups) {
+      expect(Object.values(Reflect.get(group, 'schemeAuthenticators'))).toContain(held);
+      expect(Object.values(Reflect.get(group, 'schemeAuthenticators'))).not.toContain(credentials.serviceToken);
+    }
+  });
+
+  it('bhv misc 072 every API group holds the default credential and the scheme credentials', () => {
+    const def = new BearerAuthenticator(host, 'default');
+    const held = new BearerAuthenticator(host, 'scheme');
+    const client = new {{clientClassName}}({ authenticator: def, serviceToken: held });
+
+    const groups = groupsOf(client);
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups) {
+      expect(Reflect.get(group, 'authenticator')).toBe(def);
+      expect(Object.values(Reflect.get(group, 'schemeAuthenticators'))).toEqual([held]);
+    }
   });
 });

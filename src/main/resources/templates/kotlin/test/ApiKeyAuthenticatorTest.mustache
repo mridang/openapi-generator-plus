@@ -512,4 +512,15 @@ class ApiKeyAuthenticatorTest {
         assertEquals(mapOf("X-API-Key" to "key-1"), auth.getAuthHeaders())
         assertEquals(mapOf("X-API-Key" to "key-2"), auth.getAuthHeaders())
     }
+
+    @Test
+    @DisplayName("bhvMisc057 an API key configured for one location is never sent at another location")
+    fun bhvMisc057ApiKeyIsSentOnlyAtItsConfiguredLocation() = runBlocking {
+        for (location in ApiKeyLocation.values()) {
+            val auth = ApiKeyAuthenticator("https://api.example.com", "k", "key-value", location = location)
+            val placed = listOf(auth.getAuthHeaders(), auth.getQueryParams(), auth.getCookieParams())
+                .filter { it.containsValue("key-value") }
+            assertEquals(1, placed.size, location.toString())
+        }
+    }
 }

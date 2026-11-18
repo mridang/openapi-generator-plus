@@ -4360,6 +4360,39 @@ void main() {
       expect(auth.injected, same(client));
     });
 
+    test('bhv misc 072 each API group holds the default credential and the scheme credentials it was built with', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String? receivedAuth;
+      server.listen((request) {
+        receivedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: _BaseApiAuth(
+                headers: {'Authorization': 'Bearer default'}),
+            schemeAuthenticators: {
+              'adminBasic': _BaseApiAuth(
+                  headers: {'Authorization': 'Bearer scheme'}),
+            });
+
+        await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}), null);
+        expect(receivedAuth, equals('Bearer default'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv serialization 014 a query parameter left unset produces no query entry at all', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';

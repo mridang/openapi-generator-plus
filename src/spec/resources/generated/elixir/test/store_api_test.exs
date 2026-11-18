@@ -149,6 +149,29 @@ defmodule PetstoreClient.Api.StoreApiTest do
              PetstoreClient.Api.StoreApi.reserve_stock(created)
   end
 
+  test "bhv misc 079 a 201 reply from reserve_stock decodes as the receipt declared for 201" do
+    created =
+      new_store_api_for_mock(
+        201,
+        "application/json",
+        ~s({"receiptCode":"r-2","expiresAt":"2030-01-01T00:00:00.000+00:00"})
+      )
+
+    assert {:ok, %PetstoreClient.Models.ReservationReceipt{receipt_code: "r-2"}} =
+             PetstoreClient.Api.StoreApi.reserve_stock(created)
+  end
+
+  test "bhv misc 080 a body that fits another status's schema is refused with an error" do
+    existing =
+      new_store_api_for_mock(
+        200,
+        "application/json",
+        ~s({"receiptCode":"r-1","expiresAt":"2030-01-01T00:00:00.000+00:00"})
+      )
+
+    assert {:error, _} = PetstoreClient.Api.StoreApi.reserve_stock(existing)
+  end
+
   test "bhv operations 129 a 200 response from reserve_stock decodes as the existing reservation" do
     existing =
       new_store_api_for_mock(200, "application/json", ~s({"reservationId":9,"quantity":3}))
