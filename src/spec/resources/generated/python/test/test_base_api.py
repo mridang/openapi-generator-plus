@@ -354,6 +354,100 @@ class TestErrorRequestContext:
         assert exc_info.value.request_method == "GET"
         assert exc_info.value.request_path == "/items"
 
+    async def test_bhv_errors_092_a_timeout_records_the_method_and_path_and_stays_a_timeout(
+        self,
+    ) -> None:
+        api = StubApi(
+            api_client=_FailingApiClient(
+                error=NetworkTimeoutException(message="timed out")
+            ),
+            config=Configuration(base_url="https://example.test"),
+        )
+        with pytest.raises(NetworkTimeoutException) as exc_info:
+            await api.call(
+                "GET",
+                "/items",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+
+        assert exc_info.value.request_method == "GET"
+        assert exc_info.value.request_path == "/items"
+
+    async def test_bhv_misc_021_the_error_path_keeps_the_base_url_prefix_and_drops_the_query(
+        self,
+    ) -> None:
+        api = StubApi(
+            api_client=_FailingApiClient(status=404),
+            config=Configuration(base_url="https://example.test/v1"),
+        )
+        with pytest.raises(NotFoundException) as exc_info:
+            await api.call(
+                "GET",
+                "/pet/1",
+                {"q": "x"},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+
+        assert exc_info.value.request_path == "/v1/pet/1"
+
+
+class _BlockingApiClient(ApiClient):
+    """An ApiClient whose one request waits until the test releases it."""
+
+    def __init__(self) -> None:
+        self.release = threading.Event()
+
+    def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+    ) -> ApiHttpResponse:
+        self.release.wait(5)
+        return ApiHttpResponse(status_code=200, body="{}", headers={})
+
+    def close(self) -> None:
+        return None
+
+
+class TestCallerCancellation:
+    async def test_bhv_misc_029_a_caller_timeout_surfaces_as_the_callers_timeout_not_an_sdk_error(
+        self,
+    ) -> None:
+        client = _BlockingApiClient()
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+        try:
+            with pytest.raises(asyncio.TimeoutError) as exc_info:
+                await asyncio.wait_for(
+                    api.call(
+                        "GET",
+                        "/items",
+                        {},
+                        {},
+                        None,
+                        ["application/json"],
+                        "application/json",
+                        None,
+                    ),
+                    timeout=0.05,
+                )
+            assert not isinstance(exc_info.value, ApiException)
+        finally:
+            client.release.set()
+
 
 class _ScriptedApiClient(ApiClient):
     """An ApiClient that plays back the given responses and records what it was sent."""
@@ -2972,6 +3066,15 @@ class TestTypedErrorBody:
             message="boom", response_headers={}, response_body=None
         )
         assert err.get_typed_error_body(Category) is None
+
+    def test_bhv_misc_015_a_typed_view_of_a_non_object_error_body_is_a_serialization_error(
+        self,
+    ) -> None:
+        err = BadRequestException(
+            message="boom", response_headers={}, response_body="[1,2]"
+        )
+        with pytest.raises(SerializationException):
+            err.get_typed_error_body(Category)
 
 
 class JsonReplyApiClient(CapturingApiClient):
