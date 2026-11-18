@@ -2202,6 +2202,28 @@ class TestBodySerialization:
         assert client.captured_body is parts
         assert client.captured_headers["Content-Type"] == declared
 
+    async def test_bhv_misc_178_a_declared_multipart_content_type_reaches_the_transport_unchanged(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        declared = "multipart/mixed; boundary=abc123"
+
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"meta": "x"},
+            ["application/json"],
+            declared,
+            None,
+        )
+
+        assert client.captured_headers["Content-Type"] == declared
+
     async def test_bhv_serializationwire_012_form_urlencoded_body_encodes_space_as_plus(
         self,
     ) -> None:
@@ -4591,6 +4613,50 @@ class TestCallHook:
         assert "secret" not in hook.infos[0].url
 
 
+class _FakeResponse:
+    def __init__(self, status: int, headers: dict[str, str], data: bytes = b"") -> None:
+        self.status = status
+        self.headers = headers
+        self.data = data
+
+    def read(self) -> bytes:
+        return self.data
+
+    def release_conn(self) -> None:
+        return None
+
+    def close(self) -> None:
+        return None
+
+
+class _ScriptedPool:
+    def __init__(self, *replies: Any) -> None:
+        self.replies = list(replies)
+        self.calls = 0
+
+    def request(self, *args: Any, **kwargs: Any) -> Any:
+        self.calls += 1
+        reply = self.replies.pop(0)
+        if isinstance(reply, BaseException):
+            raise reply
+        return reply
+
+
+def _pool_api(
+    pool: Any, max_retries: int = 0, follow_redirects: bool = True
+) -> StubApi:
+    options = (
+        TransportOptions.builder()
+        .max_retries(max_retries)
+        .follow_redirects(follow_redirects)
+        .build()
+    )
+    return StubApi(
+        api_client=DefaultApiClient(options, pool_manager=pool),
+        config=Configuration(base_url="https://example.test"),
+    )
+
+
 class _NoObserverHook:
     def start(self, info: CallInfo, headers: dict[str, str]) -> Optional[CallObserver]:
         return None
@@ -4752,6 +4818,64 @@ class TestRetryOutcomesAndBodyReplay:
 
         assert result.status_code == 200
         assert len(server.requests) == 4
+
+    async def test_bhv_misc_161_a_post_is_sent_once_when_the_connection_drops(
+        self,
+    ) -> None:
+        import urllib3
+
+        pool = _ScriptedPool(
+            urllib3.exceptions.ProtocolError("dropped"), _FakeResponse(200, {}, b"{}")
+        )
+
+        with pytest.raises(NetworkException):
+            await api_post_text(_pool_api(pool, max_retries=2), '{"a":1}')
+
+        assert pool.calls == 1
+
+    async def test_bhv_misc_161_a_query_request_is_sent_again_after_a_dropped_connection(
+        self,
+    ) -> None:
+        import urllib3
+
+        pool = _ScriptedPool(
+            urllib3.exceptions.ProtocolError("dropped"), _FakeResponse(200, {}, b"{}")
+        )
+
+        await _pool_api(pool, max_retries=1).call(
+            "QUERY",
+            "/x",
+            {},
+            {},
+            "{}",
+            ["application/json"],
+            "application/json",
+            None,
+        )
+
+        assert pool.calls == 2
+
+    async def test_bhv_misc_166_a_call_that_disables_its_deadline_is_not_cut_short_while_it_waits_to_retry(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, _SOON, "{}"), _OK)
+
+        await _get(_retry_api(server, timeout=None))
+
+        assert len(server.requests) == 2
+
+    async def test_bhv_misc_173_a_request_body_is_refused_across_an_https_to_http_redirect(
+        self,
+    ) -> None:
+        pool = _ScriptedPool(
+            _FakeResponse(307, {"location": "http://example.test/y"}),
+            _FakeResponse(200, {}, b"{}"),
+        )
+
+        with pytest.raises(ApiException):
+            await api_post_text(_pool_api(pool), '{"a":1}')
+
+        assert pool.calls == 1
 
 
 async def api_post_text(api: StubApi, text: str) -> Any:
