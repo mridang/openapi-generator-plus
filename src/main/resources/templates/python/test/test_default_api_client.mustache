@@ -960,6 +960,9 @@ class TestHttpCompression:
     """The fixture serves one JSON body under each codec whatever the request
     advertises, so the plain text proves the client decoded it."""
 
+    def test_bhv_transport_088_a_gzip_encoded_body_is_decoded_before_it_is_returned(self, chasm_http_url: Any) -> None:
+        self._assert_decompresses(chasm_http_url, "gzip")
+
     def _assert_decompresses(self, chasm_http_url: Any, encoding: str) -> None:
         client = DefaultApiClient()
         response = client.send_request(
@@ -1087,6 +1090,11 @@ class TestTlsVerificationEnforced:
         on = DefaultApiClient(TransportOptions.builder().build())
         with pytest.raises(NetworkException):
             on.send_request('GET', chasm_https_url + '/test/echo', {}, None)
+
+    def test_bhv_transport_093_a_server_signed_by_another_ca_is_rejected_with_a_network_error(self, chasm_https_url: Any) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        with pytest.raises(NetworkException):
+            client.send_request('GET', chasm_https_url + '/test/echo', {}, None)
 
 
 class TestDefaultTrustStore:

@@ -1555,4 +1555,145 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
     }
+
+    [Fact]
+    public async Task BhvTransport084ACancelledCallStopsTheRequestAtOnce()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().Timeout(30000).Build());
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                cts.Token
+            )
+        );
+
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task BhvTransport086ARequestPastItsTimeoutFailsWithTheNetworkTimeoutError()
+    {
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().Timeout(300).MaxRetries(0).Build()
+        );
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task BhvTransport087AConnectionThatCannotBeEstablishedRaisesTheNetworkError()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://127.0.0.1:1/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+    }
+
+    [Fact]
+    public async Task BhvTransport088AValidlyGzipEncodedBodyIsDecodedBeforeItIsReturned()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/compressed/gzip"),
+            new Dictionary<string, string> { { "Accept-Encoding", "gzip" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport090ARepeatedResponseHeadersKeepEveryValue()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/response-headers"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("next", response.Headers["link"], StringComparison.Ordinal);
+        Assert.Contains("prev", response.Headers["link"], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport093AServerSignedByAnotherCaIsRejectedWithANetworkError()
+    {
+        using var otherKey = RSA.Create(2048);
+        var certificateRequest = new CertificateRequest(
+            "CN=unrelated test CA",
+            otherKey,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1
+        );
+        certificateRequest.CertificateExtensions.Add(
+            new X509BasicConstraintsExtension(true, false, 0, true)
+        );
+        using var otherCa = certificateRequest.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddDays(1)
+        );
+        var caPath = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"unrelated-ca-{Guid.NewGuid():N}.pem"
+        );
+        System.IO.File.WriteAllText(
+            caPath,
+            "-----BEGIN CERTIFICATE-----\n"
+                + Convert.ToBase64String(otherCa.RawData, Base64FormattingOptions.InsertLineBreaks)
+                + "\n-----END CERTIFICATE-----\n"
+        );
+
+        try
+        {
+            var transport = TransportOptions
+                .Builder()
+                .VerifySsl(true)
+                .CaCertPath(caPath)
+                .MaxRetries(0)
+                .Build();
+            var client = new DefaultApiClient(transport);
+            var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+                client.SendRequestAsync(
+                    "GET",
+                    new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                    new Dictionary<string, string>(),
+                    null
+                )
+            );
+
+            Assert.Equal(0, ex.StatusCode);
+        }
+        finally
+        {
+            System.IO.File.Delete(caPath);
+        }
+    }
 }

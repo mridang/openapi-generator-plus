@@ -2048,4 +2048,27 @@ public class OAuth2TokenManagerTest
             );
         }
     }
+
+    [Fact]
+    public async Task BhvMisc198ANewGrantWithoutExpiresInReplacesThePreviousTokenAndItsExpiry()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        _ = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        var second = await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal("tok2", second);
+    }
 }
