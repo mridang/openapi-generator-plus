@@ -674,3 +674,36 @@ test('bhv authscheme 014 an empty environment variable for the password scheme c
     }
     expect($wrappers)->toBeGreaterThan(0);
 });
+
+test('bhv auth 051 the password grant posts to the token url and refreshes at the refresh url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token',
+        'refresh_token' => 'pw-refresh',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'alice',
+        's3cret',
+        ['read', 'write'],
+        'https://auth.example.com/refresh'
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/token');
+    expect($client->capturedRequests[0]['body'])->toContain('grant_type=password');
+    expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
+    expect($client->capturedRequests[1]['body'])->toContain('grant_type=refresh_token');
+});

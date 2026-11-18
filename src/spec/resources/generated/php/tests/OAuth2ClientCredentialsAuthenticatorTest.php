@@ -421,3 +421,27 @@ test('bhv authscheme 013 an empty environment variable for the client credential
     }
     expect($wrappers)->toBeGreaterThan(0);
 });
+
+test('bhv auth 050 the client credentials grant posts its grant type with scopes joined by a plus to the token url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'cc-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        ['read', 'write']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+
+    $request = $client->capturedRequests[0];
+    expect($request['url'])->toBe('https://auth.example.com/token');
+    expect($request['body'])->toContain('grant_type=client_credentials');
+    expect($request['body'])->toContain('scope=read+write');
+});

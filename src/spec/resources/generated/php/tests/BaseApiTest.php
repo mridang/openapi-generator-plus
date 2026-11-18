@@ -750,7 +750,7 @@ test('configured api-key query authenticator sends no api-key param on a securit
     expect($client->capturedUrl)->not->toContain('secret-api-key');
 });
 
-test('configured cookie authenticator sets no cookie on a security:[] operation', function (): void {
+test('bhv auth 044 configured cookie authenticator sets no cookie on a security:[] operation', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $auth = new ApiKeyAuthenticator('http://localhost', 'session', 'secret-session', ApiKeyLocation::COOKIE);
@@ -1984,4 +1984,17 @@ test('bhv errors 027 an absolute url in the path bypasses the client base url', 
     $api->call('GET', 'https://other.example.com/v1/items', [], [], null, ['application/json'], null);
 
     expect($client->capturedUrl)->toBe('https://other.example.com/v1/items');
+});
+
+test('bhv auth 046 an operation that inherits the document level security receives the client authenticator on the wire', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
 });

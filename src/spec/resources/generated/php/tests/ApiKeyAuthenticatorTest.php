@@ -322,6 +322,27 @@ test('bhv auth 007 the base class reads no environment variable', function (): v
     });
 });
 
+test('bhv auth 040 an environment variable set to an empty string is treated as unset', function (): void {
+    withApiKeyEnvironment('', function (): void {
+        expect(fn () => new ApiKeyHeaderAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY');
+        expect(sentApiKeys(new ApiKeyHeaderAuthenticator('https://api.example.com', 'explicit')))->toBe(['explicit']);
+    });
+});
+
+test('bhv auth 041 a value passed to the constructor takes precedence over the same environment variable', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        expect(sentApiKeys(new ApiKeyHeaderAuthenticator('https://api.example.com', 'explicit')))->toBe(['explicit']);
+    });
+});
+
+test('bhv auth 042 an explicit empty value is kept and refused by its own check, not replaced by the environment', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        expect(fn () => new ApiKeyHeaderAuthenticator('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class, 'must not be empty');
+    });
+});
+
 test('bhv auth 005 an api key provider is asked for the key on every request', function (): void {
     $calls = 0;
     $auth = new ApiKeyAuthenticator(
@@ -539,3 +560,33 @@ function apiKeyWrapperEnvVariable(string $class): string
 
     return $first;
 }
+
+test('bhv auth 031 an api key is sent in the declared header with its exact name and value', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    expect($auth->getAuthHeaders())->toBe(['X-API-Key' => 'abc123']);
+});
+
+test('bhv auth 032 a session cookie key is sent as the SESSION_ID cookie with its exact name and value', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'SESSION_ID', 'abc123', ApiKeyLocation::COOKIE);
+
+    expect($auth->getCookieParams())->toBe(['SESSION_ID' => 'abc123']);
+});
+
+test('bhv auth 034 an api key that is empty or blank is refused when the authenticator is constructed', function (string $key): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', $key, ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+})->with([
+    'empty' => [''],
+    'blank' => ['   '],
+]);
+
+test('bhv auth 035 an api key with a nul, a carriage return, a line feed or a non ascii character is refused', function (string $key): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', $key, ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+})->with([
+    'nul' => ["abc\0def"],
+    'carriage return' => ["abc\rdef"],
+    'line feed' => ["abc\ndef"],
+    'non ascii' => ['kéy'],
+]);

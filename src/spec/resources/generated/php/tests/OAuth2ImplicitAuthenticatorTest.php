@@ -209,3 +209,18 @@ test('bhv authscheme 016 an empty environment variable for the implicit scheme c
     }
     expect($wrappers)->toBeGreaterThan(0);
 });
+
+test('bhv auth 049 the implicit flow builds an exact authorize url with response type token and percent encoded scopes', function (): void {
+    $authenticator = new OAuth2ImplicitAuthenticator('https://api.example.com', 'my-client-id', 'https://auth.example.com/authorize', ['read', 'write']);
+
+    expect($authenticator->buildAuthorizationUrl('csrf-state'))->toBe(
+        'https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=csrf-state'
+    );
+});
+
+test('bhv auth 052 an oauth authenticator that holds no token refuses to produce auth headers', function (): void {
+    $authenticator = new OAuth2ImplicitAuthenticator('https://api.example.com', 'my-client-id', 'https://auth.example.com/authorize', []);
+
+    expect(fn () => $authenticator->getAuthHeaders())
+        ->toThrow(\LogicException::class, 'Must set the access token before making API requests');
+});
