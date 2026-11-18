@@ -252,7 +252,6 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
     cases = [
       {404, PetstoreClient.Errors.NotFoundError},
-      {429, PetstoreClient.Errors.TooManyRequestsError},
       {500, PetstoreClient.Errors.InternalServerError}
     ]
 

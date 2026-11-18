@@ -19,7 +19,7 @@ defmodule {{moduleName}} do
 
   Every error this SDK raises lives under `{{moduleName}}.Errors`:
 
-      {{moduleName}}.Errors.OpenAPIError   # the branded grouping
+      {{moduleName}}.Errors.{{errorPrefix}}Error   # the branded grouping
       {{moduleName}}.Errors.ApiError       # an HTTP response the call could not use
       {{moduleName}}.Errors.ClientError    # 4xx grouping
       {{moduleName}}.Errors.BadRequestError
@@ -49,11 +49,11 @@ defmodule {{moduleName}} do
         e in {{moduleName}}.errors() -> handle(e)
   """
   @spec errors() :: [module(), ...]
-  defdelegate errors(), to: {{moduleName}}.Errors.OpenAPIError, as: :exceptions
+  defdelegate errors(), to: {{moduleName}}.Errors.{{errorPrefix}}Error, as: :exceptions
 
   @doc """
   Whether `term` is an exception raised by this SDK.
   """
   @spec error?(term()) :: boolean()
-  defdelegate error?(term), to: {{moduleName}}.Errors.OpenAPIError, as: :open_api_error?
+  defdelegate error?(term), to: {{moduleName}}.Errors.{{errorPrefix}}Error, as: :{{errorPrefixSnake}}_error?
 end

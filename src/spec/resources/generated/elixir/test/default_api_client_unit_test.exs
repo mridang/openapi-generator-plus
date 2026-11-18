@@ -2491,7 +2491,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
         PetstoreClient.DefaultApiClient.build_multipart_body([{"blob", {:raw, <<1, 2, 3>>}}], "b")
 
       assert body ==
-               "--b\r\nContent-Disposition: form-data; name=\"blob\"; filename=\"blob\"\r\n" <>
+               ~s(--b\r\nContent-Disposition: form-data; name="blob"; filename="blob"\r\n) <>
                  "Content-Type: application/octet-stream\r\n\r\n" <>
                  <<1, 2, 3>> <> "\r\n--b--\r\n"
     end

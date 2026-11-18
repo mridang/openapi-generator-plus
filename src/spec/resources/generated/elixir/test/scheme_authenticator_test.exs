@@ -249,7 +249,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
   end
 
   test "bhv authscheme 008 the SsoAuth scheme authenticator treats an empty environment variable as unset and names it" do
-    assert_empty_variables_are_named(PetstoreClient.Auth.SsoAuthAuthenticator)
+    assert_empty_variables_are_named(PetstoreClient.Auth.OAuth.SsoAuthAuthenticator)
   end
 
   describe "generated basic scheme wrappers" do
