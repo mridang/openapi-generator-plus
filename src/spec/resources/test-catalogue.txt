@@ -1965,3 +1965,7 @@ langkotlin020 | A union with no variant answers nothing from any accessor
 langkotlin021 | A hook set on the configuration is installed on the client the configuration builds
 langkotlin022 | A redirect with an empty Location header returns the redirect response itself
 langkotlin023 | A redirect whose Location header cannot be parsed returns the redirect response itself
+langkotlin024 | A 3xx status outside the redirect set is returned without following its Location
+langkotlin025 | Exactly the redirect statuses trigger a follow-up request, and no other status does
+langkotlin026 | A timeout raised by the structured-concurrency timeout helper is not wrapped again
+langkotlin027 | A cancelled job surfaces its own cancellation and is not wrapped in an SDK error
