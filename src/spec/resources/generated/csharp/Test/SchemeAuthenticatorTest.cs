@@ -853,7 +853,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBasicAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063PetStoreBasicAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in PetStoreBasicAuthenticatorVariables)
         {
@@ -960,7 +960,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void AdminBasicAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063AdminBasicAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in AdminBasicAuthenticatorVariables)
         {
@@ -1062,7 +1062,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void PetStoreBearerAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063PetStoreBearerAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in PetStoreBearerAuthenticatorVariables)
         {
@@ -1085,7 +1085,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public async Task PetStoreBearerAuthenticatorTokenProviderWinsOverTheEnvironment()
+    public async Task BhvLangcsharp064PetStoreBearerAuthenticatorTokenProviderWinsOverTheEnvironment()
     {
         PetstoreClient.Auth.IAuthenticator? auth = null;
         WithEnvironment(
@@ -1230,7 +1230,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ServiceTokenAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063ServiceTokenAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in ServiceTokenAuthenticatorVariables)
         {
@@ -1253,7 +1253,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public async Task ServiceTokenAuthenticatorTokenProviderWinsOverTheEnvironment()
+    public async Task BhvLangcsharp064ServiceTokenAuthenticatorTokenProviderWinsOverTheEnvironment()
     {
         PetstoreClient.Auth.IAuthenticator? auth = null;
         WithEnvironment(
@@ -1414,7 +1414,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ApiKeyHeaderAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063ApiKeyHeaderAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in ApiKeyHeaderAuthenticatorVariables)
         {
@@ -1508,7 +1508,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void InternalApiKeyAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063InternalApiKeyAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in InternalApiKeyAuthenticatorVariables)
         {
@@ -1625,7 +1625,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void ApiKeyQueryAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063ApiKeyQueryAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in ApiKeyQueryAuthenticatorVariables)
         {
@@ -1742,7 +1742,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SessionCookieAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063SessionCookieAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in SessionCookieAuthenticatorVariables)
         {
@@ -1860,7 +1860,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void MachineAuthClientCredentialsAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063MachineAuthClientCredentialsAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in MachineAuthClientCredentialsAuthenticatorVariables)
         {
@@ -1995,7 +1995,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void LegacyAuthPasswordAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063LegacyAuthPasswordAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in LegacyAuthPasswordAuthenticatorVariables)
         {
@@ -2129,7 +2129,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void UserAuthAuthorizationCodeAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063UserAuthAuthorizationCodeAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in UserAuthAuthorizationCodeAuthenticatorVariables)
         {
@@ -2245,7 +2245,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BrowserAuthImplicitAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063BrowserAuthImplicitAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in BrowserAuthImplicitAuthenticatorVariables)
         {
@@ -2357,7 +2357,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void SsoAuthAuthenticatorFailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063SsoAuthAuthenticatorFailsWhenACredentialIsMissing()
     {
         foreach (string variable in SsoAuthAuthenticatorVariables)
         {

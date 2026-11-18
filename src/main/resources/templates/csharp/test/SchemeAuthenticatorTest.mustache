@@ -295,7 +295,7 @@ public sealed class SchemeAuthenticatorTest
 {{/isApiKey}}
 
     [Fact]
-    public void {{className}}FailsWhenACredentialIsMissing()
+    public void BhvLangcsharp063{{className}}FailsWhenACredentialIsMissing()
     {
         foreach (string variable in {{className}}Variables)
         {
@@ -309,7 +309,7 @@ public sealed class SchemeAuthenticatorTest
 {{#isBearer}}
 
     [Fact]
-    public async Task {{className}}TokenProviderWinsOverTheEnvironment()
+    public async Task BhvLangcsharp064{{className}}TokenProviderWinsOverTheEnvironment()
     {
         {{packageName}}.Auth.IAuthenticator? auth = null;
         WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
