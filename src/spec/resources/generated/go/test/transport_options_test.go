@@ -1070,3 +1070,12 @@ func TestBhvMisc026_TransportOptions_ATimeoutMistakeIsNotAnApiError(t *testing.T
 		t.Errorf("expected a configuration error that is not an API error, got %T", err)
 	}
 }
+
+func TestBhvMisc134_TransportOptions_AZeroTimeoutIsRefusedAtBuildAsAnArgumentError(t *testing.T) {
+	t.Parallel()
+	zero := 0
+	_, err := petstore.NewTransportOptionsBuilder().Timeout(&zero).Build()
+	if !errors.Is(err, petstore.ErrInvalidTimeout) {
+		t.Fatalf("expected ErrInvalidTimeout for a zero timeout, got %v", err)
+	}
+}

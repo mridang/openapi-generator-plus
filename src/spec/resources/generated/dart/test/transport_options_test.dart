@@ -413,6 +413,18 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 056 setting the proxy to an empty string removes a proxy set earlier',
+      () {
+        final opts = TransportOptionsBuilder()
+            .proxy('http://proxy.test:8080')
+            .proxy('')
+            .build();
+
+        expect(opts.proxy, isNull);
+      },
+    );
+
     test('bhv options 030 null proxy URL is accepted', () {
       final opts = TransportOptionsBuilder().proxy('').build();
 

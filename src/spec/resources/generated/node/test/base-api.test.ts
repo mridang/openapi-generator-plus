@@ -2930,6 +2930,17 @@ describe("BaseApi per-call request options", () => {
     expect(client.sendOptions?.timeout).toBeUndefined();
   });
 
+  test("bhv misc 050 per-call headers are added to the client default headers, which still apply", async () => {
+    const client = new RecordingApiClient();
+    const config = new Configuration({
+      baseUrl: "http://localhost",
+      defaultHeaders: { "X-Client": "kept" },
+    });
+    await send(client, { headers: { "X-Per-Call": "yes" } }, config);
+    expect(client.headers["X-Per-Call"]).toBe("yes");
+    expect(client.headers["X-Client"]).toBe("kept");
+  });
+
   test("bhv options 056 a per-call timeout of zero or less, or a negative retry count, is refused before any request is sent", async () => {
     const client = new RecordingApiClient();
     await expect(send(client, { timeout: 0 })).rejects.toThrow(
