@@ -602,3 +602,7 @@ go | misc178 | the fixture declares no multipart content type other than multipa
 php | misc068 | php takes credentials only as constructor arguments and never reads an environment variable, so an empty argument has no environment fallback
 php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
 ||||||| 83bc92ef3
+php | misc088 | php has no decimal type: a decimal decodes to a float, which cannot keep the places it was written with
+php | misc091 | the php generator emits no length, pattern or range constraints for a property, so decoding has no constraint to refuse a value by
+php | misc095 | php's charset conversion replaces invalid bytes with the mbstring substitute character, which is '?' and not U+FFFD, and the SDK does not set U+FFFD
+php | misc104 | the php fixture declares an email-format field only on a petstore model, which templates may not name, so there is no neutral model to decode against

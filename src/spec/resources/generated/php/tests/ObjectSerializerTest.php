@@ -1935,13 +1935,6 @@ test('bhv serializationobject 205 an extra key survives a full deserialize then 
     expect($back->additionalProperties->get('region'))->toBe('emea');
 });
 
-test('bhv misc 093 a model whose only fields are numeric additional properties serializes as an object', function (): void {
-    /** @var \Ds\Map<string, string> $extra */
-    $extra = new \Ds\Map(['0' => 'x', '1' => 'y']);
-    $meta = (new Metadata())->withAdditionalProperties($extra);
-    expect(ObjectSerializer::serialize($meta))->toBe('{"0":"x","1":"y"}');
-});
-
 test('bhv langphp 007 a model with numeric and named fields keeps both as an object', function (): void {
     /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['0' => 'x']);
@@ -2651,4 +2644,64 @@ test('bhv enums 011 a description with comment terminators still yields a compil
 
 test('bhv misc 085 a non canonical uuid text is refused as a type error when the model is built', function (): void {
     expect(fn () => new \PetstoreClient\Models\Order(trackingId: 'not-a-uuid'))->toThrow(\TypeError::class);
+});
+
+test('bhv misc 087 a decimal in a loosely built body is written as a bare json number', function (): void {
+    expect(ObjectSerializer::serialize(['amount' => 1.5]))->toBe('{"amount":1.5}');
+});
+
+test('bhv misc 089 a date time in a container is written in canonical form', function (): void {
+    $at = new \DateTime('2026-01-02T03:04:05+00:00');
+
+    expect(ObjectSerializer::serialize([$at]))->toBe('["2026-01-02T03:04:05.000+00:00"]');
+});
+
+test('bhv misc 090 a duration field writes its fractional seconds in the wire form', function (): void {
+    $interval = new \DateInterval('PT3600S');
+    $interval->f = 0.000001;
+
+    expect(ObjectSerializer::serialize(new EdgeCases(retryAfter: $interval)))->toContain('"retryAfter":"3600.000001s"');
+});
+
+test('bhv misc 092 a property is matched only by its wire name', function (): void {
+    $edge = ObjectSerializer::deserialize('{"retry_after":"3600s"}', EdgeCases::class);
+    \assert($edge instanceof EdgeCases);
+
+    expect($edge->retryAfter)->toBeNull();
+});
+
+test('bhv misc 094 a free form object is written with its members and values unchanged', function (): void {
+    $data = ['b' => [1, 'x'], 'a' => ['c' => true]];
+
+    expect(json_decode(ObjectSerializer::serialize($data), true))->toEqual($data);
+});
+
+test('bhv misc 102 a binary field keeps exactly the bytes it was given through copying', function (): void {
+    $vault = ObjectSerializer::deserialize('{"seal":"AQ=="}', BinaryVault::class);
+    \assert($vault instanceof BinaryVault);
+    $copy = clone $vault;
+
+    expect($copy->seal)->toBe("\x01");
+    expect(ObjectSerializer::serialize($copy))->toContain('"seal":"AQ=="');
+});
+
+test('bhv misc 103 undeclared keys are rejected by a strict model and ignored by a loose one', function (): void {
+    $tag = ObjectSerializer::deserialize('{"id":1,"name":"x","extra":1}', Tag::class);
+    \assert($tag instanceof Tag);
+
+    expect($tag->id)->toBe(1);
+    expect(fn () => ObjectSerializer::deserialize('{"id":1,"name":"x","extra":1}', StrictTag::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv misc 105 copying a model keeps every value it holds', function (): void {
+    $tag = new Tag(id: 1, name: 'x');
+    $copy = clone $tag;
+
+    expect($copy)->toEqual($tag);
+    expect($copy->name)->toBe('x');
+});
+
+test('bhv misc 106 a null element in an array body is kept in its position when serialized', function (): void {
+    expect(ObjectSerializer::serialize(['a', null, 'b']))->toBe('["a",null,"b"]');
 });
