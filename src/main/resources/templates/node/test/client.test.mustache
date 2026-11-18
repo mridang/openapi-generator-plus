@@ -153,12 +153,33 @@ describe('{{clientClassName}}', () => {
     expect(calls).toBe(1);
   });
 
-  test('construct with a custom fetch in the transport options', () => {
+  test('bhv lifecycle 042 a client built with a caller-supplied fetch sends its requests through that fetch', async () => {
+    const calls: string[] = [];
     const transport = TransportOptions.builder()
-      .fetch((async () => new Response('{}')) as typeof fetch)
+      .fetch((async (input: string | URL | Request) => {
+        calls.push(String(input));
+        return new Response('{"available":1}', { status: 200, headers: { 'content-type': 'application/json' } });
+      }) as typeof fetch)
       .build();
 
-    expect(new {{clientClassName}}(authenticator, transport)).toBeDefined();
+    await new {{clientClassName}}(authenticator, transport).store.getInventory();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('/store/inventory');
+  });
+
+  test('bhv lifecycle 045 closing the client does not close a caller-supplied fetch, which keeps sending requests', async () => {
+    let called = 0;
+    const customFetch = (async () => {
+      called++;
+      return new Response('{}');
+    }) as typeof fetch;
+    const client = new {{clientClassName}}(authenticator, TransportOptions.builder().fetch(customFetch).build());
+
+    await client.close();
+
+    expect(await customFetch('http://example.invalid/')).toBeInstanceOf(Response);
+    expect(called).toBe(1);
   });
 
   describe('credentials per security scheme', () => {

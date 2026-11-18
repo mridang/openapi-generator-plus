@@ -1481,6 +1481,29 @@ describe("cross-origin redirect strips API-key headers", () => {
     expect(lastReceivedHeaders["accept"]).toBe("application/json");
   });
 
+  it("bhv redirects 052 a cross-origin redirect removes Authorization, Cookie, Proxy-Authorization and a secret-named header", async () => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest(
+      "GET",
+      `${srcUrl}/start`,
+      {
+        Authorization: "Bearer secret",
+        Cookie: "session=xyz",
+        "Proxy-Authorization": "Basic c2VjcmV0",
+        "X-Client-Secret": "shh",
+        Accept: "application/json",
+      },
+      null,
+    );
+    expect(lastReceivedHeaders["authorization"]).toBeUndefined();
+    expect(lastReceivedHeaders["cookie"]).toBeUndefined();
+    expect(lastReceivedHeaders["proxy-authorization"]).toBeUndefined();
+    expect(lastReceivedHeaders["x-client-secret"]).toBeUndefined();
+    expect(lastReceivedHeaders["accept"]).toBe("application/json");
+  });
+
   it("bhv redirects 011 strips Authorization, the spec-declared apiKey headers, and Cookie on cross-origin 302", async () => {
     const transport = TransportOptions.builder().followRedirects(true).build();
     const client = new DefaultApiClient(transport);
@@ -2254,6 +2277,70 @@ describe("redirect method rewriting (RFC 9110 section 15.4)", () => {
     expect(await followedMethod(303, "PUT")).toBe("GET");
   });
 
+  it("bhv redirects 048 a 301 or 302 turns a POST into a GET, and PUT, PATCH, DELETE, HEAD and GET keep their method", async () => {
+    for (const status of [301, 302]) {
+      expect(await followedMethod(status, "POST")).toBe("GET");
+    }
+    for (const method of ["PUT", "PATCH", "DELETE", "HEAD", "GET"]) {
+      expect(await followedMethod(301, method)).toBe(method);
+    }
+  });
+
+  it("bhv redirects 050 the follow-up method of 301, 302, 303, 307 and 308 matches the RFC 9110 table", async () => {
+    expect(await followedMethod(301, "POST")).toBe("GET");
+    expect(await followedMethod(302, "POST")).toBe("GET");
+    expect(await followedMethod(303, "POST")).toBe("GET");
+    expect(await followedMethod(307, "POST")).toBe("POST");
+    expect(await followedMethod(308, "POST")).toBe("POST");
+    expect(await followedMethod(307, "PUT")).toBe("PUT");
+    expect(await followedMethod(308, "PUT")).toBe("PUT");
+    expect(await followedMethod(303, "HEAD")).toBe("HEAD");
+  });
+
+  it("bhv redirects 051 a 303 turns a follow-up request into a GET, except that a HEAD request stays HEAD", async () => {
+    expect(await followedMethod(303, "DELETE")).toBe("GET");
+    expect(await followedMethod(303, "HEAD")).toBe("HEAD");
+  });
+
+  it("bhv redirects 053 Authorization is removed when the scheme changes between https and http on the same host, either way", async () => {
+    const pairs: Array<[string, string]> = [
+      ["https://secure.example/start", "http://secure.example/next"],
+      ["http://secure.example/start", "https://secure.example/next"],
+    ];
+    for (const [start, next] of pairs) {
+      const seen: Array<Record<string, string>> = [];
+      global.fetch = (async (
+        _input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        seen.push({ ...(init?.headers as Record<string, string>) });
+        if (seen.length === 1) {
+          return new Response(null, {
+            status: 302,
+            headers: { Location: next },
+          });
+        }
+        return new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }) as typeof fetch;
+      const client = new DefaultApiClient(
+        TransportOptions.builder().followRedirects(true).build(),
+      );
+
+      await client.sendRequest(
+        "GET",
+        start,
+        { Authorization: "Bearer secret" },
+        null,
+      );
+
+      expect(seen[0]!["Authorization"]).toBe("Bearer secret");
+      expect(seen[1]!["Authorization"]).toBeUndefined();
+    }
+  });
+
   it("bhv redirects 036 a 303 turns every method except HEAD into GET", async () => {
     for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
       expect(await followedMethod(303, method)).toBe("GET");
@@ -2275,6 +2362,14 @@ describe("redirect method rewriting (RFC 9110 section 15.4)", () => {
     ).rejects.toThrow(
       /Refusing to replay request body across HTTPS->HTTP redirect/,
     );
+  });
+});
+
+describe("text/plain bodies are never decoded", () => {
+  it("bhv operations 161 a text/plain response is returned as the raw text even when it looks like base64", () => {
+    expect(
+      DefaultApiClient.decodeBody(Buffer.from("aGVsbG8="), "text/plain"),
+    ).toBe("aGVsbG8=");
   });
 });
 
@@ -2454,6 +2549,74 @@ describe("redirect exhaustion throws", () => {
     global.fetch = originalFetch;
   });
 
+  it("bhv redirects 046 a chain within the limit is followed to its target and one past it raises too-many-redirects", async () => {
+    let n = 0;
+    global.fetch = (async (): Promise<Response> => {
+      n++;
+      if (n <= 2) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: `http://api.example/hop${n}` },
+        });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const within = await new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).maxRedirects(3).build(),
+    ).sendRequest("GET", "http://api.example/start", {}, null);
+    expect(within.statusCode).toBe(200);
+    expect(n).toBe(3);
+
+    n = 0;
+    const error = await new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).maxRedirects(1).build(),
+    )
+      .sendRequest("GET", "http://api.example/start", {}, null)
+      .catch((caught: unknown) => caught);
+    expect((error as ApiError).statusCode).toBe(302);
+    expect((error as ApiError).message).toContain(
+      "Too many redirects (exceeded 1)",
+    );
+  });
+
+  it("bhv redirects 047 a refused redirect and a followed redirect in parallel requests do not change each other", async () => {
+    global.fetch = (async (
+      input: string | URL | Request,
+    ): Promise<Response> => {
+      const url = String(input);
+      if (url.includes("loop")) {
+        return new Response(null, { status: 302, headers: { Location: url } });
+      }
+      if (url.includes("moved")) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "http://api.example/final" },
+        });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).maxRedirects(3).build(),
+    );
+
+    const [looping, moved] = await Promise.allSettled([
+      client.sendRequest("GET", "http://api.example/loop", {}, null),
+      client.sendRequest("GET", "http://api.example/moved", {}, null),
+    ]);
+
+    expect(looping.status).toBe("rejected");
+    expect(moved).toMatchObject({
+      status: "fulfilled",
+      value: { statusCode: 200 },
+    });
+  });
+
   it("bhv redirects 026 throws an ApiError once maxRedirects is exceeded", async () => {
     let n = 0;
     global.fetch = (async (): Promise<Response> => {
@@ -2571,6 +2734,59 @@ describe("graceful close", () => {
       });
     });
   }
+
+  it("bhv lifecycle 043 a request after close fails with the closed-client error and never reaches the network", async () => {
+    let fetched = 0;
+    const originalFetch = global.fetch;
+    global.fetch = (async (): Promise<Response> => {
+      fetched++;
+      return new Response("{}");
+    }) as typeof fetch;
+    try {
+      const client = new DefaultApiClient(TransportOptions.builder().build());
+      await client.close();
+      await expect(
+        client.sendRequest("GET", "https://example.invalid/x", {}, null),
+      ).rejects.toThrow(
+        "ApiClient has been closed and can no longer send requests",
+      );
+      expect(fetched).toBe(0);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("bhv lifecycle 044 a request in flight when the client closes still completes after its retry", async () => {
+    let calls = 0;
+    const originalFetch = global.fetch;
+    global.fetch = (async (): Promise<Response> => {
+      calls++;
+      if (calls === 1) {
+        return new Response(null, { status: 503 });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    try {
+      const client = new DefaultApiClient(
+        TransportOptions.builder().maxRetries(1).build(),
+      );
+      const running = client.sendRequest(
+        "GET",
+        "https://example.invalid/x",
+        {},
+        null,
+      );
+      await client.close();
+      const response = await running;
+      expect(response.statusCode).toBe(200);
+      expect(calls).toBe(2);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 
   it("bhv lifecycle 021 lets a request that is already running finish", async () => {
     const slow = await slowServer();

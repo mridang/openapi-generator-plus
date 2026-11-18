@@ -491,6 +491,21 @@ describe("TransportOptions", () => {
       ).toThrow(TypeError);
     });
 
+    test("bhv lifecycle 041 a caller-supplied fetch combined with an SDK proxy setting is refused with a conflict error", () => {
+      expect(() =>
+        TransportOptions.builder()
+          .fetch(customFetch)
+          .proxy("http://proxy:8080")
+          .build(),
+      ).toThrow(TypeError);
+      expect(() =>
+        TransportOptions.builder()
+          .fetch(customFetch)
+          .proxy("http://proxy:8080")
+          .build(),
+      ).toThrow(/^A custom fetch conflicts with the SDK's own proxy setting: /);
+    });
+
     test("bhv options 059 fetch and fetchOptions default to null", () => {
       const opts = TransportOptions.builder().build();
       expect(opts.fetch).toBeNull();

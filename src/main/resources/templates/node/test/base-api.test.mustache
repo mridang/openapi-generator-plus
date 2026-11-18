@@ -283,7 +283,7 @@ describe('BaseApi config default Accept', () => {
     expect(client.capturedHeaders['accept']).toBe('application/vnd.x+json');
   });
 
-  test('a body-less request drops a Content-Type written in any case', async () => {
+  test('bhv operations 163 a body-less request drops a Content-Type written in any case', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({
       baseUrl: 'http://localhost',
@@ -1268,7 +1268,7 @@ describe('BaseApi', () => {
 });
 
 describe('ConvenienceEmptyBodyTests', () => {
-  test('body-returning convenience method throws ApiError on an empty 204 body', async () => {
+  test('bhv operations 159 body-returning convenience method throws ApiError on an empty 204 body', async () => {
     // convenience-empty-body-handling: a declared-non-void operation that
     // receives no decodable body must surface a typed ApiError, not a
     // silently-cast undefined.
@@ -1864,7 +1864,7 @@ describe('BaseApi per-call request options', () => {
     expect(client.url).toBe('');
   });
 
-  test('per-call headers are sent', async () => {
+  test('bhv operations 158 per-call headers are sent', async () => {
     const client = new RecordingApiClient();
     await send(client, { headers: { 'X-Trace-Id': 'abc' } });
     expect(client.headers['X-Trace-Id']).toBe('abc');

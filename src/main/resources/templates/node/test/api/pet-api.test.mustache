@@ -163,6 +163,23 @@ describe('PetApi', () => {
    * must survive instead of being replaced by application/octet-stream or
    * application/json.
    */
+  test('bhv operations 157 a binary request body is sent as its exact raw bytes whatever the binary input type', async () => {
+    let capturedBody: unknown = null;
+    const capturingClient: ApiClient = {
+      async sendRequest(_method: string, _url: string, _headers: Record<string, string>, body: unknown): Promise<ApiHttpResponse> {
+        capturedBody = body;
+        return { statusCode: 200, body: '', headers: {} };
+      },
+    };
+    const capturingApi = new PetApi(capturingClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+    const payload = Buffer.from([0x00, 0xFF, 0xD8, 0xFF, 0xE0]);
+
+    await capturingApi.setPetAvatar(1, payload.subarray(1));
+
+    expect(Buffer.isBuffer(capturedBody)).toBe(true);
+    expect((capturedBody as Buffer).equals(payload.subarray(1))).toBe(true);
+  });
+
   test('bhv operations 073 setPetAvatar streams raw bytes with declared content type', async () => {
     let capturedBody: unknown = null;
     let capturedHeaders: Record<string, string> = {};
@@ -602,6 +619,22 @@ describe('PetApi', () => {
     await expect(api.getPetByName('Rex', { category: '', xCorrelationId: 'sample-correlation' })).rejects.toThrow(
       "Missing the required parameter 'category' when calling PetApi.getPetByName"
     );
+  });
+
+  test('bhv operations 164 a missing required parameter raises a TypeError and sends no request', async () => {
+    let sent = 0;
+    const countingClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        sent++;
+        return { statusCode: 200, body: '', headers: {} };
+      },
+    };
+    const countingApi = new PetApi(countingClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+
+    const error = await countingApi.getPetByName('Rex', { category: 'dog' } as never).catch((caught: unknown) => caught);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect(sent).toBe(0);
   });
 
   test('bhv operations 052 required string path param rejects empty string', async () => {
@@ -1125,7 +1158,7 @@ describe('PetApi against a recording client', () => {
     ).toBe('https://sandbox.example.com/api/v3');
   });
 
-  test('getExternalPetInfo sends the request to the generated variant', async () => {
+  test('bhv operations 160 getExternalPetInfo sends the request to the generated variant', async () => {
     await recordingApi.getExternalPetInfo(1, new GetExternalPetInfoServerServer0());
 
     expect(recorded).toHaveLength(1);
@@ -1247,7 +1280,7 @@ describe('PetApi against a recording client', () => {
     expect(recorded[0]!.headers['X-Criteria']).toBe('breed,lab,min_age,3');
   });
 
-  test('getPetTag writes the matrix path parameter and the label path parameter', async () => {
+  test('bhv operations 165 getPetTag writes the matrix path parameter and the label path parameter', async () => {
     await recordingApi.getPetTag(5, 'cute');
 
     expect(new URL(recorded[0]!.url).pathname).toBe('/pet/;petId=5/tag/.cute');
@@ -1420,6 +1453,17 @@ describe('PetApi against a recording client', () => {
     await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15, 13, 45, 30)), { session: 'abc' });
 
     expect(new URL(recorded[0]!.url).pathname).toBe('/pet/1/summary/;asOf=2024-01-15');
+  });
+
+  test('bhv operations 162 a date-only parameter is sent as a bare date in the path and in the query', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15, 13, 45, 30)), {
+      session: 'abc',
+      days: [new Date(Date.UTC(2024, 0, 15, 10, 30))],
+    });
+
+    const url = new URL(recorded[0]!.url);
+    expect(url.pathname).toBe('/pet/1/summary/;asOf=2024-01-15');
+    expect(url.search).toBe('?days=2024-01-15');
   });
 
   test('bhv serializationparam 120 getPetSummary sends each format:date array item as YYYY-MM-DD', async () => {
