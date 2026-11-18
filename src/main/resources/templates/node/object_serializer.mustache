@@ -575,6 +575,28 @@ export function decodePlainNumber(obj: unknown, wireName: string): unknown {
 }
 
 /**
+ * Read a `type: string` decimal field from the wire object. The value must be a JSON
+ * string, which is kept as it is; a bare JSON number is not a string and is refused.
+ *
+ * @param obj the wire object that holds the field
+ * @param wireName the field's wire name
+ * @returns the string, or the value itself when it is null or absent
+ * @throws SerializationError when the value is not a JSON string
+ */
+export function decodeStringDecimal(obj: unknown, wireName: string): unknown {
+  if (obj === null || typeof obj !== 'object') {
+    return undefined;
+  }
+  const raw = (obj as Record<string, unknown>)[wireName];
+  if (raw === null || raw === undefined || typeof raw === 'string') {
+    return raw;
+  }
+  throw new SerializationError(
+    `Expected a JSON string for '${wireName}' but received ${typeof raw === 'number' ? 'a bare number' : typeof raw}`
+  );
+}
+
+/**
  * Whether a string is a plain `format: date` value: `YYYY-MM-DD` naming a
  * real calendar day.
  *

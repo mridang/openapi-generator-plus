@@ -1833,6 +1833,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainNumberDecimal)) {
                     serializerImports.add("decodePlainNumber");
                 }
+                if (model.vars.stream()
+                        .anyMatch(v -> Boolean.TRUE.equals(v.vendorExtensions.get("isStringDecimal")))) {
+                    serializerImports.add("decodeStringDecimal");
+                }
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainDate)) {
                     serializerImports.add("plainDate");
                 }
@@ -1876,6 +1880,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return Boolean.TRUE.equals(ext.get("isTimeFormat"))
                 || Boolean.TRUE.equals(ext.get("isDurationFormat"))
                 || Boolean.TRUE.equals(ext.get("isPlainNumberDecimal"))
+                || Boolean.TRUE.equals(ext.get("isStringDecimal"))
                 || prop.isByteArray
                 || prop.isDateTime
                 || (prop.isArray && prop.items != null && prop.items.isByteArray);
@@ -1977,6 +1982,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 // A bare `type: number` is a JSON number on the wire: decode keeps its
                 // exact text and rejects a quoted string.
                 property.vendorExtensions.put("isPlainNumberDecimal", true);
+            } else {
+                // A `type: string` decimal is a JSON string on the wire: decode keeps
+                // its text and rejects a bare number; encode writes it quoted.
+                property.vendorExtensions.put("isStringDecimal", true);
             }
             // The branded Decimal is a string, so a numeric schema default
             // becomes its exact text as a string literal cast to the brand.
