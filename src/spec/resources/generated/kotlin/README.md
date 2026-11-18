@@ -82,7 +82,8 @@ withTimeout(2_000) { client.someApi.someOperation() }
 ## Custom HTTP client
 
 `TransportOptions.builder().httpClient(myKtorClient)` sends every request
-through your own Ktor `HttpClient`. The SDK keeps its timeout, redirect
+through your own Ktor `HttpClient`, which must be built with `followRedirects = false`
+(`build()` refuses one that follows redirects, since the SDK manages redirects itself). The SDK keeps its timeout, redirect
 policy, user agent and header defaults applied on top of it, and never closes
 it: you own its lifecycle. It cannot be combined with `proxy`, `caCertPath` or
 `verifySsl(false)`; `build()` rejects the combination, so configure proxy and

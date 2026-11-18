@@ -1593,7 +1593,7 @@ class PetApiTest {
                         headers = headersOf("Content-Type", "application/json"),
                     )
                 }
-            val transport = TransportOptions.builder().httpClient(HttpClient(engine)).build()
+            val transport = TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build()
             val client =
                 {{clientClassName}}(
                     "http://localhost",

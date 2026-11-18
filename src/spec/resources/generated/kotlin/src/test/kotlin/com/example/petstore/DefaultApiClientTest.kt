@@ -46,7 +46,7 @@ class DefaultApiClientTest {
                     seenUrl = req.url.toString()
                     respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
                 }
-            val custom = HttpClient(engine)
+            val custom = HttpClient(engine) { followRedirects = false }
             try {
                 val transport =
                     TransportOptions

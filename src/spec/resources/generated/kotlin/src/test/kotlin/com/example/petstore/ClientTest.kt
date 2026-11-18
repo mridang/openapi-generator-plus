@@ -86,7 +86,7 @@ class ClientTest {
         val client =
             Client(
                 "/api/v3",
-                transportOptions = TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                transportOptions = TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
             )
 
         runBlocking { client.store.getInventory() }
@@ -226,7 +226,7 @@ class ClientTest {
     @Test
     @DisplayName("bhvLifecycle009 F824: closing the client never closes a caller-supplied transport")
     fun closingTheClientKeepsASuppliedTransportOpen() {
-        val custom = HttpClient(MockEngine { respond("{}") })
+        val custom = HttpClient(MockEngine { respond("{}") }) { followRedirects = false }
         val client = Client(authenticator, TransportOptions.builder().httpClient(custom).build())
 
         client.close()
@@ -271,7 +271,7 @@ class ClientTest {
                 Client.withToken(
                     "https://arg.example.com",
                     "arg-token",
-                    TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                    TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
                 )
             }
 
@@ -296,7 +296,7 @@ class ClientTest {
                 Client.withToken(
                     "https://api.example.com",
                     "arg-token",
-                    TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                    TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
                 )
             }
 
@@ -315,7 +315,7 @@ class ClientTest {
                 reached += 1
                 respond("{}")
             }
-        val client = Client(authenticator, TransportOptions.builder().httpClient(HttpClient(engine)).build())
+        val client = Client(authenticator, TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build())
         client.close()
 
         val ex =
@@ -354,7 +354,7 @@ class ClientTest {
     @Test
     @DisplayName("bhvLifecycle007 close leaves a supplied transport usable for a request of its own")
     fun closeLeavesASuppliedTransportUsable() {
-        val custom = HttpClient(MockEngine { respond("{}") })
+        val custom = HttpClient(MockEngine { respond("{}") }) { followRedirects = false }
         val client = Client(authenticator, TransportOptions.builder().httpClient(custom).build())
 
         client.close()
@@ -396,7 +396,7 @@ class ClientTest {
                 Client.withToken(
                     "https://api.example.com",
                     null,
-                    TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                    TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
                 )
             }
 
@@ -426,7 +426,7 @@ class ClientTest {
         val client =
             Client.withAuthenticator(
                 auth,
-                TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
             )
 
         repeat(2) {

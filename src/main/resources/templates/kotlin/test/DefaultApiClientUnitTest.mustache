@@ -2441,7 +2441,7 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("bhvLifecycle020 close never closes a transport the caller supplied")
         fun closeNeverClosesACallerSuppliedTransport() {
-            val custom = io.ktor.client.HttpClient(MockEngine { respond("{}") })
+            val custom = io.ktor.client.HttpClient(MockEngine { respond("{}") }) { followRedirects = false }
             val apiClient = DefaultApiClient(TransportOptions.builder().httpClient(custom).build())
 
             apiClient.close()

@@ -360,6 +360,7 @@ class ObjectSerializerTest {
             assertEquals("{}", serializer.serialize(category))
         }
 
+        @Test
         @DisplayName("bhvSerializationobject202 a null field is omitted on serialize while non-null fields are kept")
         fun nullFieldIsOmittedWhileNonNullFieldsAreKept() {
             val json =
@@ -369,6 +370,37 @@ class ObjectSerializerTest {
                 )
             assertFalse(json.contains("\"id\""), json)
             assertTrue(json.contains("\"name\":\"Dogs\""), json)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization011 model keys are written in declaration order, never sorted")
+        fun modelKeysAreWrittenInDeclarationOrder() {
+            val category =
+                com.example.petstore.models
+                    .Category(name = "x", id = 1L)
+            assertEquals("{\"id\":1,\"name\":\"x\"}", serializer.serialize(category))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization049 a format uri value must be absolute, and a relative string is refused")
+        fun uriFormatRequiresAnAbsoluteUri() {
+            assertEquals(
+                "https://example.com/a",
+                serializer.deserialize<io.ktor.http.Url>("\"https://example.com/a\"")?.toString(),
+            )
+            assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                serializer.deserialize<io.ktor.http.Url>("\"relative/path\"")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization051 a strict model exposes no separate public method for its unknown-key check")
+        fun strictModelExposesNoUnknownKeyMethod() {
+            val unknownKeyMethods =
+                com.example.petstore.models.StrictTag::class.java.methods.count {
+                    it.name.lowercase(java.util.Locale.ROOT).contains("unknown")
+                }
+            assertEquals(0, unknownKeyMethods)
         }
 
         @Test

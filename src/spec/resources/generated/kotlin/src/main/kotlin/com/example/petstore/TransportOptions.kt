@@ -8,6 +8,8 @@
 package com.example.petstore
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpRedirect
+import io.ktor.client.plugins.pluginOrNull
 
 /**
  * Immutable HTTP transport configuration for [DefaultApiClient].
@@ -290,13 +292,17 @@ class TransportOptions private constructor(
          * @return the configured transport options
          * @throws IllegalArgumentException if the proxy URL is not a valid http or https URL, or if
          *   a custom [httpClient] is combined with a proxy, a CA certificate path or
-         *   `verifySsl(false)`
+         *   `verifySsl(false)`, or if it follows redirects itself
          */
         fun build(): TransportOptions {
             val canonical = canonicalProxy(proxy)
             require(httpClient == null || (canonical == null && caCertPath == null && verifySsl)) {
                 "A custom httpClient cannot be combined with proxy, caCertPath or verifySsl=false: " +
                     "configure the supplied client instead"
+            }
+            require(httpClient?.pluginOrNull(HttpRedirect) == null) {
+                "A custom httpClient must not follow redirects: build it with followRedirects = false, " +
+                    "the SDK manages redirects itself"
             }
             return TransportOptions(
                 verifySsl,

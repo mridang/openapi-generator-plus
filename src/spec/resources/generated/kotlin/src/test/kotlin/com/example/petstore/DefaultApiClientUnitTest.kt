@@ -186,6 +186,35 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName(
+            "bhvRetries044 with request ids supplied, every retry is sent with an identifier that differs from the attempts before it",
+        )
+        fun everyRetryCarriesADifferentRequestId() {
+            val ids = mutableListOf<String?>()
+            val engine =
+                MockEngine { request ->
+                    ids.add(request.headers["X-Request-ID"])
+                    respond(
+                        content = "{}",
+                        status = if (ids.size < 3) HttpStatusCode.ServiceUnavailable else HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val transport =
+                TransportOptions
+                    .builder()
+                    .httpClient(HttpClient(engine) { followRedirects = false })
+                    .injectRequestId(true)
+                    .maxRetries(2)
+                    .build()
+            val apiClient = DefaultApiClient(transport)
+            apiClient.sleeper = { }
+            runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+            assertEquals(3, ids.size)
+            assertEquals(3, ids.filterNotNull().toSet().size)
+        }
+
+        @Test
         @DisplayName("bhvTransport007 generates unique request ids for each call")
         fun generatesUniqueRequestIdsForEachCall() {
             val ids = mutableListOf<String?>()
@@ -227,6 +256,147 @@ class DefaultApiClientUnitTest {
             }
             assertEquals(2, ids.size)
             assertNotEquals(ids[0], ids[1])
+        }
+    }
+
+    @Nested
+    @DisplayName("request body content type")
+    inner class RequestBodyContentType {
+        @Test
+        @DisplayName("bhvSerialization010 a body is sent with exactly the declared content type and no charset parameter")
+        fun bodyIsSentWithTheDeclaredContentTypeAndNoCharset() {
+            var capturedContentType: String? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    capturedContentType = request.body.contentType?.toString()
+                })
+            val apiClient = DefaultApiClient(client)
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/echo",
+                    mapOf("Content-Type" to "application/json"),
+                    "{}",
+                )
+            }
+            assertEquals("application/json", capturedContentType)
+        }
+    }
+
+    @Nested
+    @DisplayName("cancellation")
+    inner class Cancellation {
+        @Test
+        @DisplayName("bhvTransport069 cancelling the calling coroutine cancels the transport request and the caller's context reaches it")
+        fun cancellingTheCallCancelsTheTransportRequest() {
+            val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val outcome = kotlinx.coroutines.CompletableDeferred<String>()
+            val engine =
+                MockEngine { _ ->
+                    val caller = kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.CoroutineName]?.name ?: "none"
+                    started.complete(Unit)
+                    try {
+                        kotlinx.coroutines.awaitCancellation()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        outcome.complete("cancelled by $caller")
+                        throw e
+                    }
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine))
+            runBlocking {
+                val call =
+                    launch(kotlinx.coroutines.CoroutineName("caller")) {
+                        apiClient.sendRequest("GET", "http://localhost/never", emptyMap(), null)
+                    }
+                started.await()
+                call.cancel()
+                call.join()
+                assertEquals("cancelled by caller", outcome.await())
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("multipart parts")
+    inner class MultipartParts {
+        @Test
+        @DisplayName("bhvSerialization057 a multipart field name with a NUL byte or a line break is refused before any request is sent")
+        fun fieldNameWithNulOrLineBreakIsRefusedBeforeSend() {
+            var sent = false
+            val client = mockClient(requestCapture = { sent = true })
+            val apiClient = DefaultApiClient(client)
+            for (bad in listOf("fi\r\nle", "fi\nle", "fi\u0000le")) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest(
+                            "POST",
+                            "http://localhost/upload",
+                            mapOf("Content-Type" to "multipart/form-data"),
+                            mapOf(bad to "x"),
+                        )
+                    }
+                }
+            }
+            assertFalse(sent)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization058 a multipart part with no filename is sent as application/octet-stream")
+        fun partWithNoFilenameIsSentAsOctetStream() {
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+            val form: Map<String, Any?> = mapOf("blob" to byteArrayOf(0x00, 0x01))
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/upload", mapOf("Content-Type" to "multipart/form-data"), form)
+            }
+            val wire = String(bodyBytes!!, Charsets.ISO_8859_1)
+            assertTrue(wire.contains("Content-Type: application/octet-stream"), wire)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization059 a raw binary multipart part is sent as a file part that carries exactly its bytes")
+        fun rawBinaryPartCarriesExactlyItsBytes() {
+            val payload = byteArrayOf(0x00, 0xff.toByte(), 0x7f, 0x0d, 0x0a)
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+            val form: Map<String, Any?> = mapOf("data.bin" to payload)
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/upload", mapOf("Content-Type" to "multipart/form-data"), form)
+            }
+            val wire = String(bodyBytes!!, Charsets.ISO_8859_1)
+            assertTrue(wire.contains(String(payload, Charsets.ISO_8859_1)), "the part must carry exactly its bytes")
+            assertTrue(wire.contains("filename=\"data.bin\""), wire)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization060 a model sent as a multipart part declares the application/json media type")
+        fun modelPartDeclaresJsonMediaType() {
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+            val form: Map<String, Any?> =
+                mapOf(
+                    "edge" to
+                        com.example.petstore.models
+                            .EdgeCases(n2fa = true),
+                )
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/upload", mapOf("Content-Type" to "multipart/form-data"), form)
+            }
+            val wire = String(bodyBytes!!, Charsets.UTF_8)
+            assertTrue(wire.contains("Content-Type: application/json"), wire)
+            assertTrue(wire.contains("\"2fa\":true"), wire)
         }
     }
 
@@ -2470,7 +2640,7 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("bhvLifecycle020 close never closes a transport the caller supplied")
         fun closeNeverClosesACallerSuppliedTransport() {
-            val custom = io.ktor.client.HttpClient(MockEngine { respond("{}") })
+            val custom = io.ktor.client.HttpClient(MockEngine { respond("{}") }) { followRedirects = false }
             val apiClient = DefaultApiClient(TransportOptions.builder().httpClient(custom).build())
 
             apiClient.close()
