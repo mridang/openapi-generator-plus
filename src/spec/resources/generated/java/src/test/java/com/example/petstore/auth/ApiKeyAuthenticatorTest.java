@@ -49,6 +49,19 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
+  void bhvMisc057AnApiKeyConfiguredForOneLocationIsNeverSentAtAnother() {
+    ApiKeyAuthenticator header =
+        new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.HEADER);
+    ApiKeyAuthenticator cookie =
+        new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.COOKIE);
+
+    assertEquals(Map.of(), header.getQueryParams());
+    assertEquals(Map.of(), header.getCookieParams());
+    assertEquals(Map.of(), cookie.getAuthHeaders());
+    assertEquals(Map.of(), cookie.getQueryParams());
+  }
+
+  @Test
   void bhvAuthApiKey022KeyIsEmittedOnlyAtItsOwnLocation() {
     ApiKeyAuthenticator header =
         new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.HEADER);

@@ -78,8 +78,18 @@ defmodule {{moduleName}}.Api.BaseApi do
   def call_settings(options, opts) do
     from_options = if is_map(options), do: options |> Map.take(@call_keys) |> Map.to_list(), else: []
 
+    # A nil per-call value is unset and falls through to the options object;
+    # for a repeated key the last one given wins.
+    per_call =
+      opts
+      |> Keyword.take(@call_keys)
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Enum.reverse()
+      |> Enum.uniq_by(fn {key, _value} -> key end)
+      |> Enum.reverse()
+
     from_options
-    |> Keyword.merge(Keyword.take(opts, @call_keys))
+    |> Keyword.merge(per_call)
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
     |> Enum.map(&validate_call_setting/1)
   end

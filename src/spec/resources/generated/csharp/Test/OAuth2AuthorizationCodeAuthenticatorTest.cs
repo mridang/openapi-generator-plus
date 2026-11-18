@@ -817,4 +817,12 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             StringComparison.Ordinal
         );
     }
+
+    [Fact]
+    public void BhvMisc062TheDeclaredScopesReachTheAuthorizationUrl()
+    {
+        string url = CreateAuthenticator().BuildAuthorizationUrl().OriginalString;
+
+        Assert.Contains("scope=read%20write", url, StringComparison.Ordinal);
+    }
 }

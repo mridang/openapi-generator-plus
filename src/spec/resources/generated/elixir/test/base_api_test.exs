@@ -3641,6 +3641,37 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert Req.Request.get_header(request, "x-other") == []
   end
 
+  test "bhv misc 050 per-call options override the options object and an unset one falls through" do
+    options = %{timeout: 5000, max_retries: 4, headers: %{"X-Client" => "kept"}}
+    settings = PetstoreClient.Api.BaseApi.call_settings(options, timeout: 1000, max_retries: nil)
+
+    assert settings[:timeout] == 1000
+    assert settings[:max_retries] == 4
+    assert settings[:headers] == %{"X-Client" => "kept"}
+  end
+
+  test "bhv misc 052 when the same per-call option is given twice the last one takes effect" do
+    settings = PetstoreClient.Api.BaseApi.call_settings(nil, timeout: 1000, timeout: 2000)
+
+    assert settings[:timeout] == 2000
+  end
+
+  test "bhv misc 053 a per-call retry budget of zero is accepted and a negative or non-whole one is refused" do
+    assert PetstoreClient.Api.BaseApi.call_settings(nil, max_retries: 0) == [max_retries: 0]
+
+    for bad <- [-1, 1.5] do
+      assert_raise ArgumentError, ~r/Invalid max_retries/, fn ->
+        PetstoreClient.Api.BaseApi.call_settings(nil, max_retries: bad)
+      end
+    end
+  end
+
+  test "bhv misc 055 a per-call timeout, retry count or header set that is not valid is refused with an argument error" do
+    for opts <- [[timeout: -1], [max_retries: "x"], [headers: 5]] do
+      assert_raise ArgumentError, fn -> PetstoreClient.Api.BaseApi.call_settings(nil, opts) end
+    end
+  end
+
   test "bhv options 053 per-call timeout, retry limit and headers take effect on that one call only" do
     state = retry_state([{500, [{"retry-after", "0"}]}, 200])
 

@@ -1335,6 +1335,75 @@ class BaseApiTest {
       assertThrows(IllegalArgumentException.class, () -> new GetInventoryOptions().timeout(0));
       assertThrows(IllegalArgumentException.class, () -> new GetInventoryOptions().maxRetries(-1));
     }
+
+    @Test
+    @DisplayName("bhvMisc050 per-call options override, and an unset one falls through")
+    void bhvMisc050PerCallOptionsOverrideAndAnUnsetOneFallsThrough() {
+      var client = new OverrideCapturingClient();
+      try {
+        apiOver(client).findPetsByStatus(new FindPetsByStatusOptions().maxRetries(0));
+      } catch (Exception ignored) {
+        // Response deserialization may fail; we only care about what the transport saw
+      }
+      assertTrue(client.overrideOverloadUsed);
+      assertEquals(0, client.capturedRetries);
+      assertNull(client.capturedTimeout);
+    }
+
+    @Test
+    @DisplayName("bhvMisc052 the last per-call option of a kind takes effect")
+    void bhvMisc052TheLastPerCallOptionOfAKindTakesEffect() {
+      var client = new OverrideCapturingClient();
+      try {
+        apiOver(client)
+            .findPetsByStatus(
+                new FindPetsByStatusOptions()
+                    .timeout(1000)
+                    .timeout(1500)
+                    .maxRetries(3)
+                    .maxRetries(0));
+      } catch (Exception ignored) {
+        // Response deserialization may fail; we only care about what the transport saw
+      }
+      assertEquals(1500, client.capturedTimeout);
+      assertEquals(0, client.capturedRetries);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc053 a per-call retry budget of zero is accepted and a negative one is refused")
+    void bhvMisc053ARetryBudgetOfZeroIsAcceptedAndANegativeOneIsRefused() {
+      new FindPetsByStatusOptions().maxRetries(0);
+      assertThrows(
+          IllegalArgumentException.class, () -> new FindPetsByStatusOptions().maxRetries(-1));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc054 per-call headers are a copy that later changes to the caller's map do not"
+            + " reach")
+    void bhvMisc054PerCallHeadersAreACopyTheCallerCannotChange() {
+      var headers = new HashMap<String, String>();
+      headers.put("X-Trace", "abc");
+      var options = new FindPetsByStatusOptions().headers(headers);
+      headers.put("X-Trace", "changed");
+      var client = new CapturingApiClient();
+      try {
+        apiOver(client).findPetsByStatus(options);
+      } catch (Exception ignored) {
+        // Response deserialization may fail; we only care about the captured headers
+      }
+      assertEquals("abc", client.capturedHeaders.get("X-Trace"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc055 an invalid per-call timeout or retry count is refused as an argument error")
+    void bhvMisc055AnInvalidPerCallTimeoutOrRetryCountIsRefused() {
+      assertThrows(IllegalArgumentException.class, () -> new GetInventoryOptions().timeout(-5));
+      assertThrows(
+          IllegalArgumentException.class, () -> new FindPetsByStatusOptions().maxRetries(-2));
+    }
   }
 
   @Nested
@@ -1771,6 +1840,34 @@ class BaseApiTest {
       assertFalse(
           captured.containsKey("X-Client-Auth"),
           "the client authenticator must not reach a security:[] operation");
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc064 an operation that declares no security never sends the client default"
+            + " credential")
+    void bhvMisc064ANoSecurityOperationNeverSendsTheClientDefaultCredential() {
+      var captured = new HashMap<String, String>();
+      var capturingClient =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              captured.putAll(headers);
+              return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+            }
+          };
+      var clientAuth =
+          new TestAuthenticator(Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+      var storeApi =
+          new StoreApi(
+              capturingClient, new Configuration("http://localhost", Map.of()), clientAuth);
+      try {
+        storeApi.getInventory();
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; only the outbound headers are asserted.
+      }
+      assertFalse(captured.containsKey("X-Client-Auth"));
     }
 
     @Test

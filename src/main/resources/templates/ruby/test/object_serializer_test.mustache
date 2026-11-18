@@ -431,6 +431,38 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::ObjectSerializer.stringify(9_007_199_254_740_993)).must_equal('9007199254740993')
     end
 
+    it 'bhv_misc_086 a container element that holds JSON text is taken as its own value and never decoded a second time' do
+      body = JSON.generate(['"2024-01-15T10:00:00Z"'])
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(body, 'Array<Time>')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+    end
+
+    it 'bhv_misc_087 a decimal in a loosely built body is written as a bare JSON number' do
+      _({{moduleName}}::ObjectSerializer.serialize({ 'amount' => BigDecimal('1.5') })).must_equal('{"amount":1.5}')
+    end
+
+    it 'bhv_misc_094 a free-form JSON object is written with its members and their values unchanged' do
+      payload = { 'ownerId' => 198_772, 'at' => '2024-01-15T10:30:00Z' }
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(payload))).must_equal(payload)
+    end
+
+    it 'bhv_misc_102 a binary field keeps exactly the bytes it was given through construction and copying' do
+      bytes = "\x00\xFF\x10".b
+      model = {{moduleName}}::Models::TestNullableModel.new(kept: bytes)
+      copy = {{moduleName}}::Models::TestNullableModel.new(**model.to_h)
+      _(copy.kept).must_equal(bytes)
+    end
+
+    it 'bhv_misc_103 rejecting undeclared keys on one strict model leaves a plain model accepting them' do
+      model = {{moduleName}}::ObjectSerializer.deserialize('{"rogue":"x"}', 'Metadata')
+      _(model).must_be_instance_of({{moduleName}}::Models::Metadata)
+    end
+
+    it 'bhv_misc_104 a string declared with the email format decodes to the plain string without validation' do
+      _({{moduleName}}::ObjectSerializer.send(:apply_format_on_deserialize, 'not an email', 'email')).must_equal('not an email')
+    end
+
     it 'bhv_misc_089 a date-time is written in its canonical form in a field, optional, list, set or map' do
       t = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
       result = {{moduleName}}::ObjectSerializer.stringify(t)

@@ -557,6 +557,9 @@ class TestCharsetDecoding:
         assert _decode_with_charset("café".encode("utf-8"), "text/plain; charset=no-such-charset") == "café"
         assert _decode_with_charset(b"\x00h\x00i", "text/plain; charset=utf-16") == "hi"
 
+    def test_bhv_misc_095_invalid_bytes_in_the_declared_charset_decode_as_replacement_characters(self) -> None:
+        assert _decode_with_charset(b"a\xffb\xfe", "text/plain; charset=utf-8") == "a\ufffdb\ufffd"
+
     def test_bhv_lang_python_061_extracts_charset_parameter(self) -> None:
         assert _charset_from_content_type("text/plain; charset=ISO-8859-1") == "ISO-8859-1"
         assert _charset_from_content_type("text/plain") is None
@@ -660,6 +663,25 @@ class TestMultipartFilenameSanitization:
         ascii_fallback, rfc5987 = _sanitize_multipart_filename("\U0001F600.png")
         assert ascii_fallback == "_.png"
         assert rfc5987 == "UTF-8''%F0%9F%98%80.png"
+
+    def test_bhv_misc_096_a_text_part_carries_only_its_content_disposition(self) -> None:
+        body = DefaultApiClient()._build_multipart_body({'title': 'hello'}, 'boundary')
+        assert b'--boundary\r\nContent-Disposition: form-data; name="title"\r\n\r\nhello\r\n' in body
+        assert b'Content-Transfer-Encoding' not in body
+
+    def test_bhv_misc_097_each_array_element_is_its_own_part_in_order(self) -> None:
+        body = DefaultApiClient()._build_multipart_body({'tags': ['a', 'b'], 'name': 'x'}, 'boundary')
+        assert body.count(b'name="tags"') == 2
+        assert body.index(b'\r\n\r\na\r\n') < body.index(b'\r\n\r\nb\r\n')
+        assert body.count(b'name="name"') == 1
+
+    def test_bhv_misc_098_a_caller_supplied_stream_is_read_and_never_closed_by_the_sdk(self) -> None:
+        import io
+
+        stream = io.BytesIO(b"hello")
+        stream.name = "a.txt"
+        DefaultApiClient()._build_multipart_body({'upload': stream}, 'boundary')
+        assert not stream.closed
 
     def test_bhv_serialization_057_multipart_body_rejects_filename_injection(self) -> None:
         import io

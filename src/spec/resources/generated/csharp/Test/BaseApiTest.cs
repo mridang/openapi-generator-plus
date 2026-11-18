@@ -3238,4 +3238,48 @@ public class BaseApiTest
 
         Assert.Equal("/v2/items/7", ex.RequestPath);
     }
+
+    private sealed class TokenRecordingAuthenticator : IAuthenticator
+    {
+        public CancellationToken Received { get; private set; }
+
+        public string GetHost() => "";
+
+        public Dictionary<string, string> GetAuthHeaders() =>
+            new() { ["Authorization"] = "Bearer probe" };
+
+        public Task<Dictionary<string, string>> GetAuthHeadersAsync() =>
+            Task.FromResult(GetAuthHeaders());
+
+        public Task<Dictionary<string, string>> GetAuthHeadersAsync(
+            CancellationToken cancellationToken
+        )
+        {
+            Received = cancellationToken;
+            return Task.FromResult(GetAuthHeaders());
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc061AnAuthenticatorThatNeedsRequestsReceivesTheCallContextAndSendsItsHeaders()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var auth = new TokenRecordingAuthenticator();
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "http://localhost", auth);
+
+        await api.CallAsync<JsonNode>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json",
+            cancellationToken: token
+        );
+
+        Assert.Equal(token, auth.Received);
+        Assert.Equal("Bearer probe", client.CapturedHeaders["Authorization"]);
+    }
 }

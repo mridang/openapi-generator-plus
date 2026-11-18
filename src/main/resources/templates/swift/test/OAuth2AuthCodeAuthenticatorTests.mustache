@@ -694,6 +694,33 @@ import Testing
     }
 
 
+    /* The configured authorization endpoint and redirect URI reach the authorization URL as configured, with no changed case or port. */
+    @Test func testBhvMisc058TheEndpointAndRedirectUriReachTheUrlAsConfigured() throws {
+        let auth = OAuth2AuthorizationCodeAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            authorizationURL: "https://Auth.Example.com:443/authorize",
+            tokenURL: "https://auth.example.com/token",
+            redirectURI: "https://App.Example.com:443/Callback",
+            scopes: ["read", "write"],
+            refreshURL: "https://auth.example.com/refresh"
+        )
+        let url = try auth.buildAuthorizationURL()
+        #expect(url.hasPrefix("https://Auth.Example.com:443/authorize?"))
+        #expect(url.contains("redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2FCallback"))
+    }
+
+    /* The authorization URL produced by a per-scheme wrapper carries the scopes its security scheme declares. */
+    @Test func testBhvMisc062TheAuthorizationUrlCarriesTheDeclaredScopes() throws {
+        let auth = try UserAuthAuthorizationCodeAuthenticator(
+            host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
+            redirectUri: "https://app.example.com/cb")
+        let url = try auth.buildAuthorizationURL(state: "s1")
+        let items = URLComponents(string: url)?.queryItems ?? []
+        #expect(items.first { $0.name == "scope" }?.value == "pets:read pets:write")
+    }
+
     /* A transport failure during the code exchange reaches the caller as the same error. */
     @Test func testBhvMisc028AnExchangeFailureIsThrownUnchanged() async throws {
         let client = MockApiClient()

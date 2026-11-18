@@ -755,3 +755,26 @@ async fn test_bhv_auth_053_exchanging_a_code_discards_a_previously_held_refresh_
     assert!(!body.contains("ref1"), "the discarded refresh token was used: {}", body);
 }
 
+
+#[tokio::test]
+async fn test_bhv_misc_058_the_configured_endpoint_and_redirect_uri_reach_the_url_unchanged() {
+    let auth = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://Auth.Example.com:443/authorize",
+        "https://auth.example.com/token",
+        "https://App.Example.com:443/callback",
+        vec!["read".to_string()],
+        "",
+    );
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.starts_with("https://Auth.Example.com:443/authorize?"), "authorization url: {}", url);
+    assert!(
+        url.contains("redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcallback"),
+        "authorization url: {}",
+        url
+    );
+}
