@@ -1915,6 +1915,8 @@ test('bhv mocking 006 a call without the per-call options reaches the full signa
 
     expect(fakeCalls($fake))->toHaveCount(1);
     expect(fakeCalls($fake)[0][1])->toBe([7, null, null]);
+});
+
 test('bhv lifecycle 042 an api built on a caller supplied transport sends its requests through that transport', function (): void {
     $transport = new CapturingApiClient();
     $api = new PetApi($transport, new Configuration('http://localhost'));
