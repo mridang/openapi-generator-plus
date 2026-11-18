@@ -39,7 +39,7 @@ test('bhv lifecycle 011 construct with authenticator and transport options', fun
     expect($client)->toBeInstanceOf(Client::class);
 });
 
-test('bearer rejects crlf', function (): void {
+test('bhv authbearer 028 bearer rejects crlf at construction', function (): void {
     expect(fn () => new BearerAuthenticator('/api/v3', "tok\r\nInjected: yes"))
         ->toThrow(\InvalidArgumentException::class);
 });
@@ -212,7 +212,7 @@ function newRecordingTransport(): array
     return [$transport, $counts];
 }
 
-test('a closed client fails new requests with one canonical error even on a supplied transport', function (): void {
+test('bhv lifecycle 035 a request after close fails with the one closed client error and never reaches the transport', function (): void {
     [$transport, $counts] = newRecordingTransport();
     $client = new Client($this->authenticator, null, $transport);
     $client->close();
@@ -243,7 +243,7 @@ test('a client that is not closed still sends', function (): void {
     expect($counts->sent)->toBe(1);
 });
 
-test('a client needs an authenticator or a scheme credential', function (): void {
+test('bhv lifecycle 026 a client built with no credential at all is refused', function (): void {
     expect(fn () => new Client())
         ->toThrow(\InvalidArgumentException::class, 'at least one security scheme');
 });
@@ -298,4 +298,88 @@ test('a supplied psr18 client conflicts with sdk proxy and tls settings', functi
 test('bhv lifecycle 016 with token fails when the token is empty', function (): void {
     expect(fn () => Client::withToken('/api/v3', ''))
         ->toThrow(\InvalidArgumentException::class);
+});
+
+/**
+ * A transport that records the URL and the headers of the last request it was asked to send.
+ *
+ * @return array{0: ApiClient, 1: \stdClass}
+ */
+function newCapturingTransport(): array
+{
+    $seen = new \stdClass();
+    $seen->url = null;
+    $seen->headers = [];
+    $transport = new readonly class ($seen) implements ApiClient {
+        public function __construct(private \stdClass $seen)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->seen->url = $url;
+            $this->seen->headers = $headers;
+
+            return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+
+    return [$transport, $seen];
+}
+
+test('bhv lifecycle 028 an explicit host and token win over the environment', function (): void {
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
+    $previous = getenv($name);
+    putenv($name . '=from-environment');
+    try {
+        [$transport, $seen] = newCapturingTransport();
+        $client = Client::withToken('https://arg.example.com', 'arg-token', null, $transport);
+
+        $api = $client->pet;
+        $method = new \ReflectionMethod($api, 'invokeApiForResult');
+        $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null);
+        expect((string) $seen->url)->toStartWith('https://arg.example.com');
+        expect($seen->headers['Authorization'] ?? null)->toBe('Bearer arg-token');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv lifecycle 032 a token passed to the client is preferred to the one in the environment', function (): void {
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
+    $previous = getenv($name);
+    putenv($name . '=from-environment');
+    try {
+        [$transport, $seen] = newCapturingTransport();
+        $client = new Client(new BearerAuthenticator('https://api.example.com', 'arg-token'), null, $transport);
+
+        $api = $client->pet;
+        $method = new \ReflectionMethod($api, 'invokeApiForResult');
+        $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null);
+        expect($seen->headers['Authorization'] ?? null)->toBe('Bearer arg-token');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv lifecycle 030 the base url comes from the authenticator first, then the first scheme credential', function (): void {
+    $default = new BearerAuthenticator('https://default.example.com', 'tok');
+    $scheme = new BearerAuthenticator('https://scheme.example.com', 'tok');
+
+    $withDefault = new Client($default, petStoreBasic: $scheme);
+    $schemeOnly = new Client(petStoreBasic: $scheme);
+
+    $property = (new \ReflectionClass(\PetstoreClient\Api\BaseApi::class))->getProperty('config');
+    expect($property->getValue($withDefault->pet))->toHaveProperty('baseUrl', 'https://default.example.com');
+    expect($property->getValue($schemeOnly->pet))->toHaveProperty('baseUrl', 'https://scheme.example.com');
 });

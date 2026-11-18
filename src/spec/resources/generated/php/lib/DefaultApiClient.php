@@ -390,7 +390,7 @@ class DefaultApiClient extends AbstractApiClient
 
             return new RawHttpResponse($statusCode, $responseBody, $rawHeaders);
         } catch (TimeoutExceptionInterface $e) {
-            throw new NetworkTimeoutException("API Request timed out: {$e->getMessage()}", $e);
+            throw new NetworkTimeoutException("API Request timed out: {$e->getMessage()}", $e, $method, $url);
         } catch (TransportExceptionInterface $e) {
             /* Only the inactivity timer throws Symfony's timeout type. Blowing
              * the `max_duration` budget set above throws a plain transport
@@ -398,11 +398,11 @@ class DefaultApiClient extends AbstractApiClient
              * NetworkException or NetworkTimeoutException depending on which
              * timer fired first. Classify that message as the timeout it is. */
             if (preg_match('/max duration|timed? ?out/i', $e->getMessage()) === 1) {
-                throw new NetworkTimeoutException("API Request timed out: {$e->getMessage()}", $e);
+                throw new NetworkTimeoutException("API Request timed out: {$e->getMessage()}", $e, $method, $url);
             }
 
             /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
-            throw new NetworkException("API Request failed: {$e->getMessage()}", $e);
+            throw new NetworkException("API Request failed: {$e->getMessage()}", $e, $method, $url);
         }
     }
 

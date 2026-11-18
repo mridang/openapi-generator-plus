@@ -201,3 +201,9 @@ test('bhv headers 008 should drop whitespace-only entries', function (): void {
     );
     expect($headers['Accept'])->toEqual('application/json');
 });
+
+test('bhv headers 029 the accept header is empty when every entry is blank', function (): void {
+    $method = new \ReflectionMethod($this->headerSelector, 'selectAcceptHeader');
+
+    expect($method->invoke($this->headerSelector, ['', '   ']))->toBe('');
+});
