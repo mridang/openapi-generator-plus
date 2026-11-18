@@ -192,6 +192,10 @@ let authenticator = OAuth2ClientCredentialsAuthenticator::new(
     .with_client_auth_method(ClientAuthMethod::Basic);
 ```
 
+### Hooks and telemetry
+
+One optional hook runs around every call: `client.with_call_hook(Arc::new(hook))` (or `Configuration::builder().call_hook(hook)`). `CallHook::start(info, headers)` runs once per call after the headers are final and may edit them; it returns a `CallObserver` (or `None`) whose `finish(outcome)` runs exactly once with the status (`0` when no response arrived), the lower-cased headers (`None` when none arrived) and the error. A panic in `start` reaches the caller; a panic in `finish` is swallowed. `call_hook::chain(vec![a, b])` starts in order and finishes in reverse. `OpenTelemetryCallHook::new()` (feature `opentelemetry`) records one span, `http.client.request.count` and `http.client.request.duration` per call.
+
 ## Servers
 
 If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them. Pass the desired server's URL to the client:

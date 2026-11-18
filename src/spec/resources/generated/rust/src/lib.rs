@@ -12,6 +12,9 @@ pub mod api_http_response;
 pub mod api_result;
 pub mod auth;
 pub mod client;
+/* The call hook that runs around every operation call. It names no
+ * OpenTelemetry type: the adapter is its own module. */
+pub mod call_hook;
 pub mod configuration;
 pub mod credentials;
 /* SDK-owned `format: date-time` newtype. Owns its `Serialize`/`Deserialize`, so the
@@ -31,6 +34,10 @@ pub(crate) mod header_selector;
  * `serde_json::Value` private so serde_json never leaks into the public API. */
 pub mod json_value;
 pub mod models;
+/* The call hook that records a span, a request count and a duration histogram
+ * per call, on the optional OpenTelemetry API dependency. */
+#[cfg(feature = "opentelemetry")]
+pub mod open_telemetry_call_hook;
 /* Serde helper that (de)serialises `format: duration` fields as protobuf-JSON
  * `google.protobuf.Duration` strings ("<seconds>s", e.g. "3600s"). */
 pub mod proto_duration;
@@ -51,6 +58,7 @@ pub use api_client::ApiClient;
 pub use api_http_response::ApiHttpResponse;
 pub use api_result::ApiResult;
 pub use auth::Authenticator;
+pub use call_hook::{CallCancelled, CallHook, CallInfo, CallObserver, CallOutcome};
 pub use client::Client;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use credentials::Credentials;
@@ -59,5 +67,7 @@ pub use default_api_client::DefaultApiClient;
  * configuration errors, is declared in `errors` and re-exported here. */
 pub use errors::*;
 pub use json_value::JsonValue;
+#[cfg(feature = "opentelemetry")]
+pub use open_telemetry_call_hook::OpenTelemetryCallHook;
 pub use server_configuration::{ServerConfiguration, ServerVariable};
 pub use transport_options::{TransportOptions, TransportOptionsBuilder};

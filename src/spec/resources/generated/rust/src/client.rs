@@ -15,6 +15,7 @@ use crate::api::StoreApi;
 use crate::api_client::ApiClient;
 use crate::auth::Authenticator;
 use crate::auth::{BearerAuthenticator, TokenProvider};
+use crate::call_hook::CallHook;
 use crate::configuration::ConfigurationBuilder;
 use crate::credentials::Credentials;
 use crate::default_api_client::DefaultApiClient;
@@ -175,6 +176,17 @@ impl Client {
             transport_options,
         )?);
         Ok(Self::from_api_client(authenticator, api_client))
+    }
+
+    /// Sets the [`CallHook`] that runs around every operation call of every API
+    /// group: it can edit the request headers before the send and observe the
+    /// status or the error afterwards. It also runs when the transport was
+    /// supplied with [`Self::with_http_client`].
+    pub fn with_call_hook(mut self, hook: Arc<dyn CallHook>) -> Self {
+        self.pet = self.pet.with_call_hook(hook.clone());
+        self.problems = self.problems.with_call_hook(hook.clone());
+        self.store = self.store.with_call_hook(hook.clone());
+        self
     }
 
     /// Releases the HTTP stack this client owns. Any request made afterwards

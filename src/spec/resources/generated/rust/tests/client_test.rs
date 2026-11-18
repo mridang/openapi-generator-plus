@@ -295,3 +295,41 @@ fn test_bhv_lifecycle_015_takes_one_optional_keyword_credential_per_security_sch
     let client = Client::with_credentials(host, credentials, None);
     let _ = &client;
 }
+
+/* The hook set on the client reaches every API group. */
+#[tokio::test]
+async fn test_bhv_hooks_010_the_client_hands_the_call_hook_to_every_api_group() {
+    use petstore::{CallHook, CallInfo, CallObserver};
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+
+    struct Counting(Arc<Mutex<Vec<String>>>);
+    impl CallHook for Counting {
+        fn start(
+            &self,
+            info: &CallInfo,
+            _headers: &mut HashMap<String, String>,
+        ) -> Option<Box<dyn CallObserver>> {
+            self.0.lock().unwrap().push(info.operation_id.clone());
+            None
+        }
+    }
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let transport = TransportOptionsBuilder::new()
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let client = Client::new(
+        Box::new(BearerAuthenticator::new("http://127.0.0.1:1", "token").unwrap()),
+        Some(transport),
+    )
+    .with_call_hook(Arc::new(Counting(seen.clone())));
+
+    let _ = client.pet.delete_pet(1, None).await;
+    let _ = client.store.delete_order(1, None).await;
+
+    assert_eq!(
+        vec!["deletePet".to_string(), "deleteOrder".to_string()],
+        *seen.lock().unwrap()
+    );
+}

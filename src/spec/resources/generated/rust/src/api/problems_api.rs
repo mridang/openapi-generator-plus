@@ -64,6 +64,12 @@ impl ProblemsApi {
         self
     }
 
+    /// Sets the call hook of this API.
+    pub(crate) fn with_call_hook(mut self, hook: Arc<dyn crate::call_hook::CallHook>) -> Self {
+        self.base = self.base.with_call_hook(hook);
+        self
+    }
+
     /// Read a fallback, declaring a default response
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
@@ -171,6 +177,8 @@ impl ProblemsApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getFallback",
+            url_template: "/fallbacks/{fallbackId}",
             query_params,
             header_params,
             body: request_body,
@@ -298,6 +306,8 @@ impl ProblemsApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getMember",
+            url_template: "/members/{memberId}",
             query_params,
             header_params,
             body: request_body,
@@ -427,6 +437,8 @@ impl ProblemsApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getProject",
+            url_template: "/projects/{projectId}",
             query_params,
             header_params,
             body: request_body,
@@ -554,6 +566,8 @@ impl ProblemsApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getRange",
+            url_template: "/ranges/{rangeId}",
             query_params,
             header_params,
             body: request_body,
@@ -685,6 +699,8 @@ impl ProblemsApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getUpstream",
+            url_template: "/upstreams/{upstreamId}",
             query_params,
             header_params,
             body: request_body,
@@ -813,6 +829,8 @@ impl ProblemsApi {
         let params = InvokeApiParams {
             method: "PUT",
             path: &path,
+            operation_id: "takeLock",
+            url_template: "/locks/{lockId}",
             query_params,
             header_params,
             body: request_body,

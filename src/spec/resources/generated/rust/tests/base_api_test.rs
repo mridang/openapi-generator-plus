@@ -3058,3 +3058,507 @@ async fn test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_
         headers.get("Cookie")
     );
 }
+
+// -- Call hook --
+
+#[derive(Clone, Default)]
+struct HookLog {
+    starts: Arc<std::sync::Mutex<Vec<CallInfo>>>,
+    finishes: Arc<std::sync::Mutex<Vec<Finished>>>,
+}
+
+struct Finished {
+    status: u16,
+    headers: Option<HashMap<String, String>>,
+    kind: &'static str,
+    text: String,
+    address: usize,
+}
+
+struct RecordingHook {
+    log: HookLog,
+    set: Vec<(String, String)>,
+    panic_in_start: bool,
+    panic_in_finish: bool,
+}
+
+struct RecordingObserver {
+    log: HookLog,
+    panic_in_finish: bool,
+}
+
+fn kind_of(error: &(dyn std::error::Error + 'static)) -> &'static str {
+    if error.downcast_ref::<NetworkTimeoutError>().is_some() {
+        "timeout"
+    } else if error.downcast_ref::<NetworkError>().is_some() {
+        "network"
+    } else if error.downcast_ref::<NotFoundError>().is_some() {
+        "not_found"
+    } else if error.downcast_ref::<SerializationError>().is_some() {
+        "serialization"
+    } else if error.downcast_ref::<CallCancelled>().is_some() {
+        "cancelled"
+    } else {
+        "other"
+    }
+}
+
+fn address_of(error: &(dyn std::error::Error + 'static)) -> usize {
+    error as *const (dyn std::error::Error + 'static) as *const () as usize
+}
+
+impl RecordingHook {
+    fn new() -> (Arc<Self>, HookLog) {
+        Self::with(Vec::new(), false, false)
+    }
+
+    fn setting(name: &str, value: &str) -> (Arc<Self>, HookLog) {
+        Self::with(vec![(name.to_string(), value.to_string())], false, false)
+    }
+
+    fn with(
+        set: Vec<(String, String)>,
+        panic_in_start: bool,
+        panic_in_finish: bool,
+    ) -> (Arc<Self>, HookLog) {
+        let log = HookLog::default();
+        (
+            Arc::new(Self {
+                log: log.clone(),
+                set,
+                panic_in_start,
+                panic_in_finish,
+            }),
+            log,
+        )
+    }
+}
+
+impl CallHook for RecordingHook {
+    fn start(
+        &self,
+        info: &CallInfo,
+        headers: &mut HashMap<String, String>,
+    ) -> Option<Box<dyn CallObserver>> {
+        if self.panic_in_start {
+            panic!("start refused the call");
+        }
+        self.log.starts.lock().unwrap().push(info.clone());
+        for (name, value) in &self.set {
+            headers.insert(name.clone(), value.clone());
+        }
+        Some(Box::new(RecordingObserver {
+            log: self.log.clone(),
+            panic_in_finish: self.panic_in_finish,
+        }))
+    }
+}
+
+impl CallObserver for RecordingObserver {
+    fn finish(self: Box<Self>, outcome: &CallOutcome<'_>) {
+        self.log.finishes.lock().unwrap().push(Finished {
+            status: outcome.status_code,
+            headers: outcome.headers.cloned(),
+            kind: outcome.error.map(kind_of).unwrap_or("none"),
+            text: outcome.error.map(|e| e.to_string()).unwrap_or_default(),
+            address: outcome.error.map(address_of).unwrap_or(0),
+        });
+        if self.panic_in_finish {
+            panic!("finish failed");
+        }
+    }
+}
+
+enum HookStep {
+    Status(u16, &'static str),
+    Network,
+    Timeout,
+}
+
+/// Answers the steps in order, records the headers of every send, and can
+/// leave the request pending forever.
+struct HookClient {
+    script: std::sync::Mutex<Vec<HookStep>>,
+    retries: u32,
+    sent: std::sync::Mutex<Vec<HashMap<String, String>>>,
+    never_answers: bool,
+}
+
+impl HookClient {
+    fn new(script: Vec<HookStep>, retries: u32) -> Arc<Self> {
+        Arc::new(Self {
+            script: std::sync::Mutex::new(script),
+            retries,
+            sent: std::sync::Mutex::new(Vec::new()),
+            never_answers: false,
+        })
+    }
+
+    fn pending() -> Arc<Self> {
+        Arc::new(Self {
+            script: std::sync::Mutex::new(Vec::new()),
+            retries: 0,
+            sent: std::sync::Mutex::new(Vec::new()),
+            never_answers: true,
+        })
+    }
+
+    fn sends(&self) -> usize {
+        self.sent.lock().unwrap().len()
+    }
+}
+
+impl petstore::api_client::ApiClient for HookClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_http_response::ApiHttpResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        self.sent.lock().unwrap().push(headers.clone());
+        if self.never_answers {
+            return Box::pin(std::future::pending());
+        }
+        let step = self.script.lock().unwrap().remove(0);
+        Box::pin(async move {
+            match step {
+                HookStep::Status(status, body) => {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), "application/json".to_string());
+                    h.insert("Retry-After".to_string(), "0".to_string());
+                    Ok(petstore::api_http_response::ApiHttpResponse::new(
+                        status,
+                        body.to_string(),
+                        h,
+                    ))
+                }
+                HookStep::Network => {
+                    let failed = ApiError::new(0, "connection refused".to_string(), None, None);
+                    Err(Box::new(NetworkError::try_from(failed).expect("status 0"))
+                        as Box<dyn std::error::Error + Send + Sync>)
+                }
+                HookStep::Timeout => {
+                    let failed = ApiError::new(0, "timed out".to_string(), None, None);
+                    let network = NetworkError::try_from(failed).expect("status 0");
+                    Err(Box::new(NetworkTimeoutError::from(network))
+                        as Box<dyn std::error::Error + Send + Sync>)
+                }
+            }
+        })
+    }
+
+    fn max_retries(&self) -> u32 {
+        self.retries
+    }
+}
+
+fn hooked_pet_api(
+    client: &Arc<HookClient>,
+    hook: Arc<RecordingHook>,
+    authenticator: Option<Arc<dyn petstore::auth::Authenticator>>,
+) -> PetApi {
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .call_hook(hook)
+        .build();
+    PetApi::new(client.clone(), config, authenticator)
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_006_a_header_the_hook_sets_is_on_every_send_of_the_call() {
+    let client = HookClient::new(
+        vec![HookStep::Status(503, "{}"), HookStep::Status(200, "{}")],
+        2,
+    );
+    let (hook, _log) = RecordingHook::setting("X-Hook", "set");
+
+    hooked_pet_api(&client, hook, None)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry succeeds");
+
+    let sent = client.sent.lock().unwrap();
+    assert_eq!(2, sent.len());
+    assert!(sent
+        .iter()
+        .all(|headers| headers.get("X-Hook").map(String::as_str) == Some("set")));
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_007_the_fresh_authentication_headers_of_a_replay_replace_a_hook_header_of_the_same_name(
+) {
+    let client = HookClient::new(
+        vec![HookStep::Status(401, "{}"), HookStep::Status(200, "{}")],
+        0,
+    );
+    let (hook, _log) = RecordingHook::setting("Authorization", "Bearer hook");
+    let auth = Arc::new(RenewableAuthenticator::new());
+
+    hooked_pet_api(&client, hook, Some(auth))
+        .delete_pet(1, None)
+        .await
+        .expect("the replay succeeds");
+
+    let sent = client.sent.lock().unwrap();
+    assert_eq!(2, sent.len());
+    assert_eq!(
+        Some("Bearer hook"),
+        sent[0].get("Authorization").map(String::as_str)
+    );
+    assert_eq!(
+        Some("Bearer gen1"),
+        sent[1].get("Authorization").map(String::as_str)
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_008_a_call_that_is_retried_by_the_transport_calls_start_once_and_finish_once(
+) {
+    let client = HookClient::new(
+        vec![
+            HookStep::Status(503, "{}"),
+            HookStep::Status(503, "{}"),
+            HookStep::Status(200, "{}"),
+        ],
+        2,
+    );
+    let (hook, log) = RecordingHook::new();
+
+    hooked_pet_api(&client, hook, None)
+        .delete_pet(1, None)
+        .await
+        .expect("the third send succeeds");
+
+    assert_eq!(3, client.sends());
+    assert_eq!(1, log.starts.lock().unwrap().len());
+    assert_eq!(1, log.finishes.lock().unwrap().len());
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_009_the_plain_and_the_with_http_info_variant_call_the_hook_once_each() {
+    let client = HookClient::new(
+        vec![HookStep::Status(200, "{}"), HookStep::Status(200, "{}")],
+        0,
+    );
+    let (hook, log) = RecordingHook::new();
+    let api = hooked_pet_api(&client, hook, None);
+
+    api.delete_pet(1, None).await.expect("plain");
+    assert_eq!(1, log.starts.lock().unwrap().len());
+    api.delete_pet_with_http_info(1, None)
+        .await
+        .expect("with http info");
+
+    assert_eq!(2, log.starts.lock().unwrap().len());
+    assert_eq!(2, log.finishes.lock().unwrap().len());
+    let starts = log.starts.lock().unwrap();
+    assert_eq!("deletePet", starts[0].operation_id);
+    assert_eq!("/pet/{petId}", starts[0].url_template);
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_010_a_hook_set_on_the_client_still_fires_when_the_caller_supplied_the_transport(
+) {
+    let (hook, log) = RecordingHook::new();
+    let supplied = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("a reqwest client");
+    let transport = TransportOptions::builder()
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let client = Client::with_http_client(
+        Box::new(
+            petstore::auth::BearerAuthenticator::new("http://127.0.0.1:1", "token")
+                .expect("a token"),
+        ),
+        supplied,
+        Some(transport),
+    )
+    .expect("no conflict")
+    .with_call_hook(hook);
+
+    let err = client
+        .pet
+        .delete_pet(1, None)
+        .await
+        .expect_err("nothing listens on port 1");
+
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
+    assert_eq!(1, log.starts.lock().unwrap().len());
+    assert_eq!(1, log.finishes.lock().unwrap().len());
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_011_finish_gets_the_status_the_lower_cased_headers_and_no_error_on_a_2xx() {
+    let client = HookClient::new(vec![HookStep::Status(200, "{}")], 0);
+    let (hook, log) = RecordingHook::new();
+
+    hooked_pet_api(&client, hook, None)
+        .delete_pet(1, None)
+        .await
+        .expect("a 200 succeeds");
+
+    let finishes = log.finishes.lock().unwrap();
+    assert_eq!(200, finishes[0].status);
+    assert_eq!("none", finishes[0].kind);
+    let headers = finishes[0].headers.as_ref().expect("a response arrived");
+    assert_eq!(
+        Some("application/json"),
+        headers.get("content-type").map(String::as_str)
+    );
+    assert!(!headers.contains_key("Content-Type"));
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_012_finish_gets_the_status_the_headers_and_the_same_typed_error_the_caller_receives(
+) {
+    let client = HookClient::new(vec![HookStep::Status(404, "{}")], 0);
+    let (hook, log) = RecordingHook::new();
+
+    let err = hooked_pet_api(&client, hook, None)
+        .delete_pet(1, None)
+        .await
+        .expect_err("a 404 fails");
+
+    let finishes = log.finishes.lock().unwrap();
+    assert_eq!(404, finishes[0].status);
+    assert!(finishes[0].headers.is_some());
+    assert_eq!("not_found", finishes[0].kind);
+    assert_eq!(err.to_string(), finishes[0].text);
+    let received: &(dyn std::error::Error + 'static) = &*err;
+    assert_eq!(
+        address_of(received),
+        finishes[0].address,
+        "the very error object"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_013_finish_gets_status_0_no_headers_and_the_network_error_when_no_response_arrived(
+) {
+    let client = HookClient::new(vec![HookStep::Network], 0);
+    let (hook, log) = RecordingHook::new();
+
+    hooked_pet_api(&client, hook, None)
+        .delete_pet(1, None)
+        .await
+        .expect_err("refused");
+
+    let finishes = log.finishes.lock().unwrap();
+    assert_eq!(0, finishes[0].status);
+    assert!(finishes[0].headers.is_none());
+    assert_eq!("network", finishes[0].kind);
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_014_finish_gets_the_timeout_error_never_the_cancellation_error() {
+    let client = HookClient::new(vec![HookStep::Timeout], 0);
+    let (hook, log) = RecordingHook::new();
+
+    hooked_pet_api(&client, hook, None)
+        .delete_pet(1, None)
+        .await
+        .expect_err("timed out");
+
+    let finishes = log.finishes.lock().unwrap();
+    assert_eq!("timeout", finishes[0].kind);
+    assert_eq!(0, finishes[0].status);
+}
+
+#[test]
+fn test_bhv_hooks_015_finish_gets_the_cancellation_when_the_future_is_dropped() {
+    let client = HookClient::pending();
+    let (hook, log) = RecordingHook::new();
+    let api = hooked_pet_api(&client, hook, None);
+
+    use std::future::Future;
+    let mut call = Box::pin(api.delete_pet(1, None));
+    let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+    assert!(
+        call.as_mut().poll(&mut cx).is_pending(),
+        "the transport never answers"
+    );
+    assert_eq!(1, log.starts.lock().unwrap().len());
+    assert!(log.finishes.lock().unwrap().is_empty());
+
+    drop(call);
+
+    let finishes = log.finishes.lock().unwrap();
+    assert_eq!(1, finishes.len());
+    assert_eq!("cancelled", finishes[0].kind);
+    assert_eq!(0, finishes[0].status);
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_016_finish_gets_the_serialization_error_with_the_status_that_arrived() {
+    let client = HookClient::new(vec![HookStep::Status(200, "this is not json")], 0);
+    let (hook, log) = RecordingHook::new();
+
+    let err = hooked_pet_api(&client, hook, None)
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("the body cannot be decoded");
+
+    assert!(
+        err.downcast_ref::<SerializationError>().is_some(),
+        "got: {}",
+        err
+    );
+    let finishes = log.finishes.lock().unwrap();
+    assert_eq!(200, finishes[0].status);
+    assert!(finishes[0].headers.is_some());
+    assert_eq!("serialization", finishes[0].kind);
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_018_a_panic_in_start_reaches_the_caller_nothing_is_sent_and_finish_is_not_called(
+) {
+    let client = HookClient::new(vec![HookStep::Status(200, "{}")], 0);
+    let (hook, log) = RecordingHook::with(Vec::new(), true, false);
+    let api = hooked_pet_api(&client, hook, None);
+
+    let joined = tokio::spawn(async move { api.delete_pet(1, None).await.map(|_| ()) }).await;
+
+    assert!(joined.expect_err("the call panics").is_panic());
+    assert_eq!(0, client.sends());
+    assert!(log.finishes.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn test_bhv_hooks_019_a_panic_in_finish_is_swallowed_and_the_caller_gets_its_own_result_or_error(
+) {
+    let client = HookClient::new(
+        vec![HookStep::Status(200, "{}"), HookStep::Status(404, "{}")],
+        0,
+    );
+    let (hook, log) = RecordingHook::with(Vec::new(), false, true);
+    let api = hooked_pet_api(&client, hook, None);
+
+    api.delete_pet(1, None)
+        .await
+        .expect("the result survives a failing finish");
+    let err = api
+        .delete_pet(1, None)
+        .await
+        .expect_err("the 404 is still the caller's error");
+
+    assert!(
+        err.downcast_ref::<NotFoundError>().is_some(),
+        "got: {}",
+        err
+    );
+    assert_eq!(2, log.finishes.lock().unwrap().len());
+}

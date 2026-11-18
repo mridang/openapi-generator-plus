@@ -1,6 +1,7 @@
 {{! A module with nothing public -- the crate-internal base_api -- is declared
-    but not re-exported: a glob that re-exports nothing is a rustc warning. }}
-{{#modules}}mod {{name}};
+    but not re-exported: a glob that re-exports nothing is a rustc warning. It is
+    crate-visible so the OpenTelemetry adapter's in-crate tests can drive it. }}
+{{#modules}}{{^reexport}}pub(crate) {{/reexport}}mod {{name}};
 {{#reexport}}pub use {{name}}::*;
 {{/reexport}}
 {{/modules}}

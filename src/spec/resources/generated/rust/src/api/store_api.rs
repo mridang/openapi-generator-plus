@@ -64,6 +64,12 @@ impl StoreApi {
         self
     }
 
+    /// Sets the call hook of this API.
+    pub(crate) fn with_call_hook(mut self, hook: Arc<dyn crate::call_hook::CallHook>) -> Self {
+        self.base = self.base.with_call_hook(hook);
+        self
+    }
+
     /// Create an account
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn create_account(
@@ -126,6 +132,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "createAccount",
+            url_template: "/store/account",
             query_params,
             header_params,
             body: request_body,
@@ -219,6 +227,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "DELETE",
             path: &path,
+            operation_id: "deleteOrder",
+            url_template: "/store/order/{orderId}",
             query_params,
             header_params,
             body: request_body,
@@ -366,6 +376,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getBySwatch",
+            url_template: "/store/by-swatch/{pathSwatch}",
             query_params,
             header_params,
             body: request_body,
@@ -444,6 +456,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getDefaults",
+            url_template: "/store/defaults",
             query_params,
             header_params,
             body: request_body,
@@ -523,6 +537,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getDepartment",
+            url_template: "/store/department",
             query_params,
             header_params,
             body: request_body,
@@ -611,6 +627,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getGroupedCategories",
+            url_template: "/store/grouped-categories",
             query_params,
             header_params,
             body: request_body,
@@ -698,6 +716,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getInventory",
+            url_template: "/store/inventory",
             query_params,
             header_params,
             body: request_body,
@@ -778,6 +798,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getMatrix",
+            url_template: "/store/matrix",
             query_params,
             header_params,
             body: request_body,
@@ -888,6 +910,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getOrderById",
+            url_template: "/store/order/{orderId}",
             query_params,
             header_params,
             body: request_body,
@@ -990,6 +1014,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getOrderByTrackingId",
+            url_template: "/store/order/by-tracking/{trackingId}",
             query_params,
             header_params,
             body: request_body,
@@ -1100,6 +1126,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getStockItem",
+            url_template: "/store/stock-item",
             query_params,
             header_params,
             body: request_body,
@@ -1178,6 +1206,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getSwatch",
+            url_template: "/store/swatch",
             query_params,
             header_params,
             body: request_body,
@@ -1266,6 +1296,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getSwatchGroups",
+            url_template: "/store/swatch-groups",
             query_params,
             header_params,
             body: request_body,
@@ -1356,6 +1388,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getTimestampGroups",
+            url_template: "/store/timestamp-groups",
             query_params,
             header_params,
             body: request_body,
@@ -1434,6 +1468,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "getTree",
+            url_template: "/store/tree",
             query_params,
             header_params,
             body: request_body,
@@ -1528,6 +1564,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "placeOrder",
+            url_template: "/store/order",
             query_params,
             header_params,
             body: request_body,
@@ -1608,6 +1646,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "POST",
             path: &path,
+            operation_id: "reserveStock",
+            url_template: "/store/reservation",
             query_params,
             header_params,
             body: request_body,
@@ -1771,6 +1811,8 @@ impl StoreApi {
         let params = InvokeApiParams {
             method: "GET",
             path: &path,
+            operation_id: "searchStore",
+            url_template: "/store/search",
             query_params,
             header_params,
             body: request_body,

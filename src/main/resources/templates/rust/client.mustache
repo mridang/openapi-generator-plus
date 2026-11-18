@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use crate::api_client::ApiClient;
+use crate::call_hook::CallHook;
 use crate::auth::{BearerAuthenticator, TokenProvider};
 use crate::errors::configuration_error::ConfigurationError;
 use crate::auth::Authenticator;
@@ -170,6 +171,21 @@ impl {{clientClassName}} {
         let api_client: Arc<dyn ApiClient> =
             Arc::new(DefaultApiClient::with_client(http_client, transport_options)?);
         Ok(Self::from_api_client(authenticator, api_client))
+    }
+
+    /// Sets the [`CallHook`] that runs around every operation call of every API
+    /// group: it can edit the request headers before the send and observe the
+    /// status or the error afterwards. It also runs when the transport was
+    /// supplied with [`Self::with_http_client`].
+    pub fn with_call_hook(mut self, hook: Arc<dyn CallHook>) -> Self {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        self.{{clientPropertyName}} = self.{{clientPropertyName}}.with_call_hook(hook.clone());
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        self
     }
 
     /// Releases the HTTP stack this client owns. Any request made afterwards

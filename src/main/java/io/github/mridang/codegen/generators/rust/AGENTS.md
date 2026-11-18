@@ -41,6 +41,8 @@
 | Identifiers | real keywords become `r#name`; `crate`, `self`, `super`, `Self` keep a leading underscore | raw identifiers are rejected for those four |
 | Numbers | `format: number` is `f64`, documented lossy (D83); integer enum members are `Number<n>` (`NumberMinus1`) | native binary float |
 | Cancellation | no SDK API: drop the future; `timeout` bounds a call | native async cancellation; see S7 below |
+| Call hook | `CallHook`/`CallObserver` traits over `Arc<dyn CallHook>`; `ConfigurationBuilder::call_hook` and the consuming `Client::with_call_hook` (no client builder exists); `start` returns `Option<Box<dyn CallObserver>>`; a panic in `start` unwinds to the caller, a panic in `finish` is swallowed; a dropped future finishes the observer with `CallCancelled` from `Drop` | no exceptions to throw and no cancellation signal: panics and `Drop` are the native equivalents; the hook state is `CallScope` in `call_hook.mustache` |
+| OpenTelemetry adapter | `OpenTelemetryCallHook::new()` / `with_providers(&tracer_provider, &meter_provider)` in `open_telemetry_call_hook.mustache`, compiled only with the `opentelemetry` feature; writes `traceparent`/`tracestate` itself; tests are in-crate and run with `--all-features` | the core names no OpenTelemetry type; the dependency stays optional (API only, pinned 0.32) |
 | Unique sets | `HashSet`, written sorted by a serde adapter (D69) | hash order is random |
 | Optional description | `ServerConfiguration`/`ServerVariable` description is an empty `String` when absent | empty-string sentinel shared with go, swift and dart; metadata only, never on the wire |
 
