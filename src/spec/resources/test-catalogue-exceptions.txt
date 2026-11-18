@@ -328,3 +328,5 @@ swift | redirects043 | the test scripts the redirect with a URLProtocol stub, wh
 swift | redirects044 | the test scripts the redirect with a URLProtocol stub, which swift-corelibs-foundation (FoundationNetworking) on Linux traps on (it does not handle redirects directly), so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only; on Linux libcurl performs the redirect with no delegate hook, so the follow-up request cannot be observed or controlled
 dart | auth038 | F862 credential order: dart reads the environment variable before the token provider, so an environment value is the fixed token and the provider is never asked
 dart | operations164 | Dart's sound null safety makes a nil required parameter unrepresentable: passing null is a compile error, so no ArgumentError can be raised at runtime; empty required values are covered by bhv operations 050
+dart | operations162 | the fixture has no date-only path parameter
+dart | operations165 | the fixture has no operation with a path serialization style
