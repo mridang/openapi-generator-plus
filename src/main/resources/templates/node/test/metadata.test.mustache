@@ -322,3 +322,11 @@ describe('Metadata additional properties misc behaviours', () => {
     expect(copy).toEqual(original);
   });
 });
+
+describe('Metadata map equality misc behaviours', () => {
+  it('bhv misc 151 a model holding a map compares equal when the maps hold the same entries and unequal when any entry differs', () => {
+    const build = (value: string) => reattachAdditionalProperties(new Metadata({}), { a: '1', b: value });
+    expect(build('2')).toEqual(build('2'));
+    expect(build('2')).not.toEqual(build('3'));
+  });
+});

@@ -1316,6 +1316,48 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert response.status_code == 404
   end
 
+  test "bhv misc 285 a response with a content encoding the SDK cannot decode is refused with the exact message" do
+    client =
+      routed_client(%{
+        "https://encoding.invalid/x" => {200, [{"content-encoding", "compress"}], "data"}
+      })
+
+    err =
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "https://encoding.invalid/x",
+          %{},
+          nil
+        )
+      end
+
+    assert err.message == "Unsupported Content-Encoding 'compress'"
+  end
+
+  test "bhv misc 282 a network failure raised after the connection drops keeps the transport error as its cause" do
+    adapter = fn request -> {request, %Req.TransportError{reason: :closed}} end
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+      )
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://custom.invalid/drop",
+          %{},
+          nil
+        )
+      end
+
+    assert %Req.TransportError{} = err.cause
+  end
+
   test "bhv misc 265 a redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status" do
     client =
       routed_client(%{
@@ -3116,5 +3158,14 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
       assert [_only] = collect_hops()
     end
+  end
+
+  test "bhv misc 165 a request body is replayed across a redirect that keeps the same plain-text scheme" do
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(
+             307,
+             "http://api.example.com/x",
+             "http://api.example.com/y",
+             ~s({"a":1})
+           )
   end
 end
