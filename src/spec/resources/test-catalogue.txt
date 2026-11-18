@@ -2432,3 +2432,86 @@ langruby090 | A password refused at construction for containing a NUL byte names
 langcsharp045 | An operation with no parameters or security leaves transport settings unchanged
 langcsharp046 | An operation with no parameters or security has no auth field in its options
 langcsharp047 | A per-call timeout of zero is refused when the call is built
+langrust001 | A body that is already serialized JSON text is sent without being serialized a second time
+langrust002 | Inserting a header replaces an existing header whose name differs only in letter case
+langrust003 | A date-time accepts every accepted ISO-8601 variant on input while only the canonical form is written
+langrust004 | Date-time values convert to and from the standard date library type without losing the instant
+langrust005 | Every scalar kind is written in its single canonical wire form in headers, paths, queries and bodies
+langrust006 | A date-time path parameter is written as its canonical string
+langrust007 | Credential-bearing headers are recognised by name so their values are redacted from logs
+langrust008 | Image file extensions map to their standard media types
+langrust009 | Document file extensions map to their standard media types
+langrust010 | A charset parameter is read from a content-type value, including quoted values
+langrust011 | A map whose values are byte arrays is written with its keys in ascending order
+langrust012 | An optional map of byte arrays is written with its keys in ascending order when present
+langrust013 | A map of byte arrays round-trips to content-equal values
+langrust014 | Deep-object query pairs follow model declaration order and map keys sort ascending
+langrust015 | A JSON object decodes into a map of its values
+langrust016 | Taking the data out of a result consumes the result and returns the payload
+langrust017 | A 400 response is dispatched to the bad request error kind
+langrust018 | A 401 response is dispatched to the unauthorized error kind
+langrust019 | A 403 response is dispatched to the forbidden error kind
+langrust020 | A 404 response is dispatched to the not found error kind
+langrust021 | A 422 response is dispatched to the unprocessable entity error kind
+langrust022 | Query parameters are serialized into the request URL in the declared style
+langrust023 | A 409 response maps to the conflict error kind
+langrust024 | A 429 response maps to the too many requests error kind
+langrust025 | An unlisted 4xx status maps to the generic client error kind
+langrust026 | An unlisted 5xx status maps to the generic server error kind
+langrust027 | A status outside the error ranges maps to the other error kind
+langrust028 | Network error kinds report status zero
+langrust029 | Typed error wrappers expose their payload only through accessors
+langrust030 | All retry attempts of one call share a single deadline
+langrust031 | A string enum displays its wire value
+langrust032 | A subtype's default discriminator value is its mapped value
+langrust033 | A variant with a default value serializes with that default
+langrust034 | A content-encoded property is written as base64 on the wire
+langrust035 | A client built around a caller-supplied transport sends its requests through that transport
+langrust036 | Reserved characters in an allow-reserved query value stay literal on the wire
+langrust037 | A redirect to a non-HTTP scheme is reported as an error carrying the status
+langrust038 | A model decodes from its JSON object form
+langrust039 | Generated source contains no line comments
+langrust040 | The authorization code scheme wrapper sends each grant to its declared URL
+langrust041 | An oversized expires_in string is clamped rather than overflowing
+langrust042 | The OAuth2 token manager is safe to share across threads
+langrust043 | A cancelled code exchange keeps the discovered delegate for later calls
+langrust044 | The OpenID Connect authenticator is safe to share across threads
+langrust045 | A text plain reply is returned as text
+langrust046 | Operation documentation text is emitted without escaping
+langrust047 | The skills guide documents every server
+langrust048 | Accessors return the state the value was constructed with
+langrust049 | A group constructs with no arguments
+langrust050 | Operations without a body do not mention a content type selector
+langrust051 | Parameter description text keeps its backtick markup
+langrust052 | The creation lock is released when the guarded work panics
+langrust053 | The creation lock is released when the guarded work returns
+langrust054 | A panic payload is reported whether it is a string or an owned string
+langrust055 | A user agent set on the transport options is applied to requests
+langrust056 | A CA certificate block with invalid base64 is rejected
+langrust057 | A CA certificate block with invalid DER content is rejected
+langrust058 | A CA certificate block that is not an X.509 certificate is rejected
+langrust059 | A CA certificate block without an end line is rejected
+langrust060 | The client reports its retry budget to each call
+langrust061 | An API error exposes the parsed error body of the response
+langrust062 | An API error reports its kind as the open API error variant
+langrust063 | A server error is an API error and chains to it
+langrust064 | An unauthorized error is an API error and chains to it
+langrust065 | A forbidden error is an API error and chains to it
+langrust066 | A not found error is an API error and chains to it
+langrust067 | A conflict error is an API error and chains to it
+langrust068 | An unprocessable entity error is an API error and chains to it
+langrust069 | Heterogeneous errors collect as API error trait objects
+langrust070 | An OAuth2 authorization code error is a plain error
+langrust071 | Network errors are API errors
+langrust072 | OAuth2 token and server errors are API errors
+langrust073 | The package root exports the whole error tree
+langrust074 | Status error wrappers display the wrapped API error
+langrust075 | Network error wrappers display the wrapped API error
+langrust076 | The skills error handling example has the common catch arms
+langrust077 | Generic error wrappers refuse a status that does not belong to them
+langrust078 | Boxed error helpers resolve every HTTP wrapper to its API error
+langrust079 | Boxed error helpers return nothing for other errors
+langrust080 | A boxed error kind can be matched
+langrust081 | A declared error schema decodes into its own error below the status error
+langrust082 | The explicit token is the one sent, never one read from the environment
+langrust083 | A token provider is called for every request, not once at construction
