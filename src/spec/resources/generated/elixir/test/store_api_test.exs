@@ -789,4 +789,16 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory(api)
     assert is_map(result)
   end
+
+  test "bhv misc 114 a success response is decoded by the schema for the status actually received" do
+    created =
+      new_store_api_for_mock(
+        201,
+        "application/json",
+        ~s({"receiptCode":"r-3","expiresAt":"2030-01-01T00:00:00.000+00:00"})
+      )
+
+    assert {:ok, %PetstoreClient.Models.ReservationReceipt{receipt_code: "r-3"}} =
+             PetstoreClient.Api.StoreApi.reserve_stock(created)
+  end
 end

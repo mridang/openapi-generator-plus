@@ -372,6 +372,7 @@ fn serialize_query_array(items: &[String], collection_format: &str) -> Serialize
  * integration-test crate. */
 #[cfg(test)]
 mod tests {
+    use super::*;
     fn unwrap_single(val: Option<super::SerializedValue>) -> String {
         match val {
             Some(super::SerializedValue::Single(s)) => s,
@@ -1247,5 +1248,30 @@ mod tests {
         let literal = ";=,:@!$&'()*+~-._";
         assert_eq!(super::encode_path_segment(literal), literal);
         assert_eq!(super::encode_path_segment("a/b c?d#e%f"), "a%2Fb%20c%3Fd%23e%25f");
+    }
+
+    #[test]
+    fn test_bhv_misc_082_enum_wire_value_is_sent_in_path_query_and_header() {
+        for location in ["path", "query", "header"] {
+            let value = serialize_styled("status", Some("sold"), None, location, "string", "", "simple", false);
+            assert_eq!(unwrap_single(value), "sold", "location {}", location);
+        }
+    }
+
+    #[test]
+    fn test_bhv_misc_084_set_optional_scalar_is_sent_in_every_location_and_style() {
+        for location in ["path", "query", "header"] {
+            for style in ["simple", "form"] {
+                let value = serialize_styled("limit", Some("20"), None, location, "integer", "", style, false);
+                assert_eq!(unwrap_single(value), "20", "location {} style {}", location, style);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_misc_086_element_holding_json_text_is_not_decoded_again() {
+        let items = vec![r#"{"a":1}"#.to_string()];
+        let got = unwrap_single(serialize_styled("tags", None, Some(&items), "query", "array", "", "form", false));
+        assert!(got.contains(r#"{"a":1}"#), "got: {}", got);
     }
 }

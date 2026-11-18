@@ -659,4 +659,12 @@ import Testing
     #expect(first.hashValue == second.hashValue)
     #expect(first != other)
   }
+
+  /* Email format is a plain string on decode and is not validated. */
+  @Test func testBhvMisc104AnEmailFormatFieldDecodesAsAPlainString() throws {
+    struct Contact: Decodable { let email: String }
+    let contact = try #require(
+      try ObjectSerializer.deserialize(Data("{\"email\":\"not-an-email\"}".utf8), as: Contact.self))
+    #expect(contact.email == "not-an-email")
+  }
 }
