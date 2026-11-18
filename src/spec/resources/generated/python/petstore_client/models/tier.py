@@ -17,7 +17,7 @@ class Tier(str, Enum):
     SMALL = "s"
     #: The medium tier.
     MEDIUM = "m"
-    #: The largest tier. Ends with */ and #{x} and $x.
+    #: The largest tier. Ends with \*/ and #{x} and $x.
     LARGE = "l"
 
     def __str__(self) -> str:

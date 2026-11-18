@@ -5219,6 +5219,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         property.vendorExtensions.put("siblingDefaultIsEnum", isEnum);
         if (isEnum) {
             property.vendorExtensions.put("siblingDefaultEnumType", toModelName(refName));
+            property.vendorExtensions.put("siblingDefaultEnumFile", toModelFilename(refName));
             property.vendorExtensions.put(
                     "siblingDefaultEnumVar", enumMemberName(target, wire, "String"));
         }

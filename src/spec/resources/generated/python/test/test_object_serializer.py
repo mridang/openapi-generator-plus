@@ -2654,6 +2654,6 @@ class TestEnumMemberNames:
 
     def test_bhv_enums_011_a_hostile_description_stays_a_comment(self) -> None:
         assert (
-            "    #: The largest tier. Ends with */ and #{x} and $x.\n    LARGE = "
+            "    #: The largest tier. Ends with \\*/ and #{x} and $x.\n    LARGE = "
             in self._source("tier")
         )

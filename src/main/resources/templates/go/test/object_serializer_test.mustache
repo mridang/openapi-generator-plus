@@ -3163,7 +3163,7 @@ func TestBhvSerializationobject123_ObjectSerializer_Deserialize_NullValueInAMapO
 
 func enumModelSource(t *testing.T, name string) string {
 	t.Helper()
-	data, err := os.ReadFile("pkg/models/" + name + ".go")
+	data, err := os.ReadFile("models/" + name + ".go")
 	if err != nil {
 		t.Fatalf("cannot read the model source: %v", err)
 	}

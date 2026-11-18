@@ -1862,7 +1862,7 @@ describe Petstore::Client::ObjectSerializer do
 
   describe 'enum member names and descriptions' do
     source = lambda do |name|
-      File.read(Dir.glob(File.expand_path("../lib/**/models/#{name}.rb", __dir__)).first)
+      File.read(Dir.glob(File.expand_path("../lib/**/models/#{name}.rb", __dir__)).fetch(0))
     end
     deserialize = lambda do |json|
       Petstore::Client::ObjectSerializer.deserialize(json, 'Subscription')

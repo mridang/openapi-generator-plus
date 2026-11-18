@@ -17,7 +17,7 @@ class {{classname}}({{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^i
     {{#allowableValues}}
     {{#enumVars}}
     {{#enumDescription}}
-    #: {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+    #: {{#lambda.singleLine}}{{#lambda.rstText}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rstText}}{{/lambda.singleLine}}
     {{/enumDescription}}
     {{{name}}} = {{{value}}}
     {{/enumVars}}
@@ -361,7 +361,7 @@ class {{classname}}{{enumName}}(str, Enum):
     {{#allowableValues}}
     {{#enumVars}}
     {{#enumDescription}}
-    #: {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+    #: {{#lambda.singleLine}}{{#lambda.rstText}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rstText}}{{/lambda.singleLine}}
     {{/enumDescription}}
     {{{name}}} = {{{value}}}
     {{/enumVars}}

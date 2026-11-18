@@ -2216,4 +2216,4 @@ class TestEnumMemberNames:
         assert '#: The lowest rank.\n    LOW = 1\n    MEDIUM = 2\n' in self._source('rank')
 
     def test_bhv_enums_011_a_hostile_description_stays_a_comment(self) -> None:
-        assert '    #: The largest tier. Ends with */ and #{x} and $x.\n    LARGE = ' in self._source('tier')
+        assert '    #: The largest tier. Ends with \\*/ and #{x} and $x.\n    LARGE = ' in self._source('tier')
