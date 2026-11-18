@@ -3249,6 +3249,7 @@ class DefaultApiClientUnitTest {
     }
   }
 
+  @Test
   void bhvRetries042TimeoutIsNotRetried() throws Exception {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       var accepted = new java.util.concurrent.atomic.AtomicInteger();

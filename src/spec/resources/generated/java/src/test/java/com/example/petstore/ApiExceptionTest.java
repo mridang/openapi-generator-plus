@@ -308,6 +308,7 @@ class ApiExceptionTest {
     assertNull(server.getResponseHeaders());
   }
 
+  @Test
   void bhvErrors061BadRequestIsAClientErrorAnApiErrorAndAnOpenApiError() {
     com.example.petstore.errors.BadRequestException badRequest =
         new com.example.petstore.errors.BadRequestException("bad request", Map.of(), null, null);

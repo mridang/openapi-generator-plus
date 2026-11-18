@@ -216,6 +216,7 @@ class SchemeAuthenticatorTest {
             assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
         }
 
+        @Test
         void bhvLifecycle028AnExplicitHostAndTokenWinOverTheEnvironment() {
             PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator(
                     "https://explicit.example.com", "explicit", Map.of(TOKEN_VARIABLE, "env-token"));
@@ -305,6 +306,7 @@ class SchemeAuthenticatorTest {
             assertEquals("Bearer first", auth.getAuthHeaders().get("Authorization"));
         }
 
+        @Test
         void bhvAuthScheme011AnEmptyServiceTokenVariableIsUnsetAndNamesIt() {
             Map<String, String> environment = Map.of("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN", "");
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->

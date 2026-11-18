@@ -265,6 +265,7 @@ class SchemeAuthenticatorTest {
       assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
     }
 
+    @Test
     void bhvLifecycle028AnExplicitHostAndTokenWinOverTheEnvironment() {
       PetStoreBearerAuthenticator auth =
           new PetStoreBearerAuthenticator(
@@ -379,6 +380,7 @@ class SchemeAuthenticatorTest {
       assertEquals("Bearer first", auth.getAuthHeaders().get("Authorization"));
     }
 
+    @Test
     void bhvAuthScheme011AnEmptyServiceTokenVariableIsUnsetAndNamesIt() {
       Map<String, String> environment =
           Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN", "");

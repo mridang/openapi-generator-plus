@@ -277,6 +277,7 @@ class ApiExceptionTest {
         assertNull(server.getResponseHeaders());
     }
 
+    @Test
     void bhvErrors061BadRequestIsAClientErrorAnApiErrorAndAnOpenApiError() {
         {{invokerPackage}}.errors.BadRequestException badRequest =
                 new {{invokerPackage}}.errors.BadRequestException("bad request", Map.of(), null, null);
