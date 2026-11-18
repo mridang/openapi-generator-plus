@@ -61,6 +61,21 @@ describe("ServerConfiguration", () => {
     expect(config.getUrl()).toBe("https://prod.api.example.com/v2");
   });
 
+  it("bhv misc 297 replaces every template variable with the supplied value, including when several are present", () => {
+    const config = new ServerConfiguration(
+      "https://{region}.api.example.com:{port}/v{version}",
+      null,
+      {
+        region: new ServerVariable("eu", null, ["eu", "us"]),
+        port: new ServerVariable("8443", null, []),
+        version: new ServerVariable("1", null, []),
+      },
+    );
+    expect(config.getUrl({ region: "us", port: "9443", version: "2" })).toBe(
+      "https://us.api.example.com:9443/v2",
+    );
+  });
+
   it("bhv servers 002 a variable repeated in the template is replaced everywhere", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com/{env}",

@@ -242,6 +242,20 @@ describe("DefaultApiClient unit", () => {
     expect(body["user-agent"]).toBe("MyApp/1.0");
   });
 
+  it("bhv misc 299 a header the caller sets on a request is sent with the caller value, overriding the transport default", async () => {
+    const transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${baseUrl}/echo-headers`,
+      { "User-Agent": "Caller/2.0" },
+      null,
+    );
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body["user-agent"]).toBe("Caller/2.0");
+  });
+
   it("bhv transport 052 keeps a caller-supplied empty User-Agent instead of replacing it", async () => {
     const transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
     const client = new DefaultApiClient(transport);
@@ -3978,6 +3992,14 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(response.statusCode).toBe(503);
     expect(calls).toHaveLength(3);
     expect(TransportOptions.builder().build().maxRetries).toBe(2);
+  });
+
+  it("bhv misc 296 a failed request is retried twice by default, so three requests reach the wire", async () => {
+    await send(clientPlaying([new TypeError("fetch failed")])).catch(
+      () => undefined,
+    );
+
+    expect(calls).toHaveLength(3);
   });
 
   it("bhv retries 021 retries exactly the retryable statuses and returns the success that follows", async () => {

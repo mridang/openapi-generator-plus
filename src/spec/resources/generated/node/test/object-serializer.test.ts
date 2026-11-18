@@ -2739,6 +2739,28 @@ describe("ObjectSerializer", () => {
         Buffer.compare(restored, Buffer.from([0x01, 0x02, 0x03, 0x04])),
       ).toBe(0);
     });
+
+    test("bhv misc 295 a byte oneOf round-trips through base64 and refuses a non-list for the array variant", () => {
+      const scalar = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+      const scalarWire = JSON.parse(
+        ObjectSerializer.serialize(scalar as SetPetAvatarThumbnailRequest),
+      ) as unknown;
+      expect(
+        Buffer.compare(Buffer.from(scalarWire as string, "base64"), scalar),
+      ).toBe(0);
+
+      const payloads = [Buffer.from([0x01]), Buffer.from([0x02])];
+      const arrayWire = JSON.parse(
+        ObjectSerializer.serialize(payloads as SetPetAvatarThumbnailRequest),
+      ) as unknown;
+      expect(arrayWire).toEqual(["AQ==", "Ag=="]);
+
+      expect(() =>
+        ObjectSerializer.deserializeArray("AQ==", (value: unknown) =>
+          Buffer.from(value as string, "base64"),
+        ),
+      ).toThrow(SerializationError);
+    });
   });
 
   describe("Canonical #4 — double field deserializes from an INTEGRAL JSON value", () => {
