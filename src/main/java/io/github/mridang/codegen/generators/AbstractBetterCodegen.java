@@ -1622,6 +1622,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (typeMapping.containsKey(type)) {
             return typeMapping.get(type);
         }
+        if (schema != null && schema.get$ref() != null && type != null) {
+            // A reference names a model by its component name; the model is declared under
+            // toModelName of that name, so the reference must go through it too (a component
+            // such as my_widget or an inline name such as Holder_loc otherwise matches no class).
+            return toModelName(type);
+        }
         return type;
     }
 
