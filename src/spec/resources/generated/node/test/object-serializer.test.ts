@@ -976,7 +976,7 @@ describe("ObjectSerializer", () => {
       ["a number", 5, "number"],
       ["an array", [1, 2], "array"],
     ])(
-      "rejects %s where a nested model is expected",
+      "bhv serialization 028 rejects %s where a nested model is expected",
       (_label, value, received) => {
         const json = { name: "x", photoUrls: [], category: value };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
@@ -1033,11 +1033,16 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("accepts empty arrays of models and strings", () => {
+    test("bhv serialization 027 accepts empty arrays of models and strings, distinct from an absent value", () => {
       const json = { name: "x", photoUrls: [], tags: [] };
       const pet = ObjectSerializer.deserialize(json, Pet)!;
       expect(pet.photoUrls).toEqual(new Set());
       expect(pet.tags).toEqual([]);
+      const absent = ObjectSerializer.deserialize(
+        { name: "x", photoUrls: [] },
+        Pet,
+      )!;
+      expect(absent.tags).toBeUndefined();
     });
 
     test("bhv serializationobject 015 serializes a uniqueItems array of strings in code point order", () => {
@@ -1163,6 +1168,13 @@ describe("ObjectSerializer", () => {
       );
     });
 
+    test("bhv serialization 029 rejects a JSON number where a string enum field is expected", () => {
+      const json = { name: "x", photoUrls: [], status: 1 };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        SerializationError,
+      );
+    });
+
     test("bhv serialization 032 rejects a fractional number for an int64 field", () => {
       const json = { id: 1.5, name: "x", photoUrls: [] };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
@@ -1255,13 +1267,16 @@ describe("ObjectSerializer", () => {
       ["a number", 1700000000],
       ["a boolean", true],
       ["an array", [2024]],
-    ])("rejects %s for a date-time field", (_label, value) => {
-      expect(() =>
-        ObjectSerializer.deserialize({ shipDate: value }, Order),
-      ).toThrow(
-        `Failed to deserialize JSON: shipDate must be a valid Date, got ${String(value)}`,
-      );
-    });
+    ])(
+      "bhv serialization 030 rejects %s for a date-time field",
+      (_label, value) => {
+        expect(() =>
+          ObjectSerializer.deserialize({ shipDate: value }, Order),
+        ).toThrow(
+          `Failed to deserialize JSON: shipDate must be a valid Date, got ${String(value)}`,
+        );
+      },
+    );
 
     test("bhv serializationobject 151 still decodes an ISO date-time string and an absent date-time", () => {
       const order = ObjectSerializer.deserialize(

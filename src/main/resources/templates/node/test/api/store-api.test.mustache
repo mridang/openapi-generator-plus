@@ -296,6 +296,15 @@ describe('StoreApi response shapes', () => {
     }
   });
 
+  test('bhv unions 036 the status code selects the declared variant, so a 200 body of the 201 shape is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}');
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
   test('bhv operations 120 reserveStock decodes a 201 body as the new receipt', async () => {
     const { api: mockApi, close } = await createMockServer(201, 'application/json', '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}');
     try {

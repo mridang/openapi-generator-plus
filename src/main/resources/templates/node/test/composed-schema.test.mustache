@@ -60,7 +60,7 @@ describe('Composed Schema', () => {
     }
   });
 
-  test('oneOf: discriminator maps to unresolvable class throws SerializationError (4.7)', () => {
+  test('bhv unions 038 oneOf: discriminator maps to unresolvable class throws SerializationError (4.7)', () => {
     // Simulate a misconfigured spec where the discriminator mapping names a
     // class that does not exist in the generated models index. Previously
     // we returned null and silently fell through; now we throw so
@@ -391,6 +391,41 @@ describe('Composed Schema', () => {
     expect(food.asWetFood()!.volumeMl).toBe(400);
     expect(food.isDryFood()).toBe(false);
     expect(food.asDryFood()).toBeNull();
+  });
+
+  test('bhv unions 037 a union wrapper built from a variant holds that exact value and returns it unchanged', () => {
+    const dry = new DryFood({ weightKg: 2.5 });
+    const food = new PetFood(dry);
+
+    expect(food.getActualInstance()).toBe(dry);
+    expect(Object.getOwnPropertyNames(PetFood.prototype).filter((name) => name.startsWith('set'))).toEqual([]);
+  });
+
+  test('bhv unions 039 building a union wrapper from a value never validates it or throws', () => {
+    expect(() => new PetFood(null as unknown as DryFood)).not.toThrow();
+    expect(() => new PetFood('not a food' as unknown as DryFood)).not.toThrow();
+    expect(() => new PetFood({ foodType: 'fish' } as unknown as DryFood)).not.toThrow();
+  });
+
+  test('bhv unions 040 a union wrapper typed accessor returns the variant it holds and nothing for the other variants', () => {
+    const dry = new DryFood({ weightKg: 2.5 });
+    const food = new PetFood(dry);
+
+    expect(food.isDryFood()).toBe(true);
+    expect(food.asDryFood()).toBe(dry);
+    expect(food.isWetFood()).toBe(false);
+    expect(food.asWetFood()).toBeNull();
+  });
+
+  test('bhv unions 042 a union wrapper built with no variant or a null variant holds no actual instance', () => {
+    for (const variant of [null, undefined]) {
+      const food = new PetFood(variant as unknown as DryFood);
+
+      expect(food.isDryFood()).toBe(false);
+      expect(food.isWetFood()).toBe(false);
+      expect(food.asDryFood()).toBeNull();
+      expect(food.asWetFood()).toBeNull();
+    }
   });
 
   test('anyOf: a composite tells which variants matched and hands each back', () => {
