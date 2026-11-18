@@ -112,8 +112,8 @@ Test: `ObjectSerializerTests`, `BaseApiTests` templates (to add).
 
 ### allOf with a discriminator (S4, 2026-11-16)
 Rule: a protocol for the common surface plus an enum with associated values and a hand-written decoder that reads the discriminator; no re-parenting of a model reused in two unions.
-Why: structs cannot inherit. Intended: the template still has the older discriminator helper (`DiscriminatorHelper`) and no protocol; this is not yet landed.
-Where: `models/model.mustache`.
+Why: structs cannot inherit. Status (#104): the classic base is realised as the discriminated union wrapper (`BetterSwiftCodegen.postProcessAllModels` gives the base its mapped subtypes as oneOf and typed variants, and the union's `DiscriminatorHelper` branch dispatches and rejects unknown or missing values), with no protocol; subtypes stay flat structs whose discriminator defaults to its value. Tests: `unions301`-`unions304`, `serializationobject301`.
+Where: `models/model.mustache`, `BetterSwiftCodegen.postProcessAllModels`.
 Test: `ComposedSchemaTests` template.
 
 ### No schema-constraint enforcement and unspecified uniqueItems order (S3 S6)
