@@ -1948,3 +1948,28 @@ langpython005 | The request is unknown by default.
 langpython006 | An incomplete request attachment is ignored.
 langpython007 | An API key authenticator compares by identity, so two instances with equal secrets are unequal and hash apart.
 langpython008 | Is frozen.
+langpython009 | Empty headers pass through as empty dict not none.
+langpython010 | Present headers pass through.
+langpython011 | Status 201 decodes the second schema even when the body fits both.
+langpython012 | With http info keeps the status and the decoded union.
+langpython013 | A query parameter name with reserved characters is percent encoded.
+langpython014 | Non ascii query text is sent as percent encoded utf8.
+langpython015 | Non ascii form text is sent as percent encoded utf8.
+langpython016 | Get auth headers runs off the event loop thread.
+langpython017 | Sentinel is identity distinct from none.
+langpython018 | An operation naming only an undeclared scheme uses the default.
+langpython019 | The first credential the client holds is returned.
+langpython020 | A scheme credential is given the apis transport when it needs one.
+langpython021 | A call started after close raises the client closed error.
+langpython022 | Non form data multipart body stays a parts dict.
+langpython023 | Form bool field serializes lowercase.
+langpython024 | Unexpected content type names the operation.
+langpython025 | Operation has no base url parameter.
+langpython026 | Format date path param is date only.
+langpython027 | Control characters fail closed before the transport.
+langpython028 | A value outside the cookie octets is refused before sending.
+langpython029 | Templated variant substitutes every variable.
+langpython030 | Multi server operation offers each server.
+langpython031 | Request goes to the regional server of a multi server operation.
+langpython032 | A retryable status is sent again.
+langpython033 | The backoff waits before the retry.
