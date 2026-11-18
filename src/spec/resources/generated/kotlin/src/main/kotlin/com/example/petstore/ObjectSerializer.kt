@@ -1262,6 +1262,13 @@ internal class ObjectSerializer(
                         "Duration '$value' is out of range",
                     )
             val nanos = if (fracStr.isEmpty()) 0L else fracStr.padEnd(9, '0').toLong()
+            // google.protobuf.Duration spans +-315576000000 seconds; one nanosecond past that is refused.
+            val protobufMaxSeconds = 315_576_000_000L
+            if (secs > protobufMaxSeconds || (secs == protobufMaxSeconds && nanos > 0L)) {
+                throw SerializationException(
+                    "Duration '$value' is out of range",
+                )
+            }
             return Duration.ofSeconds(sign * secs, sign * nanos)
         }
 
