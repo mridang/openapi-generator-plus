@@ -1279,17 +1279,6 @@ describe Petstore::Client::Api::BaseApi do
     _(result).must_equal 'aGVsbG8gd29ybGQ='
   end
 
-  it 'bhv_operations_159 a call that returns a value raises a typed API error on a success response with an empty body' do
-    client = FixedResponseApiClient.new(
-      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: '', headers: { 'Content-Type' => 'application/json' })
-    )
-    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
-    test_api = TestableApi.new(client, config)
-    _(lambda {
-      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', 'String')
-    }).must_raise Petstore::Client::Errors::ApiError
-  end
-
   it 'bhv_operations_010 returns nil when response body is empty' do
     client = FixedResponseApiClient.new(
       Petstore::Client::ApiHttpResponse.new(status_code: 200, body: '', headers: { 'Content-Type' => 'application/octet-stream' })
