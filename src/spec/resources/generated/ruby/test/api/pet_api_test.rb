@@ -906,6 +906,16 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
+    it 'bhv_operations_164 raises ArgumentError when the required query param category is nil' do
+      # Deliberately breaks the signature, which types category as String.
+      # @type var missing: untyped
+      missing = nil
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
     it 'bhv_operations_125 raises ArgumentError naming the required query param category when it is nil' do
       # Deliberately breaks the signature, which types category as String.
       # @type var missing: untyped

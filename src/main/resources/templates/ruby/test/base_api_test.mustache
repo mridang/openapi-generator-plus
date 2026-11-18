@@ -681,6 +681,15 @@ describe {{moduleName}}::Api::BaseApi do
     refute client.captured_headers.key?('Content-Length'), 'Content-Length must NOT be set by the SDK when body is nil'
   end
 
+  it 'bhv_operations_163 a request with no body sends no Content-Type header whatever the default header case' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    refute client.captured_headers.key?('Content-Type'), 'Content-Type must NOT be sent for a request with no body'
+  end
+
   it 'bhv_operations_131 a request with no body sends no Content-Type header' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
@@ -983,6 +992,15 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body).must_be_nil
   end
 
+  it 'bhv_operations_157 a binary request body is sent as its exact raw bytes with no multipart encoding' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, "\x01\x02\x03".b,
+                  ['application/json'], 'application/octet-stream', nil)
+    _(client.captured_body).wont_be_nil
+  end
+
   it 'bhv_operations_014 passes binary body as-is' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
@@ -1187,6 +1205,27 @@ describe {{moduleName}}::Api::BaseApi do
     _(result).must_equal 'hello world'
   end
 
+  it 'bhv_operations_161 a text/plain response is returned as raw text even when it looks like base64' do
+    client = FixedResponseApiClient.new(
+      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: 'aGVsbG8gd29ybGQ=', headers: { 'Content-Type' => 'text/plain' })
+    )
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test/echo', {}, {}, nil, ['text/plain'], 'application/json', 'String')
+    _(result).must_equal 'aGVsbG8gd29ybGQ='
+  end
+
+  it 'bhv_operations_159 a call that returns a value raises a typed API error on a success response with an empty body' do
+    client = FixedResponseApiClient.new(
+      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: '', headers: { 'Content-Type' => 'application/json' })
+    )
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    _(-> {
+      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', 'String')
+    }).must_raise {{moduleName}}::Errors::ApiError
+  end
+
   it 'bhv_operations_010 returns nil when response body is empty' do
     client = FixedResponseApiClient.new(
       {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: '', headers: { 'Content-Type' => 'application/octet-stream' })
@@ -1330,7 +1369,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.api_requests.map { |r| r[:body] }.uniq.length).must_equal 1
   end
 
-  it 'refreshes with the kept refresh token when it renews after a 401' do
+  it 'bhv_auth_058 refreshes with the kept refresh token when it renews after a 401' do
     client = ReplayApiClient.new([401, 200])
     api = replay_api(client, client_credentials_auth)
 
@@ -1453,6 +1492,21 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   # ── Per-call request options ──
+
+  it 'bhv_operations_158 a header supplied on an individual call is sent with that call' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost')
+                                          .default_headers({ 'X-Trace' => 'client', 'Accept-Language' => 'en' }).build
+    test_api = TestableApi.new(client, config)
+    options = CallOptions.new(nil, { 'x-trace' => 'call' }, nil)
+
+    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
+                             request_options: options)
+
+    _(client.captured_headers['x-trace']).must_equal 'call'
+    _(client.captured_headers.keys.count { |name| name.casecmp?('x-trace') }).must_equal 1
+    _(client.captured_headers['Accept-Language']).must_equal 'en'
+  end
 
   it 'bhv_operations_001 sends the headers of the call over the configured default headers' do
     client = CapturingApiClient.new

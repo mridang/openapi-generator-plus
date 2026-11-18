@@ -268,6 +268,24 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(client.call_count).must_equal 2
   end
 
+  it 'bhv_auth_057 a rejected, unreachable or malformed refresh falls back to the original grant' do
+    fallback_client = ConfigurableClientCredentialsClient.new([
+                                                                { status: 200, body: { 'access_token' => 'tok_a', 'refresh_token' => 'ref_a', 'expires_in' => -1 } },
+                                                                { status: 400, body: { 'error' => 'invalid_grant' } },
+                                                                { status: 401, body: { 'error' => 'invalid_client' } }
+                                                              ])
+    fallback_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+      'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/token', %w[read]
+    )
+    fallback_auth.api_client = fallback_client
+    fallback_auth.auth_headers
+
+    err = _(-> { fallback_auth.auth_headers }).must_raise Petstore::Client::Errors::OAuth2ServerError
+    _(err.status_code).must_equal 401
+    _(err.code).must_equal 'invalid_client'
+    _(fallback_client.call_count).must_equal 3
+  end
+
   it 'bhv_auth_026 a failed refresh falls back to the original grant and reports that grant error with its status' do
     fallback_client = ConfigurableClientCredentialsClient.new([
                                                                 { status: 200, body: { 'access_token' => 'tok_a', 'refresh_token' => 'ref_a', 'expires_in' => -1 } },

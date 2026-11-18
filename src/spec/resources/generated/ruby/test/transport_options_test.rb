@@ -400,6 +400,13 @@ describe Petstore::Client::TransportOptions do
       _(error.message).must_include 'ca_cert_path'
     end
 
+    it 'bhv_lifecycle_041 a supplied connection with SDK proxy, TLS or redirect settings is rejected with a conflict error' do
+      conn = Faraday.new('http://localhost')
+      _(-> { Petstore::Client::TransportOptions.builder.connection(conn).proxy('http://proxy:3128').build }).must_raise ArgumentError
+      _(-> { Petstore::Client::TransportOptions.builder.connection(conn).verify_ssl(false).build }).must_raise ArgumentError
+      _(-> { Petstore::Client::TransportOptions.builder.connection(conn).ca_cert_path('/tmp/ca.pem').build }).must_raise ArgumentError
+    end
+
     it 'bhv_lifecycle_024 a supplied connection conflicts with the sdk proxy and tls settings' do
       conn = Faraday.new('http://localhost')
       _(-> { Petstore::Client::TransportOptions.builder.connection(conn).proxy('http://proxy:3128').build }).must_raise ArgumentError

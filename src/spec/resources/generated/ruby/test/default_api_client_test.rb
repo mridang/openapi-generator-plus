@@ -545,7 +545,7 @@ describe Petstore::Client::DefaultApiClient do
     # once, while a non-redirecting request issued on the same client at the
     # same time must still succeed — proving the refusal error is scoped to
     # the calling request, not stored on the client.
-    it 'scopes the too-many-redirects refusal per request across concurrent calls' do
+    it 'bhv_redirects_047 scopes the too-many-redirects refusal per request across concurrent calls' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
       # follow_redirects=true but max_redirects=0: the server still answers
@@ -808,7 +808,7 @@ describe Petstore::Client::DefaultApiClient do
       308 => { 'POST' => 'POST', 'PATCH' => 'PATCH' }
     }.each do |status, expectations|
       expectations.each do |verb, expected|
-        it "a #{status} redirect sends #{verb} on as #{expected}" do
+        it "bhv_redirects_050 a #{status} redirect sends #{verb} on as #{expected}" do
           seen = [] # : Array[Array[String]]
           transport = Petstore::Client::TransportOptions.builder
                                                       .connection(redirect_connection(status, seen))
@@ -821,6 +821,78 @@ describe Petstore::Client::DefaultApiClient do
           _(seen).must_equal([[expected, expected == verb ? 'payload' : '']])
         end
       end
+    end
+
+    it 'bhv_redirects_048 a 301 or 302 turns a POST follow-up into a GET with no body' do
+      [301, 302].each do |status|
+        seen = [] # : Array[Array[String]]
+        transport = Petstore::Client::TransportOptions.builder
+                                                    .connection(redirect_connection(status, seen))
+                                                    .follow_redirects(true).build
+        Petstore::Client::DefaultApiClient.new(transport).send_request(:post, 'http://localhost/start', {}, 'payload')
+        _(seen).must_equal([['GET', '']])
+      end
+    end
+
+    it 'bhv_redirects_049 a 307 or 308 repeats the request with the same method and body, followed by default' do
+      [307, 308].each do |status|
+        %i[post put patch delete].each do |verb|
+          seen = [] # : Array[Array[String]]
+          transport = Petstore::Client::TransportOptions.builder.connection(redirect_connection(status, seen)).build
+          resp = Petstore::Client::DefaultApiClient.new(transport).send_request(verb, 'http://localhost/start', {}, 'payload')
+          _(resp.status_code).must_equal(200)
+          _(seen).must_equal([[verb.to_s.upcase, 'payload']])
+        end
+      end
+    end
+
+    it 'bhv_redirects_046 follows a chain within the redirect limit and refuses one past it with the 3xx status' do
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('/a') { [302, { 'location' => '/b' }, ''] }
+        stub.get('/b') { [302, { 'location' => '/c' }, ''] }
+        stub.get('/c') { [200, { 'content-type' => 'text/plain' }, 'done'] }
+        stub.get('/loop') { [302, { 'location' => '/loop' }, ''] }
+      end
+      conn = Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+      client = Petstore::Client::DefaultApiClient.new(
+        Petstore::Client::TransportOptions.builder.connection(conn).follow_redirects(true).max_redirects(2).build
+      )
+      _(client.send_request(:GET, 'http://localhost/a', {}, nil).status_code).must_equal(200)
+      err = _(-> { client.send_request(:GET, 'http://localhost/loop', {}, nil) }).must_raise Petstore::Client::Errors::ApiError
+      _(err.message).must_include 'Too many redirects'
+      _(err.status_code).must_equal 302
+    end
+
+    it 'bhv_redirects_052 a cross-origin redirect removes Authorization, Cookie, Proxy-Authorization and secret headers' do
+      seen = [] # : Array[Hash[String, String]]
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('http://localhost/start') { [302, { 'location' => 'http://other.example/final' }, ''] }
+        stub.get('http://other.example/final') do |env|
+          seen << env.request_headers
+          [200, {}, 'ok']
+        end
+      end
+      conn = Faraday.new { |f| f.adapter :test, stubs }
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(conn).follow_redirects(true).build)
+      client.send_request(:GET, 'http://localhost/start', { 'Authorization' => 'Bearer x', 'Cookie' => 'a=b', 'Proxy-Authorization' => 'p', 'X-Api-Secret' => 's' }, nil)
+      _(seen.first.keys.map(&:downcase) & %w[authorization cookie proxy-authorization x-api-secret]).must_be_empty
+    end
+
+    it 'bhv_redirects_053 Authorization is kept on a same-origin redirect and dropped when the scheme changes either way' do
+      kept = []
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('http://localhost/same') { [302, { 'location' => 'http://localhost/final' }, ''] }
+        stub.get('https://localhost/down') { [302, { 'location' => 'http://localhost/final' }, ''] }
+        stub.get('http://localhost/up') { [302, { 'location' => 'https://localhost/final' }, ''] }
+        stub.get('http://localhost/final') { |env| kept << env.request_headers.key?('Authorization'); [200, {}, 'ok'] }
+        stub.get('https://localhost/final') { |env| kept << env.request_headers.key?('Authorization'); [200, {}, 'ok'] }
+      end
+      conn = Faraday.new { |f| f.adapter :test, stubs }
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(conn).follow_redirects(true).build)
+      %w[http://localhost/same https://localhost/down http://localhost/up].each do |url|
+        client.send_request(:GET, url, { 'Authorization' => 'Bearer x' }, nil)
+      end
+      _(kept).must_equal [true, false, false]
     end
 
     it 'bhv_redirects_029 rewrites the method only as RFC 9110 section 15.4 allows' do
@@ -837,6 +909,22 @@ describe Petstore::Client::DefaultApiClient do
       _(run.call(302, :post)).must_equal([['GET', '']])
       _(run.call(307, :post)).must_equal([%w[POST payload]])
       _(run.call(308, :post)).must_equal([%w[POST payload]])
+    end
+
+    it 'bhv_redirects_051 a 303 turns every follow-up into a GET except that HEAD stays HEAD' do
+      run = lambda do |verb, body|
+        seen = [] # : Array[Array[String]]
+        transport = Petstore::Client::TransportOptions.builder
+                                                    .connection(redirect_connection(303, seen))
+                                                    .follow_redirects(true).build
+        Petstore::Client::DefaultApiClient.new(transport).send_request(verb, 'http://localhost/start', {}, body)
+        seen
+      end
+
+      %i[post put patch delete].each do |verb|
+        _(run.call(verb, 'payload')).must_equal([['GET', '']])
+      end
+      _(run.call(:head, nil)).must_equal([['HEAD', '']])
     end
 
     it 'bhv_redirects_036 turns every method except HEAD into GET on a 303' do
@@ -867,6 +955,17 @@ describe Petstore::Client::DefaultApiClient do
       Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
     end
 
+    it 'bhv_lifecycle_042 a caller-supplied connection sends its requests through that transport' do
+      seen = [] # : Array[Hash[String, String]]
+      transport = Petstore::Client::TransportOptions.builder.connection(injected_connection(seen)).user_agent('sdk-ua/1').build
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      resp = client.send_request(:GET, 'http://localhost/ping', {}, nil)
+      _(resp.status_code).must_equal(200)
+      _(resp.body).must_equal('pong')
+      _(seen.length).must_equal(1)
+      _(seen.first['User-Agent']).must_equal('sdk-ua/1')
+    end
+
     it 'bhv_transport_040 sends the request through the supplied connection with the SDK user agent applied' do
       seen = [] # : Array[Hash[String, String]]
       transport = Petstore::Client::TransportOptions.builder.connection(injected_connection(seen)).user_agent('sdk-ua/1').build
@@ -876,6 +975,43 @@ describe Petstore::Client::DefaultApiClient do
       _(resp.body).must_equal('pong')
       _(seen.length).must_equal(1)
       _(seen.first['User-Agent']).must_equal('sdk-ua/1')
+    end
+
+    it 'bhv_lifecycle_045 closing the client leaves a caller-supplied connection open and usable' do
+      conn = injected_connection([])
+      closed = [] # : Array[bool]
+      conn.define_singleton_method(:close) { closed << true }
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(conn).build)
+      client.send_request(:GET, 'http://localhost/ping', {}, nil)
+      client.close
+      _(closed).must_be_empty
+    end
+
+    it 'bhv_lifecycle_043 a request after close fails with an error and never reaches the network' do
+      seen = []
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(injected_connection(seen)).build)
+      client.close
+      _(-> { client.send_request(:GET, 'http://localhost/ping', {}, nil) }).must_raise RuntimeError
+      _(seen).must_be_empty
+    end
+
+    it 'bhv_lifecycle_044 a request in flight when the client closes still completes' do
+      started = Queue.new
+      release = Queue.new
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('/ping') do
+          started << true
+          release.pop
+          [200, { 'content-type' => 'text/plain' }, 'pong']
+        end
+      end
+      conn = Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(conn).build)
+      worker = Thread.new { client.send_request(:GET, 'http://localhost/ping', {}, nil) }
+      started.pop
+      client.close
+      release << true
+      _(worker.value.status_code).must_equal 200
     end
 
     it 'bhv_lifecycle_009 does not close the supplied connection when the client is closed' do
