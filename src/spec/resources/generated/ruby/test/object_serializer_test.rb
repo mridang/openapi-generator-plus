@@ -653,6 +653,13 @@ describe Petstore::Client::ObjectSerializer do
       _(err.message).must_include('Expected a JSON object for Petstore::Client::Models::Pet, got Array')
     end
 
+    it 'bhv_serialization_081 a value of the wrong JSON type raises an error and is never coerced' do
+      err = _(proc {
+        Petstore::Client::ObjectSerializer.deserialize('{"name":"x","photoUrls":[],"category":5}', 'Pet')
+      }).must_raise(Petstore::Client::Errors::SerializationError)
+      _(err.message).must_include('Expected a JSON object for Petstore::Client::Models::Category, got Integer')
+    end
+
     it 'bhv_serializationobject_118 raises SerializationError for a scalar where a nested model is expected' do
       err = _(proc {
         Petstore::Client::ObjectSerializer.deserialize('{"name":"x","photoUrls":[],"category":5}', 'Pet')
@@ -691,6 +698,20 @@ describe Petstore::Client::ObjectSerializer do
     # This matches the JSON-Schema-correct behaviour of go/rust/python.
     # deserialize_model skips absent keys (so dry-struct's `.default(...)`
     # fires) but passes an explicit null through, which `.optional` keeps.
+    it 'bhv_serialization_070 a JSON null is accepted where a field is optional or nullable and decodes to null' do
+      from_empty = Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults')
+      _(from_empty).must_be_kind_of(Petstore::Client::Models::Defaults)
+      _(from_empty.retries).must_equal(3)
+      _(from_empty.mode).must_equal('medium')
+      _(from_empty.label).must_equal('untitled')
+      _(from_empty.greeting).must_equal("it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b")
+
+      from_null = Petstore::Client::ObjectSerializer.deserialize('{"label":null,"retries":7}', 'Defaults')
+      _(from_null).must_be_kind_of(Petstore::Client::Models::Defaults)
+      _(from_null.label).must_be_nil
+      _(from_null.retries).must_equal(7)
+    end
+
     it 'bhv_serializationobject_025 applies defaults only for absent fields, preserving explicit null' do
       from_empty = Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults')
       _(from_empty).must_be_kind_of(Petstore::Client::Models::Defaults)
@@ -839,6 +860,14 @@ describe Petstore::Client::ObjectSerializer do
   # `name` and `photoUrls` as required.
 
   describe 'required field hard-fail on deserialize' do
+    it 'bhv_serialization_073 a required field that is missing or null fails decoding naming that field' do
+      # photoUrls present, name missing.
+      json = '{"id":1,"photoUrls":["http://example.com/p.jpg"]}'
+      _(proc {
+        Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
+      }).must_raise(Petstore::Client::Errors::SerializationError)
+    end
+
     it 'bhv_serializationobject_083 raises when a required field is absent from the JSON' do
       # photoUrls present, name missing.
       json = '{"id":1,"photoUrls":["http://example.com/p.jpg"]}'
@@ -940,6 +969,11 @@ describe Petstore::Client::ObjectSerializer do
       assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('"banana"', 'TestStatusEnumDeserialize')
       end
+    end
+
+    it 'bhv_serialization_075 an enum value decodes from its wire casing to the matching member' do
+      result = Petstore::Client::ObjectSerializer.deserialize('"approved"', 'TestStatusEnumDeserialize')
+      _(result).must_equal 'approved'
     end
 
     it 'bhv_serialization_003 returns value when deserializing valid enum value' do
@@ -1285,6 +1319,13 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.serialize(edge)).must_equal('{"cutoff":"10:30:00.123"}')
     end
 
+    it 'bhv_serialization_078 a time of day is written as zero-padded HH:MM:SS with a fraction only when sub-second' do
+      whole = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00"}', 'EdgeCases')
+      zero = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00.000"}', 'EdgeCases')
+      _(Petstore::Client::ObjectSerializer.serialize(whole)).must_equal('{"cutoff":"10:30:00"}')
+      _(Petstore::Client::ObjectSerializer.serialize(zero)).must_equal('{"cutoff":"10:30:00"}')
+    end
+
     it 'bhv_serializationobject_163 writes a format: time property without a fraction when it has none or it is zero' do
       whole = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00"}', 'EdgeCases')
       zero = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00.000"}', 'EdgeCases')
@@ -1300,6 +1341,16 @@ describe Petstore::Client::ObjectSerializer do
     end
 
     # D88: the protobuf duration range is +-315 576 000 000 s.
+    it 'bhv_serialization_080 protobuf duration strings are accepted across the full range and one past the bound is rejected' do
+      ok = Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"315576000000s"}', 'EdgeCases')
+      _(ok.retry_after).must_be_kind_of(ISO8601::Duration)
+      ['315576000001s', '-315576000001s', '315576000000.000000001s'].each do |text|
+        _(proc {
+          Petstore::Client::ObjectSerializer.deserialize(%({"retryAfter":"#{text}"}), 'EdgeCases')
+        }).must_raise(Petstore::Client::Errors::SerializationError)
+      end
+    end
+
     it 'bhv_serializationobject_223 accepts a duration at the protobuf bound and rejects one past it' do
       ok = Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"315576000000s"}', 'EdgeCases')
       _(ok.retry_after).must_be_kind_of(ISO8601::Duration)
@@ -1351,6 +1402,12 @@ describe Petstore::Client::ObjectSerializer do
   end
 
   describe 'values outside a pattern or a bound round trip' do
+    it 'bhv_serialization_069 schema constraint keywords are not enforced, so out-of-bound values are accepted' do
+      pet = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', 'Pet')
+      _(pet.nickname).must_equal('ZZZZZZZZZZ')
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(pet))['nickname']).must_equal('ZZZZZZZZZZ')
+    end
+
     it 'bhv_serializationobject_010 decodes and writes a nickname longer than its maximum length' do
       pet = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', 'Pet')
       _(pet.nickname).must_equal('ZZZZZZZZZZ')
@@ -1582,6 +1639,11 @@ describe Petstore::Client::ObjectSerializer do
     it 'bhv_serializationobject_179 stringify trims trailing zeros to three fractional digits' do
       d = ISO8601::Duration.new('PT1.5S')
       _(Petstore::Client::ObjectSerializer.stringify(d)).must_equal('1.500s')
+    end
+
+    it 'bhv_serialization_077 a duration round-trips for zero, negative, sub-second, multi-day and extreme values' do
+      d = ISO8601::Duration.new('-PT1H')
+      _(Petstore::Client::ObjectSerializer.stringify(d)).must_equal('-3600s')
     end
 
     it 'bhv_serializationobject_105 stringify preserves the sign for a negative duration' do

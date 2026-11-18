@@ -2424,7 +2424,7 @@ describe 'DefaultApiClientUnit' do
     _(delays).must_be_empty
   end
 
-  it 'sends 1 + max_retries requests at most' do
+  it 'bhv_retries_049 sends 1 + max_retries requests at most' do
     options = Petstore::Client::TransportOptions.builder.max_retries(1).build
     _outcome, envs, = run_retry_probe(options: options) { [503, {}, 'busy'] }
 
@@ -2441,6 +2441,13 @@ describe 'DefaultApiClientUnit' do
     _outcome, _envs, delays = run_retry_probe(options: long_budget, &ok_after(1, [503, { 'Retry-After' => '3600' }, 'later']))
 
     _(delays).must_equal [60.0]
+  end
+
+  it 'bhv_retries_050 a Retry-After header given as an HTTP date is honoured' do
+    date = (Time.now.utc + 30).httpdate
+    _outcome, _envs, delays = run_retry_probe(options: long_budget, &ok_after(1, [503, { 'retry-after' => date }, 'later']))
+
+    _(delays.first).must_be_within_delta 30, 1.5
   end
 
   it 'bhv_retries_022 reads a Retry-After header that is an HTTP date' do

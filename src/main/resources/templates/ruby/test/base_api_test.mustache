@@ -1387,6 +1387,16 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.api_requests.length).must_equal 2
   end
 
+  it 'bhv_retries_045 a streamed request body is sent once and not replayed after a 401' do
+    client = ReplayApiClient.new([401, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    assert_raises({{moduleName}}::Errors::UnauthorizedError) do
+      replay_call(api, content_type: 'multipart/form-data', body: { 'a' => 'b' })
+    end
+    _(client.api_requests.length).must_equal 1
+  end
+
   it 'bhv_retries_006 does not replay a multipart body after a 401' do
     client = ReplayApiClient.new([401, 200])
     api = replay_api(client, client_credentials_auth)

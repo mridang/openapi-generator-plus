@@ -271,6 +271,19 @@ describe Petstore::Client::DefaultApiClient do
       _(worker.alive?).must_equal false
     end
 
+    it 'bhv_redirects_054 a redirect chain past the timeout budget fails and the budget is shared across hops' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = Petstore::Client::TransportOptions.builder
+        .timeout(1200)
+        .follow_redirects(true)
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      error = _ { client.send_request(:GET, "#{chasm_url}/test/redirect/chain/1", {}, nil) }.must_raise Petstore::Client::Errors::NetworkTimeoutError
+      _(error.status_code).must_equal 0
+    end
+
     it 'bhv_redirects_009 spends one budget across every redirect hop' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
@@ -459,6 +472,36 @@ describe Petstore::Client::DefaultApiClient do
     # T-new-3: multipart bodies must be replayed across 307 redirects per
     # RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
     # request after a 307 still carries the multipart form parts.
+    it 'bhv_retries_046 a request body is resent unchanged when a 307 redirect keeps the same scheme' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = Petstore::Client::TransportOptions.builder
+        .follow_redirects(true)
+        .max_redirects(5)
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      boundary = 'test-boundary'
+      multipart_body = "--#{boundary}\r\n" \
+                       "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
+                       "hello\r\n" \
+                       "--#{boundary}\r\n" \
+                       "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
+                       "Content-Type: application/octet-stream\r\n\r\n" \
+                       "file-content-bytes\r\n" \
+                       "--#{boundary}--\r\n"
+      headers = { 'Content-Type' => "multipart/form-data; boundary=#{boundary}" }
+      # chasm echoes the replayed request after the 307; we verify the
+      # method stayed POST and the multipart body was carried through.
+      response = client.send_request(:POST, "#{chasm_url}/test/redirect/307-multipart", headers, multipart_body)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['method']).must_equal('POST')
+      _(json['body']).wont_be_nil
+      _(json['body']).wont_be_empty
+    end
+
     it 'bhv_retries_012 replays multipart body across 307 redirects (T-new-3)' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
 
@@ -752,6 +795,22 @@ describe Petstore::Client::DefaultApiClient do
       end
     end
 
+    it 'bhv_retries_051 a request with a body is refused with status 307 when a redirect downgrades https to http' do
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/upload') do
+          [307, { 'location' => 'http://insecure.example.com/upload' }, '']
+        end
+      end
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection_n1(stubs)) do
+        err = assert_raises(Petstore::Client::Errors::ApiError) do
+          client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
+        end
+        _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
+      end
+    end
+
     it 'bhv_retries_010 a 307 HTTPS to HTTP redirect with a body raises ApiError (TLS downgrade)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/upload') do
@@ -821,6 +880,15 @@ describe Petstore::Client::DefaultApiClient do
           _(seen).must_equal([[expected, expected == verb ? 'payload' : '']])
         end
       end
+    end
+
+    it 'bhv_redirects_055 a redirect to a scheme other than http or https is refused with an error' do
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('http://localhost/start') { [302, { 'location' => 'ftp://localhost/file' }, ''] }
+      end
+      conn = Faraday.new { |f| f.adapter :test, stubs }
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(conn).follow_redirects(true).build)
+      _(-> { client.send_request(:GET, 'http://localhost/start', {}, nil) }).must_raise Petstore::Client::Errors::ApiError
     end
 
     it 'bhv_redirects_048 a 301 or 302 turns a POST follow-up into a GET with no body' do
