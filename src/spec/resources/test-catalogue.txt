@@ -1991,3 +1991,6 @@ langpython048 | Each scheme names the scheme it is the credential of.
 langpython049 | The call hook reaches every api group.
 langpython050 | The transport is released when the last of several requests ends.
 langpython051 | Closing with nothing in flight releases the transport at once.
+langpython052 | The variant tuple follows the declaration.
+langpython053 | Second variant match returns value.
+langpython054 | The positional form takes exactly one argument.
