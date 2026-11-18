@@ -3139,3 +3139,4 @@ langcsharp070 | Null server variable overrides are refused when the url is built
 langcsharp071 | A oneOf without a discriminator throws when no member matches
 langcsharp072 | A token provider also serves the synchronous header getter
 langcsharp073 | A typed value carries its data unchanged
+langcsharp074 | Every HTTP status maps to the exception class for that status

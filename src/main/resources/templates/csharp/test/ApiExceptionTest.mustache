@@ -378,7 +378,7 @@ public class ApiExceptionTest
     // a ClientException or a ServerException, both are the base type.
     [InlineData(302, typeof(ApiException))]
     [InlineData(600, typeof(ApiException))]
-    public void FromResponseMapsEveryStatusToItsException(int status, Type expected)
+    public void BhvLangcsharp074FromResponseMapsEveryStatusToItsException(int status, Type expected)
     {
         var ex = ApiException.FromResponse(
             status,
