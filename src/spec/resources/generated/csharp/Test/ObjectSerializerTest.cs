@@ -106,7 +106,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void LongReturnsStringRepresentation()
+        public void BhvSerializationobject190LongReturnsStringRepresentation()
         {
             Assert.Equal("9007199254740993", ObjectSerializer.Stringify(9007199254740993L));
         }
@@ -589,7 +589,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void Int64AboveTwoToThe53IsKeptExactly()
+        public void BhvSerializationobject191Int64AboveTwoToThe53IsKeptExactly()
         {
             var order = _serializer.Deserialize<Order>("{\"id\":9007199254740993}");
 
@@ -670,6 +670,16 @@ public static class ObjectSerializerTest
                 _serializer.Deserialize<Pet>(
                     "{\"name\":\"Rex\",\"photoUrls\":[],\"status\":\"nonsense\"}"
                 )
+            );
+
+            Assert.Contains("nonsense", ex.Message, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvSerializationobject192AnUnknownEnumStringFailsAtDecode()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"id\":1,\"status\":\"nonsense\"}")
             );
 
             Assert.Contains("nonsense", ex.Message, StringComparison.Ordinal);
