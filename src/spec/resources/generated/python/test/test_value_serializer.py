@@ -499,7 +499,7 @@ class TestNullStyleFallback:
             == "5"
         )
 
-    def test_bhv_serialization_109_an_unknown_style_falls_back_to_plain_value(
+    def test_bhv_lang_python_205_an_unknown_style_falls_back_to_plain_value(
         self,
     ) -> None:
         assert (
@@ -518,7 +518,7 @@ class TestDeepObjectSerialization:
         assert result["filter[color]"] == "blue"
         assert result["filter[size]"] == "large"
 
-    def test_bhv_serialization_111_each_model_property_is_written_under_its_name_key(
+    def test_bhv_lang_python_207_each_model_property_is_written_under_its_name_key(
         self,
     ) -> None:
         from petstore_client.models.category import Category
@@ -756,7 +756,7 @@ class TestValueSerializerFormatDatePath:
         assert isinstance(rendered, str)
         assert rendered.startswith("2024-01-15T13:45:30")
 
-    def test_bhv_serialization_110_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
+    def test_bhv_lang_python_206_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
         moment = datetime.datetime(2024, 1, 1, 10, 30, 45, tzinfo=datetime.timezone.utc)
         assert ValueSerializer.serialize(moment, "query", "date") == "2024-01-01"
         assert (
@@ -866,7 +866,7 @@ class TestEncodeContent:
             == "%7B%22a%22%3A%22b%2Fc%22%7D"
         )
 
-    def test_bhv_serialization_118_cookie_value_is_fully_percent_encoded(self) -> None:
+    def test_bhv_lang_python_209_cookie_value_is_fully_percent_encoded(self) -> None:
         assert (
             ValueSerializer.encode_content("c", '{"a":1}', "cookie")
             == "%7B%22a%22%3A1%7D"
@@ -969,7 +969,7 @@ class TestObjectValuedParameters:
         assert ValueSerializer.query_entries("c", "v") == {"c": "v"}
         assert ValueSerializer.query_entries("c", None) == {}
 
-    def test_bhv_serialization_108_a_nested_object_leaf_is_a_serialization_error(
+    def test_bhv_lang_python_208_a_nested_object_leaf_is_a_serialization_error(
         self,
     ) -> None:
         from petstore_client.errors import SerializationException

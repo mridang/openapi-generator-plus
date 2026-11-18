@@ -64,7 +64,7 @@ class TestChain:
             "finish a",
         ]
 
-    def test_bhv_hooks_020_a_hook_that_returns_nothing_is_skipped_when_finishing(
+    def test_bhv_lang_python_203_a_hook_that_returns_nothing_is_skipped_when_finishing(
         self,
     ) -> None:
         log = _Log()

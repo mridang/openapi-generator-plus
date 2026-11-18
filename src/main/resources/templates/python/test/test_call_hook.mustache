@@ -49,7 +49,7 @@ class TestChain:
 
         assert log.events == ['start a', 'start b', 'start c', 'finish c', 'finish b', 'finish a']
 
-    def test_bhv_hooks_020_a_hook_that_returns_nothing_is_skipped_when_finishing(self) -> None:
+    def test_bhv_lang_python_203_a_hook_that_returns_nothing_is_skipped_when_finishing(self) -> None:
         log = _Log()
         hook = chain(_Hook('a', log), _Hook('quiet', log, observe=False), _Hook('c', log))
 
