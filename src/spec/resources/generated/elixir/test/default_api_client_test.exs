@@ -1019,7 +1019,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # Task.yield(opts.timeout) to enforce a hard total timeout. Drive the
   # slow endpoint with a tight budget and confirm the wall-clock cap
   # fires before the response would normally arrive.
-  test "wall_clock_timeout_enforced_via_task_yield" do
+  test "bhv langelixir 027 wall_clock_timeout_enforced_via_task_yield" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(timeout: 200)

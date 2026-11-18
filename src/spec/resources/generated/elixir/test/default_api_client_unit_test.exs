@@ -1125,7 +1125,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
            "API-key header #{api_key_header} leaked on cross-origin redirect"
   end
 
-  test "the downgrade? predicate flags HTTPS to HTTP only" do
+  test "bhv langelixir 049 the downgrade? predicate flags HTTPS to HTTP only" do
     # Direct unit test against the predicate. TLS endpoints aren't practical
     # to stand up in a hermetic unit test, so we drive the predicate that
     # the redirect loop uses to make the abort decision.
@@ -2676,7 +2676,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   # ── 4.8: format:time / format:duration round-trip ──────────────────────────
 
   describe "4.8 format: time" do
-    test "stringify/1 emits ISO-8601 for Time.t()" do
+    test "bhv langelixir 050 stringify/1 emits ISO-8601 for Time.t()" do
       t = ~T[12:30:45]
       assert PetstoreClient.ObjectSerializer.stringify(t) == "12:30:45"
     end
@@ -2687,12 +2687,12 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert result.hour == 12 and result.minute == 30 and result.second == 45
     end
 
-    test "convert_to_type parses ISO-8601 to Time.t() under bare key" do
+    test "bhv langelixir 051 convert_to_type parses ISO-8601 to Time.t() under bare key" do
       result = PetstoreClient.ObjectSerializer.convert_to_type("12:30:45", "Time")
       assert %Time{} = result
     end
 
-    test "round-trip via sanitize_for_serialization" do
+    test "bhv langelixir 052 round-trip via sanitize_for_serialization" do
       t = ~T[09:00:00]
       sanitized = PetstoreClient.ObjectSerializer.sanitize_for_serialization(t)
       assert is_binary(sanitized)
@@ -2701,12 +2701,12 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   end
 
   describe "4.8 format: duration" do
-    test "convert_to_type parses protobuf duration to Duration.t() under typespec key" do
+    test "bhv langelixir 053 convert_to_type parses protobuf duration to Duration.t() under typespec key" do
       result = PetstoreClient.ObjectSerializer.convert_to_type("5400s", "Duration.t()")
       assert %Duration{second: 5400} = result
     end
 
-    test "round-trip via sanitize_for_serialization" do
+    test "bhv langelixir 054 round-trip via sanitize_for_serialization" do
       original = Duration.new!(hour: 2)
       sanitized = PetstoreClient.ObjectSerializer.sanitize_for_serialization(original)
       assert is_binary(sanitized)
@@ -2728,7 +2728,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     # A sub-0.0001s magnitude must emit fixed-point fractional digits, never
     # scientific notation (e.g. "0.00005s", not "5.0e-5s"). 50 microseconds is
     # below 1e-4 seconds and exercises the fractional padding path.
-    test "sub-0.0001s magnitude emits fixed-point digits, no scientific notation" do
+    test "bhv langelixir 055 sub-0.0001s magnitude emits fixed-point digits, no scientific notation" do
       d = Duration.new!(microsecond: {50, 6})
       pb = PetstoreClient.ObjectSerializer.stringify(d)
       assert pb == "0.000050s"
@@ -2790,7 +2790,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert DefaultApiClient.redirect_method(308, :delete) == :delete
     end
 
-    test "bhv redirects 048 301 and 302 turn only POST into GET" do
+    test "bhv redirects 048 the 301 and 302 statuses turn only POST into GET" do
       for status <- [301, 302] do
         assert DefaultApiClient.redirect_method(status, :post) == :get
         assert DefaultApiClient.redirect_method(status, :put) == :put
@@ -2824,7 +2824,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert {:close, 1} in PetstoreClient.ApiClient.behaviour_info(:callbacks)
     end
 
-    test "the default transport implements close/1" do
+    test "bhv langelixir 056 the default transport implements close/1" do
       assert Code.ensure_loaded?(PetstoreClient.DefaultApiClient)
       assert function_exported?(PetstoreClient.DefaultApiClient, :close, 1)
     end

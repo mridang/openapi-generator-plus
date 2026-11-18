@@ -1942,6 +1942,107 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
+langnode002 | An error constructor accepts an optional cause
+langnode003 | Reading an error's message property returns the rendered text
+langnode004 | An error's message is null when no message was given
+langnode005 | A status maps to its exception class and keeps the response context
+langnode006 | A fallback error built from a response records the request it answers
+||||||| cef6fbad1
+langelixir001 | A server variable keeps its declared enum values after construction, so they can be checked later.
+langelixir002 | A server variable must declare a default value, and omitting it is an error.
+langelixir003 | An array body where an object is expected raises a serialization error rather than an access error.
+langelixir004 | A deprecated schema is flagged in its generated documentation rather than on each function.
+langelixir005 | A typed view of an error body is built from the body's own fields.
+langelixir006 | A declared error schema yields an error that is an API error and every ancestor kind it belongs to.
+langelixir007 | Network and OAuth failures are recognised as SDK errors by the family checks.
+langelixir008 | An exception that the SDK did not raise is not classified as an SDK error.
+langelixir009 | Extra transport options default to an empty list when none are given.
+langelixir010 | Extra transport options given by the caller are passed through to the request.
+langelixir011 | Extra transport options must be a keyword list, and anything else is refused.
+langelixir012 | Connection options are accepted when the SDK sets no proxy or TLS option of its own.
+langelixir013 | A parameter with a null style falls back to the default style for its location.
+langelixir014 | Exchanging a code on a copy of the authenticator readies the copy the client holds.
+langelixir015 | A scheme authenticator keeps the endpoint URLs the spec declares.
+langelixir016 | Exchanging a code readies the authenticator without relying on the return value.
+langelixir017 | A scheme authenticator keeps the scopes the spec declares.
+langelixir018 | A password scheme authenticator keeps its credentials and the endpoint URLs the spec declares.
+langelixir019 | The allowed values of an enum server variable are shown as a bracketed comma-separated list.
+langelixir020 | Closing a client releases its transport and its authenticator's token manager.
+langelixir021 | Closing a client works when its authenticator holds no resources to release.
+langelixir022 | A credential keyed to a name that is not a declared security scheme is refused with an argument error.
+langelixir023 | Closing a client releases the authenticator and each scheme credential exactly once.
+langelixir024 | A call hook set on the client reaches the configuration of every API module.
+langelixir025 | Default headers default to an empty map when none are given.
+langelixir026 | No call hook is set by default, and one set later is kept without being printed.
+langelixir027 | A wall clock timeout is enforced while the call is waiting for its task to yield.
+langelixir028 | An auth cookie containing a character RFC 6265 forbids raises an argument error.
+langelixir029 | An auth cookie made only of legal cookie octets is sent exactly as given.
+langelixir030 | An auth cookie with a space, quote, comma, semicolon, backslash, control or non-ASCII character is refused.
+langelixir031 | Query parameters are appended to the request URL.
+langelixir032 | A multipart filename containing a carriage return or line feed raises an argument error.
+langelixir033 | A multipart filename containing a NUL byte raises an argument error.
+langelixir034 | Text decoded as UTF-16 without a byte order mark is read as big-endian.
+langelixir035 | A response body defaults to an empty string, not nil, when none is received.
+langelixir036 | A per-call timeout bounds that call, and a Retry-After longer than it is not waited for.
+langelixir037 | Call settings are read from the options struct, with explicit options winning and nil values left out.
+langelixir038 | Each 2xx status decodes as the response type declared for that status.
+langelixir039 | A 2xx status that no response row names decodes as the union type.
+langelixir040 | A Retry-After header given in seconds is read as a delay in milliseconds.
+langelixir041 | A non-string error value in an OAuth error response is not taken as an error code.
+langelixir042 | Every call hook observer is finished even when one of them fails.
+langelixir043 | A chain of hooks that return nothing produces no observer state.
+langelixir044 | A credential that is not found in any source raises an error that names its variable.
+langelixir045 | The parameters of an authorization URL are written in a fixed order.
+langelixir046 | Each invalid credential is rejected with its own error message.
+langelixir047 | An empty token is rejected with an error.
+langelixir048 | The Basic and Bearer scheme authenticators delegate to the base authenticators.
+langelixir049 | A redirect from HTTPS to HTTP is the only change flagged as a downgrade.
+langelixir050 | A time value is written as an ISO 8601 time string.
+langelixir051 | An ISO 8601 time string is parsed into a time value under its bare type key.
+langelixir052 | A time value survives a round trip through sanitising and back.
+langelixir053 | A protobuf duration string is parsed into a duration value under its type key.
+langelixir054 | A duration value survives a round trip through sanitising and back.
+langelixir055 | A very small duration is written as fixed-point digits, never in scientific notation.
+langelixir056 | The default transport implements the close operation.
+langelixir057 | The headers of a result default to an empty map.
+langelixir058 | A model without its own serialisation function is passed through unchanged as a body.
+langelixir059 | A model part in a multipart body is serialised through the configured serialiser under its wire names.
+langelixir060 | A value that is not a date-time string raises a serialization error that carries its cause.
+langelixir061 | A string where a set is expected raises an error instead of passing the raw string through.
+langelixir062 | A list where a string-keyed map is expected raises an error.
+langelixir063 | Every integer element of a map and of a nested grid decodes.
+langelixir064 | An inline enum value is serialised to its name.
+langelixir065 | Nested models and list elements keep their declaration order.
+langelixir066 | Each element of a list or set is encoded, and nil stays nil.
+langelixir067 | A non-string payload is rejected with an error.
+langelixir068 | A value that is not a string is refused where a string payload is required.
+langelixir069 | A time value is written as hours, minutes and seconds.
+langelixir070 | A zero fractional part of a time value is dropped when it is written.
+langelixir071 | A wire-cased property name is mapped back to its member name when decoded.
+langelixir072 | Each wire value is inverted to its typed value when converted.
+langelixir073 | A nested integer grid is written back out in the same shape.
+langelixir074 | A payload that matches no variant of an anyOf reports no match without raising.
+langelixir075 | An inline enum of a model exposes its declared members.
+langelixir076 | Each enum of a model exposes its declared members, including when two models share a name.
+langelixir077 | A property with the wrong type fails when the model is decoded.
+langelixir078 | Building a subtype without its discriminator value raises an error.
+langelixir079 | Operation and parameter descriptions reach the generated docs verbatim, never interpolated or escaped.
+langelixir080 | A model's external documentation text reaches its module docs verbatim.
+langelixir081 | An operation with no servers rejects a server option at call time.
+langelixir082 | A misspelt content type option is rejected rather than ignored.
+langelixir083 | A per-operation server variant resolves a value that is inside the variable's enum.
+langelixir084 | A string path parameter is percent-encoded exactly once, with no double encoding.
+langelixir085 | An empty non-exploded array query parameter is sent as an empty value.
+langelixir086 | A 404 error names the request that failed.
+langelixir087 | Both variants of a generated operation call the hook once, with the operation's id.
+langelixir088 | The header selector reports false for a plain text media type.
+langelixir089 | An error response names the request that produced it.
+langelixir090 | A credential held by a scheme is used in preference to the client-level authenticator.
+langelixir091 | A mis-cased enum value raises rather than matching case-insensitively.
+langelixir092 | A byte value survives a round trip through base64 encoding and decoding.
+langelixir093 | A UUID whose segments have the wrong lengths is rejected on decode.
+||||||| 6a0342bb6
 langpython003 | Every constructor chains the given cause.
 langpython004 | Fields are read only.
 langpython005 | The request is unknown by default.

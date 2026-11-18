@@ -145,7 +145,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert decoded.password == "p"
     end
 
-    test "prepare_body passes a model without its own serialize/1 through unchanged" do
+    test "bhv langelixir 058 prepare_body passes a model without its own serialize/1 through unchanged" do
       account = %{{moduleName}}.Models.Account{username: "u", password: "p"}
 
       assert {{moduleName}}.ObjectSerializer.prepare_body(account, {{moduleName}}.Models.Account) == account
@@ -158,7 +158,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert inspect(account) =~ "username"
     end
 
-    test "multipart model part is serialized through the configured serializer with wire names" do
+    test "bhv langelixir 059 multipart model part is serialized through the configured serializer with wire names" do
       # Cross-SDK parity regression: addPetPhotos sends a multipart/form-data
       # body whose `metadata` part is a PhotoMetadata MODEL. That part must go
       # through the SDK's configured ObjectSerializer so it carries WIRE
@@ -252,7 +252,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
     # A payload the converter does not check for fails inside a stdlib call (a
     # JSON object cannot be turned into a date-time string); it still surfaces
     # as a SerializationError that carries the original exception as its cause.
-    test "an object where a date-time string is expected raises SerializationError with the cause" do
+    test "bhv langelixir 060 an object where a date-time string is expected raises SerializationError with the cause" do
       err =
         assert_raise {{moduleName}}.Errors.SerializationError, fn ->
           {{moduleName}}.ObjectSerializer.deserialize(~s({"shipDate":{"a":1}}), "Order")
@@ -306,7 +306,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert err.message == "Expected a JSON object for {{moduleName}}.Models.Category, got 5"
     end
 
-    test "a string where a set is expected raises instead of passing the raw string" do
+    test "bhv langelixir 061 a string where a set is expected raises instead of passing the raw string" do
       err =
         assert_raise {{moduleName}}.Errors.SerializationError, fn ->
           {{moduleName}}.ObjectSerializer.deserialize(
@@ -318,7 +318,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert err.message == "Expected a list for array type, got \"abc\""
     end
 
-    test "a list where a string-keyed map is expected raises" do
+    test "bhv langelixir 062 a list where a string-keyed map is expected raises" do
       err =
         assert_raise {{moduleName}}.Errors.SerializationError, fn ->
           {{moduleName}}.ObjectSerializer.convert_to_type([1], "%{String.t() => integer()}")
@@ -349,7 +349,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
-    test "every integer element of a map and of a grid decodes" do
+    test "bhv langelixir 063 every integer element of a map and of a grid decodes" do
       assert {{moduleName}}.ObjectSerializer.deserialize(~s({"a":1,"b":-2}), "%{String.t() => integer()}") ==
                %{"a" => 1, "b" => -2}
 
@@ -382,7 +382,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
-    test "mis-cased enum value raises (case-sensitive match)" do
+    test "bhv langelixir 091 mis-cased enum value raises (case-sensitive match)" do
       assert_raise {{moduleName}}.Errors.SerializationError, fn ->
         {{moduleName}}.ObjectSerializer.convert_to_type("AVAILABLE", "TestEnumStatus")
       end
@@ -631,7 +631,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
                "Unknown enum value :bogus for {{moduleName}}.Models.Priority"
     end
 
-    test "a declared inline enum atom serializes to its name" do
+    test "bhv langelixir 064 a declared inline enum atom serializes to its name" do
       pet = %{{moduleName}}.Models.Pet{name: "x", photo_urls: [], status: :sold}
 
       assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(pet))["status"] == "sold"
@@ -651,7 +651,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
                ~s({"id":1,"petId":2,"quantity":3,"shipDate":"2024-01-15T10:30:00.000+00:00","status":"approved","complete":true})
     end
 
-    test "nested models and list elements keep declaration order" do
+    test "bhv langelixir 065 nested models and list elements keep declaration order" do
       order = %{{moduleName}}.Models.Order{id: 1, quantity: 3, complete: true}
 
       assert {{moduleName}}.ObjectSerializer.serialize([order]) ==
@@ -740,7 +740,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
-    test "round-trip via base64 encoding" do
+    test "bhv langelixir 092 round-trip via base64 encoding" do
       original = <<1, 2, 3, 255, 0, 128>>
       encoded = Base.encode64(original)
       decoded = {{moduleName}}.ObjectSerializer.convert_to_type(encoded, "ByteArray")
@@ -807,7 +807,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert data["shards"] == ["Aw=="]
     end
 
-    test "encodes each element of a list or set and keeps nil as nil" do
+    test "bhv langelixir 066 encodes each element of a list or set and keeps nil as nil" do
       assert {{moduleName}}.ObjectSerializer.encode_base64_param(["hi", "yo"]) == ["aGk=", "eW8="]
       assert {{moduleName}}.ObjectSerializer.encode_base64_param(MapSet.new(["hi"])) == ["aGk="]
       assert {{moduleName}}.ObjectSerializer.encode_base64_param(nil) == nil
@@ -850,13 +850,13 @@ defmodule {{moduleName}}.ObjectSerializerTest do
                "550e8400-e29b-41d4-a716-446655440000"
     end
 
-    test "rejects UUID with wrong segment lengths" do
+    test "bhv langelixir 093 rejects UUID with wrong segment lengths" do
       assert_raise {{moduleName}}.Errors.SerializationError, fn ->
         {{moduleName}}.ObjectSerializer.convert_to_type("550e8400-e29b-41d4-a716-44665544", "UUID")
       end
     end
 
-    test "rejects non-string payload" do
+    test "bhv langelixir 067 rejects non-string payload" do
       assert_raise {{moduleName}}.Errors.SerializationError, fn ->
         {{moduleName}}.ObjectSerializer.convert_to_type(42, "UUID")
       end
@@ -891,7 +891,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
-    test "rejects a non-string payload" do
+    test "bhv langelixir 068 rejects a non-string payload" do
       assert_raise {{moduleName}}.Errors.SerializationError, fn ->
         {{moduleName}}.ObjectSerializer.convert_to_type(42, "URI")
       end
@@ -1211,7 +1211,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert restored == original
     end
 
-    test "stringify emits HH:MM:SS for a Time" do
+    test "bhv langelixir 069 stringify emits HH:MM:SS for a Time" do
       assert {{moduleName}}.ObjectSerializer.stringify(~T[13:45:30]) == "13:45:30"
     end
 
@@ -1220,7 +1220,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.ObjectSerializer.stringify(~T[10:30:00.9996]) == "10:30:00.999"
     end
 
-    test "stringify drops a zero fractional part" do
+    test "bhv langelixir 070 stringify drops a zero fractional part" do
       assert {{moduleName}}.ObjectSerializer.stringify(~T[10:30:00.000000]) == "10:30:00"
       assert {{moduleName}}.ObjectSerializer.stringify(~T[10:30:00.000999]) == "10:30:00"
     end
@@ -1365,12 +1365,12 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert data["availability"] == "on-hold"
     end
 
-    test "deserialize maps the wire casing back to the member atom" do
+    test "bhv langelixir 071 deserialize maps the wire casing back to the member atom" do
       item = {{moduleName}}.ObjectSerializer.deserialize(~s({"priority":1,"availability":"Available"}), "StockItem")
       assert item.availability == :available
     end
 
-    test "convert_to_type inverts each wire value via from_value" do
+    test "bhv langelixir 072 convert_to_type inverts each wire value via from_value" do
       assert {{moduleName}}.ObjectSerializer.convert_to_type("Available", "Availability") == :available
       assert {{moduleName}}.ObjectSerializer.convert_to_type("Sold", "Availability") == :sold
       assert {{moduleName}}.ObjectSerializer.convert_to_type("on-hold", "Availability") == :on_hold
@@ -1451,7 +1451,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert Enum.all?(List.flatten(item.matrix), &is_integer/1)
     end
 
-    test "serialize re-emits the nested integer grid" do
+    test "bhv langelixir 073 serialize re-emits the nested integer grid" do
       item = %{{moduleName}}.Models.StockItem{priority: :number_1, matrix: [[7, 8], [9]]}
       data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))
       assert data["matrix"] == [[7, 8], [9]]
@@ -1715,7 +1715,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
-    test "match_any_of reports no match without raising" do
+    test "bhv langelixir 074 match_any_of reports no match without raising" do
       candidates = [fn _ -> raise "no match" end]
       assert {{moduleName}}.ObjectSerializer.match_any_of(%{}, candidates) == :no_match
     end
@@ -2046,7 +2046,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert phase.value(:out_of_stock) == "OUT_OF_STOCK"
     end
 
-    test "Defaults.ModeEnum exposes its members" do
+    test "bhv langelixir 075 Defaults.ModeEnum exposes its members" do
       mode = {{moduleName}}.Models.Defaults.ModeEnum
       assert mode.all_values() == [:low, :medium, :high]
       assert mode.value(:high) == "high"
@@ -2076,7 +2076,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert decoded.status == :delivered
     end
 
-    test "Pet.StatusEnum and PetWithOwner.StatusEnum expose their members" do
+    test "bhv langelixir 076 Pet.StatusEnum and PetWithOwner.StatusEnum expose their members" do
       for mod <- [{{moduleName}}.Models.Pet.StatusEnum, {{moduleName}}.Models.PetWithOwner.StatusEnum] do
         assert mod.all_values() == [:available, :pending, :sold]
         assert mod.value(:pending) == "pending"
@@ -2120,7 +2120,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert Exception.message(error) =~ "no-such-member"
     end
 
-    test "a wrong-typed property fails when it is decoded" do
+    test "bhv langelixir 077 a wrong-typed property fails when it is decoded" do
       assert_raise {{moduleName}}.Errors.SerializationError, fn ->
         {{moduleName}}.ObjectSerializer.deserialize(~s({"id":"not a number"}), "Order")
       end
@@ -2128,7 +2128,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
   end
 
   describe "discriminator is an enforced key" do
-    test "building a subtype without the discriminator raises" do
+    test "bhv langelixir 078 building a subtype without the discriminator raises" do
       error =
         assert_raise ArgumentError, fn ->
           Code.eval_string("%{{moduleName}}.Models.DryFood{weight_kg: 1.0}")

@@ -194,7 +194,7 @@ defmodule {{moduleName}}.Models.MetadataTest do
 
     # @deprecated is a function attribute and would land on the struct's own
     # function, which nobody calls; the schema is marked in the module docs.
-    test "a deprecated schema is marked in its module docs, not on a function" do
+    test "bhv langelixir 004 a deprecated schema is marked in its module docs, not on a function" do
       {:docs_v1, _anno, _lang, _format, _moduledoc, metadata, _docs} =
         Code.fetch_docs({{moduleName}}.Models.Tag)
 
