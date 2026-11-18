@@ -1903,6 +1903,21 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert result == {:matched, %{"k" => "v"}}
     end
 
+    test "bhv unions 046 when a payload matches several anyOf variants each matched value is kept and a non-matching one is absent" do
+      data = %{"k" => "v"}
+
+      candidates = [
+        fn d -> Map.put(d, "a", true) end,
+        fn _ -> raise "variant B does not match" end,
+        fn d -> Map.put(d, "c", true) end
+      ]
+
+      assert {:ok, %PetstoreClient.AnyOfComposite{instances: instances}} =
+               PetstoreClient.ObjectSerializer.match_any_of(data, candidates)
+
+      assert instances == [%{"k" => "v", "a" => true}, %{"k" => "v", "c" => true}]
+    end
+
     test "bhv misc 291 when a payload matches more than one variant the first variant declared is resolved" do
       candidates = [
         fn data -> {:first, data} end,
