@@ -1262,7 +1262,7 @@ options057 | A per-call timeout below one millisecond is refused.
 options058 | An injected HTTP client is none unless supplied, and a supplied client is kept as the same instance on the built options.
 options059 | A caller-supplied transport hook is unset unless given, and a supplied one is kept unchanged on the built options.
 options060 | The transport options expose a static builder entry point whose result carries the values set on it and the same defaults as a direct build.
-options061 | A user agent set on transport options is kept as given, and setting it to none leaves it unset so no User-Agent header is sent.
+options061 | A user agent set on transport options is kept as given, and setting it to none leaves it unset so the SDK sends no User-Agent header of its own.
 options062 | An options object reports the values it was built with, and unset fields read back as absent or unset.
 options063 | A built per-call options object cannot have its fields changed.
 options064 | The printable form of transport options shows the configured maximum number of retries.

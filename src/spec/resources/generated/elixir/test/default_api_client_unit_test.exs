@@ -836,7 +836,11 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
     assert_receive {:captured_headers, headers}, 5000
-    refute Map.has_key?(headers, "user-agent")
+    # Mint adds its own `mint/<version>` when a request carries no user-agent, and no
+    # option turns that off, so the SDK's own default must not reach the wire.
+    agent = Map.get(headers, "user-agent")
+    assert is_nil(agent) or String.starts_with?(agent, "mint/")
+    refute agent == "petstore_client/1.0.0 (elixir)"
   end
 
   test "bhv transport 052 sends an empty User-Agent header when the option is the empty string" do

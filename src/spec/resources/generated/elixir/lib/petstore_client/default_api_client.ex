@@ -72,9 +72,11 @@ defmodule PetstoreClient.DefaultApiClient do
   end
 
   # Req adds a `user-agent` header of its own (`req/<version>`) through the
-  # put_user_agent request step. A transport whose user agent is nil sends no
-  # User-Agent header at all, so that step is taken out of the pipeline here;
-  # a User-Agent the caller sets still goes out as given.
+  # put_user_agent request step, so that step is taken out of the pipeline when
+  # the user agent is nil. Mint still adds `mint/<version>` to a request that has
+  # no user-agent (Mint.HTTP1.add_default_headers/2, no option turns it off), so
+  # the wire carries Mint's value; the SDK's own default never reaches it. A
+  # User-Agent the caller sets still goes out as given.
   defp base_request(%{user_agent: nil} = opts) do
     req = Req.new(merge_req_options(opts.req_options, request_options(opts)))
 
