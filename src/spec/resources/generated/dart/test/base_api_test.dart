@@ -507,6 +507,44 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 191 an invalid auth cookie raises an ArgumentError that is not an OpenAPI error',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: _BaseApiAuth(cookies: {'session': 'bad value'}),
+          );
+
+          await expectLater(
+            api.addPet(
+              Pet(name: 'Fido', photoUrls: <String>{}),
+              const AddPetOptions(),
+            ),
+            throwsA(
+              allOf(isA<ArgumentError>(), isNot(isA<OpenAPIException>())),
+            ),
+          );
+          expect(requests, equals(0));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('bhv authintegration 017 sets cookie from auth', () async {
       String? receivedCookie;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1838,6 +1876,22 @@ void main() {
 
         expect(result.statusCode, equals(201));
         expect(result.data, isNull);
+      },
+    );
+
+    test(
+      'bhv misc 239 an operation query parameter is serialized when no authenticator is configured',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {'status': 'available'},
+        );
+
+        expect(client.capturedUrl, contains('status=available'));
       },
     );
 
@@ -4163,6 +4217,44 @@ void main() {
           throwsA(isA<ServerException>()),
         );
         expect(client.sentHeaders, hasLength(6));
+      },
+    );
+
+    test(
+      'bhv misc 178 a declared multipart content type other than form-data reaches the transport with its subtype kept',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/x',
+          contentType: 'multipart/related',
+          body: 'note',
+        );
+
+        final sent = client.sentHeaders.single.entries
+            .firstWhere((e) => e.key.toLowerCase() == 'content-type')
+            .value;
+        expect(sent, startsWith('multipart/related'));
+      },
+    );
+
+    test(
+      'bhv misc 179 an operation whose body is form-urlencoded sends the application/x-www-form-urlencoded Content-Type',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/x',
+          contentType: 'application/x-www-form-urlencoded',
+          body: {'name': 'x'},
+        );
+
+        final sent = client.sentHeaders.single.entries
+            .firstWhere((e) => e.key.toLowerCase() == 'content-type')
+            .value;
+        expect(sent, startsWith('application/x-www-form-urlencoded'));
       },
     );
 

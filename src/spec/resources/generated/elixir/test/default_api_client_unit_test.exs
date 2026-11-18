@@ -1428,8 +1428,8 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     # No body to leak: the empty string is sent to force Content-Length: 0.
     refute PetstoreClient.DefaultApiClient.refuse_body_replay?(308, https, http, "")
 
-    # A 302 drops the body, so there is nothing to refuse.
-    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(302, https, http, "x")
+    # A 303 turns the follow-up into a GET, so there is no body to leak.
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(303, https, http, "x")
   end
 
   test "bhv retries 017 a 307 from HTTPS to HTTP refuses the replay of a real body" do
@@ -1843,8 +1843,8 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
-  test "bhv redirects 040 a 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused" do
-    for status <- [301, 302, 303] do
+  test "bhv redirects 040 a 303 redirect from HTTPS to plain HTTP is followed rather than refused" do
+    for status <- [303] do
       client =
         routed_client(%{
           "https://secure.invalid/start" =>
@@ -1964,6 +1964,140 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert Keyword.get(connect_options, :proxy_headers) == [{"proxy-authorization", proxy_header}]
     assert Req.Request.get_header(second, "authorization") == []
     assert Req.Request.get_header(second, "x-auth-token") == []
+  end
+
+  test "bhv misc 124 a request body is not replayed across a 301 redirect from HTTPS to plain HTTP, and the call fails instead" do
+    client =
+      routed_client(%{
+        "https://secure.invalid/start" => {301, [{"location", "http://plain.invalid/next"}], ""},
+        "http://plain.invalid/next" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    assert_raise PetstoreClient.Errors.ApiError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :put,
+        "https://secure.invalid/start",
+        %{"Content-Type" => "application/json"},
+        ~s({"x":1})
+      )
+    end
+
+    assert [_first] = collect_hops()
+  end
+
+  test "bhv misc 128 a cross-origin redirect never removes the proxy credential that the shared transport applies to every request" do
+    client =
+      routed_client(
+        %{
+          "https://origin.invalid/a" => {302, [{"location", "https://other.invalid/b"}], ""},
+          "https://other.invalid/b" =>
+            {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+        },
+        proxy: "http://proxy-user:proxy-pass@proxy.invalid:3128"
+      )
+
+    proxy_header = PetstoreClient.DefaultApiClient.proxy_auth_header(client)
+    assert is_binary(proxy_header)
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "https://origin.invalid/a",
+      %{},
+      nil
+    )
+
+    assert [_first, second] = collect_hops()
+    connect_options = Map.get(second.options, :connect_options, [])
+    assert Keyword.get(connect_options, :proxy_headers) == [{"proxy-authorization", proxy_header}]
+  end
+
+  test "bhv misc 129 a proxy credential the SDK adds is not sent again when a redirect moves an HTTPS request to a different origin" do
+    client =
+      routed_client(
+        %{
+          "https://origin.invalid/a" => {302, [{"location", "https://other.invalid/b"}], ""},
+          "https://other.invalid/b" =>
+            {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+        },
+        proxy: "http://proxy-user:proxy-pass@proxy.invalid:3128"
+      )
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "https://origin.invalid/a",
+      %{},
+      nil
+    )
+
+    assert [_first, second] = collect_hops()
+    assert Req.Request.get_header(second, "proxy-authorization") == []
+  end
+
+  test "bhv serialization 121 a model sent as a multipart part is serialized with its wire property names and date-time format" do
+    meta = %PetstoreClient.Models.Metadata{created_at: ~U[2024-01-01 00:00:00Z]}
+    body = PetstoreClient.DefaultApiClient.build_multipart_body([{"meta", meta}], "B")
+
+    assert body =~ ~s("createdAt":"2024-01-01T00:00:00.000+00:00")
+  end
+
+  test "bhv serialization 123 a multipart filename containing CR, LF or NUL is rejected rather than written into the header" do
+    for bad <- ["a\r\nb.txt", "a\nb.txt", "a\0b.txt"] do
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.DefaultApiClient.build_content_disposition("doc", bad)
+      end
+    end
+  end
+
+  test "bhv serialization 124 a non-ASCII multipart filename is sent with an RFC 5987 encoded form of its UTF-8 bytes" do
+    header =
+      PetstoreClient.DefaultApiClient.build_content_disposition("doc", "r\u00e9sum\u00e9.pdf")
+
+    assert header =~ "filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"
+  end
+
+  test "bhv serialization 126 a non-ASCII multipart field name is preserved as UTF-8 in the part header" do
+    body = PetstoreClient.DefaultApiClient.build_multipart_body([{"\u540d\u524d", "v"}], "B")
+
+    assert body =~ "\u540d\u524d"
+  end
+
+  test "bhv serialization 127 primitive multipart parts are sent as plain text and only model parts are sent as JSON" do
+    body =
+      PetstoreClient.DefaultApiClient.build_multipart_body(
+        [{"count", 3}, {"account", %PetstoreClient.Models.Account{id: 7, username: "u"}}],
+        "B"
+      )
+
+    assert body =~ "\r\n\r\n3\r\n"
+    assert body =~ ~s("username":"u")
+  end
+
+  test "bhv transport 092 a caller-supplied HTTP client receives the SDK request" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:received, URI.to_string(request.url)})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+      )
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "http://caller-client.invalid/x",
+      %{},
+      nil
+    )
+
+    assert_received {:received, "http://caller-client.invalid/x"}
   end
 
   test "bhv redirects 033 a redirect to a different port is a different origin and drops the credentials" do
