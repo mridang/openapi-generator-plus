@@ -602,7 +602,8 @@ class DefaultApiClientTest {
       "/test/redirect/no-location, no-location"
     })
     @DisplayName("an unusable or missing Location returns the 3xx untouched")
-    void unusableLocationReturnsTheRedirectResponse(String path, String marker) throws Exception {
+    void bhvLangjava063UnusableLocationReturnsTheRedirectResponse(String path, String marker)
+        throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
