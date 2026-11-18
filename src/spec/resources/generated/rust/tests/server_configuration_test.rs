@@ -273,6 +273,44 @@ fn test_bhv_servers_013_the_third_global_server_keeps_its_hostile_text_unchanged
     );
 }
 
+/// The default and an enum value of a server with quotes and an ampersand reach
+/// the URL exactly as written.
+#[test]
+fn test_bhv_servers_021_the_url_resolves_the_raw_characters_for_default_and_enum_values() {
+    let server = petstore::servers::server_2();
+
+    assert_eq!(
+        "https://o'neil.example.com/api",
+        server.url(&HashMap::new()).unwrap()
+    );
+    let mut overrides = HashMap::new();
+    overrides.insert("tenant".to_string(), "a&b".to_string());
+    assert_eq!(
+        "https://a&b.example.com/api",
+        server.url(&overrides).unwrap()
+    );
+}
+
+/// A variable value holding replacement patterns is substituted literally.
+#[test]
+fn test_bhv_servers_023_a_value_with_replacement_patterns_is_substituted_literally() {
+    let mut variables = HashMap::new();
+    variables.insert(
+        "env".to_string(),
+        ServerVariable::new("a\\1b$&".to_string(), String::new(), Vec::new()),
+    );
+    let server = ServerConfiguration::new(
+        "https://{env}.api.example.com".to_string(),
+        String::new(),
+        variables,
+    );
+
+    assert_eq!(
+        "https://a\\1b$&.api.example.com",
+        server.url(&HashMap::new()).unwrap()
+    );
+}
+
 /// SKILLS.md documents the `all_servers()` list next to the `server_N()`
 /// functions, like the other SDKs' Servers section.
 #[test]

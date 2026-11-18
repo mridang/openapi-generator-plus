@@ -897,6 +897,7 @@ pub fn to_query_value<T: Serialize + 'static>(value: &T, collection_format: &str
                 .iter()
                 .map(|item| match item {
                     serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Null => String::new(),
                     other => other.to_string(),
                 })
                 .collect();
@@ -924,6 +925,7 @@ pub fn to_header_value<T: Serialize + 'static>(value: &T) -> String {
                 .iter()
                 .map(|item| match item {
                     serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Null => String::new(),
                     other => other.to_string(),
                 })
                 .collect();
@@ -962,7 +964,10 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
  * reach the module from the external integration-test crate. */
 #[cfg(test)]
 mod tests {
-    use super::{self as object_serializer, QueryValue, SerializationError};
+    use super::{
+        self as object_serializer, deserialize, object_query_pairs, serialize, to_header_value,
+        to_query_value, QueryValue, SerializationError,
+    };
 
     fn sample_object() -> std::collections::HashMap<String, serde_json::Value> {
         let mut map: std::collections::HashMap<String, serde_json::Value> =
@@ -1202,7 +1207,8 @@ mod tests {
      * A-Z a-z 0-9 - . _ ~ literal, so the bytes match the other eleven SDKs
      * and the value passes the RFC 6265 cookie-octet check. */
     #[test]
-    fn test_content_cookie_value_bytes_are_the_unreserved_set() {
+    fn test_bhv_serializationparam_118_a_content_cookie_value_is_encoded_to_the_shared_percent_encoded_bytes(
+    ) {
         let value = serde_json::json!({"k": "a b~*\u{e9}"});
         let json = object_serializer::serialize(&value).expect("serializes");
         let cookie = urlencoding::encode(&json).into_owned();
@@ -1215,6 +1221,73 @@ mod tests {
                 || (0x3C..=0x5B).contains(&o)
                 || (0x5D..=0x7E).contains(&o)
         }));
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_108_a_nested_object_leaf_in_a_styled_parameter_is_rejected() {
+        let value = serde_json::json!({"breed": "lab", "nested": {"inner": 1}});
+        let err =
+            object_query_pairs(&value, "form", true).expect_err("a nested leaf must be rejected");
+        assert_eq!(
+            "object-valued parameter property 'nested' must be a scalar, not a nested value",
+            err.message()
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_110_a_date_value_is_written_as_yyyy_mm_dd() {
+        let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        match to_query_value(&date, "") {
+            QueryValue::Single(s) => assert_eq!(s, "2024-01-15"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_115_a_csv_query_array_keeps_an_empty_slot_for_a_null_element() {
+        let items: Vec<Option<i32>> = vec![Some(1), None, Some(3)];
+        match to_query_value(&items, "csv") {
+            QueryValue::Single(s) => assert_eq!(s, "1,,3"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_array_header_value_keeps_an_empty_slot_for_a_null_element() {
+        let items: Vec<Option<i32>> = vec![Some(1), None, Some(3)];
+        assert_eq!(to_header_value(&items), "1,,3");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_117_a_set_without_explode_joins_its_elements_with_commas() {
+        let set: std::collections::BTreeSet<String> = ["red".to_string(), "blue".to_string()]
+            .into_iter()
+            .collect();
+        match to_query_value(&set, "") {
+            QueryValue::Single(s) => assert_eq!(s, "blue,red"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_120_an_array_of_date_values_writes_each_element_as_yyyy_mm_dd() {
+        let dates = vec![
+            chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+        ];
+        match to_query_value(&dates, "") {
+            QueryValue::Single(s) => assert_eq!(s, "2024-01-15,2024-02-01"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_230_a_time_value_survives_a_serialize_and_deserialize_round_trip(
+    ) {
+        let time = chrono::NaiveTime::from_hms_opt(10, 30, 0).unwrap();
+        let text = serialize(&time).expect("serializes");
+        let back: Option<chrono::NaiveTime> = deserialize(text.as_bytes()).expect("parses");
+        assert_eq!(back, Some(time));
     }
     /* Model-typed cases below are fixture-spec specific and are emitted only
      * for the generator's own golden suite, never for a real client SDK. */

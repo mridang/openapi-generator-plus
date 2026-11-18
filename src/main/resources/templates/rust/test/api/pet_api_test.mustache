@@ -467,6 +467,13 @@ async fn test_bhv_operations_035_pet_api_download_pet_document() {
 }
 
 #[tokio::test]
+async fn test_bhv_serializationwire_060_a_binary_return_type_gets_the_raw_bytes_of_a_json_body() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", r#"{"a":1}"#);
+    let bytes = api.download_pet_document(1, 1, None).await.expect("download failed");
+    assert_eq!(bytes, br#"{"a":1}"#.to_vec());
+}
+
+#[tokio::test]
 async fn test_bhv_operations_055_pet_api_get_pet_photo() {
     let (api, _) = new_pet_api_for_mock(200, "image/jpeg", "FAKE_JPEG_BYTES");
     let photo = api.get_pet_photo(1, 1, None).await.expect("get_pet_photo failed");

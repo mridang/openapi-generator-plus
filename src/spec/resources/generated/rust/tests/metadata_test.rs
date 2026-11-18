@@ -468,3 +468,22 @@ fn test_bhv_models_006_file_header_prints_the_info_description_without_escaped_q
         header
     );
 }
+
+#[test]
+fn test_bhv_serializationobject_227_a_model_external_docs_description_is_documented_verbatim_without_entities(
+) {
+    let source = include_str!("../src/models/account.rs");
+    assert!(
+        source.contains(
+            "/// See <https://example.com/docs/account> Account \\<docs\\> & \"notes\" it's here"
+        ),
+        "the externalDocs description must reach the model doc comment as written"
+    );
+    for entity in ["&lt;", "&gt;", "&amp;", "&quot;", "&#39;"] {
+        assert!(
+            !source.contains(entity),
+            "an HTML entity {} leaked into the model docs",
+            entity
+        );
+    }
+}
