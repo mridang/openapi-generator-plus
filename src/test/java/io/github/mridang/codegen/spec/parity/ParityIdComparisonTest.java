@@ -62,6 +62,46 @@ class ParityIdComparisonTest {
   }
 
   @Test
+  void shouldCountTheRowsOfOneParameterisedTestAsOneTest() {
+    Map<String, ParitySummary> present = new TreeMap<>(present("java", "go", "ruby", "swift"));
+    present.put(
+        "csharp",
+        summary(
+            "csharp",
+            "Test.Api.RetriesTest.BhvTransport014RetriesOn503(status: 502, expected: typeof(Foo))",
+            "Test.Api.RetriesTest.BhvTransport014RetriesOn503(status: 503, expected: typeof(Foo))",
+            "Test.Api.RetriesTest.BhvRetries007BacksOffBetweenAttempts()",
+            "Test.Api.AuthTest.BhvAuthoauth031RefreshesAnExpiredToken()"));
+    present.put(
+        "php",
+        summary(
+            "php",
+            "bhv transport 014 retries on 503 with data set \"(['abc'], 'abc') #1\"",
+            "bhv transport 014 retries on 503 with data set \"(['abc'], 'abc') #2\"",
+            "bhv retries 007 backs off between attempts",
+            "bhv authoauth 031 refreshes an expired token"));
+
+    assertThat(compare(present, TestCatalogueExceptions.empty())).isEmpty();
+  }
+
+  @Test
+  void shouldStillReportTwoDifferentTestsForTheSameBehaviour() {
+    Map<String, ParitySummary> present = new TreeMap<>();
+    present.put(
+        "csharp",
+        summary(
+            "csharp",
+            "Test.Api.RetriesTest.BhvTransport014RetriesOn503()",
+            "Test.Api.OtherTest.BhvTransport014AlsoRetriesOn503()",
+            "Test.Api.RetriesTest.BhvRetries007BacksOffBetweenAttempts()",
+            "Test.Api.AuthTest.BhvAuthoauth031RefreshesAnExpiredToken()"));
+    present.put("java", full("java"));
+
+    assertThat(compare(present, TestCatalogueExceptions.empty()))
+        .anySatisfy(problem -> assertThat(problem).contains("duplicate ids"));
+  }
+
+  @Test
   void shouldListAMissingIdWithItsPromise() {
     Map<String, ParitySummary> present = present("java");
     present.put("go", summary("go", "TestBhvTransport014_Retries"));

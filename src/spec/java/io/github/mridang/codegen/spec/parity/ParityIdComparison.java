@@ -72,6 +72,43 @@ public final class ParityIdComparison {
     return problems;
   }
 
+  /**
+   * The name of one test without the input values of a parameterised run. A test that runs once
+   * per input ({@code Name(status: 400)}, {@code name with data set "#1"}, {@code name [case]},
+   * {@code name #2}) is reported by the runners as one row per input, but it is one test, so the
+   * rows must not count as duplicates of the same behaviour.
+   */
+  static String withoutInputValues(String name) {
+    String base = name.trim();
+    int dataSet = base.indexOf(" with data set ");
+    if (dataSet >= 0) {
+      base = base.substring(0, dataSet);
+    }
+    base = base.replaceAll("\\s+#\\d+$", "");
+    if (base.endsWith(")")) {
+      int depth = 0;
+      for (int i = base.length() - 1; i >= 0; i--) {
+        char c = base.charAt(i);
+        if (c == ')') {
+          depth++;
+        } else if (c == '(') {
+          depth--;
+          if (depth == 0) {
+            base = base.substring(0, i);
+            break;
+          }
+        }
+      }
+    }
+    if (base.endsWith("]")) {
+      int open = base.lastIndexOf(" [");
+      if (open > 0) {
+        base = base.substring(0, open);
+      }
+    }
+    return base.trim();
+  }
+
   private static void check(
       String language,
       List<String> names,
@@ -84,7 +121,13 @@ public final class ParityIdComparison {
     for (String name : names) {
       BehaviourId.extract(name)
           .ifPresentOrElse(
-              id -> byId.computeIfAbsent(id, k -> new ArrayList<>()).add(name),
+              id -> {
+                List<String> tests = byId.computeIfAbsent(id, k -> new ArrayList<>());
+                String test = withoutInputValues(name);
+                if (!tests.contains(test)) {
+                  tests.add(test);
+                }
+              },
               () -> unnumbered.add(name));
     }
 
