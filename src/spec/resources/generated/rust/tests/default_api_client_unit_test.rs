@@ -13,7 +13,6 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use petstore::api::PetApi;
 use petstore::api_client::{RequestBody, RequestOptions};
 use petstore::*;
 // The `default_api_client` module is crate-private, so its free helpers
@@ -3156,11 +3155,11 @@ async fn test_bhv_retries_044_every_retry_carries_a_request_id_that_differs_from
         .max_retries(2)
         .build()
         .expect("valid transport options");
-    let client = Arc::new(DefaultApiClient::new(Some(transport)));
-    let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let api = PetApi::new(client, config, None);
+    let client = DefaultApiClient::new(Some(transport));
 
-    let _ = api.get_pet_by_id(1, None, None).await;
+    let _ = client
+        .send_request("GET", &format!("{}/probe", base_url), &HashMap::new(), None)
+        .await;
 
     let ids = captured.lock().unwrap().clone();
     assert_eq!(

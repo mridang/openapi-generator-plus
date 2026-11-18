@@ -8,7 +8,6 @@ use std::thread;
 
 use {{packageName}}::*;
 use {{packageName}}::api_client::{RequestBody, RequestOptions};
-use {{packageName}}::api::PetApi;
 // The `default_api_client` module is crate-private, so its free helpers
 // (build_filename_directive, decode_text_body, is_https_to_http_body_replay,
 // mime_for_filename, parse_charset, validate_multipart_filename,
@@ -2850,11 +2849,11 @@ async fn test_bhv_retries_044_every_retry_carries_a_request_id_that_differs_from
         .max_retries(2)
         .build()
         .expect("valid transport options");
-    let client = Arc::new(DefaultApiClient::new(Some(transport)));
-    let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let api = PetApi::new(client, config, None);
+    let client = DefaultApiClient::new(Some(transport));
 
-    let _ = api.get_pet_by_id(1, None, None).await;
+    let _ = client
+        .send_request("GET", &format!("{}/probe", base_url), &HashMap::new(), None)
+        .await;
 
     let ids = captured.lock().unwrap().clone();
     assert_eq!(ids.len(), 3, "two retries after two 503 responses: {:?}", ids);
