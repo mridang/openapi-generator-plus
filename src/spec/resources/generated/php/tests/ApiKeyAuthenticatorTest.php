@@ -577,3 +577,8 @@ test('bhv misc 057 an api key configured for one location is never sent at anoth
     expect($auth->getQueryParams())->toBe([]);
     expect($auth->getCookieParams())->toBe([]);
 });
+
+test('bhv misc 189 the api key query wrapper sends its key as the api_key query parameter', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
+});
