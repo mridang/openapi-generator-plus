@@ -474,3 +474,6 @@ dart | misc033 | the suite ships a single server certificate with no root and in
 dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
 dart | misc044 | the Dart client raises on a body that declares gzip but fails to decode, as bhv transport 073 pins, so it never returns that body as plain content
 dart | misc047 | PetFood.toJson passes a value that is not one of its variants through unchanged instead of raising, so no serialization error names the union
+dart | misc051 | Dart rejects an unknown named option and a server setting on an operation without servers at compile time, since the generated options classes and constructors declare only their own fields, so no run-time refusal can be observed
+dart | misc052 | Dart rejects a repeated named argument at compile time and per-call options fields are final, so the same kind of option cannot be given twice at run time
+dart | misc061 | Dart has no per-call cancellation handle and no context-value channel (S7), so an authenticator receives no cancel signal or context values to pass on
