@@ -14,27 +14,27 @@ defmodule PetstoreClient.Errors.ApiError do
   response headers, and response body.
   """
 
+  alias PetstoreClient.Errors.BadGatewayError
   alias PetstoreClient.Errors.BadRequestError
   alias PetstoreClient.Errors.ClientError
   alias PetstoreClient.Errors.ConflictError
   alias PetstoreClient.Errors.ForbiddenError
-  alias PetstoreClient.Errors.InternalServerError
-  alias PetstoreClient.Errors.NotFoundError
-  alias PetstoreClient.Errors.ServerError
-  alias PetstoreClient.Errors.TooManyRequestsError
-  alias PetstoreClient.Errors.PaymentRequiredError
-  alias PetstoreClient.Errors.MethodNotAllowedError
-  alias PetstoreClient.Errors.RequestTimeoutError
-  alias PetstoreClient.Errors.GoneError
-  alias PetstoreClient.Errors.PayloadTooLargeError
-  alias PetstoreClient.Errors.UnsupportedMediaTypeError
-  alias PetstoreClient.Errors.LockedError
-  alias PetstoreClient.Errors.NotImplementedError
-  alias PetstoreClient.Errors.BadGatewayError
-  alias PetstoreClient.Errors.ServiceUnavailableError
   alias PetstoreClient.Errors.GatewayTimeoutError
+  alias PetstoreClient.Errors.GoneError
+  alias PetstoreClient.Errors.InternalServerError
+  alias PetstoreClient.Errors.LockedError
+  alias PetstoreClient.Errors.MethodNotAllowedError
+  alias PetstoreClient.Errors.NotFoundError
+  alias PetstoreClient.Errors.NotImplementedError
+  alias PetstoreClient.Errors.PayloadTooLargeError
+  alias PetstoreClient.Errors.PaymentRequiredError
+  alias PetstoreClient.Errors.RequestTimeoutError
+  alias PetstoreClient.Errors.ServerError
+  alias PetstoreClient.Errors.ServiceUnavailableError
+  alias PetstoreClient.Errors.TooManyRequestsError
   alias PetstoreClient.Errors.UnauthorizedError
   alias PetstoreClient.Errors.UnprocessableEntityError
+  alias PetstoreClient.Errors.UnsupportedMediaTypeError
 
   # The statuses with an error of their own; any other 4xx or 5xx is a
   # ClientError or ServerError.
