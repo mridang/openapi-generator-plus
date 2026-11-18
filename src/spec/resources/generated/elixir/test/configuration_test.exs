@@ -79,6 +79,11 @@ defmodule PetstoreClient.ConfigurationTest do
     assert built.base_url == "/api/v3"
   end
 
+  test "bhv misc 276 the default configuration and the default builder both use the base URL declared in the spec" do
+    assert PetstoreClient.Configuration.default().base_url == "/api/v3"
+    assert PetstoreClient.Configuration.new().base_url == "/api/v3"
+  end
+
   test "bhv config 019 the default configuration factory returns the spec base URL and no default headers" do
     config = PetstoreClient.Configuration.default()
 
@@ -117,7 +122,27 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.base_url == "https://api.example.com/api/v3"
   end
 
+  test "bhv misc 278 a server URL with templated variables resolves to the defaults when no overrides are given" do
+    server = %PetstoreClient.ServerConfiguration{
+      url_template: "https://{env}.example.com/{version}",
+      variables: %{
+        "env" => %PetstoreClient.ServerVariable{default_value: "api"},
+        "version" => %PetstoreClient.ServerVariable{default_value: "v3"}
+      }
+    }
+
+    assert PetstoreClient.Configuration.from_server(server).base_url ==
+             "https://api.example.com/v3"
+  end
+
   test "bhv config 022 mutating the returned default headers does not change the configuration" do
+    config = PetstoreClient.Configuration.new(default_headers: %{"X-One" => "1"})
+    _changed = Map.put(config.default_headers, "X-Two", "2")
+
+    assert config.default_headers == %{"X-One" => "1"}
+  end
+
+  test "bhv misc 279 changing the headers returned from a configuration does not change the headers it holds" do
     config = PetstoreClient.Configuration.new(default_headers: %{"X-One" => "1"})
     _changed = Map.put(config.default_headers, "X-Two", "2")
 

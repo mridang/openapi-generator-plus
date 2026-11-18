@@ -124,6 +124,63 @@ void main() {
     );
 
     test(
+      'bhv misc 115 a bare string value serializes as a quoted JSON string',
+      () {
+        expect(serialize('hello'), equals('"hello"'));
+      },
+    );
+
+    test(
+      'bhv misc 117 an absent value serializes as the JSON null literal',
+      () {
+        expect(serialize(null), equals('null'));
+      },
+    );
+
+    test(
+      'bhv misc 118 when a payload carries a name and a differently cased duplicate, the exact-case value is decoded',
+      () {
+        final decoded = deserialize<Category>(
+          '{"NAME":"Other","name":"Exact"}',
+          Category.fromJson,
+        );
+        expect(decoded?.name, equals('Exact'));
+      },
+    );
+
+    test(
+      'bhv misc 119 two object keys that differ only by an escape sequence are one key and the last value wins',
+      () {
+        final decoded = deserialize<Category>(
+          r'{"name":"First","name":"Last"}',
+          Category.fromJson,
+        );
+        expect(decoded?.name, equals('Last'));
+      },
+    );
+
+    test(
+      'bhv misc 121 an object with no declared schema is written as a JSON object of its properties',
+      () {
+        expect(
+          jsonDecode(serialize({'a': 1, 'b': 'x'})),
+          equals({'a': 1, 'b': 'x'}),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 122 a string default from the schema is applied as the exact literal',
+      () {
+        final filled = Defaults.fromJson({});
+        expect(
+          filled.greeting,
+          equals('it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b'),
+        );
+      },
+    );
+
+    test(
       'bhv misc 089 a date-time in a container is written in canonical form',
       () {
         final at = DateTime.utc(2026, 1, 2, 3, 4, 5);
