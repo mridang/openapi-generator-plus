@@ -107,7 +107,7 @@ defmodule PetstoreClient.Models.MetadataTest do
   # documentation noise. It is a parity assertion that should already pass and
   # stay passing.
   describe "generated model docblocks (L1 parity)" do
-    test ~s(bhv models 007 no generated model carries a literal "Example: null" / "@example null" doc line) do
+    test "bhv models 007 no generated model carries a literal example null doc line" do
       model_files =
         Path.wildcard(Path.join([File.cwd!(), "lib", "**", "models", "*.ex"]))
 
