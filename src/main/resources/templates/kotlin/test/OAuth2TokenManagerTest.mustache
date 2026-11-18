@@ -600,6 +600,10 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    @DisplayName("bhvAuth056 an expires_in value is honoured only as a decimal number and any other value marks the token stale")
+    fun bhvAuth056NonDecimalExpiresInMarksTheTokenStale() = nonFiniteExpiresInMarksTheTokenStale()
+
+    @Test
     fun nonFiniteExpiresInMarksTheTokenStale() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"inf1","expires_in":"Infinity"}""")

@@ -496,6 +496,10 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("bhvLifecycle041 supplying an HTTP client with SDK proxy, TLS or redirect settings is rejected with a conflict")
+        fun bhvLifecycle041SuppliedClientWithSdkSettingsConflicts() = httpClientConflictsWithSdkTransportSettings()
+
+        @Test
         @DisplayName("bhvLifecycle024 a supplied httpClient conflicts with the SDK proxy, caCertPath and verifySsl=false settings")
         fun httpClientConflictsWithSdkTransportSettings() {
             val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
