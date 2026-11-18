@@ -2439,6 +2439,15 @@ private final class UnitStubURLProtocol: URLProtocol {
       client?.urlProtocolDidFinishLoading(self)
       return
     }
+    /* URLSession follows a redirect only when the protocol reports it through
+     * wasRedirectedTo; a 3xx delivered as a plain response is returned unfollowed. */
+    if (300..<400).contains(statusCode), let location = headers["Location"],
+      let redirectURL = URL(string: location, relativeTo: requestURL)?.absoluteURL
+    {
+      var next = request
+      next.url = redirectURL
+      client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
+    }
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     if failWith == "cannotDecodeContentData" {
       client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))
