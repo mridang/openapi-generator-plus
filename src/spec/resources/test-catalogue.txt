@@ -2389,3 +2389,5 @@ langphp044 | The test runner configuration runs the hand written spec directory 
 langphp045 | A call hook set on the builder is returned by the configuration.
 langphp046 | A configuration has no call hook unless one was set.
 langphp047 | The debug output of a configuration omits its call hook.
+langphp048 | A secret constructor parameter is marked sensitive so its value is hidden from stack traces and dumps. | multi
+langphp049 | An explicit API key takes precedence over the environment variable and a key provider.
