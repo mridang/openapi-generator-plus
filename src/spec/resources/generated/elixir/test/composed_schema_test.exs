@@ -145,6 +145,48 @@ defmodule PetstoreClient.ComposedSchemaTest do
         PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
       end
     end
+
+    test "bhv unions 037 a union wrapper built from a variant holds that exact value and returns it unchanged" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+
+      assert PetstoreClient.Models.PetFood.from_dry_food(dry) === dry
+    end
+
+    test "bhv unions 038 a union body that cannot be decoded raises the SDK's serialization error" do
+      # A non-string discriminator, a discriminator key that differs in case
+      # (so it is missing), and a null discriminator each fail to decode.
+      for json <- [
+            ~s({"foodType":7,"weightKg":2.5}),
+            ~s({"FoodType":"dry","weightKg":2.5}),
+            ~s({"foodType":null,"weightKg":2.5})
+          ] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+        end
+      end
+    end
+
+    test "bhv unions 040 a union wrapper's typed accessor returns the variant it holds and nothing for the other variants" do
+      wet = %PetstoreClient.Models.WetFood{volume_ml: 400, food_type: "wet"}
+      wrapped = PetstoreClient.Models.PetFood.from_wet_food(wet)
+
+      assert PetstoreClient.Models.PetFood.as_wet_food(wrapped) == wet
+      assert PetstoreClient.Models.PetFood.as_dry_food(wrapped) == nil
+    end
+
+    test "bhv unions 042 a union wrapper built with no variant holds no instance and every accessor answers empty" do
+      refute PetstoreClient.Models.PetFood.dry_food?(nil)
+      refute PetstoreClient.Models.PetFood.wet_food?(nil)
+      assert PetstoreClient.Models.PetFood.as_dry_food(nil) == nil
+      assert PetstoreClient.Models.PetFood.as_wet_food(nil) == nil
+    end
+
+    test "bhv unions 043 a discriminator value set on a subtype is written as given, not replaced by its default" do
+      food = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "custom"}
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(food))["foodType"] ==
+               "custom"
+    end
   end
 
   # -- anyOf without discriminator: PetTreatment --
@@ -392,6 +434,17 @@ defmodule PetstoreClient.ComposedSchemaTest do
       restored = SetPetAvatarThumbnailRequest.build(wire)
 
       assert restored == [first, second]
+    end
+
+    test "bhv unions 041 a oneOf without a discriminator resolves a string and an array to their own variants" do
+      raw = <<0x01, 0x02, 0x03, 0x04>>
+
+      scalar = SetPetAvatarThumbnailRequest.build("AQIDBA==")
+      array = SetPetAvatarThumbnailRequest.build(["AQIDBA=="])
+
+      assert scalar == raw
+      refute is_list(scalar)
+      assert array == [raw]
     end
   end
 
