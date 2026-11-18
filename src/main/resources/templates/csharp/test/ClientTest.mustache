@@ -427,6 +427,13 @@ public sealed class ClientTest : IDisposable
 
     [Fact]
     public void BhvAuth003FromEnvironmentTreatsAnEmptyVariableAsUnset()
+    {
+        WithEnvironment("http://localhost", "", () =>
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() => {{clientClassName}}.FromEnvironment());
+            Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+        });
+    }
 
     [Theory]
     [InlineData("http://localhost", "", TokenVariable)]

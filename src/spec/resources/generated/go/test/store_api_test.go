@@ -844,6 +844,20 @@ func TestBhvOperations154_StoreApi_ResponseBodyIsCheckedOnlyAgainstItsOwnStatusS
 	}
 }
 
+// The status code, not the shape of the body, selects the variant: this body fits
+// the receipt schema but not the reservation schema, so a 200 is refused.
+func TestBhvUnions036_StoreApi_ReserveStockRefusesABodyThatDoesNotFitTheStatusVariant(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`{"receiptCode":"rcpt-77","expiresAt":"2030-01-01T00:00:00.000+00:00"}`, func(*http.Request) {})
+	defer server.Close()
+
+	_, err := newStoreApiForMock(t, server).ReserveStock(context.Background())
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError for a 200 body that does not fit, got %T: %v", err, err)
+	}
+}
+
 func TestBhvOperations139_StoreApi_SearchStoreKeepsTheFractionOfATimeParameter(t *testing.T) {
 	t.Parallel()
 	var query string

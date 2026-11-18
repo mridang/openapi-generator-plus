@@ -15,6 +15,8 @@ use std::thread;
 
 use petstore::api_client::{RequestBody, RequestOptions};
 use petstore::*;
+
+use petstore::api::PetApi;
 // The `default_api_client` module is crate-private, so its free helpers
 // (build_filename_directive, decode_text_body, is_https_to_http_body_replay,
 // mime_for_filename, parse_charset, validate_multipart_filename,

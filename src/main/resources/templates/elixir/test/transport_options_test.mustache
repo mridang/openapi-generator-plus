@@ -415,6 +415,7 @@ defmodule {{moduleName}}.TransportOptionsTest do
     shown = inspect({{moduleName}}.TransportOptions.new(max_retries: 7))
 
     assert shown =~ "max_retries: 7"
+  end
 
   test "bhv options 065 the printable form of transport options never shows a proxy password or caller-supplied hook values" do
     opts =

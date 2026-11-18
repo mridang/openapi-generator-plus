@@ -428,6 +428,42 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert shown =~ "max_retries: 7"
   end
 
+  test "bhv options 065 the printable form of transport options never shows a proxy password or caller-supplied hook values" do
+    opts =
+      PetstoreClient.TransportOptions.new(
+        proxy: "http://user:s3cret-pass@proxy.example.com:8080",
+        req_options: [
+          adapter: fn request -> {request, Req.Response.new(status: 200)} end,
+          auth: {:bearer, "hook-token-value"}
+        ]
+      )
+
+    shown = inspect(opts)
+    refute shown =~ "s3cret-pass"
+    refute shown =~ "hook-token-value"
+    assert shown =~ "adapter:"
+  end
+
+  test "bhv options 066 the printable form of transport options shows a proxy URL with no credentials exactly as configured" do
+    shown = inspect(PetstoreClient.TransportOptions.new(proxy: "http://proxy.example.com:3128"))
+    assert shown =~ ~s(proxy: "http://proxy.example.com:3128")
+  end
+
+  test "bhv options 067 building transport options directly with a valid proxy keeps it, and with no proxy the proxy is unset" do
+    proxy = "http://proxy.example.com:8080"
+
+    direct = %PetstoreClient.TransportOptions{proxy: proxy}
+    assert direct.proxy == proxy
+    assert PetstoreClient.TransportOptions.new(proxy: proxy).proxy == proxy
+    assert PetstoreClient.TransportOptions.new().proxy == nil
+  end
+
+  test "bhv redirects 045 supplying req_options that follow redirects on their own is refused with an error" do
+    assert_raise ArgumentError, ~r/redirect/, fn ->
+      PetstoreClient.TransportOptions.new(req_options: [redirect: true])
+    end
+  end
+
   test "req_options defaults to an empty list" do
     assert PetstoreClient.TransportOptions.new().req_options == []
   end

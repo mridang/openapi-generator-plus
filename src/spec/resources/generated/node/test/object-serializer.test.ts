@@ -45,6 +45,7 @@ import {
   PhotoMetadataLocation,
   Metadata,
   StrictTag,
+  Tag,
   RequiredNullable,
 } from "../src/models/index.js";
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
@@ -964,6 +965,27 @@ describe("ObjectSerializer", () => {
       );
     });
 
+    test("applies required-field checks to a nested Pet", () => {
+      const json = { pet: {} };
+      expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
+        /^Failed to deserialize JSON: name is required$/,
+      );
+    });
+
+    test("bhv serialization 025 typed leaves nested in an array of models decode to their own types", () => {
+      const pet = ObjectSerializer.deserialize(
+        {
+          name: "Fido",
+          photoUrls: [],
+          status: "available",
+          tags: [{ id: 1, name: "good" }],
+        },
+        Pet,
+      );
+      expect(pet!.tags![0]).toBeInstanceOf(Tag);
+      expect(pet!.status).toBe(PetStatusEnum.Available);
+    });
+
     test("applies the unknown-enum check to a nested Pet", () => {
       const json = { pet: { name: "x", photoUrls: [], status: "banana" } };
       expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
@@ -1562,7 +1584,7 @@ describe("ObjectSerializer", () => {
       expect(out["cats"]!.name).toBe("Cats");
     });
 
-    test("deserializeMap of an empty object yields an empty record", () => {
+    test("bhv serialization 026 deserializeMap of an empty object yields an empty record", () => {
       expect(ObjectSerializer.deserializeMap({}, Category)).toEqual({});
     });
 
@@ -2294,7 +2316,7 @@ describe("ObjectSerializer", () => {
       expect(item!.availability).toBe(Availability.Sold);
     });
 
-    test("the default is sent on the wire", () => {
+    test("bhv serialization 020 the default is sent on the wire", () => {
       const item = new StockItem({ priority: Priority.Number1 });
       expect(JSON.parse(ObjectSerializer.serialize(item)).availability).toBe(
         "on-hold",
@@ -2358,7 +2380,33 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("deserialize maps the wire string back to the right member", () => {
+    test("bhv serialization 002 serialize preserves the exact wire casing of each member", () => {
+      const available = new StockItem({
+        priority: Priority.Number1,
+        availability: Availability.Available,
+      });
+      expect(
+        JSON.parse(ObjectSerializer.serialize(available)).availability,
+      ).toBe("Available");
+
+      const sold = new StockItem({
+        priority: Priority.Number1,
+        availability: Availability.Sold,
+      });
+      expect(JSON.parse(ObjectSerializer.serialize(sold)).availability).toBe(
+        "Sold",
+      );
+
+      const onHold = new StockItem({
+        priority: Priority.Number1,
+        availability: Availability.OnHold,
+      });
+      expect(JSON.parse(ObjectSerializer.serialize(onHold)).availability).toBe(
+        "on-hold",
+      );
+    });
+
+    test("bhv serialization 003 deserialize maps the wire string back to the right member", () => {
       const item = ObjectSerializer.deserialize(
         { priority: 1, availability: "Available" },
         StockItem,
@@ -2709,6 +2757,25 @@ describe("ObjectSerializer", () => {
       );
     });
 
+    test("bhv serialization 022 a top-level JSON scalar decodes to a value of its own type", () => {
+      expect(ObjectSerializer.parseJson('"text"')).toBe("text");
+      expect(ObjectSerializer.parseJson("true")).toBe(true);
+    });
+
+    test("bhv serialization 023 content after the JSON document fails to decode with SerializationError", () => {
+      expect(() => ObjectSerializer.parseJson('{"a":1} {"b":2}')).toThrow(
+        SerializationError,
+      );
+      expect(() => ObjectSerializer.parseJson('{"a":1} x')).toThrow(
+        SerializationError,
+      );
+    });
+
+    test("bhv serialization 024 brackets inside a JSON string do not count toward the nesting limit", () => {
+      const text = JSON.stringify({ s: "[".repeat(1500) });
+      expect(ObjectSerializer.parseJson(text)).toEqual({ s: "[".repeat(1500) });
+    });
+
     test("bhv serializationobject 200 a serialize failure carries the canonical prefix and names the detail", () => {
       const unserializable = { count: BigInt(1) };
       let caught: unknown;
@@ -3028,6 +3095,13 @@ describe("model value-equality", () => {
   // node-model-equality: generated models expose a value-based equals(),
   // matching the value-equality the other SDKs provide.
   test("bhv models 020 structurally identical scalar models are equal", () => {
+    const a = new Category({ id: 1, name: "Dogs" });
+    const b = new Category({ id: 1, name: "Dogs" });
+    expect(a.equals(b)).toBe(true);
+    expect(b.equals(a)).toBe(true);
+  });
+
+  test("bhv serialization 021 values with equal content compare equal in both directions", () => {
     const a = new Category({ id: 1, name: "Dogs" });
     const b = new Category({ id: 1, name: "Dogs" });
     expect(a.equals(b)).toBe(true);
@@ -3414,6 +3488,19 @@ describe("toBinary", () => {
         ).toBe(wire);
       },
     );
+
+    test("bhv serialization 004 a generated enum lists its members and refuses a value outside them", () => {
+      expect(Object.values(Availability)).toEqual(
+        expect.arrayContaining(["Available", "Sold", "on-hold"]),
+      );
+      expect(Object.values(Availability)).not.toContain("banana");
+      expect(() =>
+        ObjectSerializer.deserialize(
+          { priority: 1, availability: "banana" },
+          StockItem,
+        ),
+      ).toThrow(SerializationError);
+    });
 
     test("bhv serializationobject 104 models named Error and Result are generated as ModelError and ModelResult and round trip", () => {
       const wire = {

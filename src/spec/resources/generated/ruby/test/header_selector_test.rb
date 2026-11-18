@@ -199,5 +199,11 @@ describe Petstore::Client::HeaderSelector do
       result = @header_selector.send(:select_accept_header, %w[image/jpeg image/png application/json])
       _(result).must_equal('image/jpeg, image/png, application/json')
     end
+
+    it 'bhv_headers_032 lists media types without quality weights' do
+      result = @header_selector.send(:select_accept_header, %w[text/html text/plain])
+      _(result).must_equal('text/html, text/plain')
+      _(result).wont_include('q=')
+    end
   end
 end

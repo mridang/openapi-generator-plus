@@ -1894,3 +1894,108 @@ async fn test_bhv_auth_010_token_request_leaves_the_transport_default_headers_ou
         head
     );
 }
+
+/// Setting the token from several tasks while other tasks read it never exposes a value that
+/// was not set: every read returns the seed or one of the tokens that were written.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_030_concurrent_set_and_read_never_observes_an_unset_token() {
+    let manager = Arc::new(OAuth2TokenManager::new());
+    manager.set_access_token("seed").await;
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let mut writers = Vec::new();
+    for writer in 0..3 {
+        let manager = manager.clone();
+        writers.push(tokio::spawn(async move {
+            for i in 0..200 {
+                manager.set_access_token(&format!("tok-{writer}-{i}")).await;
+            }
+        }));
+    }
+    let mut readers = Vec::new();
+    for _ in 0..3 {
+        let manager = manager.clone();
+        let params = params.clone();
+        readers.push(tokio::spawn(async move {
+            let mut seen: Vec<String> = Vec::new();
+            for _ in 0..200 {
+                seen.push(
+                    manager
+                        .get_access_token("https://auth.example.com/token", &params)
+                        .await
+                        .expect("a read must succeed"),
+                );
+            }
+            seen
+        }));
+    }
+
+    for writer in writers {
+        writer.await.expect("writer should not panic");
+    }
+    for reader in readers {
+        for token in reader.await.expect("reader should not panic") {
+            assert!(
+                token == "seed" || token.starts_with("tok-"),
+                "a read observed a value that was never set: {token}"
+            );
+        }
+    }
+}
+
+/// A token endpoint error keeps a valid error code when its optional description or URI is not a
+/// string, dropping only that field.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_errors_082_a_malformed_optional_field_is_dropped_and_the_code_kept() {
+    let cases = [
+        (
+            r#"{"error":"invalid_grant","error_description":42,"error_uri":["x"]}"#,
+            Some("invalid_grant"),
+            None,
+            None,
+        ),
+        (
+            r#"{"error":"invalid_grant","error_description":"Expired","error_uri":false}"#,
+            Some("invalid_grant"),
+            Some("Expired"),
+            None,
+        ),
+    ];
+    for (body, code, description, uri) in cases {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(body, 400);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let err = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect_err("an error status must fail");
+        let server_error = err
+            .downcast_ref::<OAuth2ServerError>()
+            .expect("an OAuth2ServerError");
+        assert_eq!(code, server_error.code(), "{body}");
+        assert_eq!(description, server_error.description(), "{body}");
+        assert_eq!(uri, server_error.uri(), "{body}");
+    }
+
+    /* A non-string error value is not taken as an error code. */
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":7,"error_description":"Expired"}"#, 400);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("an error status must fail");
+    let server_error = err
+        .downcast_ref::<OAuth2ServerError>()
+        .expect("an OAuth2ServerError");
+    assert_eq!(None, server_error.code());
+}

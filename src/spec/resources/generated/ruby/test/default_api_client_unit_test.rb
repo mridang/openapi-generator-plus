@@ -6,6 +6,7 @@ require 'openssl'
 require 'socket'
 require 'stringio'
 require 'tempfile'
+require 'tmpdir'
 require 'zlib'
 require 'petstore_client'
 
@@ -1642,7 +1643,7 @@ describe 'DefaultApiClientUnit' do
     client = Petstore::Client::DefaultApiClient.new(transport)
     headers = {
       'X-API-Key' => 'secret-api-key-value',
-      'X-Internal-Key' => 'secret-api-key-value'
+      'X-Internal-Key' => 'secret-api-key-value',
     }
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request(:GET, 'http://localhost/start', headers, nil)
@@ -1767,9 +1768,11 @@ describe 'DefaultApiClientUnit' do
     # Faraday's net_http adapter wraps Net::OpenTimeout in ConnectionFailed.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/connect-timeout') do
-        raise Net::OpenTimeout, 'execution expired'
-      rescue Net::OpenTimeout => e
-        raise Faraday::ConnectionFailed, e
+        begin
+          raise Net::OpenTimeout, 'execution expired'
+        rescue Net::OpenTimeout => e
+          raise Faraday::ConnectionFailed, e
+        end
       end
     end
     client = Petstore::Client::DefaultApiClient.new(single_attempt)
@@ -1787,9 +1790,11 @@ describe 'DefaultApiClientUnit' do
     # same budget as the connect and read ones, so it is the same error type.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/write-timeout') do
-        raise Net::WriteTimeout, 'execution expired'
-      rescue Net::WriteTimeout => e
-        raise Faraday::TimeoutError, e
+        begin
+          raise Net::WriteTimeout, 'execution expired'
+        rescue Net::WriteTimeout => e
+          raise Faraday::TimeoutError, e
+        end
       end
     end
     client = Petstore::Client::DefaultApiClient.new(single_attempt)
@@ -2730,5 +2735,222 @@ describe 'DefaultApiClientUnit' do
       client.close
       _(closes.length).must_equal 1
     end
+
+  # ── Wire and transport surface (ruby-03) ──
+
+  it 'bhv_serialization_055 honours a charset parameter matched by name ignoring case and spacing, never by suffix' do
+    client = Petstore::Client::DefaultApiClient.new
+    _(client.send(:detect_encoding, 'text/plain; Charset = "ISO-8859-1"')).must_equal Encoding::ISO_8859_1
+    _(client.send(:detect_encoding, 'text/plain; xcharset=ISO-8859-1')).must_equal Encoding::UTF_8
+  end
+
+  it 'bhv_serialization_056 escapes quotes and backslashes in multipart field and file names' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { 'x"y\\z.txt' }
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'a"b\\c' => io })
+    end
+    body = captured_body.to_s.dup.force_encoding(Encoding::UTF_8)
+    _(body).must_include 'name="a\\"b\\\\c"'
+    _(body).must_include 'filename="x\\"y\\\\z.txt"'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serialization_057 refuses a multipart field name with a NUL byte or a line break before any request' do
+    sent = false
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do
+        sent = true
+        [200, {}, '{}']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises(ArgumentError) { client.send_request('POST', 'http://localhost/upload', {}, { "fi\r\nle" => 'x' }) }
+      assert_raises(ArgumentError) { client.send_request('POST', 'http://localhost/upload', {}, { "fi\0le" => 'x' }) }
+    end
+    refute sent
+  end
+
+  it 'bhv_serialization_058 sends a multipart part with no filename as application/octet-stream' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'blob' => StringIO.new("\x00\x01".b) })
+    end
+    _(captured_body.to_s.b).must_include 'Content-Type: application/octet-stream'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serialization_059 sends a raw binary value as a file part that carries exactly its bytes' do
+    bytes = "\x00\xFF\x7F\r\n".b
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    io = StringIO.new(bytes.dup)
+    io.define_singleton_method(:path) { 'data.bin' }
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'data' => io })
+    end
+    _(captured_body.to_s.b).must_include "filename=\"data.bin\"\r\nContent-Type: application/octet-stream\r\n\r\n".b + bytes + "\r\n".b
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serialization_060 sends a model as a multipart part that declares application/json' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'edge' => MultipartModelPart.new(is_enabled: true) })
+    end
+    _(captured_body.to_s.dup.force_encoding(Encoding::UTF_8)).must_include "name=\"edge\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true}"
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_transport_070 passes a per-call timeout to the transport as the request timeout' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/slow') do |env|
+        seen = env.request.timeout
+        [200, {}, '{}']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.timeout(60_000).max_retries(0).build)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/slow', {}, nil, timeout: 2_000)
+    end
+    _(seen).must_be :>, 1.0
+    _(seen).must_be :<=, 2.0
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_transport_071 applies one configured timeout to connect, write, read and the overall deadline' do
+    seen = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/bounded') do |env|
+        seen = [env.request.timeout, env.request.open_timeout, env.request.write_timeout]
+        [200, {}, '{}']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.timeout(50).max_retries(0).build)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/bounded', {}, nil)
+    end
+    _(seen.all? { |seconds| seconds.positive? && seconds <= 0.05 }).must_equal(true)
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_transport_073 raises the API error for a response whose compressed stream is corrupt' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/corrupt') do
+        [200, { 'content-type' => 'application/octet-stream', 'content-encoding' => 'gzip' }, "\x1F\x8Bcorrupt".b]
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
+        client.send_request('GET', 'http://localhost/corrupt', {}, nil)
+      end
+      _(err.status_code).must_equal 200
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_transport_074 raises ApiError rather than returning a br body whose codec cannot decode it' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/br') do
+        [200, { 'content-type' => 'application/octet-stream', 'content-encoding' => 'br' }, 'not-brotli'.b]
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
+        client.send_request('GET', 'http://localhost/br', {}, nil)
+      end
+      _(err.status_code).must_equal 200
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_transport_075 decodes a zstd body whose frame does not declare its size, whatever the expansion ratio' do
+    skip 'the zstd-ruby gem is not installed' unless defined?(Zstd::StreamWriter)
+
+    payload = 'a' * 4_000_000
+    sink = StringIO.new(String.new(encoding: Encoding::BINARY))
+    writer = Zstd::StreamWriter.new(sink)
+    writer.write(payload)
+    writer.close
+    frame = sink.string
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/zstd') do
+        [200, { 'content-type' => 'text/plain', 'content-encoding' => 'zstd' }, frame]
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/zstd', {}, nil)
+      _(response.body.bytesize).must_equal 4_000_000
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_transport_076 percent-decodes proxy credentials before sending them and keeps a literal plus' do
+    client = Petstore::Client::DefaultApiClient.new(
+      Petstore::Client::TransportOptions.builder.proxy('http://us%40er:p%2Bss+x@proxy.example.com:8080').build
+    )
+    proxy = client.send(:connection).proxy
+
+    _(proxy.user).must_equal 'us@er'
+    _(proxy.password).must_equal 'p+ss+x'
+  end
+
+  it 'bhv_transport_077 names the CA certificate path that is a directory when the client is built' do
+    dir = Dir.tmpdir
+    error = assert_raises(ArgumentError) do
+      Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.ca_cert_path(dir).build)
+    end
+    _(error.message).must_include dir
+  end
+
+  it 'bhv_transport_081 sends every request through the caller-supplied HTTP client with the URL and headers unchanged' do
+    seen = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/items') do |env|
+        seen << [env.url.to_s, env.request_headers['X-Caller']]
+        [200, {}, '{}']
+      end
+    end
+    supplied = Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+    client = Petstore::Client::DefaultApiClient.new(
+      Petstore::Client::TransportOptions.builder.connection(supplied).max_retries(0).build
+    )
+    2.times { client.send_request('GET', 'http://localhost/items', { 'X-Caller' => 'kept' }, nil) }
+
+    _(seen).must_equal([['http://localhost/items', 'kept']] * 2)
+    stubs.verify_stubbed_calls
   end
 end

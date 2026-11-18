@@ -114,6 +114,44 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert String.contains?(response.body, "GET")
   end
 
+  test "bhv transport 081 a caller-supplied HTTP client carries every request with its URL and headers unchanged" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:sent, request})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+      )
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "http://custom.invalid/one",
+      %{"X-Caller" => "first"},
+      nil
+    )
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :post,
+      "http://custom.invalid/two",
+      %{"X-Caller" => "second"},
+      "payload"
+    )
+
+    assert_receive {:sent, first}
+    assert_receive {:sent, second}
+
+    assert URI.to_string(first.url) == "http://custom.invalid/one"
+    assert Req.Request.get_header(first, "x-caller") == ["first"]
+    assert URI.to_string(second.url) == "http://custom.invalid/two"
+    assert Req.Request.get_header(second, "x-caller") == ["second"]
+  end
+
   test "bhv transport 040 a custom adapter in req_options receives the request with the SDK defaults on top" do
     test_pid = self()
 
@@ -255,6 +293,32 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
         deadline: deadline
       )
     end
+  end
+
+  test "bhv transport 070 a per-call timeout bounds the request deadline, not the transport timeout" do
+    adapter = fn request ->
+      Process.sleep(2_000)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new(req_options: [adapter: adapter], timeout: 60_000)
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    started = System.monotonic_time(:millisecond)
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://custom.invalid/echo",
+        %{},
+        nil,
+        timeout: 100
+      )
+    end
+
+    assert System.monotonic_time(:millisecond) - started < 1_500
   end
 
   test "bhv serializationwire 052 sends POST with JSON body" do
@@ -696,6 +760,16 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       )
 
     assert response.status_code == 200
+  end
+
+  test "bhv transport 076 percent-escapes in the proxy user information are decoded and a literal plus sign stays a plus sign" do
+    transport =
+      PetstoreClient.TransportOptions.new(proxy: "http://us%40er:p%2Bss+x@127.0.0.1:3128")
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    assert PetstoreClient.DefaultApiClient.proxy_auth_header(client) ==
+             "Basic " <> Base.encode64("us@er:p+ss+x")
   end
 
   test "bhv transport 046 leaves the proxy auth header null when no proxy is configured" do
@@ -1515,6 +1589,21 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
   end
 
+  test "bhv transport 077 a ca certificate path that names a directory fails when the client is built, naming that path" do
+    dir = Path.join(System.tmp_dir!(), "ca-dir-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf(dir) end)
+
+    err =
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.DefaultApiClient.new(
+          PetstoreClient.TransportOptions.new(ca_cert_path: dir)
+        )
+      end
+
+    assert err.message =~ inspect(dir)
+  end
+
   test "bhv errors 039 a caCertPath that is not PEM raises ArgumentError at construction" do
     path = Path.join(System.tmp_dir!(), "garbage-ca-#{System.unique_integer([:positive])}.pem")
     File.write!(path, "this is not a certificate")
@@ -1767,6 +1856,45 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
              "failed to read CA certificate from #{inspect(path)}: no such file or directory"
   end
 
+  test "bhv transport 072 a deadline that expires while sending the body raises the timeout error, a refused connection does not" do
+    timeout_adapter = fn request -> {request, %Req.TransportError{reason: :timeout}} end
+
+    timing_out =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: timeout_adapter])
+      )
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          timing_out,
+          :post,
+          "http://custom.invalid/upload",
+          %{},
+          "payload"
+        )
+      end
+
+    assert err.status_code == 0
+
+    refused_adapter = fn request -> {request, %Req.TransportError{reason: :econnrefused}} end
+
+    refusing =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: refused_adapter])
+      )
+
+    assert_raise PetstoreClient.Errors.NetworkError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        refusing,
+        :post,
+        "http://custom.invalid/upload",
+        %{},
+        "payload"
+      )
+    end
+  end
+
   test "bhv transport 065 a configured CA bundle replaces the system trust store instead of adding to it" do
     ca_cert_path = System.fetch_env!("CA_CERT_PATH")
     transport = PetstoreClient.TransportOptions.new(ca_cert_path: ca_cert_path)
@@ -2006,6 +2134,32 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   # An unrecognised Content-Encoding the client cannot decode hits the
   # decompressor's default clause and must surface a typed ApiError carrying the
   # response status, never a NetworkError and never the body still encoded.
+  test "bhv transport 074 a response compressed with a codec whose library is not installed raises an error, never the encoded body" do
+    base_url =
+      start_server(
+        200,
+        "application/octet-stream",
+        <<0x0B, 0x02, 0x80, 0x03>>,
+        [{"Content-Encoding", "br"}]
+      )
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    err =
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{base_url}/compressed",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 200
+    assert err.message == "Received a br-encoded response but the br library is unavailable"
+  end
+
   test "bhv errors 042 unsupported Content-Encoding surfaces ApiError with the real status" do
     base_url =
       start_server(

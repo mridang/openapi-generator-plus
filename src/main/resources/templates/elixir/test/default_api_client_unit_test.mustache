@@ -1565,6 +1565,7 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     err = assert_raise ArgumentError, fn -> {{moduleName}}.DefaultApiClient.new(transport) end
 
     assert err.message == "failed to read CA certificate from #{inspect(path)}: no such file or directory"
+  end
 
   test "bhv transport 072 a deadline that expires while sending the body raises the timeout error, a refused connection does not" do
     timeout_adapter = fn request -> {request, %Req.TransportError{reason: :timeout}} end
