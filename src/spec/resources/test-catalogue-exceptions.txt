@@ -200,10 +200,6 @@ java | lifecycle026 | Java builds a client with no credential by design (Client.
 kotlin | config024 | Kotlin keeps no process-wide default configuration by design: defaultConfiguration() returns a fresh instance on every call (bhv config 014 pins it), so there is no setter whose effect a later lookup could return
 php | authoidc029 | PHP serves one request per process and has no lock around OIDC rediscovery, so no two callers ever share a cold discovery (php AGENTS, concurrency)
 rust | transport061 | RequestBody has only Bytes and Multipart variants, so no caller-supplied stream reaches the transport and nothing is left open after the body is sent; streaming request bodies are open work in issue #114
-php | authscheme013 | php: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-php | authscheme014 | php: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-php | authscheme015 | php: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-php | authscheme016 | php: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
 dart | authscheme008 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
 dart | authscheme013 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
 dart | authscheme014 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)

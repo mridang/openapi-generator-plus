@@ -18,15 +18,20 @@ namespace PetstoreClient\Auth\OAuth;
  */
 final class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator
 {
+    protected const array ENV_VARS = [
+        'clientId' => 'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID',
+        'clientSecret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET',
+    ];
+
     public function __construct(
         string $host,
-        string $clientId,
-        #[\SensitiveParameter] string $clientSecret
+        ?string $clientId = null,
+        #[\SensitiveParameter] ?string $clientSecret = null
     ) {
         parent::__construct(
             $host,
-            $clientId,
-            $clientSecret,
+            self::credentialOrEnvironment($clientId, 'clientId'),
+            self::credentialOrEnvironment($clientSecret, 'clientSecret'),
             'https://auth.example.com/oauth/token',
             ['pets:read', 'pets:write']
         );

@@ -755,6 +755,34 @@ test('bhv authoauthtwoauthcode 020 scheme wrapper sends the spec scopes and urls
     expect($url)->toContain('scope=' . rawurlencode(implode(' ', ['pets:read', 'pets:write'])));
 });
 
+test('bhv authscheme 015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/OAuth/*.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\OAuth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, OAuth2AuthorizationCodeAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $variables = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'));
+        foreach ($variables as $empty) {
+            $saved = [];
+            foreach ($variables as $variable) {
+                $saved[$variable] = getenv($variable);
+                putenv($variable === $empty ? $variable . '=' : $variable . '=set-value');
+            }
+            try {
+                expect(fn () => new $class('https://api.example.com'))
+                    ->toThrow(\InvalidArgumentException::class, $empty);
+            } finally {
+                foreach ($saved as $variable => $value) {
+                    putenv($value === false ? $variable : $variable . '=' . $value);
+                }
+            }
+        }
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
 /**
  * Builds the authenticator of the PKCE tests, with a known verifier in place of the random one.
  */

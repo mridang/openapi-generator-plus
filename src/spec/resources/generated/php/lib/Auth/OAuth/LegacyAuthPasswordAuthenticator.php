@@ -18,20 +18,27 @@ namespace PetstoreClient\Auth\OAuth;
  */
 final class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator
 {
+    protected const array ENV_VARS = [
+        'clientId' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID',
+        'clientSecret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET',
+        'username' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME',
+        'password' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD',
+    ];
+
     public function __construct(
         string $host,
-        string $clientId,
-        #[\SensitiveParameter] string $clientSecret,
-        string $username,
-        #[\SensitiveParameter] string $password
+        ?string $clientId = null,
+        #[\SensitiveParameter] ?string $clientSecret = null,
+        ?string $username = null,
+        #[\SensitiveParameter] ?string $password = null
     ) {
         parent::__construct(
             $host,
-            $clientId,
-            $clientSecret,
+            self::credentialOrEnvironment($clientId, 'clientId'),
+            self::credentialOrEnvironment($clientSecret, 'clientSecret'),
             'https://auth.example.com/oauth/token',
-            $username,
-            $password,
+            self::credentialOrEnvironment($username, 'username'),
+            self::credentialOrEnvironment($password, 'password'),
             ['read'],
             'https://auth.example.com/oauth/refresh'
         );

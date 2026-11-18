@@ -33,7 +33,7 @@ $authenticator = new BearerAuthenticator('https://api.example.com', 'your-token'
 $client = new {{clientClassName}}($authenticator);
 ```
 
-A generated authenticator of a basic, bearer or API key scheme reads its credential from an environment variable when you pass `null` (read once when the authenticator is built, an empty value counts as unset, a missing credential throws `InvalidArgumentException`; an argument always wins):
+A generated authenticator of a basic, bearer, API key or OAuth 2 scheme reads each credential from an environment variable when you pass `null` (read once when the authenticator is built, an empty value counts as unset, a missing credential throws `InvalidArgumentException`; an argument always wins):
 
 {{#credentialSchemeEnvVars}}
 - `{{className}}` reads `{{envName}}` for `{{field}}`.
