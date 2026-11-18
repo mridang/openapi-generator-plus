@@ -605,7 +605,7 @@ class TestStringify:
         self,
     ) -> None:
         with pytest.raises(SerializationException):
-            ObjectSerializer()._deserialize("aGk", "bytes")
+            ObjectSerializer().deserialize('"aGk"', "bytes")
 
     def test_bhv_serialization_091_bytes_with_the_high_bit_set_survive_a_round_trip(
         self,
@@ -1327,14 +1327,18 @@ class TestDeserialize:
     ) -> None:
         from petstore_client.models.defaults import Defaults
 
-        assert ObjectSerializer().deserialize('{"label":null}', Defaults).label is None
+        decoded = ObjectSerializer().deserialize('{"label":null}', Defaults)
+        assert decoded is not None
+        assert decoded.label is None
 
     def test_bhv_serialization_096_an_absent_field_decodes_to_its_declared_default(
         self,
     ) -> None:
         from petstore_client.models.defaults import Defaults
 
-        assert ObjectSerializer().deserialize("{}", Defaults).retries == 3
+        decoded = ObjectSerializer().deserialize("{}", Defaults)
+        assert decoded is not None
+        assert decoded.retries == 3
 
     def test_bhv_serialization_097_an_enum_default_is_written_when_the_field_is_serialized(
         self,
@@ -1796,7 +1800,7 @@ class TestModelsAreImmutable:
         assert json.loads(ObjectSerializer().serialize([[1, 2], [3]])) == [[1, 2], [3]]
 
     def test_bhv_serialization_079_a_copy_changes_only_the_named_fields(self) -> None:
-        pet = Pet(name="Fido", photoUrls=["x"])
+        pet = Pet(name="Fido", photoUrls={"x"})
         copy = pet.model_copy(update={"name": "Rex"})
         assert copy is not pet
         assert copy.name == "Rex"

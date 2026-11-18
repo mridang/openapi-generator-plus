@@ -92,6 +92,19 @@ class TestMetadataTypedAdditionalProperties:
         metadata = Metadata(additional_properties={"k": "v"})
         assert metadata.additional_properties == {"k": "v"}
 
+    def test_bhv_models_026_undeclared_keys_survive_decoding_and_are_written_at_the_top_level(
+        self,
+    ) -> None:
+        import json
+
+        from petstore_client.object_serializer import ObjectSerializer
+
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', "Metadata"
+        )
+        wire = json.loads(ObjectSerializer().serialize(metadata))
+        assert wire["region"] == "eu"
+
     def test_dict_valued_wire_key_survives_full_round_trip(self) -> None:
         # End-to-end: deserialize -> serialize -> deserialize keeps the
         # dict-valued `additional_properties` wire property intact. The
@@ -810,7 +823,7 @@ class TestEveryOperationTakesOptions:
         "module,api,operation,options_name,call_settings_only",
         [entry for entry in OPERATIONS if entry[4]],
     )
-    def test_an_operation_without_parameters_builds_its_options_from_the_call_settings(
+    def test_bhv_misc_011_an_operation_without_parameters_builds_its_options_from_the_call_settings(
         self,
         module: str,
         api: str,
@@ -885,7 +898,7 @@ class TestMetadataEquality:
         assert first.created_at == second.created_at
         assert first != second
 
-    def test_an_extra_property_makes_instances_unequal(self) -> None:
+    def test_bhv_models_025_an_extra_property_makes_instances_unequal(self) -> None:
         bare = self._decode('{"createdAt":"2024-01-01T00:00:00Z"}')
         extra = self._decode('{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}')
 

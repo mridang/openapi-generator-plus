@@ -149,6 +149,15 @@ class TestTransportOptions:
         with pytest.raises(ValueError):
             TransportOptions(timeout=-1)
 
+    def test_bhv_options_068_a_socks_proxy_is_refused_at_construction_with_the_documented_message(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().proxy("socks5://proxy.example.com:1080")
+        assert str(exc_info.value) == (
+            "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080"
+        )
+
     def test_bhv_options_051_a_proxy_url_with_a_scheme_other_than_http_or_https_is_rejected(
         self,
     ) -> None:

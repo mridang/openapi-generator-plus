@@ -1880,6 +1880,11 @@ class TestCaCertPathFailsFast:
     parsed must fail fast at construction with a ValueError rather than
     silently falling back to the system trust store (security theater)."""
 
+    def test_bhv_errors_098_a_missing_ca_path_names_the_certificate_at_construction(self) -> None:
+        transport = TransportOptions.builder().ca_cert_path("/nonexistent/ca.pem").build()
+        with pytest.raises(ValueError, match="/nonexistent/ca.pem"):
+            DefaultApiClient(transport)
+
     def test_bhv_errors_041_nonexistent_ca_cert_path_raises_value_error(self) -> None:
         from {{packageName}}.errors import {{errorPrefix}}Exception
 

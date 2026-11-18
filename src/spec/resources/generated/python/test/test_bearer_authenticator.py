@@ -64,6 +64,16 @@ class TestBearerAuthenticator:
         assert auth.get_auth_headers()["Authorization"] == "Bearer first"
         assert auth.get_auth_headers()["Authorization"] == "Bearer second"
 
+    def test_bhv_misc_017_a_rejected_credential_is_never_named_in_the_construction_error(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            BearerAuthenticator(
+                host="https://api.example.com", token="tok\r\nInjected: yes"
+            )
+        assert "tok\r\nInjected" not in str(exc_info.value)
+        assert "Injected" not in str(exc_info.value)
+
     def test_bhv_authbearer_005_rejects_empty_token(self) -> None:
         # bearer-no-empty-token-guard: an empty token would emit a bare
         # "Authorization: Bearer " header and send the request unauthenticated,

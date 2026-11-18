@@ -328,6 +328,13 @@ class TestFromResponse:
         assert err.response_body == '{"code":7}'
         assert err.error_body == {"code": 7}
 
+    def test_bhv_errors_097_an_unrecognised_4xx_status_raises_the_generic_client_error(
+        self,
+    ) -> None:
+        err = ApiException.from_response(499, {}, None)
+
+        assert type(err) is ClientException
+
     def test_bhv_errors_048_a_status_418_throws_client_exception(self) -> None:
         err = ApiException.from_response(418, None, None)
 
@@ -571,6 +578,16 @@ class TestApiErrorRendering:
         err = ApiException(status_code=0, message="boom")
 
         assert str(err) == "boom"
+
+    def test_bhv_misc_016_the_rendered_body_is_capped_and_states_the_bytes_omitted(
+        self,
+    ) -> None:
+        err = ApiException(
+            status_code=502, message="bad gateway", response_body="a" * 3000
+        )
+
+        assert "more bytes" in str(err)
+        assert len(str(err)) < 1500
 
     def test_bhv_errors_065_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out(
         self,
