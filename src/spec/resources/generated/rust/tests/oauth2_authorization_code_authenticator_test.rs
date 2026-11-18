@@ -200,7 +200,7 @@ async fn test_bhv_authoauthtwoauthcode_024_refresh_grant_goes_to_the_refresh_url
 /// The scheme wrapper sends the code exchange and the refresh grant to the URLs
 /// its security scheme declares.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
+async fn test_bhv_langrust_040_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
