@@ -241,7 +241,7 @@ void main() {
   });
 
   group('BaseApi', () {
-    test('error dispatch', () async {
+    test('bhv langdart 010 error dispatch', () async {
       // The Chasm mock serves only these status routes. Every status-to-exception
       // pair is pinned without a server by bhv errors 006 in the api error test.
       final testCases = <int, Type>{
@@ -290,7 +290,7 @@ void main() {
      * ApiException carries null for both. The `== null` assertions below
      * only compile when the fields are typed as nullable. */
     test(
-      'ApiException responseBody and responseHeaders are nullable',
+      'bhv langdart 011 ApiException responseBody and responseHeaders are nullable',
       () async {
         final client = DefaultApiClient();
         try {
@@ -314,23 +314,28 @@ void main() {
     // Cross-cutting `bearer-no-empty-token-guard`: BearerAuthenticator must
     // reject an empty / whitespace-only token at construction so it can
     // never emit a bare `Authorization: Bearer ` header.
-    test('BearerAuthenticator rejects empty or whitespace token', () {
-      expect(
-        () => BearerAuthenticator(host: 'https://api.example.com', token: ''),
-        throwsArgumentError,
-      );
-      expect(
-        () =>
-            BearerAuthenticator(host: 'https://api.example.com', token: '   '),
-        throwsArgumentError,
-      );
-      // A valid token still constructs and emits the expected header.
-      final ok = BearerAuthenticator(
-        host: 'https://api.example.com',
-        token: 't',
-      );
-      expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
-    });
+    test(
+      'bhv langdart 012 BearerAuthenticator rejects empty or whitespace token',
+      () {
+        expect(
+          () => BearerAuthenticator(host: 'https://api.example.com', token: ''),
+          throwsArgumentError,
+        );
+        expect(
+          () => BearerAuthenticator(
+            host: 'https://api.example.com',
+            token: '   ',
+          ),
+          throwsArgumentError,
+        );
+        // A valid token still constructs and emits the expected header.
+        final ok = BearerAuthenticator(
+          host: 'https://api.example.com',
+          token: 't',
+        );
+        expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
+      },
+    );
 
     test('bhv errors 034 parses JSON error body', () async {
       final config = ConfigurationBuilder()
@@ -1630,7 +1635,7 @@ void main() {
       },
     );
 
-    test('serializes number query params', () async {
+    test('bhv misc 238 serializes number query params', () async {
       final client = _CapturingApiClient();
       final api = _RecordingApi(client);
 
@@ -2026,21 +2031,24 @@ void main() {
       },
     );
 
-    test('query key keeps only the unreserved set literal', () async {
-      final client = _CapturingApiClient();
-      final api = BaseApi(
-        apiClient: client,
-        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
-      );
+    test(
+      'bhv serialization 111 query key keeps only the unreserved set literal',
+      () async {
+        final client = _CapturingApiClient();
+        final api = BaseApi(
+          apiClient: client,
+          config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+        );
 
-      await api.invokeApi(
-        method: 'GET',
-        path: '/q',
-        queryParams: <String, Object?>{'k~*': 'v'},
-      );
+        await api.invokeApi(
+          method: 'GET',
+          path: '/q',
+          queryParams: <String, Object?>{'k~*': 'v'},
+        );
 
-      expect(client.capturedUrl, endsWith('/q?k~%2A=v'));
-    });
+        expect(client.capturedUrl, endsWith('/q?k~%2A=v'));
+      },
+    );
 
     /* date-only-serialization (Case 14): `format: date` parameters are typed
      * as a plain String in Dart (typeMapping date -> String), so the caller's
@@ -2268,43 +2276,46 @@ void main() {
      * `filename="..."` fallback). Exercised on the live builder
      * (BaseApi._buildMultipartBody via the public buildFilenameDirective
      * the builder uses) and end-to-end through DefaultApiClient. */
-    test('multipart non-ASCII filename emits RFC 5987 filename*', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String receivedBody = '';
-      server.listen((request) async {
-        receivedBody = await utf8.decoder.bind(request).join();
-        request.response
-          ..statusCode = 200
-          ..close();
-      });
+    test(
+      'bhv misc 099 multipart non-ASCII filename emits RFC 5987 filename*',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String receivedBody = '';
+        server.listen((request) async {
+          receivedBody = await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        await client.sendRequest(
-          'POST',
-          'http://localhost:${server.port}/upload',
-          {'Content-Type': 'multipart/form-data; boundary=X'},
-          // Directly drive the live multipart builder used by operations.
-          // A Map<String, Object?> body routes through DefaultApiClient's
-          // multipart path; the non-ASCII name must produce filename*.
-          {
-            '日本.pdf': Uint8List.fromList([0x25, 0x50, 0x44, 0x46]),
-          },
-        );
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/upload',
+            {'Content-Type': 'multipart/form-data; boundary=X'},
+            // Directly drive the live multipart builder used by operations.
+            // A Map<String, Object?> body routes through DefaultApiClient's
+            // multipart path; the non-ASCII name must produce filename*.
+            {
+              '日本.pdf': Uint8List.fromList([0x25, 0x50, 0x44, 0x46]),
+            },
+          );
 
-        // The wire bytes are produced by package:http's MultipartRequest
-        // for the direct-Map path; the canonical RFC 5987 encoding is
-        // additionally asserted on the generated helper below so the
-        // operation path (BaseApi._buildMultipartBody) is covered too.
-        final directive = buildFilenameDirective('日本.pdf');
-        expect(directive, contains("filename*=UTF-8''"));
-        expect(directive, contains('%E6%97%A5%E6%9C%AC'));
-        expect(directive, startsWith('filename="'));
-        expect(receivedBody, isNotEmpty);
-      } finally {
-        await server.close();
-      }
-    });
+          // The wire bytes are produced by package:http's MultipartRequest
+          // for the direct-Map path; the canonical RFC 5987 encoding is
+          // additionally asserted on the generated helper below so the
+          // operation path (BaseApi._buildMultipartBody) is covered too.
+          final directive = buildFilenameDirective('日本.pdf');
+          expect(directive, contains("filename*=UTF-8''"));
+          expect(directive, contains('%E6%97%A5%E6%9C%AC'));
+          expect(directive, startsWith('filename="'));
+          expect(receivedBody, isNotEmpty);
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* multipart-model-part-wire-format: a multipart/form-data body that
      * carries a MODEL part (addPetPhotos sends a PhotoMetadata `metadata`
@@ -2322,7 +2333,7 @@ void main() {
      * raw multipart bytes. The cross-language contract must hold byte-for-
      * byte across all 12 SDKs. */
     test(
-      'multipart model part serializes with wire keys and date-time format',
+      'bhv langdart 013 multipart model part serializes with wire keys and date-time format',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         String receivedBody = '';
@@ -2986,36 +2997,39 @@ void main() {
       },
     );
 
-    test('falls back to UTF-8 for unknown charset without throwing', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.set(
-            'content-type',
-            'text/plain; charset=x-made-up-encoding',
-          )
-          ..add(utf8.encode('hello'))
-          ..close();
-      });
+    test(
+      'bhv langdart 014 falls back to UTF-8 for unknown charset without throwing',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.set(
+              'content-type',
+              'text/plain; charset=x-made-up-encoding',
+            )
+            ..add(utf8.encode('hello'))
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        final resp = await client.sendRequest(
-          'GET',
-          'http://localhost:${server.port}/api/test',
-          {},
-          null,
-        );
-        expect(
-          resp.body,
-          equals('hello'),
-          reason: 'unknown charset must fall back to UTF-8, not throw',
-        );
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/api/test',
+            {},
+            null,
+          );
+          expect(
+            resp.body,
+            equals('hello'),
+            reason: 'unknown charset must fall back to UTF-8, not throw',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     // -- NullBodyContentTypeTests --
 
@@ -3461,32 +3475,38 @@ void main() {
       expect(auth.invalidations, equals(0));
     });
 
-    test('a 401 is replayed even when retries are disabled', () async {
-      final auth = _RotatingAuth();
-      final client = _ScriptedApiClient([
-        _reply(401),
-        _reply(200),
-      ], maxRetries: 0);
-      final api = _RecordingApi(client, authenticator: auth);
+    test(
+      'bhv misc 159 a 401 is replayed even when retries are disabled',
+      () async {
+        final auth = _RotatingAuth();
+        final client = _ScriptedApiClient([
+          _reply(401),
+          _reply(200),
+        ], maxRetries: 0);
+        final api = _RecordingApi(client, authenticator: auth);
 
-      await api.invokeApi(method: 'GET', path: '/x');
+        await api.invokeApi(method: 'GET', path: '/x');
 
-      expect(client.sentHeaders, hasLength(2));
-    });
+        expect(client.sentHeaders, hasLength(2));
+      },
+    );
   });
 
   group('BaseApi retries', () {
-    test('a 503 is sent again once after about half a second', () async {
-      final client = _ScriptedApiClient([_reply(503), _reply(200)]);
-      final api = _RecordingApi(client);
+    test(
+      'bhv langdart 015 a 503 is sent again once after about half a second',
+      () async {
+        final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+        final api = _RecordingApi(client);
 
-      final response = await api.invokeApi(method: 'GET', path: '/x');
+        final response = await api.invokeApi(method: 'GET', path: '/x');
 
-      expect(response.statusCode, equals(200));
-      expect(client.sentHeaders, hasLength(2));
-      expect(api.waits, hasLength(1));
-      expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
-    });
+        expect(response.statusCode, equals(200));
+        expect(client.sentHeaders, hasLength(2));
+        expect(api.waits, hasLength(1));
+        expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
+      },
+    );
 
     test(
       'bhv retries 024 the wait doubles and the failure is reported after maxRetries retries',
@@ -3519,29 +3539,35 @@ void main() {
       }
     });
 
-    test('408, 409, 429 and 502 are retried', () async {
-      for (final status in [408, 409, 429, 502]) {
-        final client = _ScriptedApiClient([_reply(status), _reply(200)]);
-        final api = _RecordingApi(client);
+    test(
+      'bhv langdart 016 retries on 408, 409, 429 and 502 responses',
+      () async {
+        for (final status in [408, 409, 429, 502]) {
+          final client = _ScriptedApiClient([_reply(status), _reply(200)]);
+          final api = _RecordingApi(client);
 
-        await api.invokeApi(method: 'GET', path: '/x');
+          await api.invokeApi(method: 'GET', path: '/x');
 
-        expect(client.sentHeaders, hasLength(2), reason: 'status $status');
-      }
-    });
+          expect(client.sentHeaders, hasLength(2), reason: 'status $status');
+        }
+      },
+    );
 
-    test('400, 404, 422 and 501 are not retried', () async {
-      for (final status in [400, 404, 422, 501]) {
-        final client = _ScriptedApiClient([_reply(status), _reply(200)]);
-        final api = _RecordingApi(client);
+    test(
+      'bhv langdart 017 never retries 400, 404, 422 or 501 responses',
+      () async {
+        for (final status in [400, 404, 422, 501]) {
+          final client = _ScriptedApiClient([_reply(status), _reply(200)]);
+          final api = _RecordingApi(client);
 
-        await expectLater(
-          api.invokeApi(method: 'GET', path: '/x'),
-          throwsA(isA<ApiException>()),
-        );
-        expect(client.sentHeaders, hasLength(1), reason: 'status $status');
-      }
-    });
+          await expectLater(
+            api.invokeApi(method: 'GET', path: '/x'),
+            throwsA(isA<ApiException>()),
+          );
+          expect(client.sentHeaders, hasLength(1), reason: 'status $status');
+        }
+      },
+    );
 
     test('bhv retries 018 maxRetries 0 sends the request once', () async {
       final client = _ScriptedApiClient([
@@ -3734,19 +3760,22 @@ void main() {
       },
     );
 
-    test('an error that is not a network failure is not retried', () async {
-      final client = _ScriptedApiClient([
-        const ApiException(statusCode: 0, message: 'bad encoding'),
-        _reply(200),
-      ]);
-      final api = _RecordingApi(client);
+    test(
+      'bhv misc 160 an error that is not a network failure is not retried',
+      () async {
+        final client = _ScriptedApiClient([
+          const ApiException(statusCode: 0, message: 'bad encoding'),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
 
-      await expectLater(
-        api.invokeApi(method: 'GET', path: '/x'),
-        throwsA(isA<ApiException>()),
-      );
-      expect(client.sentHeaders, hasLength(1));
-    });
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<ApiException>()),
+        );
+        expect(client.sentHeaders, hasLength(1));
+      },
+    );
 
     test(
       'bhv retries 005 a retry asks the authenticator for the headers again',
@@ -4559,7 +4588,7 @@ void main() {
       headers: {'content-type': 'application/json'},
     );
 
-    test('a map of int32 leaves decodes integers', () async {
+    test('bhv langdart 018 a map of int32 leaves decodes integers', () async {
       final client = _ScriptedApiClient([jsonReply('{"a":1,"b":-2147483648}')]);
 
       expect(
@@ -4569,7 +4598,7 @@ void main() {
     });
 
     test(
-      'a map leaf that is fractional, quoted or out of range is refused',
+      'bhv misc 116 a map leaf that is fractional, quoted or out of range is refused',
       () async {
         for (final leaf in [
           '1.5',
@@ -4589,48 +4618,57 @@ void main() {
       },
     );
 
-    test('a nested array of int32 leaves is checked leaf by leaf', () async {
-      final ok = _ScriptedApiClient([jsonReply('[[1,2],[3]]')]);
-      expect(
-        await storeApi(ok).getMatrix(null),
-        equals([
-          [1, 2],
-          [3],
-        ]),
-      );
-
-      for (final leaf in ['1.5', '"1"', '4294967296']) {
-        final client = _ScriptedApiClient([jsonReply('[[1,$leaf]]')]);
-
-        await expectLater(
-          storeApi(client).getMatrix(null),
-          throwsA(isA<SerializationException>()),
-          reason: leaf,
-        );
-      }
-    });
-
-    test('a model property is checked against its integer width', () async {
-      expect(
-        deserialize<Order>('{"quantity":2147483647}', Order.fromJson)!.quantity,
-        equals(2147483647),
-      );
-      for (final value in ['2147483648', '1.5', '"7"']) {
+    test(
+      'bhv langdart 019 a nested array of int32 leaves is checked leaf by leaf',
+      () async {
+        final ok = _ScriptedApiClient([jsonReply('[[1,2],[3]]')]);
         expect(
-          () => deserialize<Order>('{"quantity":$value}', Order.fromJson),
-          throwsA(isA<SerializationException>()),
-          reason: value,
+          await storeApi(ok).getMatrix(null),
+          equals([
+            [1, 2],
+            [3],
+          ]),
         );
-      }
-      expect(
-        deserialize<Order>('{"id":9007199254740993}', Order.fromJson)!.id,
-        equals(9007199254740993),
-      );
-      expect(
-        () => deserialize<Order>('{"id":1.5}', Order.fromJson),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+
+        for (final leaf in ['1.5', '"1"', '4294967296']) {
+          final client = _ScriptedApiClient([jsonReply('[[1,$leaf]]')]);
+
+          await expectLater(
+            storeApi(client).getMatrix(null),
+            throwsA(isA<SerializationException>()),
+            reason: leaf,
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv langdart 020 a model property is checked against its integer width',
+      () async {
+        expect(
+          deserialize<Order>(
+            '{"quantity":2147483647}',
+            Order.fromJson,
+          )!.quantity,
+          equals(2147483647),
+        );
+        for (final value in ['2147483648', '1.5', '"7"']) {
+          expect(
+            () => deserialize<Order>('{"quantity":$value}', Order.fromJson),
+            throwsA(isA<SerializationException>()),
+            reason: value,
+          );
+        }
+        expect(
+          deserialize<Order>('{"id":9007199254740993}', Order.fromJson)!.id,
+          equals(9007199254740993),
+        );
+        expect(
+          () => deserialize<Order>('{"id":1.5}', Order.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
   });
 
   group('BaseApi request context on errors', () {
@@ -4680,21 +4718,24 @@ void main() {
       },
     );
 
-    test('a timeout stays a timeout and carries the request', () async {
-      final client = _ScriptedApiClient([
-        const NetworkTimeoutException(message: 'slow'),
-      ], maxRetries: 0);
-      final api = _RecordingApi(client);
+    test(
+      'bhv misc 027 a timeout stays a timeout and carries the request',
+      () async {
+        final client = _ScriptedApiClient([
+          const NetworkTimeoutException(message: 'slow'),
+        ], maxRetries: 0);
+        final api = _RecordingApi(client);
 
-      await expectLater(
-        api.invokeApi(method: 'GET', path: '/items'),
-        throwsA(
-          isA<NetworkTimeoutException>()
-              .having((e) => e.requestMethod, 'requestMethod', 'GET')
-              .having((e) => e.requestPath, 'requestPath', '/items'),
-        ),
-      );
-    });
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/items'),
+          throwsA(
+            isA<NetworkTimeoutException>()
+                .having((e) => e.requestMethod, 'requestMethod', 'GET')
+                .having((e) => e.requestPath, 'requestPath', '/items'),
+          ),
+        );
+      },
+    );
 
     test(
       'bhv errors 205 a decode failure of a response carries the status, the headers and the raw body',
