@@ -186,6 +186,15 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuth006ApiKeyHeaderIsSentUnderTheDeclaredHeaderName()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "X-Custom-Key", "abc123", ApiKeyLocation.Header);
+
+        Assert.Equal("abc123", auth.GetAuthHeaders()["X-Custom-Key"]);
+    }
+
+    [Fact]
     public void QueryKeyIsNotEmittedAsAHeaderOrCookie()
     {
         var auth = new ApiKeyAuthenticator(

@@ -287,6 +287,102 @@ public sealed class ClientTest : IDisposable
         }
     }
 
+    private sealed class TransportProbeAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
+    {
+        public IApiClient? Injected { get; private set; }
+
+        public override string GetHost() => "http://localhost";
+
+        public override Dictionary<string, string> GetAuthHeaders() => [];
+
+        public void SetApiClient(IApiClient apiClient) => Injected = apiClient;
+    }
+
+    [Fact]
+    public void BhvAuth004FromEnvironmentWithNoArgumentNoVariableAndNoProviderIsRefused()
+    {
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuth022EnvironmentTokenIsUsedBeforeTheProvider()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () =>
+                client = Client.FromEnvironment(
+                    tokenProvider: _ => Task.FromResult("provided-token"),
+                    transportOptions: transport
+                )
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer env-token", handler.Authorization);
+    }
+
+    [Fact]
+    public void BhvAuth023AnExplicitEmptyTokenIsRefusedAndNotReplacedByTheEnvironment()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () =>
+            {
+                Assert.Throws<ArgumentException>(() => Client.FromEnvironment(token: ""));
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuth024HostComesFromTheEnvironmentWhileTheTokenIsPassed()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+                client = Client.FromEnvironment(
+                    token: "explicit-token",
+                    transportOptions: transport
+                )
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer explicit-token", handler.Authorization);
+        Assert.Equal("localhost", handler.RequestUri?.Host);
+    }
+
+    [Fact]
+    public void BhvAuth025AnHttpAwareCredentialIsGivenTheClientTransportWhenTheClientIsBuilt()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var probe = new TransportProbeAuthenticator();
+        using var client = new Client(probe, transport);
+
+        Assert.NotNull(probe.Injected);
+    }
+
     private const string HostVariable = "SWAGGER_PETSTORE_OPEN_API_3_0_HOST";
     private const string TokenVariable = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
 
@@ -370,7 +466,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task FromEnvironmentCallsTheTokenProviderBeforeEveryRequest()
+    public async Task BhvAuth005FromEnvironmentCallsTheTokenProviderBeforeEveryRequest()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -389,7 +485,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void FromEnvironmentTreatsAnEmptyVariableAsUnset()
+    public void BhvAuth003FromEnvironmentTreatsAnEmptyVariableAsUnset()
     {
         WithEnvironment(
             "http://localhost",

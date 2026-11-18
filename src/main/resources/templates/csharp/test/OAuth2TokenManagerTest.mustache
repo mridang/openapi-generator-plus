@@ -321,6 +321,32 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task BhvAuth026WhenTheFallbackGrantAlsoFailsTheCallerGetsItsError()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("this is not json", statusCode: 200);
+        client.Enqueue("{\"error\":\"invalid_client\"}", statusCode: 401);
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = "cid",
+            ["client_secret"] = "secret",
+        };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        _ = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+
+        OAuth2ServerException ex = await Assert.ThrowsAsync<OAuth2ServerException>(
+            () => manager.GetAccessTokenAsync(tokenUrl, parameters));
+        Assert.Equal(401, ex.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvAuthoauthtwotokenmgr016FailedRefreshFallsBackToTheOriginalGrant()
     {
         // The refresh attempt fails with a non-allowlisted exception: a 2xx

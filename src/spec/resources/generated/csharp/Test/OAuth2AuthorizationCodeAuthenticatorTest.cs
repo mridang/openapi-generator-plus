@@ -120,6 +120,49 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         );
     }
 
+    [Fact]
+    public void BhvAuth008S256ChallengeMatchesTheRfc7636AppendixBVector()
+    {
+        Assert.Equal(
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            OAuth2AuthorizationCodeAuthenticator.S256Challenge(
+                "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvAuth014AuthorizeUrlEncodesScopeSpacesAsPercent20()
+    {
+        string url = CreateAuthenticator().BuildAuthorizationUrl().OriginalString;
+
+        Assert.Contains("scope=read%20write", url, StringComparison.Ordinal);
+        Assert.DoesNotContain("+", url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuth020VerifierIsSentOnlyWithTheFirstExchange()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        _ = auth.BuildAuthorizationUrl();
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        Assert.Contains("code_verifier", client.LastBody!, StringComparison.Ordinal);
+        Assert.Null(auth.PkceVerifier);
+
+        auth.InvalidateAccessToken();
+        _ = await auth.GetAuthHeadersAsync();
+
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+        Assert.DoesNotContain("code_verifier", client.LastBody!, StringComparison.Ordinal);
+    }
+
     private static string S256(string verifier)
     {
         return Convert

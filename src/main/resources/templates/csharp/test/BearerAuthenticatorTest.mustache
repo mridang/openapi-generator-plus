@@ -145,6 +145,47 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuth009TokenWithALineBreakOrNulIsRefusedWhenBuilt()
+    {
+        Assert.Throws<ArgumentException>(() => new BearerAuthenticator("https://api.example.com", "abc\rdef"));
+        Assert.Throws<ArgumentException>(() => new BearerAuthenticator("https://api.example.com", "abc\ndef"));
+        Assert.Throws<ArgumentException>(() => new BearerAuthenticator("https://api.example.com", "abc\0def"));
+    }
+
+    [Fact]
+    public void BhvAuth012EachRefusedBearerTokenStatesWhyItWasRefused()
+    {
+        ArgumentException blank = Assert.Throws<ArgumentException>(
+            () => new BearerAuthenticator("https://api.example.com", "  "));
+        Assert.Contains("must not be empty", blank.Message, StringComparison.Ordinal);
+
+        ArgumentException control = Assert.Throws<ArgumentException>(
+            () => new BearerAuthenticator("https://api.example.com", "abc\r\n"));
+        Assert.Contains("printable ASCII", control.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuth016EveryStringFormOfTheBearerAuthenticatorMasksTheToken()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "secret-token-value");
+
+        string text = auth.ToString();
+
+        Assert.Contains("BearerAuthenticator", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-token-value", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-token-value", $"{auth}", StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuth018RefusedSecretNeverAppearsInTheExceptionText()
+    {
+        ArgumentException ex = Assert.Throws<ArgumentException>(
+            () => new BearerAuthenticator("https://api.example.com", "secret-value\r\nX-Injected: yes"));
+
+        Assert.DoesNotContain("secret-value", ex.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ATokenProviderAlsoServesTheSynchronousHeaders()
     {
         var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("sync"));

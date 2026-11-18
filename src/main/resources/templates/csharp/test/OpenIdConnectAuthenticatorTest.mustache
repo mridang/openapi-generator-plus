@@ -63,7 +63,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public void SyncAuthHeadersThrowsTheCanonicalAsyncExchangeError()
+    public void BhvAuth001SyncAuthHeadersThrowsTheCanonicalAsyncExchangeError()
     {
         OpenIdConnectAuthenticator auth = CreateAuthenticator();
 
@@ -392,6 +392,28 @@ public class OpenIdConnectAuthenticatorTest
             () => auth.BuildAuthorizationUrlAsync());
         Assert.Equal(500, ex.StatusCode);
         Assert.IsAssignableFrom<{{errorPrefix}}Exception>(ex);
+    }
+
+    [Fact]
+    public async Task BhvAuth011DiscoveryWithoutMaxAgeIsCachedForTheDefaultLifetime()
+    {
+        var client = new CacheControlApiClient("public");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(1, client.GetRequestCount);
+
+        var unparseable = new CacheControlApiClient("max-age=soon");
+        var second = CreateAuthenticator();
+        second.SetApiClient(unparseable);
+
+        await second.BuildAuthorizationUrlAsync();
+        await second.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(1, unparseable.GetRequestCount);
     }
 
     [Fact]
