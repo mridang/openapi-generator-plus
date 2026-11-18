@@ -1460,6 +1460,25 @@ class TestQuerySerialization:
         )
         assert client.captured_url == "http://localhost/test/echo?t=10%3A20%3A30"
 
+    async def test_bhv_serialization_107_an_exploded_array_query_parameter_repeats_its_key(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {"q": ["a", "b"]},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_url == "http://localhost/test/echo?q=a&q=b"
+
 
 class TestAllowEmptyValueQueryParams:
     async def test_bhv_options_002_null_options_omits_allow_empty_value_param(
@@ -3050,6 +3069,27 @@ class TestByteOverJsonResponse:
             "bytes",
         )
         assert result == b"test-image"
+
+    async def test_bhv_serialization_128_a_response_declared_as_bytes_is_returned_unchanged(
+        self,
+    ) -> None:
+        client = _ScriptedApiClient(_json(200, '{"a":1}'))
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        result = await api.call(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            "bytes",
+        )
+
+        assert result == b'{"a":1}'
 
 
 class TestDateOnlyParamsSerializeWithoutTime:

@@ -655,6 +655,17 @@ class TestNativeValueFormats:
         assert isinstance(value, Separator)
         assert ObjectSerializer().serialize(value) == '"@@"'
 
+    def test_bhv_serialization_116_a_property_named_as_a_keyword_keeps_its_wire_key(
+        self,
+    ) -> None:
+        from petstore_client.models.edge_cases import EdgeCases
+
+        model = ObjectSerializer().deserialize('{"class":"x"}', "EdgeCases")
+
+        assert isinstance(model, EdgeCases)
+        assert model.class_ == "x"
+        assert json.loads(ObjectSerializer().serialize(model))["class"] == "x"
+
 
 class TestNullOptionalField:
     def test_bhv_serialization_070_a_json_null_for_an_optional_field_decodes_to_none(
@@ -769,6 +780,17 @@ class TestDurationRoundTrip:
             )
             == "1.5s"
         )
+
+    def test_bhv_serialization_080_a_protobuf_duration_spans_the_full_range_and_rejects_one_past(
+        self,
+    ) -> None:
+        from petstore_client._duration import _parse_timedelta_protobuf
+
+        assert _parse_timedelta_protobuf("315576000000s") == datetime.timedelta(
+            seconds=315576000000
+        )
+        with pytest.raises(ValueError):
+            _parse_timedelta_protobuf("315576000001s")
 
 
 class TestSetSanitization:
@@ -1646,6 +1668,21 @@ class TestWireNamesMapsAndFreeForm:
             "nested": {"a": 1},
             "count": 2,
         }
+
+    def test_bhv_serialization_121_a_model_part_is_serialized_with_wire_names_and_the_sdk_datetime_format(
+        self,
+    ) -> None:
+        out = json.loads(
+            ObjectSerializer().serialize(
+                Metadata(
+                    created_at=datetime.datetime(
+                        2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
+                    )
+                )
+            )
+        )
+
+        assert out["createdAt"].startswith("2024-01-02T03:04:05")
 
 
 class TestRequiredNullableOnTheWire:

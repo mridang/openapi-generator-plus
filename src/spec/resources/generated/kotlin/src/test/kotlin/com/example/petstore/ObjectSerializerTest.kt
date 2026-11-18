@@ -3710,6 +3710,16 @@ class ObjectSerializerTest {
             assertEquals(9L, holder!!.ownerId)
         }
     }
+
+    @Nested
+    @DisplayName("object without a declared schema")
+    inner class UndeclaredObjectTests {
+        @Test
+        @DisplayName("bhvMisc121 an object with no declared schema is written as a JSON object of its properties")
+        fun bhvMisc121UndeclaredObjectIsWrittenAsJsonObject() {
+            assertEquals("{\"k\":\"v\"}", serializer.serialize(mapOf("k" to "v")))
+        }
+    }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.

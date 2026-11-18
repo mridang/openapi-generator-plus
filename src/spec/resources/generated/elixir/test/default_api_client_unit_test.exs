@@ -295,6 +295,30 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
+  test "bhv transport 092 a caller-supplied HTTP client receives every request the SDK makes" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:seen, URI.to_string(request.url)})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+      )
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "http://custom.invalid/seen",
+      %{},
+      nil
+    )
+
+    assert_receive {:seen, "http://custom.invalid/seen"}, 5000
+  end
+
   test "bhv transport 087 a connection that cannot be established raises the SDK's network error" do
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -2614,6 +2638,24 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       )
 
     assert response.body == "hello"
+  end
+
+  test "bhv transport 090 response headers repeated on the wire are returned with every value present" do
+    client =
+      routed_client(%{
+        "https://multi.invalid/x" => {200, [{"x-multi", "a"}, {"x-multi", "b"}], ""}
+      })
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://multi.invalid/x",
+        %{},
+        nil
+      )
+
+    assert response.headers["x-multi"] == "a, b"
   end
 
   test "bhv transport 089 a declared Content-Encoding that does not match the body raises the SDK's API error" do
