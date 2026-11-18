@@ -2972,4 +2972,122 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert directive =~ "filename*=UTF-8''na%C3%AFve.txt"
     end
   end
+
+  test "bhv misc 125 a 307 redirect that upgrades HTTP to HTTPS keeps the body" do
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(
+             307,
+             "http://api.example.com/x",
+             "https://api.example.com/y",
+             ~s({"a":1})
+           )
+  end
+
+  test "bhv misc 126 a HEAD request redirected by 303 is followed as HEAD" do
+    assert PetstoreClient.DefaultApiClient.redirect_method(303, :head) == :head
+  end
+
+  test "bhv misc 127 a Location that holds only a query keeps the redirected path and replaces its query" do
+    client =
+      routed_client(%{
+        "https://query.invalid/v1/items/1?page=1" => {302, [{"location", "?page=2"}], ""},
+        "https://query.invalid/v1/items/1?page=2" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "https://query.invalid/v1/items/1?page=1",
+      %{},
+      nil
+    )
+
+    assert [_first, second] = collect_hops()
+    assert URI.to_string(second.url) == "https://query.invalid/v1/items/1?page=2"
+  end
+
+  test "bhv misc 130 a credential removed by a cross-origin hop is not restored when a later hop returns to the original origin" do
+    client =
+      routed_client(%{
+        "https://home.invalid/start" => {302, [{"location", "https://away.invalid/hop"}], ""},
+        "https://away.invalid/hop" => {302, [{"location", "https://home.invalid/back"}], ""},
+        "https://home.invalid/back" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "https://home.invalid/start",
+      %{"Authorization" => "Bearer secret"},
+      nil
+    )
+
+    assert [_first, _away, back] = collect_hops()
+    refute Map.has_key?(back.headers, "authorization")
+  end
+
+  test "bhv misc 131 a supplied session follows a redirect under the SDK rules" do
+    client =
+      routed_client(%{
+        "https://session.invalid/start" =>
+          {302, [{"location", "https://session.invalid/landing"}], ""},
+        "https://session.invalid/landing" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://session.invalid/start",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert [_first, _second] = collect_hops()
+  end
+
+  test "bhv misc 132 a per-call header with a credential word in its name is dropped on a cross-origin redirect" do
+    client =
+      routed_client(%{
+        "https://call.invalid/start" => {302, [{"location", "https://other.invalid/end"}], ""},
+        "https://other.invalid/end" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "https://call.invalid/start",
+      %{"X-Call-Token" => "abc"},
+      nil
+    )
+
+    assert [_first, second] = collect_hops()
+    refute Map.has_key?(second.headers, "x-call-token")
+  end
+
+  test "bhv misc 133 a 300 or 305 response with a Location is returned unfollowed" do
+    for status <- [300, 305] do
+      client =
+        routed_client(%{
+          "https://multi.invalid/start" =>
+            {status, [{"location", "https://multi.invalid/elsewhere"}], ""}
+        })
+
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "https://multi.invalid/start",
+          %{},
+          nil
+        )
+      end
+
+      assert [_only] = collect_hops()
+    end
+  end
 end

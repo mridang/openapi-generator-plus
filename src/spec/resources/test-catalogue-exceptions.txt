@@ -623,12 +623,14 @@ csharp | misc178 | the C# client builds every multipart body as MultipartFormDat
 csharp | misc182 | the C# SDK has no API that removes a default or per-call header by name, so there is no removal call whose name matching could be tested
 csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 csharp | misc188 | the C# client exposes no public closed state to read, so the only observable effect of closing it is the transport release already pinned by the lifecycle tests
+kotlin | misc074 | The petstore fixture names one scheme per security alternative, so no operation sends the credentials of two schemes at once
+kotlin | misc075 | The scheme constructor takes one optional parameter per declared scheme, so a credential cannot be keyed to an undeclared scheme; the compiler refuses it
+||||||| 7e55ef2db
 go | misc185 | the Go OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 ||||||| d3821bb7c
 csharp | misc085 | uuid fields and parameters are typed System.Guid, so text that is not in canonical form cannot be passed to the call or built into a model
 csharp | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
 csharp | misc100 | The C# SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back from
-||||||| d3821bb7c
 java | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
 java | misc100 | The Java SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back
 ||||||| a7408137c
@@ -642,6 +644,15 @@ node | misc074 | BaseApi resolves one credential, the first listed scheme the cl
 node | misc075 | the credentials object is typed with one optional field per declared scheme, so TypeScript refuses an undeclared key at compile time and the client reads only declared schemes
 node | misc081 | a binary response is carried as the base64 text of its bytes (bhv serializationwire 018), so a base64 body under a binary content type is returned as that text and never decoded to a string
 node | misc091 | settled decision S3 and bhv serialization 069: schema constraints such as pattern, length and range are not enforced by the client, so refusing a value that breaks one would contradict it
+node | misc131 | The node client has no caller-supplied session object: every request goes through fetch with the SDK transport options, so no session can bypass the redirect rules.
+node | misc140 | TypeScript rejects a missing required constructor property at compile time, and the runtime constructor accepts partial data by design, so the check is a compile-time guarantee.
+||||||| 669862760
+csharp | misc149 | a C# with-expression accepts only the record's declared members, so an undeclared attribute is a compile-time error and cannot be named at run time
+||||||| 8d4c745f0
+go | misc202 | the petstore fixture declares no operation whose request body is text, so no call can send a text body whose content type was left undeclared
+go | misc211 | the petstore fixture declares no query parameter with a JSON content media type, so a date-time inside a JSON query parameter cannot be produced by any generated call
+go | misc214 | the petstore fixture declares no query parameter with a content media type, so no generated call can carry a query content value that fails to serialise
+||||||| cc4211ec8
 dart | misc098 | Dart multipart parts are Uint8List values already held in memory and the SDK accepts no caller stream as a part, so there is no stream to read or to leave open
 dart | misc100 | Dart always builds a Map body as multipart/form-data through package:http's MultipartRequest and takes no declared subtype or caller header to keep, so there is no declared subtype to keep or fall back from
 dart | misc101 | Dart multipart parts are Uint8List values already held in memory and no stream part exists, so no source can fail to be read after the call is built

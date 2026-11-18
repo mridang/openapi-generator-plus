@@ -4207,3 +4207,73 @@ func TestBhvMisc188_DefaultApiClientUnit_ReportsClosedOnlyAfterCloseIsCalled(t *
 		t.Errorf("expected ErrClientClosed after Close, got %v", err)
 	}
 }
+
+func TestBhvMisc203_DefaultApiClientUnit_ClosingAnAlreadyClosedClientDoesNothing(t *testing.T) {
+	t.Parallel()
+	client := NewDefaultApiClient(nil)
+	_ = client.Close()
+	if err := client.Close(); err != nil {
+		t.Errorf("expected a second Close to return no error, got %v", err)
+	}
+}
+
+func TestBhvMisc204_DefaultApiClientUnit_ConstructingWithoutRequiredHostOrTokenFailsAtOnce(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "")
+	_, err := NewClientWithToken("", "", nil)
+	if !errors.Is(err, auth.ErrMissingCredential) {
+		t.Errorf("expected ErrMissingCredential, got %v", err)
+	}
+}
+
+func TestBhvMisc206_DefaultApiClientUnit_ClientWithOnlyADefaultAuthenticatorTakesItsHost(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	authObj, err := auth.NewBearerAuthenticator(server.URL, "token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewClientWithAuthenticator(authObj, nil)
+
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	if got := hits.Load(); got != 1 {
+		t.Errorf("expected the request to reach the authenticator's host, got %d hits", got)
+	}
+}
+
+func TestBhvMisc207_DefaultApiClientUnit_TokenNotPassedIsReadFromItsEnvironmentVariable(t *testing.T) {
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = r.Header.Get("Authorization")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
+
+	client, err := NewClientWithToken(server.URL, "", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "Bearer env-token" {
+		t.Errorf("expected the environment token to be sent, got %q", got)
+	}
+}
+
+func TestBhvMisc208_DefaultApiClientUnit_EmptyEnvironmentVariableCountsAsUnset(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "")
+	_, err := NewClientWithToken("http://localhost", "", nil)
+	if !errors.Is(err, auth.ErrMissingCredential) {
+		t.Errorf("expected an empty variable to be treated as unset, got %v", err)
+	}
+}
