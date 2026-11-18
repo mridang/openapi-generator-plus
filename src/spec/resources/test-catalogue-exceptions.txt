@@ -748,3 +748,5 @@ dart | misc214 | Dart query values are stringified by toString for any object th
 
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
 ||||||| c38bbe25c
+dart | retries045 | Dart has no streamed request body: the body is an in-memory byte list, so there is no one-shot stream that a replay could exhaust
+dart | serialization078 | Dart has no time-of-day type: a format: time property is a String that the SDK passes through unchanged (serializationobject114), so there is no HH:mm:ss or .SSS format

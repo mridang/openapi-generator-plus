@@ -4905,6 +4905,31 @@ void main() {
 
       expect(received, equals([null, 'default-value']));
     });
+    test('bhv retries 051 a request with a body is refused with status 307 when a redirect downgrades https to http', () async {
+      var calls = 0;
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .httpClient(MockClient((request) async {
+            calls++;
+            if (calls == 1) {
+              return http.Response('', 307, headers: {'location': 'http://example.com/insecure'});
+            }
+            return http.Response('ok', 200);
+          }))
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+
+      await expectLater(
+        client.sendRequest(
+          'POST',
+          'https://example.com/secret',
+          {'Content-Type': 'application/json'},
+          Uint8List.fromList(utf8.encode('hello-body')),
+        ),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 307)),
+      );
+      expect(calls, equals(1));
+    });
   });
 }
 {{/generateTests}}
