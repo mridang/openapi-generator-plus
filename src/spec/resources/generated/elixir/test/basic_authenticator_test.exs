@@ -12,6 +12,15 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       end
     end
 
+    test "bhv misc 193 the Basic scheme authenticator sends the same header as the base Basic authenticator and rejects a missing username" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] == "Basic YWxpY2U6czNjcmV0"
+
+      assert_raise ArgumentError, fn ->
+        BasicAuthenticator.new("https://api.example.com", nil, "s3cret")
+      end
+    end
+
     test "bhv authbasic 011 valid credentials produce basic header" do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
       headers = BasicAuthenticator.auth_headers(auth)
