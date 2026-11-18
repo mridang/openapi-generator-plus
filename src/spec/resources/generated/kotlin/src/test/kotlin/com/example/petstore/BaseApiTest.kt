@@ -1178,9 +1178,7 @@ class BaseApiTest {
         fun bhvAuth046InheritedSecurityReceivesClientAuthenticator() = clientAuthenticatorAppliedForInheritedSecurityOperation()
 
         @Test
-        @DisplayName(
-            "bhvAuthintegration015 a security none operation suppresses a configured api-key client authenticator (header and query)",
-        )
+        @DisplayName("bhvAuthintegration015 a security-none operation suppresses a configured api-key authenticator (header and query)")
         fun securityNoneOperationSuppressesApiKeyHeaderAndQuery() {
             val client = CapturingApiClient()
             val config = Configuration.builder().baseUrl("http://localhost").build()
@@ -1355,6 +1353,21 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc064 an operation that declares no security never sends the client default credential")
+        fun bhvMisc064ANoSecurityOperationNeverSendsTheClientDefaultCredential() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val clientAuth = TestAuthenticator(mapOf("X-Client-Auth" to "client-level-token"), emptyMap(), emptyMap())
+            val api = StoreApi(client, config, clientAuth)
+            try {
+                runBlocking { api.getInventory() }
+            } catch (_: Exception) {
+                // The response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertFalse(client.capturedHeaders.containsKey("X-Client-Auth"))
+        }
+
+        @Test
         @DisplayName("bhvAuthintegration005 SECURITY-NONE: client authenticator is suppressed for an unauthenticated operation")
         fun clientAuthenticatorSuppressedForSecurityNoneOperation() {
             // An operation declared `security: []` is explicitly unauthenticated.
@@ -1403,9 +1416,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName(
-            "bhvAuthintegration012 INHERITED-SECURITY: client authenticator is applied to an operation that inherits the global requirement",
-        )
+        @DisplayName("bhvAuthintegration012 INHERITED-SECURITY: the client authenticator reaches an inheriting operation")
         fun clientAuthenticatorAppliedForInheritedSecurityOperation() {
             // getPetById declares no security of its own, so it inherits the
             // global requirement. This generator strips the inherited auth
@@ -2840,9 +2851,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName(
-            "bhvHooks002 start is called once per operation call with the spec operation id, the method, the url template and the url",
-        )
+        @DisplayName("bhvHooks002 start is called once per operation call with the operation id, the method, the url template and the url")
         fun startGetsTheCallInfo() {
             val hook = RecordingHook()
             val api =
@@ -3121,14 +3130,14 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName(
-            "bhvHooks016 finish gets the SerializationException, with the status that arrived, when the response cannot be decoded",
-        )
+        @DisplayName("bhvHooks016 finish gets the SerializationException and the arrived status when the body cannot be decoded")
         fun finishGetsTheDecodeError() {
             val hook = RecordingHook()
             val thrown =
                 assertThrows(SerializationException::class.java) {
-                    runBlocking { HookedApi(BodyApiClient(200, "{nope"), hook).callForResult<com.example.petstore.models.Category>() }
+                    runBlocking {
+                        HookedApi(BodyApiClient(200, "{nope"), hook).callForResult<com.example.petstore.models.Category>()
+                    }
                 }
             val outcome = hook.outcomes.single()
             assertEquals(200, outcome.statusCode)
@@ -3157,7 +3166,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("bhvHooks018 an error thrown by start reaches the caller unchanged, nothing is sent and finish is not called")
+        @DisplayName("bhvHooks018 an error thrown by start reaches the caller unchanged, nothing is sent and finish is skipped")
         fun aThrowingStartPropagates() {
             val client = CapturingApiClient()
             val failure = IllegalStateException("refused")
