@@ -10,6 +10,7 @@ package com.example.petstore.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -264,6 +265,7 @@ class HeaderSelectorTest {
         new HeaderSelector()
             .selectHeaders(new String[] {"application/json", "text/plain"}, null, false)
             .get("Accept");
+    assertNotNull(accept);
     assertTrue(accept.contains("application/json"));
     assertFalse(accept.contains("q="));
   }

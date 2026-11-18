@@ -8,6 +8,8 @@
 
 package com.example.petstore.errors;
 
+import javax.annotation.Nullable;
+
 /**
  * Root of the SDK exception hierarchy.
  *
@@ -28,7 +30,7 @@ public class OpenAPIException extends RuntimeException {
    *
    * @param message the detail message
    */
-  public OpenAPIException(String message) {
+  public OpenAPIException(@Nullable String message) {
     super(message);
   }
 
@@ -38,7 +40,7 @@ public class OpenAPIException extends RuntimeException {
    * @param message the detail message
    * @param cause the underlying cause
    */
-  public OpenAPIException(String message, Throwable cause) {
+  public OpenAPIException(@Nullable String message, @Nullable Throwable cause) {
     super(message, cause);
   }
 }

@@ -1216,7 +1216,8 @@ class DefaultApiClientUnitTest {
               });
       caller.start();
       silent.setSoTimeout(10_000);
-      try (java.net.Socket reached = silent.accept()) {
+      java.net.Socket reached = silent.accept();
+      try (reached) {
         caller.interrupt();
         caller.join(5000);
         assertFalse(caller.isAlive(), "a cancelled call must not wait for the server");

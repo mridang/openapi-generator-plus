@@ -99,7 +99,7 @@ public final class ServerVariable {
    * @return whether {@code o} is a server variable with the same content
    */
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }

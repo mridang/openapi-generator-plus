@@ -96,12 +96,13 @@ class BaseApiTest {
       super(apiClient, config, null, schemes);
     }
 
-    Authenticator firstHeld(String... schemes) {
-      return resolveSchemeAuth(schemes);
-    }
-
     TestableApi(ApiClient apiClient, String baseUrl, @Nullable Authenticator authenticator) {
       super(apiClient, new Configuration(baseUrl, Map.of()), authenticator);
+    }
+
+    @Nullable
+    Authenticator firstHeld(String... schemes) {
+      return resolveSchemeAuth(schemes);
     }
 
     <T> @Nullable T call(
@@ -1390,7 +1391,9 @@ class BaseApiTest {
                           "application/json",
                           JSON_NODE_TYPE,
                           auth));
-      assertTrue(error.getMessage().contains("RFC 6265"), error.getMessage());
+      String message = error.getMessage();
+      assertNotNull(message);
+      assertTrue(message.contains("RFC 6265"), message);
     }
 
     @Test
@@ -2933,7 +2936,7 @@ class BaseApiTest {
 
   @Test
   void bhvSerialization007LiteralPlusIsSentAsPercent2BAndNonAsciiAsUtf8Bytes() throws Exception {
-    assertEquals("a%2Bb%20%C3%A9", encodeQueryComponent("a+b \u00e9"));
+    assertEquals("a%2Bb%20%C3%A9", encodeQueryComponent("a+b é"));
   }
 
   @Test

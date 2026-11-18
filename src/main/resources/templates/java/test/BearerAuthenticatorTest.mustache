@@ -172,7 +172,7 @@ class BearerAuthenticatorTest {
     @Test
     void bhvAuth005ProviderKeyIsObtainedAgainForEachRequest() {
         int[] calls = {0};
-        BearerAuthenticator auth = new BearerAuthenticator(HOST, () -> "t" + (++calls[0]));
+        BearerAuthenticator auth = new BearerAuthenticator(HOST, () -> "t" + ++calls[0]);
         auth.getAuthHeaders();
         auth.getAuthHeaders();
         assertEquals(2, calls[0]);

@@ -644,11 +644,4 @@ class ComposedSchemaTest {
       assertThat(restored.ownerName).isEqualTo(original.ownerName);
     }
   }
-
-  @Nested
-  @DisplayName("required-field strictness: Pet (name + photoUrls)")
-  class RequiredFieldStrictness {
-
-    private static final java.lang.reflect.Type PET_TYPE = new TypeReference<Pet>() {}.getType();
-  }
 }

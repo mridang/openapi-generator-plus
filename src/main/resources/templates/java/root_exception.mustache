@@ -2,6 +2,8 @@
 
 package {{invokerPackage}}.errors;
 
+import javax.annotation.Nullable;
+
 /**
  * Root of the SDK exception hierarchy.
  *
@@ -28,7 +30,7 @@ public class {{errorPrefix}}Exception extends RuntimeException {
      *
      * @param message the detail message
      */
-    public {{errorPrefix}}Exception(String message) {
+    public {{errorPrefix}}Exception(@Nullable String message) {
         super(message);
     }
 
@@ -38,7 +40,7 @@ public class {{errorPrefix}}Exception extends RuntimeException {
      * @param message the detail message
      * @param cause   the underlying cause
      */
-    public {{errorPrefix}}Exception(String message, Throwable cause) {
+    public {{errorPrefix}}Exception(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 }
