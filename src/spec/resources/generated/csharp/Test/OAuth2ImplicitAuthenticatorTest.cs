@@ -29,6 +29,18 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuth019AuthorizationUrlListsItsParametersInOneFixedOrder()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.Equal(
+            "https://auth.example.com/authorize?response_type=token&client_id=my-client-id"
+                + "&scope=read%20write&state=xyz",
+            auth.BuildAuthorizationUrl("xyz").OriginalString
+        );
+    }
+
+    [Fact]
     public void AccessTokenFieldIsVolatile()
     {
         FieldInfo field = typeof(OAuth2ImplicitAuthenticator).GetField(

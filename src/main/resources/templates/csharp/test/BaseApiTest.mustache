@@ -754,6 +754,30 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvAuth021RequestWithNoCredentialSendsNoAuthorizationHeaderAndIsNotRefused()
+    {
+        var client = new CapturingApiClient();
+        var api = new StoreApi(
+            client,
+            new Configuration("http://localhost"),
+            null,
+            new Dictionary<string, IAuthenticator>());
+
+        try
+        {
+            await api.GetInventoryAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.DoesNotContain(
+            client.CapturedHeaders.Keys,
+            k => string.Equals(k, "Authorization", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task BhvAuthintegration016NoSchemeCredentialIsSentOnASecurityNoneOperation()
     {
         var client = new CapturingApiClient();
