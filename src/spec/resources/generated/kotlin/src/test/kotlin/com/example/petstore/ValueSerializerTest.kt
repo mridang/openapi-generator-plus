@@ -25,6 +25,15 @@ private enum class TierFixture(
     override fun toString(): String = wire
 }
 
+private enum class LevelFixture(
+    private val level: Int,
+) {
+    HIGH(3),
+    ;
+
+    override fun toString(): String = level.toString()
+}
+
 class ValueSerializerTest {
     @Nested
     @DisplayName("path dot segments")
@@ -1204,6 +1213,32 @@ class ValueSerializerTest {
                     location,
                 )
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("query and enum parameters")
+    inner class QueryAndEnumParameterTests {
+        @Test
+        @DisplayName("bhvMisc107 a scalar form query parameter is emitted under its own name with its string value")
+        fun bhvMisc107ScalarFormQueryUsesItsOwnName() {
+            val queryParams = mutableMapOf<String, Any?>()
+            ValueSerializer.putQuery(
+                queryParams,
+                "name",
+                ValueSerializer.serializeStyled("name", "x", "query", "string", null, "form", true),
+                false,
+            )
+            assertEquals("x", queryParams["name"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc108 an integer enum member keeps its wire value")
+        fun bhvMisc108IntegerEnumKeepsWireValue() {
+            assertEquals(
+                "3",
+                ValueSerializer.serializeStyled("level", LevelFixture.HIGH, "query", "integer", null, "form", true).toString(),
+            )
         }
     }
 }

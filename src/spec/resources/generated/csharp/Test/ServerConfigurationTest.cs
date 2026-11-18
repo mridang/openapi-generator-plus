@@ -570,4 +570,38 @@ public class ServerConfigurationTest
 
         Assert.Equal("https://fixed.example.com/v1/items", server.GetUrl());
     }
+
+    [Fact]
+    public void BhvServers029APlaceholderFromADefaultStaysLiteralInTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.api.example.com/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("{version}"),
+                ["version"] = new ServerVariable("v2"),
+            }
+        );
+
+        Assert.Equal("https://{version}.api.example.com/v2", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvServers030AValueOutsideTheDeclaredEnumIsRejectedWithAnError()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "canary" })
+        );
+        Assert.Contains("'canary'", ex.Message, StringComparison.Ordinal);
+    }
 }
