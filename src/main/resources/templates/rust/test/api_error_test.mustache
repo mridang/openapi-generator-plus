@@ -98,6 +98,45 @@ fn test_api_error_display_sorts_the_response_headers() {
     );
 }
 
+#[test]
+fn test_bhv_errors_050_response_headers_render_as_compact_sorted_json_with_unescaped_slashes() {
+    let mut headers = HashMap::new();
+    headers.insert("x-b".to_string(), "2".to_string());
+    headers.insert("a-first".to_string(), "https://example.com/a/b".to_string());
+    let err = ApiError::new(500, "boom".to_string(), Some(headers), None);
+
+    assert_eq!(
+        "boom\nHTTP status code: 500\nResponse headers: {\"a-first\":\"https://example.com/a/b\",\"x-b\":\"2\"}",
+        err.to_string()
+    );
+}
+
+#[test]
+fn test_bhv_errors_055_status_error_context_defaults_to_none() {
+    let err = ApiError::new(404, "missing".to_string(), None, None);
+
+    assert!(err.response_headers().is_none());
+    assert!(err.response_body().is_none());
+}
+
+#[test]
+fn test_bhv_errors_056_status_600_is_a_plain_api_error_not_a_server_error() {
+    let err = ApiError::from_response(600, &HashMap::new(), "", None, None);
+
+    assert!(is_a::<ApiError>(&*err));
+    assert!(!is_a::<ServerError>(&*err));
+}
+
+#[test]
+fn test_bhv_errors_051_empty_message_falls_back_to_the_generic_line() {
+    let err = ApiError::new(500, String::new(), None, None);
+
+    assert_eq!(
+        "Error message: the server returns an error\nHTTP status code: 500",
+        err.to_string()
+    );
+}
+
 /* F1080: the rendered text carries a bounded, single-line body and no
  * credential-bearing header value; the full body and headers stay on the
  * error's accessors. */
@@ -476,7 +515,7 @@ fn test_api_error_kind_is_{{errorPrefixSnake}}_error() {
 }
 
 #[test]
-fn test_client_error_is_{{errorPrefixSnake}}_error_and_chains_to_api_error() {
+fn test_bhv_errors_052_client_error_is_{{errorPrefixSnake}}_error_and_chains_to_api_error() {
     let err = client_chain(400, "bad request");
     let branded = assert_is_{{errorPrefixSnake}}_error(&err);
     // source() must walk down to the wrapped ApiError.
@@ -580,7 +619,7 @@ fn test_bhv_errors_047_internal_server_error_is_{{errorPrefixSnake}}_error_and_c
 /// `ClientError` or `ServerError` that carries another status is refused and the
 /// wrapped error is handed back unchanged.
 #[test]
-fn test_named_errors_accept_only_their_own_status() {
+fn test_bhv_errors_053_named_errors_accept_only_their_own_status() {
     fn refuses<T: std::fmt::Debug>(
         name: &str,
         wrong_status: u16,

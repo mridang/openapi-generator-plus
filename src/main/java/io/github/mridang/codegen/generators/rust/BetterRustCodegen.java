@@ -197,6 +197,15 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
     /* Base classes whose catalogue-id test has been emitted once (see the per-scheme entries). */
     private final java.util.Set<String> bhvIdsClaimed = new java.util.HashSet<>();
+    /* Catalogue id of the empty-variable test, keyed by the scheme module it belongs to. */
+    private static final Map<String, String> EMPTY_VARIABLE_BHV_IDS =
+            Map.of(
+                    "service_token_authenticator", "authscheme_011",
+                    "internal_api_key_authenticator", "authscheme_012",
+                    "machine_auth_client_credentials_authenticator", "authscheme_013",
+                    "legacy_auth_password_authenticator", "authscheme_014",
+                    "user_auth_authorization_code_authenticator", "authscheme_015",
+                    "browser_auth_implicit_authenticator", "authscheme_016");
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
@@ -1477,6 +1486,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         entry.put("isBasic", "BasicAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("basic"));
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("apikey"));
         entry.put("bearerIdOnce", bearer && bhvIdsClaimed.add("bearer"));
+        final String emptyVariableBhv = EMPTY_VARIABLE_BHV_IDS.get(stem);
+        entry.put("emptyVariableBhv", emptyVariableBhv != null);
+        entry.put("emptyVariableToken", emptyVariableBhv == null ? "" : emptyVariableBhv);
         entry.put("firstParam", envParams.isEmpty() ? "" : envParams.get(0).get("name"));
         final List<String> explicitArgs = new ArrayList<>();
         final List<String> bareArgs = new ArrayList<>();

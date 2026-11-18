@@ -13,6 +13,56 @@ fn test_bhv_config_014_configuration_default_values() {
 }
 
 #[test]
+fn test_bhv_config_018_default_constructed_configuration_uses_the_spec_base_url() {
+    assert_eq!(Configuration::default().base_url(), "{{{basePath}}}");
+    assert_eq!(ConfigurationBuilder::new().build().base_url(), "{{{basePath}}}");
+}
+
+#[test]
+fn test_bhv_config_019_default_factory_returns_spec_base_url_and_no_headers() {
+    let config = Configuration::builder().build();
+
+    assert_eq!(config.base_url(), "{{{basePath}}}");
+    assert!(config.default_headers().is_empty());
+}
+
+#[test]
+fn test_bhv_config_020_builder_chain_sets_base_url_and_headers_in_one_configuration() {
+    let config = ConfigurationBuilder::new()
+        .base_url("https://chain.example.com")
+        .default_header("X-One", "1")
+        .default_header("X-Two", "2")
+        .build();
+
+    assert_eq!(config.base_url(), "https://chain.example.com");
+    assert_eq!(config.default_headers().len(), 2);
+}
+
+#[test]
+fn test_bhv_config_023_each_default_call_returns_the_same_base_url() {
+    let first = Configuration::default();
+    let second = Configuration::default();
+
+    assert_eq!(first.base_url(), second.base_url());
+    assert_eq!(first.base_url(), "{{{basePath}}}");
+}
+
+#[test]
+fn test_bhv_config_022_mutating_returned_default_headers_leaves_config_unchanged() {
+    let config = ConfigurationBuilder::new()
+        .default_header("X-Test", "value")
+        .build();
+
+    let mut headers = config.default_headers();
+    headers.insert("X-Mutated".to_string(), "should-not-affect-config".to_string());
+
+    assert!(
+        !config.default_headers().contains_key("X-Mutated"),
+        "modifying returned headers should not affect the configuration"
+    );
+}
+
+#[test]
 fn test_bhv_config_005_builder_produces_correct_defaults() {
     let config = ConfigurationBuilder::new().build();
 
@@ -107,7 +157,7 @@ fn test_bhv_config_008_configuration_server_url_resolution() {
 }
 
 #[test]
-fn test_configuration_server_url_resolution_with_defaults() {
+fn test_bhv_config_021_server_url_resolution_with_defaults() {
     let mut variables = HashMap::new();
     variables.insert(
         "env".to_string(),
