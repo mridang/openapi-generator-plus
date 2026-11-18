@@ -1073,7 +1073,7 @@ test('bhv serializationwire 057 a form-urlencoded body keeps only the unreserved
     expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
 });
 
-test('form urlencoded body renders date-time, enum and number fields canonically', function (): void {
+test('bhv serialization 040 form urlencoded body renders date-time, enum and number fields canonically', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
