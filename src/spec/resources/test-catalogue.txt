@@ -1946,3 +1946,5 @@ langkotlin001 | The generated scheme wrapper reads each of its credentials from 
 langkotlin002 | A generated scheme wrapper with no credential of its own falls back to the authenticator it was built with
 langkotlin003 | An API key containing a line break or a NUL character is refused when the authenticator is built
 langkotlin004 | Two result values with equal fields compare equal and hash alike
+langkotlin005 | A transport failure raised end to end carries the request method and path that were sent
+langkotlin006 | A void operation ignores a success body that is JSON but not an object
