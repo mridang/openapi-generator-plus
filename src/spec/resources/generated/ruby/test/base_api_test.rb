@@ -829,7 +829,7 @@ describe Petstore::Client::Api::BaseApi do
     _(err.message).must_include 'expected a JSON body'
   end
 
-  it 'names the operation, not an HTTP verb, in the unexpected Content-Type error' do
+  it 'bhv_errors_054 names the operation, not an HTTP verb, in the unexpected Content-Type error' do
     client = FixedResponseApiClient.new(
       Petstore::Client::ApiHttpResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
     )

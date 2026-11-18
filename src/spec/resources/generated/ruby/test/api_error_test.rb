@@ -177,6 +177,53 @@ describe Petstore::Client::Errors::ApiError do
     _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
   end
 
+  it 'bhv_errors_050 response headers render in the message as compact JSON with sorted keys and unescaped slashes' do
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 502, message: 'bad', response_headers: { 'b' => 'x/y', 'a' => '1' }
+    )
+
+    _(err.message).must_equal("bad\nHTTP status code: 502\nResponse headers: {\"a\":\"1\",\"b\":\"x/y\"}")
+  end
+
+  it 'bhv_errors_051 an empty error message falls back to the generic error line' do
+    err = Petstore::Client::Errors::ApiError.new(status_code: 0, message: '')
+
+    _(err.message).must_equal('Error message: the server returns an error')
+  end
+
+  it 'bhv_errors_052 a typed client error is caught by a base ApiError rescue and chains to the branded root' do
+    error = Petstore::Client::Errors::BadRequestError.new(message: 'bad request')
+    caught = _(-> { raise error }).must_raise(Petstore::Client::Errors::ApiError)
+
+    _(caught).must_be_same_as(error)
+    _(caught).must_be_kind_of(Petstore::Client::Errors::ClientError)
+    _(caught).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
+  end
+
+  it 'bhv_errors_053 each named error pins its own HTTP status code' do
+    pinned = {
+      Petstore::Client::Errors::BadRequestError => 400,
+      Petstore::Client::Errors::UnauthorizedError => 401,
+      Petstore::Client::Errors::ForbiddenError => 403,
+      Petstore::Client::Errors::NotFoundError => 404,
+      Petstore::Client::Errors::ConflictError => 409,
+      Petstore::Client::Errors::UnprocessableEntityError => 422,
+      Petstore::Client::Errors::TooManyRequestsError => 429,
+      Petstore::Client::Errors::InternalServerError => 500
+    }
+
+    pinned.each { |klass, status| _(klass.new(message: 'x').status_code).must_equal(status, klass.name) }
+  end
+
+  it 'bhv_errors_055 status error constructors default the response context to nil' do
+    err = Petstore::Client::Errors::BadRequestError.new
+
+    _(err.status_code).must_equal(400)
+    _(err.response_headers).must_be_nil
+    _(err.response_body).must_be_nil
+    _(err.error_body).must_be_nil
+  end
+
   it 'bhv_errors_045 roots OAuth2 token-manager errors at the branded base' do
     token_err = Petstore::Client::Errors::OAuth2TokenError.new('missing access_token')
     server_err = Petstore::Client::Errors::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
@@ -227,7 +274,7 @@ describe Petstore::Client::Errors::ApiError do
     end
   end
 
-  it 'from_response treats a status at or above 600 as the base ApiError' do
+  it 'bhv_errors_056 from_response treats a status at or above 600 as the base ApiError' do
     # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
     # base ApiError, never ServerError.
     err = Petstore::Client::Errors::ApiError.from_response(600, { 'x-request-id' => 'abc' }, nil)
