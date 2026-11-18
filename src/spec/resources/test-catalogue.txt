@@ -1223,3 +1223,191 @@ unions032 | A oneOf wrapper built from a variant holds that variant and serializ
 unions033 | An unknown, missing or empty discriminator fails with the SDK's serialization error
 unions034 | A oneOf wrapper's typed accessor returns the held variant and nothing for the other variant
 unions035 | A discriminator value not listed in the mapping fails to deserialize
+operations154 | A response body is checked only against the schema declared for its own status code, and a body that fits another status's schema or does not match its own is refused.
+operations155 | An operation sends its query parameters in the order the specification declares them.
+operations156 | An operation sends its form-encoded body fields in the order the specification declares them.
+errors072 | A typed view of an error body that starts with a byte order mark decodes the same as the same body without it.
+errors073 | An error body nested within the shared depth limit, including depths beyond common parser defaults, is parsed and kept as structured data.
+errors074 | An error that never received an HTTP response renders its text as the message alone, with no status line.
+errors075 | When a rendered error body is cut at its size limit, the cut never falls inside a multi-byte character.
+errors076 | An error the SDK did not raise is not classified as one of the SDK's own errors, even when it is wrapped.
+errors077 | A URL written into diagnostics keeps its scheme, host, port and path and drops its query string, userinfo and fragment.
+errors078 | A network or transport failure message, including its underlying causes, never shows the query string of the request URL.
+errors079 | Attaching request details to an error keeps the first complete request and ignores later or incomplete attachments.
+errors080 | A typed HTTP error, and its kind view, is caught by a handler for the SDK root error type and keeps its status code.
+errors081 | A credential refused at construction produces an error that names whether the username or the password is at fault.
+errors082 | A token endpoint error keeps a valid error code when its optional description or URI is malformed or not a string, dropping only the bad field, and a non-string error value is not taken as a code.
+errors083 | A CA certificate path that cannot be read fails at construction with an error that names the path.
+errors084 | An error built without an HTTP response reports a status code of zero by default.
+transport067 | A successful response with no body is returned to the caller as a success with an empty body, not as an error.
+transport068 | A call made with a cancellation that has already happened raises the cancellation error and sends no request.
+transport069 | A cancellation signal and the caller's context values given to a call reach the transport request, and cancelling the call cancels that request.
+transport070 | A per-call timeout is passed to the transport as the request timeout, and the request deadline never exceeds that call's own timeout.
+transport071 | A single configured timeout applies to every timed phase of a request, including connection and response receipt, and to the overall deadline.
+transport072 | A deadline that expires during connection or while sending the body raises the SDK's timeout error, and an unrelated connection failure does not.
+transport073 | A response that claims a compression encoding but holds a corrupt stream raises the SDK's API error rather than returning the raw bytes.
+transport074 | A response compressed with a codec whose library is not installed raises an error rather than returning the still-encoded body.
+transport075 | A zstd-compressed body whose frame does not declare its decoded size is decoded completely, whatever its expansion ratio.
+transport076 | Percent-escapes in the user information of a proxy URL are decoded before the proxy credentials are sent, and a literal plus sign stays a plus sign.
+transport077 | A CA certificate path that cannot be read, names a directory, or contains no certificate fails when the client is built, and the error names that file.
+transport078 | A caller-supplied HTTP client or connection option is refused at construction when a proxy setting is also configured.
+transport079 | Turning off certificate verification fails at construction on a client that cannot honour it, rather than being silently ignored.
+transport080 | A proxy setting the client cannot apply makes construction fail rather than being silently dropped.
+transport081 | A caller-supplied HTTP client is the one every request of the SDK is sent through, with the URL and caller headers unchanged.
+transport082 | A request made through a client built with default configuration or with only a timeout completes and returns its response.
+unions036 | The response status code, not the shape of the body, selects which declared variant decodes a response; a body that does not fit the selected variant is refused with a serialization error.
+unions037 | A union wrapper built from one of its variants holds that exact value and returns it unchanged, and offers no way to replace the held variant.
+unions038 | A union body that cannot be decoded, whether its discriminator is not a string, its discriminator key differs in case and so is missing, it maps to a model the SDK does not contain, or any other decode failure, raises the SDK's serialization error.
+unions039 | Building a union wrapper from a value never validates it or throws, even when the value is null or no variant accepts it.
+unions040 | A union wrapper's typed accessor returns the variant it holds and nothing for the other variants.
+unions041 | A oneOf without a discriminator decodes each JSON shape to the variant that describes it, so a string, an array or a byte string each resolves to its own variant.
+unions042 | A union wrapper built with no variant, or with a null variant, holds no actual instance: every is-accessor returns false and every as-accessor returns null.
+unions043 | When a subtype is serialized, a discriminator value already set on it is written as given rather than replaced by the subtype's default.
+options053 | Per-call options such as timeout, retry limit and headers take effect on that one call only.
+options054 | An operation accepts per-call request options (timeout, headers, retries) alongside its other arguments.
+options055 | A call made without per-call options leaves the client's timeout, retry limit and headers in force.
+options056 | A per-call timeout of zero or less, or a negative per-call retry count, is refused before any request is sent.
+options057 | A per-call timeout below one millisecond is refused.
+options058 | An injected HTTP client is none unless supplied, and a supplied client is kept as the same instance on the built options.
+options059 | A caller-supplied transport hook is unset unless given, and a supplied one is kept unchanged on the built options.
+options060 | The transport options expose a static builder entry point whose result carries the values set on it and the same defaults as a direct build.
+options061 | A user agent set on transport options is kept as given, and setting it to none leaves it unset so no User-Agent header is sent.
+options062 | An options object reports the values it was built with, and unset fields read back as absent or unset.
+options063 | A built per-call options object cannot have its fields changed.
+options064 | The printable form of transport options shows the configured maximum number of retries.
+options065 | The printable form of transport options never shows a proxy password or caller-supplied hook values.
+options066 | The printable form of transport options shows a proxy URL with no credentials exactly as configured.
+options067 | Building transport options directly with a valid proxy URL keeps it, and with no proxy the proxy is unset.
+auth001 | A synchronous header call on a credential that needs an asynchronous step raises an error and never returns unauthenticated headers.
+auth002 | Invalidating the access token before any discovery or token exchange has happened raises nothing and sends no request.
+auth003 | An empty or unset environment variable counts as no value, so the next source is used or construction fails.
+auth004 | An authenticator built with no argument, no environment value and no provider, or with a nil provider, is refused at construction.
+auth005 | A key supplied through a provider function is obtained again for each request, whichever location the key is sent in.
+auth006 | An API key sent in a header appears under the header name that the spec declares.
+auth007 | An authenticator reads only the environment variables it is told to read, and a generic authenticator built without credentials reads none and fails.
+auth008 | The S256 PKCE challenge for the RFC 7636 appendix B verifier equals the published challenge value, base64url encoded with no padding.
+auth009 | An API key or access token that is empty, blank, or contains a carriage return, line feed or NUL is refused when built, whether passed, read from the environment, or returned by a provider.
+auth010 | The token endpoint request never carries the transport's default headers.
+auth011 | A discovery response whose cache header has no max-age, or an unparseable one, is cached for the default lifetime so repeated use does not fetch it again.
+auth012 | Each rejected credential raises a message that states why it was refused.
+auth013 | Cancelling a call stops the token request it started, and the call reports the cancellation without waiting for the token endpoint.
+auth014 | The authorization URL encodes spaces between scopes as percent 20 and never as a plus sign.
+auth015 | When the token request fails, the header call that cannot return an error returns headers with no Authorization entry.
+auth016 | Every string, debug or repr form of an authenticator or token manager masks its secrets, and a wrapper's form names its own type.
+auth017 | A form-encoded token request body writes a space as a plus sign, keeps only RFC 3986 unreserved characters literal, and percent-encodes other reserved punctuation.
+auth018 | A secret passed to an authenticator, or rejected at construction, never appears in a stack trace, error message or dump, and secret constructor arguments are flagged as sensitive.
+auth019 | The authorization URL and token request bodies list their parameters in one fixed order and encoding, so the exact string is the same on every build.
+auth020 | A PKCE code verifier is sent with the first successful code exchange and never with a refresh or any later exchange.
+auth021 | A request made with no client-level or operation-level credential is sent with no Authorization header and is not refused.
+auth022 | An explicit argument is used first, then the environment variable, then the token provider, and the provider is used when the variable is unset or empty.
+auth023 | An explicitly passed empty credential is kept as given and refused, and is not replaced by the environment value.
+auth024 | Each credential field takes its passed value or else its own environment variable, independently of the other fields.
+auth025 | A credential that needs to send HTTP requests is given the client's transport when the client is built.
+auth026 | When a refresh fails and the fallback grant also fails, the caller receives the fallback grant's error, with its status code.
+auth027 | A cancelled token refresh is rethrown to the caller, and the original grant is not run as a fallback.
+auth028 | When the first code exchange fails, no session is recorded and the client still reports it as unexchanged.
+auth029 | After the cached discovery document expires, later calls use the endpoints of the newly fetched document.
+auth030 | Setting and reading token state from several threads or tasks at once never observes a value that was not set.
+results006 | The headers an API result exposes are a read-only copy taken when the result is built, so later changes to the source header map do not affect them and callers cannot modify them.
+serialization001 | The text form of an enum member is exactly its declared wire value.
+serialization002 | An enum member held by a model is written as its exact declared wire string, casing included.
+serialization003 | A wire value that an enum declares decodes to the member carrying exactly that value.
+serialization004 | A generated enum lists its declared members, maps each to its wire value, and refuses any value outside them.
+serialization005 | A path value keeps unreserved and sub-delimiter characters literal and percent-encodes every other character.
+serialization006 | Query parameter names and values percent-encode reserved and space characters, so a value cannot add a parameter.
+serialization007 | A literal plus sign is sent as %2B, and non-ASCII text in a form or query value is sent as percent-encoded UTF-8 bytes.
+serialization008 | A content-typed parameter is JSON-encoded exactly once and then left for its location to encode only as far as required.
+serialization009 | A value that cannot be serialized raises the serialization error before any request or partial output is produced.
+serialization010 | A body is sent with exactly the content type the caller declared, with no charset parameter added.
+serialization011 | Query parameters and model keys are written in the order the caller or schema gives them, never sorted.
+serialization012 | Keys of maps and additional properties are written in ascending order, so equal data always produces identical output.
+serialization013 | A set or array parameter in an unstyled, header or simple style is written as its items.
+serialization014 | A query parameter whose value is empty or unset produces no query entry at all.
+serialization015 | An object-valued path or query parameter is written with the prefix, separators and explode behaviour of its declared style.
+serialization016 | An object-valued parameter in a delimited style is written as alternating keys and values joined by that delimiter.
+serialization017 | An object-valued parameter built from a model is written under each property's wire name, in declaration order, in every style.
+serialization018 | A nested object or array inside an object-valued parameter is refused with a serialization error.
+serialization019 | An unset optional property, or a null entry in a parameter map, is left out of the serialized output.
+serialization020 | A field the caller leaves unset is written with its schema default value.
+serialization021 | Values with equal content compare equal and hash alike, and values whose content differs are distinct.
+serialization022 | A top-level body that is a JSON scalar decodes to a value of that scalar's own type.
+serialization023 | A payload that is not well-formed JSON, including content after the document, fails to decode with the SDK's serialization error.
+serialization024 | Brackets inside JSON strings never count toward the nesting depth limit, and a payload nested past the limit is refused with the serialization error.
+serialization025 | Typed leaves nested inside arrays, maps and models decode to their own typed values, including enum members and models.
+serialization026 | A JSON object decodes to a map of its keys and typed values, and an empty object decodes to an empty map.
+serialization027 | An empty JSON array decodes to an empty collection, distinct from an absent value.
+serialization028 | A JSON value of the wrong kind for a model, list or map is refused with a serialization error.
+serialization029 | A JSON value of the wrong kind for a scalar or enum field, such as a quoted number or a JSON string, is refused.
+serialization030 | A date-time field accepts only a string, so a JSON number, boolean or array in that field is refused.
+serialization031 | A whole number within an integer type's range, including its largest 32-bit and 64-bit values, decodes exactly.
+serialization032 | An integer field refuses any number written with a fraction or an exponent, even when its value is whole.
+serialization033 | Each leaf of an integer map or nested integer array must be a plain integer in range, and any other leaf is refused.
+serialization034 | A floating-point field decodes any finite JSON number, whole or fractional, to its exact numeric value.
+serialization035 | The non-standard NaN and Infinity literals are refused when a payload is decoded.
+serialization036 | A whole-number floating-point value is written with a decimal point, so the value one is written as 1.0.
+serialization037 | A decimal number is written with every significant digit and is not rounded to floating-point precision.
+serialization038 | A time or date-time written with digits finer than a millisecond is truncated to milliseconds and never rounded up.
+serialization039 | A date-time is read from any RFC 3339 spelling, with a Z or numeric offset and any number of fraction digits, to the same instant.
+serialization040 | A form-encoded body writes each date-time, duration, number, integer and boolean in its canonical wire text.
+serialization041 | A time string in hours, minutes and seconds form parses into a time value with those fields.
+serialization042 | A date-only or time string is passed through exactly as it was given, without reformatting.
+serialization043 | A time of day is written as hours, minutes and seconds, or as its ISO time string, and never as a full date-time.
+serialization044 | A date-time given for a date-format parameter is written as its calendar date only, with no time or offset.
+serialization045 | A malformed time or duration string is refused with a serialization error rather than decoded to a wrong value.
+serialization046 | A duration's fractional seconds are written in the shortest group of three, six or nine digits that holds the value.
+serialization047 | A duration too large for a 64-bit nanosecond count is formatted or round-tripped without overflow, and an out-of-range duration string is refused.
+serialization048 | A duration written outside a model, as a header or on its own, is written as its protobuf-JSON seconds string.
+serialization049 | A URI-format value must be absolute, and a relative, empty or non-URI string is refused.
+serialization050 | A property whose name begins with a digit reads and writes under its exact wire name.
+serialization051 | A strict model exposes no separate public method for its unknown-key check, so the single public entry point handles strictness.
+serialization052 | Undeclared keys are kept as additional properties on every nested model and every element of a list or map read from the wire.
+serialization053 | Undeclared keys held by a nested model are written back as keys of that model when the parent is serialized.
+serialization054 | A value in a free-form field keeps its JSON type, so a string stays a string and a null stays null.
+serialization055 | The charset named in a response's content type is honoured when the body is decoded, matched by parameter name ignoring letter case and spacing, never by a suffix.
+serialization056 | Quotes and backslashes in multipart field and file names are escaped so the part header stays well formed.
+serialization057 | A multipart field or file name containing a NUL byte or a line break is refused before any request is sent.
+serialization058 | A multipart part with no filename is sent as application/octet-stream.
+serialization059 | A byte stream or raw binary value given as a multipart part is sent as a file part that carries exactly its bytes.
+serialization060 | A model sent as a multipart part declares the application/json media type.
+serialization061 | Slash, angle brackets, ampersand and non-ASCII text are written literally in serialized output and never escaped.
+serialization062 | A base64 string for a byte-typed value decodes to the raw bytes it encodes, whether it is a property or a top-level response.
+serialization063 | Raw bytes are written as padded standard base64 text, whether they are a property, a list element or a top-level value.
+serialization064 | A collection of unique values is written as a JSON array of its members.
+serialization065 | A null inside an array or map of plain or timestamp values is kept as null in its own position on decode.
+serialization066 | A null is kept only where the property is declared nullable, and a present value for a nullable property decodes as given.
+redirects038 | A 307 or 308 redirect that keeps the request method sends the original body unchanged to the new location, with its Content-Type.
+redirects039 | A request with no body is followed across a redirect from HTTPS to plain HTTP that keeps its method, because no body is sent in plaintext.
+redirects040 | A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused, because those statuses send the next request without a body.
+redirects041 | A redirect that turns a POST into a GET on 301, 302 or 303 sends the follow-up request with no Content-Length or Content-Type header.
+redirects042 | A 307 redirect of a bodyless POST keeps the request a POST and sends Content-Length zero.
+redirects043 | A relative Location is resolved against the URL of the request that received the redirect, following RFC 3986.
+redirects044 | On a cross-origin redirect the SDK keeps its own proxy credential and removes the caller's own authorization and token headers.
+redirects045 | Supplying a transport that follows redirects on its own is refused with an error, because the SDK manages redirects itself.
+config025 | An empty base URL or token environment value is treated as unset, so client construction fails naming the missing variable.
+models013 | A newly built model's additional properties start as an empty collection, never null.
+models014 | Once a model is built, its properties cannot be reassigned.
+models015 | A changed copy of a model keeps the additional properties of the original.
+models016 | A copy clears an optional field only when null is passed explicitly, and keeps the current value when the argument is omitted.
+models017 | A copy can set or clear an optional field, and the original model keeps its value.
+models018 | Models whose decimal fields hold numerically equal values, differing only in trailing zeros, compare equal.
+models019 | Two models with a different value in any field compare unequal.
+models020 | Models with the same field values compare equal, and equal models hash alike so a set or map stores them as one entry.
+models021 | Each member of an integer-backed enum carries its declared number as its value.
+models022 | A generated model whose schema allows undeclared properties reports that it does.
+models023 | Undeclared keys whose names match the SDK's own method or internal names are kept as additional properties and not treated as methods or internals.
+models024 | A newly built model leaves its optional properties unset.
+misc001 | Replacing the access token while other callers read authentication headers is race-free, and each read gets one complete token that was set, which is then the token used.
+misc002 | A trace propagator the caller registers is the one used to inject trace context into requests, and headers already present on the request are kept.
+servers025 | Changing the variables map a server configuration was built from, after building it, does not change that configuration.
+servers026 | Changing the allowed-values list a server variable was built from, after building it, does not change the variable's allowed values.
+servers027 | Two server variables built with the same default, description and allowed values are equal.
+servers028 | The generated server list, and each generated server's variables and their allowed values, cannot be changed after creation.
+retries043 | An unauthorized response is not replayed when no authenticator can supply fresh credentials, and it is returned to the caller after one request.
+retries044 | When request ids are supplied, every retry is sent with an identifier that differs from the attempts before it.
+headers031 | A request header value containing a carriage return or line feed is refused with an error before the request is sent.
+headers032 | The Accept header lists media types without quality (q=) weights.
+lifecycle036 | Closing a client a second time raises no error and releases nothing further; credentials or connections are released exactly once, on the first close.
+lifecycle037 | Closing a client while requests are in flight releases its resources only after the last of those requests finishes, and releases them once.
+lifecycle038 | A caller-supplied transport that offers no close operation is valid, and closing the client through the SDK succeeds, repeatedly, while requests keep being sent.
+lifecycle039 | Building a client with no host, or with an empty token, is refused at construction and returns no client, while a valid token builds one.
+lifecycle040 | Leaving a language's scoped-disposal construct for the client, or using its standard disposal hook, closes the client and releases its transport.
