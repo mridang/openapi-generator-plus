@@ -1050,6 +1050,42 @@ test('bhv operations 095 uploadPetDocument sends primitive fields as plain text 
     expect($sent)->not->toContain('application/json');
 });
 
+test('bhv operations 147 multipart parts are sent in declaration order', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+    file_put_contents($tmpFile, 'document-content');
+    $stub = new \{{invokerPackage}}\Test\StubPsr18Client(
+        (new \Nyholm\Psr7\Factory\Psr17Factory())->createResponse(200)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody((new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('{"code":200,"type":"ok","message":"saved"}'))
+    );
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $api = new PetApi(
+        apiClient: new \{{invokerPackage}}\Psr18ApiClient($stub, $factory, $factory),
+        config: Configuration::builder()->baseUrl('http://localhost:9999')->build()
+    );
+
+    $api->uploadPetDocument(1, new UploadPetDocumentOptions(
+        new \SplFileObject($tmpFile, 'r'),
+        notes: 'declared second',
+        isPrimary: true,
+        pageCount: 3,
+        takenAt: new \DateTime('2024-01-15T10:30:00Z'),
+        swatch: \{{invokerPackage}}\Models\Swatch::RED,
+    ));
+    unlink($tmpFile);
+
+    $sent = (string) $stub->requests[0]->getBody();
+    $offsets = [];
+    foreach (['file', 'notes', 'isPrimary', 'pageCount', 'takenAt', 'swatch'] as $name) {
+        $offset = strpos($sent, 'name="' . $name . '"');
+        expect($offset)->toBeInt();
+        $offsets[] = (int) $offset;
+    }
+    $sorted = $offsets;
+    sort($sorted);
+    expect($offsets)->toBe($sorted);
+});
+
 test('bhv operations 094 uploadPetDocument default selection still sends a multipart body', function (): void {
     // Guard against over-correction: with no selector (default
     // multipart/form-data) the form-style map must reach the transport
@@ -1155,7 +1191,7 @@ test('bhv operations 038 error handling server error', function (): void {
     expect(fn () => $api->getPetById(1))->toThrow(ServerException::class);
 });
 
-test('get pet by id picks the status specific error class', function (int $status, string $expectedClass): void {
+test('bhv operations 138 get pet by id picks the status specific error class', function (int $status, string $expectedClass): void {
     /* The typed mock routes answer getPetById with each status and a JSON
      * body, so the error is decoded through the real operation. */
     $config = Configuration::builder()
@@ -1192,6 +1228,15 @@ test('bhv operations 036 empty body for body returning op throws api exception',
     );
 });
 
+test('bhv operations 136 a bare json null body from a model operation throws an api exception naming the operation', function (): void {
+    $api = newPetApiForMock(200, 'application/json', 'null');
+
+    expect(fn (): mixed => $api->getPetById(1))->toThrow(
+        ApiException::class,
+        'Expected a response body for getPetById',
+    );
+});
+
 // -- Canonical #11: a malformed 2xx body fails loud --
 //
 // getPetById declares a typed (Pet) return. A 2xx response whose body is
@@ -1201,7 +1246,7 @@ test('bhv operations 036 empty body for body returning op throws api exception',
 // native serde failure in the SDK-owned SerializationException, which surfaces
 // here unswallowed.
 
-test('malformed 2xx body fails loud rather than returning the raw string', function (): void {
+test('bhv operations 127 malformed 2xx body fails loud rather than returning the raw string', function (): void {
     // Truncated JSON object — a valid-looking 2xx body that cannot decode.
     $api = newPetApiForMock(200, 'application/json', '{"id":1,"name":');
 
@@ -1464,6 +1509,11 @@ test('bhv operations 049 get pet by name throws when required query param is emp
         );
 });
 
+test('bhv operations 132 an options object missing a required field names that field', function (): void {
+    expect(fn () => new GetPetByNameOptions(xCorrelationId: 'abc'))
+        ->toThrow(\ArgumentCountError::class, 'Argument #1 ($category) not passed');
+});
+
 test('bhv operations 052 get pet by name throws when required path param is empty', function (): void {
     [$api] = newBodyCapturingPetApi();
 
@@ -1660,7 +1710,7 @@ test('a staging server variable outside its enum cannot be constructed', functio
         ->toThrow(\ValueError::class);
 });
 
-test('a multi server operation uses the chosen server and the configured base url otherwise', function (): void {
+test('bhv operations 153 a multi server operation uses the chosen server and the configured base url otherwise', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {

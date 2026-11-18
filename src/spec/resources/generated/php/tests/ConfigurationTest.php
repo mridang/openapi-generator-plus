@@ -302,13 +302,28 @@ test('phpunit.xml runs the hand written spec directory as well as tests', functi
     expect($directories)->toContain('spec');
 });
 
-test('SKILLS documents the whole error tree under the root exception', function (): void {
+test('bhv skills 001 SKILLS names the root exception and the error types that are siblings of ApiException', function (): void {
     $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
 
+    expect(preg_match('/- `[A-Za-z0-9]+Exception` \(root\)/', $skills))->toBe(1);
     foreach (['SerializationException', 'OAuth2ServerException', 'OAuth2TokenException'] as $name) {
-        expect($skills)->toContain('`' . $name . '`');
+        expect($skills)->toContain('  - `' . $name . '`');
     }
+    expect($skills)->toContain('  - `ApiException`');
     expect($skills)->toContain('Every failure the SDK raises derives from');
+});
+
+test('bhv skills 002 SKILLS documents the retries in the configuration section', function (): void {
+    $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
+    $start = strpos($skills, "\n## Configuration\n");
+    $end = strpos($skills, "\n## API Methods\n");
+    expect($start)->toBeInt();
+    expect($end)->toBeInt();
+    assert(is_int($start) && is_int($end));
+    $section = substr($skills, $start, $end - $start);
+
+    expect($section)->toContain("\n### Retries\n");
+    expect($section)->toContain('`Retry-After`');
 });
 
 test('bhv config 004 builder merges single and bulk default headers', function (): void {

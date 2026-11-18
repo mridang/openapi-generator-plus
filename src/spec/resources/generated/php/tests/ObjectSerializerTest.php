@@ -604,7 +604,20 @@ test('bhv serializationobject 183 handles null', function (): void {
     expect(ObjectSerializer::serialize(null))->toBe('null');
 });
 
-test('serialize empty object body emits {} not []', function (): void {
+test('bhv serializationobject 189 mutually recursive models decode from nested json', function (): void {
+    $json = '{"name":"Eng","lead":{"name":"Ann","department":{"name":"Eng"}}}';
+
+    $department = ObjectSerializer::deserialize($json, \PetstoreClient\Models\Department::class);
+
+    expect($department)->toBeInstanceOf(\PetstoreClient\Models\Department::class);
+    assert($department instanceof \PetstoreClient\Models\Department);
+    expect($department->lead)->toBeInstanceOf(\PetstoreClient\Models\Employee::class);
+    expect($department->lead?->department)->toBeInstanceOf(\PetstoreClient\Models\Department::class);
+    expect($department->lead?->department?->name)->toBe('Eng');
+    expect(json_decode(ObjectSerializer::serialize($department), true))->toBe(json_decode($json, true));
+});
+
+test('bhv serializationobject 188 serialize empty object body emits {} not []', function (): void {
     /* #3: an empty request body must go on the wire as a JSON object `{}`,
      * never an empty JSON array `[]`. PHP's json_encode([]) yields `[]`,
      * which protobuf-JSON servers reject; an empty stdClass / all-null model

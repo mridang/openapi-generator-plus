@@ -1555,6 +1555,24 @@ test('bhv operations 013 null body post does not send content type', function ()
     expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
 });
 
+test('bhv operations 131 a request with no body sends no content type header', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'DELETE',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedBody)->toBeNull();
+    expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
+});
+
 test('bhv operations 011 empty string body includes content type', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
