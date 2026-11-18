@@ -2217,3 +2217,4 @@ langcsharp041 | A byte array is encoded as one base64 string rather than a list
 langcsharp042 | A cross-origin redirect drops any header whose name looks like a credential
 langcsharp043 | A 307 redirect replays a byte array body with its content type
 langcsharp044 | A 307 redirect replays a text body with a bare content type
+langruby090 | A password refused at construction for containing a NUL byte names the password in its error
