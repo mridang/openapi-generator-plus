@@ -209,3 +209,6 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+node | transport074 | every codec the SDK decodes (gzip, deflate, br) is built into zlib and the fetch layer, so no codec library can be missing at run time, and an unknown coding is passed through untouched (FORCED D-FORCED-1, see errors042)
+node | transport075 | the SDK adds no zstd decoder and the fetch layer owns Content-Encoding (see transport006), so a zstd frame is never decoded by the SDK
+node | errors079 | the method and path of an ApiError are fixed when it is built (ApiErrorOptions) and the SDK never attaches request details to an error afterwards, so there is no later attachment to keep or ignore

@@ -409,6 +409,10 @@ describe('TransportOptions', () => {
       }
     });
 
+    test('bhv transport 078 a custom fetch is refused at construction when a proxy is also configured', () => {
+      expect(() => TransportOptions.builder().fetch(customFetch).proxy('http://127.0.0.1:3128').build()).toThrow(TypeError);
+    });
+
     test('the printable form never includes the fetch function or option values', () => {
       const opts = TransportOptions.builder().fetch(customFetch).fetchOptions({ credentials: 'secret-mode' }).build();
       expect(opts.toString()).not.toContain('secret-mode');
