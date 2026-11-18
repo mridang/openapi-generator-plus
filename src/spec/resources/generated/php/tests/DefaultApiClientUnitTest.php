@@ -3148,3 +3148,88 @@ test('bhv misc 043 a user agent that is explicitly cleared is omitted from the r
 
     expect($captured)->not->toHaveKey('user-agent');
 });
+
+test('bhv misc 097 each multipart array element is its own part in order', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    (new StubbedDefaultApiClient($mockClient))->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        ['tags' => ['a', 'b'], 'name' => 'x']
+    );
+
+    expect(substr_count($capturedBody, 'name="tags"'))->toBe(2);
+    expect(substr_count($capturedBody, 'name="name"'))->toBe(1);
+    expect(strpos($capturedBody, "\r\n\r\na\r\n"))->toBeLessThan(strpos($capturedBody, "\r\n\r\nb\r\n"));
+});
+
+test('bhv misc 098 a caller supplied stream used as a part is read and never closed', function (): void {
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    fwrite($stream, 'stream bytes');
+    rewind($stream);
+
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    (new StubbedDefaultApiClient($mockClient))->sendRequest('POST', 'http://example.com/upload', [], ['file' => $stream]);
+
+    expect($capturedBody)->toContain('stream bytes');
+    expect(is_resource($stream))->toBeTrue();
+    if (is_resource($stream)) {
+        fclose($stream);
+    }
+});
+
+test('bhv misc 099 a non ascii multipart filename gets an extended filename parameter', function (): void {
+    $tmp = sys_get_temp_dir() . '/' . uniqid('mp_', true) . '_résumé.txt';
+    file_put_contents($tmp, 'payload');
+
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    try {
+        (new StubbedDefaultApiClient($mockClient))->sendRequest(
+            'POST',
+            'http://example.com/upload',
+            [],
+            ['file' => new \SplFileObject($tmp)]
+        );
+
+        expect($capturedBody)->toContain("filename*=UTF-8''");
+    } finally {
+        @unlink($tmp);
+    }
+});
+
+test('bhv misc 100 a multipart request declares the form data subtype with a boundary', function (): void {
+    $capturedHeaders = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+            $capturedHeaders = $options['headers'] ?? [];
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    (new StubbedDefaultApiClient($mockClient))->sendRequest('POST', 'http://example.com/upload', [], ['name' => 'x']);
+
+    expect(implode(' ', (array) ($capturedHeaders['Content-Type'] ?? $capturedHeaders['content-type'] ?? [])))
+        ->toStartWith('multipart/form-data; boundary=');
+});

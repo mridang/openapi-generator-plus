@@ -701,4 +701,8 @@ namespace {
             expect(ValueSerializer::serialize(7, $location, 'integer'))->toBe('7');
         }
     });
+
+    test('bhv misc 107 a scalar form query parameter keeps its own name and value', function (): void {
+        expect(ValueSerializer::putQueryParam([], 'filter', 'x'))->toBe(['filter' => 'x']);
+    });
 }

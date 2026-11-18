@@ -1107,16 +1107,16 @@ class DefaultApiClientTest {
          * so the exact status matrix is locked.
          */
         @Test
-        @DisplayName("bhvRedirects001 302_https_to_http_with_body_proceeds_but_307_308_throw")
-        void bhvRedirects001Redirect302ProceedsWhile307And308Throw() {
+        @DisplayName("bhvRedirects001 302_307_308_https_to_http_with_body_throw")
+        void bhvRedirects001Redirect302307And308ThrowWithBody() {
             java.net.URI origin = java.net.URI.create("https://api.example.com/secret");
             java.net.URI target = java.net.URI.create("http://api.example.com/landed");
 
-            // 302 HTTPS->HTTP with a body: must proceed (guard does NOT fire,
-            // body is dropped when the request coerces to GET).
-            assertFalse(
+            // 302 HTTPS->HTTP with a body: must be refused like 307 and 308 (the body
+            // would otherwise be replayed in cleartext).
+            assertTrue(
                     DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(origin, target, 302, true),
-                    "302 HTTPS->HTTP with body must proceed (body dropped, request becomes GET)");
+                    "302 HTTPS->HTTP with body must be refused (body would replay in cleartext)");
 
             // 307/308 HTTPS->HTTP with a body: must throw (guard fires — the
             // body would otherwise be replayed over cleartext).
