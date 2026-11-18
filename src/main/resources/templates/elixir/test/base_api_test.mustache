@@ -1668,6 +1668,40 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv serialization 040 a form-encoded body writes temporal, number and boolean values in canonical text" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: BodyCapturingApiClient}
+
+    body = %{
+      "at" => ~U[2024-01-02 03:04:05.678Z],
+      "span" => Duration.new!(minute: 1),
+      "ratio" => 1.5,
+      "count" => 7,
+      "flag" => true
+    }
+
+    _result =
+      {{moduleName}}.Api.BaseApi.invoke_api(
+        state, :post, "/test/echo", %{}, %{}, body, ["application/json"],
+        "application/x-www-form-urlencoded", nil
+      )
+
+    pairs =
+      name
+      |> BodyCapturingApiClient.captured_body()
+      |> String.split("&")
+      |> Enum.map(&URI.decode_www_form/1)
+
+    assert "at=2024-01-02T03:04:05.678+00:00" in pairs
+    assert "span=60s" in pairs
+    assert "ratio=1.5" in pairs
+    assert "count=7" in pairs
+    assert "flag=true" in pairs
+
+    Agent.stop(name)
+  end
+
   test "bhv operations 016 sends no body when the body is nil" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
