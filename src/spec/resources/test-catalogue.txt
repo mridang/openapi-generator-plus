@@ -1942,3 +1942,92 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langruby001 | The generated YARD documentation shows operation prose without literal escape sequences
+langruby002 | The generated YARD options documentation shows prose without literal escape sequences
+langruby003 | A generated server class built from enum-valued variables resolves its URL from those values
+langruby004 | A value outside the enum of a later server variable is rejected and the error names that variable
+langruby005 | A form-urlencoded body omits optional properties that the caller did not set
+langruby006 | An operation that is not deprecated carries no deprecation marker on its options class
+langruby007 | A deprecated parameter is marked on its generated options class
+langruby008 | The generated YARD documentation declares a binary download as a StringIO
+langruby009 | The generated RBS signatures declare a binary download as a StringIO
+langruby010 | A server URL with explicit enum variable values forms the templated URL from the chosen values
+langruby011 | A Set of labels expands into one query pair per element when sent as a query
+langruby012 | The generated Options object carries only the per-call settings and no transport state
+langruby013 | An operation with no parameters still takes no argument at all
+langruby014 | A nil required account is refused before the request is sent
+langruby015 | An api key authenticator with no given key and no environment key fails at construction
+langruby016 | A result object does not freeze the hash the caller passed in
+langruby017 | A call hook can delete a header and the deletion survives a transport retry
+langruby018 | A call that names no spec operation falls back to the operation name and request path
+langruby019 | ISO-8859-1 basic credentials are transcoded to UTF-8 before they are encoded
+langruby020 | Each validation rejection names the offending part
+langruby021 | The token is redacted from inspect and to_s output
+langruby022 | Every observer in a call hook chain runs even when one of them fails
+langruby023 | The values describing a call are exposed as frozen values
+langruby024 | Each library file path names exactly the constant it declares
+langruby025 | The call hook reaches every API group of the client
+langruby026 | A composed-schema variant can be built through its typed factory and another type is rejected
+langruby027 | An array of byte variants serializes as an array of base64 strings
+langruby028 | A client has no call hook by default
+langruby029 | The call hook builder sets the hook and returns the builder
+langruby030 | The call hook builder removes the hook when given nil
+langruby031 | The call hook builder rejects a hook that cannot start a call
+langruby032 | Inspecting a configuration does not print the call hook
+langruby033 | A method the HTTP library does not know, such as QUERY, is sent with its body
+langruby034 | The passthrough query encoder is installed on the connection the client builds
+langruby035 | An encoded plus and an encoded space in a query remain distinct
+langruby036 | The query encoder decodes to the raw string and encodes it back unchanged
+langruby037 | An upload with a given file extension sets the matching content type
+langruby038 | With no CA certificate configured, the certificate store is left unset
+langruby039 | A validly brotli-encoded response body is decompressed
+langruby040 | A retryable status response is returned once the retries are spent
+langruby041 | A status response that is not retryable is not retried
+langruby042 | The generated gem does not declare the faraday follow_redirects gem
+langruby043 | The runtime's default gems are declared in the gemspec
+langruby044 | The generated model sources are found on disk for documentation checks
+langruby045 | Genuine examples declared in the spec are still documented
+langruby046 | An access token that is missing, empty or of the wrong type is reported as missing
+langruby047 | A non-string error value is not taken as an error code
+langruby048 | A bare epoch number is rejected as a date-time
+langruby049 | An array body where an object model is expected raises a serialization error
+langruby050 | An array where a nested model is expected raises a serialization error
+langruby051 | Inline property enums are exposed as nested constants classes
+langruby052 | Nil array elements are kept, and only hashes are filtered
+langruby053 | A model holding an unknown inline enum string is built without raising
+langruby054 | A model copied with an unknown inline enum string does not raise
+langruby055 | Enum constants are frozen strings
+langruby056 | The VALUES list of an enum contains every constant and is frozen
+langruby057 | Serializing positive infinity raises
+langruby058 | Serializing negative infinity raises
+langruby059 | Stringifying a time of day emits HH:MM:SS
+langruby060 | A time of day value passes through type conversion unchanged
+langruby061 | An ISO8601 duration value passes through type conversion unchanged
+langruby062 | A known value of a referenced enum field is accepted
+langruby063 | A free-form number is kept as a float
+langruby064 | A value the caller sets is written in place of the schema default
+langruby065 | A present value for a nullable property is decoded as given
+langruby066 | An out-of-range duration string is refused
+langruby067 | Discovery failure with a given status raises the matching error class
+langruby068 | The README documents the schema constraints and uniqueItems ordering
+langruby069 | The README makes no claim about how other SDKs handle a discriminator with no match
+langruby070 | The README lists unsupported features and states that uniqueItems order is unspecified
+langruby071 | The README documents the retry option and does not say requests are never retried
+langruby072 | The README documents per-call options, error request context and design notes
+langruby073 | The README names the environment variable of every credential
+langruby074 | The README documents the credential per security scheme, closing the client and cookie
+langruby075 | The generated authenticators can be found in the gem
+langruby076 | Scheme authenticators take positional arguments like their base authenticators
+langruby077 | Each scheme wrapper is built from its own variables alone
+langruby078 | A Bearer scheme wrapper takes its token provider after the variable
+langruby079 | A server configuration is immutable and freezes its variables map
+langruby080 | The skills document defines the Error Handling example as a method taking the operation argument
+langruby081 | The Error Handling example in the skills document leaves no undefined variable
+langruby082 | The Error Handling example in the skills document ends with a rescue of the root error type
+langruby083 | The skills document lists transport subsections in canonical order
+langruby084 | The Error Handling example in the skills document parses
+langruby085 | The skills document names the environment variable of every credential and the per-call options
+langruby086 | The skills document documents the credential per security scheme, closing the client and cookie
+langruby087 | A supplied connection is kept as the transport connection
+langruby088 | Transport options default to no connection
+langruby089 | A value that is not a connection object is rejected as a connection

@@ -367,7 +367,7 @@ describe {{moduleName}}::TransportOptions do
   end
 
   describe 'custom connection' do
-    it 'keeps the supplied connection' do
+    it 'bhv_langruby_087 keeps the supplied connection' do
       conn = Faraday.new('http://localhost')
       _({{moduleName}}::TransportOptions.builder.connection(conn).build.connection).must_be_same_as conn
     end
@@ -380,7 +380,7 @@ describe {{moduleName}}::TransportOptions do
       _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
     end
 
-    it 'defaults to no connection' do
+    it 'bhv_langruby_088 defaults to no connection' do
       _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
     end
 
@@ -419,7 +419,7 @@ describe {{moduleName}}::TransportOptions do
       _(error.message).must_include 'verify_ssl'
     end
 
-    it 'rejects a connection combined with a CA bundle' do
+    it 'bhv_misc_186 rejects a connection combined with a CA bundle' do
       error = assert_raises(ArgumentError) do
         {{moduleName}}::TransportOptions.builder.connection(Faraday.new('http://localhost')).ca_cert_path('/tmp/ca.pem').build
       end
@@ -450,7 +450,7 @@ describe {{moduleName}}::TransportOptions do
       _(error.message).must_include 'follow redirects'
     end
 
-    it 'rejects an object that is not a connection' do
+    it 'bhv_langruby_089 rejects an object that is not a connection' do
       error = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.connection(Object.new).build }
       _(error.message).must_include 'Faraday::Connection'
     end

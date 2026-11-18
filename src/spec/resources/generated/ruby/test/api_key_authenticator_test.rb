@@ -211,7 +211,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.auth_headers).must_equal('X-Api-Key' => 'explicit')
   end
 
-  it 'fails at construction when the key is neither given nor in the environment' do
+  it 'bhv_langruby_015 fails at construction when the key is neither given nor in the environment' do
     prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
     error = _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
@@ -233,7 +233,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.auth_headers).must_equal('X-Api-Key' => 'from-other')
   end
 
-  it 'reads the environment once, at construction' do
+  it 'bhv_lifecycle_025 reads the environment once, at construction' do
     env = { 'OTHER_KEY' => 'first' }
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
