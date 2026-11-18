@@ -119,6 +119,11 @@ describe Petstore::Client::ValueSerializer do
       end
     end
 
+    it 'bhv_serializationparam_115 a csv query array keeps an empty slot for a null element by default' do
+      result = Petstore::Client::ValueSerializer.serialize([1, nil, 3], :query, 'array')
+      _(result).must_equal('1,,3')
+    end
+
     it 'bhv_serializationparam_011 array keeps an empty slot for a null element with multi' do
       result = Petstore::Client::ValueSerializer.serialize(['1', nil, '3'], :query, 'array', collection_format: :multi)
       _(result).must_equal(['1', '', '3'])
@@ -325,7 +330,7 @@ describe Petstore::Client::ValueSerializer do
         _(result).must_equal('blue')
       end
 
-      it 'a Set with explode false joins its elements like an array' do
+      it 'bhv_serializationparam_117 a Set with explode false joins its elements like an array' do
         result = Petstore::Client::ValueSerializer.serialize_styled(
           'color', Set['red', 'blue'], :query, 'array', nil, 'form', false
         )
@@ -366,6 +371,11 @@ describe Petstore::Client::ValueSerializer do
       end
     end
 
+    it 'bhv_serializationparam_109 an unknown parameter style falls back to plain value serialization' do
+      result = Petstore::Client::ValueSerializer.serialize_styled('id', '5', :query, 'String', nil, 'unknownStyle', false)
+      _(result).must_equal('5')
+    end
+
     describe 'null style falls back to location default' do
       it 'bhv_serializationparam_106 path with null style behaves like simple' do
         result = Petstore::Client::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
@@ -384,6 +394,11 @@ describe Petstore::Client::ValueSerializer do
       result = Petstore::Client::ValueSerializer.serialize_deep_object('filter', { 'color' => 'blue', 'size' => 'large' })
       _(result['filter[color]']).must_equal('blue')
       _(result['filter[size]']).must_equal('large')
+    end
+
+    it 'bhv_serializationparam_111 writes each property of a deepObject parameter as name[key]' do
+      result = Petstore::Client::ValueSerializer.serialize_deep_object('filter', { 'status' => 'active', 'type' => 'dog' })
+      _(result).must_equal({ 'filter[status]' => 'active', 'filter[type]' => 'dog' })
     end
 
     it 'bhv_serializationparam_061 null returns empty hash' do
@@ -437,7 +452,7 @@ describe Petstore::Client::ValueSerializer do
       _(Petstore::Client::ValueSerializer.serialize('a+b', :path, 'string')).must_equal('a+b')
     end
 
-    it 'tilde preserved (RFC 3986 unreserved)' do
+    it 'bhv_serializationparam_119 tilde preserved (RFC 3986 unreserved)' do
       # '~' is an RFC 3986 unreserved character and must never be
       # percent-encoded. URI.encode_www_form_component emits %7E; the
       # canonical encoding (Java, Kotlin, Node, C#, etc.) keeps a literal '~'.
@@ -565,6 +580,11 @@ describe Petstore::Client::ValueSerializer do
       _(encoded).must_match(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
     end
 
+    it 'bhv_serializationparam_118 encodes a content cookie value to the shared percent encoded bytes' do
+      encoded = Petstore::Client::ValueSerializer.encode_content_cookie('{"k":"a b~*é"}')
+      _(encoded).must_equal('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D')
+    end
+
     it 'bhv_serializationparam_081 encodes the sub-delimiters and the asterisk' do
       _(Petstore::Client::ValueSerializer.encode_content_cookie("!'()*")).must_equal('%21%27%28%29%2A')
     end
@@ -632,13 +652,13 @@ describe Petstore::Client::ValueSerializer do
       _(result).must_equal('2024-01-15')
     end
 
-    it 'writes a Time as YYYY-MM-DD' do
+    it 'bhv_serializationparam_110 writes a Time as YYYY-MM-DD' do
       value = Time.new(2024, 1, 15, 23, 59, 30, '+00:00')
       result = Petstore::Client::ValueSerializer.serialize_styled('born_on', value, :path, 'Date', nil, 'simple', false)
       _(result).must_equal('2024-01-15')
     end
 
-    it 'writes every element of an array of date-times as YYYY-MM-DD' do
+    it 'bhv_serializationparam_120 writes every element of an array of date-times as YYYY-MM-DD' do
       values = [DateTime.new(2024, 1, 15, 1, 2, 3), Date.new(2024, 2, 1)]
       result = Petstore::Client::ValueSerializer.serialize_styled('days', values, :path, 'Array<Date>', nil, 'simple', false)
       _(result).must_equal('2024-01-15,2024-02-01')
@@ -698,6 +718,12 @@ describe Petstore::Client::ValueSerializer do
         )
         _(result).must_equal(expected)
       end
+    end
+
+    it 'bhv_serializationparam_108 rejects a nested object leaf in a styled parameter' do
+      nested = { 'inner' => { 'deeper' => 1 } }
+      _ { Petstore::Client::ValueSerializer.serialize_styled('criteria', nested, :query, 'Criteria', nil, 'form', true) }
+        .must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'flattens an object in a query by spaceDelimited and pipeDelimited style' do

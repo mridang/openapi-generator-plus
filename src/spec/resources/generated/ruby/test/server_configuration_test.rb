@@ -59,6 +59,14 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'host' => 'a\\0b\\&c' })).must_equal 'https://a\\0b\\&c.example.com/a\\0b\\&c'
   end
 
+  it 'bhv_servers_023 substitutes a value containing replacement patterns literally' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com',
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'a$1\\0b$&') }
+    )
+    _(config.url).must_equal('https://a$1\\0b$&.api.example.com')
+  end
+
   it 'bhv_servers_005 does not expand a placeholder that a substituted value introduces' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/{version}',

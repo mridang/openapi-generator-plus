@@ -177,6 +177,16 @@ describe Petstore::Client::ObjectSerializer do
     end
   end
 
+  it 'bhv_serializationobject_229 deserializes a map of models into a model instance for each value' do
+    result = Petstore::Client::ObjectSerializer.deserialize(
+      '{"dogs":{"id":1,"name":"Dogs"},"cats":{"id":2,"name":"Cats"}}', 'Hash<String, Category>'
+    )
+    _(result.keys.sort).must_equal(%w[cats dogs])
+    _(result['dogs']).must_be_instance_of(Petstore::Client::Models::Category)
+    _(result['dogs'].id).must_equal(1)
+    _(result['cats'].name).must_equal('Cats')
+  end
+
   describe 'null model elements in containers' do
     it 'bhv_serializationobject_121 rejects a null element in an array of models' do
       _ { Petstore::Client::ObjectSerializer.deserialize('[null,{"name":"a","photoUrls":[]}]', 'Array<Pet>') }
@@ -719,7 +729,7 @@ describe Petstore::Client::ObjectSerializer do
 
     # Spec prose in a model's externalDocs reaches the comment as written:
     # no HTML entity and no literal escape.
-    it 'documents the Account externalDocs description verbatim' do
+    it 'bhv_serializationobject_227 documents the Account externalDocs description verbatim' do
       path = String(Object.const_source_location(Petstore::Client::Models::Account.name)&.first)
       _(File.read(path)).must_include(%q(# @see https://example.com/docs/account Account <docs> & "notes" it's here))
     end
@@ -813,7 +823,7 @@ describe Petstore::Client::ObjectSerializer do
       _(pet.photo_urls.to_a).must_equal(['http://example.com/p.jpg'])
     end
 
-    it 'leaves optional fields untouched when omitted' do
+    it 'bhv_serializationobject_231 leaves optional fields untouched when omitted' do
       # Only the required fields are supplied; optional `id`/`status` stay nil.
       json = '{"name":"doggie","photoUrls":["http://example.com/p.jpg"]}'
       pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
@@ -1453,7 +1463,7 @@ describe Petstore::Client::ObjectSerializer do
       _(result).must_equal(original)
     end
 
-    it 'round-trip time yields equivalent value' do
+    it 'bhv_serializationobject_230 round-trip time yields equivalent value' do
       original = Tod::TimeOfDay.new(7, 30, 15)
       serialized = Petstore::Client::ObjectSerializer.stringify(original)
       parsed = Petstore::Client::ObjectSerializer.convert_to_type(serialized, 'Tod::TimeOfDay')

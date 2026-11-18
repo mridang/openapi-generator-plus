@@ -642,7 +642,7 @@ describe Petstore::Client::Api::BaseApi do
 
   # The third declared server carries quotes and an ampersand in its values:
   # they reach the URL exactly as written.
-  it 'resolves the default and an enum value of the server with special characters' do
+  it 'bhv_servers_021 resolves the default and an enum value of the server with special characters' do
     default_config = Petstore::Client::Configuration.builder.server(Petstore::Client::Servers::SERVER_2).build
     _(default_config.base_url).must_equal("https://o'neil.example.com/api")
 
@@ -797,7 +797,7 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_body.to_s).wont_include '%20'
   end
 
-  it 'form-urlencoded body keeps ~ literal and escapes * in keys and values' do
+  it 'bhv_serializationwire_057 form-urlencoded body keeps ~ literal and escapes * in keys and values' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -1035,6 +1035,17 @@ describe Petstore::Client::Api::BaseApi do
                            ['image/png'], 'image/png', 'String')
     decoded = Base64.strict_decode64(result)
     assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
+  end
+
+  it 'bhv_serializationwire_060 a binary return type gets the raw bytes of a JSON body' do
+    client = FixedResponseApiClient.new(
+      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: '{"id":7,"label":"scan"}', headers: { 'Content-Type' => 'application/json' })
+    )
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
+                           ['image/jpeg', 'application/json'], 'application/json', 'File')
+    _(result.read).must_equal('{"id":7,"label":"scan"}')
   end
 
   it 'bhv_serializationwire_006 returns nil for nil return type (JSON response)' do

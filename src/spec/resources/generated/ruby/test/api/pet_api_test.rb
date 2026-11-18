@@ -846,7 +846,7 @@ describe Petstore::Client::Api::PetApi do
       _(server.url).must_equal('https://sandbox.example.com/api/v3')
     end
 
-    it 'rejects a value outside the enum' do
+    it 'bhv_servers_020 rejects a value outside the enum' do
       err = _(lambda {
         Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(environment: 'attacker.net/x#', version: 'v2')
       }).must_raise(ArgumentError)
