@@ -215,6 +215,33 @@ void main() {
       );
     });
 
+    test('bhv misc 076 a call after a dropped code exchange sees the code as not yet exchanged', () async {
+      final cause = StateError('connection reset');
+      final client = _FakeApiClient();
+      client.failure = cause;
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(auth.exchangeCode('a'), throwsA(same(cause)));
+      expect(
+        () => auth.authHeaders(),
+        throwsA(isA<StateError>().having((e) => e.message, 'message',
+            'Must call exchangeCode() before making API requests')),
+      );
+    });
+
+    test('bhv misc 077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call', () {
+      final auth = _createAuthenticator();
+
+      auth.buildAuthorizationUrl();
+      final first = auth.pendingPkceVerifier!;
+      auth.buildAuthorizationUrl();
+      final second = auth.pendingPkceVerifier!;
+
+      expect(first, matches(RegExp(r'^[A-Za-z0-9_-]{43}$')));
+      expect(second, isNot(equals(first)));
+    });
+
     test('bhv misc 028 a transport failure during the code exchange reaches the caller unchanged', () async {
       final cause = StateError('connection reset');
       final client = _FakeApiClient();

@@ -371,6 +371,20 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 071 a client-level credential that needs HTTP receives the client transport',
+      () {
+        final credential = _TransportRecordingBearer(
+          host: 'https://api.example.com',
+          token: 'tok',
+        );
+
+        Client(authenticator: credential);
+
+        expect(credential.injected, isNotNull);
+      },
+    );
+
     test('bhv lifecycle 001 API groups are accessible', () {
       final authenticator = BearerAuthenticator(
         host: '/api/v3',
@@ -858,6 +872,18 @@ void main() {
       },
     );
   });
+}
+
+class _TransportRecordingBearer extends BearerAuthenticator
+    implements HttpAwareAuthenticator {
+  _TransportRecordingBearer({required super.host, required super.token});
+
+  ApiClient? injected;
+
+  @override
+  void setApiClient(ApiClient client) {
+    injected = client;
+  }
 }
 
 class _CountingHook implements CallHook {

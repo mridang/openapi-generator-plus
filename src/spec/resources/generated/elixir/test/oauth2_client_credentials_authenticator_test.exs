@@ -525,6 +525,33 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert shown =~ ~s(token_url: "https://auth.example.com/token")
     end
 
+    test "bhv misc 063 the machine auth wrapper posts its token request to the token URL the scheme declares" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret"
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/oauth/token"
+    end
+
     test "bhv auth 001 a synchronous header call whose token step has no client raises and returns no headers" do
       auth = create_authenticator()
 
