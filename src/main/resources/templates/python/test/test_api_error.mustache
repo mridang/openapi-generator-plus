@@ -97,10 +97,17 @@ class TestApiErrorShape:
 
         assert str(err) == 'Error message: the server returns an error'
 
-    def test_empty_message_keeps_the_status_line_after_the_default_text(self) -> None:
+    def test_bhv_errors_051_empty_message_keeps_the_status_line_after_the_default_text(self) -> None:
         err = ApiException(status_code=502, message='')
 
         assert str(err) == 'Error message: the server returns an error\nHTTP status code: 502'
+
+    def test_bhv_errors_055_status_error_constructors_default_the_response_context_to_none(self) -> None:
+        err = BadRequestException(message='bad request')
+
+        assert err.response_headers is None
+        assert err.response_body is None
+        assert err.error_body is None
 
 
 class TestExceptionHierarchy:
@@ -114,6 +121,27 @@ class TestExceptionHierarchy:
         assert issubclass(BadRequestException, ClientException)
         assert issubclass(ClientException, ApiException)
         assert issubclass(ApiException, {{errorPrefix}}Exception)
+
+    def test_bhv_errors_052_a_typed_client_error_is_caught_by_a_base_api_error_catch(self) -> None:
+        with pytest.raises(ApiException) as exc_info:
+            raise BadRequestException(message='bad request')
+
+        assert isinstance(exc_info.value, {{errorPrefix}}Exception)
+        assert exc_info.value.status_code == 400
+
+    def test_bhv_errors_053_each_named_error_pins_its_own_status_code(self) -> None:
+        pinned = [
+            (BadRequestException, 400),
+            (UnauthorizedException, 401),
+            (ForbiddenException, 403),
+            (NotFoundException, 404),
+            (ConflictException, 409),
+            (UnprocessableEntityException, 422),
+            (TooManyRequestsException, 429),
+        ]
+
+        for error_type, status in pinned:
+            assert error_type().status_code == status
 
     def test_bhv_errors_020_network_errors_inherit_through_to_api_exception(self) -> None:
         # NetworkTimeoutException -> NetworkException -> ApiException
@@ -218,7 +246,7 @@ class TestFromResponse:
         assert type(err) is ClientException
         assert err.status_code == 418
 
-    def test_status_at_or_above_600_is_not_a_server_error(self) -> None:
+    def test_bhv_errors_056_status_at_or_above_600_is_not_a_server_error(self) -> None:
         # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
         # base ApiException, never ServerException.
         err = ApiException.from_response(600, {'x-request-id': 'abc'}, None)
@@ -328,6 +356,18 @@ class TestApiErrorRendering:
         assert str(err) == (
             "not found\nHTTP status code: 404"
             "\nResponse headers: {\"x-id\":\"7\"}\nResponse body: " + '{"a":1}'
+        )
+
+    def test_bhv_errors_050_response_headers_render_as_compact_sorted_json_with_unescaped_slashes(self) -> None:
+        err = ApiException(
+            status_code=302,
+            message='moved',
+            response_headers={'x-b': '2', 'location': 'https://example.com/a', 'x-a': '1'},
+        )
+
+        assert str(err) == (
+            'moved\nHTTP status code: 302'
+            '\nResponse headers: {"location":"https://example.com/a","x-a":"1","x-b":"2"}'
         )
 
     def test_bhv_errors_022_omits_empty_headers_and_an_empty_body(self) -> None:

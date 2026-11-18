@@ -1,12 +1,14 @@
-import pytest
 from types import MappingProxyType
+from typing import Any
+
+import pytest
 
 from {{packageName}}.configuration import Configuration, ConfigurationBuilder
 from {{packageName}}.server_configuration import ServerConfiguration, ServerVariable
 
 
 class TestConfigurationDefaults:
-    def test_default_constructor_uses_spec_base_url(self) -> None:
+    def test_bhv_config_018_default_constructor_uses_spec_base_url(self) -> None:
         config = Configuration()
 
         assert config.base_url == '{{{basePath}}}'
@@ -79,6 +81,17 @@ class TestConfigurationBuilder:
         assert config.default_headers['X-First'] == 'one'
         assert config.default_headers['X-Second'] == 'two'
         assert config.default_headers['X-Third'] == 'three'
+
+    def test_bhv_config_020_builder_chain_sets_base_url_and_headers_in_one_configuration(self) -> None:
+        config = (
+            Configuration.builder()
+            .base_url('https://api.example.com')
+            .default_header('Authorization', 'Bearer token')
+            .build()
+        )
+
+        assert config.base_url == 'https://api.example.com'
+        assert config.default_headers['Authorization'] == 'Bearer token'
 
     def test_bhv_config_006_builder_produces_independent_instances(self) -> None:
         builder = Configuration.builder().base_url('https://example.com')
@@ -172,6 +185,25 @@ class TestConfigurationServerResolution:
 
         assert type(exc_info.value) is ValueError
 
+    def test_bhv_config_021_server_url_template_resolves_its_variables_to_their_defaults(self) -> None:
+        server = ServerConfiguration(
+            url_template='https://{env}.example.com/api/{version}',
+            variables={
+                'env': ServerVariable(
+                    default_value='api',
+                    enum_values=['api', 'staging'],
+                ),
+                'version': ServerVariable(
+                    default_value='v3',
+                    enum_values=['v2', 'v3'],
+                ),
+            },
+        )
+
+        config = Configuration.builder().server(server).build()
+
+        assert config.base_url == 'https://api.example.com/api/v3'
+
     def test_bhv_config_001_builder_base_url_overrides_server(self) -> None:
         server = ServerConfiguration(url_template='https://api.example.com')
 
@@ -192,7 +224,13 @@ class TestDefaultConfiguration:
         assert isinstance(config, Configuration)
         assert config.base_url == '{{{basePath}}}'
 
-    def test_default_configuration_returns_a_fresh_instance(self) -> None:
+    def test_bhv_config_019_default_configuration_returns_spec_base_url_and_no_headers(self) -> None:
+        config = Configuration.default_configuration()
+
+        assert config.base_url == '{{{basePath}}}'
+        assert len(config.default_headers) == 0
+
+    def test_bhv_config_023_default_configuration_returns_a_fresh_instance(self) -> None:
         # There is no settable process-wide default: every call builds a new
         # Configuration, so nothing one caller does can change what another
         # gets.
@@ -202,12 +240,21 @@ class TestDefaultConfiguration:
         assert first is not second
         assert first.base_url == second.base_url
 
-    def test_configuration_has_no_settable_process_wide_default(self) -> None:
+    def test_bhv_config_024_configuration_has_no_settable_process_wide_default(self) -> None:
         assert not hasattr(Configuration, 'set_default')
         assert not hasattr(Configuration, 'get_default')
 
 
 class TestConfigurationImmutability:
+    def test_bhv_config_022_mutating_default_headers_does_not_change_the_configuration(self) -> None:
+        config = Configuration.builder().default_header('X-Test', 'value').build()
+        headers: Any = config.default_headers
+
+        with pytest.raises(TypeError):
+            headers['X-Mutated'] = 'should-not-affect-config'
+
+        assert 'X-Mutated' not in config.default_headers
+
     def test_bhv_config_017_default_headers_is_immutable(self) -> None:
         config = (
             Configuration.builder()
