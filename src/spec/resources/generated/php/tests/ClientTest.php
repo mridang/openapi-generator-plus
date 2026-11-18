@@ -87,7 +87,7 @@ test('bhv lifecycle 001 api groups are accessible', function (): void {
     expect($client->store)->toBeInstanceOf(\PetstoreClient\Api\StoreApi::class);
 });
 
-test('injected api client is wired into every api group', function (): void {
+test('bhv langphp 055 injected api client is wired into every api group', function (): void {
     // A custom ApiClient passed to the facade must be the exact instance every
     // API group sends through — this is the seam that lets a Psr18ApiClient (or
     // any bespoke transport) replace the bundled DefaultApiClient.
@@ -242,7 +242,7 @@ test('bhv lifecycle 009 closing a client never closes a transport the caller sup
     expect($counts->closes)->toBe(0);
 });
 
-test('a client that is not closed still sends', function (): void {
+test('bhv langphp 056 a client that is not closed still sends', function (): void {
     [$transport, $counts] = newRecordingTransport();
     $client = new Client($this->authenticator, null, $transport);
 
@@ -648,7 +648,7 @@ test('bhv mocking 008 a client built from fakes never connects and closes withou
     expect($fake->closed)->toBe(2);
 });
 
-test('a call hook given to the client is handed to every api group', function (): void {
+test('bhv langphp 057 a call hook given to the client is handed to every api group', function (): void {
     $hook = new RecordingCallHook();
     $client = new Client($this->authenticator, null, null, callHook: $hook);
 

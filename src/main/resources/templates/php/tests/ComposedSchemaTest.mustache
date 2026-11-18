@@ -238,7 +238,7 @@ test('bhv unions 002 any of shared property collision keeps the later declared v
     expect(substr_count($serialized, '"notes"'))->toBe(1);
 });
 
-test('any of variants with only numeric additional properties serialize as an object', function (): void {
+test('bhv langphp 061 any of variants with only numeric additional properties serialize as an object', function (): void {
     /** @var \Ds\Map<string, string> $firstExtra */
     $firstExtra = new \Ds\Map(['0' => 'x']);
     $first = (new Metadata())->withAdditionalProperties($firstExtra);
@@ -339,7 +339,7 @@ test('bhv unions 017 all of round trip', function (): void {
 
 // -- 4.7 discriminator non-listed $ref --
 
-test('one of non-listed discriminator ref throws not falls through', function (): void {
+test('bhv unions 047 one of non-listed discriminator ref throws not falls through', function (): void {
     /* 4.7: a discriminator value that doesn't appear in DISCRIMINATOR_MAPPING
      * — including the case where the spec's oneOf lists a $ref without a
      * corresponding mapping entry — must throw rather than wrap the raw
