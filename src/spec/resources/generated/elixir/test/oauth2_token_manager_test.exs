@@ -622,6 +622,27 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       refute err.message =~ "unusual-type-marker"
     end
 
+    test "bhv misc 069 an access_token that is empty or not a string is refused with the missing-or-empty message" do
+      for body <- [~s({"access_token":""}), ~s({"access_token":5})] do
+        fake_client =
+          FakeApiClient.new([%PetstoreClient.ApiHttpResponse{status_code: 200, body: body}])
+
+        {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        err =
+          assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+            PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+              manager,
+              "https://auth.example.com/token",
+              %{"grant_type" => "client_credentials"}
+            )
+          end
+
+        assert err.message == "Token response missing or empty access_token field"
+      end
+    end
+
     test "bhv authoauthtwotokenmgr 040 an unusable token response has its canonical message and no cause" do
       for {body, message} <- [
             {"not json", "Token response is not valid JSON"},
