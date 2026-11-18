@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import threading
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import urllib3
@@ -11,7 +11,10 @@ from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
-from petstore_client.client import Client
+from petstore_client.api.pet_api import PetApi, PetApiProtocol
+from petstore_client.api.problems_api import ProblemsApi, ProblemsApiProtocol
+from petstore_client.api.store_api import StoreApi, StoreApiProtocol
+from petstore_client.client import Client, ClientProtocol
 from petstore_client.transport_options import TransportOptions
 
 
@@ -574,3 +577,186 @@ class TestClientPoolManager:
             Client(
                 BearerAuthenticator("/api/v3", "test-token"), transport, _OwnedPool()
             )
+
+
+class _FakeGroup:
+    """A hand-written fake of any API group: it opens no connection."""
+
+
+class _FakeClient(ClientProtocol):
+    """A client built from fakes; it implements only what the test fakes."""
+
+    def __init__(self) -> None:
+        self.closed = 0
+        self._pet = cast(PetApiProtocol, _FakeGroup())
+        self._problems = cast(ProblemsApiProtocol, _FakeGroup())
+        self._store = cast(StoreApiProtocol, _FakeGroup())
+
+    @property
+    def pet(self) -> PetApiProtocol:
+        return self._pet
+
+    @property
+    def problems(self) -> ProblemsApiProtocol:
+        return self._problems
+
+    @property
+    def store(self) -> StoreApiProtocol:
+        return self._store
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+def _public_names(owner: Any) -> set[str]:
+    return {
+        name
+        for name, member in vars(owner).items()
+        if not name.startswith("_") and callable(member)
+    }
+
+
+class TestMocking:
+    def test_bhv_mocking_001_every_group_has_a_protocol_the_class_satisfies(
+        self,
+    ) -> None:
+        client = Client(BearerAuthenticator("/api/v3", "test-token"))
+
+        pet_group: PetApiProtocol = client.pet
+        pet_listed = _public_names(PetApiProtocol)
+        assert "add_pet" in pet_listed
+        assert "add_pet_with_http_info" in pet_listed
+        assert "add_pet_photos" in pet_listed
+        assert "add_pet_photos_with_http_info" in pet_listed
+        assert "add_pet_treatment" in pet_listed
+        assert "add_pet_treatment_with_http_info" in pet_listed
+        assert "delete_pet" in pet_listed
+        assert "delete_pet_with_http_info" in pet_listed
+        assert "download_pet_document" in pet_listed
+        assert "download_pet_document_with_http_info" in pet_listed
+        assert "find_pets_born_on" in pet_listed
+        assert "find_pets_born_on_with_http_info" in pet_listed
+        assert "find_pets_by_status" in pet_listed
+        assert "find_pets_by_status_with_http_info" in pet_listed
+        assert "get_external_pet_info" in pet_listed
+        assert "get_external_pet_info_with_http_info" in pet_listed
+        assert "get_multi_server_pet_info" in pet_listed
+        assert "get_multi_server_pet_info_with_http_info" in pet_listed
+        assert "get_pet_avatar" in pet_listed
+        assert "get_pet_avatar_with_http_info" in pet_listed
+        assert "get_pet_avatar_thumbnail" in pet_listed
+        assert "get_pet_avatar_thumbnail_with_http_info" in pet_listed
+        assert "get_pet_by_id" in pet_listed
+        assert "get_pet_by_id_with_http_info" in pet_listed
+        assert "get_pet_by_name" in pet_listed
+        assert "get_pet_by_name_with_http_info" in pet_listed
+        assert "get_pet_passport" in pet_listed
+        assert "get_pet_passport_with_http_info" in pet_listed
+        assert "get_pet_photo" in pet_listed
+        assert "get_pet_photo_with_http_info" in pet_listed
+        assert "get_pet_summary" in pet_listed
+        assert "get_pet_summary_with_http_info" in pet_listed
+        assert "get_pet_tag" in pet_listed
+        assert "get_pet_tag_with_http_info" in pet_listed
+        assert "get_staging_pet_info" in pet_listed
+        assert "get_staging_pet_info_with_http_info" in pet_listed
+        assert "set_pet_avatar" in pet_listed
+        assert "set_pet_avatar_with_http_info" in pet_listed
+        assert "set_pet_avatar_thumbnail" in pet_listed
+        assert "set_pet_avatar_thumbnail_with_http_info" in pet_listed
+        assert "set_pet_preferences" in pet_listed
+        assert "set_pet_preferences_with_http_info" in pet_listed
+        assert "update_pet" in pet_listed
+        assert "update_pet_with_http_info" in pet_listed
+        assert "upload_pet_certificate" in pet_listed
+        assert "upload_pet_certificate_with_http_info" in pet_listed
+        assert "upload_pet_document" in pet_listed
+        assert "upload_pet_document_with_http_info" in pet_listed
+        problems_group: ProblemsApiProtocol = client.problems
+        problems_listed = _public_names(ProblemsApiProtocol)
+        assert "get_fallback" in problems_listed
+        assert "get_fallback_with_http_info" in problems_listed
+        assert "get_member" in problems_listed
+        assert "get_member_with_http_info" in problems_listed
+        assert "get_project" in problems_listed
+        assert "get_project_with_http_info" in problems_listed
+        assert "get_range" in problems_listed
+        assert "get_range_with_http_info" in problems_listed
+        assert "get_upstream" in problems_listed
+        assert "get_upstream_with_http_info" in problems_listed
+        assert "take_lock" in problems_listed
+        assert "take_lock_with_http_info" in problems_listed
+        store_group: StoreApiProtocol = client.store
+        store_listed = _public_names(StoreApiProtocol)
+        assert "create_account" in store_listed
+        assert "create_account_with_http_info" in store_listed
+        assert "delete_order" in store_listed
+        assert "delete_order_with_http_info" in store_listed
+        assert "get_by_swatch" in store_listed
+        assert "get_by_swatch_with_http_info" in store_listed
+        assert "get_defaults" in store_listed
+        assert "get_defaults_with_http_info" in store_listed
+        assert "get_department" in store_listed
+        assert "get_department_with_http_info" in store_listed
+        assert "get_grouped_categories" in store_listed
+        assert "get_grouped_categories_with_http_info" in store_listed
+        assert "get_inventory" in store_listed
+        assert "get_inventory_with_http_info" in store_listed
+        assert "get_matrix" in store_listed
+        assert "get_matrix_with_http_info" in store_listed
+        assert "get_order_by_id" in store_listed
+        assert "get_order_by_id_with_http_info" in store_listed
+        assert "get_order_by_tracking_id" in store_listed
+        assert "get_order_by_tracking_id_with_http_info" in store_listed
+        assert "get_stock_item" in store_listed
+        assert "get_stock_item_with_http_info" in store_listed
+        assert "get_swatch" in store_listed
+        assert "get_swatch_with_http_info" in store_listed
+        assert "get_swatch_groups" in store_listed
+        assert "get_swatch_groups_with_http_info" in store_listed
+        assert "get_timestamp_groups" in store_listed
+        assert "get_timestamp_groups_with_http_info" in store_listed
+        assert "get_tree" in store_listed
+        assert "get_tree_with_http_info" in store_listed
+        assert "place_order" in store_listed
+        assert "place_order_with_http_info" in store_listed
+        assert "reserve_stock" in store_listed
+        assert "reserve_stock_with_http_info" in store_listed
+        assert "search_store" in store_listed
+        assert "search_store_with_http_info" in store_listed
+        client.close()
+
+    def test_bhv_mocking_002_group_protocol_lists_exactly_the_public_operations_of_the_class(
+        self,
+    ) -> None:
+        assert _public_names(PetApiProtocol) == _public_names(PetApi)
+        assert _public_names(ProblemsApiProtocol) == _public_names(ProblemsApi)
+        assert _public_names(StoreApiProtocol) == _public_names(StoreApi)
+
+    def test_bhv_mocking_007_client_protocol_exposes_every_group_typed_as_its_protocol_and_close(
+        self,
+    ) -> None:
+        client = Client(BearerAuthenticator("/api/v3", "test-token"))
+        via_protocol: ClientProtocol = client
+
+        assert via_protocol.pet is client.pet
+        assert via_protocol.problems is client.problems
+        assert via_protocol.store is client.store
+        via_protocol.close()
+
+        with pytest.raises(RuntimeError, match="closed"):
+            client._api_client.send_request("GET", "/api/v3/x", {}, None)
+
+    def test_bhv_mocking_008_client_built_from_fakes_never_connects_and_closes_without_error(
+        self,
+    ) -> None:
+        fake = _FakeClient()
+        via_protocol: ClientProtocol = fake
+
+        assert via_protocol.pet is not None
+        assert via_protocol.problems is not None
+        assert via_protocol.store is not None
+        via_protocol.close()
+        via_protocol.close()
+
+        assert fake.closed == 2

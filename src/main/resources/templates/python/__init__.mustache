@@ -4,8 +4,10 @@ __version__ = '{{packageVersion}}'
 # Define package exports
 __all__ = [
     {{#apiInfo}}{{#apis}}'{{classname}}',
+    '{{classname}}Protocol',
     {{/apis}}{{/apiInfo}}'Authenticator',
     '{{clientClassName}}',
+    '{{clientClassName}}Protocol',
     'ApiClient',
     'Configuration',
     'TransportOptions',
@@ -46,11 +48,13 @@ __all__ = [
 
 # import apis into sdk package
 {{#apiInfo}}{{#apis}}from {{apiPackage}}.{{classFilename}} import {{classname}} as {{classname}}
+from {{apiPackage}}.{{classFilename}} import {{classname}}Protocol as {{classname}}Protocol
 {{/apis}}{{/apiInfo}}
 # import ApiClient
 from {{packageName}}.api_client import ApiClient as ApiClient
 from {{packageName}}.auth.authenticator import Authenticator as Authenticator
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}} as {{clientClassName}}
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}Protocol as {{clientClassName}}Protocol
 from {{packageName}}.configuration import Configuration as Configuration
 from {{packageName}}.transport_options import TransportOptions as TransportOptions
 from {{packageName}}.server_configuration import ServerConfiguration as ServerConfiguration

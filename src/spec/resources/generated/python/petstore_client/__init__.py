@@ -10,10 +10,14 @@ __version__ = "1.0.0"
 # Define package exports
 __all__ = [
     "PetApi",
+    "PetApiProtocol",
     "ProblemsApi",
+    "ProblemsApiProtocol",
     "StoreApi",
+    "StoreApiProtocol",
     "Authenticator",
     "Client",
+    "ClientProtocol",
     "ApiClient",
     "Configuration",
     "TransportOptions",
@@ -104,13 +108,17 @@ __all__ = [
 
 # import apis into sdk package
 from petstore_client.api.pet_api import PetApi as PetApi
+from petstore_client.api.pet_api import PetApiProtocol as PetApiProtocol
 from petstore_client.api.problems_api import ProblemsApi as ProblemsApi
+from petstore_client.api.problems_api import ProblemsApiProtocol as ProblemsApiProtocol
 from petstore_client.api.store_api import StoreApi as StoreApi
+from petstore_client.api.store_api import StoreApiProtocol as StoreApiProtocol
 
 # import ApiClient
 from petstore_client.api_client import ApiClient as ApiClient
 from petstore_client.auth.authenticator import Authenticator as Authenticator
 from petstore_client.client import Client as Client
+from petstore_client.client import ClientProtocol as ClientProtocol
 from petstore_client.configuration import Configuration as Configuration
 from petstore_client.transport_options import TransportOptions as TransportOptions
 from petstore_client.server_configuration import (

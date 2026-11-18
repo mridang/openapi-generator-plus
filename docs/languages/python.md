@@ -84,6 +84,7 @@ The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example 
 - Error constructors take an optional `cause`, which also sets `__cause__`.
 - Server URLs are module constants `SERVER_0`, `SERVER_1` and so on, with one `Enum` per server variable.
 - Names follow PEP 8: snake_case operations, attributes and modules.
+- Testing your code: `<Group>ApiProtocol(Protocol)` in the group file and `ClientProtocol(Protocol)` in the client file, both exported from `__init__`. `PetApi` is not changed: it satisfies the protocol structurally, and a fake subclasses the protocol so only the operations it fakes are written (the stubs return `None`).
 
 ## Known limits
 

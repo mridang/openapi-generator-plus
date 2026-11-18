@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Protocol
 from pydantic import AwareDatetime, StrictInt
 
 from petstore_client.models.account import Account
@@ -47,6 +47,277 @@ from .options.get_tree_options import GetTreeOptions
 from .options.place_order_options import PlaceOrderOptions
 from .options.reserve_stock_options import ReserveStockOptions
 from .options.search_store_options import SearchStoreOptions
+
+
+class StoreApiProtocol(Protocol):
+    """The contract of :class:`StoreApi`: every operation of the store API group and its
+    ``_with_http_info`` variant. Depend on it instead of the class to substitute a hand-written fake
+    in your own tests; the class satisfies it structurally.
+    """
+
+    async def create_account(
+        self,
+        account: Account,
+        options: Optional[CreateAccountOptions] = None,
+    ) -> Account:
+        """The ``create_account`` operation."""
+        ...
+
+    async def create_account_with_http_info(
+        self,
+        account: Account,
+        options: Optional[CreateAccountOptions] = None,
+    ) -> "ApiResult[Account]":
+        """The ``create_account`` operation with its status code, headers and body."""
+        ...
+
+    async def delete_order(
+        self,
+        order_id: StrictInt,
+        options: Optional[DeleteOrderOptions] = None,
+    ) -> None:
+        """The ``delete_order`` operation."""
+        ...
+
+    async def delete_order_with_http_info(
+        self,
+        order_id: StrictInt,
+        options: Optional[DeleteOrderOptions] = None,
+    ) -> "ApiResult[None]":
+        """The ``delete_order`` operation with its status code, headers and body."""
+        ...
+
+    async def get_by_swatch(
+        self,
+        path_swatch: Swatch,
+        options: Optional[GetBySwatchOptions] = None,
+    ) -> Category:
+        """The ``get_by_swatch`` operation."""
+        ...
+
+    async def get_by_swatch_with_http_info(
+        self,
+        path_swatch: Swatch,
+        options: Optional[GetBySwatchOptions] = None,
+    ) -> "ApiResult[Category]":
+        """The ``get_by_swatch`` operation with its status code, headers and body."""
+        ...
+
+    async def get_defaults(
+        self,
+        options: Optional[GetDefaultsOptions] = None,
+    ) -> Defaults:
+        """The ``get_defaults`` operation."""
+        ...
+
+    async def get_defaults_with_http_info(
+        self,
+        options: Optional[GetDefaultsOptions] = None,
+    ) -> "ApiResult[Defaults]":
+        """The ``get_defaults`` operation with its status code, headers and body."""
+        ...
+
+    async def get_department(
+        self,
+        options: Optional[GetDepartmentOptions] = None,
+    ) -> Department:
+        """The ``get_department`` operation."""
+        ...
+
+    async def get_department_with_http_info(
+        self,
+        options: Optional[GetDepartmentOptions] = None,
+    ) -> "ApiResult[Department]":
+        """The ``get_department`` operation with its status code, headers and body."""
+        ...
+
+    async def get_grouped_categories(
+        self,
+        options: Optional[GetGroupedCategoriesOptions] = None,
+    ) -> List[Dict[str, Category]]:
+        """The ``get_grouped_categories`` operation."""
+        ...
+
+    async def get_grouped_categories_with_http_info(
+        self,
+        options: Optional[GetGroupedCategoriesOptions] = None,
+    ) -> "ApiResult[List[Dict[str, Category]]]":
+        """The ``get_grouped_categories`` operation with its status code, headers and body."""
+        ...
+
+    async def get_inventory(
+        self,
+        options: Optional[GetInventoryOptions] = None,
+    ) -> Dict[str, StrictInt]:
+        """The ``get_inventory`` operation."""
+        ...
+
+    async def get_inventory_with_http_info(
+        self,
+        options: Optional[GetInventoryOptions] = None,
+    ) -> "ApiResult[Dict[str, StrictInt]]":
+        """The ``get_inventory`` operation with its status code, headers and body."""
+        ...
+
+    async def get_matrix(
+        self,
+        options: Optional[GetMatrixOptions] = None,
+    ) -> List[List[StrictInt]]:
+        """The ``get_matrix`` operation."""
+        ...
+
+    async def get_matrix_with_http_info(
+        self,
+        options: Optional[GetMatrixOptions] = None,
+    ) -> "ApiResult[List[List[StrictInt]]]":
+        """The ``get_matrix`` operation with its status code, headers and body."""
+        ...
+
+    async def get_order_by_id(
+        self,
+        order_id: StrictInt,
+        options: Optional[GetOrderByIdOptions] = None,
+    ) -> Order:
+        """The ``get_order_by_id`` operation."""
+        ...
+
+    async def get_order_by_id_with_http_info(
+        self,
+        order_id: StrictInt,
+        options: Optional[GetOrderByIdOptions] = None,
+    ) -> "ApiResult[Order]":
+        """The ``get_order_by_id`` operation with its status code, headers and body."""
+        ...
+
+    async def get_order_by_tracking_id(
+        self,
+        tracking_id: uuid.UUID,
+        options: Optional[GetOrderByTrackingIdOptions] = None,
+    ) -> Order:
+        """The ``get_order_by_tracking_id`` operation."""
+        ...
+
+    async def get_order_by_tracking_id_with_http_info(
+        self,
+        tracking_id: uuid.UUID,
+        options: Optional[GetOrderByTrackingIdOptions] = None,
+    ) -> "ApiResult[Order]":
+        """The ``get_order_by_tracking_id`` operation with its status code, headers and body."""
+        ...
+
+    async def get_stock_item(
+        self,
+        options: Optional[GetStockItemOptions] = None,
+    ) -> StockItem:
+        """The ``get_stock_item`` operation."""
+        ...
+
+    async def get_stock_item_with_http_info(
+        self,
+        options: Optional[GetStockItemOptions] = None,
+    ) -> "ApiResult[StockItem]":
+        """The ``get_stock_item`` operation with its status code, headers and body."""
+        ...
+
+    async def get_swatch(
+        self,
+        options: Optional[GetSwatchOptions] = None,
+    ) -> Swatch:
+        """The ``get_swatch`` operation."""
+        ...
+
+    async def get_swatch_with_http_info(
+        self,
+        options: Optional[GetSwatchOptions] = None,
+    ) -> "ApiResult[Swatch]":
+        """The ``get_swatch`` operation with its status code, headers and body."""
+        ...
+
+    async def get_swatch_groups(
+        self,
+        options: Optional[GetSwatchGroupsOptions] = None,
+    ) -> List[Dict[str, Swatch]]:
+        """The ``get_swatch_groups`` operation."""
+        ...
+
+    async def get_swatch_groups_with_http_info(
+        self,
+        options: Optional[GetSwatchGroupsOptions] = None,
+    ) -> "ApiResult[List[Dict[str, Swatch]]]":
+        """The ``get_swatch_groups`` operation with its status code, headers and body."""
+        ...
+
+    async def get_timestamp_groups(
+        self,
+        options: Optional[GetTimestampGroupsOptions] = None,
+    ) -> List[Dict[str, AwareDatetime]]:
+        """The ``get_timestamp_groups`` operation."""
+        ...
+
+    async def get_timestamp_groups_with_http_info(
+        self,
+        options: Optional[GetTimestampGroupsOptions] = None,
+    ) -> "ApiResult[List[Dict[str, AwareDatetime]]]":
+        """The ``get_timestamp_groups`` operation with its status code, headers and body."""
+        ...
+
+    async def get_tree(
+        self,
+        options: Optional[GetTreeOptions] = None,
+    ) -> TreeNode:
+        """The ``get_tree`` operation."""
+        ...
+
+    async def get_tree_with_http_info(
+        self,
+        options: Optional[GetTreeOptions] = None,
+    ) -> "ApiResult[TreeNode]":
+        """The ``get_tree`` operation with its status code, headers and body."""
+        ...
+
+    async def place_order(
+        self,
+        order: Optional[Order] = None,
+        options: Optional[PlaceOrderOptions] = None,
+    ) -> Order:
+        """The ``place_order`` operation."""
+        ...
+
+    async def place_order_with_http_info(
+        self,
+        order: Optional[Order] = None,
+        options: Optional[PlaceOrderOptions] = None,
+    ) -> "ApiResult[Order]":
+        """The ``place_order`` operation with its status code, headers and body."""
+        ...
+
+    async def reserve_stock(
+        self,
+        options: Optional[ReserveStockOptions] = None,
+    ) -> ReserveStockResponse:
+        """The ``reserve_stock`` operation."""
+        ...
+
+    async def reserve_stock_with_http_info(
+        self,
+        options: Optional[ReserveStockOptions] = None,
+    ) -> "ApiResult[ReserveStockResponse]":
+        """The ``reserve_stock`` operation with its status code, headers and body."""
+        ...
+
+    async def search_store(
+        self,
+        options: Optional[SearchStoreOptions] = None,
+    ) -> List[Order]:
+        """The ``search_store`` operation."""
+        ...
+
+    async def search_store_with_http_info(
+        self,
+        options: Optional[SearchStoreOptions] = None,
+    ) -> "ApiResult[List[Order]]":
+        """The ``search_store`` operation with its status code, headers and body."""
+        ...
 
 
 class StoreApi(BaseApi):

@@ -45,6 +45,26 @@ never closes it: you own its lifecycle. Combining it with a proxy, a CA bundle
 or `verify_ssl(False)` in `TransportOptions` raises `ValueError`, because those
 settings belong to the pool manager you built.
 
+### Testing your code
+
+Every API group has an interface (`PetApiProtocol`) and the client has one (`ClientProtocol`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```python
+from petstore_client import PetApiProtocol
+
+# Code under test takes the group interface, never the generated class.
+def use(api: PetApiProtocol) -> None:
+    pass
+
+# A fake subclasses the interface, so only the operations you fake are written.
+class Fake(PetApiProtocol):
+    pass
+
+use(Fake())
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops type-checking after you regenerate; subclass the interface as above so only the operation you fake is written.
+
 ### Automatic retries
 
 A request that fails with a transient error is retried by the SDK. `TransportOptions.builder().max_retries(n)` sets how many times (default 2, so up to three attempts); `max_retries(0)` disables retrying.

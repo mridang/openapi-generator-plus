@@ -4,7 +4,7 @@ from __future__ import annotations
 
 {{#operations}}{{#hasServerTypeDefs}}from abc import ABC, abstractmethod
 from enum import Enum
-{{/hasServerTypeDefs}}{{/operations}}from typing import Any, Dict, List, Mapping, Optional
+{{/hasServerTypeDefs}}{{/operations}}from typing import Any, Dict, List, Mapping, Optional, Protocol
 from pydantic import AwareDatetime, StrictBool, StrictFloat, StrictInt, StrictStr
 
 {{#imports}}
@@ -68,6 +68,87 @@ class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
         return url
 {{/variants}}
 {{/serverTypeDefs}}
+
+class {{classname}}Protocol(Protocol):
+    """The contract of :class:`{{classname}}`: every operation of the {{baseName}} API group and its
+    ``_with_http_info`` variant. Depend on it instead of the class to substitute a hand-written fake
+    in your own tests; the class satisfies it structurally.
+    """
+{{#operation}}
+
+    async def {{operationId}}(
+        self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
+    ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
+        """The ``{{operationId}}`` operation."""
+        ...
+
+    async def {{operationId}}_with_http_info(
+        self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
+    ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
+        """The ``{{operationId}}`` operation with its status code, headers and body."""
+        ...
+{{/operation}}
+
 
 class {{classname}}(BaseApi):
     """{{classname}} provides methods for the {{baseName}} API group.

@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import os
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Protocol
 
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
@@ -12,7 +12,7 @@ from {{packageName}}.transport_options import TransportOptions
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-from {{apiPackage}}.{{classFilename}} import {{classname}}
+from {{apiPackage}}.{{classFilename}} import {{classname}}, {{classname}}Protocol
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
@@ -21,6 +21,35 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}
 def _from_environment(field: str) -> Optional[str]:
     """The value of ``{{envPrefix}}_<field>``, or ``None`` when it is unset or empty."""
     return os.environ.get('{{envPrefix}}_' + field) or None
+
+
+class {{clientClassName}}Protocol(Protocol):
+    """The contract of :class:`{{clientClassName}}`: every API group typed as its group protocol,
+    plus ``close`` and the context-manager methods. Depend on it instead of the class to
+    substitute a hand-written fake client in your own tests; a fake client built from fake groups
+    opens no connection, and closing it does nothing.
+    """
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+
+    @property
+    def {{clientPropertyName}}(self) -> {{classname}}Protocol:
+        """API operations for the {{classname}} group."""
+        ...
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    def close(self) -> None:
+        """Close the client; a fake client has nothing to release."""
+        ...
+
+    def __enter__(self) -> '{{clientClassName}}Protocol':
+        ...
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        ...
 
 
 class {{clientClassName}}:

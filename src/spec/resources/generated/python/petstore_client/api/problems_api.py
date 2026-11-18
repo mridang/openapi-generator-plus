@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Protocol
 from pydantic import StrictStr
 
 from petstore_client.models.result import Result
@@ -26,6 +26,109 @@ from .options.get_project_options import GetProjectOptions
 from .options.get_range_options import GetRangeOptions
 from .options.get_upstream_options import GetUpstreamOptions
 from .options.take_lock_options import TakeLockOptions
+
+
+class ProblemsApiProtocol(Protocol):
+    """The contract of :class:`ProblemsApi`: every operation of the problems API group and its
+    ``_with_http_info`` variant. Depend on it instead of the class to substitute a hand-written fake
+    in your own tests; the class satisfies it structurally.
+    """
+
+    async def get_fallback(
+        self,
+        fallback_id: StrictStr,
+        options: Optional[GetFallbackOptions] = None,
+    ) -> Result:
+        """The ``get_fallback`` operation."""
+        ...
+
+    async def get_fallback_with_http_info(
+        self,
+        fallback_id: StrictStr,
+        options: Optional[GetFallbackOptions] = None,
+    ) -> "ApiResult[Result]":
+        """The ``get_fallback`` operation with its status code, headers and body."""
+        ...
+
+    async def get_member(
+        self,
+        member_id: StrictStr,
+        options: Optional[GetMemberOptions] = None,
+    ) -> Result:
+        """The ``get_member`` operation."""
+        ...
+
+    async def get_member_with_http_info(
+        self,
+        member_id: StrictStr,
+        options: Optional[GetMemberOptions] = None,
+    ) -> "ApiResult[Result]":
+        """The ``get_member`` operation with its status code, headers and body."""
+        ...
+
+    async def get_project(
+        self,
+        project_id: StrictStr,
+        options: Optional[GetProjectOptions] = None,
+    ) -> Result:
+        """The ``get_project`` operation."""
+        ...
+
+    async def get_project_with_http_info(
+        self,
+        project_id: StrictStr,
+        options: Optional[GetProjectOptions] = None,
+    ) -> "ApiResult[Result]":
+        """The ``get_project`` operation with its status code, headers and body."""
+        ...
+
+    async def get_range(
+        self,
+        range_id: StrictStr,
+        options: Optional[GetRangeOptions] = None,
+    ) -> Result:
+        """The ``get_range`` operation."""
+        ...
+
+    async def get_range_with_http_info(
+        self,
+        range_id: StrictStr,
+        options: Optional[GetRangeOptions] = None,
+    ) -> "ApiResult[Result]":
+        """The ``get_range`` operation with its status code, headers and body."""
+        ...
+
+    async def get_upstream(
+        self,
+        upstream_id: StrictStr,
+        options: Optional[GetUpstreamOptions] = None,
+    ) -> Result:
+        """The ``get_upstream`` operation."""
+        ...
+
+    async def get_upstream_with_http_info(
+        self,
+        upstream_id: StrictStr,
+        options: Optional[GetUpstreamOptions] = None,
+    ) -> "ApiResult[Result]":
+        """The ``get_upstream`` operation with its status code, headers and body."""
+        ...
+
+    async def take_lock(
+        self,
+        lock_id: StrictStr,
+        options: Optional[TakeLockOptions] = None,
+    ) -> Result:
+        """The ``take_lock`` operation."""
+        ...
+
+    async def take_lock_with_http_info(
+        self,
+        lock_id: StrictStr,
+        options: Optional[TakeLockOptions] = None,
+    ) -> "ApiResult[Result]":
+        """The ``take_lock`` operation with its status code, headers and body."""
+        ...
 
 
 class ProblemsApi(BaseApi):

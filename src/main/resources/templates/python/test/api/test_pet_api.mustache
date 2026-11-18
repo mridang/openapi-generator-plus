@@ -8,7 +8,9 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Callable, Dict, List, Optional, cast
 from urllib.parse import unquote
 from {{packageName}}.api.pet_api import (
+    PetApiProtocol,
     GetExternalPetInfoServer,
+    GetPetByIdServer,
     GetMultiServerPetInfoServerChannel,
     GetMultiServerPetInfoServerMirror,
     GetMultiServerPetInfoServerMirrorRegion,
@@ -24,6 +26,7 @@ from {{packageName}}.api.options.add_pet_options import AddPetOptions
 from {{packageName}}.api.options.add_pet_photos_options import AddPetPhotosOptions
 from {{packageName}}.api.options.delete_pet_options import DeletePetOptions
 from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
+from {{packageName}}.api.options.get_pet_by_id_options import GetPetByIdOptions
 from {{packageName}}.api.options.get_pet_by_name_options import GetPetByNameOptions
 from {{packageName}}.api.options.get_pet_summary_options import GetPetSummaryOptions
 from {{packageName}}.api.options.get_pet_tag_options import GetPetTagOptions
@@ -37,6 +40,7 @@ from {{packageName}}.api_http_response import ApiHttpResponse
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.transport_options import TransportOptions
+from {{packageName}}.errors import ApiException
 from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
 from {{packageName}}.errors.not_found_exception import NotFoundException
 from {{packageName}}.errors.serialization_exception import SerializationException
@@ -1394,3 +1398,86 @@ class TestPetApiWithHttpInfo:
         assert result is not None
         assert result.status_code == 200
         assert result.data is not None
+
+
+class _FakePetApi(PetApiProtocol):
+    """A hand-written fake of the group: it fakes one operation and records the call."""
+
+    def __init__(self, fail_with: Optional[Exception] = None) -> None:
+        self.calls: List[tuple[Any, ...]] = []
+        self._fail_with = fail_with
+
+    async def get_pet_by_id(
+        self,
+        pet_id: int,
+        server: Optional[GetPetByIdServer] = None,
+        options: Optional[GetPetByIdOptions] = None,
+    ) -> Pet:
+        self.calls.append((pet_id, server, options))
+        if self._fail_with is not None:
+            raise self._fail_with
+        return Pet(name='fake', photoUrls=set())
+
+
+async def _look_up(group: PetApiProtocol, pet_id: int) -> Pet:
+    """Code under test: it takes the group protocol, never the generated class."""
+    return await group.get_pet_by_id(pet_id)
+
+
+async def _classify(call: Callable[[], Any]) -> str:
+    try:
+        await call()
+    except NotFoundException:
+        return 'not found'
+    except ApiException:
+        return 'api error'
+    return 'none'
+
+
+class TestPetApiMocking:
+    """A fake of the group stands in for the real class."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, api_base_url: Any) -> None:
+        config = Configuration.builder() \
+            .base_url(api_base_url) \
+            .default_header('Authorization', 'Bearer test-token') \
+            .build()
+        self.api = PetApi(config=config)
+
+    async def test_bhv_mocking_003_fake_is_accepted_where_the_protocol_is_accepted(self) -> None:
+        fake = _FakePetApi()
+
+        pet = await _look_up(fake, 42)
+
+        assert pet.name == 'fake'
+        assert [call[0] for call in fake.calls] == [42]
+
+    async def test_bhv_mocking_004_fake_raises_the_typed_error_the_caller_handles(self) -> None:
+        fake = _FakePetApi(NotFoundException(message='missing'))
+        real, _server = _create_mock_server(404, 'application/json', '{"message":"Pet not found"}')
+
+        from_fake = await _classify(lambda: _look_up(fake, 1))
+        from_real = await _classify(lambda: _look_up(real, 1))
+
+        assert from_fake == 'not found'
+        assert from_fake == from_real
+        with pytest.raises(ApiException):
+            await _look_up(fake, 1)
+
+    async def test_bhv_mocking_005_protocol_call_sends_the_same_request_as_the_class_call(self) -> None:
+        via_protocol: PetApiProtocol = self.api
+
+        direct = await self.api.get_pet_by_id_with_http_info(1)
+        through = await via_protocol.get_pet_by_id_with_http_info(1)
+
+        assert through.status_code == direct.status_code
+        assert through.raw_body == direct.raw_body
+        assert through.data == direct.data
+
+    async def test_bhv_mocking_006_call_without_options_reaches_the_full_signature_with_none_set(self) -> None:
+        fake = _FakePetApi()
+
+        await _look_up(fake, 7)
+
+        assert fake.calls == [(7, None, None)]
