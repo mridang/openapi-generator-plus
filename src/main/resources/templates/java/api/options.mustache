@@ -26,7 +26,7 @@ public final class {{className}} {
     @Deprecated
 {{/deprecated}}
 {{#required}}
-    private final {{{dataType}}} {{paramName}};
+    {{#requiredNullable}}@Nullable {{/requiredNullable}}private final {{{dataType}}} {{paramName}};
 {{/required}}
 {{^required}}
     @Nullable private {{{dataType}}} {{paramName}};
@@ -43,7 +43,7 @@ public final class {{className}} {
      * @param {{paramName}} {{#description}}{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{/description}}{{^description}}the {@code {{baseName}}} parameter{{/description}}
 {{/requiredParams}}
      */
-    public {{className}}({{#requiredParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}) {
+    public {{className}}({{#requiredParams}}{{#requiredNullable}}@Nullable {{/requiredNullable}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}) {
 {{#requiredParams}}
 {{#isMutableCollection}}
         this.{{paramName}} = {{copyFactory}}.copyOf({{paramName}});
@@ -112,11 +112,14 @@ public final class {{className}} {
      * <p>{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
 {{/description}}
      *
-     * @return the {@code {{baseName}}} parameter
+     * @return the {@code {{baseName}}} parameter{{#requiredNullable}}, or {@code null}{{/requiredNullable}}
 {{#deprecated}}
      * @deprecated This parameter is deprecated.
 {{/deprecated}}
      */
+{{#requiredNullable}}
+    @Nullable
+{{/requiredNullable}}
 {{/required}}
 {{#deprecated}}
     @Deprecated

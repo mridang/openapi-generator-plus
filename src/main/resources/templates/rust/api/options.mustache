@@ -30,7 +30,12 @@ pub struct {{className}} {
     #[deprecated]
 {{/deprecated}}
 {{#required}}
+{{#requiredNullable}}
+    pub {{name}}: Option<{{{dataType}}}>,
+{{/requiredNullable}}
+{{^requiredNullable}}
     pub {{name}}: {{{dataType}}},
+{{/requiredNullable}}
 {{/required}}
 {{^required}}
     pub {{name}}: Option<{{{dataType}}}>,
@@ -62,7 +67,7 @@ impl {{className}} {
     /// argument so it cannot be silently omitted. The per-call timeout, retry
     /// budget and headers start unset and have chained setters below.
 {{/hasOptionalParams}}
-    pub fn new({{#params}}{{#required}}{{name}}: {{{dataType}}}, {{/required}}{{/params}}) -> Self {
+    pub fn new({{#params}}{{#required}}{{name}}: {{#requiredNullable}}Option<{{/requiredNullable}}{{{dataType}}}{{#requiredNullable}}>{{/requiredNullable}}, {{/required}}{{/params}}) -> Self {
         Self {
 {{#params}}
 {{#required}}

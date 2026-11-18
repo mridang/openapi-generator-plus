@@ -24,6 +24,7 @@ import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetByNameOptions;
+import com.example.petstore.api.options.GetPetByNoteOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
@@ -774,6 +775,42 @@ class PetApiTest {
   }
 
   @Test
+  void bhvOperations125GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetByNote(new GetPetByNoteOptions(null, 3));
+
+    assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
+  }
+
+  @Test
+  void bhvOperations126GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetByNote(new GetPetByNoteOptions(null, null));
+
+    assertThat(capturing.capturedUrl).endsWith("?note=&rank=");
+  }
+
+  @Test
+  void bhvOperations127GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetByNote(new GetPetByNoteOptions("a b", 3));
+
+    assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
+  }
+
+  @Test
   void bhvOperations059GetPetTagSendsByteParametersAsStandardPaddedBase64() throws Exception {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
@@ -852,7 +889,8 @@ class PetApiTest {
   }
 
   @Test
-  void getPetByNameMissingRequiredQueryParamThrows() throws Exception {
+  void bhvOperations128GetPetByNameRefusesANullRequiredQueryParameterThatIsNotNullable()
+      throws Exception {
     // A required query param that is null at runtime must fail client-side
     // with a clear error before any request is made — parity with path/body
     // required-param validation. The options field is typed non-null, so to

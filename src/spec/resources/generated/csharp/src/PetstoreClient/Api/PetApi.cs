@@ -271,6 +271,8 @@ public class PetApi : BaseApi
 
     private static readonly string[] GetPetByNameAccepts = ["application/json"];
 
+    private static readonly string[] GetPetByNoteAccepts = ["application/json"];
+
     private static readonly string[] GetPetPassportAccepts = ["application/json"];
 
     private static readonly string[] GetPetPhotoAccepts =
@@ -1826,6 +1828,141 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetByName",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Look up a pet by note (required query parameters whose value may be null)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[Pet]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<Pet> GetPetByNoteAsync(
+        GetPetByNoteOptions options,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<Pet>> task = GetPetByNoteWithHttpInfoAsync(options, cancellationToken);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for GetPetByNote but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Look up a pet by note (required query parameters whose value may be null) (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<Pet>> GetPetByNoteWithHttpInfoAsync(
+        GetPetByNoteOptions options,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+            RequireOption(
+                null,
+                nameof(options) + ".Note",
+                "Missing the required parameter 'note' when calling PetApi.GetPetByNote"
+            );
+            RequireOption(
+                null,
+                nameof(options) + ".Rank",
+                "Missing the required parameter 'rank' when calling PetApi.GetPetByNote"
+            );
+        }
+        ArgumentNullException.ThrowIfNull(options);
+        if (options.Note is { Length: 0 })
+        {
+            throw new ArgumentException(
+                "Missing the required parameter 'note' when calling PetApi.GetPetByNote",
+                nameof(options) + "." + nameof(options.Note)
+            );
+        }
+        string path = "/pet/byNote";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options.Note == null)
+        {
+            queryParams["note"] = "";
+        }
+        else
+        {
+            queryParams["note"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "note",
+                    options.Note,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options.Rank == null)
+        {
+            queryParams["rank"] = "";
+        }
+        else
+        {
+            queryParams["rank"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "rank",
+                    options.Rank,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<Pet>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetByNoteAccepts,
+                "application/json",
+                typeof(Pet),
+                null,
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetByNote",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

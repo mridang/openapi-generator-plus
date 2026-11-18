@@ -290,7 +290,7 @@ them, or wrap the `ApiClient` you inject.
 A property that is optional is `T?` and `nil` means it was absent. A property that
 is optional and also `nullable: true` collapses into the same `T?`: an absent key
 and an explicit `null` read the same, and neither is written back. A required
-nullable property keeps its key and is written as `null`.
+nullable property keeps its key and is written as `null`. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 
 ## Unknown enum values and discriminators
 

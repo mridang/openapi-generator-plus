@@ -124,3 +124,9 @@ swift | transport020 | the test needs a URLProtocol stub, which FoundationNetwor
 swift | transport040 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | transport046 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | options034 | the Apple-platform variant of the proxy test; on Linux the SDK rejects a proxy with a configuration error, which the Linux variant testSettingProxyRaisesOnLinux covers (it carries no catalogue id)
+php | operations128 | A string typed Options property rejects null with a TypeError at construction, before the SDK is called, so the SDK guard is unreachable; the empty value is covered by bhv operations 049
+kotlin | operations128 | A required String parameter is a non-null Kotlin type, so null cannot be passed and the compiler rejects it before the call; the empty value is covered by bhv operations 049
+dart | operations128 | A required String parameter is a sound non-nullable Dart type, so null cannot be passed and the analyzer rejects it before the call; the empty value is covered by bhv operations 049
+go | operations128 | A required string field of the Options struct is a plain string whose zero value is the empty string, so nil cannot be passed; the empty value is covered by bhv operations 049
+rust | operations128 | A required String parameter is a plain String in the Options struct, so null cannot be passed and the compiler rejects it before the call; the empty value is covered by bhv operations 049
+swift | operations128 | A required String parameter is a non-optional Swift type, so nil cannot be passed and the compiler rejects it before the call; the empty value is covered by bhv operations 049

@@ -264,7 +264,7 @@ native image unless you register them yourself.)
 A property that is optional and one that is nullable both read as `null`: the
 model cannot tell a missing key from an explicit `null`. The one exception is a
 property that is both required and nullable, which must be present when decoding
-and is always written, `null` included.
+and is always written, `null` included. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
 ### Unknown enum values and discriminators fail loudly
 

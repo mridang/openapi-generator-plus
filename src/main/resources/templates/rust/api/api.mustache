@@ -455,6 +455,59 @@ impl {{classname}} {
         }
 {{/required}}
 {{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        /* Required nullable query parameter: a missing Options is a programming
+         * error and is rejected up front; a None value is sent as the key with
+         * an empty value so the required key is always on the wire. */
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+        })?;
+        match opts.{{paramName}} {
+            None => query_params.push(("{{baseName}}".to_string(), String::new(), false)),
+            Some(ref val) => {
+{{#isString}}
+                /* A required string must not be empty, even when nullable. */
+                if val.is_empty() {
+                    return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
+                }
+{{/isString}}
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+{{^isArray}}
+                let object_pairs = object_serializer::object_query_pairs(val, "{{style}}", {{isExplode}})?;
+{{/isArray}}
+{{#isArray}}
+                let object_pairs: Option<Vec<(String, String)>> = None;
+{{/isArray}}
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify_param(val, "{{style}}", {{isExplode}})?){{/isArray}},
+                    {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
+                    "query",
+                    "{{{dataType}}}",
+                    "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("{{baseName}}".to_string(), v, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("{{baseName}}".to_string(), v, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyled}}
 {{#required}}
         /* Required query parameter: the caller must supply it via Options. A

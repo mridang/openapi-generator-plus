@@ -13,6 +13,7 @@ import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.GetPetByNameOptions
+import com.example.petstore.api.options.GetPetByNoteOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
@@ -852,6 +853,87 @@ class PetApiTest {
             }
 
             assertTrue(capturedQuery!!.contains("category=dog"), "query was: $capturedQuery")
+        }
+
+        @Test
+        @DisplayName("bhvOperations125 getPetByNote sends a null required nullable query parameter as an empty value")
+        fun testGetPetByNote125() {
+            var capturedQuery: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.getPetByNote(GetPetByNoteOptions(note = null, rank = 3))
+            }
+
+            assertEquals("note=&rank=3", capturedQuery)
+        }
+
+        @Test
+        @DisplayName("bhvOperations126 getPetByNote sends every null required nullable query parameter in declaration order")
+        fun testGetPetByNote126() {
+            var capturedQuery: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.getPetByNote(GetPetByNoteOptions(note = null, rank = null))
+            }
+
+            assertEquals("note=&rank=", capturedQuery)
+        }
+
+        @Test
+        @DisplayName("bhvOperations127 getPetByNote sends a non-null required nullable query parameter with its value")
+        fun testGetPetByNote127() {
+            var capturedQuery: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.getPetByNote(GetPetByNoteOptions(note = "a b", rank = 3))
+            }
+
+            assertEquals("note=a%20b&rank=3", capturedQuery)
         }
 
         @Test

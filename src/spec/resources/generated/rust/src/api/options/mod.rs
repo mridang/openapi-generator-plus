@@ -24,6 +24,8 @@ mod get_pet_by_id_options;
 pub use get_pet_by_id_options::*;
 mod get_pet_by_name_options;
 pub use get_pet_by_name_options::*;
+mod get_pet_by_note_options;
+pub use get_pet_by_note_options::*;
 mod get_pet_passport_options;
 pub use get_pet_passport_options::*;
 mod get_pet_photo_options;

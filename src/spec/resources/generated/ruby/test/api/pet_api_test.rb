@@ -185,6 +185,56 @@ describe Petstore::Client::Api::PetApi do
     end
   end
 
+  describe '#get_pet_by_note required nullable query on the wire' do
+    it 'bhv_operations_125 sends a null required nullable query parameter as an empty value' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: nil, rank: 3))
+        _(captured.pop[:request_line]).must_include '?note=&rank=3 '
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_126 sends every null required nullable query parameter in declaration order' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: nil, rank: nil))
+        _(captured.pop[:request_line]).must_include '?note=&rank= '
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_127 sends a non-null required nullable query parameter with its value' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: 'a b', rank: 3))
+        _(captured.pop[:request_line]).must_include '?note=a%20b&rank=3 '
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_by_name required query that is not nullable' do
+    it 'bhv_operations_128 refuses a null required query parameter before sending' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      # @type var missing: untyped
+      missing = nil
+      options = Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1')
+
+      err = assert_raises(ArgumentError) { api.get_pet_by_name('Rex', options) }
+      _(err.message).must_equal("Missing the required parameter 'category' when calling PetApi.get_pet_by_name")
+      _(client.calls).must_equal(0)
+    end
+  end
+
   # F1158: a deepObject query parameter reaches the wire as bracketed keys.
   describe '#find_pets_by_status deepObject filter' do
     it 'bhv_operations_044 sends filter[key]=value pairs' do

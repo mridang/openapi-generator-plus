@@ -32,6 +32,7 @@ import 'options/get_pet_avatar_options.dart';
 import 'options/get_pet_avatar_thumbnail_options.dart';
 import 'options/get_pet_by_id_options.dart';
 import 'options/get_pet_by_name_options.dart';
+import 'options/get_pet_by_note_options.dart';
 import 'options/get_pet_passport_options.dart';
 import 'options/get_pet_photo_options.dart';
 import 'options/get_pet_summary_options.dart';
@@ -1424,6 +1425,88 @@ class PetApi extends BaseApi {
     return invokeApiForResult<Pet>(
       method: 'GET',
       operation: 'PetApi.getPetByName',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Pet',
+      auth: null,
+      timeout: options.timeout,
+      callHeaders: options.headers,
+      maxRetries: options.maxRetries,
+
+      deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
+    );
+  }
+
+  /// Look up a pet by note (required query parameters whose value may be null)
+  /// `options` options for query, header, form, and cookie parameters
+  Future<Pet> getPetByNote(GetPetByNoteOptions options) async {
+    final result = await getPetByNoteWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for getPetByNote but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getPetByNote operation and returns the full API result.
+  Future<ApiResult<Pet>> getPetByNoteWithHttpInfo(
+    GetPetByNoteOptions options,
+  ) async {
+    if (options.note == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'note' when calling PetApi.getPetByNote",
+      );
+    }
+
+    var path = '/pet/byNote';
+
+    final queryParams = <String, Object?>{};
+    if (options.note == null) {
+      queryParams['note'] = '';
+    } else {
+      queryParams['note'] = maybeAllowReserved(
+        serializeStyled(
+          'note',
+          options.note,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+    if (options.rank == null) {
+      queryParams['rank'] = '';
+    } else {
+      queryParams['rank'] = maybeAllowReserved(
+        serializeStyled('rank', options.rank, 'query', 'int', '', 'form', true),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Pet>(
+      method: 'GET',
+      operation: 'PetApi.getPetByNote',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,

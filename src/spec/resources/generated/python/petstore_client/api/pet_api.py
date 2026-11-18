@@ -42,6 +42,7 @@ from .options.get_pet_avatar_options import GetPetAvatarOptions
 from .options.get_pet_avatar_thumbnail_options import GetPetAvatarThumbnailOptions
 from .options.get_pet_by_id_options import GetPetByIdOptions
 from .options.get_pet_by_name_options import GetPetByNameOptions
+from .options.get_pet_by_note_options import GetPetByNoteOptions
 from .options.get_pet_passport_options import GetPetPassportOptions
 from .options.get_pet_photo_options import GetPetPhotoOptions
 from .options.get_pet_summary_options import GetPetSummaryOptions
@@ -1367,6 +1368,110 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_by_name",
+            request_options=options,
+        )
+
+    async def get_pet_by_note(
+        self,
+        options: GetPetByNoteOptions,
+    ) -> Pet:
+        """Look up a pet by note (required query parameters whose value may be null)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: Pet
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_pet_by_note_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for get_pet_by_note but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_pet_by_note_with_http_info(
+        self,
+        options: GetPetByNoteOptions,
+    ) -> "ApiResult[Pet]":
+        """Look up a pet by note (required query parameters whose value may be null) (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if options is None or options.note == "":
+            raise ValueError(
+                "Missing the required parameter 'note' when calling PetApi.get_pet_by_note"
+            )
+
+        if options is None:
+            raise ValueError(
+                "Missing the required parameter 'rank' when calling PetApi.get_pet_by_note"
+            )
+
+        path = "/pet/byNote"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.note is None:
+            query_params["note"] = ""
+        else:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "note",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "note",
+                            options.note,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        if options is not None and options.rank is None:
+            query_params["rank"] = ""
+        else:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "rank",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "rank",
+                            options.rank,
+                            "query",
+                            "StrictInt",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "Pet",
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
+            operation_name="get_pet_by_note",
             request_options=options,
         )
 

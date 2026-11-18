@@ -336,6 +336,78 @@ class OperationDecoratorTest {
         assertEquals(false, deco.get("isScalar"));
     }
 
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> queryDecorator(
+            boolean required,
+            boolean nullable,
+            boolean allowEmpty,
+            boolean deepObject,
+            boolean content,
+            boolean query) {
+        final AbstractBetterCodegen codegen = new BetterJavaCodegen();
+        final CodegenParameter p = new CodegenParameter();
+        p.paramName = "note";
+        p.isQueryParam = query;
+        p.isHeaderParam = !query;
+        p.required = required;
+        p.isNullable = nullable;
+        p.isAllowEmptyValue = allowEmpty;
+        p.isDeepObject = deepObject;
+        if (content) {
+            final java.util.LinkedHashMap<String, org.openapitools.codegen.CodegenMediaType> media =
+                    new java.util.LinkedHashMap<>();
+            media.put("application/json", new org.openapitools.codegen.CodegenMediaType(null, null, null));
+            p.setContent(media);
+        }
+        codegen.populateParameterDecorators(p);
+        return Objects.requireNonNull((Map<String, Object>) p.vendorExtensions.get("param"));
+    }
+
+    @Test
+    void requiredNullableQueryIsItsOwnKind() {
+        final Map<String, Object> d = queryDecorator(true, true, false, false, false, true);
+        assertEquals("requiredNullable", d.get("querySerializationKind"));
+        assertEquals(true, d.get("queryRequiredNullable"));
+        assertEquals(false, d.get("queryStyled"));
+        assertEquals(false, d.get("queryStyledAllowEmpty"));
+    }
+
+    @Test
+    void requiredNullableQueryWithAllowEmptyValueStaysRequiredNullable() {
+        final Map<String, Object> d = queryDecorator(true, true, true, false, false, true);
+        assertEquals("requiredNullable", d.get("querySerializationKind"));
+        assertEquals(false, d.get("queryStyledAllowEmpty"));
+    }
+
+    @Test
+    void optionalNullableAndRequiredNonNullableQueryStayStyled() {
+        assertEquals(
+                "styled",
+                queryDecorator(false, true, false, false, false, true).get("querySerializationKind"));
+        assertEquals(
+                "styled",
+                queryDecorator(true, false, false, false, false, true).get("querySerializationKind"));
+        assertEquals(
+                false,
+                queryDecorator(false, true, false, false, false, true).get("queryRequiredNullable"));
+    }
+
+    @Test
+    void requiredNullableDeepObjectAndContentKeepTheirKind() {
+        assertEquals(
+                "deepObject",
+                queryDecorator(true, true, false, true, false, true).get("querySerializationKind"));
+        assertEquals(
+                "content",
+                queryDecorator(true, true, false, false, true, true).get("querySerializationKind"));
+    }
+
+    @Test
+    void requiredNullableHeaderIsNotAQueryKind() {
+        final Map<String, Object> d = queryDecorator(true, true, false, false, false, false);
+        assertEquals(false, d.get("queryRequiredNullable"));
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void propertyDecoratorKeysAreAttached() {

@@ -116,6 +116,8 @@ Why: the three states (absent, null, value) must stay distinguishable.
 Where: `models/model.mustache`.
 Test: `object_serializer_test.mustache` (the `required_nullable` fixture).
 
+Query side (D95): the Options field is `required T? name`; the emission block for the `requiredNullable` kind comes first in the query cascade and writes `''` for null.
+
 ### uniqueItems order is unspecified (S6, D69)
 Rule: sets are sent in the `Set`'s natural order; the README documents it. D69 asked for sorted scalars; S6 supersedes D69, so `wireList` in `object_serializer.mustache` no longer sorts (landed) and models must not sort. Test: `object_serializer_test.mustache` locks insertion order.
 Why: the owner chose "unspecified, do not sort" over byte-identical order.

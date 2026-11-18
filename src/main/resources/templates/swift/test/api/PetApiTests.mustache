@@ -1017,6 +1017,42 @@ final class PetApiTests {
         #expect(mockClient.lastURL.contains("category=dog"))
     }
 
+    @Test func testBhvOperations125GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getPetByNote(options: GetPetByNoteOptions(note: nil, rank: 3))
+        #expect(mockClient.lastURL.hasSuffix("?note=&rank=3"))
+    }
+
+    @Test func testBhvOperations126GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getPetByNote(options: GetPetByNoteOptions(note: nil, rank: nil))
+        #expect(mockClient.lastURL.hasSuffix("?note=&rank="))
+    }
+
+    @Test func testBhvOperations127GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getPetByNote(options: GetPetByNoteOptions(note: "a b", rank: 3))
+        #expect(mockClient.lastURL.hasSuffix("?note=a%20b&rank=3"))
+    }
+
     /* A simple-style path value of exactly "." or ".." would be resolved as a
        dot segment and reroute the request, so it is rejected before dispatch. */
     @Test(arguments: [".", ".."])

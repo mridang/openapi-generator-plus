@@ -30,7 +30,7 @@ class {{className}}:
 {{#deprecated}}
     # .. deprecated:: This parameter is deprecated.
 {{/deprecated}}
-    {{paramName}}: {{dataType}}
+    {{paramName}}: {{#vendorExtensions.param.queryRequiredNullable}}Optional[{{dataType}}]{{/vendorExtensions.param.queryRequiredNullable}}{{^vendorExtensions.param.queryRequiredNullable}}{{dataType}}{{/vendorExtensions.param.queryRequiredNullable}}
 {{/requiredParams}}
 {{#optionalParams}}
 {{#vendorExtensions.pluralExamples}}

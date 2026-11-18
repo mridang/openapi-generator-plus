@@ -55,7 +55,7 @@ type {{className}} struct {
 	// Deprecated: This parameter is deprecated.
 {{/deprecated}}
 {{#required}}
-	{{name}} {{{dataType}}}
+	{{name}} {{#requiredNullable}}*{{/requiredNullable}}{{{dataType}}}
 {{/required}}
 {{^required}}
 {{#isReader}}

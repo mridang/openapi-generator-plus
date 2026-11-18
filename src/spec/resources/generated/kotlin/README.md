@@ -241,7 +241,7 @@ the build and the static analysis target.
 A property that is optional and a property that is nullable are both a nullable type
 (`T?`), so an absent key and an explicit `null` read the same once decoded. A required
 property that is nullable keeps its key: it is written as `null` when unset, and must be
-present when decoding.
+present when decoding. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
 ### Unknown enum values and discriminators
 

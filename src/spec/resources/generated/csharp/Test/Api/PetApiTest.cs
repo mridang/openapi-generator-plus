@@ -181,7 +181,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetPetByNameMissingRequiredQueryParamThrows()
+    public async Task BhvOperations128TestGetPetByNameRefusesANullRequiredQueryParameterThatIsNotNullable()
     {
         // The 'category' query parameter is required by the spec. Passing a null
         // value for the required nested option must fail fast with an
@@ -1360,6 +1360,52 @@ public class PetApiTest
             StringComparison.Ordinal
         );
         Assert.Equal(header, client.CapturedHeaders["X-Fingerprint"]);
+    }
+
+    [Fact]
+    public async Task BhvOperations125GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = 3 });
+
+        Assert.EndsWith("?note=&rank=3", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations126GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = null });
+
+        Assert.EndsWith("?note=&rank=", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations127GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = "a b", Rank = 3 });
+
+        Assert.EndsWith(
+            "?note=a%20b&rank=3",
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]

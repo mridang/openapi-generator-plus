@@ -79,6 +79,8 @@ Why: the canonical behaviour is shared by all twelve.
 Where: `models/model.mustache`, `models/json_marshal.mustache`.
 Test: `test/model_test.mustache`, `test/composed_schema_test.mustache` nullable `label` case.
 
+Query side (D95): a required nullable query parameter is a pointer field on the Options struct (`*T`); the api template tests `options.X == nil` before calling `serializeStyled` (a typed nil pointer in an `any` is a non-nil interface) and writes `""` for nil.
+
 ### uniqueItems order (S6, D69)
 Rule: sets are sent in the language's natural order; for go `Set[T].MarshalJSON` sorts a copy of scalar members (string, int, uint, float, bool kinds, enums included) and leaves other members in insertion order. Do not sort elsewhere.
 Why: a `map`-backed set iterates in random order, so unsorted bytes would differ per run. `T` stays `comparable`, so there is no public type change.

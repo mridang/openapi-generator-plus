@@ -20,7 +20,7 @@ class {{className}}
     /**
 {{#params}}
 {{#hasDocType}}
-     * @param {{phpDocType}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{{description}}}{{/description}}
+     * @param {{phpDocType}}{{^required}}|null{{/required}}{{#requiredNullable}}|null{{/requiredNullable}} ${{paramName}}{{#description}} {{{description}}}{{/description}}
 {{#exampleLines}}
      * @example {{{.}}}
 {{/exampleLines}}
@@ -35,7 +35,7 @@ class {{className}}
 {{#deprecated}}
         /** @deprecated This parameter is deprecated. */
 {{/deprecated}}
-        public readonly {{phpType}} ${{paramName}},
+        public readonly {{#requiredNullable}}?{{/requiredNullable}}{{phpType}} ${{paramName}},
 {{/requiredParams}}
 {{#optionalParams}}
 {{#deprecated}}

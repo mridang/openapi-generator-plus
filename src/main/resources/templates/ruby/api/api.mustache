@@ -177,7 +177,7 @@ module {{moduleName}}
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-        if options.nil? || options.{{paramName}}.nil?
+        if options.nil?{{^vendorExtensions.param.queryRequiredNullable}} || options.{{paramName}}.nil?{{/vendorExtensions.param.queryRequiredNullable}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
@@ -261,6 +261,18 @@ module {{moduleName}}
         # @type var query_params: Hash[String, untyped]
         query_params = {}
 {{#queryParams}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if options.{{paramName}}.nil?
+          query_params['{{baseName}}'] = ''
+        else
+          query_params.merge!(
+            ::{{moduleName}}::ValueSerializer.query_entries(
+              '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}},
+              {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
+            )
+          )
+        end
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         unless options.nil? || options.{{paramName}}.nil?
           query_params.merge!(

@@ -149,7 +149,7 @@ The module version follows semantic versioning; the clients, the `RequestOption`
 
 ### Behaviours to know
 
-- Optional and nullable: an optional property that is absent and one that is `null` both read as a nil pointer, and a nil pointer is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it.
+- Optional and nullable: an optional property that is absent and one that is `null` both read as a nil pointer, and a nil pointer is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 - Unknown values fail loudly: an enum value or a discriminator value the SDK does not know returns an error that names the value; it is never coerced to a default.
 - Repeated response headers are joined into one value with `, ` in `Headers` and `ResponseHeaders()` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
 - Streaming is not supported: a response is read whole before it is decoded, so server-sent events and JSON Lines are out of scope. Supply your own `ApiClient` or `http.RoundTripper` for those calls.

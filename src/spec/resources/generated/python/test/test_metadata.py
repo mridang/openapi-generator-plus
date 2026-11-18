@@ -503,6 +503,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.pet_api",
             "PetApi",
+            "get_pet_by_note",
+            "GetPetByNoteOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
             "get_pet_passport",
             "GetPetPassportOptions",
             True,

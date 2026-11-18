@@ -308,9 +308,11 @@ public class {{classname}} : BaseApi
 {{/vendorExtensions.op.optionsParamRequired}}
 {{#queryParams}}
 {{#required}}
+{{^vendorExtensions.param.queryRequiredNullable}}
         RequireOption(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}), "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#isString}}
-        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        if (options.{{vendorExtensions.pascalName}}{{#vendorExtensions.param.queryRequiredNullable}} is { Length: 0 }{{/vendorExtensions.param.queryRequiredNullable}}{{^vendorExtensions.param.queryRequiredNullable}}.Length == 0{{/vendorExtensions.param.queryRequiredNullable}})
         {
             throw new ArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
         }
@@ -427,6 +429,27 @@ public class {{classname}} : BaseApi
             }
         }
 {{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if (options.{{vendorExtensions.pascalName}} == null)
+        {
+            queryParams["{{baseName}}"] = "";
+        }
+        else
+        {
+            queryParams["{{baseName}}"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "{{baseName}}",
+                    options.{{vendorExtensions.pascalName}},
+                    "query",
+                    "{{{dataType}}}",
+                    {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                    "{{style}}",
+                    {{isExplode}}
+                ),
+                {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
+            );
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {

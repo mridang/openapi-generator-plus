@@ -25,6 +25,7 @@ from {{packageName}}.api.options.add_pet_photos_options import AddPetPhotosOptio
 from {{packageName}}.api.options.delete_pet_options import DeletePetOptions
 from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
 from {{packageName}}.api.options.get_pet_by_name_options import GetPetByNameOptions
+from {{packageName}}.api.options.get_pet_by_note_options import GetPetByNoteOptions
 from {{packageName}}.api.options.get_pet_summary_options import GetPetSummaryOptions
 from {{packageName}}.api.options.get_pet_tag_options import GetPetTagOptions
 from {{packageName}}.api.options.set_pet_preferences_options import SetPetPreferencesOptions
@@ -845,6 +846,32 @@ class TestPetApi:
             lambda api: api.get_pet_by_name('Fido', GetPetByNameOptions(category='c', x_correlation_id='r')),
         )
         assert 'category=c' in captured['path']
+
+    async def test_bhv_operations_125_get_pet_by_note_sends_a_null_required_nullable_query_parameter_as_an_empty_value(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_by_note(GetPetByNoteOptions(note=None, rank=3)),
+        )
+        assert captured['path'].endswith('?note=&rank=3')
+
+    async def test_bhv_operations_126_get_pet_by_note_sends_every_null_required_nullable_query_parameter_in_declaration_order(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_by_note(GetPetByNoteOptions(note=None, rank=None)),
+        )
+        assert captured['path'].endswith('?note=&rank=')
+
+    async def test_bhv_operations_127_get_pet_by_note_sends_a_non_null_required_nullable_query_parameter_with_its_value(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_by_note(GetPetByNoteOptions(note='a b', rank=3)),
+        )
+        assert captured['path'].endswith('?note=a%20b&rank=3')
+
+    async def test_bhv_operations_128_get_pet_by_name_refuses_a_null_required_query_parameter_that_is_not_nullable(self) -> None:
+        api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
+        ):
+            await api.get_pet_by_name('Fido', GetPetByNameOptions(category=cast(Any, None), x_correlation_id='r'))
 
     async def test_bhv_operations_069_serializes_format_date_query_and_header_parameters_as_yyyy_mm_dd(self) -> None:
         captured = await _capture_get(

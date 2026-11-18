@@ -96,6 +96,8 @@ Why: the OpenAPI distinction between optional and nullable is part of the contra
 Where: `models/model.mustache` (required field is `Optional[X] = Field(alias=...)` with no default; serialization must not drop it under `exclude_none`).
 Test: `test_composed_schema.mustache` and the model tests in the golden `test/`.
 
+Query side (D95): a required nullable query parameter is `Optional[T]` with no default on the Options dataclass, and `None` is sent as `query_params[name] = ''`.
+
 ### allOf with a discriminator (S4, 2026-11-16)
 Rule: Python uses class inheritance, and only the allOf-plus-discriminator parent is a parent class; a model reused in two unions is not re-parented, unions are `RootModel` wrappers.
 Why: a class has one parent. The discriminator map and `get_discriminator_value` live on the parent.

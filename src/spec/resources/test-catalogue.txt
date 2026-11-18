@@ -1005,3 +1005,7 @@ unions302 | An allOf base decodes to the subtype its implicit schema name mappin
 unions303 | An unknown allOf discriminator value fails and the error names the value
 unions304 | An allOf base payload without its discriminator fails
 errors205 | A decode failure of a response carries the status, the headers and the raw body
+operations125 | A null required nullable query parameter is sent as the key with an empty value
+operations126 | Every null required nullable query parameter is sent as an empty value in declaration order
+operations127 | A non-null required nullable query parameter is sent with its value
+operations128 | A null required query parameter that is not nullable is still refused before sending

@@ -298,7 +298,7 @@ Source: ECMA-262 §6.1.6.1.
 A property that is optional and nullable cannot tell "absent" from "null" on the way out: a
 `null` or `undefined` value is left out of the request body in both cases. Only a property
 that is required and nullable is always sent, as `null` when it has no value. On the way in,
-a `null` on the wire is kept as `null` and a missing key stays `undefined`.
+a `null` on the wire is kept as `null` and a missing key stays `undefined`. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
 ### Unknown enum values and discriminators
 

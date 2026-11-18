@@ -201,6 +201,8 @@ Status (#104, #131 F17): the shared pass `markClassicDiscriminatorInheritance` i
 ### S5 Required + nullable (D66)
 Rule: the key must be present on decode (missing is an error), an explicit null is a legal value and is kept, and encode always writes the key (null when unset). Fixture: `RequiredNullable.note`.
 
+The same promise holds for a required nullable query parameter (#148, D95): its Options field is the language's nullable type without a default, the required-null guard is skipped for it (the RF-16 empty-string guard stays), and a null value is sent as the key with an empty value (`note=`). Fixture: `getPetByNote` (`note`, `rank`), catalogue `operations125`-`operations128`; the generator kind is `requiredNullable` in `deriveQuerySerializationKind`.
+
 ### S6 uniqueItems order
 Rule: left unspecified; sets go out in the language's natural collection order, documented in the READMEs. Do not sort. Why: supersedes D69 (sorted scalars), which is not implemented.
 
@@ -339,6 +341,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D51 | `format: byte` parameters (query, header, path, form, each array/map element) are standard-alphabet padded base64. | Fixture `fingerprint`. |
 | D52 | Query and form encoding keeps exactly `A-Za-z0-9-._~`; `*!'()` are `%2A %21 %27 %28 %29`. | Same set as OAuth (RF-24). dart and some locks still open (see limitations). |
 | D53 | Query params, form pairs and multipart parts follow declaration order, in an insertion-ordered container; authenticator query params are appended after. | Hash order differed per run. |
+| D95 | A required nullable query parameter (`type: [T, "null"]` or `nullable: true`, serialized from a `schema:`) is always sent: null becomes the key with an empty value (`note=`), a value is serialized exactly like a required non-nullable one. An empty string for a required nullable string is still refused (RF-16); `content`, `deepObject`, header, cookie, form and path parameters are out of scope and keep today's behaviour. | Issue #148: the key was refused or dropped, so a required parameter could be absent. |
 | D78 | allowReserved encoder output is the contract. | Forced: `[` `]` re-encoded in python, swift, dart; `'` in node, rust. |
 | D81 | `format: time` is `HH:mm:ss`, plus `.SSS` only when milliseconds are non-zero, truncated not rounded; go, dart, swift pass the String through. | Fixture `cutoff`, `at`. |
 | D82 | A `uniqueItems` array parameter expands exactly like an array parameter in the Set's iteration order. | S6. |

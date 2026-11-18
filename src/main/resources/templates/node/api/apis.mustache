@@ -218,9 +218,18 @@ export class {{classname}} extends BaseApi {
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+{{#isString}}
+    if (options?.{{paramName}} === '') {
+      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
+    }
+{{/isString}}
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
     }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
@@ -277,6 +286,13 @@ export class {{classname}} extends BaseApi {
       queryParams['{{baseName}}'] = ObjectSerializer.serialize(options.{{paramName}});
     }
 {{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+    if (options?.{{paramName}} == null) {
+      queryParams['{{baseName}}'] = '';
+    } else {
+      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+    }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
     if (options?.{{paramName}} != null) {
       queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});

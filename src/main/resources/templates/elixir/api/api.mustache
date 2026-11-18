@@ -295,7 +295,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
     # required-nested-param-validation: this query param is REQUIRED. A nil
     # Options struct, a nil value, or an empty string is treated as missing and
     # raises before any HTTP call rather than silently omitting the parameter.
-    if is_nil(options) or is_nil(options.{{paramName}}) or options.{{paramName}} == "" do
+    # A required nullable param is the exception: a nil value is sent as an
+    # empty value, so only a nil Options struct or an empty string is refused.
+    if is_nil(options){{^vendorExtensions.param.queryRequiredNullable}} or is_nil(options.{{paramName}}){{/vendorExtensions.param.queryRequiredNullable}} or options.{{paramName}} == "" do
       raise ArgumentError,
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
     end
@@ -373,6 +375,17 @@ defmodule {{moduleName}}.Api.{{classname}} do
         query_params
       end
 {{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+    query_params =
+      if is_nil(options.{{paramName}}) do
+        query_params ++ [{"{{baseName}}", ""}]
+      else
+        query_params ++ [{"{{baseName}}",
+          {{moduleName}}.ValueSerializer.maybe_allow_reserved(
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
+            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})}]
+      end
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
     # allowEmptyValue means the server tolerates an empty value IF the caller
     # chooses to send the key — it does NOT mean the SDK must always emit the

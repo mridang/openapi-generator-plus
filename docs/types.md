@@ -36,7 +36,7 @@ A cell with a name in backticks is the type as it appears in the generated code.
 
 The minimum-version row is copied from the build manifest of each committed example SDK: `pom.xml` (`release` 21), `build.gradle.kts` (Kotlin 2.2.0, `jvmTarget` 17), the `.csproj` (`net10.0`, `LangVersion` 14), `composer.json` (`^8.3`), `pyproject.toml` (`requires-python >=3.10`), the `.gemspec` (`>= 3.2`), `package.json` (`engines.node >=22`), `pubspec.yaml` (`>=3.11.0 <4.0.0`), `go.mod` (`go 1.26.0`), `Cargo.toml` (`rust-version 1.85`, edition 2021), `Package.swift` (`swift-tools-version: 6.0`, with macOS 12 and iOS 15 as the lowest platforms) and `mix.exs` (`~> 1.17`). The language pages say why each floor was chosen and which dependencies it brings.
 
-Nullable properties are not a table row because they are the same idea in every language: the property's type becomes the language's optional form (`Optional[T]`, `T?`, `?T`, `T | null`, `Option<T>`, `*T` in Go, `T | nil` in Elixir). A property that is both required and nullable must be present when decoding, may be `null`, and is always written, `null` included.
+Nullable properties are not a table row because they are the same idea in every language: the property's type becomes the language's optional form (`Optional[T]`, `T?`, `?T`, `T | null`, `Option<T>`, `*T` in Go, `T | nil` in Elixir). A required nullable query parameter takes the same optional form and is always sent: a null value goes out as the key with an empty value (`?note=`). A property that is both required and nullable must be present when decoding, may be `null`, and is always written, `null` included.
 
 ## Rules that hold in every language
 

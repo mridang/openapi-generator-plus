@@ -180,7 +180,7 @@ identifiers.
 
 ### Optional and nullable are not told apart
 
-A property that is optional and a property that is nullable both read as `nil` when absent or `null`. Use `with` to build a changed copy of a model (models have no writers) and `additional_properties` where the schema allows extras.
+A property that is optional and a property that is nullable both read as `nil` when absent or `null`. Use `with` to build a changed copy of a model (models have no writers) and `additional_properties` where the schema allows extras. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 
 ### An unknown enum value or discriminator fails loudly
 

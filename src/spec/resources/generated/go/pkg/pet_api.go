@@ -231,6 +231,8 @@ type PetApiInterface interface {
 	GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server GetPetByIdServer, callOptions ...RequestOption) (*ApiResult[Pet], error)
 	GetPetByName(ctx context.Context, name string, options *opts.GetPetByNameOptions, callOptions ...RequestOption) (*Pet, error)
 	GetPetByNameWithHTTPInfo(ctx context.Context, name string, options *opts.GetPetByNameOptions, callOptions ...RequestOption) (*ApiResult[Pet], error)
+	GetPetByNote(ctx context.Context, options *opts.GetPetByNoteOptions, callOptions ...RequestOption) (*Pet, error)
+	GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.GetPetByNoteOptions, callOptions ...RequestOption) (*ApiResult[Pet], error)
 	GetPetPassport(ctx context.Context, petId int64, callOptions ...RequestOption) (*PetPassport, error)
 	GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[PetPassport], error)
 	GetPetPhoto(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) ([]byte, error)
@@ -1927,6 +1929,145 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
 			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetByName: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[Pet]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// GetPetByNote Look up a pet by note (required query parameters whose value may be null)
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/byNote
+func (a *PetApi) GetPetByNote(ctx context.Context, options *opts.GetPetByNoteOptions, callOptions ...RequestOption) (*Pet, error) {
+	result, err := a.GetPetByNoteWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetPetByNote", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetPetByNoteWithHTTPInfo performs the GetPetByNote operation and returns the full API result.
+func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.GetPetByNoteOptions, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+	if options == nil {
+		return nil, fmt.Errorf("%w: options are required when calling PetApi.GetPetByNote", ErrMissingRequiredParameter)
+	}
+	if options.Note != nil && *options.Note == "" {
+		return nil, fmt.Errorf("%w '%s' when calling PetApi.GetPetByNote", ErrMissingRequiredParameter, "note")
+	}
+
+	path := "/pet/byNote"
+
+	queryParams := make(map[string]any)
+	/* Required nullable query param: the Options field is a pointer. A nil
+	 * pointer is sent as the key with an empty value; a typed nil pointer must
+	 * not reach serializeStyled inside an any, so it is tested here. */
+	if options.Note == nil {
+		queryParams["note"] = ""
+	} else {
+		queryParams["note"] = maybeAllowReserved(serializeStyled("note", options.Note, "query", "string", "", "form", true), false)
+	}
+	/* Required nullable query param: the Options field is a pointer. A nil
+	 * pointer is sent as the key with an empty value; a typed nil pointer must
+	 * not reach serializeStyled inside an any, so it is tested here. */
+	if options.Rank == nil {
+		queryParams["rank"] = ""
+	} else {
+		queryParams["rank"] = maybeAllowReserved(serializeStyled("rank", options.Rank, "query", "int32", "", "form", true), false)
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		order:        []string{"note", "rank"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "Pet",
+		auth:         nil,
+		schemes:      []string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetByNote: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}

@@ -1925,6 +1925,170 @@ impl PetApi {
         self.base.invoke_api_for_result::<Pet>(params).await
     }
 
+    /// Look up a pet by note (required query parameters whose value may be null)
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn get_pet_by_note(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_pet_by_note_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for get_pet_by_note but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_pet_by_note operation and returns the full API result.
+    pub async fn get_pet_by_note_with_http_info(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.get_pet_by_note_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_pet_by_note operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_pet_by_note_invoke(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/pet/byNote".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        /* Required nullable query parameter: a missing Options is a programming
+         * error and is rejected up front; a None value is sent as the key with
+         * an empty value so the required key is always on the wire. */
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_by_note",
+                    "note"
+                )),
+            )
+        })?;
+        match opts.note {
+            None => query_params.push(("note".to_string(), String::new(), false)),
+            Some(ref val) => {
+                /* A required string must not be empty, even when nullable. */
+                if val.is_empty() {
+                    return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling PetApi.get_pet_by_note", "note"))));
+                }
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "note",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("note".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("note".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        /* Required nullable query parameter: a missing Options is a programming
+         * error and is rejected up front; a None value is sent as the key with
+         * an empty value so the required key is always on the wire. */
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_by_note",
+                    "rank"
+                )),
+            )
+        })?;
+        match opts.rank {
+            None => query_params.push(("rank".to_string(), String::new(), false)),
+            Some(ref val) => {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "rank",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("rank".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("rank".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* This operation inherits the global security requirement; pass
+             * None so BaseApi falls back to the client-level authenticator. */
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<Pet>(params).await
+    }
+
     /// Get the pet's passport
     /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
     /// * `options`: Options for query, header, form, and cookie parameters.

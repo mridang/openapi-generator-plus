@@ -1053,6 +1053,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             param.put("paramName", p.paramName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            param.put("requiredNullable", isRequiredNullableQuery(p));
             // Thread the spec parameter's `deprecated` flag onto the Options
             // field so the Kotlin template can emit a `@Deprecated` annotation
             // and KDoc `@deprecated` tag, mirroring how model properties already

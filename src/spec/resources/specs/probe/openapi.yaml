@@ -69,6 +69,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Probe'
 
+  /probe.v1.RELAYService/LookupProbe:
+    get:
+      tags: [RELAYService]
+      operationId: lookupProbe
+      summary: Looks a probe up by a required query parameter that may be null.
+      parameters:
+        - name: marker
+          in: query
+          required: true
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: The probe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Probe'
+
 components:
   securitySchemes:
     probeBearer:

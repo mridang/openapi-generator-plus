@@ -24,6 +24,7 @@ import com.example.petstore.api.options.GetPetAvatarOptions;
 import com.example.petstore.api.options.GetPetAvatarThumbnailOptions;
 import com.example.petstore.api.options.GetPetByIdOptions;
 import com.example.petstore.api.options.GetPetByNameOptions;
+import com.example.petstore.api.options.GetPetByNoteOptions;
 import com.example.petstore.api.options.GetPetPassportOptions;
 import com.example.petstore.api.options.GetPetPhotoOptions;
 import com.example.petstore.api.options.GetPetSummaryOptions;
@@ -94,6 +95,9 @@ public class PetApi extends BaseApi {
       new TypeReference<Pet>() {}.getType();
 
   private static final java.lang.reflect.Type getPetByNameTypeRef =
+      new TypeReference<Pet>() {}.getType();
+
+  private static final java.lang.reflect.Type getPetByNoteTypeRef =
       new TypeReference<Pet>() {}.getType();
 
   private static final java.lang.reflect.Type getPetPassportTypeRef =
@@ -1771,6 +1775,79 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetByNameTypeRef,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null);
+  }
+
+  /**
+   * Look up a pet by note (required query parameters whose value may be null)
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public Pet getPetByNote(GetPetByNoteOptions options) {
+    return requireBody(getPetByNoteWithHttpInfo(options), "getPetByNote");
+  }
+
+  /**
+   * Look up a pet by note (required query parameters whose value may be null)
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Pet> getPetByNoteWithHttpInfo(GetPetByNoteOptions options) {
+    if (java.util.Objects.isNull(options) || (options.note() != null && options.note().isEmpty())) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'note' when calling PetApi.getPetByNote");
+    }
+    if (java.util.Objects.isNull(options)) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'rank' when calling PetApi.getPetByNote");
+    }
+    String path = "/pet/byNote";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options.note() == null) {
+      queryParams.put("note", "");
+    } else {
+      ValueSerializer.putQuery(
+          queryParams,
+          "note",
+          ValueSerializer.serializeStyled(
+              "note", options.note(), "query", "String", null, "form", true),
+          false);
+    }
+    if (options.rank() == null) {
+      queryParams.put("rank", "");
+    } else {
+      ValueSerializer.putQuery(
+          queryParams,
+          "rank",
+          ValueSerializer.serializeStyled(
+              "rank", options.rank(), "query", "Integer", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options.timeout();
+    Integer callMaxRetries = options.maxRetries();
+    Map<String, String> callHeaders = options.headers();
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "getPetByNote",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getPetByNoteTypeRef,
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,

@@ -987,6 +987,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/Pet'
 
+  /pet/byNote:
+    get:
+      tags:
+        - pet
+      summary: Look up a pet by note (required query parameters whose value may be null)
+      operationId: getPetByNote
+      parameters:
+        - name: note
+          in: query
+          required: true
+          schema:
+            type:
+              - string
+              - "null"
+        - name: rank
+          in: query
+          required: true
+          schema:
+            type:
+              - integer
+              - "null"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
   # ─── Per-operation servers ────────────────────────────────────────────────
 
   /pet/{petId}/external:

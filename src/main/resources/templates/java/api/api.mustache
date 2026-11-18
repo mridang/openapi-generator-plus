@@ -334,10 +334,18 @@ public class {{classname}} extends BaseApi {
 {{! A required Options object that is null reports the first required field, so each required check below tests the Options object itself. Objects.isNull rather than a plain comparison keeps SpotBugs from flagging the repeats as redundant. }}
 {{#queryParams}}
 {{#required}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if (java.util.Objects.isNull(options){{#isString}}{{^isUuid}} || (options.{{paramName}}() != null && options.{{paramName}}().isEmpty()){{/isUuid}}{{/isString}}) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
         if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
@@ -391,6 +399,13 @@ public class {{classname}} extends BaseApi {
             queryParams.put("{{baseName}}", objectSerializer.serialize(options.{{paramName}}()));
         }
 {{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if (options.{{paramName}}() == null) {
+            queryParams.put("{{baseName}}", "");
+        } else {
+            ValueSerializer.putQuery(queryParams, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             ValueSerializer.putQuery(queryParams, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});

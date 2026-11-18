@@ -1417,6 +1417,39 @@ describe("PetApi against a recording client", () => {
     );
   });
 
+  test("bhv operations 125 getPetByNote sends a null required nullable query parameter as an empty value", async () => {
+    await recordingApi.getPetByNote({ note: null, rank: 3 });
+
+    expect(new URL(recorded[0]!.url).search).toBe("?note=&rank=3");
+  });
+
+  test("bhv operations 126 getPetByNote sends every null required nullable query parameter in declaration order", async () => {
+    await recordingApi.getPetByNote({ note: null, rank: null });
+
+    expect(new URL(recorded[0]!.url).search).toBe("?note=&rank=");
+  });
+
+  test("bhv operations 127 getPetByNote sends a non-null required nullable query parameter with its value", async () => {
+    await recordingApi.getPetByNote({ note: "a b", rank: 3 });
+
+    expect(new URL(recorded[0]!.url).search).toBe("?note=a%20b&rank=3");
+  });
+
+  test("bhv operations 128 getPetByName refuses a null required query parameter that is not nullable", async () => {
+    const error = await recordingApi
+      .getPetByName("x", {
+        category: null,
+        xCorrelationId: "sample-correlation",
+      } as never)
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'category' when calling PetApi.getPetByName",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
   test("bhv operations 044 findPetsByStatus writes the deepObject filter as bracketed keys", async () => {
     await recordingApi
       .findPetsByStatus({ filter: { color: "blue", size: "large" } })

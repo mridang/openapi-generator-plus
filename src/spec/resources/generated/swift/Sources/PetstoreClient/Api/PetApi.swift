@@ -1063,6 +1063,73 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Pet.self)
   }
 
+  /// Look up a pet by note (required query parameters whose value may be null)
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet {
+    let result = try await getPetByNoteWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for getPetByNote but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetByNote operation and returns the full API result.
+  public func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
+  {
+    guard options.note?.isEmpty != true else {
+      throw ConfigurationError.invalidArgument(
+        "Missing the required parameter 'note' when calling PetApi.getPetByNote")
+    }
+
+    let path = "/pet/byNote"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let val = options.note {
+      queryParams["note"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "note", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    } else {
+      queryParams["note"] = ""
+    }
+    if let val = options.rank {
+      queryParams["rank"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "rank", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    } else {
+      queryParams["rank"] = ""
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Pet",
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
+      operation: "PetApi.getPetByNote",
+      timeout: options.timeout,
+      requestHeaders: options.headers,
+      maxRetries: options.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: Pet.self)
+  }
+
   /// Get the pet's passport
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
   ///

@@ -223,6 +223,16 @@ class {{classname}} : BaseApi {
     dropped by the `!= null` guards below — mirrors the path/body checks. }}
 {{#queryParams}}
 {{#required}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+{{#isString}}
+{{^isUuid}}
+        require(options.{{paramName}}?.isNotEmpty() != false) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{/isUuid}}
+{{/isString}}
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
         requireNotNull(options.{{paramName}}) {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
@@ -233,6 +243,7 @@ class {{classname}} : BaseApi {
         }
 {{/isUuid}}
 {{/isString}}
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
@@ -312,6 +323,14 @@ class {{classname}} : BaseApi {
         }
 {{/required}}
 {{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        val {{paramName}}Value = options.{{paramName}}
+        if ({{paramName}}Value == null) {
+            queryParams["{{baseName}}"] = ""
+        } else {
+            ValueSerializer.putQuery(queryParams, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", {{paramName}}Value, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if (options != null) {
             val {{paramName}}Styled = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})

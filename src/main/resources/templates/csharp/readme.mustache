@@ -130,7 +130,7 @@ The SDK writes no logs. To see requests and responses, wrap the transport: pass 
 A property that is optional is `T?` and null means it was absent. A property that is optional
 and also `nullable: true` collapses into the same `T?`: an absent key and an explicit `null`
 read the same, and neither is written back. A required nullable property keeps its key and is
-written as `null`.
+written as `null`. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
 ### Unknown enum values and discriminators
 
