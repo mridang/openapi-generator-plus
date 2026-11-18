@@ -8,12 +8,12 @@ module Petstore::Client::Models
     PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
     def inspect: () -> String
     def with: (**untyped) -> NativeValues
-    attr_reader address4: String?
-    attr_reader address6: String?
-    attr_reader addresses: Array[String]?
+    attr_reader address4: IPAddr?
+    attr_reader address6: IPAddr?
+    attr_reader addresses: Array[IPAddr]?
     attr_reader homepage: String?
-    attr_reader amount: Float?
-    attr_reader ledger: Float?
+    attr_reader amount: BigDecimal?
+    attr_reader ledger: BigDecimal?
     attr_reader wait: ISO8601::Duration?
     attr_reader waits: Hash[String, ISO8601::Duration]?
     attr_reader since: Date?

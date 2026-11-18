@@ -2,6 +2,8 @@
 
 require 'test_helper'
 require 'base64'
+require 'bigdecimal'
+require 'ipaddr'
 require 'iso8601'
 require 'tod'
 
@@ -1857,6 +1859,123 @@ describe Petstore::Client::ObjectSerializer do
 
       _(order.id).must_equal(9_007_199_254_740_993)
       _(Petstore::Client::ObjectSerializer.serialize(order)).must_include('"id":9007199254740993')
+    end
+  end
+
+  describe 'native value formats' do
+    def decode(json)
+      Petstore::Client::ObjectSerializer.deserialize(json, 'Petstore::Client::Models::NativeValues')
+    end
+
+    def encode(model)
+      Petstore::Client::ObjectSerializer.serialize(model)
+    end
+
+    it 'bhv_serializationobject_002 reads a bare number exactly and writes it in plain notation' do
+      pet = Petstore::Client::ObjectSerializer.deserialize(
+        '{"name":"a","photoUrls":[],"weightKg":12.345678901234567890123}', 'Petstore::Client::Models::Pet'
+      )
+
+      _(pet.weight_kg).must_equal(BigDecimal('12.345678901234567890123'))
+      _(encode(pet)).must_include('"weightKg":12.345678901234567890123')
+      thousand = Petstore::Client::ObjectSerializer.deserialize(
+        '{"name":"a","photoUrls":[],"weightKg":1E+3}', 'Petstore::Client::Models::Pet'
+      )
+      _(encode(thousand)).must_include('"weightKg":1000')
+    end
+
+    it 'bhv_serializationobject_403 reads a duration into the duration gem type, which is the documented fallback' do
+      _(decode('{"wait":"3600s"}').wait).must_be_instance_of(ISO8601::Duration)
+    end
+
+    it 'bhv_serializationobject_404 keeps every nanosecond of a duration and writes the shortest form' do
+      _(encode(decode('{"wait":"-1.123456789s"}'))).must_equal('{"wait":"-1.123456789s"}')
+    end
+
+    it 'bhv_serializationobject_405 reads an ipv4 field into an IPAddr and writes dotted decimal' do
+      model = decode('{"address4":"192.0.2.1"}')
+
+      _(model.address4).must_be_instance_of(IPAddr)
+      _(encode(model)).must_equal('{"address4":"192.0.2.1"}')
+    end
+
+    it 'bhv_serializationobject_406 writes an ipv6 field in the canonical RFC 5952 form' do
+      [['2001:0DB8:0:0:0:0:0:1', '2001:db8::1'], ['2001:db8::1', '2001:db8::1'], ['::1', '::1'],
+       ['2001:db8:0:1:1:1:1:1', '2001:db8:0:1:1:1:1:1']].each do |given, expected|
+        model = decode(%({"address6":"#{given}"}))
+
+        _(model.address6).must_be_instance_of(IPAddr)
+        _(encode(model)).must_equal(%({"address6":"#{expected}"}))
+      end
+    end
+
+    it 'bhv_serializationobject_407 rejects a malformed or wrong-family address with the serialization error' do
+      [['address4', '01.2.3.4'], ['address4', '192.0.2.1/24'], ['address4', ' 192.0.2.1'], ['address4', '[::1]'],
+       ['address4', '2001:db8::1'], ['address6', 'fe80::1%eth0'], ['address6', '[::1]'],
+       ['address6', '2001:db8::/64'], ['address6', ' ::1'], ['address6', '192.0.2.1']].each do |field, text|
+        assert_raises(Petstore::Client::Errors::SerializationError, "#{field} #{text}") do
+          decode(%({"#{field}":"#{text}"}))
+        end
+      end
+    end
+
+    it 'bhv_serializationobject_408 round-trips every absolute URI of the corpus byte for byte' do
+      ['https://example.com', 'HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag', 'mailto:a@b.c', 'urn:isbn:0451450523',
+       "https://example.com/[x]?q='a'", 'https://example.com?', 'https://example.com/%7euser',
+       'https://[2001:db8::1]:8443/'].each do |text|
+        json = %({"homepage":"#{text}"})
+
+        _(encode(decode(json))).must_equal(json)
+      end
+    end
+
+    it 'bhv_serializationobject_409 keeps a hostname and an email as given' do
+      json = '{"host":"not a host!","contact":"x@"}'
+
+      _(encode(decode(json))).must_equal(json)
+    end
+
+    it 'bhv_serializationobject_410 keeps every digit of a number and writes it in plain notation' do
+      model = decode('{"amount":12.345678901234567890123}')
+
+      _(model.amount).must_be_instance_of(BigDecimal)
+      _(model.amount).must_equal(BigDecimal('12.345678901234567890123'))
+      _(encode(model)).must_equal('{"amount":12.345678901234567890123}')
+    end
+
+    it 'bhv_serializationobject_411 reads a string decimal from a JSON string only and writes a JSON string' do
+      model = decode('{"ledger":"12.50"}')
+
+      _(model.ledger).must_equal(BigDecimal('12.5'))
+      _(encode(model)).must_equal('{"ledger":"12.5"}')
+      assert_raises(Petstore::Client::Errors::SerializationError) { decode('{"ledger":12.50}') }
+    end
+
+    it 'bhv_serializationobject_412 reads a forty digit number exactly and never rounds it' do
+      digits = '1234567890123456789012345678901234567890'
+
+      _(encode(decode(%({"amount":#{digits}})))).must_equal(%({"amount":#{digits}}))
+    end
+
+    it 'keeps a free-form number a Float' do
+      value = Petstore::Client::ObjectSerializer.deserialize('{"x":[1.5]}', 'Object')
+
+      _(value[:x].first).must_be_instance_of(Float)
+    end
+
+    it 'bhv_serializationparam_104 writes a duration parameter in the protobuf form' do
+      _(Petstore::Client::ObjectSerializer.stringify(ISO8601::Duration.new('PT1H'))).must_equal('3600s')
+    end
+
+    it 'bhv_serializationparam_105 writes an address parameter in its canonical text' do
+      _(Petstore::Client::ObjectSerializer.stringify(IPAddr.new('192.0.2.1'))).must_equal('192.0.2.1')
+      _(Petstore::Client::ObjectSerializer.stringify(IPAddr.new('2001:0DB8::1'))).must_equal('2001:db8::1')
+    end
+
+    it 'bhv_serializationparam_106 writes a decimal parameter in plain notation' do
+      _(Petstore::Client::ObjectSerializer.stringify(BigDecimal('12.345678901234567890123')))
+        .must_equal('12.345678901234567890123')
+      _(Petstore::Client::ObjectSerializer.stringify(BigDecimal('1E+3'))).must_equal('1000')
     end
   end
 end

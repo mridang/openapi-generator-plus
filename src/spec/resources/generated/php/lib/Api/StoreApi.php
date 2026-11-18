@@ -698,10 +698,10 @@ class StoreApi extends BaseApi
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->wait instanceof \DateInterval) {
-            $queryParams = ValueSerializer::putQueryParam($queryParams, 'wait', ValueSerializer::serializeStyled(
-                'wait',
-                $options->wait,
+        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->delay instanceof \DateInterval) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'delay', ValueSerializer::serializeStyled(
+                'delay',
+                $options->delay,
                 'query',
                 '\DateInterval',
                 null,

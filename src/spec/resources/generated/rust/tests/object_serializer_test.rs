@@ -27,7 +27,7 @@
 // the codegen relies on.
 #[test]
 fn test_bhv_serializationobject_105_proto_duration_format_basic() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     assert_eq!(proto_duration::format(&Duration::zero()), "0s");
@@ -49,7 +49,7 @@ fn test_bhv_serializationobject_105_proto_duration_format_basic() {
 
 #[test]
 fn test_bhv_serializationobject_113_proto_duration_parse_basic() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     assert_eq!(proto_duration::parse("0s").unwrap(), Duration::zero());
@@ -73,7 +73,7 @@ fn test_bhv_serializationobject_113_proto_duration_parse_basic() {
 
 #[test]
 fn test_bhv_serializationobject_073_proto_duration_round_trip() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     for d in [
@@ -121,7 +121,7 @@ fn test_bhv_serializationobject_089_proto_duration_rejects_overflow() {
 
 #[test]
 fn test_proto_duration_accepts_the_full_protobuf_range() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     // Past ~292 years the total nanosecond count no longer fits an i64, but the
@@ -140,7 +140,7 @@ fn test_proto_duration_accepts_the_full_protobuf_range() {
 
 #[test]
 fn test_proto_duration_format_does_not_overflow() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     // Beyond ~292 years num_nanoseconds() is None; the old fallback multiplied
@@ -162,7 +162,7 @@ fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
     // fraction (fixed-point, padded to a 3/6/9-digit grouping), NEVER in
     // scientific notation ("5e-5s"). 50 microseconds is 50_000 nanoseconds,
     // which trims to the six-digit grouping "0.000050s".
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     let tiny = Duration::microseconds(50);
@@ -189,7 +189,7 @@ fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
 
 #[test]
 fn test_bhv_serializationobject_145_proto_duration_serde_round_trip() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
     use serde::{Deserialize, Serialize};
 
@@ -430,7 +430,7 @@ fn test_bhv_serializationobject_026_array_of_byte_field_round_trips_through_base
 
 #[test]
 fn test_bhv_serializationobject_054_proto_duration_parses_fractional_seconds() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     assert_eq!(
@@ -504,7 +504,7 @@ fn test_bhv_serializationobject_079_format_byte_scalar_and_array_fields_round_tr
 
 #[test]
 fn test_bhv_serializationobject_081_format_protobuf_duration_emits_whole_seconds() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::models::EdgeCases;
 
     let mut edge = EdgeCases::new();
@@ -564,7 +564,7 @@ fn test_bhv_serializationobject_094_invalid_base64_in_a_byte_field_is_rejected()
 
 #[test]
 fn test_bhv_serializationobject_106_negative_fractional_duration_keeps_the_sign() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     let negative = -Duration::milliseconds(1500);
@@ -585,7 +585,7 @@ fn test_bhv_serializationobject_109_non_lowercase_string_enum_keeps_wire_casing_
 
 #[test]
 fn test_bhv_serializationobject_112_proto_duration_parse_whole_seconds() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
 
     assert_eq!(
@@ -671,7 +671,7 @@ fn test_bhv_serializationobject_144_round_trip_datetime_yields_equivalent_instan
 
 #[test]
 fn test_bhv_serializationobject_146_serialize_emits_the_protobuf_duration_inside_an_object() {
-    use chrono::Duration;
+    use chrono::TimeDelta as Duration;
     use petstore::models::EdgeCases;
 
     let edge = EdgeCases {
@@ -788,5 +788,131 @@ fn test_bhv_serializationobject_179_whole_second_datetime_serializes_with_a_fixe
     assert_eq!(
         serde_json::to_string(&value).expect("serialize"),
         "\"2024-01-01T12:30:45.000+02:00\""
+    );
+}
+
+fn native_values(json: &str) -> Result<petstore::models::NativeValues, serde_json::Error> {
+    serde_json::from_str(json)
+}
+
+#[test]
+fn test_bhv_serializationobject_403_a_duration_field_is_the_native_chrono_time_delta() {
+    let values = native_values(r#"{"wait":"3600s"}"#).expect("decode");
+    let wait: Option<chrono::TimeDelta> = values.wait;
+    assert_eq!(wait, Some(chrono::TimeDelta::hours(1)));
+}
+
+#[test]
+fn test_bhv_serializationobject_404_a_duration_keeps_every_nanosecond_and_writes_the_shortest_form()
+{
+    let values = native_values(r#"{"wait":"-1.123456789s"}"#).expect("decode");
+    assert_eq!(
+        values.wait,
+        Some(-(chrono::TimeDelta::seconds(1) + chrono::TimeDelta::nanoseconds(123_456_789)))
+    );
+    assert_eq!(
+        serde_json::to_string(&values).expect("encode"),
+        r#"{"wait":"-1.123456789s"}"#
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_405_an_ipv4_field_is_the_native_address_and_round_trips() {
+    let values = native_values(r#"{"address4":"192.0.2.1"}"#).expect("decode");
+    let address: Option<std::net::Ipv4Addr> = values.address4;
+    assert_eq!(address, Some(std::net::Ipv4Addr::new(192, 0, 2, 1)));
+    assert_eq!(
+        serde_json::to_string(&values).expect("encode"),
+        r#"{"address4":"192.0.2.1"}"#
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_406_an_ipv6_field_is_written_in_the_canonical_form() {
+    for (given, expected) in [
+        ("2001:0DB8:0:0:0:0:0:1", "2001:db8::1"),
+        ("2001:db8::1", "2001:db8::1"),
+        ("::1", "::1"),
+        ("2001:db8:0:1:1:1:1:1", "2001:db8:0:1:1:1:1:1"),
+    ] {
+        let values = native_values(&format!(r#"{{"address6":"{}"}}"#, given)).expect("decode");
+        let address: Option<std::net::Ipv6Addr> = values.address6;
+        assert!(address.is_some(), "{}", given);
+        assert_eq!(
+            serde_json::to_string(&values).expect("encode"),
+            format!(r#"{{"address6":"{}"}}"#, expected)
+        );
+    }
+}
+
+#[test]
+fn test_bhv_serializationobject_407_a_malformed_address_fails_to_decode() {
+    for (field, text) in [
+        ("address4", "01.2.3.4"),
+        ("address4", "192.0.2.1/24"),
+        ("address4", " 192.0.2.1"),
+        ("address4", "[::1]"),
+        ("address4", "2001:db8::1"),
+        ("address6", "fe80::1%eth0"),
+        ("address6", "[::1]"),
+        ("address6", "2001:db8::/64"),
+        ("address6", " ::1"),
+        ("address6", "192.0.2.1"),
+    ] {
+        let json = format!(r#"{{"{}":"{}"}}"#, field, text);
+        assert!(native_values(&json).is_err(), "{} {}", field, text);
+    }
+}
+
+#[test]
+fn test_bhv_serializationobject_408_every_absolute_uri_round_trips_byte_for_byte() {
+    for text in [
+        "https://example.com",
+        "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+        "mailto:a@b.c",
+        "urn:isbn:0451450523",
+        "https://example.com/[x]?q='a'",
+        "https://example.com?",
+        "https://example.com/%7euser",
+        "https://[2001:db8::1]:8443/",
+    ] {
+        let json = format!(r#"{{"homepage":"{}"}}"#, text);
+        let values = native_values(&json).expect("decode");
+        assert_eq!(
+            serde_json::to_string(&values).expect("encode"),
+            json,
+            "{}",
+            text
+        );
+    }
+}
+
+#[test]
+fn test_bhv_serializationobject_409_a_hostname_and_an_email_are_kept_as_given() {
+    let json = r#"{"host":"not a host!","contact":"x@"}"#;
+    let values = native_values(json).expect("decode");
+    assert_eq!(serde_json::to_string(&values).expect("encode"), json);
+}
+
+#[test]
+fn test_bhv_serializationparam_104_a_duration_parameter_is_the_protobuf_form() {
+    use petstore::proto_duration;
+
+    assert_eq!(
+        proto_duration::format(&chrono::TimeDelta::hours(1)),
+        "3600s"
+    );
+}
+
+#[test]
+fn test_bhv_serializationparam_105_an_address_parameter_is_the_canonical_text() {
+    assert_eq!(
+        serde_json::to_value(std::net::Ipv4Addr::new(192, 0, 2, 1)).expect("encode"),
+        "192.0.2.1"
+    );
+    assert_eq!(
+        serde_json::to_value("2001:0DB8::1".parse::<std::net::Ipv6Addr>().expect("parse"))
+            .expect("encode"),
+        "2001:db8::1"
     );
 }

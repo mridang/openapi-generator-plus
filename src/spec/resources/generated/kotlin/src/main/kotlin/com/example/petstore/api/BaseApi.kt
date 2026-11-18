@@ -753,7 +753,7 @@ abstract class BaseApi {
                 value is java.time.temporal.TemporalAccessor ||
                 value is java.time.Duration ||
                 value::class.qualifiedName == "kotlin.uuid.Uuid" ||
-                value is io.ktor.http.Url ||
+                value is java.net.URI ||
                 value is ByteArray
         if (!scalar) {
             throw com.example.petstore.errors.SerializationException(

@@ -11,15 +11,16 @@ package models
 
 import (
 	"encoding/json"
+	"net/netip"
 )
 
 // NativeValues is a model class generated from the OpenAPI schema.
 type NativeValues struct {
 	// Example: 192.0.2.1
-	Address4 *string `json:"address4,omitempty"`
+	Address4 *netip.Addr `json:"address4,omitempty"`
 	// Example: 2001:db8::1
-	Address6  *string   `json:"address6,omitempty"`
-	Addresses *[]string `json:"addresses,omitempty"`
+	Address6  *netip.Addr   `json:"address6,omitempty"`
+	Addresses *[]netip.Addr `json:"addresses,omitempty"`
 	// Example: https://example.com/a
 	Homepage *string `json:"homepage,omitempty"`
 	// Example: 12.345678901234567
@@ -56,7 +57,7 @@ func (o *NativeValues) Equal(other *NativeValues) bool {
 }
 
 // WithAddress4 returns a copy of the model with Address4 replaced; the receiver is unchanged.
-func (o NativeValues) WithAddress4(value string) NativeValues {
+func (o NativeValues) WithAddress4(value netip.Addr) NativeValues {
 	o.Address4 = &value
 	return o
 }
@@ -68,7 +69,7 @@ func (o NativeValues) WithoutAddress4() NativeValues {
 }
 
 // WithAddress6 returns a copy of the model with Address6 replaced; the receiver is unchanged.
-func (o NativeValues) WithAddress6(value string) NativeValues {
+func (o NativeValues) WithAddress6(value netip.Addr) NativeValues {
 	o.Address6 = &value
 	return o
 }
@@ -80,7 +81,7 @@ func (o NativeValues) WithoutAddress6() NativeValues {
 }
 
 // WithAddresses returns a copy of the model with Addresses replaced; the receiver is unchanged.
-func (o NativeValues) WithAddresses(value []string) NativeValues {
+func (o NativeValues) WithAddresses(value []netip.Addr) NativeValues {
 	o.Addresses = &value
 	return o
 }
@@ -202,6 +203,12 @@ func (o NativeValues) MarshalJSON() ([]byte, error) {
 func (o *NativeValues) UnmarshalJSON(data []byte) error {
 	type Alias NativeValues
 	aux := &Alias{}
+	if err := checkIPField(data, "address4", false); err != nil {
+		return err
+	}
+	if err := checkIPField(data, "address6", true); err != nil {
+		return err
+	}
 	if err := checkAbsoluteURIField(data, "homepage"); err != nil {
 		return err
 	}

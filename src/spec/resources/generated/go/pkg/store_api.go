@@ -1015,10 +1015,10 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Address4 != nil {
-		queryParams["address4"] = maybeAllowReserved(serializeStyled("address4", options.Address4, "query", "string", "", "form", true), false)
+		queryParams["address4"] = maybeAllowReserved(serializeStyled("address4", options.Address4, "query", "netip.Addr", "", "form", true), false)
 	}
-	if options != nil && options.Wait != nil {
-		queryParams["wait"] = maybeAllowReserved(serializeStyled("wait", options.Wait, "query", "Duration", "", "form", true), false)
+	if options != nil && options.Delay != nil {
+		queryParams["delay"] = maybeAllowReserved(serializeStyled("delay", options.Delay, "query", "Duration", "", "form", true), false)
 	}
 	if options != nil && options.Amount != nil {
 		queryParams["amount"] = maybeAllowReserved(serializeStyled("amount", options.Amount, "query", "float64", "", "form", true), false)
@@ -1026,7 +1026,7 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 
 	headerParams := make(map[string]string)
 	if options != nil && options.XAddress6 != nil {
-		headerParams["X-Address6"] = fmt.Sprintf("%v", serializeStyled("X-Address6", options.XAddress6, "header", "string", "", "simple", false))
+		headerParams["X-Address6"] = fmt.Sprintf("%v", serializeStyled("X-Address6", options.XAddress6, "header", "netip.Addr", "", "simple", false))
 	}
 
 	var requestBody any
@@ -1034,7 +1034,7 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
-		order:        []string{"address4", "wait", "amount"},
+		order:        []string{"address4", "delay", "amount"},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,

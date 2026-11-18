@@ -493,11 +493,11 @@ class StoreApi : BaseApi {
                 false,
             )
         }
-        if (options?.wait != null) {
+        if (options?.delay != null) {
             ValueSerializer.putQuery(
                 queryParams,
-                "wait",
-                ValueSerializer.serializeStyled("wait", options!!.wait, "query", "Duration", null, "form", true),
+                "delay",
+                ValueSerializer.serializeStyled("delay", options!!.delay, "query", "Duration", null, "form", true),
                 false,
             )
         }
@@ -785,10 +785,10 @@ class StoreApi : BaseApi {
      * Returns timestamps grouped as an array of string-keyed maps.
      * @param options the per-call timeout, headers and maxRetries
 
-     * @return List<Map<String, OffsetDateTime>>
+     * @return List<Map<String, @Contextual OffsetDateTime>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getTimestampGroups(options: GetTimestampGroupsOptions? = null): List<Map<String, OffsetDateTime>> =
+    suspend fun getTimestampGroups(options: GetTimestampGroupsOptions? = null): List<Map<String, @Contextual OffsetDateTime>> =
         getTimestampGroupsWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -799,7 +799,9 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getTimestampGroups] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getTimestampGroupsWithHttpInfo(options: GetTimestampGroupsOptions? = null): ApiResult<List<Map<String, OffsetDateTime>>> {
+    suspend fun getTimestampGroupsWithHttpInfo(
+        options: GetTimestampGroupsOptions? = null,
+    ): ApiResult<List<Map<String, @Contextual OffsetDateTime>>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -807,7 +809,7 @@ class StoreApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
 
-        return invokeApiForResult<List<Map<String, OffsetDateTime>>>(
+        return invokeApiForResult<List<Map<String, @Contextual OffsetDateTime>>>(
             "GET",
             path,
             queryParams,

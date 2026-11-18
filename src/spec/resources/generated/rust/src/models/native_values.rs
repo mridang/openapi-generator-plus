@@ -12,12 +12,12 @@
 pub struct NativeValues {
     /// Example: `192.0.2.1`
     #[serde(rename = "address4", skip_serializing_if = "Option::is_none")]
-    pub address4: Option<String>,
+    pub address4: Option<std::net::Ipv4Addr>,
     /// Example: `2001:db8::1`
     #[serde(rename = "address6", skip_serializing_if = "Option::is_none")]
-    pub address6: Option<String>,
+    pub address6: Option<std::net::Ipv6Addr>,
     #[serde(rename = "addresses", skip_serializing_if = "Option::is_none")]
-    pub addresses: Option<Vec<String>>,
+    pub addresses: Option<Vec<std::net::Ipv6Addr>>,
     /// Example: `https://example.com/a`
     #[serde(
         rename = "homepage",
@@ -39,7 +39,7 @@ pub struct NativeValues {
         default,
         with = "crate::proto_duration::option"
     )]
-    pub wait: Option<chrono::Duration>,
+    pub wait: Option<chrono::TimeDelta>,
     #[serde(
         rename = "waits",
         skip_serializing_if = "Option::is_none",
@@ -47,7 +47,7 @@ pub struct NativeValues {
         with = "crate::proto_duration::option",
         serialize_with = "crate::object_serializer::sorted_map::option"
     )]
-    pub waits: Option<std::collections::HashMap<String, chrono::Duration>>,
+    pub waits: Option<std::collections::HashMap<String, chrono::TimeDelta>>,
     /// Example: `2024-02-29`
     #[serde(rename = "since", skip_serializing_if = "Option::is_none")]
     pub since: Option<chrono::NaiveDate>,
@@ -80,7 +80,7 @@ impl NativeValues {
     /// Returns this value with `address4` replaced, every other field kept.
     /// A model is not changed in place: bind the result, or call it on a
     /// clone to keep the original.
-    pub fn with_address4(mut self, address4: String) -> Self {
+    pub fn with_address4(mut self, address4: std::net::Ipv4Addr) -> Self {
         self.address4 = Some(address4);
         self
     }
@@ -88,7 +88,7 @@ impl NativeValues {
     /// Returns this value with `address6` replaced, every other field kept.
     /// A model is not changed in place: bind the result, or call it on a
     /// clone to keep the original.
-    pub fn with_address6(mut self, address6: String) -> Self {
+    pub fn with_address6(mut self, address6: std::net::Ipv6Addr) -> Self {
         self.address6 = Some(address6);
         self
     }
@@ -96,7 +96,7 @@ impl NativeValues {
     /// Returns this value with `addresses` replaced, every other field kept.
     /// A model is not changed in place: bind the result, or call it on a
     /// clone to keep the original.
-    pub fn with_addresses(mut self, addresses: Vec<String>) -> Self {
+    pub fn with_addresses(mut self, addresses: Vec<std::net::Ipv6Addr>) -> Self {
         self.addresses = Some(addresses);
         self
     }
@@ -128,7 +128,7 @@ impl NativeValues {
     /// Returns this value with `wait` replaced, every other field kept.
     /// A model is not changed in place: bind the result, or call it on a
     /// clone to keep the original.
-    pub fn with_wait(mut self, wait: chrono::Duration) -> Self {
+    pub fn with_wait(mut self, wait: chrono::TimeDelta) -> Self {
         self.wait = Some(wait);
         self
     }
@@ -138,7 +138,7 @@ impl NativeValues {
     /// clone to keep the original.
     pub fn with_waits(
         mut self,
-        waits: std::collections::HashMap<String, chrono::Duration>,
+        waits: std::collections::HashMap<String, chrono::TimeDelta>,
     ) -> Self {
         self.waits = Some(waits);
         self

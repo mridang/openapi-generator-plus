@@ -184,6 +184,46 @@ func checkBase64Value(key string, value any) error {
 	return nil
 }
 
+// ipv4Text and ipv6Text are the plain text of an address: dotted decimal with
+// no leading zero for IPv4, hexadecimal groups (and the dotted tail of an
+// embedded IPv4 address) for IPv6. netip.ParseAddr alone also accepts a zone
+// id, which the wire form does not allow.
+var (
+	ipv4Text = regexp.MustCompile(`^(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(?:\.(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}$`)
+	ipv6Text = regexp.MustCompile(`^[0-9A-Fa-f:.]+$`)
+)
+
+// checkIPField rejects a format:ipv4 or format:ipv6 value under key that is
+// not the plain text of an address of that family: a prefix length, a zone id,
+// brackets, surrounding whitespace, a leading zero and an address of the other
+// family are all refused. A missing, null or non-string value is left to
+// json.Unmarshal.
+func checkIPField(data []byte, key string, v6 bool) error {
+	var raw map[string]json.RawMessage
+	if json.Unmarshal(data, &raw) != nil {
+		return nil
+	}
+	value, ok := raw[key]
+	if !ok {
+		return nil
+	}
+	var text string
+	if json.Unmarshal(value, &text) != nil {
+		return nil
+	}
+	if v6 && !ipv4Text.MatchString(text) && ipv6Text.MatchString(text) {
+		return nil
+	}
+	if !v6 && ipv4Text.MatchString(text) {
+		return nil
+	}
+	family := 4
+	if v6 {
+		family = 6
+	}
+	return fmt.Errorf("field %q is not the plain text of an IPv%d address: %q", key, family, text)
+}
+
 // absoluteURI matches an absolute RFC 3986 URI: a scheme, ':' and then no
 // whitespace or control character. http, ftp, mailto and urn are all valid;
 // a relative reference has no scheme and does not match.

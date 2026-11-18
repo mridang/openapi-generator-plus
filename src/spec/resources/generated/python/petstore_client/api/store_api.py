@@ -620,14 +620,14 @@ class StoreApi(BaseApi):
                     ),
                 )
             )
-        if options is not None and options.wait is not None:
+        if options is not None and options.delay is not None:
             query_params.update(
                 ValueSerializer.query_entries(
-                    "wait",
+                    "delay",
                     ValueSerializer.maybe_allow_reserved(
                         ValueSerializer.serialize_styled(
-                            "wait",
-                            options.wait,
+                            "delay",
+                            options.delay,
                             "query",
                             "ProtobufDuration",
                             None,

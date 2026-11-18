@@ -567,7 +567,7 @@ export class StoreApi extends BaseApi {
    * Reads values of the formats the SDKs type natively.
    * @param options options for query, header, form, and cookie parameters
    * @param options.address4  (optional)
-   * @param options.wait  (optional)
+   * @param options.delay  (optional)
    * @param options.amount  (optional)
    * @param options.xAddress6  (optional)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
@@ -622,11 +622,11 @@ export class StoreApi extends BaseApi {
         false,
       );
     }
-    if (options?.wait != null) {
-      queryParams["wait"] = ValueSerializer.maybeAllowReserved(
+    if (options?.delay != null) {
+      queryParams["delay"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
-          "wait",
-          options.wait,
+          "delay",
+          options.delay,
           "query",
           "Temporal.Duration",
           null,

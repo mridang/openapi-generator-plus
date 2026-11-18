@@ -3,13 +3,14 @@
 package options
 
 import (
+	"net/netip"
 	. "petstore/pkg/models"
 )
 
 // GetNativeValuesOptions carries the parameters for the GetNativeValues operation.
 type GetNativeValuesOptions struct {
-	Address4  *string
-	Wait      *Duration
+	Address4  *netip.Addr
+	Delay     *Duration
 	Amount    *float64
-	XAddress6 *string
+	XAddress6 *netip.Addr
 }

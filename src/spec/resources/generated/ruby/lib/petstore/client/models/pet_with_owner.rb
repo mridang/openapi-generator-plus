@@ -80,7 +80,7 @@ module Petstore::Client
         thumbnail_ref: 'String',
         link_template: 'String',
         owner_email: 'String',
-        weight_kg: 'Float',
+        weight_kg: 'BigDecimal',
         nickname: 'String',
         owner_name: 'String'
       }.freeze

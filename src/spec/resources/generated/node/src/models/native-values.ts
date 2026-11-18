@@ -11,6 +11,7 @@ import {
   durationFromProtoJson,
   durationToProtoJson,
   isTemporalValue,
+  decodeStringDecimal,
   plainDate,
 } from "../object-serializer.js";
 import { URI } from "../brand.js";
@@ -30,10 +31,7 @@ export class NativeValues {
    * preserving the full decimal text without a lossy Number() round-trip.
    * Empty when the model has no `type: number` no-format fields.
    */
-  static readonly __decimalFields: ReadonlySet<string> = new Set([
-    "amount",
-    "ledger",
-  ]);
+  static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
   /**
    * `format: uuid` fields. ObjectSerializer.serialize writes them in the
@@ -62,9 +60,19 @@ export class NativeValues {
   readonly homepage?: URI;
   /** @example 12.345678901234567 */
   @Expose({ name: "amount" })
+  /* A `type: string` decimal is a JSON string: decode keeps its text and
+   * rejects a bare number. */
+  @Transform(({ obj }) => decodeStringDecimal(obj, "amount"), {
+    toClassOnly: true,
+  })
   readonly amount?: Decimal;
   /** @example 12.50 */
   @Expose({ name: "ledger" })
+  /* A `type: string` decimal is a JSON string: decode keeps its text and
+   * rejects a bare number. */
+  @Transform(({ obj }) => decodeStringDecimal(obj, "ledger"), {
+    toClassOnly: true,
+  })
   readonly ledger?: Decimal;
   /** @example 3600s */
   @Expose({ name: "wait" })

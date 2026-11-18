@@ -1522,7 +1522,7 @@ paths:
           schema:
             type: string
             format: ipv4
-        - name: wait
+        - name: delay
           in: query
           schema:
             type: string

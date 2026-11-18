@@ -3,7 +3,7 @@ import Foundation
 /// Options for the getNativeValues operation.
 public struct GetNativeValuesOptions: Sendable {
   public let address4: String?
-  public let wait: TimeInterval?
+  public let delay: TimeInterval?
   public let amount: Double?
   public let xAddress6: String?
   /// Per-call timeout in milliseconds, greater than zero. Replaces the
@@ -17,12 +17,12 @@ public struct GetNativeValuesOptions: Sendable {
   public let maxRetries: Int?
 
   public init(
-    address4: String? = nil, wait: TimeInterval? = nil, amount: Double? = nil,
+    address4: String? = nil, delay: TimeInterval? = nil, amount: Double? = nil,
     xAddress6: String? = nil, timeout: Int? = nil, headers: [String: String]? = nil,
     maxRetries: Int? = nil
   ) {
     self.address4 = address4
-    self.wait = wait
+    self.delay = delay
     self.amount = amount
     self.xAddress6 = xAddress6
     self.timeout = timeout

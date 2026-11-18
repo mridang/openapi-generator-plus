@@ -5,7 +5,7 @@ import type { Temporal } from "temporal-polyfill";
  */
 export interface GetNativeValuesOptions {
   readonly address4?: string;
-  readonly wait?: Temporal.Duration;
+  readonly delay?: Temporal.Duration;
   readonly amount?: number;
   readonly xAddress6?: string;
 }

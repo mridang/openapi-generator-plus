@@ -4,10 +4,10 @@ use std::time::Duration;
 /// Options for the get_native_values operation.
 #[derive(Debug, Clone, Default)]
 pub struct GetNativeValuesOptions {
-    pub address4: Option<String>,
-    pub wait: Option<chrono::Duration>,
+    pub address4: Option<std::net::Ipv4Addr>,
+    pub delay: Option<chrono::TimeDelta>,
     pub amount: Option<f64>,
-    pub x_address6: Option<String>,
+    pub x_address6: Option<std::net::Ipv6Addr>,
     /// Replaces the client's end-to-end timeout for this call. Zero is refused
     /// with `ConfigurationError::InvalidTimeout` before anything is sent.
     pub timeout: Option<Duration>,
@@ -27,14 +27,14 @@ impl GetNativeValuesOptions {
     }
 
     /// Sets the address4 field.
-    pub fn address4(mut self, address4: String) -> Self {
+    pub fn address4(mut self, address4: std::net::Ipv4Addr) -> Self {
         self.address4 = Some(address4);
         self
     }
 
-    /// Sets the wait field.
-    pub fn wait(mut self, wait: chrono::Duration) -> Self {
-        self.wait = Some(wait);
+    /// Sets the delay field.
+    pub fn delay(mut self, delay: chrono::TimeDelta) -> Self {
+        self.delay = Some(delay);
         self
     }
 
@@ -45,7 +45,7 @@ impl GetNativeValuesOptions {
     }
 
     /// Sets the x_address6 field.
-    pub fn x_address6(mut self, x_address6: String) -> Self {
+    pub fn x_address6(mut self, x_address6: std::net::Ipv6Addr) -> Self {
         self.x_address6 = Some(x_address6);
         self
     }

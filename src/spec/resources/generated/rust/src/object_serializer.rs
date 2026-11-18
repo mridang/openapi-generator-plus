@@ -831,7 +831,7 @@ fn scalar_override<T: 'static>(value: &T) -> Option<String> {
     if let Some(bytes) = any.downcast_ref::<Vec<u8>>() {
         return Some(base64::engine::general_purpose::STANDARD.encode(bytes));
     }
-    if let Some(duration) = any.downcast_ref::<chrono::Duration>() {
+    if let Some(duration) = any.downcast_ref::<chrono::TimeDelta>() {
         return Some(crate::proto_duration::format(duration));
     }
     any.downcast_ref::<chrono::NaiveTime>().map(format_time)
@@ -2393,11 +2393,11 @@ mod tests {
     #[test]
     fn test_bhv_serializationobject_158_stringify_emits_the_canonical_protobuf_duration() {
         assert_eq!(
-            object_serializer::stringify(&chrono::Duration::seconds(5400)),
+            object_serializer::stringify(&chrono::TimeDelta::seconds(5400)),
             "5400s"
         );
         assert_eq!(
-            object_serializer::stringify(&chrono::Duration::milliseconds(1500)),
+            object_serializer::stringify(&chrono::TimeDelta::milliseconds(1500)),
             "1.500s"
         );
     }
@@ -2422,7 +2422,7 @@ mod tests {
     #[test]
     fn test_bhv_serializationobject_181_zero_duration_stringifies_as_0s() {
         assert_eq!(
-            object_serializer::stringify(&chrono::Duration::zero()),
+            object_serializer::stringify(&chrono::TimeDelta::zero()),
             "0s"
         );
     }

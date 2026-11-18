@@ -586,11 +586,11 @@ class StoreApi extends BaseApi {
         false,
       );
     }
-    if (options != null && options.wait != null) {
-      queryParams['wait'] = maybeAllowReserved(
+    if (options != null && options.delay != null) {
+      queryParams['delay'] = maybeAllowReserved(
         serializeStyled(
-          'wait',
-          options.wait,
+          'delay',
+          options.delay,
           'query',
           'Duration',
           '',

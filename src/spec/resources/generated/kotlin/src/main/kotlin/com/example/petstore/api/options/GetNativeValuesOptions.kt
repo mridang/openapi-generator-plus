@@ -9,7 +9,7 @@ import java.time.Duration
  */
 class GetNativeValuesOptions(
     val address4: String? = null,
-    val wait: Duration? = null,
+    val delay: Duration? = null,
     val amount: BigDecimal? = null,
     val xAddress6: String? = null,
     /**

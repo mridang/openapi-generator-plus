@@ -79,7 +79,7 @@ class DefaultApiClient internal constructor(
      * Serializer used to render non-primitive multipart form parts to JSON.
      * It MUST be the same configured ObjectSerializer used elsewhere in the
      * SDK so that the contextual serializers (OffsetDateTime, BigDecimal,
-     * Duration, Uuid, KtorUrl, ...) registered in its SerializersModule are
+     * Duration, Uuid, URI, ...) registered in its SerializersModule are
      * applied. A bare kotlinx-serialization Json instance lacks that module
      * and fails serializer lookup for any model carrying such a field,
      * corrupting the multipart part.
@@ -644,7 +644,7 @@ class DefaultApiClient internal constructor(
             // duration, uri, uuid) is a plain text part carrying the canonical
             // stringify form; only an object or model becomes a JSON part.
             is String, is Number, is Boolean, is Enum<*>, is java.time.temporal.TemporalAccessor,
-            is java.time.Duration, is io.ktor.http.Url,
+            is java.time.Duration, is java.net.URI,
             -> parts.part(fieldName, null, null, objectSerializer.stringify(value).toByteArray(Charsets.UTF_8))
             else ->
                 if (value::class.qualifiedName == "kotlin.uuid.Uuid") {

@@ -62,7 +62,7 @@ pub struct EdgeCases {
         default,
         with = "crate::proto_duration::option"
     )]
-    pub retry_after: Option<chrono::Duration>,
+    pub retry_after: Option<chrono::TimeDelta>,
     /// Absolute expiry instant
     #[serde(rename = "expiresAt", skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<crate::date_time::DateTime>,
@@ -187,7 +187,7 @@ impl EdgeCases {
     /// Returns this value with `retry_after` replaced, every other field kept.
     /// A model is not changed in place: bind the result, or call it on a
     /// clone to keep the original.
-    pub fn with_retry_after(mut self, retry_after: chrono::Duration) -> Self {
+    pub fn with_retry_after(mut self, retry_after: chrono::TimeDelta) -> Self {
         self.retry_after = Some(retry_after);
         self
     }

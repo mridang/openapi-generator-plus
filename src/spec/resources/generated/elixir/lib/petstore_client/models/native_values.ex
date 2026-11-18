@@ -13,9 +13,9 @@ defmodule PetstoreClient.Models.NativeValues do
   """
 
   @type t :: %__MODULE__{
-          address4: String.t() | nil,
-          address6: String.t() | nil,
-          addresses: [String.t()] | nil,
+          address4: :inet.ip4_address() | nil,
+          address6: :inet.ip6_address() | nil,
+          addresses: [:inet.ip6_address()] | nil,
           homepage: String.t() | nil,
           amount: float() | nil,
           ledger: float() | nil,
@@ -114,9 +114,9 @@ defmodule PetstoreClient.Models.NativeValues do
   @spec openapi_types() :: %{atom() => String.t()}
   def openapi_types do
     %{
-      address4: "String.t()",
-      address6: "String.t()",
-      addresses: "[String.t()]",
+      address4: ":inet.ip4_address()",
+      address6: ":inet.ip6_address()",
+      addresses: "[:inet.ip6_address()]",
       homepage: "URI",
       amount: "float()",
       ledger: "float()",

@@ -328,6 +328,9 @@ defmodule PetstoreClient.ObjectSerializer do
   def stringify(%Time{} = t), do: format_time(t)
   def stringify(%Duration{} = d), do: format_protobuf_duration(d)
 
+  # An IP address is an `:inet` tuple; it is written in its canonical text.
+  def stringify(ip) when is_tuple(ip) and tuple_size(ip) in [4, 8], do: format_ip(ip)
+
   def stringify(value), do: to_string(value)
 
   @doc """
@@ -495,6 +498,10 @@ defmodule PetstoreClient.ObjectSerializer do
   # protobuf-JSON "<seconds>s" string on the wire.
   def sanitize_for_serialization(%Time{} = t), do: format_time(t)
   def sanitize_for_serialization(%Duration{} = d), do: format_protobuf_duration(d)
+
+  # An IP address (`:inet.ip4_address()` or `:inet.ip6_address()`) goes out as its canonical text.
+  def sanitize_for_serialization(ip) when is_tuple(ip) and tuple_size(ip) in [4, 8],
+    do: format_ip(ip)
 
   # uniqueItems array fields are typed `MapSet.t(...)` and deserialize into a
   # MapSet (see convert_to_type's "MapSet.t(" clause). A MapSet is a struct, so
@@ -844,6 +851,18 @@ defmodule PetstoreClient.ObjectSerializer do
       _ -> raise_unparseable(data, "time")
     end
   end
+
+  # format: ipv4 and format: ipv6 - the plain text of an address, read into the `:inet`
+  # tuple. A prefix length, a zone id, brackets, surrounding whitespace, a leading zero
+  # and an address of the other family are refused, which `:inet` alone would accept.
+  @ipv4_regex ~r/\A(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(?:\.(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}\z/
+  @ipv6_regex ~r/\A[0-9A-Fa-f:.]+\z/
+
+  def convert_to_type(data, type) when type in ["ipv4", ":inet.ip4_address()"],
+    do: parse_ip(data, 4)
+
+  def convert_to_type(data, type) when type in ["ipv6", ":inet.ip6_address()"],
+    do: parse_ip(data, 8)
 
   # format:duration - google.protobuf.Duration protobuf-JSON
   # ("<seconds>s") decoded to stdlib `Duration.t()` (Elixir 1.17+). Stdlib
@@ -1390,6 +1409,64 @@ defmodule PetstoreClient.ObjectSerializer do
     end
 
     :ok
+  end
+
+  @doc false
+  @spec parse_ip(term(), 4 | 8) :: :inet.ip_address()
+  def parse_ip(data, size) when is_binary(data) do
+    shape_ok =
+      if size == 4,
+        do: Regex.match?(@ipv4_regex, data),
+        else: Regex.match?(@ipv6_regex, data) and not Regex.match?(@ipv4_regex, data)
+
+    with true <- shape_ok,
+         {:ok, ip} <- :inet.parse_strict_address(String.to_charlist(data)),
+         true <- tuple_size(ip) == size do
+      ip
+    else
+      _ ->
+        raise PetstoreClient.Errors.SerializationError,
+          message: "Invalid IPv#{if size == 4, do: 4, else: 6} address: #{inspect(data)}"
+    end
+  end
+
+  def parse_ip(data, _size),
+    do:
+      raise(PetstoreClient.Errors.SerializationError,
+        message: "Expected an IP address String, got #{inspect(data)}"
+      )
+
+  @doc false
+  @spec format_ip(:inet.ip_address()) :: String.t()
+  def format_ip({a, b, c, d}), do: Enum.join([a, b, c, d], ".")
+
+  def format_ip(ip) when tuple_size(ip) == 8 do
+    groups = Tuple.to_list(ip)
+    {start, length} = longest_zero_run(groups)
+
+    if length < 2 do
+      groups |> Enum.map(&Integer.to_string(&1, 16)) |> Enum.join(":") |> String.downcase()
+    else
+      left = groups |> Enum.take(start) |> Enum.map(&Integer.to_string(&1, 16)) |> Enum.join(":")
+
+      right =
+        groups
+        |> Enum.drop(start + length)
+        |> Enum.map(&Integer.to_string(&1, 16))
+        |> Enum.join(":")
+
+      String.downcase(left <> "::" <> right)
+    end
+  end
+
+  defp longest_zero_run(groups) do
+    groups
+    |> Enum.with_index()
+    |> Enum.chunk_by(fn {group, _index} -> group == 0 end)
+    |> Enum.filter(fn [{group, _index} | _] -> group == 0 end)
+    |> Enum.reduce({0, 0}, fn [{_, index} | _] = run, {_best_start, best_length} = best ->
+      if length(run) > best_length, do: {index, length(run)}, else: best
+    end)
   end
 
   @doc """

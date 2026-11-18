@@ -17,16 +17,16 @@ module Petstore::Client
       # end-to-end timeout, +headers+ are sent in addition to (and win over) the
       # client's default headers, and +max_retries+ replaces the client's retry
       # count. When nil, the client's own value is used.
-      # @param address4 [String]
-      # @param wait [ISO8601::Duration]
-      # @param amount [Float]
-      # @param x_address6 [String]
+      # @param address4 [IPAddr]
+      # @param delay [ISO8601::Duration]
+      # @param amount [BigDecimal]
+      # @param x_address6 [IPAddr]
       class GetNativeValuesOptions
-        attr_reader :address4, :wait, :amount, :x_address6, :timeout, :headers, :max_retries
+        attr_reader :address4, :delay, :amount, :x_address6, :timeout, :headers, :max_retries
 
-        def initialize(address4: nil, wait: nil, amount: nil, x_address6: nil, timeout: nil, headers: nil, max_retries: nil)
+        def initialize(address4: nil, delay: nil, amount: nil, x_address6: nil, timeout: nil, headers: nil, max_retries: nil)
           @address4 = address4
-          @wait = wait
+          @delay = delay
           @amount = amount
           @x_address6 = x_address6
           @timeout = timeout

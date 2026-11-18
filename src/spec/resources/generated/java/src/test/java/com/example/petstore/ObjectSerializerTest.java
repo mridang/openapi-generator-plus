@@ -2766,4 +2766,123 @@ class ObjectSerializerTest {
         OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.ofHoursMinutes(5, 30));
     assertTrue(ObjectSerializer.stringify(dt).endsWith("+05:30"));
   }
+
+  @Nested
+  @DisplayName("native value formats")
+  class NativeValueFormatTests {
+
+    private com.example.petstore.models.NativeValues decode(String json) {
+      return serializer.deserialize(json, com.example.petstore.models.NativeValues.class);
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject403 a duration field is the native java.time.Duration")
+    void bhvSerializationObject403DurationIsTheNativeType() {
+      Duration wait = decode("{\"wait\":\"3600s\"}").wait;
+      assertEquals(Duration.ofHours(1), wait);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject404 a duration keeps every nanosecond and is written in the shortest"
+            + " form")
+    void bhvSerializationObject404DurationKeepsEveryNanosecond() {
+      com.example.petstore.models.NativeValues decoded = decode("{\"wait\":\"-1.123456789s\"}");
+      assertEquals(Duration.ofSeconds(-1, -123456789), decoded.wait);
+      assertEquals("{\"wait\":\"-1.123456789s\"}", serializer.serialize(decoded));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject405 an ipv4 field keeps the address text unchanged")
+    void bhvSerializationObject405Ipv4TextRoundTrips() {
+      assertEquals(
+          "{\"address4\":\"192.0.2.1\"}",
+          serializer.serialize(decode("{\"address4\":\"192.0.2.1\"}")));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject406 an ipv6 field keeps the address text unchanged")
+    void bhvSerializationObject406Ipv6TextRoundTrips() {
+      for (String text : List.of("2001:0DB8:0:0:0:0:0:1", "2001:db8::1", "::1")) {
+        String json = "{\"address6\":\"" + text + "\"}";
+        assertEquals(json, serializer.serialize(decode(json)));
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject408 every absolute URI of the corpus round-trips byte for byte")
+    void bhvSerializationObject408UriCorpusRoundTrips() {
+      for (String text :
+          List.of(
+              "https://example.com",
+              "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+              "mailto:a@b.c",
+              "urn:isbn:0451450523",
+              "https://example.com?",
+              "https://example.com/%7euser",
+              "https://[2001:db8::1]:8443/")) {
+        String json = "{\"homepage\":\"" + text + "\"}";
+        assertEquals(json, serializer.serialize(decode(json)), text);
+      }
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject409 hostname and email values are kept as given")
+    void bhvSerializationObject409HostnameAndEmailAreKept() {
+      String json = "{\"host\":\"not a host!\",\"contact\":\"x@\"}";
+      assertEquals(json, serializer.serialize(decode(json)));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject410 a number keeps every digit and is written in plain notation")
+    void bhvSerializationObject410NumberKeepsEveryDigit() {
+      String json = "{\"amount\":12.345678901234567890123}";
+      com.example.petstore.models.NativeValues decoded = decode(json);
+      assertEquals(new java.math.BigDecimal("12.345678901234567890123"), decoded.amount);
+      assertEquals(json, serializer.serialize(decoded));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject411 a string decimal is written as a JSON string and rejects a"
+            + " number")
+    void bhvSerializationObject411StringDecimalIsAJsonString() {
+      com.example.petstore.models.NativeValues decoded = decode("{\"ledger\":\"12.50\"}");
+      assertEquals(new java.math.BigDecimal("12.50"), decoded.ledger);
+      assertEquals("{\"ledger\":\"12.50\"}", serializer.serialize(decoded));
+      assertThrowsExactly(SerializationException.class, () -> decode("{\"ledger\":12.50}"));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject412 a forty digit number is exact and never rounded")
+    void bhvSerializationObject412FortyDigitNumberIsExact() {
+      String digits = "1234567890123456789012345678901234567890";
+      com.example.petstore.models.NativeValues decoded = decode("{\"amount\":" + digits + "}");
+      assertEquals(new java.math.BigDecimal(digits), decoded.amount);
+      assertEquals("{\"amount\":" + digits + "}", serializer.serialize(decoded));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationParam104 a duration parameter is written in the protobuf form")
+    void bhvSerializationParam104DurationParameter() {
+      assertEquals("3600s", ObjectSerializer.stringify(Duration.ofHours(1)));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationParam105 an address parameter is its text unchanged")
+    void bhvSerializationParam105AddressParameterIsUnchanged() {
+      assertEquals("2001:db8::1", ObjectSerializer.stringify("2001:db8::1"));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationParam106 a decimal parameter is written in plain notation")
+    void bhvSerializationParam106DecimalParameterIsPlain() {
+      assertEquals(
+          "12.345678901234567890123",
+          ObjectSerializer.stringify(new java.math.BigDecimal("12.345678901234567890123")));
+      assertEquals("1000", ObjectSerializer.stringify(new java.math.BigDecimal("1E+3")));
+    }
+  }
 }

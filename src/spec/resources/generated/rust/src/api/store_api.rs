@@ -862,7 +862,7 @@ impl StoreApi {
                     Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
-                    "String",
+                    "std::net::Ipv4Addr",
                     "",
                     "form",
                     true,
@@ -881,29 +881,29 @@ impl StoreApi {
             }
         }
         if let Some(opts) = options {
-            if let Some(ref val) = opts.wait {
+            if let Some(ref val) = opts.delay {
                 let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
                 if let Some(pairs) = object_pairs {
                     for (k, v) in pairs {
                         query_params.push((k, v, false));
                     }
                 } else if let Some(serialized) = value_serializer::serialize_styled(
-                    "wait",
+                    "delay",
                     Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
-                    "chrono::Duration",
+                    "chrono::TimeDelta",
                     "",
                     "form",
                     true,
                 ) {
                     match serialized {
                         SerializedValue::Single(v) => {
-                            query_params.push(("wait".to_string(), v, false));
+                            query_params.push(("delay".to_string(), v, false));
                         }
                         SerializedValue::Multi(values) => {
                             for v in values {
-                                query_params.push(("wait".to_string(), v, false));
+                                query_params.push(("delay".to_string(), v, false));
                             }
                         }
                     }
@@ -949,7 +949,7 @@ impl StoreApi {
                     Some(&object_serializer::stringify_param(val, "simple", false)?),
                     None,
                     "header",
-                    "String",
+                    "std::net::Ipv6Addr",
                     "",
                     "simple",
                     false,

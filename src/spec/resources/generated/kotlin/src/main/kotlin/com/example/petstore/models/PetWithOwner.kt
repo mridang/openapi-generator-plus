@@ -11,12 +11,12 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import io.ktor.http.Url
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import java.math.BigDecimal
+import java.net.URI
 import kotlin.collections.List
 import kotlin.collections.Set
 
@@ -73,7 +73,7 @@ data class PetWithOwner(
      */
     @SerialName("homepageUrl")
     @Contextual
-    val homepageUrl: Url? = null,
+    val homepageUrl: URI? = null,
     /**
      * Optionally-relative thumbnail location
      *

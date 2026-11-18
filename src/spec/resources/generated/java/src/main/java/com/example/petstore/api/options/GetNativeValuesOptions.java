@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 /** Options for the getNativeValues operation. */
 public final class GetNativeValuesOptions {
   @Nullable private String address4;
-  @Nullable private Duration wait;
+  @Nullable private Duration delay;
   @Nullable private BigDecimal amount;
   @Nullable private String xAddress6;
   @Nullable private Integer timeout;
@@ -40,24 +40,24 @@ public final class GetNativeValuesOptions {
   }
 
   /**
-   * Sets the {@code wait} parameter.
+   * Sets the {@code delay} parameter.
    *
-   * @param wait the {@code wait} parameter
+   * @param delay the {@code delay} parameter
    * @return this options instance for chaining
    */
-  public GetNativeValuesOptions wait(Duration wait) {
-    this.wait = wait;
+  public GetNativeValuesOptions delay(Duration delay) {
+    this.delay = delay;
     return this;
   }
 
   /**
-   * Returns the {@code wait} parameter.
+   * Returns the {@code delay} parameter.
    *
-   * @return the {@code wait} parameter, or {@code null} if unset
+   * @return the {@code delay} parameter, or {@code null} if unset
    */
   @Nullable
-  public Duration wait() {
-    return wait;
+  public Duration delay() {
+    return delay;
   }
 
   /**

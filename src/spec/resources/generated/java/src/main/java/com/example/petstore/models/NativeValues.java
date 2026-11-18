@@ -68,6 +68,8 @@ public class NativeValues {
    * <p>Example: {@code 12.50}
    */
   @JsonProperty("ledger")
+  @com.fasterxml.jackson.databind.annotation.JsonSerialize(
+      using = com.example.petstore.ObjectSerializer.StringDecimalSerializer.class)
   @Nullable
   public final BigDecimal ledger;
 
@@ -265,6 +267,8 @@ public class NativeValues {
      * @return this builder
      */
     @JsonProperty("ledger")
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+        using = com.example.petstore.ObjectSerializer.StringDecimalDeserializer.class)
     public Builder ledger(@Nullable BigDecimal ledger) {
       this.ledger = ledger;
       return this;

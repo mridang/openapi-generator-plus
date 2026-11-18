@@ -26,7 +26,7 @@ class GetNativeValuesOptions:
     """
 
     address4: Optional[Ipv4Address] = None
-    wait: Optional[ProtobufDuration] = None
+    delay: Optional[ProtobufDuration] = None
     amount: Optional[JsonNumber] = None
     x_address6: Optional[Ipv6Address] = None
     timeout: Optional[int] = None

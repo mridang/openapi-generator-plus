@@ -864,12 +864,12 @@ public class StoreApi extends BaseApi {
               "address4", options.address4(), "query", "String", null, "form", true),
           false);
     }
-    if (options != null && options.wait() != null) {
+    if (options != null && options.delay() != null) {
       ValueSerializer.putQuery(
           queryParams,
-          "wait",
+          "delay",
           ValueSerializer.serializeStyled(
-              "wait", options.wait(), "query", "Duration", null, "form", true),
+              "delay", options.delay(), "query", "Duration", null, "form", true),
           false);
     }
     if (options != null && options.amount() != null) {

@@ -41,12 +41,12 @@ module Petstore::Client
       # so decoding checks the value against the allowed ones and fails on an
       # unknown one; a model never checks it when it is built.
       OPENAPI_TYPES = {
-        address4: 'String',
-        address6: 'String',
-        addresses: 'Array<String>',
+        address4: 'IPAddr',
+        address6: 'IPAddr',
+        addresses: 'Array<IPAddr>',
         homepage: 'String',
-        amount: 'Float',
-        ledger: 'Float',
+        amount: 'BigDecimal',
+        ledger: 'BigDecimal',
         wait: 'ISO8601::Duration',
         waits: 'Hash<String, ISO8601::Duration>',
         since: 'Date',
@@ -69,8 +69,13 @@ module Petstore::Client
       # key instead of the real map/array attribute.
       # @type var openapi_formats: Hash[Symbol, String]
       openapi_formats = {
+        address4: 'ipv4',
 
-        homepage: 'uri'
+        address6: 'ipv6',
+
+        homepage: 'uri',
+
+        ledger: 'decimal'
 
       }
       OPENAPI_FORMATS = openapi_formats.freeze

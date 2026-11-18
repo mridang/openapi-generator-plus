@@ -25,7 +25,7 @@ class GetNativeValuesOptions
      */
     public function __construct(
         public readonly ?string $address4 = null,
-        public readonly ?\DateInterval $wait = null,
+        public readonly ?\DateInterval $delay = null,
         public readonly ?float $amount = null,
         public readonly ?string $xAddress6 = null,
         public readonly ?int $timeout = null,

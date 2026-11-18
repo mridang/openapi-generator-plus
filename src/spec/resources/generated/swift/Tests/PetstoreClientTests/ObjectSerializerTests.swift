@@ -2172,4 +2172,58 @@ import Testing
       ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes") as? String
         == "a|b|c")
   }
+
+  private func decodeNativeValues(_ json: String) throws -> NativeValues {
+    return try #require(try ObjectSerializer.deserialize(json, as: NativeValues.self))
+  }
+
+  @Test func testBhvSerializationobject403DurationFieldIsTheTimeIntervalFallback() throws {
+    let wait: TimeInterval? = try decodeNativeValues("{\"wait\":\"3600s\"}").wait
+    #expect(wait == 3600)
+  }
+
+  @Test func testBhvSerializationobject405Ipv4FieldIsTheAddressTextKeptUnchanged() throws {
+    let values = try decodeNativeValues("{\"address4\":\"192.0.2.1\"}")
+    #expect(try ObjectSerializer.serialize(values) == "{\"address4\":\"192.0.2.1\"}")
+  }
+
+  @Test func testBhvSerializationobject406Ipv6FieldKeepsTheAddressTextUnchanged() throws {
+    for text in ["2001:0DB8:0:0:0:0:0:1", "2001:db8::1", "::1"] {
+      let values = try decodeNativeValues("{\"address6\":\"\(text)\"}")
+      #expect(try ObjectSerializer.serialize(values) == "{\"address6\":\"\(text)\"}")
+    }
+  }
+
+  @Test func testBhvSerializationobject408EveryAbsoluteUriOfTheCorpusRoundTripsByteForByte() throws
+  {
+    let corpus = [
+      "https://example.com",
+      "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+      "mailto:a@b.c",
+      "urn:isbn:0451450523",
+      "https://example.com/[x]?q='a'",
+      "https://example.com?",
+      "https://example.com/%7euser",
+      "https://[2001:db8::1]:8443/",
+    ]
+    for text in corpus {
+      let json = "{\"homepage\":\"\(text)\"}"
+      #expect(try ObjectSerializer.serialize(try decodeNativeValues(json)) == json)
+    }
+  }
+
+  @Test func testBhvSerializationobject409HostnameAndEmailAreKeptAsGiven() throws {
+    let json = "{\"contact\":\"x@\",\"host\":\"not a host!\"}"
+    let text = try ObjectSerializer.serialize(try decodeNativeValues(json))
+    #expect(text.contains("\"host\":\"not a host!\""))
+    #expect(text.contains("\"contact\":\"x@\""))
+  }
+
+  @Test func testBhvSerializationparam104DurationParameterIsTheProtobufForm() throws {
+    #expect(try ObjectSerializer.encodeDuration(3600) == "3600s")
+  }
+
+  @Test func testBhvSerializationparam105AddressParameterIsTheTextUnchanged() {
+    #expect(ObjectSerializer.stringify("2001:db8::1") == "2001:db8::1")
+  }
 }

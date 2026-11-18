@@ -466,10 +466,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
           "address4", value: val, location: "query", schemaType: "String", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     }
-    if let options = options, let val = options.wait {
-      queryParams["wait"] = ValueSerializer.maybeAllowReserved(
+    if let options = options, let val = options.delay {
+      queryParams["delay"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
-          "wait", value: val, location: "query", schemaType: "TimeInterval", collectionFormat: "",
+          "delay", value: val, location: "query", schemaType: "TimeInterval", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     }
     if let options = options, let val = options.amount {

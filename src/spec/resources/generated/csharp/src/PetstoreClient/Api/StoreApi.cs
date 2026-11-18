@@ -808,7 +808,7 @@ public class StoreApi : BaseApi
                     "address4",
                     options.Address4,
                     "query",
-                    "string",
+                    "System.Net.IPAddress",
                     null,
                     "form",
                     true
@@ -816,12 +816,12 @@ public class StoreApi : BaseApi
                 false
             );
         }
-        if (options != null && options.Wait != null)
+        if (options != null && options.Delay != null)
         {
-            queryParams["wait"] = ValueSerializer.MaybeAllowReserved(
+            queryParams["delay"] = ValueSerializer.MaybeAllowReserved(
                 ValueSerializer.SerializeStyled(
-                    "wait",
-                    options.Wait,
+                    "delay",
+                    options.Delay,
                     "query",
                     "TimeSpan",
                     null,
@@ -854,7 +854,7 @@ public class StoreApi : BaseApi
                     "X-Address6",
                     options.XAddress6,
                     "header",
-                    "string",
+                    "System.Net.IPAddress",
                     null,
                     "simple",
                     false

@@ -410,15 +410,15 @@ module Petstore::Client
         unless options.nil? || options.address4.nil?
           query_params.merge!(
             ::Petstore::Client::ValueSerializer.query_entries(
-              'address4', options.address4, 'String', nil, 'form', true,
+              'address4', options.address4, 'IPAddr', nil, 'form', true,
               false
             )
           )
         end
-        unless options.nil? || options.wait.nil?
+        unless options.nil? || options.delay.nil?
           query_params.merge!(
             ::Petstore::Client::ValueSerializer.query_entries(
-              'wait', options.wait, 'ISO8601::Duration', nil, 'form', true,
+              'delay', options.delay, 'ISO8601::Duration', nil, 'form', true,
               false
             )
           )
@@ -426,14 +426,14 @@ module Petstore::Client
         unless options.nil? || options.amount.nil?
           query_params.merge!(
             ::Petstore::Client::ValueSerializer.query_entries(
-              'amount', options.amount, 'Float', nil, 'form', true,
+              'amount', options.amount, 'BigDecimal', nil, 'form', true,
               false
             )
           )
         end
         # @type var header_params: Hash[String, String]
         header_params = {}
-        header_params['X-Address6'] = ::Petstore::Client::ValueSerializer.serialize_styled('X-Address6', options.x_address6, :header, 'String', nil, 'simple', false).to_s unless options.nil? || options.x_address6.nil?
+        header_params['X-Address6'] = ::Petstore::Client::ValueSerializer.serialize_styled('X-Address6', options.x_address6, :header, 'IPAddr', nil, 'simple', false).to_s unless options.nil? || options.x_address6.nil?
         request_body = nil
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,

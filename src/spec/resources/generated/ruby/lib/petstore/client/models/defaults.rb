@@ -69,7 +69,7 @@ module Petstore::Client
         label: 'String',
         greeting: 'String',
         swatch: 'Swatch',
-        ratio: 'Float',
+        ratio: 'BigDecimal',
         scale: 'Float',
         weight: 'Float',
         ceiling: 'Integer'

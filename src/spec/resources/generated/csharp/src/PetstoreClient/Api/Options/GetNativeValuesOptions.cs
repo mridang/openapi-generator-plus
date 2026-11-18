@@ -7,13 +7,13 @@ namespace PetstoreClient.Api.Options;
 /// </summary>
 public sealed class GetNativeValuesOptions
 {
-    public string? Address4 { get; init; }
+    public System.Net.IPAddress? Address4 { get; init; }
 
-    public TimeSpan? Wait { get; init; }
+    public TimeSpan? Delay { get; init; }
 
     public decimal? Amount { get; init; }
 
-    public string? XAddress6 { get; init; }
+    public System.Net.IPAddress? XAddress6 { get; init; }
 
     /// <summary>
     /// End-to-end timeout in milliseconds for this call only: it replaces

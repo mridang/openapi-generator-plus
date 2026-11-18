@@ -1114,7 +1114,7 @@ defmodule PetstoreClient.Api.StoreApi do
                  "address4",
                  options.address4,
                  :query,
-                 "String.t()",
+                 ":inet.ip4_address()",
                  nil,
                  "form",
                  true
@@ -1127,14 +1127,14 @@ defmodule PetstoreClient.Api.StoreApi do
       end
 
     query_params =
-      if not is_nil(options) and not is_nil(options.wait) and options.wait != [] do
+      if not is_nil(options) and not is_nil(options.delay) and options.delay != [] do
         query_params ++
           [
-            {"wait",
+            {"delay",
              PetstoreClient.ValueSerializer.maybe_allow_reserved(
                PetstoreClient.ValueSerializer.serialize_styled(
-                 "wait",
-                 options.wait,
+                 "delay",
+                 options.delay,
                  :query,
                  "Duration.t()",
                  nil,
@@ -1181,7 +1181,7 @@ defmodule PetstoreClient.Api.StoreApi do
             "X-Address6",
             options.x_address6,
             :header,
-            "String.t()",
+            ":inet.ip6_address()",
             nil,
             "simple",
             false

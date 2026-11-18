@@ -13,15 +13,17 @@ namespace PetstoreClient.Models;
 public record NativeValues
 {
     /// <example>192.0.2.1</example>
+    [JsonConverter(typeof(Ipv4AddressConverter))]
     [JsonPropertyName("address4")]
-    public string? Address4 { get; init; }
+    public System.Net.IPAddress? Address4 { get; init; }
 
     /// <example>2001:db8::1</example>
+    [JsonConverter(typeof(Ipv6AddressConverter))]
     [JsonPropertyName("address6")]
-    public string? Address6 { get; init; }
+    public System.Net.IPAddress? Address6 { get; init; }
 
     [JsonPropertyName("addresses")]
-    public List<string>? Addresses { get; init; }
+    public List<System.Net.IPAddress>? Addresses { get; init; }
 
     /// <example>https://example.com/a</example>
     [JsonPropertyName("homepage")]
@@ -32,6 +34,7 @@ public record NativeValues
     public decimal? Amount { get; init; }
 
     /// <example>12.50</example>
+    [JsonConverter(typeof(DecimalStringConverter))]
     [JsonPropertyName("ledger")]
     public decimal? Ledger { get; init; }
 
@@ -60,8 +63,14 @@ public record NativeValues
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || EqualityComparer<string?>.Default.Equals(this.Address4, other.Address4)
-                    && EqualityComparer<string?>.Default.Equals(this.Address6, other.Address6)
+                || EqualityComparer<System.Net.IPAddress?>.Default.Equals(
+                    this.Address4,
+                    other.Address4
+                )
+                    && EqualityComparer<System.Net.IPAddress?>.Default.Equals(
+                        this.Address6,
+                        other.Address6
+                    )
                     && global::PetstoreClient.ObjectSerializer.StructuralEquals(
                         this.Addresses,
                         other.Addresses

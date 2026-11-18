@@ -6,11 +6,11 @@ module Petstore::Client
       # are nullable only for optional parameters.  Instances are
       # frozen after construction, so only readers are exposed.
       class GetNativeValuesOptions
-        attr_reader address4: String?
-        attr_reader wait: ISO8601::Duration?
-        attr_reader amount: Float?
-        attr_reader x_address6: String?
-        def initialize: (?address4: String?, ?wait: ISO8601::Duration?, ?amount: Float?, ?x_address6: String?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
+        attr_reader address4: IPAddr?
+        attr_reader delay: ISO8601::Duration?
+        attr_reader amount: BigDecimal?
+        attr_reader x_address6: IPAddr?
+        def initialize: (?address4: IPAddr?, ?delay: ISO8601::Duration?, ?amount: BigDecimal?, ?x_address6: IPAddr?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
       end
     end
   end

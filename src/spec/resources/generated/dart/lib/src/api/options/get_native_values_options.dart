@@ -2,7 +2,7 @@
 class GetNativeValuesOptions {
   final String? address4;
 
-  final Duration? wait;
+  final Duration? delay;
 
   final double? amount;
 
@@ -23,7 +23,7 @@ class GetNativeValuesOptions {
 
   const GetNativeValuesOptions({
     this.address4,
-    this.wait,
+    this.delay,
     this.amount,
     this.xAddress6,
     this.timeout,

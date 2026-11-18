@@ -11,12 +11,12 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import io.ktor.http.Url
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import java.math.BigDecimal
+import java.net.URI
 import java.time.Duration
 import java.time.LocalDate
 import kotlin.collections.List
@@ -50,7 +50,7 @@ data class NativeValues(
      */
     @SerialName("homepage")
     @Contextual
-    val homepage: Url? = null,
+    val homepage: URI? = null,
     /**
      * The `amount` property.
      *
@@ -65,6 +65,7 @@ data class NativeValues(
      * Example: `12.50`
      */
     @SerialName("ledger")
+    @Serializable(with = com.example.petstore.StringDecimalSerializer::class)
     val ledger: BigDecimal? = null,
     /**
      * The `wait` property.
@@ -79,7 +80,7 @@ data class NativeValues(
      */
     @SerialName("waits")
     @Contextual
-    val waits: Map<String, Duration>? = null,
+    val waits: Map<String, @Contextual Duration>? = null,
     /**
      * The `since` property.
      *
