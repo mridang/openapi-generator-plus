@@ -835,3 +835,10 @@ describe('ValueSerializer misc behaviours (chunk 11)', () => {
     expect(ValueSerializer.serialize('v', 'path', 'string')).toBe('v');
   });
 });
+
+describe('ValueSerializer date-time query behaviour (bhv serialization 118)', () => {
+  test('bhv serialization 118 a date-time query or path parameter keeps its full ISO-8601 time and offset rather than being cut to the date', () => {
+    const at = new Date(Date.UTC(2026, 0, 2, 3, 4, 5));
+    expect(ValueSerializer.serializeStyled('at', at, 'query', 'Date', null, 'form', true)).toContain('2026-01-02T03:04:05');
+  });
+});
