@@ -109,6 +109,18 @@ class ComposedSchemaTest {
     }
 
     @Test
+    void bhvMisc049AChoiceWithAListOfBinaryValuesWritesTheListAsBase64Text() {
+      byte[] first = new byte[] {0x01, 0x02, 0x03, 0x04};
+      SetPetAvatarThumbnailRequest request =
+          new SetPetAvatarThumbnailRequest(java.util.List.of(first));
+
+      String serialized = serializer.serialize(request);
+
+      assertThat(serialized).isEqualTo("[\"AQIDBA==\"]");
+      assertThat(serialized).doesNotContain("[1,2,3,4]");
+    }
+
+    @Test
     void bhvMisc045APayloadFailingAVariantSchemaIsNotAcceptedAsThatVariant() {
       for (String json :
           java.util.List.of(

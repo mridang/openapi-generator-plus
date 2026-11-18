@@ -57,6 +57,43 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
+  it 'bhv_misc_083 a query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written' do
+    _(sent_query('tag=a&tag=b&q=x%20y%2Bz')).must_equal 'tag=a&tag=b&q=x%20y%2Bz'
+  end
+
+  it 'bhv_misc_095 a response body with bytes invalid in its charset decodes with each bad byte replaced by U+FFFD' do
+    client = Petstore::Client::DefaultApiClient.new
+    _(client.send(:decode_text_body, "a\xFFb".b, 'text/plain; charset=utf-8')).must_equal 'a�b'
+  end
+
+  it 'bhv_misc_096 a multipart file part carries no Content-Transfer-Encoding header' do
+    client = Petstore::Client::DefaultApiClient.new
+    body = client.send(:build_multipart_body, { 'file' => StringIO.new('payload') }, 'b')
+    _(body).wont_include 'Content-Transfer-Encoding'
+  end
+
+  it 'bhv_misc_097 each element of a multipart array field is sent as its own part in the order given' do
+    client = Petstore::Client::DefaultApiClient.new
+    body = client.send(:build_multipart_body, { 'tag' => %w[first second] }, 'b')
+    _(body.scan('name="tag"').size).must_equal 2
+    _(body.index('first')).must_be :<, body.index('second')
+  end
+
+  it 'bhv_misc_098 a caller stream used as a multipart part is read into the body and never closed by the SDK' do
+    stream = StringIO.new('payload')
+    client = Petstore::Client::DefaultApiClient.new
+    client.send(:build_multipart_body, { 'file' => stream }, 'b')
+    _(stream.closed?).must_equal false
+  end
+
+  it 'bhv_misc_101 a multipart file whose source can no longer be read fails the call instead of sending an empty payload' do
+    file = Tempfile.new('part')
+    file.close
+    client = Petstore::Client::DefaultApiClient.new
+    _(proc { client.send(:build_multipart_body, { 'file' => file }, 'b') }).must_raise IOError
+    file.unlink
+  end
+
   it 'bhv_langruby_033 sends a method Faraday does not know, such as QUERY, with its body' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new
@@ -3196,5 +3233,20 @@ describe 'DefaultApiClientUnit' do
 
     _(seen).must_equal([['http://localhost/items', 'kept']] * 2)
     stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_124 refuses a 301 redirect from HTTPS to HTTP for a POST with a body instead of replaying it' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do
+        [301, { 'location' => 'http://localhost/landing' }, '']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      _(proc {
+        client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
+      }).must_raise Petstore::Client::Errors::ApiError
+    end
   end
 end
