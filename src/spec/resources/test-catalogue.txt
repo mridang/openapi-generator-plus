@@ -1942,3 +1942,23 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langcsharp001 | Constructing a model with an unknown enum value keeps that value without throwing
+langcsharp002 | Malformed JSON raises the library serialization error and no native parser error escapes
+langcsharp003 | A null in a free-form field stays null after decoding
+langcsharp004 | An optional field on a model body accepts an explicit null value
+langcsharp005 | Several unknown properties in a body are skipped without error
+langcsharp006 | An unknown nested object inside a body is skipped without error
+langcsharp007 | A duration round trip keeps both its day and its time components
+langcsharp008 | A duration with a nanosecond fraction parses to the exact amount
+langcsharp009 | A duration survives a full round trip through the object serializer
+langcsharp010 | A duration beyond the protobuf bound is refused as a serialization error
+langcsharp011 | A malformed uuid inside a model fails decoding with the serialization error
+langcsharp012 | A string enum with non-lowercase wire values deserializes from its exact wire casing
+langcsharp013 | A hyphenated string enum wire value deserializes to its member
+langcsharp014 | An array of integer arrays round trips to the same values
+langcsharp015 | The string form of a model shows collection and byte contents rather than identities
+langcsharp016 | An inline enum member keeps its exact wire value through a round trip
+langcsharp017 | A bare number read in exponent notation is written back in plain notation
+langcsharp018 | A duplicate key inside a nested object keeps the last value
+langcsharp019 | A copy with changed fields keeps every other field of the source model
+langcsharp020 | A copy of a model keeps its concrete type when held through its base type
