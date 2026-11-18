@@ -3160,4 +3160,53 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.serialize("abc") == ~s("abc")
     end
   end
+
+  describe "misc parity two" do
+    test "bhv misc 105 copying a model with an updated field never validates the value given" do
+      category = %PetstoreClient.Models.Category{id: 1}
+      updated = %{category | id: "one"}
+      assert updated.id == "one"
+    end
+
+    test "bhv misc 108 a model built with a valid integer enum member keeps its wire value" do
+      assert PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.Subscription{
+               rank: :low
+             }) =~ ~s("rank":1)
+    end
+
+    test "bhv misc 109 a nested object is validated with the outer rules at decode" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"lastError":{"code":"three"}}),
+          "EdgeCases"
+        )
+      end
+    end
+
+    test "bhv misc 110 a list of dates with a non-date element is refused with a type error" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s(["2024-01-01","not-a-date"]), "[Date.t()]")
+      end
+    end
+
+    test "bhv misc 112 a repeated element of a unique array keeps one copy of each" do
+      assert PetstoreClient.ObjectSerializer.deserialize(
+               ~s(["a","a","b"]),
+               "MapSet.t(String.t())"
+             ) == MapSet.new(["a", "b"])
+    end
+
+    test "bhv misc 113 a model's string form shows the contents of its list, map and byte fields" do
+      text =
+        inspect(%PetstoreClient.Models.BinaryVault{
+          seal: "seal",
+          shards: ["one"],
+          labels: %{"k" => "v"}
+        })
+
+      assert text =~ ~s("seal")
+      assert text =~ ~s(["one"])
+      assert text =~ ~s(%{"k" => "v"})
+    end
+  end
 end
