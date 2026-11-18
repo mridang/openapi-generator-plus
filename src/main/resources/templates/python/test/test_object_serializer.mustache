@@ -624,6 +624,9 @@ class TestSerialize:
         assert data['id'] == 1
         assert data['name'] == 'Dogs'
 
+    def test_bhv_serializationobject_188_an_empty_object_serializes_to_an_empty_json_object(self) -> None:
+        assert ObjectSerializer().serialize({}) == '{}'
+
     def test_bhv_serializationobject_087_handles_none(self) -> None:
         result = ObjectSerializer().serialize(None)
         assert result == 'null'
@@ -1771,6 +1774,16 @@ class TestNestedContainerDeepRoundTrip:
         # Leaves are real ints, not strings or floats.
         assert item.matrix[0][0] == 1
         assert isinstance(item.matrix[0][0], int)
+
+    def test_bhv_serializationobject_189_mutually_recursive_models_decode_from_nested_json(self) -> None:
+        from {{packageName}}.models.department import Department
+        body = '{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}'
+        department = ObjectSerializer().deserialize(body, 'Department')
+        assert isinstance(department, Department)
+        assert department.lead is not None
+        assert department.lead.name == 'e'
+        assert department.lead.department is not None
+        assert department.lead.department.name == 'd2'
 
     def test_nested_array_round_trips(self) -> None:
         original = ObjectSerializer().deserialize(

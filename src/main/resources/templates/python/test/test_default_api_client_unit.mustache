@@ -790,6 +790,14 @@ class TestMultipartBinaryPreservation:
         )
         assert b"Content-Type: image/png" in body
 
+    def test_bhv_operations_147_multipart_parts_are_sent_in_declaration_order(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body({'z': b'1', 'a': b'2', 'm': b'3'}, 'boundary')
+        first = body.index(b'; name="z"')
+        second = body.index(b'; name="a"')
+        third = body.index(b'; name="m"')
+        assert first < second < third
+
 
 class _FakeResp:
     """Minimal response double for exercising the redirect loop without

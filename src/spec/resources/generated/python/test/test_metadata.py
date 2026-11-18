@@ -322,6 +322,30 @@ class TestReadmeAndSkillsText:
         )
         assert "`TransportOptions.proxy()`" not in readme
 
+    def test_bhv_skills_001_the_error_handling_section_names_the_root_and_the_api_error_siblings(
+        self,
+    ) -> None:
+        section = (
+            self._read("SKILLS.md")
+            .split("## Error Handling", 1)[1]
+            .split("\n## ", 1)[0]
+        )
+        assert "- `OpenAPIException` (root)" in section
+        assert "  - `SerializationException`" in section
+        assert "  - `OAuth2ServerException`" in section
+        assert "  - `OAuth2TokenException`" in section
+        assert "  - `ApiException`" in section
+
+    def test_bhv_skills_002_the_configuration_section_documents_the_retries(
+        self,
+    ) -> None:
+        section = (
+            self._read("SKILLS.md").split("## Configuration", 1)[1].split("\n## ", 1)[0]
+        )
+        assert "### Automatic retries" in section
+        assert "max_retries(0)" in section
+        assert "`Retry-After`" in section
+
     def test_skills_call_the_authenticator_an_abstract_base_class(self) -> None:
         skills = self._read("SKILLS.md")
         assert "The `Authenticator` abstract base class is the seam for tests" in skills

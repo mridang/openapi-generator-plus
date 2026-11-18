@@ -87,6 +87,27 @@ def _assert_valid_max_retries(max_retries: int) -> None:
         )
 
 
+def _assert_valid_max_redirects(max_redirects: Optional[int]) -> None:
+    """Reject a redirect budget that is not ``None`` or a whole number of at least zero.
+
+    Shared by the constructor and the builder so a ``TransportOptions`` built
+    directly cannot carry a budget the builder would have refused.
+
+    Raises:
+        ValueError: If the budget is negative or not an integer.
+    """
+    if max_redirects is None:
+        return
+    if (
+        isinstance(max_redirects, bool)
+        or not isinstance(max_redirects, int)
+        or max_redirects < 0
+    ):
+        raise ValueError(
+            f"Invalid max_redirects: must be an integer of at least 0 (got {max_redirects})"
+        )
+
+
 def _validated_call_headers(
     timeout: Optional[int],
     headers: Optional[Mapping[str, str]],
@@ -244,10 +265,11 @@ class TransportOptions:
     """
 
     def __post_init__(self) -> None:
-        """Validate the proxy, the timeout and the retry count and make default_headers an immutable MappingProxyType."""
+        """Validate the proxy, the timeout, the retry count and the redirect budget, and make default_headers an immutable MappingProxyType."""
         _assert_valid_proxy(self.proxy)
         _assert_valid_timeout(self.timeout)
         _assert_valid_max_retries(self.max_retries)
+        _assert_valid_max_redirects(self.max_redirects)
         if not isinstance(self.default_headers, MappingProxyType):
             object.__setattr__(
                 self, "default_headers", MappingProxyType(dict(self.default_headers))
@@ -383,9 +405,13 @@ class TransportOptionsBuilder:
         Args:
             max_redirects: Maximum redirect hops, or ``None`` for client default.
 
+        Raises:
+            ValueError: If the budget is negative or not an integer.
+
         Returns:
             This builder.
         """
+        _assert_valid_max_redirects(max_redirects)
         self._max_redirects = max_redirects
         return self
 
