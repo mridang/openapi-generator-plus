@@ -3855,6 +3855,23 @@ void main() {
       expect(result.actualInstance, isA<Reservation>());
     });
 
+    test('bhv misc 079 each success status decodes as the schema declared for that status', () async {
+      final client = _ScriptedApiClient(
+          [jsonReply(201, '{"receiptCode":"r1","expiresAt":"2030-01-01T00:00:00Z"}')]);
+
+      final result = await storeApi(client).reserveStock(null);
+
+      expect(result.actualInstance, isA<ReservationReceipt>());
+    });
+
+    test('bhv misc 080 a 200 body is refused when it only fits the 201 schema', () async {
+      final client = _ScriptedApiClient(
+          [jsonReply(200, '{"receiptCode":"r1","expiresAt":"2030-01-01T00:00:00Z"}')]);
+
+      await expectLater(storeApi(client).reserveStock(null),
+          throwsA(isA<SerializationException>()));
+    });
+
     test('bhv misc 048 a success status no response row declares decodes as the union return type', () async {
       final client = _ScriptedApiClient(
           [jsonReply(202, '{"reservationId":7,"quantity":2}')]);

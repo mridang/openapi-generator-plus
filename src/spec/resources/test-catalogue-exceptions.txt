@@ -605,3 +605,10 @@ go | misc153 | Go has no client-level cancellation signal: a context is passed t
 ||||||| 2c1a36607
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
 go | misc178 | the fixture declares no multipart content type other than multipart/form-data, so no operation sends a declared type that could reach the transport unchanged
+dart | misc074 | Dart sends one credential per operation, the first configured scheme its requirement lists (schemeAuthenticator), so an alternative that names two schemes applies a single credential and never both
+dart | misc075 | Dart's Client takes one named optional parameter per declared scheme, so a credential keyed to an undeclared scheme is a compile-time error rather than a refusal at build
+dart | misc081 | the petstore has no operation returning a format: byte string under a binary content type, so no base64 body reaches a string return
+dart | misc085 | the trackingId field is typed UuidValue, which holds only a parsed canonical uuid, so a non-canonical value cannot be built into an Order or passed to the call; a malformed wire value is refused by the decoder (serializationobject048)
+dart | misc087 | Dart's number is a binary double with no decimal type, so a decimal field is written by double formatting and not as the exact decimal text this promise needs (serializationobject002)
+dart | misc088 | Dart's number is a binary double with no decimal type, so the decimal places a value was written with are not kept, as serializationobject002 records
+dart | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
