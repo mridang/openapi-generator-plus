@@ -992,4 +992,18 @@ import Testing
       ["{\"a\":1}"], location: "query", schemaType: "array", collectionFormat: "multi")
     #expect((sent as? [String]) == ["{\"a\":1}"])
   }
+
+  /* A scalar form query parameter is emitted with its own name and its string value. */
+  @Test func testBhvMisc107AScalarFormQueryParameterKeepsItsOwnNameAndValue() {
+    let sent = ValueSerializer.serializeStyled(
+      "filter", value: "x", location: "query", schemaType: "string", collectionFormat: "",
+      style: "form", explode: true)
+    #expect("\(sent ?? "")" == "x")
+  }
+
+  /* An object parameter becomes name and value pairs keyed by wire name, with absent values left out. */
+  @Test func testBhvMisc120AnObjectParameterIsKeyedByWireNameAndOmitsAbsentValues() {
+    let result = ValueSerializer.serializeDeepObject("filter", value: ["b": "2", "a": "1"])
+    #expect(result == ["filter[a]": "1", "filter[b]": "2"])
+  }
 }

@@ -493,6 +493,19 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvMisc114ASuccessResponseIsDecodedByTheDecoderForItsStatus()
+    {
+        string? Decode(int status, string body) => status == 202 ? "accepted" : "other";
+
+        var result = await new TestableApi(
+            new CallOptionsApiClient(202, "{}"),
+            "http://localhost"
+        ).CallWithCallOptionsAsync<string>("/x", [], null, null, null, Decode);
+
+        Assert.Equal("accepted", result.Data);
+    }
+
+    [Fact]
     public async Task BhvMisc079ASuccessBodyIsDecodedByTheStatusThatArrived()
     {
         var decodedStatuses = new List<int>();

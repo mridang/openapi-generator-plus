@@ -4,6 +4,70 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
   alias PetstoreClient.Auth.BearerAuthenticator
 
   describe "BearerAuthenticator" do
+    test "bhv misc 194 a token returned by a token provider gets the same Bearer prefix rule as a static token" do
+      for {provider, expected} <- [
+            {fn -> "xyz" end, "Bearer xyz"},
+            {fn -> "Bearer xyz" end, "Bearer xyz"}
+          ] do
+        auth = BearerAuthenticator.new("https://api.example.com", provider)
+        assert BearerAuthenticator.auth_headers(auth)["Authorization"] == expected
+      end
+    end
+
+    test "bhv misc 195 a whitespace-only token returned by a token provider is rejected when the request is made" do
+      auth = BearerAuthenticator.new("https://api.example.com", fn -> "   " end)
+
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.auth_headers(auth)
+      end
+    end
+
+    test "bhv misc 196 a scheme wrapper with no token from its argument or environment fails with an error" do
+      System.delete_env("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv misc 205 the missing-credential error names the variable that should have supplied the token" do
+      System.delete_env("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+
+      assert_raise ArgumentError, ~r/SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv misc 208 an environment variable set to an empty value is treated as unset" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/Missing the credential/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv misc 174 a token refused for a line break or NUL byte is never repeated in the error" do
+      for bad <- ["secret-token\r\nX-Injected: yes", "secret-token\0"] do
+        error =
+          assert_raise ArgumentError, fn ->
+            BearerAuthenticator.new("https://api.example.com", bad)
+          end
+
+        refute Exception.message(error) =~ "secret-token"
+      end
+    end
+
+    test "bhv misc 187 a bearer token not passed is read from the environment variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer from-env"
+    end
+
     test "bhv authbearer 009 raw token is prefixed with Bearer" do
       auth = BearerAuthenticator.new("https://api.example.com", "xyz")
       headers = BearerAuthenticator.auth_headers(auth)

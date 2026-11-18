@@ -446,6 +446,22 @@ describe 'Composed Schema' do
       _(Petstore::Client::Models::TreatmentRecord.openapi_any_of).must_equal(%i[Surgery Medication])
     end
 
+    it 'bhv_misc_291 a payload matching more than one variant decodes to the first declared one' do
+      both = Petstore::Client::ObjectSerializer.deserialize('{"drugName":"a","procedureName":"b"}', 'TreatmentRecord')
+
+      _(Petstore::Client::Models::TreatmentRecord.actual_instance(both)).must_be_kind_of(Petstore::Client::Models::Surgery)
+    end
+
+    it 'bhv_misc_292 serializing a union wrapper writes the bare variant payload and reading it back restores it' do
+      medication = Petstore::Client::Models::Medication.new(drug_name: 'Amoxicillin', notes: 'from-medication')
+      composite = Petstore::Client::Models::PetTreatment::Composite.new([medication])
+
+      serialized = Petstore::Client::ObjectSerializer.serialize(composite)
+
+      _(JSON.parse(serialized)).must_equal(JSON.parse(Petstore::Client::ObjectSerializer.serialize(medication)))
+      _(Petstore::Client::ObjectSerializer.deserialize(serialized, 'PetTreatment').drug_name).must_equal('Amoxicillin')
+    end
+
     it 'bhv_unions_025 retains the first declared variant first' do
       both = Petstore::Client::ObjectSerializer.deserialize('{"drugName":"a","procedureName":"b"}', 'TreatmentRecord')
       _(Petstore::Client::Models::TreatmentRecord.matched_instances(both).map(&:class))

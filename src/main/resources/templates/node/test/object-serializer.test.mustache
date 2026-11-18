@@ -14,7 +14,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum } from '../src/models/index{{importFileExtension}}';
+import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -3120,5 +3120,88 @@ describe('ObjectSerializer union variants', () => {
     const wrapped = new PetFood('kibble' as unknown as DryFood);
     expect(() => ObjectSerializer.serialize(wrapped)).toThrow(SerializationError);
     expect(() => ObjectSerializer.serialize(wrapped)).toThrow('is not a variant of PetFood');
+  });
+});
+
+describe('ObjectSerializer misc behaviours', () => {
+  it('bhv misc 103 rejecting undeclared keys on one strict model leaves other models accepting and ignoring them', () => {
+    expect(() => ObjectSerializer.deserialize('{"rogue":"x"}', StrictTag)).toThrow(SerializationError);
+    expect(ObjectSerializer.deserialize('{"rogue":"x"}', Metadata)).toBeInstanceOf(Metadata);
+  });
+
+  it('bhv misc 104 a string field declared with the email format decodes to a plain string without being validated', () => {
+    const json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John Doe","ownerEmail":"not-an-email"}';
+    const result = ObjectSerializer.deserialize(json, PetWithOwner) as PetWithOwner;
+    expect(typeof result.ownerEmail).toBe('string');
+    expect(result.ownerEmail).toBe('not-an-email');
+  });
+
+  it('bhv misc 110 a list of dates with a non-date element is refused', () => {
+    expect(() => ObjectSerializer.deserializeArray(['2024-01-01', 'not-a-date'], plainDate)).toThrow(SerializationError);
+  });
+
+  it('bhv misc 112 a repeated element of a unique array keeps one copy of each', () => {
+    const pet = ObjectSerializer.deserialize('{"name":"doggie","photoUrls":["u","u","v"]}', Pet) as Pet;
+    expect([...pet.photoUrls]).toEqual(['u', 'v']);
+  });
+
+  it('bhv misc 113 a model string form shows the contents of its list, map and byte fields', () => {
+    const text = util.inspect(
+      new BinaryVault({ seal: Buffer.from([1, 2, 3]), shards: [Buffer.from([4, 5])], labels: { first: Buffer.from([7, 8]) } }),
+    );
+    expect(text).toContain('<Buffer 01 02 03>');
+    expect(text).toContain('<Buffer 04 05>');
+    expect(text).toContain('<Buffer 07 08>');
+  });
+
+  it('bhv misc 115 a bare string serializes as a quoted JSON string', () => {
+    expect(ObjectSerializer.serialize('hello')).toBe('"hello"');
+  });
+
+  it('bhv misc 117 an absent value serializes as the JSON null literal', () => {
+    expect(ObjectSerializer.serialize(null)).toBe('null');
+  });
+
+  it('bhv misc 118 when a payload carries a name and a differently cased duplicate, the exact-case value is decoded', () => {
+    const category = ObjectSerializer.deserialize('{"NAME":"Other","name":"Exact"}', Category) as Category;
+    expect(category.name).toBe('Exact');
+  });
+
+  it('bhv misc 119 two object keys differing only by an escape sequence are one key and the last value wins', () => {
+    const category = ObjectSerializer.deserialize('{"name":"First","\\u006eame":"Last"}', Category) as Category;
+    expect(category.name).toBe('Last');
+  });
+
+  it('bhv misc 121 an object with no declared schema is written as a JSON object of its properties', () => {
+    expect(JSON.parse(ObjectSerializer.serialize({ a: 1, b: 'x' }))).toEqual({ a: 1, b: 'x' });
+  });
+});
+
+describe('ObjectSerializer enum and default misc behaviours', () => {
+  it('bhv misc 122 a string default from the schema is applied as the exact literal', () => {
+    const filled = ObjectSerializer.deserialize({}, Defaults) as Defaults;
+    expect(filled.greeting).toBe('it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b');
+  });
+
+  it('bhv misc 137 a generated enum lists its declared values and refuses any other', () => {
+    expect(Object.values(Separator)).toEqual([' ', '@@', 'a-b', 'a_b']);
+    expect(() =>
+      ObjectSerializer.deserializeEnum<Separator>('nope', Separator as unknown as Record<string, unknown>),
+    ).toThrow();
+  });
+
+  it('bhv misc 138 converting an enum member to text yields its wire value', () => {
+    expect(String(Separator.AB)).toBe('a-b');
+    expect(`${Separator.SPACE1}`).toBe(' ');
+  });
+
+  it('bhv misc 141 a model built without a defaulted property holds the default', () => {
+    const model = new Defaults();
+    expect(model.retries).toBe(3);
+    expect(model.greeting).toBe('it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b');
+  });
+
+  it('bhv misc 144 validating a model refuses a string given for a numeric field', () => {
+    expect(() => ObjectSerializer.deserialize('{"retries":"3"}', Defaults)).toThrow(SerializationError);
   });
 });

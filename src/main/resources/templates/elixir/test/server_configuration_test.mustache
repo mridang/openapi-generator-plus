@@ -84,6 +84,15 @@ defmodule {{moduleName}}.ServerConfigurationTest do
       end
     end
 
+    test "bhv misc 260 passing nil for an enum variable raises instead of substituting it" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "prod", enum_values: ["prod", "staging"]}}
+      }
+
+      assert_raise ArgumentError, fn -> ServerConfiguration.url(config, %{"env" => nil}) end
+    end
+
     test "bhv servers 012 the rejection names the value, the variable and the allowed values" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
@@ -132,10 +141,30 @@ defmodule {{moduleName}}.ServerConfigurationTest do
       assert ServerConfiguration.url(config) == "https://a\\1b$&.api.example.com"
     end
 
+    test "bhv misc 261 a value containing backslash sequences is inserted into the URL exactly as given" do
+      value = "a\\n\\1\\\\b"
+
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "prod"}}
+      }
+
+      assert ServerConfiguration.url(config, %{"env" => value}) == "https://#{value}.api.example.com"
+    end
+
     test "bhv servers 007 leaves an unknown placeholder in the template untouched" do
       config = %ServerConfiguration{url_template: "https://{unknown}.example.com"}
 
       assert ServerConfiguration.url(config) == "https://{unknown}.example.com"
+    end
+
+    test "bhv misc 259 a placeholder with no declared variable stays in the URL exactly as written" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.{region}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "prod"}}
+      }
+
+      assert ServerConfiguration.url(config) == "https://prod.{region}.api.example.com"
     end
 
     test "bhv servers 004 a default outside the enum is rejected" do
@@ -159,6 +188,24 @@ defmodule {{moduleName}}.ServerConfigurationTest do
 
       assert ServerConfiguration.url(config, %{"env" => "anything-goes"}) ==
                "https://anything-goes.api.example.com"
+    end
+
+    test "bhv misc 258 without an override the default value of an enum variable is used in the URL" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "staging", enum_values: ["prod", "staging"]}}
+      }
+
+      assert ServerConfiguration.url(config) == "https://staging.api.example.com"
+    end
+
+    test "bhv misc 257 a variable declared with an empty enum accepts any value" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "prod", enum_values: []}}
+      }
+
+      assert ServerConfiguration.url(config, %{"env" => "anything-goes"}) == "https://anything-goes.api.example.com"
     end
 
     test "bhv servers 001 a partial override keeps the other variables' defaults" do
