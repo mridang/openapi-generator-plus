@@ -8,6 +8,7 @@
 import 'dart:convert';
 
 import '../../api_client.dart';
+import '../../environment.dart';
 import '../../errors/api_exception.dart';
 import '../../object_serializer.dart';
 import '../base_authenticator.dart';
@@ -49,18 +50,42 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   );
 
   /// Creates a new OpenID Connect authenticator.
+  ///
+  /// Each credential not passed is read from its environment variable (default
+  /// `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID`, `SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET` and
+  /// `SWAGGER_PETSTORE_OPEN_API_3_0_REDIRECT_URI`, or the names given). An empty variable
+  /// counts as unset.
   OpenIdConnectAuthenticator({
     required String host,
     required String openIdConnectUrl,
-    required String clientId,
-    required String clientSecret,
-    required String redirectUri,
+    String? clientId,
+    String? clientSecret,
+    String? clientIdVariable,
+    String? clientSecretVariable,
+    String? redirectUri,
+    String? redirectUriVariable,
     List<String> scopes = const [],
+    Map<String, String>? environment,
   }) : _host = host,
        _openIdConnectUrl = openIdConnectUrl,
-       _clientId = clientId,
-       _clientSecret = clientSecret,
-       _redirectUri = redirectUri,
+       _clientId = requireCredential(
+         clientId,
+         clientIdVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID',
+         'clientId',
+         environment,
+       ),
+       _clientSecret = requireCredential(
+         clientSecret,
+         clientSecretVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET',
+         'clientSecret',
+         environment,
+       ),
+       _redirectUri = requireCredential(
+         redirectUri,
+         redirectUriVariable ?? 'SWAGGER_PETSTORE_OPEN_API_3_0_REDIRECT_URI',
+         'redirectUri',
+         environment,
+       ),
        _scopes = ['openid', ...scopes.where((s) => s != 'openid')];
 
   @override

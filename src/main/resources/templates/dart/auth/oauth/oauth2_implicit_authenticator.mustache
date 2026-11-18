@@ -1,5 +1,6 @@
 {{>api_info}}
 import '../../api_client.dart';
+import '../../environment.dart';
 import '../../value_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
@@ -24,13 +25,20 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator
   String _accessToken = '';
 
   /// Creates a new implicit flow authenticator.
+  ///
+  /// [clientId] is read from [clientIdVariable] (default
+  /// `{{envVarPrefix}}_CLIENT_ID`) when not passed; an empty variable counts as
+  /// unset.
   OAuth2ImplicitAuthenticator({
     required String host,
-    required String clientId,
+    String? clientId,
+    String? clientIdVariable,
     required String authorizationUrl,
     List<String> scopes = const [],
+    Map<String, String>? environment,
   })  : _host = host,
-        _clientId = clientId,
+        _clientId = requireCredential(clientId,
+            clientIdVariable ?? '{{envVarPrefix}}_CLIENT_ID', 'clientId', environment),
         _authorizationUrl = authorizationUrl,
         _scopes = scopes;
 

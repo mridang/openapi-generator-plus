@@ -152,7 +152,6 @@ kotlin | retries032 | Kotlin request bodies are a String, a ByteArray or a multi
 node | authscheme008 | the OpenID Connect authenticator behind SsoAuth takes every credential as an explicit constructor argument and reads no environment variable, so there is no variable to be empty
 node | authbearer026 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal
 node | serializationobject191 | JS numbers are binary doubles and JSON.parse rounds an int64 above 2^53 before the SDK sees it, so the digits are lost on decode; only a Decimal keeps its text, and the exact digits of the largest safe integer are pinned by serializationobject190
-php | authscheme008 | The SsoAuth scheme is an OpenID Connect authenticator, which takes its credentials as constructor arguments and reads no environment variable (the README says so), so the SsoAuthAuthenticator has no variable to leave empty
 python | authscheme003 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
 python | authscheme004 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
 python | authscheme005 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
@@ -201,11 +200,6 @@ java | lifecycle026 | Java builds a client with no credential by design (Client.
 kotlin | config024 | Kotlin keeps no process-wide default configuration by design: defaultConfiguration() returns a fresh instance on every call (bhv config 014 pins it), so there is no setter whose effect a later lookup could return
 php | authoidc029 | PHP serves one request per process and has no lock around OIDC rediscovery, so no two callers ever share a cold discovery (php AGENTS, concurrency)
 rust | transport061 | RequestBody has only Bytes and Multipart variants, so no caller-supplied stream reaches the transport and nothing is left open after the body is sent; streaming request bodies are open work in issue #114
-dart | authscheme008 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme013 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme014 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme015 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
-dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take their endpoints and credentials as required constructor arguments and never read the environment (issue #119)
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)

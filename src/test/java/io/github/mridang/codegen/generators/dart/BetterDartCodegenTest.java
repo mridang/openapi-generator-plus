@@ -160,12 +160,27 @@ class BetterDartCodegenTest {
   }
 
   @Test
-  void anOAuthAuthenticatorReadsNoVariable() {
+  void anOAuthAuthenticatorNamesItsOwnVariables() {
     assertThat(
             BetterDartCodegen.environmentArguments(
-                "OAuth2ClientCredentialsAuthenticator",
-                List.of(entry("o", "clientId", "P_O_CLIENT_ID"))))
-        .isEmpty();
+                "OAuth2PasswordAuthenticator",
+                List.of(
+                    entry("o", "clientId", "P_O_CLIENT_ID"),
+                    entry("o", "clientSecret", "P_O_CLIENT_SECRET"),
+                    entry("o", "username", "P_O_USERNAME"),
+                    entry("o", "password", "P_O_PASSWORD"))))
+        .extracting(a -> a.get("argName") + "=" + a.get("envName"))
+        .containsExactly(
+            "clientIdVariable=P_O_CLIENT_ID",
+            "clientSecretVariable=P_O_CLIENT_SECRET",
+            "usernameVariable=P_O_USERNAME",
+            "passwordVariable=P_O_PASSWORD");
+    assertThat(
+            BetterDartCodegen.environmentArguments(
+                "OpenIdConnectAuthenticator",
+                List.of(entry("s", "redirectUri", "P_S_REDIRECT_URI"))))
+        .extracting(a -> a.get("argName") + "=" + a.get("envName"))
+        .containsExactly("redirectUriVariable=P_S_REDIRECT_URI");
     assertThat(BetterDartCodegen.environmentArguments("BearerAuthenticator", null)).isEmpty();
   }
 
@@ -193,8 +208,18 @@ class BetterDartCodegenTest {
         (List<Map<String, Object>>) codegen.additionalProperties().get("credentialEnvVars");
     assertThat(read)
         .extracting(e -> e.get("schemeId") + "." + e.get("field"))
-        .containsExactly("tok.token");
+        .containsExactlyInAnyOrder("tok.token", "oauth.clientId", "oauth.clientSecret");
     assertThat(codegen.additionalProperties().get("hasCredentialEnvVars")).isEqualTo(true);
+  }
+
+  @Test
+  void anOAuthWrapperIsNamedAfterItsFlow() {
+    assertThat(BetterDartCodegen.wrapperClassName("machineAuth", "OAuth2ClientCredentialsAuthenticator"))
+        .isEqualTo("MachineAuthClientCredentialsAuthenticator");
+    assertThat(BetterDartCodegen.wrapperClassName("ssoAuth", "OpenIdConnectAuthenticator"))
+        .isEqualTo("SsoAuthAuthenticator");
+    assertThat(BetterDartCodegen.wrapperClassName("svc", "BearerAuthenticator"))
+        .isEqualTo("SvcAuthenticator");
   }
 
   @Test

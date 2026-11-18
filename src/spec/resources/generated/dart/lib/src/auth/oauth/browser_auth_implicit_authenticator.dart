@@ -12,9 +12,12 @@ class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator {
   /// Creates an authenticator for the `browserAuth` security scheme.
   BrowserAuthImplicitAuthenticator({
     required super.host,
-    required super.clientId,
+    super.clientId,
+    super.environment,
   }) : super(
          authorizationUrl: 'https://auth.example.com/authorize',
          scopes: ['read'],
+         clientIdVariable:
+             'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID',
        );
 }
