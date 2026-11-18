@@ -377,6 +377,14 @@ describe Petstore::Client::Api::BaseApi do
       _(client.captured_headers['X-Credential']).must_equal 'key'
     end
 
+    it 'bhv_operations_148 uses the first scheme of its security requirement that the client holds' do
+      api, client = api_with({ 'petStoreBearer' => credential('bearer'), 'apiKeyHeader' => credential('key') })
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'key'
+    end
+
     it 'skips a scheme the client holds no credential for' do
       api, client = api_with({ 'petStoreBearer' => credential('bearer') })
 
@@ -532,6 +540,15 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_body).must_be_nil
     refute client.captured_headers.key?('Content-Type'), 'Content-Type must NOT be sent when body is nil'
     refute client.captured_headers.key?('Content-Length'), 'Content-Length must NOT be set by the SDK when body is nil'
+  end
+
+  it 'bhv_operations_131 a request with no body sends no Content-Type header' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    refute client.captured_headers.key?('Content-Type'), 'Content-Type must NOT be sent for a request with no body'
   end
 
   # ── Server variable overrides via Configuration ──

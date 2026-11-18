@@ -21,7 +21,7 @@ describe 'SKILLS' do
     _(error_handling_example).wont_include '(request)'
   end
 
-  it 'names the root error type and the non-HTTP error classes' do
+  it 'bhv_skills_001 names the root error type and the non-HTTP error classes' do
     skills = File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), 'SKILLS.md'))
     section = skills.split('## Error Handling', 2).last.to_s.split('## Configuration', 2).first.to_s
     %w[SerializationError OAuth2ServerError OAuth2TokenError].each do |name|
@@ -35,7 +35,7 @@ describe 'SKILLS' do
     _(error_handling_example).must_include 'rescue {{apiErrorParent}} => e'
   end
 
-  it 'documents the retry option in the Configuration section' do
+  it 'bhv_skills_002 documents the retry option in the Configuration section' do
     skills = File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), 'SKILLS.md'))
     section = skills.split('## Configuration', 2).last.to_s
     _(section).must_include '### Retries'
