@@ -116,7 +116,7 @@ import Testing
     #expect(ObjectSerializer.toPathValue(false) == "false")
   }
 
-  @Test func testToPathValueNil() {
+  @Test func testBhvSerialization110ToPathValueNil() {
     let result = ObjectSerializer.toPathValue(nil)
     #expect(result == "")
   }
@@ -146,12 +146,7 @@ import Testing
     #expect(result as? String == "a\tb")
   }
 
-  @Test func testToQueryValueStringSliceTSV() {
-    let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "tsv")
-    #expect(result as? String == "a\tb\tc")
-  }
-
-  @Test func testToQueryValueStringSlicePipes() {
+  @Test func testBhvLangswift055ToQueryValueStringSlicePipes() {
     let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes")
     #expect(result as? String == "a|b|c")
   }
@@ -222,7 +217,7 @@ import Testing
   // form-array-helper: toStringList must surface array values as a [String]
   // (so the form encoder can emit repeated keys) and return nil for scalars
   // (so the encoder falls back to a single key). Nil elements are dropped.
-  @Test func testToStringListArray() {
+  @Test func testBhvLangswift056ToStringListArray() {
     #expect(ObjectSerializer.toStringList(["a", "b"]) == ["a", "b"])
   }
 
@@ -352,7 +347,7 @@ import Testing
       "absent greeting must default to the exact spec string")
   }
 
-  @Test func testDefaultsExplicitNullPreservedNotDefaulted() throws {
+  @Test func testBhvSerialization095DefaultsExplicitNullPreservedNotDefaulted() throws {
     let json = "{\"label\":null,\"retries\":7}"
     let defaults = try ObjectSerializer.deserialize(json, as: Defaults.self)
     #expect(
@@ -606,7 +601,7 @@ import Testing
   // failure by type rather than by an opaque `any Error`. A `internal` type
   // would be uncatchable outside the module, breaking parity with the other
   // SDKs whose serialization error type is public.
-  @Test func testDeserializeFailureThrowsCatchableSerializationError() {
+  @Test func testBhvSerialization083DeserializeFailureThrowsCatchableSerializationError() {
     do {
       _ = try ObjectSerializer.deserialize("not json", as: [String: String].self)
       Issue.record("Expected a SerializationError to be thrown")
@@ -736,7 +731,7 @@ import Testing
 
   /* Order.trackingId (format: uuid) is written in lowercase, read from
      uppercase, and a malformed value is refused. */
-  @Test func testOrderTrackingIdIsWrittenLowercaseAndReadFromUppercase() throws {
+  @Test func testBhvSerialization104OrderTrackingIdIsWrittenLowercaseAndReadFromUppercase() throws {
     let id = try #require(UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"))
     let json = try ObjectSerializer.serialize(Order(trackingId: id))
     #expect(json.contains("\"trackingId\":\"e621e1f8-c36c-495a-93fc-0c247a3e6e5f\""))
@@ -798,7 +793,7 @@ import Testing
   }
 
   @Test(arguments: [" ", "@@", "a-b", "a_b"])
-  func testSeparatorRoundTripsEveryWireValue(wire: String) throws {
+  func testBhvSerialization075SeparatorRoundTripsEveryWireValue(wire: String) throws {
     struct Holder: Codable { let value: Separator }
     let json = "{\"value\":\"\(wire)\"}"
     let decoded = try #require(try ObjectSerializer.deserialize(json, as: Holder.self))
@@ -828,7 +823,7 @@ import Testing
 
   /* A time of day passes through unchanged. */
   @Test(arguments: ["10:30:00", "10:30:00.123"])
-  func testEdgeCasesCutoffPassesThrough(time: String) throws {
+  func testBhvLangswift057EdgeCasesCutoffPassesThrough(time: String) throws {
     let json = "{\"cutoff\":\"\(time)\"}"
     let value = try #require(try ObjectSerializer.deserialize(json, as: EdgeCases.self))
     #expect(value.cutoff == time)
@@ -1205,7 +1200,7 @@ import Testing
     #expect(order?.id == 9_007_199_254_740_993)
   }
 
-  @Test func testFractionalLiteralInInt64FieldIsRejected() {
+  @Test func testBhvLangswift058FractionalLiteralInInt64FieldIsRejected() {
     let error = #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("{\"id\":1.9}", as: Order.self)
     }
@@ -1218,13 +1213,13 @@ import Testing
     }
   }
 
-  @Test func testIntegralFloatInNestedIntegerArrayIsRejected() {
+  @Test func testBhvLangswift059IntegralFloatInNestedIntegerArrayIsRejected() {
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("[[1,2],[3,4.0]]", as: [[Int64]].self)
     }
   }
 
-  @Test func testPlainIntegerLiteralsStillDecode() throws {
+  @Test func testBhvLangswift060PlainIntegerLiteralsStillDecode() throws {
     let order = try ObjectSerializer.deserialize("{\"id\":-0,\"quantity\":7}", as: Order.self)
     #expect(order?.id == 0)
     #expect(order?.quantity == 7)
@@ -1244,7 +1239,7 @@ import Testing
     #expect(values == ["a": 7.0, "b": 100.0, "c": 2.5])
   }
 
-  @Test func testNumberTextInsideStringIsNotInspected() throws {
+  @Test func testBhvLangswift061NumberTextInsideStringIsNotInspected() throws {
     let values = try ObjectSerializer.deserialize(
       "{\"a\":\"7.0\",\"b\":3}", as: [String: AnyCodable].self)
     #expect(values?["a"]?.value as? String == "7.0")
@@ -1261,13 +1256,13 @@ import Testing
     #expect(order?.quantity == 3)
   }
 
-  @Test func testDuplicateKeyInNestedObjectKeepsTheLastValue() throws {
+  @Test func testBhvSerializationobject006DuplicateKeyInNestedObjectKeepsTheLastValue() throws {
     let values = try ObjectSerializer.deserialize(
       "{\"outer\":{\"k\":\"first\",\"k\":\"last\"}}", as: [String: [String: String]].self)
     #expect(values == ["outer": ["k": "last"]])
   }
 
-  @Test func testEscapedDuplicateKeyCountsAsTheSameKey() throws {
+  @Test func testBhvMisc119EscapedDuplicateKeyCountsAsTheSameKey() throws {
     let values = try ObjectSerializer.deserialize(
       "{\"ab\":1,\"\\u0061b\":2}", as: [String: Int].self)
     #expect(values == ["ab": 2])
@@ -1301,7 +1296,7 @@ import Testing
   // be keyNotFound for `foodType` — pins the throw mechanism (not just the
   // SerializationError wrapper) so a regression to a lenient union-container
   // fallback is caught.
-  @Test func testMissingDiscriminatorRaisesKeyNotFound() {
+  @Test func testBhvSerialization082MissingDiscriminatorRaisesKeyNotFound() {
     let jsonData = Data("{\"weightKg\":5.0}".utf8)
     do {
       _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
@@ -1385,7 +1380,7 @@ import Testing
   /// This guards the contract that `format: uuid` fields use `UUID`
   /// directly rather than a raw `String`, so callers get type-safe
   /// parsing failures on malformed values instead of silent acceptance.
-  @Test func testUUIDRoundTripViaCodable() throws {
+  @Test func testBhvLangswift062UUIDRoundTripViaCodable() throws {
     struct Holder: Codable, Equatable {
       let id: UUID
     }
@@ -1466,7 +1461,7 @@ import Testing
     #expect(value == 15.5)
   }
 
-  @Test func testDurationParseFractionalNanoPadding() throws {
+  @Test func testBhvSerialization084DurationParseFractionalNanoPadding() throws {
     let value = try ObjectSerializer.decodeDuration("15.25s")
     #expect(value == 15.25)
   }
@@ -1487,7 +1482,7 @@ import Testing
     }
   }
 
-  @Test func testDurationParseRejectsMissingSuffix() {
+  @Test func testBhvLangswift063DurationParseRejectsMissingSuffix() {
     #expect(throws: SerializationError.self) {
       try ObjectSerializer.decodeDuration("3600")
     }
@@ -1499,7 +1494,7 @@ import Testing
     }
   }
 
-  @Test func testDurationParseRejectsUnitDesignators() {
+  @Test func testBhvLangswift064DurationParseRejectsUnitDesignators() {
     #expect(throws: (any Error).self) {
       try ObjectSerializer.decodeDuration("P2D")
     }
@@ -1623,7 +1618,7 @@ import Testing
     #expect(order.status == nil)
   }
 
-  @Test func testTheValuesConstructionAcceptsAreRefusedWhenDecoded() {
+  @Test func testBhvLangswift065TheValuesConstructionAcceptsAreRefusedWhenDecoded() {
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize(
         "{\"name\":\"Fido\",\"photoUrls\":[],\"homepageUrl\":\"not an absolute uri\"}", as: Pet.self
@@ -2182,7 +2177,7 @@ import Testing
   /* `type` is a legal Swift property name (only the capitalised `Type`
      metatype member is special), so the model keeps the wire name instead
      of escaping it to `_type`. */
-  @Test func testPropertyNamedTypeKeepsItsName() throws {
+  @Test func testBhvSerialization116PropertyNamedTypeKeepsItsName() throws {
     let decoded = try ObjectSerializer.deserialize(
       "{\"code\":3,\"type\":\"info\",\"message\":\"ok\"}", as: ApiResponse.self)
     #expect(decoded?.type == "info")
@@ -2250,7 +2245,7 @@ import Testing
         == Int64.max)
   }
 
-  @Test func testInt64FieldBeyondRangeIsRejected() {
+  @Test func testBhvLangswift066Int64FieldBeyondRangeIsRejected() {
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("{\"id\":9223372036854775808}", as: Order.self)
     }
@@ -2323,7 +2318,7 @@ import Testing
   }
 
   @Test(arguments: ["[[\"5\"]]", "[[1.5]]", "[[null]]", "[[99999999999999999999]]"])
-  func testNestedArrayOfIntegersRejectsWrongTypedElement(json: String) {
+  func testBhvLangswift067NestedArrayOfIntegersRejectsWrongTypedElement(json: String) {
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize(json, as: [[Int]].self)
     }

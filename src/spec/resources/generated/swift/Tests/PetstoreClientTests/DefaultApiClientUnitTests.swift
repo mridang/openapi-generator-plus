@@ -474,7 +474,7 @@ import Testing
 
   /* Every integer and floating-point width, and booleans, are plain text
      parts: `true`/`false` (not 1/0) and no application/json model part. */
-  @Test func testMultipartScalarPartsAreTextOfEveryNumericWidth() throws {
+  @Test func testBhvLangswift027MultipartScalarPartsAreTextOfEveryNumericWidth() throws {
     let formParts: [String: Any] = [
       "big": Int64(9_000_000_000), "small": Int32(7), "ratio": Float(1.5),
       "flag": true, "off": false,
@@ -605,7 +605,7 @@ import Testing
 
   /* A byte that is invalid in the declared charset AND in UTF-8 must not
    * blank the whole body: it decodes leniently with U+FFFD for the bad byte. */
-  @Test func testInvalidUtf8BodyDecodesLeniently() async throws {
+  @Test func testBhvLangswift028InvalidUtf8BodyDecodesLeniently() async throws {
     let bytes = Data("{\"a\":\"".utf8) + Data([0xE9]) + Data("\"}".utf8)
     let client = makeClient { _ in
       (bytes, 200, ["Content-Type": "application/json"])
@@ -616,7 +616,7 @@ import Testing
       resp.body == "{\"a\":\"\u{FFFD}\"}", "invalid byte must become U+FFFD, got: \(resp.body)")
   }
 
-  @Test func testBytesInvalidInDeclaredCharsetFallBackLeniently() async throws {
+  @Test func testBhvSerialization119BytesInvalidInDeclaredCharsetFallBackLeniently() async throws {
     let client = makeClient { _ in
       (Data([0x68, 0xE9]), 200, ["Content-Type": "text/plain; charset=us-ascii"])
     }
@@ -645,12 +645,12 @@ import Testing
       "little-endian reading of the BE bytes must differ, proving the BE choice")
   }
 
-  @Test func testEncodingForContentTypeBareUtf16IsBigEndian() {
+  @Test func testBhvLangswift029EncodingForContentTypeBareUtf16IsBigEndian() {
     let enc = DefaultApiClient.encodingForContentType("text/plain; charset=utf-16")
     #expect(enc == .utf16BigEndian, "bare utf-16 must resolve to big-endian per RFC 2781")
   }
 
-  @Test func testEncodingForContentTypeWindows1252() {
+  @Test func testBhvLangswift030EncodingForContentTypeWindows1252() {
     let enc = DefaultApiClient.encodingForContentType("text/plain; charset=windows-1252")
     #expect(enc == .windowsCP1252)
   }
@@ -677,7 +677,7 @@ import Testing
       DefaultApiClient.decodeText(Data(bytes), contentType: "text/plain; charset=\(label)") == text)
   }
 
-  @Test func testUnregisteredCharsetHasNoEncoding() {
+  @Test func testBhvLangswift031UnregisteredCharsetHasNoEncoding() {
     #expect(DefaultApiClient.registeredEncoding("x-unknown-banana") == nil)
   }
 
@@ -1073,7 +1073,7 @@ import Testing
   // MARK: - Per-call settings
 
   /* A per-call retry limit replaces the transport's, up and down. */
-  @Test func testPerCallMaxRetriesReplacesTheTransportLimit() async throws {
+  @Test func testBhvOptions027PerCallMaxRetriesReplacesTheTransportLimit() async throws {
     var calls = 0
     let client = try retryClient(maxRetries: 0) { _ in
       calls += 1
@@ -1173,7 +1173,7 @@ import Testing
   }
 
   /* A request to another origin leaves the default headers off, redirects still apply. */
-  @Test func testDefaultHeadersCanBeLeftOffOneRequest() async throws {
+  @Test func testBhvRedirects056DefaultHeadersCanBeLeftOffOneRequest() async throws {
     let transport = try TransportOptionsBuilder()
       .defaultHeader(name: "Authorization", value: "Bearer api-token")
       .maxRetries(0)
@@ -1225,7 +1225,7 @@ import Testing
   }
 
   /* A failed discovery names the request it made. */
-  @Test func testOidcDiscoveryFailureNamesTheRequest() async throws {
+  @Test func testBhvErrors002OidcDiscoveryFailureNamesTheRequest() async throws {
     let client = makeClient { _ in (Data(), 404, [:]) }
     let auth = OpenIdConnectAuthenticator(
       host: "https://api.example.com",
@@ -1372,7 +1372,7 @@ import Testing
     #expect(stream.streamStatus != .closed)
   }
 
-  @Test func testTokenRequestsAreNeverRetried() async throws {
+  @Test func testBhvMisc172TokenRequestsAreNeverRetried() async throws {
     var calls = 0
     let client = try retryClient { _ in
       calls += 1
@@ -1483,7 +1483,7 @@ import Testing
   // indistinguishable from an already-decompressed one, so it cannot be
   // treated as a lie. This pins the fix for the regression where the old guard
   // threw on every normal Linux response.
-  @Test func testResidualGzipHeaderWithoutMagicPassesThrough() async throws {
+  @Test func testBhvLangswift032ResidualGzipHeaderWithoutMagicPassesThrough() async throws {
     let client = makeClient { _ in
       // No gzip magic — plaintext JSON under a residual gzip header.
       (
@@ -1640,7 +1640,7 @@ import Testing
     #expect(session.configuration.timeoutIntervalForRequest == 2)
   }
 
-  @Test func testSessionIsStatelessWithoutCookiesOrCache() throws {
+  @Test func testBhvLangswift033SessionIsStatelessWithoutCookiesOrCache() throws {
     let (session, _) = try DefaultApiClient.buildSession(TransportOptionsBuilder().build())
     let config = session.configuration
     #expect(config.httpCookieStorage == nil)
@@ -1696,7 +1696,7 @@ import Testing
   /* noRedirect requests (OAuth2 token calls) share ONE long-lived session
      built from the primary configuration, rather than a fresh, never
      invalidated session per call that dropped the proxy and timeouts. */
-  @Test func testNoRedirectSessionIsReusedAndInheritsThePrimaryConfiguration() {
+  @Test func testBhvLangswift034NoRedirectSessionIsReusedAndInheritsThePrimaryConfiguration() {
     let config = URLSessionConfiguration.ephemeral
     config.httpShouldSetCookies = false
     config.requestCachePolicy = .reloadIgnoringLocalCacheData
@@ -1713,7 +1713,7 @@ import Testing
   /* CFNetwork chooses the proxy by the TARGET scheme, so an http:// proxy
      must be wired for https:// targets too (and the reverse), or half the
      traffic bypasses it. */
-  @Test func testProxyDictionaryCoversBothTargetSchemes() throws {
+  @Test func testBhvLangswift035ProxyDictionaryCoversBothTargetSchemes() throws {
     let http = DefaultApiClient.proxyConnectionDictionary(
       try #require(URL(string: "http://proxy.example.com:3128")))
     #expect(http["HTTPEnable"] as? Bool == true)
@@ -1788,7 +1788,7 @@ import Testing
         currentScheme: "https", nextScheme: "http", request: post, originalBody: nil))
   }
 
-  @Test func testBodyReplayGuardTreatsStreamOfEmptyOriginalAsEmpty() throws {
+  @Test func testBhvLangswift036BodyReplayGuardTreatsStreamOfEmptyOriginalAsEmpty() throws {
     var streamed = URLRequest(url: try #require(URL(string: "http://other.example/x")))
     streamed.httpBodyStream = InputStream(data: Data())
     #expect(
@@ -1820,7 +1820,7 @@ import Testing
   /* A caller-supplied session keeps the SDK's redirect rules: they are
      attached to each task, so the guard is not lost with the session's own
      delegate. */
-  @Test func testSuppliedSessionStillAppliesTheRedirectRules() throws {
+  @Test func testBhvLangswift037SuppliedSessionStillAppliesTheRedirectRules() throws {
     let session = UnitStubURLProtocol.session { _ in (Data("{}".utf8), 200, [:]) }
     let supplied = try TransportOptionsBuilder().session(session).build()
     let client = try DefaultApiClient(transportOptions: supplied)
@@ -2018,7 +2018,7 @@ import Testing
 
   /* An explicit utf-16le label is not sniffed: it never second-guesses the
      declared byte order. */
-  @Test func testExplicitUtf16LittleEndianLabelIsNotSniffed() {
+  @Test func testBhvLangswift038ExplicitUtf16LittleEndianLabelIsNotSniffed() {
     let text = DefaultApiClient.decodeText(
       Data([0x41, 0x00, 0x42, 0x00]), contentType: "text/plain; charset=utf-16le")
     #expect(text == "AB")
@@ -2028,7 +2028,7 @@ import Testing
 
   /* SecCertificateCreateWithData only takes DER, so PEM is unwrapped
      first, and a bundle yields every certificate in it. */
-  @Test func testParseCaCertificatesReadsEveryPemBlock() {
+  @Test func testBhvLangswift039ParseCaCertificatesReadsEveryPemBlock() {
     let pem = """
       header text
       -----BEGIN CERTIFICATE-----
@@ -2046,7 +2046,7 @@ import Testing
       ])
   }
 
-  @Test func testParseCaCertificatesAcceptsDerAndRejectsOtherBytes() {
+  @Test func testBhvLangswift040ParseCaCertificatesAcceptsDerAndRejectsOtherBytes() {
     let der = Data([0x30, 0x03, 0x02, 0x01, 0x05])
     #expect(DefaultApiClient.parseCaCertificates(der) == [der])
     #expect(DefaultApiClient.parseCaCertificates(Data("not a certificate".utf8)).isEmpty)

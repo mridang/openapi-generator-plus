@@ -1942,6 +1942,86 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langswift001 | An API error conforms to the platform error protocol and reports a non-empty description
+langswift002 | An OAuth2 token error's localized description is exactly its message
+langswift003 | A refused loopback connection with no response raises a network error with status zero that keeps the transport error
+langswift004 | A status error built with no response data has no typed body until one is decoded
+langswift005 | Attaching request context to an error a second time does not replace the first request's method and path
+langswift006 | A filename with a character outside the Basic Multilingual Plane becomes one underscore in the ASCII fallback and four UTF-8 bytes encoded
+langswift007 | Text, XML and JavaScript content types are text while PDF and PNG are not
+langswift008 | Merging header layers replaces every spelling of a header name that differs only by case
+langswift009 | When one header layer holds two spellings of a name the same value wins on every merge
+langswift010 | An allow-reserved query value keeps reserved characters but percent-encodes hash and brackets
+langswift011 | A per-call timeout of zero is rejected with a configuration error
+langswift012 | A success response with an empty body and a status other than 200 has no data but keeps its status
+langswift013 | A failing token provider fails the request with its own error rather than sending an empty credential
+langswift014 | A bearer authenticator built from a token provider does not show the token in its description
+langswift015 | A debugger dump of a basic authenticator does not reveal the password
+langswift016 | Basic credentials that cannot be encoded are rejected when the authenticator is constructed
+langswift017 | The configuration builder sets the call hook and passing nil clears it
+langswift018 | The string forms of a configuration do not reveal the call hook
+langswift019 | A type-erased value holding a dictionary compares and hashes independently of key order
+langswift020 | The spec directory is part of the test target so its files ship with the test run
+langswift021 | A token provider is called before every request and takes precedence over the environment token
+langswift022 | An environment variable supplies the credential when none is passed explicitly
+langswift023 | Every named client factory and the environment factory accept the call hook
+langswift024 | A media type is JSON when it is application/json or uses a structured JSON suffix
+langswift025 | A redirect is followed to its target when redirects are enabled
+langswift026 | A multipart form body with a text field and a file part is sent as multipart form data
+langswift027 | Scalar multipart parts of every numeric width are sent as text
+langswift028 | A response body with bytes that are not valid UTF-8 decodes without failing
+langswift029 | A bare utf-16 charset label resolves to big-endian byte order
+langswift030 | The windows-1252 charset label resolves to the Windows-1252 encoding
+langswift031 | An unknown charset label has no registered encoding
+langswift032 | A residual gzip content-encoding header on a body without gzip magic passes the body through unchanged
+langswift033 | The transport session keeps no cookies and no cache
+langswift034 | The no-redirect session is reused across calls and inherits the primary configuration
+langswift035 | The proxy connection settings cover both the http and https target schemes
+langswift036 | A streamed body whose original is empty is treated as an empty body for replay
+langswift037 | A caller-supplied session still applies the redirect rules
+langswift038 | An explicit utf-16le charset label decodes without sniffing the byte order mark
+langswift039 | Parsing a CA certificate bundle reads every PEM block in it and ignores surrounding text
+langswift040 | A CA certificate in DER form is accepted and bytes that are not a certificate are rejected
+langswift041 | Copying a recursive model keeps its child and can clear it
+langswift042 | The README has each section the generated package promises
+langswift043 | The README names the request context that errors carry
+langswift044 | The README names the environment variable of every authentication scheme
+langswift045 | The README says every operation takes an options struct
+langswift046 | The README lists the license in the package section
+langswift047 | Reading the exchanged flag while a code exchange is in progress is safe under concurrent access
+langswift048 | An empty authorization code error carries the canonical message
+langswift049 | A request made before the code is exchanged fails with the canonical message
+langswift050 | The SHA-256 digest used for PKCE matches the known answers
+langswift051 | The expiry clock never goes backwards between two reads
+langswift052 | A token response with a zero or negative lifetime is stale immediately
+langswift053 | A token request body encodes non-ASCII form values as UTF-8
+langswift054 | A token with a huge lifetime is cached rather than refetched
+langswift055 | A non-exploded array query value joined with pipes separates its elements with vertical bars
+langswift056 | A list of strings converts to a list of strings unchanged
+langswift057 | A boundary date-time string passes through decode and encode unchanged
+langswift058 | A fractional number in a 64-bit integer field is rejected at decode
+langswift059 | A float literal inside a nested array of integers is rejected even when it has no fraction
+langswift060 | Plain integer literals, including negative zero, still decode into integer fields
+langswift061 | Number-looking text inside a string value is kept as text and not inspected
+langswift062 | A UUID round-trips through the platform codable encoding unchanged
+langswift063 | A duration string without its seconds suffix is rejected
+langswift064 | A duration string with a unit designator such as days is rejected
+langswift065 | A value that construction accepts but that is not an absolute URI is refused when decoded
+langswift066 | An integer beyond the 64-bit range is rejected at decode
+langswift067 | A nested array of integers with a wrongly typed element is rejected
+langswift068 | A server configuration description defaults to an empty string
+langswift069 | A server variable stores its default value
+langswift070 | A server variable with an enum default resolves to that default
+langswift071 | A caller-supplied session is kept by the transport options
+langswift072 | An empty proxy string clears a proxy set earlier
+langswift073 | Object fields are keyed by their wire names, sorted, and nulls are skipped
+langswift074 | Each documentation comment in the generated sources is one contiguous block above its attributes
+langswift075 | A redirect chain that finishes inside the timeout budget completes with its final response
+||||||| cef6fbad1
+||||||| 33b2fa75d
+||||||| f622b5d59
+||||||| f30be4711
+||||||| f066f799c
 langkotlin001 | The generated scheme wrapper reads each of its credentials from its own environment variable
 langkotlin002 | A generated scheme wrapper with no credential of its own falls back to the authenticator it was built with
 langkotlin003 | An API key containing a line break or a NUL character is refused when the authenticator is built
@@ -2528,3 +2608,8 @@ langnode174 | A value that is not a YYYY-MM-DD date is refused
 langphp066 | A server variable exposes its default value.
 langcsharp063 | A scheme authenticator with a missing credential fails at construction and names the variable
 langcsharp064 | A scheme authenticator given a token provider uses it over the environment variable
+||||||| fba593ce7
+langphp067 | Non-ASCII text in a serialized string is written literally and never as unicode escapes.
+langphp068 | A hook that returns no observer is skipped while the other hooks still finish.
+langphp069 | The chain returns no observer when no hook returns one.
+langphp070 | Headers edited by one hook are handed on to the next hook.

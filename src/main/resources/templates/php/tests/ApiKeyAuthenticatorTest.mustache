@@ -88,27 +88,6 @@ test('bhv authapikey 008 api key header rejects non ascii at construction', func
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('bhv authapikey 010 api key is masked in var_dump and print_r output', function (): void {
-    /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
-     * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
-     * the masked array, so the API key never leaks through a stray dump or an
-     * exception/stack-trace log. */
-    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
-
-    ob_start();
-    var_dump($auth);
-    $varDump = (string) ob_get_clean();
-
-    $printR = print_r($auth, true);
-
-    expect($varDump)->not->toContain('abc123');
-    expect($varDump)->toContain('***');
-    expect($printR)->not->toContain('abc123');
-    expect($printR)->toContain('***');
-    // keyParamName is non-secret and should still be visible for debugging.
-    expect($printR)->toContain('X-API-Key');
-});
-
 test('bhv langphp 048 secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
     foreach ((new \ReflectionMethod(ApiKeyAuthenticator::class, '__construct'))->getParameters() as $param) {

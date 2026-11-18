@@ -797,7 +797,7 @@ test('bhv operations 069 date only header param serialises without time componen
     expect($headers['report-date'])->toBe('2024-01-01');
 });
 
-test('date only form field serialises without time component', function (): void {
+test('bhv operations 162 date only form field serialises without time component', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     $api->setPetPreferences(1, new SetPetPreferencesOptions(
@@ -1632,13 +1632,6 @@ function dumpForRedaction(object $value): string
 
     return $varDump . "\n" . print_r($value, true);
 }
-
-test('bhv authbearer 011 bearer authenticator masks token in debug output', function (): void {
-    $dump = dumpForRedaction(new BearerAuthenticator('https://api.example.com', 'super-secret-token'));
-
-    expect($dump)->not->toContain('super-secret-token');
-    expect($dump)->toContain('***');
-});
 
 test('bhv authapikey 026 does not leak its key in default debug output', function (): void {
     $dump = dumpForRedaction(

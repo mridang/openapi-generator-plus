@@ -27,7 +27,7 @@ test('bhv hooks 020 chain starts the hooks in order and finishes their observers
     expect($log->getArrayCopy())->toBe(['start:a', 'start:b', 'start:c', 'finish:c', 'finish:b', 'finish:a']);
 });
 
-test('bhv hooks 020 chain skips a hook that returns nothing and still finishes the others', function (): void {
+test('bhv langphp 068 chain skips a hook that returns nothing and still finishes the others', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
     $first = new RecordingCallHook(name: 'a', log: $log);
@@ -41,7 +41,7 @@ test('bhv hooks 020 chain skips a hook that returns nothing and still finishes t
     expect($log->getArrayCopy())->toBe(['start:a', 'start:silent', 'start:z', 'finish:z', 'finish:a']);
 });
 
-test('bhv hooks 020 chain returns no observer when no hook returns one', function (): void {
+test('bhv langphp 069 chain returns no observer when no hook returns one', function (): void {
     $headers = [];
 
     $observer = CallHookChain::chain(new RecordingCallHook(observe: false))->start(chainTestInfo(), $headers);
@@ -49,7 +49,7 @@ test('bhv hooks 020 chain returns no observer when no hook returns one', functio
     expect($observer)->toBeNull();
 });
 
-test('bhv hooks 020 chain hands the headers one hook edited to the next hook', function (): void {
+test('bhv langphp 070 chain hands the headers one hook edited to the next hook', function (): void {
     $addOne = new RecordingCallHook(edit: static fn (array $headers): array => $headers + ['X-One' => '1']);
     $addTwo = new RecordingCallHook(edit: static fn (array $headers): array => $headers + ['X-Two' => '2']);
     $headers = ['X-Base' => 'b'];

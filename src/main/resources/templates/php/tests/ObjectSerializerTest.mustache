@@ -446,7 +446,7 @@ test('bhv serializationobject 031 cjk characters serialize and decode correctly'
     expect($decoded)->toBe('日本');
 });
 
-test('bhv serializationobject 019 non ascii text is written literally not as unicode escapes', function (): void {
+test('bhv langphp 067 non ascii text is written literally not as unicode escapes', function (): void {
     expect(ObjectSerializer::serialize('café'))->toBe('"café"');
     expect(ObjectSerializer::serialize('日本'))->toBe('"日本"');
 });

@@ -25,7 +25,7 @@ import Testing
     #expect(result.headers.isEmpty)
   }
 
-  @Test func testPreservesAllHeaders() {
+  @Test func testBhvResults007PreservesAllHeaders() {
     let result = ApiResult<Int>(
       statusCode: 200,
       data: 42,

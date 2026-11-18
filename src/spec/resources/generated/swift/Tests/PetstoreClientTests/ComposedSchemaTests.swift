@@ -75,7 +75,7 @@ import Testing
   /// to whichever subtype happens to structurally fit. Even when the
   /// payload otherwise matches `DryFood` field-for-field, an
   /// unrecognised `foodType` must abort decoding.
-  @Test func testPetFoodNonListedDiscriminatorWithMatchingShapeThrows() {
+  @Test func testBhvUnions047PetFoodNonListedDiscriminatorWithMatchingShapeThrows() {
     // Same shape as a valid DryFood payload, but the discriminator
     // value is not in the listed mapping ("dry"/"wet").
     let jsonData = Data("{\"foodType\":\"frozen\",\"weightKg\":3.0}".utf8)
@@ -297,7 +297,7 @@ import Testing
 
   /* An anyOf wrapper has typed is and as members, like a oneOf one: a variant
      the payload satisfies is reported and read back, whatever its position. */
-  @Test func testPetTreatmentTypedAccessorsReportEveryRetainedVariant() throws {
+  @Test func testBhvUnions044PetTreatmentTypedAccessorsReportEveryRetainedVariant() throws {
     let medicationOnly = try JSONDecoder().decode(
       PetTreatment.self, from: Data("{\"drugName\":\"Amoxicillin\"}".utf8))
     #expect(medicationOnly.isMedication)
@@ -558,7 +558,7 @@ import Testing
   /// untrusted server data is a DoS; a thrown error lets callers recover and
   /// lets oneOf/anyOf `try?` fallthrough work. This guards against a
   /// regression back to the process-aborting behaviour.
-  @Test func testStrictTagUnknownPropertyThrowsDecodingError() {
+  @Test func testBhvSerialization099StrictTagUnknownPropertyThrowsDecodingError() {
     let jsonData = Data("{\"id\":1,\"name\":\"x\",\"surprise\":true}".utf8)
     do {
       _ = try JSONDecoder().decode(StrictTag.self, from: jsonData)
@@ -574,7 +574,7 @@ import Testing
 
   /// A strict-model decode with only declared keys must still succeed —
   /// the catchable rejection path must not over-reject valid payloads.
-  @Test func testStrictTagDeclaredPropertiesDecode() throws {
+  @Test func testBhvSerialization100StrictTagDeclaredPropertiesDecode() throws {
     let jsonData = Data("{\"id\":7,\"name\":\"ok\"}".utf8)
     let tag = try JSONDecoder().decode(StrictTag.self, from: jsonData)
     #expect(tag.id == 7)
@@ -596,7 +596,7 @@ import Testing
     #expect(a.hashValue == b.hashValue)
   }
 
-  @Test func testAnyCodableDictionaryEquatableAndHashable() {
+  @Test func testBhvLangswift019AnyCodableDictionaryEquatableAndHashable() {
     let a = AnyCodable(["k": 1, "s": "v"])
     let b = AnyCodable(["s": "v", "k": 1])
     let c = AnyCodable(["k": 2, "s": "v"])

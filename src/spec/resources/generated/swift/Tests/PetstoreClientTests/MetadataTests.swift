@@ -43,7 +43,7 @@ import Testing
         "/// See https://example.com/docs/account Account <docs> & \"notes\" it's here"))
   }
 
-  @Test func testDeserializeFromJSON() throws {
+  @Test func testBhvSerialization085DeserializeFromJSON() throws {
     // Use ObjectSerializer.deserialize which has the correct ISO-8601 date strategy
     let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
 
@@ -227,7 +227,7 @@ import Testing
     #expect(original.copy(quantity: .some(nil)).id == 1)
   }
 
-  @Test func testCopyOfARequiredPropertyKeepsTheOthers() {
+  @Test func testBhvSerialization079CopyOfARequiredPropertyKeepsTheOthers() {
     let original = Reservation(reservationId: 31, quantity: 4)
     let changed = original.copy(quantity: 5)
 
@@ -248,7 +248,7 @@ import Testing
     #expect(moved.additionalProperties.keys.sorted() == ["extra"])
   }
 
-  @Test func testCopyOfARecursiveModelKeepsTheChild() {
+  @Test func testBhvLangswift041CopyOfARecursiveModelKeepsTheChild() {
     let original = TreeNode(value: "root", child: TreeNode(value: "leaf"))
 
     #expect(original.copy(value: "renamed").child?.value == "leaf")
@@ -290,11 +290,11 @@ import Testing
     "## Streaming",
     "## Configuration and transport options",
   ])
-  func testReadmeHasTheSection(heading: String) throws {
+  func testBhvLangswift042ReadmeHasTheSection(heading: String) throws {
     #expect(try readme().contains("\n\(heading)\n"))
   }
 
-  @Test func testReadmeNamesTheRequestContextOnErrors() throws {
+  @Test func testBhvLangswift043ReadmeNamesTheRequestContextOnErrors() throws {
     let text = try readme()
     #expect(text.contains("`requestMethod` and `requestPath`"))
     #expect(text.contains("API returned status code 404 for GET /items/7"))
@@ -325,11 +325,11 @@ import Testing
     "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET",
     "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI",
   ])
-  func testReadmeNamesEverySchemeEnvironmentVariable(variable: String) throws {
+  func testBhvLangswift044ReadmeNamesEverySchemeEnvironmentVariable(variable: String) throws {
     #expect(try readme().contains("`\(variable)`"))
   }
 
-  @Test func testReadmeSaysEveryOperationTakesAnOptionsStruct() throws {
+  @Test func testBhvLangswift045ReadmeSaysEveryOperationTakesAnOptionsStruct() throws {
     let text = try readme()
     #expect(text.contains("Every operation takes an options struct"))
     #expect(!text.contains("has no options struct yet"))
@@ -359,7 +359,7 @@ import Testing
     #expect(text.contains("`0` disables"))
   }
 
-  @Test func testReadmeListsTheLicenseInThePackageSection() throws {
+  @Test func testBhvLangswift046ReadmeListsTheLicenseInThePackageSection() throws {
     #expect(try readme().contains("- License: MIT"))
   }
 
