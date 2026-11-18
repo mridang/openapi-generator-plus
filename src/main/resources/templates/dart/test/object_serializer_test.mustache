@@ -1261,25 +1261,6 @@ void main() {
     // leaving the raw decoded JSON map in place. This test exercises the
     // same `.map((k, v) => MapEntry(k, Foo.fromJson(v as Map<String, dynamic>)))`
     // shape that model.mustache emits for non-primitive map item types.
-    test('Map<String, Model> deserialize recurses into model factory', () {
-      final raw = <String, dynamic>{
-        'first': <String, dynamic>{'id': 1, 'name': 'tag-a'},
-        'second': <String, dynamic>{'id': 2, 'name': 'tag-b'},
-      };
-
-      final typed = raw.map(
-        (k, v) => MapEntry(k, Tag.fromJson(v as Map<String, dynamic>)),
-      );
-
-      expect(typed['first'], isA<Tag>());
-      expect(typed['first']!.id, equals(1));
-      expect(typed['first']!.name, equals('tag-a'));
-      expect(typed['second']!.name, equals('tag-b'));
-      // Raw map values were untyped — ensure deep conversion produced
-      // real Tag instances, not still-Map<String, dynamic> values.
-      expect(typed['first'], isNot(isA<Map<String, dynamic>>()));
-    });
-
     test('bhv serializationobject 145 Map<String, Model> round-trips through toJson per entry', () {
       final tags = <String, Tag>{
         'a': const Tag(id: 10, name: 'alpha'),

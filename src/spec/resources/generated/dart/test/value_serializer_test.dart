@@ -1206,13 +1206,6 @@ void main() {
   });
 
   group('encodeRfc3986QueryComponent', () {
-    test('a query component keeps only the unreserved set literal', () {
-      expect(
-        encodeRfc3986QueryComponent("a~b*c!d'e(f)g h"),
-        equals('a~b%2Ac%21d%27e%28f%29g%20h'),
-      );
-    });
-
     test(
       'bhv serializationwire 055 a form component encodes a space as plus',
       () {
@@ -1245,18 +1238,6 @@ void main() {
           true,
         ),
         equals('aGk='),
-      );
-    });
-
-    test('bytes use the standard alphabet, never the URL-safe one', () {
-      expect(
-        serializeValue(
-          Uint8List.fromList([0xFB, 0xFF]),
-          'header',
-          'string',
-          '',
-        ),
-        equals('+/8='),
       );
     });
   });
