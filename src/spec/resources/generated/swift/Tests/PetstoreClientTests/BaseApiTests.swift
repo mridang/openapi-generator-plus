@@ -199,6 +199,38 @@ import Testing
 
   // MARK: - Error dispatch
 
+  /* Refuses every request before any response exists. */
+  private final class RefusingApiClient: ApiClient, @unchecked Sendable {
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      try await sendRequest(
+        method: method, url: url, headers: headers, body: body, noRedirect: false)
+    }
+
+    func sendRequest(
+      method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+    )
+      async throws -> ApiHttpResponse
+    {
+      throw NetworkError(statusCode: 0, message: "connection refused")
+    }
+  }
+
+  @Test func testBhvErrors057ANetworkFailureCarriesTheRequestMethodAndPath() async {
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: RefusingApiClient(), config: config)
+    do {
+      _ = try await api.getInventory()
+      Issue.record("expected NetworkError")
+    } catch let error as NetworkError {
+      #expect(error.requestMethod == "GET")
+      #expect(error.requestPath == "/store/inventory")
+    } catch {
+      Issue.record("expected NetworkError, got \(error)")
+    }
+  }
+
   @Test func testErrorDispatch400() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 400
