@@ -333,7 +333,7 @@ test('bhv redirects 026 psr18 exceeding max redirects throws', function (): void
         });
 });
 
-test('psr18 timeout is one budget across all redirect hops', function (): void {
+test('bhv redirects 054 psr18 timeout is one budget across all redirect hops', function (): void {
     /* Every hop answers within the 400 ms timeout, but three of them together
      * outlast it, so the call must time out instead of restarting the clock. */
     $slow = new class implements ClientInterface {
@@ -365,7 +365,7 @@ test('bhv retries 019 psr18 timeout budget starts afresh for every call', functi
     expect($client->sendRequest('GET', 'http://example.com/b', [], null)->statusCode)->toBe(200);
 });
 
-test('psr18 redirect to non http scheme throws', function (): void {
+test('bhv redirects 055 psr18 redirect to non http scheme throws', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(302, '', ['Location' => 'file:///etc/passwd'])
     );
