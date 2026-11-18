@@ -180,11 +180,13 @@ test('bhv tracing 004 formats trace flags correctly on the active span', functio
 
 test('bhv misc 002 a trace propagator the caller registers is the one used and headers already present are kept', function (): void {
     $propagator = new class implements TextMapPropagatorInterface {
+        /** @param mixed $carrier */
         public function inject(&$carrier, ?PropagationSetterInterface $setter = null, ?ContextInterface $context = null): void
         {
             $carrier['x-caller-trace'] = 'registered';
         }
 
+        /** @param mixed $carrier */
         public function extract($carrier, ?PropagationGetterInterface $getter = null, ?ContextInterface $context = null): ContextInterface
         {
             return $context ?? Context::getRoot();

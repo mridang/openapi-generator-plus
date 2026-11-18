@@ -201,7 +201,7 @@ abstract class AbstractApiClient implements ApiClient
          * the rest be read as a forged header, so it is refused before the transport
          * is touched. The value is never echoed: only the header name is named. */
         foreach ($mergedHeaders as $headerName => $headerValue) {
-            if (is_string($headerValue) && preg_match("/[\r\n\0]/", $headerValue) === 1) {
+            if (preg_match("/[\r\n\0]/", $headerValue) === 1) {
                 throw new \InvalidArgumentException(
                     "Header '$headerName' must not contain CR, LF, or NUL characters"
                 );

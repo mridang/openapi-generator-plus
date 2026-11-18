@@ -668,10 +668,12 @@ namespace {
 
     test('bhv serialization 017 a model object parameter lists its wire names in declaration order in every style', function (): void {
         $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
-        expect(array_keys(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'form', true)))
-        ->toBe(['breed', 'min_age']);
-        expect(array_keys(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'spaceDelimited', true)))
-        ->toBe(['breed', 'min_age']);
+        $formWire = ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'form', true);
+        \assert(is_array($formWire));
+        expect(array_keys($formWire))->toBe(['breed', 'min_age']);
+        $spaceWire = ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'spaceDelimited', true);
+        \assert(is_array($spaceWire));
+        expect(array_keys($spaceWire))->toBe(['breed', 'min_age']);
     });
 
     test('bhv serialization 018 a nested object inside an object-valued parameter is refused', function (): void {

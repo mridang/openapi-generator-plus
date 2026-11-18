@@ -579,7 +579,8 @@ test('bhv authoauthtwotokenmgr 041 a non-JSON 2xx token body is not echoed into 
     expect(fn (): string => $manager->getAccessToken(
         'https://auth.example.com/token',
         ['grant_type' => 'client_credentials']
-    ))->toThrow(function (OAuth2TokenException $e) use ($body, $message): void {
+    ))->toThrow(function (\Throwable $e) use ($body, $message): void {
+        \assert($e instanceof OAuth2TokenException);
         expect($e->getMessage())->toContain($message);
         expect($e->getMessage())->not->toContain($body);
     });

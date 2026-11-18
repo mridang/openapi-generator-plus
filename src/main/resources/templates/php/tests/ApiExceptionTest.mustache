@@ -292,7 +292,9 @@ test('bhv errors 051 an empty error message falls back to the generic error line
 });
 
 test('bhv errors 053 each named error pins its own status code', function (string $class, int $status): void {
-    expect((new $class('x'))->getStatusCode())->toBe($status);
+    $error = new $class('x');
+    \assert($error instanceof \{{invokerPackage}}\Errors\ApiException);
+    expect($error->getStatusCode())->toBe($status);
 })->with([
     ['\{{invokerPackage}}\Errors\BadRequestException', 400],
     ['\{{invokerPackage}}\Errors\UnauthorizedException', 401],

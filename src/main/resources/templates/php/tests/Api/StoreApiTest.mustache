@@ -90,10 +90,10 @@ function newHeaderCapturingStoreApi(): array
 }
 
 test('bhv operations 148 an operation that inherits the root security uses the first scheme the client holds', function (): void {
-    $captured = new \stdClass();
-    $captured->headers = [];
+    /** @var \ArrayObject<string, mixed> $captured */
+    $captured = new \ArrayObject(['headers' => []]);
     $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
-        public function __construct(private readonly \stdClass $captured)
+        public function __construct(private readonly \ArrayObject $captured)
         {
         }
 
@@ -103,7 +103,7 @@ test('bhv operations 148 an operation that inherits the root security uses the f
 
         public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \{{invokerPackage}}\ApiHttpResponse
         {
-            $this->captured->headers = $headers;
+            $this->captured['headers'] = $headers;
 
             return new \{{invokerPackage}}\ApiHttpResponse(200, '{"id":1}', ['Content-Type' => 'application/json']);
         }
@@ -119,7 +119,7 @@ test('bhv operations 148 an operation that inherits the root security uses the f
 
     $api->getOrderById(1);
 
-    expect($captured->headers['Authorization'] ?? null)->toStartWith('Basic ');
+    expect($captured['headers']['Authorization'] ?? null)->toStartWith('Basic ');
 });
 
 test('bhv operations 096 an operation without parameters or security takes per call headers', function (): void {
@@ -210,12 +210,11 @@ test('bhv operations 119 place order with http info', function (): void {
 });
 
 test('bhv operations 126 place order without an argument sends no body', function (): void {
-    $captured = new \stdClass();
-    $captured->body = 'unset';
-    $captured->headers = [];
+    /** @var \ArrayObject<string, mixed> $captured */
+    $captured = new \ArrayObject(['body' => 'unset', 'headers' => []]);
 
     $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
-        public function __construct(private readonly \stdClass $captured)
+        public function __construct(private readonly \ArrayObject $captured)
         {
         }
 
@@ -225,8 +224,8 @@ test('bhv operations 126 place order without an argument sends no body', functio
 
         public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \{{invokerPackage}}\ApiHttpResponse
         {
-            $this->captured->body = $body;
-            $this->captured->headers = $headers;
+            $this->captured['body'] = $body;
+            $this->captured['headers'] = $headers;
 
             return new \{{invokerPackage}}\ApiHttpResponse(200, '{"id":1}', ['Content-Type' => 'application/json']);
         }
@@ -235,8 +234,8 @@ test('bhv operations 126 place order without an argument sends no body', functio
 
     $api->placeOrder();
 
-    expect($captured->body)->toBeNull();
-    expect($captured->headers)->not->toHaveKey('Content-Type');
+    expect($captured['body'])->toBeNull();
+    expect($captured['headers'])->not->toHaveKey('Content-Type');
 });
 
 test('bhv operations 117 place order', function (): void {
