@@ -333,7 +333,7 @@ public class MetadataTest
         Assert.Equal(left.GetHashCode(), right.GetHashCode());
         Assert.NotEqual(left, nestedChange);
         Assert.False(left.Equals(new Tag()));
-        Assert.False(left.Equals((object?)null));
+        Assert.False(left.Equals((new object?[1])[0]));
     }
 
     [Fact]

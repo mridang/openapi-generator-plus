@@ -231,7 +231,7 @@ def _decimal_to_json_number(value: Decimal, info: SerializationInfo) -> Any:
         raise ValueError(f'{value} is not representable as a finite JSON number')
     context = info.context
     if isinstance(context, dict) and context.get('exact_numbers') is True:
-        return _EXACT_NUMBER_PREFIX + str(value)
+        return _EXACT_NUMBER_PREFIX + format(value, 'f')
     number = float(value)
     if not math.isfinite(number):
         raise ValueError(f'{value} is not representable as a finite JSON number')

@@ -1187,7 +1187,7 @@ class TestNanInfinityRejection:
 
     def test_serialize_decimal_number_beyond_double_range_is_exact(self) -> None:
         pet = Pet(name='Fido', photoUrls=set(), weightKg=Decimal('1e400'))
-        assert '"weightKg":1E+400' in ObjectSerializer().serialize(pet)
+        assert '"weightKg":1' + '0' * 400 in ObjectSerializer().serialize(pet)
 
 
 class TestConstructionKeepsWhatItIsGiven:
