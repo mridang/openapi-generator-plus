@@ -693,6 +693,17 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvSerialization066NullIsKeptOnlyWhereTheNullableFieldIsDeclared()
+        {
+            var present = _serializer.Deserialize<RequiredNullable>("{\"note\":\"kept\"}");
+            Assert.Equal("kept", present!.Note);
+
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Pet>("{\"name\":null,\"photoUrls\":[\"u\"]}")
+            );
+        }
+
+        [Fact]
         public void BhvSerializationobject029ConstructingAModelWithANullRequiredValueDoesNotThrow()
         {
             // F316: a model checks nothing when it is built in code.

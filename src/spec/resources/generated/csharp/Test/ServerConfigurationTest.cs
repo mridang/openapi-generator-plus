@@ -357,4 +357,27 @@ public class ServerConfigurationTest
         Assert.Single(server.Variables);
         Assert.True(server.Variables.ContainsKey("env"));
     }
+
+    [Fact]
+    public void BhvServers028GeneratedServersAndTheirVariablesCannotBeChanged()
+    {
+        var servers = Assert.IsAssignableFrom<IList<ServerConfiguration>>(Servers.All);
+        Assert.Throws<NotSupportedException>(() => servers.Add(Servers.All[0]));
+
+        foreach (ServerConfiguration server in Servers.All)
+        {
+            var variables = Assert.IsAssignableFrom<IDictionary<string, ServerVariable>>(
+                server.Variables
+            );
+            Assert.Throws<NotSupportedException>(() =>
+                variables.Add("unlisted", new ServerVariable("x"))
+            );
+
+            foreach (ServerVariable variable in server.Variables.Values)
+            {
+                var allowed = Assert.IsAssignableFrom<IList<string>>(variable.EnumValues);
+                Assert.Throws<NotSupportedException>(() => allowed.Add("unlisted"));
+            }
+        }
+    }
 }

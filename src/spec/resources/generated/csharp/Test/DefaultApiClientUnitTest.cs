@@ -775,6 +775,99 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvSerialization058PartWithoutAFilenameIsSentAsOctetStream()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "blob", new byte[] { 0x00, 0x01 } } };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "Content-Type: application/octet-stream",
+            wireText,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvSerialization059ByteStreamPartIsSentAsAFilePartWithItsExactBytes()
+    {
+        byte[] bytes = [0x00, 0xff, 0x7f, 0x0d, 0x0a];
+        byte[]? wire = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wire = await req.Content!.ReadAsByteArrayAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var stream = new MemoryStream(bytes);
+        var formData = new Dictionary<string, object> { { "data.bin", stream } };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wire);
+        // Latin-1 maps each byte to one char, so the substring check is exact on bytes.
+        string latin1 = System.Text.Encoding.Latin1.GetString(wire);
+        Assert.Contains(
+            System.Text.Encoding.Latin1.GetString(bytes),
+            latin1,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("filename=\"data.bin\"", latin1, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization060ModelPartDeclaresTheJsonMediaType()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            {
+                "metadata",
+                new MultipartModelPart
+                {
+                    IsEnabled = true,
+                    RecordedAt = new DateTimeOffset(2020, 1, 2, 3, 4, 5, 123, TimeSpan.Zero),
+                }
+            },
+        };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/resource/1/photos"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n",
+            wireText,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task BhvSerializationwire038MultipartFileWithPdfExtensionSetsApplicationPdfContentType()
     {
         string? wireText = null;
@@ -2905,6 +2998,64 @@ public class DefaultApiClientUnitTest
         Assert.IsAssignableFrom<PetstoreClient.Errors.NetworkException>(ex);
         Assert.Equal(0, ex.StatusCode);
         Assert.IsType<TaskCanceledException>(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task BhvTransport071OneConfiguredTimeoutBoundsResponseReceipt()
+    {
+        var client = new DefaultApiClient(
+            new HttpClient(new HangingHandler()),
+            TransportOptions.Builder().Timeout(50).MaxRetries(0).Build()
+        );
+        var started = DateTime.UtcNow;
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/stall"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task BhvTransport072ExpiredConnectDeadlineIsATimeoutButARefusedConnectionIsNot()
+    {
+        using var handler = new SocketsHttpHandler
+        {
+            ConnectCallback = async (_, cancellationToken) =>
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                return Stream.Null;
+            },
+        };
+        var timedOut = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Timeout(50).MaxRetries(0).Build()
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
+            timedOut.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/connect"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        var refused = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            refused.SendRequestAsync(
+                "GET",
+                new Uri("http://127.0.0.1:1/never"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        Assert.IsNotType<PetstoreClient.Errors.NetworkTimeoutException>(ex);
     }
 
     [Fact]

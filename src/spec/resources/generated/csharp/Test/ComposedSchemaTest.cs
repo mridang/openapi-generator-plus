@@ -85,6 +85,16 @@ public class ComposedSchemaTest
     }
 
     [Fact]
+    public void BhvUnions043ADiscriminatorSetOnASubtypeIsWrittenAsGiven()
+    {
+        PetFood food = new DryFood(1.0) { FoodType = "custom" };
+
+        var serialized = _serializer.Serialize(food);
+        using var document = System.Text.Json.JsonDocument.Parse(serialized);
+        Assert.Equal("custom", document.RootElement.GetProperty("foodType").GetString());
+    }
+
+    [Fact]
     public void BhvUnions030ASubtypeWhoseDiscriminatorKeyIsAbsentIsFilledWithTheMappingDefault()
     {
         var food = _serializer.Deserialize<DryFood>("{\"weightKg\":2.5}");

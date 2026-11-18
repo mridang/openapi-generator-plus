@@ -427,6 +427,29 @@ public class DefaultApiClientTest
     // -- Request timeout --
 
     [Fact]
+    public async Task BhvTransport082DefaultAndTimeoutOnlyClientsCompleteARequest()
+    {
+        var defaults = new DefaultApiClient();
+        var timed = new DefaultApiClient(TransportOptions.Builder().Timeout(5000).Build());
+
+        var fromDefaults = await defaults.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        var fromTimed = await timed.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, fromDefaults.StatusCode);
+        Assert.Equal(200, fromTimed.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvTransport024TimesOutOnSlowEndpoint()
     {
         var transport = TransportOptions.Builder()

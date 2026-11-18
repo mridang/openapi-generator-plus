@@ -70,7 +70,7 @@ public class ServerVariableTest
     }
 
     [Fact]
-    public void RecordEqualityComparesByValue()
+    public void BhvServers027RecordEqualityComparesByValue()
     {
         var first = new ServerVariable("v3", "API version", ["v2", "v3"]);
         var second = new ServerVariable("v3", "API version", ["v2", "v3"]);
