@@ -119,6 +119,29 @@ closes the client: you own its lifecycle. Because the client carries its own
 proxy and TLS settings, combining it with `proxy`, `caCertPath` or
 `verifySsl(false)` is rejected when the options are built.
 
+### Testing your code
+
+Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```dart
+import 'package:petstore_client/petstore_client.dart';
+
+// Code under test takes the group interface, never the generated class.
+void use(PetApiInterface api) {}
+
+// A fake implements the interface; noSuchMethod keeps the operations you do not fake out of the way.
+class Fake implements PetApiInterface {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+void main() {
+  use(Fake());
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; forward `noSuchMethod` as above so only the operation you fake is written.
+
 ### Per-call options
 
 Every operation takes an options object as its trailing argument (`null` when

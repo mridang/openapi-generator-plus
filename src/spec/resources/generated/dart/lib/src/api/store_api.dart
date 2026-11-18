@@ -43,7 +43,113 @@ import 'options/search_store_options.dart';
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
-class StoreApi extends BaseApi {
+/// The contract of [StoreApi]: every operation of the Store API group and its
+/// `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+/// your own tests.
+abstract interface class StoreApiInterface {
+  Future<Account> createAccount(Account account, CreateAccountOptions? options);
+
+  Future<ApiResult<Account>> createAccountWithHttpInfo(
+    Account account,
+    CreateAccountOptions? options,
+  );
+  Future<void> deleteOrder(int orderId, DeleteOrderOptions? options);
+
+  Future<ApiResult<void>> deleteOrderWithHttpInfo(
+    int orderId,
+    DeleteOrderOptions? options,
+  );
+  Future<Category> getBySwatch(Swatch pathSwatch, GetBySwatchOptions? options);
+
+  Future<ApiResult<Category>> getBySwatchWithHttpInfo(
+    Swatch pathSwatch,
+    GetBySwatchOptions? options,
+  );
+  Future<Defaults> getDefaults(GetDefaultsOptions? options);
+
+  Future<ApiResult<Defaults>> getDefaultsWithHttpInfo(
+    GetDefaultsOptions? options,
+  );
+  Future<Department> getDepartment(GetDepartmentOptions? options);
+
+  Future<ApiResult<Department>> getDepartmentWithHttpInfo(
+    GetDepartmentOptions? options,
+  );
+  Future<List<Map<String, Category>>> getGroupedCategories(
+    GetGroupedCategoriesOptions? options,
+  );
+
+  Future<ApiResult<List<Map<String, Category>>>>
+  getGroupedCategoriesWithHttpInfo(GetGroupedCategoriesOptions? options);
+  Future<Map<String, int>> getInventory(GetInventoryOptions? options);
+
+  Future<ApiResult<Map<String, int>>> getInventoryWithHttpInfo(
+    GetInventoryOptions? options,
+  );
+  Future<List<List<int>>> getMatrix(GetMatrixOptions? options);
+
+  Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(
+    GetMatrixOptions? options,
+  );
+  Future<Order> getOrderById(int orderId, GetOrderByIdOptions? options);
+
+  Future<ApiResult<Order>> getOrderByIdWithHttpInfo(
+    int orderId,
+    GetOrderByIdOptions? options,
+  );
+  Future<Order> getOrderByTrackingId(
+    UuidValue trackingId,
+    GetOrderByTrackingIdOptions? options,
+  );
+
+  Future<ApiResult<Order>> getOrderByTrackingIdWithHttpInfo(
+    UuidValue trackingId,
+    GetOrderByTrackingIdOptions? options,
+  );
+  Future<StockItem> getStockItem(GetStockItemOptions? options);
+
+  Future<ApiResult<StockItem>> getStockItemWithHttpInfo(
+    GetStockItemOptions? options,
+  );
+  Future<Swatch> getSwatch(GetSwatchOptions? options);
+
+  Future<ApiResult<Swatch>> getSwatchWithHttpInfo(GetSwatchOptions? options);
+  Future<List<Map<String, Swatch>>> getSwatchGroups(
+    GetSwatchGroupsOptions? options,
+  );
+
+  Future<ApiResult<List<Map<String, Swatch>>>> getSwatchGroupsWithHttpInfo(
+    GetSwatchGroupsOptions? options,
+  );
+  Future<List<Map<String, DateTime>>> getTimestampGroups(
+    GetTimestampGroupsOptions? options,
+  );
+
+  Future<ApiResult<List<Map<String, DateTime>>>> getTimestampGroupsWithHttpInfo(
+    GetTimestampGroupsOptions? options,
+  );
+  Future<TreeNode> getTree(GetTreeOptions? options);
+
+  Future<ApiResult<TreeNode>> getTreeWithHttpInfo(GetTreeOptions? options);
+  Future<Order> placeOrder(Order? order, PlaceOrderOptions? options);
+
+  Future<ApiResult<Order>> placeOrderWithHttpInfo(
+    Order? order,
+    PlaceOrderOptions? options,
+  );
+  Future<ReserveStockResponse> reserveStock(ReserveStockOptions? options);
+
+  Future<ApiResult<ReserveStockResponse>> reserveStockWithHttpInfo(
+    ReserveStockOptions? options,
+  );
+  Future<List<Order>> searchStore(SearchStoreOptions? options);
+
+  Future<ApiResult<List<Order>>> searchStoreWithHttpInfo(
+    SearchStoreOptions? options,
+  );
+}
+
+class StoreApi extends BaseApi implements StoreApiInterface {
   StoreApi({
     super.apiClient,
     super.config,
@@ -53,6 +159,7 @@ class StoreApi extends BaseApi {
 
   /// Create an account
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Account> createAccount(
     Account account,
     CreateAccountOptions? options,
@@ -76,6 +183,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the createAccount operation and returns the full API result.
+  @override
   Future<ApiResult<Account>> createAccountWithHttpInfo(
     Account account,
     CreateAccountOptions? options,
@@ -112,6 +220,7 @@ class StoreApi extends BaseApi {
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `BadRequestException` on HTTP 400.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<void> deleteOrder(int orderId, DeleteOrderOptions? options) async {
     await deleteOrderWithHttpInfo(orderId, options);
   }
@@ -119,6 +228,7 @@ class StoreApi extends BaseApi {
   /// Performs the deleteOrder operation and returns the full API result.
   /// Throws `BadRequestException` on HTTP 400.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<void>> deleteOrderWithHttpInfo(
     int orderId,
     DeleteOrderOptions? options,
@@ -171,6 +281,7 @@ class StoreApi extends BaseApi {
 
   /// Echoes a swatch supplied via path, query and header parameters.
   /// `options` options for query, header, form, and cookie parameters
+  @override
   Future<Category> getBySwatch(
     Swatch pathSwatch,
     GetBySwatchOptions? options,
@@ -194,6 +305,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getBySwatch operation and returns the full API result.
+  @override
   Future<ApiResult<Category>> getBySwatchWithHttpInfo(
     Swatch pathSwatch,
     GetBySwatchOptions? options,
@@ -266,6 +378,7 @@ class StoreApi extends BaseApi {
 
   /// Returns a model exercising schema defaults on deserialize.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Defaults> getDefaults(GetDefaultsOptions? options) async {
     final result = await getDefaultsWithHttpInfo(options);
     final data = result.data;
@@ -286,6 +399,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getDefaults operation and returns the full API result.
+  @override
   Future<ApiResult<Defaults>> getDefaultsWithHttpInfo(
     GetDefaultsOptions? options,
   ) async {
@@ -318,6 +432,7 @@ class StoreApi extends BaseApi {
 
   /// Returns a department (mutual-recursion codegen fixture).
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Department> getDepartment(GetDepartmentOptions? options) async {
     final result = await getDepartmentWithHttpInfo(options);
     final data = result.data;
@@ -338,6 +453,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getDepartment operation and returns the full API result.
+  @override
   Future<ApiResult<Department>> getDepartmentWithHttpInfo(
     GetDepartmentOptions? options,
   ) async {
@@ -371,6 +487,7 @@ class StoreApi extends BaseApi {
 
   /// Returns categories grouped into an array of string-keyed maps.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<List<Map<String, Category>>> getGroupedCategories(
     GetGroupedCategoriesOptions? options,
   ) async {
@@ -394,6 +511,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getGroupedCategories operation and returns the full API result.
+  @override
   Future<ApiResult<List<Map<String, Category>>>>
   getGroupedCategoriesWithHttpInfo(GetGroupedCategoriesOptions? options) async {
     var path = '/store/grouped-categories';
@@ -433,6 +551,7 @@ class StoreApi extends BaseApi {
 
   /// Returns pet inventories by status
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Map<String, int>> getInventory(GetInventoryOptions? options) async {
     final result = await getInventoryWithHttpInfo(options);
     final data = result.data;
@@ -453,6 +572,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getInventory operation and returns the full API result.
+  @override
   Future<ApiResult<Map<String, int>>> getInventoryWithHttpInfo(
     GetInventoryOptions? options,
   ) async {
@@ -486,6 +606,7 @@ class StoreApi extends BaseApi {
 
   /// Returns a matrix as an array of integer arrays.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<List<List<int>>> getMatrix(GetMatrixOptions? options) async {
     final result = await getMatrixWithHttpInfo(options);
     final data = result.data;
@@ -506,6 +627,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getMatrix operation and returns the full API result.
+  @override
   Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(
     GetMatrixOptions? options,
   ) async {
@@ -546,6 +668,7 @@ class StoreApi extends BaseApi {
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `BadRequestException` on HTTP 400.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<Order> getOrderById(int orderId, GetOrderByIdOptions? options) async {
     final result = await getOrderByIdWithHttpInfo(orderId, options);
     final data = result.data;
@@ -568,6 +691,7 @@ class StoreApi extends BaseApi {
   /// Performs the getOrderById operation and returns the full API result.
   /// Throws `BadRequestException` on HTTP 400.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<Order>> getOrderByIdWithHttpInfo(
     int orderId,
     GetOrderByIdOptions? options,
@@ -622,6 +746,7 @@ class StoreApi extends BaseApi {
 
   /// Find purchase order by tracking id
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Order> getOrderByTrackingId(
     UuidValue trackingId,
     GetOrderByTrackingIdOptions? options,
@@ -646,6 +771,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getOrderByTrackingId operation and returns the full API result.
+  @override
   Future<ApiResult<Order>> getOrderByTrackingIdWithHttpInfo(
     UuidValue trackingId,
     GetOrderByTrackingIdOptions? options,
@@ -701,6 +827,7 @@ class StoreApi extends BaseApi {
   /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
   /// `asOf` Only consider stock as of this instant
   /// `options` options for query, header, form, and cookie parameters
+  @override
   Future<StockItem> getStockItem(GetStockItemOptions? options) async {
     final result = await getStockItemWithHttpInfo(options);
     final data = result.data;
@@ -721,6 +848,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getStockItem operation and returns the full API result.
+  @override
   Future<ApiResult<StockItem>> getStockItemWithHttpInfo(
     GetStockItemOptions? options,
   ) async {
@@ -767,6 +895,7 @@ class StoreApi extends BaseApi {
 
   /// Returns a bare enum (value-type response codegen fixture).
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Swatch> getSwatch(GetSwatchOptions? options) async {
     final result = await getSwatchWithHttpInfo(options);
     final data = result.data;
@@ -787,6 +916,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getSwatch operation and returns the full API result.
+  @override
   Future<ApiResult<Swatch>> getSwatchWithHttpInfo(
     GetSwatchOptions? options,
   ) async {
@@ -819,6 +949,7 @@ class StoreApi extends BaseApi {
 
   /// Returns swatches grouped as an array of string-keyed enum maps.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<List<Map<String, Swatch>>> getSwatchGroups(
     GetSwatchGroupsOptions? options,
   ) async {
@@ -842,6 +973,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getSwatchGroups operation and returns the full API result.
+  @override
   Future<ApiResult<List<Map<String, Swatch>>>> getSwatchGroupsWithHttpInfo(
     GetSwatchGroupsOptions? options,
   ) async {
@@ -879,6 +1011,7 @@ class StoreApi extends BaseApi {
 
   /// Returns timestamps grouped as an array of string-keyed maps.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<List<Map<String, DateTime>>> getTimestampGroups(
     GetTimestampGroupsOptions? options,
   ) async {
@@ -902,6 +1035,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getTimestampGroups operation and returns the full API result.
+  @override
   Future<ApiResult<List<Map<String, DateTime>>>> getTimestampGroupsWithHttpInfo(
     GetTimestampGroupsOptions? options,
   ) async {
@@ -939,6 +1073,7 @@ class StoreApi extends BaseApi {
 
   /// Returns a self-referential tree (recursive-type codegen fixture)
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<TreeNode> getTree(GetTreeOptions? options) async {
     final result = await getTreeWithHttpInfo(options);
     final data = result.data;
@@ -959,6 +1094,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getTree operation and returns the full API result.
+  @override
   Future<ApiResult<TreeNode>> getTreeWithHttpInfo(
     GetTreeOptions? options,
   ) async {
@@ -992,6 +1128,7 @@ class StoreApi extends BaseApi {
   /// Place an order for a pet
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `BadRequestException` on HTTP 400.
+  @override
   Future<Order> placeOrder(Order? order, PlaceOrderOptions? options) async {
     final result = await placeOrderWithHttpInfo(order, options);
     final data = result.data;
@@ -1013,6 +1150,7 @@ class StoreApi extends BaseApi {
 
   /// Performs the placeOrder operation and returns the full API result.
   /// Throws `BadRequestException` on HTTP 400.
+  @override
   Future<ApiResult<Order>> placeOrderWithHttpInfo(
     Order? order,
     PlaceOrderOptions? options,
@@ -1048,6 +1186,7 @@ class StoreApi extends BaseApi {
   /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `BadRequestException` on HTTP 400.
+  @override
   Future<ReserveStockResponse> reserveStock(
     ReserveStockOptions? options,
   ) async {
@@ -1071,6 +1210,7 @@ class StoreApi extends BaseApi {
 
   /// Performs the reserveStock operation and returns the full API result.
   /// Throws `BadRequestException` on HTTP 400.
+  @override
   Future<ApiResult<ReserveStockResponse>> reserveStockWithHttpInfo(
     ReserveStockOptions? options,
   ) async {
@@ -1112,6 +1252,7 @@ class StoreApi extends BaseApi {
   /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
   /// `q` JSON-encoded query parameter (OAS `content`, not `schema`)
   /// `options` options for query, header, form, and cookie parameters
+  @override
   Future<List<Order>> searchStore(SearchStoreOptions? options) async {
     final result = await searchStoreWithHttpInfo(options);
     final data = result.data;
@@ -1132,6 +1273,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the searchStore operation and returns the full API result.
+  @override
   Future<ApiResult<List<Order>>> searchStoreWithHttpInfo(
     SearchStoreOptions? options,
   ) async {

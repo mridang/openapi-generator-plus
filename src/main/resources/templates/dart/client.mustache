@@ -15,6 +15,24 @@ import 'api/{{classFilename}}.dart';
 {{/apis}}
 {{/apiInfo}}
 
+/// The contract of [{{clientClassName}}]: every API group typed as its group interface, plus
+/// `close()`. Depend on it instead of the class to substitute a hand-written fake client in your
+/// own tests; a fake client built from fake groups opens no connection, and closing it does
+/// nothing.
+abstract interface class {{clientClassName}}Interface {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+  /// API operations for the {{classname}} group.
+  {{classname}}Interface get {{clientPropertyName}};
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  /// Closes the client; a fake client has nothing to release.
+  void close();
+}
+
 /// Unified entry point for all API services.
 ///
 /// Takes an [Authenticator] and optionally [TransportOptions], then exposes
@@ -39,11 +57,12 @@ import 'api/{{classFilename}}.dart';
 ///   transportOptions: transport,
 /// );
 /// ```
-class {{clientClassName}} {
+class {{clientClassName}} implements {{clientClassName}}Interface {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
   /// API operations for the {{classname}} group.
+  @override
   final {{classname}} {{clientPropertyName}};
 {{/operations}}
 {{/apis}}
@@ -134,6 +153,7 @@ class {{clientClassName}} {
   /// A transport supplied by the caller through
   /// [TransportOptions.httpClient] is never closed: the caller owns it. After
   /// this call any further request raises a [StateError]. Idempotent.
+  @override
   void close() {
     _apiClient.close();
   }

@@ -27,7 +27,49 @@ import 'options/take_lock_options.dart';
 
 /// ProblemsApi provides methods for the Problems API group.
 /// Operations that declare typed error responses
-class ProblemsApi extends BaseApi {
+/// The contract of [ProblemsApi]: every operation of the Problems API group and its
+/// `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+/// your own tests.
+abstract interface class ProblemsApiInterface {
+  Future<Result> getFallback(String fallbackId, GetFallbackOptions? options);
+
+  Future<ApiResult<Result>> getFallbackWithHttpInfo(
+    String fallbackId,
+    GetFallbackOptions? options,
+  );
+  Future<Result> getMember(String memberId, GetMemberOptions? options);
+
+  Future<ApiResult<Result>> getMemberWithHttpInfo(
+    String memberId,
+    GetMemberOptions? options,
+  );
+  Future<Result> getProject(String projectId, GetProjectOptions? options);
+
+  Future<ApiResult<Result>> getProjectWithHttpInfo(
+    String projectId,
+    GetProjectOptions? options,
+  );
+  Future<Result> getRange(String rangeId, GetRangeOptions? options);
+
+  Future<ApiResult<Result>> getRangeWithHttpInfo(
+    String rangeId,
+    GetRangeOptions? options,
+  );
+  Future<Result> getUpstream(String upstreamId, GetUpstreamOptions? options);
+
+  Future<ApiResult<Result>> getUpstreamWithHttpInfo(
+    String upstreamId,
+    GetUpstreamOptions? options,
+  );
+  Future<Result> takeLock(String lockId, TakeLockOptions? options);
+
+  Future<ApiResult<Result>> takeLockWithHttpInfo(
+    String lockId,
+    TakeLockOptions? options,
+  );
+}
+
+class ProblemsApi extends BaseApi implements ProblemsApiInterface {
   ProblemsApi({
     super.apiClient,
     super.config,
@@ -38,6 +80,7 @@ class ProblemsApi extends BaseApi {
   /// Read a fallback, declaring a default response
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `UnexpectedFailureException` on HTTP default with a `UnexpectedFailure` body.
+  @override
   Future<Result> getFallback(
     String fallbackId,
     GetFallbackOptions? options,
@@ -62,6 +105,7 @@ class ProblemsApi extends BaseApi {
 
   /// Performs the getFallback operation and returns the full API result.
   /// Throws `UnexpectedFailureException` on HTTP default with a `UnexpectedFailure` body.
+  @override
   Future<ApiResult<Result>> getFallbackWithHttpInfo(
     String fallbackId,
     GetFallbackOptions? options,
@@ -126,6 +170,7 @@ class ProblemsApi extends BaseApi {
   /// Read a member, declaring a 404 with a different schema
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `MemberNotFoundException` on HTTP 404 with a `MemberNotFound` body.
+  @override
   Future<Result> getMember(String memberId, GetMemberOptions? options) async {
     final result = await getMemberWithHttpInfo(memberId, options);
     final data = result.data;
@@ -147,6 +192,7 @@ class ProblemsApi extends BaseApi {
 
   /// Performs the getMember operation and returns the full API result.
   /// Throws `MemberNotFoundException` on HTTP 404 with a `MemberNotFound` body.
+  @override
   Future<ApiResult<Result>> getMemberWithHttpInfo(
     String memberId,
     GetMemberOptions? options,
@@ -209,6 +255,7 @@ class ProblemsApi extends BaseApi {
   /// Read a project, declaring a 404 with its own schema
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `ProjectNotFoundException` on HTTP 404 with a `ProjectNotFound` body.
+  @override
   Future<Result> getProject(
     String projectId,
     GetProjectOptions? options,
@@ -233,6 +280,7 @@ class ProblemsApi extends BaseApi {
 
   /// Performs the getProject operation and returns the full API result.
   /// Throws `ProjectNotFoundException` on HTTP 404 with a `ProjectNotFound` body.
+  @override
   Future<ApiResult<Result>> getProjectWithHttpInfo(
     String projectId,
     GetProjectOptions? options,
@@ -295,6 +343,7 @@ class ProblemsApi extends BaseApi {
   /// Read a range, declaring one schema for every 4XX status
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `RejectedRequestException` on HTTP 4XX with a `RejectedRequest` body.
+  @override
   Future<Result> getRange(String rangeId, GetRangeOptions? options) async {
     final result = await getRangeWithHttpInfo(rangeId, options);
     final data = result.data;
@@ -316,6 +365,7 @@ class ProblemsApi extends BaseApi {
 
   /// Performs the getRange operation and returns the full API result.
   /// Throws `RejectedRequestException` on HTTP 4XX with a `RejectedRequest` body.
+  @override
   Future<ApiResult<Result>> getRangeWithHttpInfo(
     String rangeId,
     GetRangeOptions? options,
@@ -378,6 +428,7 @@ class ProblemsApi extends BaseApi {
   /// Read an upstream, declaring one schema for every 5XX status
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `UpstreamFailureException` on HTTP 5XX with a `UpstreamFailure` body.
+  @override
   Future<Result> getUpstream(
     String upstreamId,
     GetUpstreamOptions? options,
@@ -402,6 +453,7 @@ class ProblemsApi extends BaseApi {
 
   /// Performs the getUpstream operation and returns the full API result.
   /// Throws `UpstreamFailureException` on HTTP 5XX with a `UpstreamFailure` body.
+  @override
   Future<ApiResult<Result>> getUpstreamWithHttpInfo(
     String upstreamId,
     GetUpstreamOptions? options,
@@ -465,6 +517,7 @@ class ProblemsApi extends BaseApi {
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `StateConflictException` on HTTP 409 with a `StateConflict` body.
   /// Throws `StateConflictException` on HTTP 423 with a `StateConflict` body.
+  @override
   Future<Result> takeLock(String lockId, TakeLockOptions? options) async {
     final result = await takeLockWithHttpInfo(lockId, options);
     final data = result.data;
@@ -487,6 +540,7 @@ class ProblemsApi extends BaseApi {
   /// Performs the takeLock operation and returns the full API result.
   /// Throws `StateConflictException` on HTTP 409 with a `StateConflict` body.
   /// Throws `StateConflictException` on HTTP 423 with a `StateConflict` body.
+  @override
   Future<ApiResult<Result>> takeLockWithHttpInfo(
     String lockId,
     TakeLockOptions? options,

@@ -24,6 +24,36 @@ class _CloseTrackingClient extends http.BaseClient {
   }
 }
 
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+class _Fake{{classname}} implements {{classname}}Interface {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+class _FakeClient implements {{clientClassName}}Interface {
+  int closed = 0;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+  @override
+  final {{classname}}Interface {{clientPropertyName}} = _Fake{{classname}}();
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  @override
+  void close() {
+    closed++;
+  }
+}
+
 void main() {
   group('{{clientClassName}}', () {
     test('bhv lifecycle 017 withToken takes a token provider instead of a token', () {
@@ -230,6 +260,87 @@ void main() {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+    });
+  });
+
+  group('mockable {{clientClassName}}', () {
+    final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+    test('bhv mocking 001 every group has an interface the class implements', () {
+      final client = {{clientClassName}}(authenticator: authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      final {{clientPropertyName}}Group = client.{{clientPropertyName}} as {{classname}}Interface;
+      expect({{clientPropertyName}}Group, isA<{{classname}}>());
+      final {{clientPropertyName}}Source = File('lib/src/api/{{classFilename}}.dart').readAsStringSync();
+      final {{clientPropertyName}}Interface = {{clientPropertyName}}Source.substring(
+          {{clientPropertyName}}Source.indexOf('abstract interface class {{classname}}Interface {'),
+          {{clientPropertyName}}Source.indexOf('class {{classname}} extends BaseApi'));
+{{#operation}}
+      expect({{clientPropertyName}}Interface, contains(' {{operationId}}('));
+      expect({{clientPropertyName}}Interface, contains(' {{operationId}}WithHttpInfo('));
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    });
+
+    test('bhv mocking 002 the group interface lists exactly the public operations of the class', () {
+      final method = RegExp(r'^  Future<.*> ([a-zA-Z0-9]+)\(', multiLine: true);
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      final {{clientPropertyName}}Source = File('lib/src/api/{{classFilename}}.dart').readAsStringSync();
+      final {{clientPropertyName}}Split = {{clientPropertyName}}Source.indexOf('class {{classname}} extends BaseApi');
+      final {{clientPropertyName}}Listed = method
+          .allMatches({{clientPropertyName}}Source.substring(0, {{clientPropertyName}}Split))
+          .map((m) => m.group(1)!)
+          .toSet();
+      final {{clientPropertyName}}Declared = method
+          .allMatches({{clientPropertyName}}Source.substring({{clientPropertyName}}Split))
+          .map((m) => m.group(1)!)
+          .toSet();
+      expect({{clientPropertyName}}Declared, {{clientPropertyName}}Listed);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    });
+
+    test('bhv mocking 007 the client interface exposes every group typed as its interface and close', () {
+      final client = {{clientClassName}}(authenticator: authenticator);
+      final viaInterface = client as {{clientClassName}}Interface;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      final {{clientPropertyName}}Group = viaInterface.{{clientPropertyName}};
+      expect({{clientPropertyName}}Group, same(client.{{clientPropertyName}}));
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+      expect(() {
+        viaInterface.close();
+        viaInterface.close();
+      }, returnsNormally);
+    });
+
+    test('bhv mocking 008 a client built from fakes never connects and closes without error', () {
+      final fake = _FakeClient();
+      final viaInterface = fake as {{clientClassName}}Interface;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      expect(viaInterface.{{clientPropertyName}}, isNotNull);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+      viaInterface.close();
+      viaInterface.close();
+
+      expect(fake.closed, 2);
     });
   });
 }

@@ -29,6 +29,42 @@ class _CloseTrackingClient extends http.BaseClient {
   }
 }
 
+class _FakePetApi implements PetApiInterface {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _FakeProblemsApi implements ProblemsApiInterface {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _FakeStoreApi implements StoreApiInterface {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _FakeClient implements ClientInterface {
+  int closed = 0;
+
+  @override
+  final PetApiInterface pet = _FakePetApi();
+
+  @override
+  final ProblemsApiInterface problems = _FakeProblemsApi();
+
+  @override
+  final StoreApiInterface store = _FakeStoreApi();
+
+  @override
+  void close() {
+    closed++;
+  }
+}
+
 void main() {
   group('Client', () {
     test(
@@ -318,5 +354,229 @@ void main() {
       expect(client.problems, isNotNull);
       expect(client.store, isNotNull);
     });
+  });
+
+  group('mockable Client', () {
+    final authenticator = BearerAuthenticator(
+      host: '/api/v3',
+      token: 'test-token',
+    );
+
+    test(
+      'bhv mocking 001 every group has an interface the class implements',
+      () {
+        final client = Client(authenticator: authenticator);
+
+        final petGroup = client.pet as PetApiInterface;
+        expect(petGroup, isA<PetApi>());
+        final petSource = File('lib/src/api/pet_api.dart').readAsStringSync();
+        final petInterface = petSource.substring(
+          petSource.indexOf('abstract interface class PetApiInterface {'),
+          petSource.indexOf('class PetApi extends BaseApi'),
+        );
+        expect(petInterface, contains(' addPet('));
+        expect(petInterface, contains(' addPetWithHttpInfo('));
+        expect(petInterface, contains(' addPetPhotos('));
+        expect(petInterface, contains(' addPetPhotosWithHttpInfo('));
+        expect(petInterface, contains(' addPetTreatment('));
+        expect(petInterface, contains(' addPetTreatmentWithHttpInfo('));
+        expect(petInterface, contains(' deletePet('));
+        expect(petInterface, contains(' deletePetWithHttpInfo('));
+        expect(petInterface, contains(' downloadPetDocument('));
+        expect(petInterface, contains(' downloadPetDocumentWithHttpInfo('));
+        expect(petInterface, contains(' findPetsBornOn('));
+        expect(petInterface, contains(' findPetsBornOnWithHttpInfo('));
+        expect(petInterface, contains(' findPetsByStatus('));
+        expect(petInterface, contains(' findPetsByStatusWithHttpInfo('));
+        expect(petInterface, contains(' getExternalPetInfo('));
+        expect(petInterface, contains(' getExternalPetInfoWithHttpInfo('));
+        expect(petInterface, contains(' getMultiServerPetInfo('));
+        expect(petInterface, contains(' getMultiServerPetInfoWithHttpInfo('));
+        expect(petInterface, contains(' getPetAvatar('));
+        expect(petInterface, contains(' getPetAvatarWithHttpInfo('));
+        expect(petInterface, contains(' getPetAvatarThumbnail('));
+        expect(petInterface, contains(' getPetAvatarThumbnailWithHttpInfo('));
+        expect(petInterface, contains(' getPetById('));
+        expect(petInterface, contains(' getPetByIdWithHttpInfo('));
+        expect(petInterface, contains(' getPetByName('));
+        expect(petInterface, contains(' getPetByNameWithHttpInfo('));
+        expect(petInterface, contains(' getPetPassport('));
+        expect(petInterface, contains(' getPetPassportWithHttpInfo('));
+        expect(petInterface, contains(' getPetPhoto('));
+        expect(petInterface, contains(' getPetPhotoWithHttpInfo('));
+        expect(petInterface, contains(' getPetSummary('));
+        expect(petInterface, contains(' getPetSummaryWithHttpInfo('));
+        expect(petInterface, contains(' getPetTag('));
+        expect(petInterface, contains(' getPetTagWithHttpInfo('));
+        expect(petInterface, contains(' getStagingPetInfo('));
+        expect(petInterface, contains(' getStagingPetInfoWithHttpInfo('));
+        expect(petInterface, contains(' setPetAvatar('));
+        expect(petInterface, contains(' setPetAvatarWithHttpInfo('));
+        expect(petInterface, contains(' setPetAvatarThumbnail('));
+        expect(petInterface, contains(' setPetAvatarThumbnailWithHttpInfo('));
+        expect(petInterface, contains(' setPetPreferences('));
+        expect(petInterface, contains(' setPetPreferencesWithHttpInfo('));
+        expect(petInterface, contains(' updatePet('));
+        expect(petInterface, contains(' updatePetWithHttpInfo('));
+        expect(petInterface, contains(' uploadPetCertificate('));
+        expect(petInterface, contains(' uploadPetCertificateWithHttpInfo('));
+        expect(petInterface, contains(' uploadPetDocument('));
+        expect(petInterface, contains(' uploadPetDocumentWithHttpInfo('));
+        final problemsGroup = client.problems as ProblemsApiInterface;
+        expect(problemsGroup, isA<ProblemsApi>());
+        final problemsSource = File(
+          'lib/src/api/problems_api.dart',
+        ).readAsStringSync();
+        final problemsInterface = problemsSource.substring(
+          problemsSource.indexOf(
+            'abstract interface class ProblemsApiInterface {',
+          ),
+          problemsSource.indexOf('class ProblemsApi extends BaseApi'),
+        );
+        expect(problemsInterface, contains(' getFallback('));
+        expect(problemsInterface, contains(' getFallbackWithHttpInfo('));
+        expect(problemsInterface, contains(' getMember('));
+        expect(problemsInterface, contains(' getMemberWithHttpInfo('));
+        expect(problemsInterface, contains(' getProject('));
+        expect(problemsInterface, contains(' getProjectWithHttpInfo('));
+        expect(problemsInterface, contains(' getRange('));
+        expect(problemsInterface, contains(' getRangeWithHttpInfo('));
+        expect(problemsInterface, contains(' getUpstream('));
+        expect(problemsInterface, contains(' getUpstreamWithHttpInfo('));
+        expect(problemsInterface, contains(' takeLock('));
+        expect(problemsInterface, contains(' takeLockWithHttpInfo('));
+        final storeGroup = client.store as StoreApiInterface;
+        expect(storeGroup, isA<StoreApi>());
+        final storeSource = File(
+          'lib/src/api/store_api.dart',
+        ).readAsStringSync();
+        final storeInterface = storeSource.substring(
+          storeSource.indexOf('abstract interface class StoreApiInterface {'),
+          storeSource.indexOf('class StoreApi extends BaseApi'),
+        );
+        expect(storeInterface, contains(' createAccount('));
+        expect(storeInterface, contains(' createAccountWithHttpInfo('));
+        expect(storeInterface, contains(' deleteOrder('));
+        expect(storeInterface, contains(' deleteOrderWithHttpInfo('));
+        expect(storeInterface, contains(' getBySwatch('));
+        expect(storeInterface, contains(' getBySwatchWithHttpInfo('));
+        expect(storeInterface, contains(' getDefaults('));
+        expect(storeInterface, contains(' getDefaultsWithHttpInfo('));
+        expect(storeInterface, contains(' getDepartment('));
+        expect(storeInterface, contains(' getDepartmentWithHttpInfo('));
+        expect(storeInterface, contains(' getGroupedCategories('));
+        expect(storeInterface, contains(' getGroupedCategoriesWithHttpInfo('));
+        expect(storeInterface, contains(' getInventory('));
+        expect(storeInterface, contains(' getInventoryWithHttpInfo('));
+        expect(storeInterface, contains(' getMatrix('));
+        expect(storeInterface, contains(' getMatrixWithHttpInfo('));
+        expect(storeInterface, contains(' getOrderById('));
+        expect(storeInterface, contains(' getOrderByIdWithHttpInfo('));
+        expect(storeInterface, contains(' getOrderByTrackingId('));
+        expect(storeInterface, contains(' getOrderByTrackingIdWithHttpInfo('));
+        expect(storeInterface, contains(' getStockItem('));
+        expect(storeInterface, contains(' getStockItemWithHttpInfo('));
+        expect(storeInterface, contains(' getSwatch('));
+        expect(storeInterface, contains(' getSwatchWithHttpInfo('));
+        expect(storeInterface, contains(' getSwatchGroups('));
+        expect(storeInterface, contains(' getSwatchGroupsWithHttpInfo('));
+        expect(storeInterface, contains(' getTimestampGroups('));
+        expect(storeInterface, contains(' getTimestampGroupsWithHttpInfo('));
+        expect(storeInterface, contains(' getTree('));
+        expect(storeInterface, contains(' getTreeWithHttpInfo('));
+        expect(storeInterface, contains(' placeOrder('));
+        expect(storeInterface, contains(' placeOrderWithHttpInfo('));
+        expect(storeInterface, contains(' reserveStock('));
+        expect(storeInterface, contains(' reserveStockWithHttpInfo('));
+        expect(storeInterface, contains(' searchStore('));
+        expect(storeInterface, contains(' searchStoreWithHttpInfo('));
+      },
+    );
+
+    test(
+      'bhv mocking 002 the group interface lists exactly the public operations of the class',
+      () {
+        final method = RegExp(
+          r'^  Future<.*> ([a-zA-Z0-9]+)\(',
+          multiLine: true,
+        );
+        final petSource = File('lib/src/api/pet_api.dart').readAsStringSync();
+        final petSplit = petSource.indexOf('class PetApi extends BaseApi');
+        final petListed = method
+            .allMatches(petSource.substring(0, petSplit))
+            .map((m) => m.group(1)!)
+            .toSet();
+        final petDeclared = method
+            .allMatches(petSource.substring(petSplit))
+            .map((m) => m.group(1)!)
+            .toSet();
+        expect(petDeclared, petListed);
+        final problemsSource = File(
+          'lib/src/api/problems_api.dart',
+        ).readAsStringSync();
+        final problemsSplit = problemsSource.indexOf(
+          'class ProblemsApi extends BaseApi',
+        );
+        final problemsListed = method
+            .allMatches(problemsSource.substring(0, problemsSplit))
+            .map((m) => m.group(1)!)
+            .toSet();
+        final problemsDeclared = method
+            .allMatches(problemsSource.substring(problemsSplit))
+            .map((m) => m.group(1)!)
+            .toSet();
+        expect(problemsDeclared, problemsListed);
+        final storeSource = File(
+          'lib/src/api/store_api.dart',
+        ).readAsStringSync();
+        final storeSplit = storeSource.indexOf(
+          'class StoreApi extends BaseApi',
+        );
+        final storeListed = method
+            .allMatches(storeSource.substring(0, storeSplit))
+            .map((m) => m.group(1)!)
+            .toSet();
+        final storeDeclared = method
+            .allMatches(storeSource.substring(storeSplit))
+            .map((m) => m.group(1)!)
+            .toSet();
+        expect(storeDeclared, storeListed);
+      },
+    );
+
+    test(
+      'bhv mocking 007 the client interface exposes every group typed as its interface and close',
+      () {
+        final client = Client(authenticator: authenticator);
+        final viaInterface = client as ClientInterface;
+
+        final petGroup = viaInterface.pet;
+        expect(petGroup, same(client.pet));
+        final problemsGroup = viaInterface.problems;
+        expect(problemsGroup, same(client.problems));
+        final storeGroup = viaInterface.store;
+        expect(storeGroup, same(client.store));
+        expect(() {
+          viaInterface.close();
+          viaInterface.close();
+        }, returnsNormally);
+      },
+    );
+
+    test(
+      'bhv mocking 008 a client built from fakes never connects and closes without error',
+      () {
+        final fake = _FakeClient();
+        final viaInterface = fake as ClientInterface;
+
+        expect(viaInterface.pet, isNotNull);
+        expect(viaInterface.problems, isNotNull);
+        expect(viaInterface.store, isNotNull);
+        viaInterface.close();
+        viaInterface.close();
+
+        expect(fake.closed, 2);
+      },
+    );
   });
 }
