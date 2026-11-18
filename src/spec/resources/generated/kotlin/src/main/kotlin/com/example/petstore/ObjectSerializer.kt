@@ -716,15 +716,16 @@ internal class ObjectSerializer(
             try {
                 // A format: byte scalar arrives as a base64 string; the built-in ByteArray
                 // serializer would expect a JSON int-array instead.
+                // A registered contextual serializer wins over the type's own companion serializer:
+                // io.ktor.http.Url has one that accepts relative references, which format: uri refuses.
                 @Suppress("UNCHECKED_CAST")
                 val target =
                     (
-                        if (T::class ==
-                            ByteArray::class
-                        ) {
+                        if (T::class == ByteArray::class) {
                             Base64ByteArraySerializer
                         } else {
-                            json.serializersModule.serializer<T>()
+                            json.serializersModule.getContextual(T::class as kotlin.reflect.KClass<Any>)
+                                ?: json.serializersModule.serializer<T>()
                         }
                     ) as KSerializer<T>
                 val tree = json.parseToJsonElement(stripped)
