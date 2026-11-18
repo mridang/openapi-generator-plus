@@ -150,7 +150,7 @@ Rule: a response body that fails to decode into its return type (JSON parse, a s
 Why: a 200 whose body does not parse is otherwise an unexplained failure; the status and raw body are what a caller logs.
 Where: `errors/SerializationException.mustache` (new constructor and getters; `ApiException.stripQuery` is package-private and shared), `base_api.mustache` (the success decode of `invokeApiForResult` is wrapped and rethrown with the response), `api_error.mustache`.
 Not covered: a Content-Encoding that cannot be decompressed is raised by `default_api_client.mustache` as `ApiException` with a null body and no method or path (D13); the catalogue promise names the raw body, so the owner decides whether that path changes.
-Test: `BaseApiTest` (`bhvErrors205ADecodeFailureCarriesTheStatusHeadersRawBodyAndRequestWithoutItsQuery`), `ApiExceptionTest` (`aSerializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery`, unnumbered).
+Test: `BaseApiTest` (`bhvErrors205ADecodeFailureCarriesTheStatusHeadersRawBodyAndRequestWithoutItsQuery`), `ApiExceptionTest` (`serializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery`, unnumbered).
 
 ### The error carries the real response (D13)
 Rule: an `ApiException` for a response that arrived but was unusable (decompress failure, redirect refusals) carries the real status and the lower-cased response header map, null body, and the failure as cause; `ApiException(int, String, Map, Throwable)` replaces the old three-argument constructor. `responseHeaders` null means no HTTP response arrived and is never defaulted to an empty map (see the shared "Forced divergences").

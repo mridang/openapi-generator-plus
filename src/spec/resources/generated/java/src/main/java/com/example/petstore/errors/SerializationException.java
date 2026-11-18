@@ -8,6 +8,8 @@
 
 package com.example.petstore.errors;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -28,7 +30,7 @@ public class SerializationException extends OpenAPIException {
   private final int statusCode;
 
   /** The headers of that response, or {@code null} when there is none. */
-  @Nullable private final transient Map<String, String> responseHeaders;
+  @Nullable private final HashMap<String, String> responseHeaders;
 
   /** The raw body of that response, or {@code null} when there is none. */
   @Nullable private final String responseBody;
@@ -82,7 +84,7 @@ public class SerializationException extends OpenAPIException {
       initCause(cause);
     }
     this.statusCode = statusCode;
-    this.responseHeaders = responseHeaders == null ? null : Map.copyOf(responseHeaders);
+    this.responseHeaders = responseHeaders == null ? null : new HashMap<>(responseHeaders);
     this.responseBody = responseBody;
     this.requestMethod = requestMethod;
     this.requestPath = requestPath == null ? null : ApiException.stripQuery(requestPath);
@@ -104,7 +106,7 @@ public class SerializationException extends OpenAPIException {
    */
   @Nullable
   public Map<String, String> getResponseHeaders() {
-    return responseHeaders;
+    return responseHeaders == null ? null : Collections.unmodifiableMap(responseHeaders);
   }
 
   /**

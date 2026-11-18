@@ -758,7 +758,7 @@ class ApiExceptionTest {
   }
 
   @Test
-  void aSerializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery() {
+  void serializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery() {
     SerializationException bare = new SerializationException("bad");
     assertEquals(0, bare.getStatusCode());
     assertNull(bare.getResponseHeaders());

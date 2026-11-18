@@ -914,16 +914,23 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
 {{#vendorExtensions.x-allof-base}}
 
-  /* The one place the common properties are set, for the subtypes: they pass their own
-   * values up, so a required property is checked once and read the same through the base. */
-  protected {{classname}}({{#vars}}@Nullable {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/vars}}) {
+  /**
+   * Creates the base of a composed model and sets the properties that the subtypes share.
+   *
+   * <p>The subtypes pass their own values up, so a required property is checked once and read the
+   * same through the base.
+   *
+  {{#vars}}
+   * @param {{name}} the {{name}} property
+  {{/vars}}
+   */
+  protected {{classname}}({{#vars}}{{^required}}@Nullable {{/required}}{{#required}}{{#isNullable}}@Nullable {{/isNullable}}{{/required}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/vars}}) {
 {{#vars}}
 {{#required}}
 {{^isNullable}}
     this.{{name}} =
-        {{#isByteArray}}java.util.Objects.requireNonNull({{name}}, "{{name}} is required").clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
-            new java.util.{{vendorExtensions.copyImpl}}<>(
-                java.util.Objects.requireNonNull({{name}}, "{{name}} is required"))){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}java.util.Objects.requireNonNull({{name}}, "{{name}} is required"){{/vendorExtensions.copyKind}}{{/isByteArray}};
+        {{#isByteArray}}{{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+            new java.util.{{vendorExtensions.copyImpl}}<>({{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
 {{/isNullable}}
 {{#isNullable}}
     this.{{name}} =
