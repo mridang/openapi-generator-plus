@@ -1791,3 +1791,25 @@ func TestBhvMisc018_OAuth2TokenManager_ANonJsonTokenErrorKeepsTheRawBody(t *test
 		t.Errorf("expected the status, no code and the raw body, got %T: %v", err, err)
 	}
 }
+
+// A token whose lifetime is not a finite number is not cached, so the next call fetches a new token.
+func TestBhvMisc059_OAuth2TokenManager_ANonFiniteLifetimeIsNotCached(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{`"NaN"`, `"Inf"`, `"-Inf"`} {
+		client := &recordingTokenClient{responses: []fakeResponse{
+			{body: `{"access_token":"tok1","expires_in":` + value + `}`, statusCode: 200},
+			{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+		}}
+		m := oauth.NewOAuth2TokenManager()
+		m.SetApiClient(client)
+		params := map[string]string{"grant_type": "client_credentials"}
+		for i := 0; i < 2; i++ {
+			if _, err := m.GetAccessToken("https://auth.example.com/token", params); err != nil {
+				t.Fatalf("expires_in %s: unexpected error: %v", value, err)
+			}
+		}
+		if client.requestCount() != 2 {
+			t.Errorf("expires_in %s: expected no caching, got %d requests", value, client.requestCount())
+		}
+	}
+}

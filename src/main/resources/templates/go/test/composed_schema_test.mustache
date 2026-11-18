@@ -808,7 +808,7 @@ func TestBhvUnions001_ComposedSchema_PetFood_TypedConstructorAndAccessorsNameThe
 	}
 }
 
-func TestComposedSchema_PetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
+func TestBhvMisc047_ComposedSchema_PetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
 	t.Parallel()
 	for name, food := range map[string]models.PetFood{
 		"foreign value": models.NewPetFood("kibble"),
@@ -989,5 +989,30 @@ func TestBhvUnions047_ComposedSchema_AnUnlistedDiscriminatorValueIsAnError(t *te
 		if err == nil || !strings.Contains(err.Error(), "discriminator") {
 			t.Errorf("%s: expected a discriminator error, got %v", payload, err)
 		}
+	}
+}
+
+// A payload that does not satisfy a variant's schema is not accepted as that variant, and the decode fails.
+func TestBhvMisc045_ComposedSchema_AVariantPayloadThatFailsItsSchemaIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, payload := range []string{`{"foodType":"dry"}`, `{"foodType":"dry","weightKg":"heavy"}`} {
+		var food models.PetFood
+		if err := json.Unmarshal([]byte(payload), &food); err == nil {
+			t.Errorf("%s: expected the payload rejected for not satisfying its variant", payload)
+		}
+	}
+}
+
+// Two union values holding equal content compare equal, and unions holding different content compare unequal.
+func TestBhvMisc046_ComposedSchema_EqualContentComparesEqual(t *testing.T) {
+	t.Parallel()
+	a := models.NewMedicationPetTreatment(models.Medication{})
+	b := models.NewMedicationPetTreatment(models.Medication{})
+	c := models.NewSurgeryPetTreatment(models.Surgery{})
+	if !a.Equal(b) {
+		t.Error("expected equal content to compare equal")
+	}
+	if a.Equal(c) {
+		t.Error("expected different content to compare unequal")
 	}
 }

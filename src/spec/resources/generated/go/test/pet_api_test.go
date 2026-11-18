@@ -25,6 +25,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2955,5 +2956,93 @@ func TestBhvResults007_PetApi_AResultKeepsDataBodyAndHeaders(t *testing.T) {
 	}
 	if result.Data == nil || result.Data.Name != "Test" || !strings.Contains(result.RawBody, `"id":5`) || result.Headers["x-test"] != "header-value" {
 		t.Errorf("expected data, raw body and headers together, got %+v", result)
+	}
+}
+
+// A success status that no declared response row names decodes as the operation's union return type.
+func TestBhvMisc048_Store_AnUndeclaredSuccessStatusDecodesAsTheUnion(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(202)
+		_, _ = w.Write([]byte(`{"reservationId":7,"quantity":2}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	result, err := client.Store.ReserveStock(context.Background())
+	if err != nil || result == nil {
+		t.Errorf("expected the undeclared success decoded as the union, got %v %v", result, err)
+	}
+}
+
+// A per-call retry budget of zero is accepted, and the call sends exactly one request.
+func TestBhvMisc053_Store_APerCallRetryBudgetOfZeroSendsOneRequest(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(503)
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Store.GetInventory(context.Background(), petstore.WithMaxRetries(0)); err == nil {
+		t.Fatal("expected the 503 returned")
+	}
+	if got := hits.Load(); got != 1 {
+		t.Errorf("expected one request with a zero budget, got %d", got)
+	}
+}
+
+// A per-call header set is a copy: later changes to the caller's map do not reach the call.
+func TestBhvMisc054_Store_PerCallHeadersAreACopy(t *testing.T) {
+	t.Parallel()
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("X-Per-Call")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"available":1}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	headers := map[string]string{"X-Per-Call": "original"}
+	option := petstore.WithHeaders(headers)
+	headers["X-Per-Call"] = "changed"
+	if _, err := client.Store.GetInventory(context.Background(), option); err != nil {
+		t.Fatalf("GetInventory failed: %v", err)
+	}
+	if got != "original" {
+		t.Errorf("expected the copied header, got %q", got)
+	}
+}
+
+// A per-call timeout, retry count or header set that is not valid is refused with an argument error.
+func TestBhvMisc055_Store_AnInvalidPerCallSettingIsRefused(t *testing.T) {
+	t.Parallel()
+	client, err := petstore.NewClientWithToken("https://api.example.com", "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Store.GetInventory(context.Background(), petstore.WithMaxRetries(-1)); !errors.Is(err, petstore.ErrInvalidMaxRetries) {
+		t.Errorf("expected ErrInvalidMaxRetries for a negative budget, got %v", err)
+	}
+	if _, err := client.Store.GetInventory(context.Background(), petstore.WithTimeout(0)); !errors.Is(err, petstore.ErrInvalidTimeout) {
+		t.Errorf("expected ErrInvalidTimeout for a zero timeout, got %v", err)
 	}
 }

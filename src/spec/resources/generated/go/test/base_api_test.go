@@ -2602,7 +2602,7 @@ func (a *contextAuth) AuthHeadersOrErrorContext(ctx context.Context) (map[string
 	return map[string]string{"Authorization": "Bearer from-context"}, nil
 }
 
-func TestBaseApi_AnAuthenticatorThatNeedsRequestsReceivesTheCallContext(t *testing.T) {
+func TestBhvMisc061_BaseApi_AnAuthenticatorThatNeedsRequestsReceivesTheCallContext(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()

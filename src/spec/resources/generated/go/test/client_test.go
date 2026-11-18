@@ -25,6 +25,7 @@ import (
 	petstore "petstore/pkg"
 	"petstore/pkg/auth"
 	apierrors "petstore/pkg/errors"
+	"petstore/pkg/models"
 )
 
 func TestBhvLifecycle012_Client_ConstructWithAuthenticatorOnly(t *testing.T) {
@@ -802,5 +803,115 @@ func TestBhvMisc035_Client_AnAlreadyCancelledCallIsACancellationNotATimeout(t *t
 	var timeoutErr *apierrors.NetworkTimeoutError
 	if !errors.Is(err, context.Canceled) || errors.As(err, &timeoutErr) {
 		t.Errorf("expected a cancellation error, got %T: %v", err, err)
+	}
+}
+
+// An operation that declares no security never sends the client's default credential.
+func TestBhvMisc064_Client_ANoSecurityOperationSendsNoDefaultCredential(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"available":1}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "client-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Store.GetInventory(context.Background()); err != nil {
+		t.Fatalf("GetInventory failed: %v", err)
+	}
+	if gotAuth != "" {
+		t.Errorf("expected no credential on a no-security operation, got %q", gotAuth)
+	}
+}
+
+// Scheme credentials are copied when the API is built, so later changes to the caller's value do not affect it.
+func TestBhvMisc065_Client_SchemeCredentialsAreCopiedAtBuild(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	first, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "first-token")
+	second, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "second-token")
+	credentials := petstore.Credentials{PetStoreBearer: first}
+	client, err := petstore.NewClientWithCredentials(server.URL, credentials, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+	credentials.PetStoreBearer = second
+
+	pet := models.NewPet("OrderDog", models.Set[string]{"http://example.com/o.jpg"})
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if gotAuth != "Bearer first-token" {
+		t.Errorf("expected the credential copied at build, got %q", gotAuth)
+	}
+}
+
+// A token provider's value is sent as the bearer credential on the authenticated request.
+func TestBhvMisc066_Client_ATokenProviderValueIsSentAsTheBearer(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	provider := func(context.Context) (string, error) { return "provider-token", nil }
+	client, err := petstore.NewClientWithTokenProvider(server.URL, provider, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("GetPetById failed: %v", err)
+	}
+	if gotAuth != "Bearer provider-token" {
+		t.Errorf("expected the provider value as the bearer, got %q", gotAuth)
+	}
+}
+
+// When a token provider raises an error, the request fails with that same error.
+func TestBhvMisc067_Client_AProviderErrorIsTheRequestError(t *testing.T) {
+	t.Parallel()
+	boom := errors.New("vault unavailable")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+	client, err := petstore.NewClientWithTokenProvider(server.URL, func(context.Context) (string, error) { return "", boom }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); !errors.Is(err, boom) {
+		t.Errorf("expected the provider's error, got %v", err)
+	}
+}
+
+// An API key configured for a header is never sent at a query or cookie location.
+func TestBhvMisc057_Client_AnApiKeyIsOnlySentAtItsConfiguredLocation(t *testing.T) {
+	t.Parallel()
+	key, err := auth.NewApiKeyHeaderAuthenticator("https://api.example.com", "header-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(key.QueryParams()) != 0 || len(key.CookieParams()) != 0 {
+		t.Errorf("expected a header key sent only as a header, got query %v cookie %v", key.QueryParams(), key.CookieParams())
+	}
+	if key.AuthHeaders()["X-API-Key"] != "header-key" {
+		t.Errorf("expected the header key sent, got %v", key.AuthHeaders())
 	}
 }

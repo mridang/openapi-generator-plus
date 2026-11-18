@@ -918,3 +918,32 @@ func TestBhvMisc028_OAuth2AuthorizationCodeAuthenticator_AnExchangeFailureIsRetu
 		t.Errorf("expected the transport error unchanged, got %T: %v", err, err)
 	}
 }
+
+// The authorization URL keeps the configured endpoint and redirect URI exactly: no added trailing slash,
+// no dropped default port and no changed host case.
+func TestBhvMisc058_OAuth2AuthorizationCodeAuthenticator_TheConfiguredUrlsReachTheAuthorizeUrlExactly(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://Auth.Example.COM:443/authorize/",
+		"https://auth.example.com/token",
+		"https://App.example.com:8443/cb",
+		[]string{"read"},
+		"",
+	)
+	got := authObj.BuildAuthorizationURL("xyz")
+	if !strings.HasPrefix(got, "https://Auth.Example.COM:443/authorize/?") || !strings.Contains(got, "redirect_uri=https%3A%2F%2FApp.example.com%3A8443%2Fcb") {
+		t.Errorf("expected the configured endpoint and redirect URI exact, got %q", got)
+	}
+}
+
+// The authorization URL produced by a per-scheme wrapper carries the scopes that its security scheme declares.
+func TestBhvMisc062_OAuth2AuthorizationCodeAuthenticator_TheDeclaredScopesReachTheAuthorizeUrl(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+	if got := authObj.BuildAuthorizationURL(""); !strings.Contains(got, "scope=read%20write") {
+		t.Errorf("expected the declared scopes in the authorize URL, got %q", got)
+	}
+}

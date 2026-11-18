@@ -3136,3 +3136,57 @@ func TestBhvMisc039_DefaultApiClient_AGzipOfAnEmptyOrZeroValueIsNotCorrupt(t *te
 		server.Close()
 	}
 }
+
+// A user agent that is explicitly cleared is omitted from the request entirely.
+func TestBhvMisc043_DefaultApiClient_AClearedUserAgentIsOmitted(t *testing.T) {
+	t.Parallel()
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("User-Agent")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	empty := ""
+	opts, err := NewTransportOptionsBuilder().UserAgent(&empty).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", server.URL, nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "" {
+		t.Errorf("expected no User-Agent, got %q", got)
+	}
+}
+
+// Setting the proxy to an empty string removes a proxy set earlier, so the request goes direct.
+func TestBhvMisc056_DefaultApiClient_AnEmptyProxyRemovesTheEarlierProxy(t *testing.T) {
+	t.Parallel()
+	hits := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case hits <- struct{}{}:
+		default:
+		}
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Proxy("http://127.0.0.1:1").Proxy("").Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", server.URL, nil, nil); err != nil {
+		t.Fatalf("expected the request to go direct, got %v", err)
+	}
+	select {
+	case <-hits:
+	default:
+		t.Error("expected the request to reach the server directly")
+	}
+}
