@@ -267,7 +267,7 @@ class MetadataTest {
         assertThat(found).hasSize(1);
         String source = Files.readString(found.get(0));
         assertThat(source).contains("\"notes\" it's here");
-        assertThat(source).doesNotContain("&lt;").doesNotContain("&gt;").doesNotContain("&quot;").doesNotContain("&#");
+        assertThat(source).doesNotContainPattern("&(lt|gt|quot|#)");
     }
 
     @Test
