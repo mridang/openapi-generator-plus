@@ -2707,3 +2707,38 @@ test('bhv enums 010 a member without a description keeps the comment it has toda
 test('bhv enums 011 a description with comment terminators still yields a compiling comment', function (): void {
     expect(enumModelSource('Tier'))->toContain("/** The largest tier. Ends with *_/ and #{x} and \$x. */\n    case LARGE");
 });
+
+test('bhv misc 287 a wire key literally named additional_properties is kept as an undeclared extra', function (): void {
+    $metadata = ObjectSerializer::deserialize(
+        '{"createdAt":"2024-01-01T00:00:00Z","additional_properties":"x"}',
+        \{{invokerPackage}}\Models\Metadata::class
+    );
+
+    expect($metadata->additionalProperties->toArray())->toBe(['additional_properties' => 'x']);
+});
+
+test('bhv misc 288 a snake case input key at the top level is captured as an undeclared extra', function (): void {
+    $metadata = ObjectSerializer::deserialize(
+        '{"createdAt":"2024-01-01T00:00:00Z","created_at":"x"}',
+        \{{invokerPackage}}\Models\Metadata::class
+    );
+
+    expect($metadata->additionalProperties->toArray())->toBe(['created_at' => 'x']);
+});
+
+test('bhv misc 289 a snake case input key inside a list element is captured as an undeclared extra', function (): void {
+    $items = ObjectSerializer::deserialize(
+        '[{"createdAt":"2024-01-01T00:00:00Z","created_at":"x"}]',
+        'array<\{{invokerPackage}}\Models\Metadata>'
+    );
+
+    expect($items[0]->additionalProperties->toArray())->toBe(['created_at' => 'x']);
+});
+
+test('bhv misc 290 an undeclared key holding an object survives a full serialize and deserialize round trip', function (): void {
+    $json = '{"createdAt":"2024-01-01T00:00:00Z","extra":{"k":{"n":1}}}';
+    $metadata = ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\Metadata::class);
+    $again = ObjectSerializer::deserialize(ObjectSerializer::serialize($metadata), \{{invokerPackage}}\Models\Metadata::class);
+
+    expect($again->additionalProperties->toArray())->toBe(['extra' => ['k' => ['n' => 1]]]);
+});

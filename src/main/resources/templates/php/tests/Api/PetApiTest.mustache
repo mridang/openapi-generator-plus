@@ -2023,3 +2023,68 @@ test('bhv misc 006 a bare null response read with http info gives no data and ke
     expect($result->data)->toBeNull();
     expect($result->rawBody)->toBe('null');
 });
+
+test('bhv operations 160 a call to an external variant operation is sent to the URL of the generated server variant', function (): void {
+    // The operation declares its own server. The client below sends every
+    // request for that server to the mock server instead, and records the URL
+    // the SDK asked for, so the test proves the chosen per-operation server
+    // was used and still gets a real response.
+    $externalServer = 'https://external-api.example.com/v1';
+    $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
+    $redirecting = new class ($externalServer, $baseUrl) implements \{{invokerPackage}}\ApiClient {
+        /** @var list<string> */
+        public array $requestedUrls = [];
+
+        private readonly \{{invokerPackage}}\DefaultApiClient $transport;
+
+        public function __construct(private readonly string $from, private readonly string $to)
+        {
+            $this->transport = new \{{invokerPackage}}\DefaultApiClient();
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): \{{invokerPackage}}\ApiHttpResponse {
+            $this->requestedUrls[] = $url;
+            return $this->transport->sendRequest(
+                $method,
+                str_replace($this->from, $this->to, $url),
+                $headers,
+                $body,
+                $noRedirect
+            );
+        }
+    };
+    $config = Configuration::builder()
+        ->baseUrl($baseUrl)
+        ->defaultHeader('Authorization', 'Bearer test-token')
+        ->build();
+    $api = new PetApi($redirecting, $config);
+
+    $result = $api->getExternalPetInfo(1, new \{{invokerPackage}}\Api\GetExternalPetInfoServerServer0());
+
+    expect($result)->toBeInstanceOf(Pet::class);
+    expect($redirecting->requestedUrls)->toHaveCount(1);
+    expect($redirecting->requestedUrls[0])->toStartWith($externalServer . '/');
+});
+
+test('bhv operations 165 a path parameter is written into the request path using the serialization style the operation declares', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute');
+    } catch (\Throwable) {
+        // Only the captured URL matters here.
+    }
+
+    expect($captured->url)->toBe('http://localhost:9999/pet/;petId=5/tag/.cute');
+});

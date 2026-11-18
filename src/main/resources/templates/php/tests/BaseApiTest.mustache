@@ -2458,3 +2458,13 @@ test('bhv misc 065 scheme credentials are copied when the api is built', functio
 
     expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer first');
 });
+
+test('bhv misc 296 a failed request is retried twice by default, so three requests reach the wire', function (): void {
+    /** @var \ArrayObject<int, string> $seen */
+    $seen = new \ArrayObject();
+    $api = flakyTransportApi(99, $seen, null);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
+        ->toThrow(ServerException::class);
+    expect(count($seen))->toBe(3);
+});
