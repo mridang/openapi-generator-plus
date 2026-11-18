@@ -225,6 +225,12 @@ class TestAnyOfPetTreatment:
         assert hash(first) == hash(second)
         assert first != other
 
+    def test_bhv_serialization_076_a_union_value_matching_no_candidate_raises(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"unrelatedKey":"value"}', "PetTreatment")
+
     def test_bhv_unions_007_no_matching_variant_raises(self) -> None:
         """oneof-nondiscriminator-no-match-silent: a payload matching neither
         Medication nor Surgery must raise rather than yield a silently-empty

@@ -1343,6 +1343,24 @@ class TestAuthRequestsOmitTheCallersDefaultHeaders:
     """A no_redirect request is the OAuth2 token POST: the transport's default
     headers are meant for the API and never reach the identity provider."""
 
+    def test_bhv_redirects_056_an_opted_out_request_sends_no_default_header_and_the_next_one_does(self) -> None:
+        class _Pool:
+            def __init__(self) -> None:
+                self.sent: list[dict[str, str]] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.sent.append(dict(kwargs.get("headers") or {}))
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        options = TransportOptions.builder().default_header("X-Default", "d").build()
+        client = DefaultApiClient(options, pool_manager=pool)
+        client.send_request("POST", "https://example.com/token", {}, "a=b", no_redirect=True)
+        client.send_request("GET", "https://example.com/x", {}, None)
+
+        assert "X-Default" not in pool.sent[0]
+        assert pool.sent[1]["X-Default"] == "d"
+
     def _send(self, no_redirect: bool) -> dict[str, str]:
         class _Pool:
             def __init__(self) -> None:

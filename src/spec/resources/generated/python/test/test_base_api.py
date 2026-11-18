@@ -3296,6 +3296,25 @@ _OK: Reply = (200, {}, "{}")
 
 
 class TestAutomaticRetries:
+    async def test_bhv_retries_048_a_default_client_retries_a_503_and_returns_the_later_success(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, _SOON, "{}"), _OK)
+
+        result = await _get(_retry_api(server))
+
+        assert result is not None
+        assert len(server.requests) == 2
+
+    async def test_bhv_retries_047_a_wait_that_would_overrun_the_caller_timeout_is_not_taken(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, {"Retry-After": "30"}, "{}"), _OK)
+
+        with pytest.raises(ApiException):
+            await _get(_retry_api(server, timeout=2))
+        assert len(server.requests) == 1
+
     @pytest.mark.parametrize("status", [408, 409, 429, 500, 502, 503, 504, 599])
     async def test_a_retryable_status_is_sent_again(
         self, scripted: Any, status: int

@@ -218,6 +218,13 @@ class TestNonAsciiSerialization:
 
 
 class TestDeserializationErrorWrapping:
+    def test_bhv_serialization_071_json_nested_beyond_the_depth_cap_is_refused_before_parsing(
+        self,
+    ) -> None:
+        deep = "[" * 1001 + "]" * 1001
+        with pytest.raises(SerializationException, match="exceeds limit 1000"):
+            ObjectSerializer.parse_json(deep)
+
     @pytest.mark.parametrize(
         ("payload", "type_name"),
         [
@@ -415,6 +422,16 @@ class TestDecimalNumberSerializesUnquoted:
         assert '"weightKg":"1.5"' not in reserialized
 
 
+class TestNullOptionalField:
+    def test_bhv_serialization_070_a_json_null_for_an_optional_field_decodes_to_none(
+        self,
+    ) -> None:
+        pet = ObjectSerializer().deserialize(
+            '{"name":"Fido","photoUrls":[],"category":null}', "Pet"
+        )
+        assert pet.category is None
+
+
 class TestNumberIsLossless:
     """A `type: number` field decodes and encodes without float rounding and
     rejects a quoted string."""
@@ -459,6 +476,22 @@ class TestNumberIsLossless:
     def test_constructor_rejects_a_string(self) -> None:
         with pytest.raises(ValidationError):
             Pet.model_validate({"name": "Fido", "photoUrls": [], "weightKg": "12.345"})
+
+
+class TestDurationRoundTrip:
+    def test_bhv_serialization_077_a_duration_round_trips_for_zero_negative_sub_second_multi_day_and_extreme(
+        self,
+    ) -> None:
+        values = [
+            datetime.timedelta(0),
+            datetime.timedelta(seconds=-90, microseconds=-250000),
+            datetime.timedelta(microseconds=1500),
+            datetime.timedelta(days=3, seconds=5),
+            datetime.timedelta(seconds=315576000000),
+        ]
+        for value in values:
+            text = ObjectSerializer.stringify(value)
+            assert ObjectSerializer()._deserialize(text, "datetime.timedelta") == value
 
 
 class TestSetSanitization:
@@ -1452,6 +1485,14 @@ class TestNanInfinityRejection:
 
 
 class TestConstructionKeepsWhatItIsGiven:
+    def test_bhv_serialization_069_a_value_outside_a_schema_bound_is_kept_at_construction(
+        self,
+    ) -> None:
+        assert (
+            self._built(nickname="a-nickname-far-too-long").nickname
+            == "a-nickname-far-too-long"
+        )
+
     """F316: building a model never raises on a value; decoding is where validation happens."""
 
     @staticmethod
@@ -1551,6 +1592,25 @@ class TestDecodeValidates:
 
 
 class TestModelsAreImmutable:
+    def test_bhv_serialization_067_extra_properties_are_written_beside_the_declared_fields(
+        self,
+    ) -> None:
+        import json
+
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', "Metadata"
+        )
+        wire = json.loads(ObjectSerializer().serialize(metadata))
+        assert wire["region"] == "eu"
+        assert "createdAt" in wire
+
+    def test_bhv_serialization_074_nested_arrays_serialize_to_the_same_nested_shape(
+        self,
+    ) -> None:
+        import json
+
+        assert json.loads(ObjectSerializer().serialize([[1, 2], [3]])) == [[1, 2], [3]]
+
     def test_bhv_serialization_079_a_copy_changes_only_the_named_fields(self) -> None:
         pet = Pet(name="Fido", photoUrls=["x"])
         copy = pet.model_copy(update={"name": "Rex"})
@@ -1630,6 +1690,14 @@ class TestTimeFormat:
         assert (
             ObjectSerializer.stringify(datetime.time(10, 30, 0, 999600))
             == "10:30:00.999"
+        )
+
+    def test_bhv_serialization_078_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second(
+        self,
+    ) -> None:
+        assert ObjectSerializer.stringify(datetime.time(9, 5, 3)) == "09:05:03"
+        assert (
+            ObjectSerializer.stringify(datetime.time(9, 5, 3, 500000)) == "09:05:03.500"
         )
 
     def test_stringify_time_drops_a_sub_millisecond_part(self) -> None:
