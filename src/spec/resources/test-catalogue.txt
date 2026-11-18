@@ -1942,3 +1942,6 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langkotlin001 | The generated scheme wrapper reads each of its credentials from its own environment variable
+langkotlin002 | A generated scheme wrapper with no credential of its own falls back to the authenticator it was built with
+langkotlin003 | An API key containing a line break or a NUL character is refused when the authenticator is built
