@@ -1073,7 +1073,7 @@ class TestBodyReplayOnTlsDowngrade:
     body over plaintext. The existing Authorization-strip guard covers the
     credential header path; this guard covers the body itself."""
 
-    def test_bhv_retries_051_307_downgrade_with_body_raises(self) -> None:
+    def test_bhv_retries_051_status_307_downgrade_with_body_raises(self) -> None:
         from petstore_client.errors import ApiException
 
         class _Pool:
@@ -1129,7 +1129,7 @@ class TestBodyReplayOnTlsDowngrade:
             )
         assert redirect.released
 
-    def test_bhv_lang_python_065_308_downgrade_with_body_raises(self) -> None:
+    def test_bhv_lang_python_065_status_308_downgrade_with_body_raises(self) -> None:
         from petstore_client.errors import ApiException
 
         class _Pool:
@@ -1308,7 +1308,9 @@ class TestContentLengthStrippedOnRedirect:
         )
         assert not any(k.lower() == "content-type" for k in followup_headers)
 
-    def test_bhv_lang_python_067_302_post_to_get_drops_content_length(self) -> None:
+    def test_bhv_lang_python_067_status_302_post_to_get_drops_content_length(
+        self,
+    ) -> None:
         # 302 on a POST demotes to GET in our loop (mirrors browser behaviour
         # and the other 11 SDKs). The body and its length headers must go.
         class _Pool:
@@ -1355,7 +1357,7 @@ class TestContentLengthStrippedOnRedirect:
         )
         return pool.calls
 
-    def test_bhv_lang_python_068_302_bodyless_post_to_get_drops_the_zero_content_length(
+    def test_bhv_lang_python_068_status_302_bodyless_post_to_get_drops_the_zero_content_length(
         self,
     ) -> None:
         calls = self._redirect_once(302, "POST")

@@ -627,7 +627,7 @@ class TestN1RedirectBodyReplayMatrix:
                 assert pool.calls[1][0] == method
                 assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
 
-    def test_bhv_redirects_048_301_and_302_turn_post_into_get(self) -> None:
+    def test_bhv_redirects_048_status_301_and_302_turn_post_into_get(self) -> None:
         for status in (301, 302):
             transport = TransportOptions.builder().follow_redirects(True).build()
             pool = self._pool(status)
@@ -694,7 +694,7 @@ class TestN1RedirectBodyReplayMatrix:
             assert pool.calls[1][0] == 'GET'
             assert pool.calls[1][2] is None
 
-    def test_bhv_redirects_051_303_keeps_head_as_head(self) -> None:
+    def test_bhv_redirects_051_status_303_keeps_head_as_head(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._pool(303)
         client = DefaultApiClient(transport, pool_manager=pool)
