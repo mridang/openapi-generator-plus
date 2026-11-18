@@ -385,6 +385,33 @@ class TestClientSchemeCredentials:
         assert client.store._authenticator is default
         assert list(client.store._scheme_authenticators.values()) == [held]
 
+    def test_bhv_misc_071_a_credential_that_needs_http_receives_the_clients_transport(
+        self,
+    ) -> None:
+        class TransportAware(BearerAuthenticator, HttpAwareAuthenticator):
+            received: Any = None
+
+            def set_api_client(self, api_client: Any) -> None:
+                self.received = api_client
+
+        aware = TransportAware("https://api.example.com", "tok")
+
+        client = Client(aware)
+
+        assert aware.received is client._api_client
+
+    def test_bhv_misc_075_a_credential_keyed_to_an_undeclared_scheme_is_refused_at_build(
+        self,
+    ) -> None:
+        with pytest.raises(TypeError):
+            Client(
+                **{
+                    "undeclaredScheme": BearerAuthenticator(
+                        "https://api.example.com", "tok"
+                    )
+                }
+            )
+
     def test_bhv_lang_python_049_the_call_hook_reaches_every_api_group(self) -> None:
         class _Hook:
             def start(

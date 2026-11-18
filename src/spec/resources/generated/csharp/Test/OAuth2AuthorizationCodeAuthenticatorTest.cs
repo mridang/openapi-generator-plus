@@ -46,6 +46,19 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         }
     }
 
+    private sealed class FailingApiClient(Exception failure) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            throw failure;
+        }
+    }
+
     private static readonly string[] Scopes = new[] { "read", "write" };
 
     private static OAuth2AuthorizationCodeAuthenticator CreateAuthenticator()
@@ -394,6 +407,19 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
         );
         Assert.Equal("Must call ExchangeCodeAsync() before making API requests", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvMisc028ATransportFailureDuringTheCodeExchangeReachesTheCallerUnchanged()
+    {
+        var failure = new NetworkException("connection reset");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(new FailingApiClient(failure));
+
+        var ex = await Assert.ThrowsAsync<NetworkException>(() =>
+            auth.ExchangeCodeAsync("auth-code-xyz")
+        );
+        Assert.Same(failure, ex);
     }
 
     [Fact]

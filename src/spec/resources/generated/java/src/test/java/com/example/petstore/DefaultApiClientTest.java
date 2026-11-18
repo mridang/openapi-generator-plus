@@ -56,6 +56,18 @@ class DefaultApiClientTest {
   class DefaultTlsVerification {
 
     @Test
+    @DisplayName(
+        "bhvMisc038 with no CA certificate, server certificates use the platform trust store")
+    void bhvMisc038WithNoCaCertificateServerCertificatesUseThePlatformTrustStore() {
+      String chasmUrl = ChasmContainer.getHttpsBaseUrl();
+
+      DefaultApiClient client = new DefaultApiClient();
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () -> client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null));
+    }
+
+    @Test
     @DisplayName("bhvTransport023 the default transport rejects a certificate from an untrusted CA")
     void bhvTransport023DefaultTransportRejectsAnUntrustedCertificate() {
       String chasmUrl = ChasmContainer.getHttpsBaseUrl();
