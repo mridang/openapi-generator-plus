@@ -9,7 +9,7 @@ import * as fs from "node:fs";
 import * as util from "node:util";
 import * as path from "node:path";
 import { ObjectSerializer } from "../src/object-serializer.js";
-import { Metadata, Pet } from "../src/models/index.js";
+import { Category, Metadata, Pet } from "../src/models/index.js";
 
 describe("Metadata", () => {
   describe("package.json manifest", () => {
@@ -247,6 +247,24 @@ describe("Metadata", () => {
       expect(metadata.additionalProperties).toEqual({ customField: "hello" });
     });
 
+    test("bhv models 023 undeclared keys named like SDK methods are kept as additional properties, not treated as methods", () => {
+      const metadata = ObjectSerializer.deserialize(
+        { createdAt: "2024-01-01T00:00:00Z", equals: "x", toJSON: "y" },
+        Metadata,
+      ) as Metadata;
+      expect(metadata.additionalProperties).toEqual({
+        equals: "x",
+        toJSON: "y",
+      });
+      expect(typeof Metadata.prototype.equals).toBe("function");
+    });
+
+    test("bhv models 024 a newly built model leaves its optional properties unset", () => {
+      const metadata = new Metadata();
+      expect(metadata.createdAt).toBeUndefined();
+      expect(metadata.additionalProperties).toEqual({});
+    });
+
     test("exposes the undeclared keys of a constructed instance", () => {
       const metadata = new Metadata({
         createdAt: new Date("2024-01-01T00:00:00Z"),
@@ -261,6 +279,18 @@ describe("Metadata", () => {
       });
       expect(metadata.additionalProperties).toEqual({});
       expect(new Metadata().additionalProperties).toEqual({});
+    });
+
+    test("bhv models 022 a generated model whose schema allows undeclared properties reports that it does", () => {
+      expect(
+        Object.getOwnPropertyDescriptor(
+          Metadata.prototype,
+          "additionalProperties",
+        )?.get,
+      ).toBeDefined();
+      expect(
+        "additionalProperties" in new Category({ id: 1, name: "Dogs" }),
+      ).toBe(false);
     });
 
     test("is typed like the index signature so typed values read without a cast", () => {

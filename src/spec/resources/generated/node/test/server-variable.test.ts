@@ -39,12 +39,20 @@ describe("ServerVariable", () => {
     expect(variable.enumValues).toEqual([]);
   });
 
+  it("bhv servers 027 two variables built with the same default, description and enum values are equal", () => {
+    expect(
+      new ServerVariable("prod", "the environment", ["prod", "staging"]),
+    ).toEqual(
+      new ServerVariable("prod", "the environment", ["prod", "staging"]),
+    );
+  });
+
   it("bhv servers 024 freezes its enum values so the array cannot be mutated", () => {
     const variable = new ServerVariable("prod", null, ["prod", "staging"]);
     expect(Object.isFrozen(variable.enumValues)).toBe(true);
   });
 
-  it("copies the enum values so later mutation of the source does not leak in", () => {
+  it("bhv servers 026 copies the enum values so later mutation of the source does not leak in", () => {
     const source = ["prod"];
     const variable = new ServerVariable("prod", null, source);
     source.push("staging");

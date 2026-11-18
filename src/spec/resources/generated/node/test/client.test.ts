@@ -109,6 +109,16 @@ describe("Client", () => {
       );
     });
 
+    test("bhv config 025 an empty token variable counts as unset and construction names the variable", () => {
+      process.env[variable] = "";
+
+      expect(() => Client.withToken("/api/v3")).toThrow(
+        new TypeError(
+          `Bearer token is required: pass it explicitly or set ${variable}`,
+        ),
+      );
+    });
+
     test("bhv lifecycle 028 an explicit host and token win over the environment", async () => {
       process.env[variable] = "env-token";
       const seen: Array<{ url: string; authorization: string | undefined }> =
@@ -168,6 +178,31 @@ describe("Client", () => {
 
       expect(() => Client.withToken("/api/v3")).toThrow(TypeError);
     });
+  });
+
+  test("bhv lifecycle 039 a client with no host or an empty token is refused at construction, and a valid token builds one", () => {
+    expect(() => Client.withToken("", "valid-token")).toThrow(TypeError);
+    expect(() => Client.withToken("/api/v3", "")).toThrow(TypeError);
+    expect(Client.withToken("/api/v3", "valid-token")).toBeDefined();
+  });
+
+  test("bhv retries 043 an unauthorized response is not replayed when no authenticator can supply fresh credentials", async () => {
+    let calls = 0;
+    const stub = (async (): Promise<Response> => {
+      calls++;
+      return new Response("{}", {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = Client.withToken(
+      "/api/v3",
+      "static-token",
+      TransportOptions.builder().fetch(stub).build(),
+    );
+
+    await expect(client.store.getInventory()).rejects.toThrow();
+    expect(calls).toBe(1);
   });
 
   test("construct with a custom fetch in the transport options", () => {

@@ -271,6 +271,11 @@ export class TransportOptions {
   }) {
     assertValidProxy(options.proxy);
     assertFetchCompatible(options);
+    if (options.fetchOptions?.['redirect'] === 'follow') {
+      throw new TypeError(
+        'A fetchOptions redirect of follow conflicts with the SDK redirect handling: remove it and use followRedirects and maxRedirects instead.'
+      );
+    }
     assertValidMaxRetries(options.maxRetries ?? 2);
     if (options.maxRedirects != null) assertValidMaxRedirects(options.maxRedirects);
     this.verifySsl = options.verifySsl;

@@ -690,7 +690,7 @@ describe('DefaultApiClient.decodeBody charset handling', () => {
     ).toBe('é');
   });
 
-  it('handles quoted charset values', () => {
+  it('bhv serialization 055 handles quoted charset values', () => {
     const buf = Buffer.from([0xE9]);
     expect(
       DefaultApiClient.decodeBody(buf, 'text/plain; charset="ISO-8859-1"')
@@ -728,6 +728,17 @@ describe('DefaultApiClient.decodeBody charset handling', () => {
 });
 
 describe('DefaultApiClient.buildContentDisposition multipart filename safety', () => {
+  it('bhv serialization 057 a multipart field name containing a NUL byte or a line break is refused', () => {
+    expect(() => DefaultApiClient.buildContentDisposition('fi\r\nle', 'file.txt')).toThrow(TypeError);
+    expect(() => DefaultApiClient.buildContentDisposition(`fi${String.fromCharCode(0)}le`, 'file.txt')).toThrow(TypeError);
+  });
+
+  it('bhv serialization 056 quotes and backslashes in multipart field and file names are escaped', () => {
+    const header = DefaultApiClient.buildContentDisposition('a"b\\c', 'x"y.txt');
+    expect(header).toContain('name="a\\"b\\\\c"');
+    expect(header).toContain('filename="x\\"y.txt"');
+  });
+
   it('bhv serializationwire 043 throws on filename containing CR/LF (header-injection attempt)', () => {
     expect(() =>
       DefaultApiClient.buildContentDisposition('file', 'a\r\nX-Injected: yes')
@@ -933,6 +944,45 @@ describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', ()
       await client.sendRequest('POST', url, {}, { 'a"b.png': Buffer.from([0x89, 0x50, 0x4e, 0x47]) });
       const body = getBody().toString('binary');
       expect(body).toContain('filename="a\\"b.png"');
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv serialization 058 a multipart part with no filename is sent as application/octet-stream', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest('POST', url, {}, { blob: Buffer.from([0x00, 0x01]) });
+      const body = getBody().toString('binary');
+      expect(body).toContain('Content-Type: application/octet-stream');
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv serialization 059 a raw binary part is sent as a file part that carries exactly its bytes', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      const bytes = Buffer.from([0x00, 0xff, 0x7f, 0x0d, 0x0a]);
+      await client.sendRequest('POST', url, {}, { 'data.bin': bytes });
+      const body = getBody();
+      expect(body.includes(bytes)).toBe(true);
+      expect(body.toString('binary')).toContain('filename="data.bin"');
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv serialization 060 a model sent as a multipart part declares the application/json media type', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest('POST', url, {}, { edge: new EdgeCases({ n2fa: true }) });
+      const body = getBody().toString('utf-8');
+      expect(body).toContain('Content-Type: application/json');
+      expect(body).toContain('"2fa":true');
     } finally {
       close();
     }
@@ -1501,6 +1551,99 @@ describe('HTTPS -> HTTP body replay guard', () => {
     expect(call).toBe(2);
   });
 
+  it('bhv redirects 038 a 307 or 308 redirect keeps the method and sends the original body with its Content-Type', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, { status: 308, headers: { Location: 'https://example.invalid/landing' } });
+      }
+      return new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+
+    await client.sendRequest('PUT', 'https://example.invalid/start', { 'Content-Type': 'application/json' }, '{"a":1}');
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.url).toBe('https://example.invalid/landing');
+    expect(calls[1]!.init.method).toBe('PUT');
+    expect(calls[1]!.init.body).toBe('{"a":1}');
+    expect((calls[1]!.init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+  });
+
+  it('bhv redirects 039 a request with no body keeps its method when a redirect goes from HTTPS to plain HTTP', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, { status: 307, headers: { Location: 'http://example.invalid/plain' } });
+      }
+      return new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+
+    await client.sendRequest('DELETE', 'https://example.invalid/start', {}, null);
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.url).toBe('http://example.invalid/plain');
+    expect(calls[1]!.init.method).toBe('DELETE');
+  });
+
+  it('bhv redirects 041 a POST turned into a GET on 302 sends no Content-Length or Content-Type header', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, { status: 302, headers: { Location: 'https://example.invalid/landing' } });
+      }
+      return new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+
+    await client.sendRequest('POST', 'https://example.invalid/start', { 'Content-Type': 'text/plain' }, 'payload');
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.init.method).toBe('GET');
+    const names = Object.keys((calls[1]!.init.headers ?? {}) as Record<string, string>).map((key) => key.toLowerCase());
+    expect(names).not.toContain('content-length');
+    expect(names).not.toContain('content-type');
+  });
+
+  it('bhv redirects 042 a 307 redirect of a bodyless POST keeps the request a POST and sends Content-Length zero', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, { status: 307, headers: { Location: 'https://example.invalid/landing' } });
+      }
+      return new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+
+    await client.sendRequest('POST', 'https://example.invalid/start', {}, null);
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.init.method).toBe('POST');
+    expect((calls[1]!.init.headers as Record<string, string>)['Content-Length']).toBe('0');
+  });
+
+  it('bhv redirects 043 a relative Location is resolved against the URL of the request that received the redirect', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, { status: 302, headers: { Location: '../other?x=1' } });
+      }
+      return new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+
+    await client.sendRequest('GET', 'https://example.invalid/a/b/start', {}, null);
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.url).toBe('https://example.invalid/a/other?x=1');
+  });
+
   it('bhv redirects 040 allows HTTPS -> HTTP when the redirect status forces an empty body (303)', async () => {
     let call = 0;
     global.fetch = (async (): Promise<Response> => {
@@ -1861,7 +2004,7 @@ describe('graceful close', () => {
     }
   });
 
-  it('releases the transport the SDK created only when the last running request completes', async () => {
+  it('bhv lifecycle 037 releases the transport the SDK created only when the last running request completes', async () => {
     const slow = await slowServer();
     const client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).maxRedirects(2).build());
     const dispatcher = (client as unknown as { dispatcher: { closed: boolean } }).dispatcher;
@@ -2283,6 +2426,22 @@ describe('injected fetch (TransportOptions.fetch)', () => {
     await client.close();
   });
 
+  it('bhv lifecycle 038 a caller-supplied fetch with no close operation is valid, and closing repeatedly succeeds while requests are sent', async () => {
+    let called = 0;
+    const customFetch = (async (): Promise<Response> => {
+      called++;
+      return new Response('{}');
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().fetch(customFetch).build());
+
+    await client.sendRequest('GET', 'http://example.invalid/', {}, null);
+    await client.sendRequest('GET', 'http://example.invalid/', {}, null);
+    await expect(client.close()).resolves.toBeUndefined();
+    await expect(client.close()).resolves.toBeUndefined();
+
+    expect(called).toBe(2);
+  });
+
   it('bhv redirects 037 a redirect to the explicit default port of the same origin keeps the Authorization header', async () => {
     const calls: Array<Record<string, unknown>> = [];
     const customFetch = (async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -2673,6 +2832,20 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     await send(client);
     await send(client);
     expect(calls).toHaveLength(6);
+  });
+
+  it('bhv retries 044 with request ids supplied, every retry is sent with an identifier that differs from the attempts before it', async () => {
+    calls = [];
+    const client = clientPlaying(
+      [reply(503), reply(503), reply(200)],
+      (builder) => builder.injectRequestId(true).maxRetries(2),
+    );
+
+    await send(client);
+
+    const ids = calls.map((call) => call.headers['X-Request-ID']);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
   });
 
   it('bhv retries 018 maxRetries(0) disables retries', async () => {

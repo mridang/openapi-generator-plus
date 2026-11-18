@@ -12,6 +12,34 @@ import {
 } from "../src/server-configuration.js";
 
 describe("ServerConfiguration", () => {
+  it("bhv servers 028 a server configuration and its variables cannot be changed after creation", () => {
+    const config = new ServerConfiguration("https://{env}.example.com", null, {
+      env: new ServerVariable("prod", null, ["prod", "staging"]),
+    });
+    expect(Object.isFrozen(config.variables)).toBe(true);
+    expect(() => {
+      (config.variables as Record<string, ServerVariable>)["extra"] =
+        new ServerVariable("x", null, []);
+    }).toThrow(TypeError);
+    expect(Object.keys(config.variables)).toEqual(["env"]);
+  });
+
+  it("bhv servers 025 changing the variables map after building a configuration does not change it", () => {
+    const variables: Record<string, ServerVariable> = {
+      env: new ServerVariable("prod", null, ["prod", "staging"]),
+    };
+    const config = new ServerConfiguration(
+      "https://{env}.example.com",
+      null,
+      variables,
+    );
+    variables["env"] = new ServerVariable("staging", null, ["staging"]);
+    variables["extra"] = new ServerVariable("x", null, []);
+    expect(Object.keys(config.variables)).toEqual(["env"]);
+    expect(config.variables["env"]!.defaultValue).toBe("prod");
+    expect(config.getUrl()).toBe("https://prod.example.com");
+  });
+
   it("bhv servers 011 resolves a template-free URL unchanged", () => {
     const config = new ServerConfiguration(
       "https://api.example.com/v1",
