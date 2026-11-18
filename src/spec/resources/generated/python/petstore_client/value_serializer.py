@@ -427,7 +427,9 @@ class ValueSerializer:
             if isinstance(value, BaseModel)
             else value
         )
-        for key, val in fields.items():
+        for key, val in sorted(fields.items(), key=lambda kv: str(kv[0])):
+            if val is None:
+                continue
             ValueSerializer._refuse_object_leaf(param_name, key, val)
             result[f"{param_name}[{key}]"] = ObjectSerializer.stringify(val)
         return result

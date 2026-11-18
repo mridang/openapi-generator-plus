@@ -410,4 +410,15 @@ public class ConfigurationTest
         );
         Assert.Same(builder, builder.Server(server));
     }
+
+    [Fact]
+    public void BhvMisc180TheInspectFormShowsTheValueOfANonSensitiveDefaultHeader()
+    {
+        var config = new Configuration(
+            "https://api.example.com",
+            new Dictionary<string, string> { ["X-Trace"] = "visible-value" }
+        );
+
+        Assert.Contains("visible-value", config.ToString(), StringComparison.Ordinal);
+    }
 }

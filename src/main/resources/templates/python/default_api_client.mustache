@@ -1012,14 +1012,13 @@ class DefaultApiClient:
             # but body content can itself be sensitive (form fields,
             # JSON payloads), so refuse outright when a body would be
             # carried across the downgrade. 303 still coerces to GET
-            # and drops the body below, so the guard only triggers on
-            # 307 / 308 (body preserved) and on 301 / 302 of a body-
-            # bearing non-idempotent method that the matrix expects
-            # to replay.
+            # and drops the body below, so the guard triggers on 301 / 302
+            # (a body-bearing POST that would otherwise be demoted and the
+            # body replayed) and on 307 / 308 (body preserved).
             if (
                 current_body is not None
                 and self._is_https_to_http_downgrade(current_url, next_url)
-                and response.status in (307, 308)
+                and response.status in (301, 302, 307, 308)
             ):
                 self._release_response(response)
                 raise ApiException(

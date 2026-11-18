@@ -498,3 +498,11 @@ test('bhv misc 066 a token provider value is sent as the bearer credential on th
 
     expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-1');
 });
+
+test('bhv misc 067 a token provider error reaches the caller unchanged', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', null, function (): string {
+        throw new \RuntimeException('provider boom');
+    });
+
+    expect(fn () => $auth->getAuthHeaders())->toThrow(\RuntimeException::class, 'provider boom');
+});

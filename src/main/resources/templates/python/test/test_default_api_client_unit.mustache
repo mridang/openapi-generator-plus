@@ -2367,6 +2367,80 @@ class TestRedirectCookieAndAuthorizationOnSameOrigin:
         assert followed["cookie"] == "session=abc123"
 
 
+class _ScriptedPool:
+    """Pool double that answers each call from a script, then 200."""
+
+    def __init__(self, *script: Any) -> None:
+        self.script = list(script)
+        self.calls: list[Any] = []
+
+    def request(self, method: str, url: str, **kwargs: Any) -> Any:
+        self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+        if self.script:
+            status, location = self.script.pop(0)
+            return _FakeResp(status, {"location": location} if location else {})
+        return _FakeResp(200, {})
+
+
+class TestRedirectHopsAndStatuses:
+    """Per-hop redirect rules: the redirect status set, the body rule for an
+    upgrade, the method kept on a HEAD 303, and credentials across a return."""
+
+    def test_bhv_misc_125_a_307_redirect_that_upgrades_to_https_keeps_the_body(self) -> None:
+        pool = _ScriptedPool((307, "https://example.com/upgraded"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request(
+            "POST", "http://example.com/secure", {"Content-Type": "application/json"}, '{"a":1}'
+        )
+        assert len(pool.calls) == 2
+        assert pool.calls[1][1] == "https://example.com/upgraded"
+
+    def test_bhv_misc_124_a_301_https_to_http_redirect_refuses_the_body_replay(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        pool = _ScriptedPool((301, "http://example.com/plain"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request(
+                "POST", "https://example.com/secure", {"Content-Type": "application/json"}, '{"a":1}'
+            )
+        assert excinfo.value.status_code == 301
+        assert len(pool.calls) == 1
+
+    def test_bhv_misc_126_a_head_request_redirected_by_303_is_followed_as_head(self) -> None:
+        pool = _ScriptedPool((303, "https://example.com/elsewhere"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request("HEAD", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 2
+        assert pool.calls[1][0] == "HEAD"
+
+    @pytest.mark.parametrize("status", [300, 305])
+    def test_bhv_misc_133_a_300_or_305_with_a_location_is_returned_unfollowed(self, status: int) -> None:
+        pool = _ScriptedPool((status, "https://example.com/elsewhere"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 1
+        assert response.status == status
+
+    def test_bhv_misc_130_a_credential_removed_by_a_cross_origin_hop_is_not_restored_on_return(self) -> None:
+        pool = _ScriptedPool((302, "https://other.example.com/hop"), (302, "https://example.com/back"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request("GET", "https://example.com/start", {"Authorization": "Bearer secret"}, None)
+        assert len(pool.calls) == 3
+        assert pool.calls[1][2].get("Authorization") is None
+        assert {k.lower() for k in pool.calls[2][2]}.isdisjoint({"authorization"})
+
+
 class TestGarbageCaCertPath:
     def test_bhv_errors_039_unparseable_ca_file_raises_value_error_naming_the_path(
         self, tmp_path: Any
