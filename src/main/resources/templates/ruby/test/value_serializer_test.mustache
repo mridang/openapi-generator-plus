@@ -590,6 +590,11 @@ describe {{moduleName}}::ValueSerializer do
     end
   end
 
+  it 'bhv_serialization_005 a path value keeps unreserved and sub-delimiter characters literal and encodes the rest' do
+    _({{moduleName}}::ValueSerializer.serialize('Az09-._~!$&\'()*+,;=:@', :path, 'string')).must_equal('Az09-._~!$&\'()*+,;=:@')
+    _({{moduleName}}::ValueSerializer.serialize('/?#[]%', :path, 'string')).must_equal('%2F%3F%23%5B%5D%25')
+  end
+
   # allowReserved query encoding: a query parameter with allowReserved: true
   # leaves RFC 3986 reserved characters literal on the wire, while everything
   # else (spaces, control, non-ASCII) is still percent-encoded.

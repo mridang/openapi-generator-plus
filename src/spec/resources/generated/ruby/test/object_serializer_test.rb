@@ -1986,6 +1986,12 @@ describe Petstore::Client::ObjectSerializer, 'wire contract for scalars, contain
     }).must_raise(Petstore::Client::Errors::SerializationError)
   end
 
+  it 'bhv_serialization_012 keys of maps are written in ascending order so equal data writes identical output' do
+    first = Petstore::Client::ObjectSerializer.serialize({ 'b' => 1, 'a' => 2, 'c' => 3 })
+    _(first).must_equal('{"a":2,"b":1,"c":3}')
+    _(first).must_equal(Petstore::Client::ObjectSerializer.serialize({ 'c' => 3, 'a' => 2, 'b' => 1 }))
+  end
+
   it 'bhv_serialization_011 model keys are written in the declaration order, never sorted' do
     json = Petstore::Client::ObjectSerializer.serialize(
       Petstore::Client::Models::TestFormatModel.new(note: 'n', blob: 'b')
