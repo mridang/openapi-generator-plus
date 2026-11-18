@@ -1813,3 +1813,38 @@ test('bhv operations 033 deprecation markers sit on every variant of a deprecate
         expect($doc)->toContain('@deprecated This operation is deprecated.');
     }
 });
+
+test('bhv lifecycle 042 an api built on a caller supplied transport sends its requests through that transport', function (): void {
+    $transport = new CapturingApiClient();
+    $api = new PetApi($transport, new Configuration('http://localhost'));
+
+    try {
+        $api->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+
+    expect($transport->capturedUrl ?? '')->toContain('/pet');
+});
+
+test('bhv operations 158 a header supplied on an individual call is sent with that call', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    try {
+        $api->addPetWithHttpInfo(
+            new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])),
+            new AddPetOptions(headers: ['X-Call-Id' => 'per-call'])
+        );
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+
+    expect($client->capturedHeaders['X-Call-Id'] ?? '')->toBe('per-call');
+});
+
+test('bhv operations 159 a call that returns a value raises a typed api error when a success response has an empty body', function (): void {
+    $api = newPetApiForMock(200, 'application/json', '');
+
+    expect(fn (): mixed => $api->getPetById(1))->toThrow(ApiException::class);
+});
