@@ -1926,6 +1926,61 @@ paths:
               schema: { type: string }
               example: "hello world"
 
+  # ─── Streaming responses ─────────────────────────────────────────────────────
+  # A JSON Lines export and two server-sent event feeds (one with a JSON payload
+  # schema, one with a plain string payload). They are real operations so that
+  # the generator emits their stream methods; none of them is x-internal.
+
+  /store/orders/export:
+    get:
+      tags:
+        - store
+      summary: Exports every order as JSON Lines
+      operationId: exportOrders
+      security: []
+      responses:
+        '200':
+          description: One order per line
+          content:
+            application/x-ndjson:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /store/orders/events:
+    get:
+      tags:
+        - store
+      summary: Streams order changes as server-sent events
+      operationId: watchOrders
+      security: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One event per order change
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /store/notices:
+    get:
+      tags:
+        - store
+      summary: Streams plain text notices as server-sent events
+      operationId: watchNotices
+      security: []
+      responses:
+        '200':
+          description: One event per notice
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
   /test/empty:
     get:
       operationId: testEmpty
