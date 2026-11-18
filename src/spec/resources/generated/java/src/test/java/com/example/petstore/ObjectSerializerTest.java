@@ -3770,4 +3770,13 @@ class ObjectSerializerTest {
   void bhvSerialization106NonExplodedArrayQueryValueJoinsWithCommas() {
     assertEquals("a,b,c", ObjectSerializer.toQueryValue(List.of("a", "b", "c"), null));
   }
+
+  @Test
+  void bhvSerialization098UnsetOptionalFieldIsLeftOutOfTheSerializedOutput() {
+    com.example.petstore.models.EdgeCases edge =
+        com.example.petstore.models.EdgeCases.builder().build();
+    String json = serializer.serialize(edge);
+    assertFalse(json.contains("permissionsNote"), json);
+    assertFalse(json.contains("\"slug\""), json);
+  }
 }
