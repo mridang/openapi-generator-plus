@@ -80,6 +80,20 @@ defmodule PetstoreClient.Models.MetadataTest do
       refute with_extra == other_extra
     end
 
+    test "bhv equality 001 equal values are equal and a change in a nested value makes them unequal" do
+      build = fn value ->
+        %PetstoreClient.Models.Metadata{
+          created_at: "2024-01-01T00:00:00+00:00",
+          additional_properties: %{"customField" => value}
+        }
+      end
+
+      assert build.("hello") == build.("hello")
+      refute build.("hello") == build.("other")
+      refute build.("hello") == Map.from_struct(build.("hello"))
+      refute build.("hello") == nil
+    end
+
     test "defines additional_properties function" do
       assert PetstoreClient.Models.Metadata.additional_properties() == true
     end
