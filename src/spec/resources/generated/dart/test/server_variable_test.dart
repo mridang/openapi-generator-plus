@@ -77,20 +77,6 @@ void main() {
     );
 
     test(
-      'bhv servers 026 changing the allowed values list after building a variable does not change them',
-      () {
-        final allowed = <String>['dev', 'prod'];
-        final variable = ServerVariable(
-          defaultValue: 'dev',
-          enumValues: allowed,
-        );
-        allowed.add('staging');
-
-        expect(variable.enumValues, isNot(contains('staging')));
-      },
-    );
-
-    test(
       'bhv servers 027 two server variables with the same default, description and allowed values are equal',
       () {
         const first = ServerVariable(

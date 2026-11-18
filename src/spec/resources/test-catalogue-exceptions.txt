@@ -219,3 +219,5 @@ dart | models014 | Dart model fields are final and the compiler rejects reassign
 dart | options063 | Dart per-call options fields are final and the compiler rejects reassignment, so no runtime test can observe a changed field
 dart | serialization051 | Dart has no reflection, so the absence of a public unknown-key method cannot be observed at run time; the strict path is covered through deserialize
 dart | lifecycle040 | Dart has no scoped-disposal statement, and its standard disposal hook is close(), which bhv lifecycle 036 covers
+dart | servers026 | ServerVariable is built by a const constructor, which cannot copy its allowed-values list, so the caller's list stays referenced; the enumValues getter reads that list, and no copy can be taken at construction
+dart | servers025 | ServerConfiguration is built by a const constructor, which cannot copy its variables map, so the caller's map stays referenced; a copy at construction is impossible

@@ -345,21 +345,5 @@ void main() {
         expect(() => allServers.add(config), throwsUnsupportedError);
       },
     );
-
-    test(
-      'bhv servers 025 changing the variables map after building a configuration does not change that configuration',
-      () {
-        final variables = <String, ServerVariable>{
-          'env': const ServerVariable(defaultValue: 'prod'),
-        };
-        final config = ServerConfiguration(
-          urlTemplate: 'https://{env}.example.com',
-          variables: variables,
-        );
-        variables['other'] = const ServerVariable(defaultValue: 'x');
-
-        expect(config.variables.containsKey('other'), isFalse);
-      },
-    );
   });
 }

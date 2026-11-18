@@ -127,10 +127,28 @@ class UuidValue {
 /// Throws [SerializationException] if serialization fails.
 String serialize(Object? object) {
   try {
-    return jsonEncode(object, toEncodable: _encodeNonJsonValue);
+    return jsonEncode(_withSortedMapKeys(object), toEncodable: _encodeNonJsonValue);
   } catch (e) {
     throw SerializationException('Failed to serialize object to JSON: $e', e);
   }
+}
+
+/// Returns [value] with every plain map rebuilt in ascending key order, so a map
+/// serialises the same way whatever order it was built in. Models are left as
+/// they are: their `toJson()` keeps the declared property order.
+Object? _withSortedMapKeys(Object? value) {
+  if (value is Uint8List) return value;
+  if (value is Map<Object?, Object?>) {
+    final entries = value.entries.toList()
+      ..sort((a, b) => '${a.key}'.compareTo('${b.key}'));
+    return <Object?, Object?>{
+      for (final e in entries) e.key: _withSortedMapKeys(e.value),
+    };
+  }
+  if (value is Iterable<Object?>) {
+    return [for (final item in value) _withSortedMapKeys(item)];
+  }
+  return value;
 }
 
 /// Converts the Dart values `jsonEncode` cannot write on its own: a [DateTime]
