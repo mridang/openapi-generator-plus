@@ -449,6 +449,26 @@ class BaseApiTest {
                                             null));
             assertEquals(418, ex.getStatusCode());
         }
+
+        @Test
+        @DisplayName("bhvErrors071 a 401 response surfaces as UnauthorizedException")
+        void bhvErrors071A401ResponseSurfacesAsAnUnauthorizedError() {
+            var ex =
+                    assertThrowsExactly(
+                            UnauthorizedException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/401",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(401, ex.getStatusCode());
+        }
     }
 
     @Nested
