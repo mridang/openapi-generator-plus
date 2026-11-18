@@ -199,3 +199,28 @@ describe('ServerConfiguration', () => {
     expect(config.variables).toEqual(variables);
   });
 });
+
+describe('ServerConfiguration misc behaviours', () => {
+  it('bhv misc 154 editing the variables map returned by the accessor does not change the configuration', () => {
+    const config = new ServerConfiguration('https://{region}.example.com', null, {
+      region: new ServerVariable('eu', null, []),
+    });
+    config.variables['region'] = new ServerVariable('us', null, []);
+    expect(config.getUrl()).toBe('https://eu.example.com');
+  });
+
+  it('bhv misc 155 an unset enum variable with a disallowed default is refused, naming the variable and its allowed values', () => {
+    const config = new ServerConfiguration('https://{env}.api.example.com', null, {
+      env: new ServerVariable('dev', null, ['prod', 'staging']),
+    });
+    expect(() => config.getUrl()).toThrow(
+      "Invalid value 'dev' for server variable 'env'. Allowed values: prod, staging",
+    );
+  });
+
+  it('bhv misc 158 a server built with a fixed URL reports exactly that URL', () => {
+    const config = new ServerConfiguration('https://api.example.com/fixed', null, {});
+    expect(config.urlTemplate).toBe('https://api.example.com/fixed');
+    expect(config.getUrl()).toBe('https://api.example.com/fixed');
+  });
+});
