@@ -193,4 +193,43 @@ import Testing
     #expect(first == same)
     #expect(first != other)
   }
+
+  /* A variable declared with an empty enum accepts any value, and the URL is built from that value. */
+  @Test func testBhvMisc257AVariableDeclaredWithAnEmptyEnumAcceptsAnyValue() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/v1",
+      variables: ["env": ServerVariable(defaultValue: "prod", enumValues: [])]
+    )
+    #expect(try server.url(variables: ["env": "anything"]) == "https://anything.api.example.com/v1")
+  }
+
+  /* When no override is supplied for a variable, its default value is used in the URL. */
+  @Test func testBhvMisc258AMissingOverrideUsesTheVariableDefault() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/v{version}",
+      variables: [
+        "env": ServerVariable(defaultValue: "prod"),
+        "version": ServerVariable(defaultValue: "1"),
+      ]
+    )
+    #expect(try server.url(variables: ["version": "2"]) == "https://prod.api.example.com/v2")
+  }
+
+  /* A placeholder in the template with no declared variable stays in the URL exactly as written. */
+  @Test func testBhvMisc259AnUndeclaredPlaceholderStaysInTheUrl() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/{undeclared}",
+      variables: ["env": ServerVariable(defaultValue: "prod")]
+    )
+    #expect(try server.url() == "https://prod.api.example.com/{undeclared}")
+  }
+
+  /* A value containing backslash sequences is inserted into the URL exactly as given, with no escape processing. */
+  @Test func testBhvMisc261AValueWithBackslashSequencesIsInsertedLiterally() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/v1",
+      variables: ["env": ServerVariable(defaultValue: "prod")]
+    )
+    #expect(try server.url(variables: ["env": #"a\nb"#]) == #"https://a\nb.api.example.com/v1"#)
+  }
 }

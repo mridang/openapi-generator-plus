@@ -2779,4 +2779,34 @@ import Testing
         let fields = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
         #expect(Set(fields.keys) == ["username", "password"])
     }
+
+    /* A free-form object-valued field keeps its object and integer entries through a JSON round trip. */
+    @Test func testBhvMisc249AFreeFormObjectKeepsItsObjectAndIntegerEntriesThroughARoundTrip() throws {
+        let original = Freeform(additionalProperties: ["meta": AnyCodable(["k": "v"]), "n": AnyCodable(7)])
+        let json = try ObjectSerializer.serialize(original)
+        let restored = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Freeform.self))
+        #expect((restored.additionalProperties["meta"]?.value as? [String: Any])?["k"] as? String == "v")
+        #expect(restored.additionalProperties["n"]?.value as? Int == 7)
+    }
+
+    /* A duration string with a day designator is rejected. */
+    @Test func testBhvMisc251ADurationStringWithADayDesignatorIsRejected() throws {
+        #expect(throws: (any Error).self) {
+            _ = try ObjectSerializer.decodeDuration("1d")
+        }
+    }
+
+    /* An enum wire value containing separators round-trips unchanged. */
+    @Test func testBhvMisc252AnEnumWireValueWithSeparatorsRoundTripsUnchanged() throws {
+        enum Wire: String, Codable { case slashed = "a/b:c" }
+        struct Holder: Codable { let wire: Wire }
+        let json = try ObjectSerializer.serialize(Holder(wire: .slashed))
+        let restored = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Holder.self))
+        #expect(restored.wire == .slashed)
+    }
+
+    /* A fractional second is written with trailing zeros trimmed, keeping only the digits present. */
+    @Test func testBhvMisc256AFractionalSecondIsWrittenWithTrailingZerosTrimmed() throws {
+        #expect(try ObjectSerializer.encodeDuration(1.1) == "1.1s")
+    }
 }
