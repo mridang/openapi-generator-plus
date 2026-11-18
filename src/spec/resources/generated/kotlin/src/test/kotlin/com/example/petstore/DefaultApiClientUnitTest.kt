@@ -2922,7 +2922,6 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a timeout is not retried")
         @DisplayName("bhvRetries042 a timeout is not retried")
         fun aTimeoutIsNotRetried() {
             val apiClient = retrying(listOf(java.net.SocketTimeoutException("socket timed out")))

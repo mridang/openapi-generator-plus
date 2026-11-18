@@ -35,6 +35,20 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("bhvOptions052 a proxy URL carrying credentials is accepted")
+        fun proxyUrlCarryingCredentialsIsAccepted() {
+            val proxy = "http://proxy-user:" + "not-a-real-secret" + "@proxy.example.com:3128"
+            assertEquals(
+                proxy,
+                TransportOptions
+                    .builder()
+                    .proxy(proxy)
+                    .build()
+                    .proxy,
+            )
+        }
+
+        @Test
         @DisplayName("bhvOptions032 proxy defaults to null")
         fun proxyDefaultsToNull() {
             val opts = TransportOptions.builder().build()

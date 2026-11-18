@@ -2207,7 +2207,6 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("bhvOptions052 a proxy URL carrying credentials is accepted")
         @DisplayName("bhvTransport063 a proxy that requires credentials answers 407 when none are sent")
         fun proxyThatRequiresCredentialsAnswers407WhenNoneAreSent() {
             val chasmUrl = ChasmContainer.getInternalHttpUrl()

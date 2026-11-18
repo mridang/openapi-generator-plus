@@ -1220,6 +1220,43 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("bhvRedirects030 an explicit default port is the same origin as the implicit one")
+        fun redirectToExplicitDefaultPortPreservesAuthorizationImplicit() {
+            assertTrue(
+                sameOrigin(java.net.URI("https://host/x"), java.net.URI("https://host:443/y")),
+                "explicit :443 must be the same origin as the implicit https port",
+            )
+            assertTrue(
+                sameOrigin(java.net.URI("http://host/x"), java.net.URI("http://host:80/y")),
+                "explicit :80 must be the same origin as the implicit http port",
+            )
+            assertEquals(
+                443,
+                effectivePort(java.net.URI("https://host/x")),
+                "implicit https port must normalize to 443",
+            )
+            assertEquals(
+                443,
+                effectivePort(java.net.URI("https://host:443/y")),
+                "explicit :443 must round-trip as 443",
+            )
+            assertEquals(
+                80,
+                effectivePort(java.net.URI("http://host/x")),
+                "implicit http port must normalize to 80",
+            )
+            assertEquals(
+                80,
+                effectivePort(java.net.URI("http://host:80/y")),
+                "explicit :80 must round-trip as 80",
+            )
+            assertEquals(
+                8443,
+                effectivePort(java.net.URI("https://host:8443/y")),
+                "non-default ports must round-trip unchanged",
+            )
+        }
+
+        @Test
         @DisplayName("bhvRedirects037 a redirect to the explicit default port of the same origin keeps the Authorization header")
         fun redirectToExplicitDefaultPortPreservesAuthorization() {
             assertTrue(
