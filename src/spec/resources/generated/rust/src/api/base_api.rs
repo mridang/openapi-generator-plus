@@ -203,7 +203,9 @@ impl BaseApi {
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         let method = params.method;
         let request_path = crate::errors::api_error::request_path_of(params.path);
-        self.invoke_api_inner(params, &request_path)
+        /* Read on the first poll, in the caller's task, before any await. */
+        let trace = trace_context_util::TraceContext::capture();
+        self.invoke_api_inner(params, &request_path, &trace)
             .await
             .map_err(|err| crate::errors::api_error::attach_request(err, method, &request_path))
     }
@@ -212,6 +214,7 @@ impl BaseApi {
         &self,
         params: InvokeApiParams<'_>,
         request_path: &str,
+        trace: &trace_context_util::TraceContext,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(timeout) = params.call.timeout {
             if timeout.as_millis() == 0 {
@@ -346,7 +349,7 @@ impl BaseApi {
         }
 
         /* Inject trace context */
-        trace_context_util::inject_trace_context(&mut headers);
+        trace.inject(&mut headers);
 
         /* Serialize body. For multipart/form-data we hand the structured
          * fields to the API client as `RequestBody::Multipart`; the client's
@@ -413,7 +416,7 @@ impl BaseApi {
                     if attempt < max_retries && is_retryable_error(err.as_ref()) {
                         let delay = retry_delay(attempt, None);
                         if fits_budget(deadline, delay)
-                            && refresh_request_headers(effective_auth, &mut headers).await
+                            && refresh_request_headers(effective_auth, &mut headers, trace).await
                         {
                             tokio::time::sleep(delay).await;
                             attempt += 1;
@@ -451,7 +454,7 @@ impl BaseApi {
                     .and_then(|(_, value)| parse_retry_after(value));
                 let delay = retry_delay(attempt, retry_after);
                 if fits_budget(deadline, delay)
-                    && refresh_request_headers(effective_auth, &mut headers).await
+                    && refresh_request_headers(effective_auth, &mut headers, trace).await
                 {
                     tokio::time::sleep(delay).await;
                     attempt += 1;
@@ -759,6 +762,7 @@ fn fits_budget(deadline: Option<std::time::Instant>, delay: std::time::Duration)
 async fn refresh_request_headers(
     auth: Option<&dyn Authenticator>,
     headers: &mut HashMap<String, String>,
+    trace: &trace_context_util::TraceContext,
 ) -> bool {
     if let Some(auth) = auth {
         match auth.try_auth_headers().await {
@@ -770,7 +774,7 @@ async fn refresh_request_headers(
             Err(_) => return false,
         }
     }
-    trace_context_util::inject_trace_context(headers);
+    trace.inject(headers);
     true
 }
 

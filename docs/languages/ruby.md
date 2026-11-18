@@ -95,3 +95,5 @@ These are ideas from a review of the type mapping against current Ruby. None is 
 - Tighten model attributes from `Types::Any` to the real `dry-types`, but only if lenient decoding is not wanted. Otherwise the plan is to document `OPENAPI_TYPES` as the contract. This needs an owner decision.
 - Keep `String` for `uuid`, `uri`, `email` and `hostname`. Ruby has no UUID class, and parsing a URI risks changing its text.
 - Ruby 4.0 has no Temporal-like type, so `tod` and `iso8601` remain the libraries for time of day and duration.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `OpenTelemetry.propagation.inject` reads `OpenTelemetry::Context.current` on the caller's thread (`Context.with_current`); no thread or fiber is created on the header path.

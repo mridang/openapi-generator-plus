@@ -358,3 +358,9 @@ elixir | serializationobject412 | Elixir decodes a bare type: number or a decima
 elixir | serializationparam106 | Elixir decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 php | serializationobject002 | PHP stores a bare type: number as a float, so it cannot be exact and written in plain notation; the decimal types of java, csharp and kotlin are not available without ext-bcmath on PHP 8.4
 elixir | serializationobject002 | Elixir decodes a bare type: number to a float, so it cannot be exact and written in plain notation; the Decimal package is a hex dependency, not the standard library
+java | tracing014 | the call is blocking and builds the headers on the caller's thread, so no suspension or thread change can happen before the span is read; tracing013 covers the path
+php | tracing014 | PHP runs one request at a time and has no suspension point in the header path; tracing013 covers the path
+php | tracing015 | PHP runs one request at a time in one process, so two operations cannot be in flight together
+ruby | tracing014 | the call is blocking and builds the headers on the caller's thread; tracing013 covers the path
+go | tracing014 | the caller's context is passed as an explicit argument, so no ambient scope can be lost before the span is read; tracing013 covers the path
+elixir | tracing014 | the headers are built in the calling process with no hand-off; tracing013 covers the path

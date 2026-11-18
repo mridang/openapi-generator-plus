@@ -102,3 +102,5 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - `URI.t()` for `uri`, once it is shown to keep the text unchanged.
 - `Decimal.t()` for `decimal` would need the `decimal` package as a dependency, so the README guidance stays unless that is accepted.
 - No floor change is required by any of these ideas.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `:otel_propagator_text_map.inject` reads the process's context; the headers are built in the calling process (`Tracer.with_span`).

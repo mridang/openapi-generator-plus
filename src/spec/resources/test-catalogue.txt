@@ -916,6 +916,10 @@ tracing009 | Preserves all existing headers
 tracing010 | Preserves Authorization header
 tracing011 | Preserves Content-Type header
 tracing012 | Preserves X-Request-ID header
+tracing013 | An operation sends the traceparent of the span that is active in the caller's context
+tracing014 | The span still reaches traceparent when building the headers first waits on the credentials
+tracing015 | Concurrent operations each send the traceparent of their own caller's span
+tracing016 | An operation called with no active span sends no traceparent even when a propagator is configured
 transport001 | Proxy URL with embedded basic-auth credentials routes through proxy
 transport002 | The timeout reaches the transport for this call only
 transport003 | A caller header in any letter case suppresses the injected User-Agent and X-Request-ID

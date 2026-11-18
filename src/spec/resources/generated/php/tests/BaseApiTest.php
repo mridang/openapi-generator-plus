@@ -1985,3 +1985,72 @@ test('bhv errors 027 an absolute url in the path bypasses the client base url', 
 
     expect($client->capturedUrl)->toBe('https://other.example.com/v1/items');
 });
+
+/**
+ * Runs $body with an OpenTelemetry SDK (W3C propagator, in-memory exporter) as the global instance.
+ *
+ * @param callable(\OpenTelemetry\SDK\Trace\TracerProvider): void $body
+ */
+function withBaseApiTestTracing(callable $body): void
+{
+    $tracerProvider = new \OpenTelemetry\SDK\Trace\TracerProvider(
+        new \OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor(
+            new \OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter()
+        )
+    );
+    $scope = \OpenTelemetry\API\Instrumentation\Configurator::create()
+        ->withTracerProvider($tracerProvider)
+        ->withPropagator(\OpenTelemetry\API\Trace\Propagation\TraceContextPropagator::getInstance())
+        ->activate();
+    try {
+        $body($tracerProvider);
+    } finally {
+        $scope->detach();
+        $tracerProvider->shutdown();
+    }
+}
+
+/** @return array<string, string> the headers the operation sent */
+function baseApiCapturedHeaders(): array
+{
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', null);
+
+    return $client->capturedHeaders;
+}
+
+test('bhv tracing 013 an operation sends the traceparent of the span that is active in the caller context', function (): void {
+    withBaseApiTestTracing(function (\OpenTelemetry\SDK\Trace\TracerProvider $tracerProvider): void {
+        $span = $tracerProvider->getTracer('base-api-test')->spanBuilder('caller')->startSpan();
+        $scope = $span->activate();
+        try {
+            $headers = baseApiCapturedHeaders();
+        } finally {
+            $scope->detach();
+            $span->end();
+        }
+        $context = $span->getContext();
+        expect($headers['traceparent'] ?? null)->toBe(sprintf(
+            '00-%s-%s-%02x',
+            $context->getTraceId(),
+            $context->getSpanId(),
+            $context->getTraceFlags()
+        ));
+    });
+});
+
+test('bhv tracing 016 an operation with no active span sends no traceparent even when a propagator is configured', function (): void {
+    withBaseApiTestTracing(function (\OpenTelemetry\SDK\Trace\TracerProvider $tracerProvider): void {
+        $span = $tracerProvider->getTracer('base-api-test')->spanBuilder('earlier')->startSpan();
+        $scope = $span->activate();
+        try {
+            expect(baseApiCapturedHeaders())->toHaveKey('traceparent');
+        } finally {
+            $scope->detach();
+            $span->end();
+        }
+
+        expect(baseApiCapturedHeaders())->not->toHaveKey('traceparent');
+    });
+});

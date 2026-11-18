@@ -134,3 +134,5 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - `#[non_exhaustive]` on generated enums, so a new server value is not a breaking change for callers who match on them.
 - Edition 2024, which 1.85 already supports.
 - `jiff` in place of chrono is not recommended by the review for now.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `invoke_api` reads `Context::current()` once on its first poll and uses that value at every injection point, so a span attached on the caller's thread survives a move to another runtime thread; a caller may also use `FutureExt::with_context`.

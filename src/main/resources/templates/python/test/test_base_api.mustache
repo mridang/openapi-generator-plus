@@ -2334,3 +2334,61 @@ class TestUnauthorizedReplay:
             await _get(_retry_api(server))
 
         assert len(server.requests) == 1
+
+
+class _SlowAuthenticator(StubAuthenticator):
+    """Authenticator whose header lookup is slow, so it is offloaded and awaited."""
+
+    def get_auth_headers(self) -> dict[str, str]:
+        time.sleep(0.05)
+        return {}
+
+
+def _traceparent_of(span: Any) -> str:
+    context = span.get_span_context()
+    return f'00-{context.trace_id:032x}-{context.span_id:016x}-{int(context.trace_flags):02x}'
+
+
+async def _call_capturing_headers(auth: Optional[Authenticator] = None) -> dict[str, str]:
+    client = CapturingApiClient()
+    stub = StubApi(api_client=client, config=Configuration(base_url='http://localhost'), authenticator=auth)
+    await stub.call('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', 'object')
+    return client.captured_headers
+
+
+class TestTraceContextFromTheCaller:
+    """The span active in the caller's context is the one an operation sends."""
+
+    def _tracer(self) -> Any:
+        from opentelemetry.sdk.trace import TracerProvider
+
+        return TracerProvider().get_tracer('base-api-test')
+
+    async def test_bhv_tracing_013_an_operation_sends_the_traceparent_of_the_span_active_in_the_caller_context(self) -> None:
+        with self._tracer().start_as_current_span('caller') as span:
+            headers = await _call_capturing_headers()
+        assert headers['traceparent'] == _traceparent_of(span)
+
+    async def test_bhv_tracing_014_the_span_still_reaches_traceparent_when_building_the_headers_first_waits_on_the_credentials(self) -> None:
+        with self._tracer().start_as_current_span('caller') as span:
+            headers = await _call_capturing_headers(_SlowAuthenticator())
+        assert headers['traceparent'] == _traceparent_of(span)
+
+    async def test_bhv_tracing_015_concurrent_operations_each_send_the_traceparent_of_their_own_callers_span(self) -> None:
+        tracer = self._tracer()
+
+        async def run(name: str) -> tuple[str, str]:
+            with tracer.start_as_current_span(name) as span:
+                headers = await _call_capturing_headers(_SlowAuthenticator())
+            return _traceparent_of(span), headers['traceparent']
+
+        (first_expected, first_sent), (second_expected, second_sent) = await asyncio.gather(
+            run('first'), run('second'))
+        assert first_expected != second_expected
+        assert first_sent == first_expected
+        assert second_sent == second_expected
+
+    async def test_bhv_tracing_016_an_operation_with_no_active_span_sends_no_traceparent_even_when_a_propagator_is_configured(self) -> None:
+        with self._tracer().start_as_current_span('earlier'):
+            assert 'traceparent' in await _call_capturing_headers()
+        assert 'traceparent' not in await _call_capturing_headers()

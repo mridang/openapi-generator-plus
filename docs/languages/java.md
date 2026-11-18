@@ -114,3 +114,5 @@ These are proposals from a review of the type mapping against current Java. None
 - Model unions as a sealed interface with record variants. The floor of 21 already allows `sealed` types and pattern-matching `switch`, so the floor would not change, but the public shape of every union would.
 - Build maps as `LinkedHashMap` instead of `HashMap` so that `additionalProperties` keep their wire order. This is an implementation detail, not a type change.
 - Keep `java.time` types as they are. The review found nothing in newer JDKs that replaces `LocalDate`, `OffsetDateTime`, `LocalTime` or `Duration`. Adding `java.time.Period` for calendar durations would need a format decision, not a newer JDK.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. Reads `Context.current()` on the caller's thread (`span.makeCurrent()`); the call is blocking, so no hand-off precedes the read.

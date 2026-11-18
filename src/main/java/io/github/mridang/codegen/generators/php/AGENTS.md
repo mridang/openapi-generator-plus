@@ -439,3 +439,5 @@ Test: `BetterPHPCodegenTest` (every-operation flag, which fields read the enviro
 - Pest: `--testdox` with `--parallel` leaks serialised blobs, never filter with `--testsuite unit` in CI (the specs never ran), and a repo with both `test/` and `spec/` cannot bootstrap Pest. Check library signatures in `vendor/` first (testcontainers-php `withExposedPorts(array)`, Pest 3+ for phpunit 10.5).
 - Toolchain: `php -v` must equal the composer `require.php` (php 8.3 crashed php-cs-fixer on 8.5 vendor code), Alpine `composer:2` uses `apk`, and a transient `pecl install` outage shows as PhpModernizationSpec ERROR, not FAILURE: reproduce with `docker run php:8.5-cli pecl install pcov` before debugging code.
 - Date parameters need the `|date` marker at every `serializeStyled` call site (query, header, cookie, form); keep `format: date` fixture parameters for each. After any encoder change, `grep -rn "+profile\|scope=.*+" src/main/resources/templates/php`.
+
+- Trace context from the caller (#136): `Globals::propagator()->inject` uses the current context (`$span->activate()`); one request at a time, so no hand-off (D95).

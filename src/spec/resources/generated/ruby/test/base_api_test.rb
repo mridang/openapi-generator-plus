@@ -2,6 +2,8 @@
 
 require 'minitest/autorun'
 require 'json'
+require 'logger'
+require 'opentelemetry/sdk'
 require 'petstore_client'
 
 class TestableApi < Petstore::Client::Api::BaseApi
@@ -134,6 +136,22 @@ class ReplayApiClient
       status_code: status, body: payload.to_json, headers: { 'content-type' => 'application/json' }
     )
   end
+end
+
+# A tracer from a real OpenTelemetry SDK provider; the W3C propagator is set
+# explicitly so no global tracer provider is installed.
+def base_api_sdk_tracer
+  OpenTelemetry.logger = Logger.new(File::NULL)
+  OpenTelemetry.propagation = OpenTelemetry::Trace::Propagation::TraceContext.text_map_propagator
+  provider = OpenTelemetry::SDK::Trace::TracerProvider.new(sampler: OpenTelemetry::SDK::Trace::Samplers::ALWAYS_ON)
+  provider.tracer('base-api-trace-test')
+end
+
+# The traceparent of a span: 00-<trace id>-<span id>-<flags>.
+def base_api_traceparent(span)
+  context = span.context
+  flags = context.trace_flags.sampled? ? '01' : '00'
+  "00-#{context.hex_trace_id}-#{context.hex_span_id}-#{flags}"
 end
 
 describe Petstore::Client::Api::BaseApi do
@@ -1471,5 +1489,47 @@ describe Petstore::Client::Api::BaseApi do
     test_api = TestableApi.new(client, config, client_auth)
     test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
     _(client.captured_headers['Authorization']).must_equal 'Bearer configured-token'
+  end
+
+  it 'bhv_tracing_013 an operation sends the traceparent of the span active in the caller context' do
+    tracer = base_api_sdk_tracer
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    tracer.in_span('caller') do |span|
+      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+      _(client.captured_headers['traceparent']).must_equal base_api_traceparent(span)
+    end
+  end
+
+  it 'bhv_tracing_015 concurrent operations each send the traceparent of their own caller span' do
+    tracer = base_api_sdk_tracer
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    results = Array.new(8) do
+      Thread.new do
+        client = CapturingApiClient.new
+        test_api = TestableApi.new(client, config)
+        tracer.in_span('caller') do |span|
+          sleep(0.01)
+          test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+          [client.captured_headers['traceparent'], base_api_traceparent(span)]
+        end
+      end
+    end.map(&:value)
+    results.each { |sent, expected| _(sent).must_equal expected }
+    _(results.map(&:first).uniq.size).must_equal 8
+  end
+
+  it 'bhv_tracing_016 an operation with no active span sends no traceparent after an earlier call had one' do
+    tracer = base_api_sdk_tracer
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    tracer.in_span('caller') do
+      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(client.captured_headers).must_include 'traceparent'
+    test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+    _(client.captured_headers).wont_include 'traceparent'
   end
 end

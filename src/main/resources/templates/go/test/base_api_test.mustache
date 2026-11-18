@@ -17,6 +17,10 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+
 	"{{packageName}}/pkg"
 	"{{packageName}}/pkg/auth/oauth"
 	apierrors "{{packageName}}/pkg/errors"
@@ -334,30 +338,92 @@ func TestBhvAuthintegration017_BaseApi_SetsCookieFromAuth(t *testing.T) {
 	}
 }
 
-type traceContextKey struct{}
+// startCallerSpan starts a real sampled span from an in-memory SDK and returns the
+// context that carries it with the traceparent the span must produce.
+func startCallerSpan(t *testing.T, parent context.Context) (context.Context, string) {
+	t.Helper()
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithSyncer(tracetest.NewInMemoryExporter()),
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+	)
+	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+	ctx, span := provider.Tracer("trace-context-test").Start(parent, "caller")
+	t.Cleanup(func() { span.End() })
+	sc := span.SpanContext()
+	return ctx, "00-" + sc.TraceID().String() + "-" + sc.SpanID().String() + "-" + sc.TraceFlags().String()
+}
 
-// The call context of an operation reaches the registered trace propagator, so
-// a span carried by it reaches the traceparent header of the request. The
-// propagator is package state, so this test does not run in parallel.
-func TestBaseApi_CallContextReachesTheTracePropagator(t *testing.T) {
-	const traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+func registerW3CTracePropagator(t *testing.T) {
+	t.Helper()
 	{{packageName}}.SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
-		if value, ok := ctx.Value(traceContextKey{}).(string); ok {
-			headers["traceparent"] = value
-		}
+		propagation.TraceContext{}.Inject(ctx, propagation.MapCarrier(headers))
 	})
 	t.Cleanup(func() { {{packageName}}.SetTraceContextPropagator(nil) })
-	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+}
+
+func newTraceTestApi(client *capturingApiClient) *{{packageName}}.PetApi {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	auth := &baseApiAuth{headers: map[string]string{}, query: map[string]string{}}
-	api := {{packageName}}.NewPetApi(client, config, auth, {{packageName}}.Credentials{})
+	return {{packageName}}.NewPetApi(client, config, auth, {{packageName}}.Credentials{})
+}
 
-	ctx := context.WithValue(context.Background(), traceContextKey{}, traceparent)
+// An operation sends the traceparent of the span that is active in the context
+// passed to the call. The propagator is package state, so the trace tests do not
+// run in parallel.
+func TestBhvTracing013_BaseApi_OperationSendsTheTraceparentOfTheCallersSpan(t *testing.T) {
+	registerW3CTracePropagator(t)
+	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+	api := newTraceTestApi(client)
+
+	ctx, want := startCallerSpan(t, context.Background())
 	if _, err := api.AddPet(ctx, *models.NewPet("Test", []string{}), nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got := client.capturedHeaders["traceparent"]; got != traceparent {
-		t.Errorf("traceparent header = %q, want %q", got, traceparent)
+	if got := client.capturedHeaders["traceparent"]; got != want {
+		t.Errorf("traceparent header = %q, want %q", got, want)
+	}
+}
+
+// Concurrent operations each send the traceparent of their own caller's span.
+func TestBhvTracing015_BaseApi_ConcurrentOperationsSendTheirOwnCallersTraceparent(t *testing.T) {
+	registerW3CTracePropagator(t)
+	const callers = 8
+	var wg sync.WaitGroup
+	for i := 0; i < callers; i++ {
+		ctx, want := startCallerSpan(t, context.Background())
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+			api := newTraceTestApi(client)
+			if _, err := api.AddPet(ctx, *models.NewPet("Test", []string{}), nil); err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if got := client.capturedHeaders["traceparent"]; got != want {
+				t.Errorf("traceparent header = %q, want %q", got, want)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+// An operation called with a context that carries no span sends no traceparent
+// even when a propagator is registered, after an earlier call had a span.
+func TestBhvTracing016_BaseApi_OperationWithoutASpanSendsNoTraceparent(t *testing.T) {
+	registerW3CTracePropagator(t)
+	first := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+	ctx, _ := startCallerSpan(t, context.Background())
+	if _, err := newTraceTestApi(first).AddPet(ctx, *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	second := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+	if _, err := newTraceTestApi(second).AddPet(context.Background(), *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, ok := second.capturedHeaders["traceparent"]; ok {
+		t.Errorf("traceparent header = %q, want none", got)
 	}
 }
 

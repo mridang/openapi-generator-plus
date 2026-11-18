@@ -1,5 +1,6 @@
 {{>api_info}}
 {{#generateTests}}
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -210,6 +211,18 @@ PetApi _chasmApi({Map<String, Authenticator>? schemes}) {
       config: config,
       schemeAuthenticators: schemes);
 }
+
+/// An authenticator whose credential lookup suspends before it answers.
+class _SlowAuth extends _BaseApiAuth {
+  @override
+  Future<Map<String, String>> authHeadersAsync() async {
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    return headers;
+  }
+}
+
+/// The ambient scope of the caller: a zone value the tracing hook reads.
+const Symbol _callerSpan = #callerSpan;
 
 void main() {
   setUpAll(() async {
@@ -4290,6 +4303,60 @@ void main() {
       } finally {
         await server.close();
       }
+    });
+  });
+
+  group('BaseApi trace context', () {
+    final traceA = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+    final traceB = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01';
+
+    setUp(() {
+      TraceContextUtil.propagator = (Map<String, String> headers) {
+        final span = Zone.current[_callerSpan];
+        if (span is String) {
+          headers['traceparent'] = span;
+        }
+      };
+    });
+
+    tearDown(() {
+      TraceContextUtil.propagator = null;
+    });
+
+    Future<Map<String, String>> callUnder(
+      String? span, {
+      Authenticator? authenticator,
+    }) async {
+      final client = _ScriptedApiClient([_reply(200)], maxRetries: 0);
+      final api = _RecordingApi(client, authenticator: authenticator);
+      await runZoned(
+        () => api.invokeApi(method: 'GET', path: '/items'),
+        zoneValues: span == null ? null : {_callerSpan: span},
+      );
+      return client.sentHeaders.single;
+    }
+
+    test('bhv tracing 013 an operation sends the traceparent of the span active in the caller context', () async {
+      expect((await callUnder(traceA))['traceparent'], equals(traceA));
+    });
+
+    test('bhv tracing 014 the span still reaches traceparent when building the headers first waits on the credentials', () async {
+      final headers = await callUnder(traceA, authenticator: _SlowAuth());
+      expect(headers['traceparent'], equals(traceA));
+    });
+
+    test('bhv tracing 015 concurrent operations each send the traceparent of their own caller span', () async {
+      final results = await Future.wait([
+        callUnder(traceA, authenticator: _SlowAuth()),
+        callUnder(traceB, authenticator: _SlowAuth()),
+      ]);
+      expect(results[0]['traceparent'], equals(traceA));
+      expect(results[1]['traceparent'], equals(traceB));
+    });
+
+    test('bhv tracing 016 an operation called with no active span sends no traceparent even when a propagator is configured', () async {
+      expect((await callUnder(traceA))['traceparent'], equals(traceA));
+      expect((await callUnder(null)).containsKey('traceparent'), isFalse);
     });
   });
 }

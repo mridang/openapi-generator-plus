@@ -104,3 +104,5 @@ These are ideas from a review of the type mapping against current Python. None i
 - Use `frozenset` for `uniqueItems` so frozen models hash without the helper that freezes sets today. This needs a test of pydantic strict JSON handling.
 - Type free-form objects as `Any` rather than `object`, so mypy allows attribute access.
 - Not planned for now: `frozendict` (Python 3.15) and `uuid7` generation (3.14), because both are above the floor and the SDK generates no ids.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `inject` reads the `ContextVar` context of the awaiting task (`use_span` or `context.attach`); headers are built in the coroutine, not offloaded.

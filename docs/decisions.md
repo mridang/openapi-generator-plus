@@ -111,6 +111,7 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **Cookie parameters.** A value is sent as given when every character is allowed in a cookie, and an illegal character fails before the request is sent. Nothing is percent-encoded for you, because the shared parameter model cannot tell an explicit `style: form` from the default.
 * **One credential per security scheme.** Where a client takes one credential per scheme, an operation uses the credential of the first scheme it lists that you set. A per-call override of the scheme is deferred, and Rust has no such override.
 * **Test TLS keys.** No private key is committed. The test CA and the server key are generated once per test run by the shared harness and mounted into the containers that run the generated tests. The Dart and Swift standard libraries cannot create X.509 certificates, so the generated SDK tests only read the material and do not create it.
+* **Trace context comes from the caller's context (#136).** A request carries the span active in the context of the call. Go takes the context as the `ctx` argument; the other eleven read the ambient OpenTelemetry context in the caller's thread, task, fiber, process or zone. No SDK builds a context of its own, and a failure to inject never fails a call.
 
 ## Under review
 
