@@ -11,6 +11,12 @@ package com.example.petstore.api;
 import com.example.petstore.ObjectSerializer;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -68,6 +74,11 @@ final class ValueSerializer {
       return "";
     }
 
+    LocalDate calendarDate = "date".equals(schemaType) ? calendarDateOf(value) : null;
+    if (calendarDate != null) {
+      return serialize(calendarDate, location, null, collectionFormat);
+    }
+
     if (value instanceof Collection<?> col) {
       List<String> items =
           col.stream().map(ObjectSerializer::stringify).collect(Collectors.toList());
@@ -101,6 +112,27 @@ final class ValueSerializer {
     }
 
     return str;
+  }
+
+  /**
+   * The calendar date of a date-time given for a date-format parameter, or {@code null} when the
+   * value is not a date-time. The time and offset are dropped, never written.
+   */
+  @Nullable
+  private static LocalDate calendarDateOf(Object value) {
+    if (value instanceof OffsetDateTime offsetDateTime) {
+      return offsetDateTime.toLocalDate();
+    }
+    if (value instanceof ZonedDateTime zonedDateTime) {
+      return zonedDateTime.toLocalDate();
+    }
+    if (value instanceof LocalDateTime localDateTime) {
+      return localDateTime.toLocalDate();
+    }
+    if (value instanceof Instant instant) {
+      return instant.atOffset(ZoneOffset.UTC).toLocalDate();
+    }
+    return null;
   }
 
   /**
@@ -254,6 +286,12 @@ final class ValueSerializer {
         return null;
       }
       return "";
+    }
+
+    LocalDate calendarDate = "date".equals(schemaType) ? calendarDateOf(value) : null;
+    if (calendarDate != null) {
+      return serializeStyled(
+          paramName, calendarDate, location, null, collectionFormat, style, explode);
     }
 
     if (style == null || style.isEmpty()) {
