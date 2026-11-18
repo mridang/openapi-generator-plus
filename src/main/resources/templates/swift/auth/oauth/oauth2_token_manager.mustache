@@ -490,7 +490,13 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             )
         }
         let description = parsed["error_description"] as? String
-        let uri = parsed["error_uri"] as? String
+        /* An error_uri that is not an absolute URI is dropped, keeping the code. */
+        var uri: String? = nil
+        if let candidate = parsed["error_uri"] as? String,
+            (try? ObjectSerializer.requireAbsoluteUri(candidate, property: "error_uri")) != nil
+        {
+            uri = candidate
+        }
         return OAuth2ServerError(
             statusCode: statusCode,
             code: code,
