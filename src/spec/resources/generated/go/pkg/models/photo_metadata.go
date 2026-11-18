@@ -39,6 +39,16 @@ func (o *PhotoMetadata) Equal(other *PhotoMetadata) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o PhotoMetadata) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "PhotoMetadata{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithCaption returns a copy of the model with Caption replaced; the receiver is unchanged.
 func (o PhotoMetadata) WithCaption(value string) PhotoMetadata {
 	o.Caption = &value

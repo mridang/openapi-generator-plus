@@ -119,6 +119,24 @@ public interface ApiClient extends AutoCloseable {
   }
 
   /**
+   * Send an OAuth2 token-endpoint request. It never follows a redirect, so the credentials in the
+   * body are not replayed to another origin, and it is sent once and never retried. The default
+   * implementation delegates to {@link #sendRequest(String, String, Map, Object, boolean)} with no
+   * retry control; a transport that owns the retry loop should override this method.
+   *
+   * @param method HTTP method
+   * @param url Fully qualified URL
+   * @param headers HTTP headers
+   * @param body Request body (may be null)
+   * @return ApiHttpResponse containing status code, body, and headers
+   * @throws ApiException if the request fails
+   */
+  default ApiHttpResponse sendTokenRequest(
+      String method, String url, Map<String, String> headers, @Nullable Object body) {
+    return sendRequest(method, url, headers, body, true, true);
+  }
+
+  /**
    * Releases any resources held by this client (connection pool, executor threads, sockets).
    * Default implementation is a no-op; implementations that own a pooled HTTP client should
    * override and dispose of it.

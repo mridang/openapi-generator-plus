@@ -261,6 +261,21 @@ class ServerConfigurationTest {
     }
 
     @Test
+    fun bhvMisc278TemplatedServerUrlResolvesToEachVariableDefault() =
+        runBlocking<Unit> {
+            val server =
+                ServerConfiguration(
+                    "https://{env}.example.com/api/{version}",
+                    null,
+                    mapOf(
+                        "env" to ServerVariable("api", null, listOf("api", "staging")),
+                        "version" to ServerVariable("v3", null, listOf("v2", "v3")),
+                    ),
+                )
+            assertEquals("https://api.example.com/api/v3", server.getUrl())
+        }
+
+    @Test
     @DisplayName("bhvMisc157 a server built with explicit variable values resolves them into its URL")
     fun bhvMisc157ExplicitVariableValuesResolveIntoUrl() {
         val server =

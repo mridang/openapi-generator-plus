@@ -67,3 +67,18 @@ describe('ApiResult', () => {
     expect(result.rawBody).toBe('{"id":7}');
   });
 });
+
+
+describe('ApiResult misc behaviours', () => {
+  test('bhv results 007 a result returns the payload data, the raw body and the response headers together', () => {
+    const result: ApiResult<{ id: number }> = {
+      statusCode: 200,
+      data: { id: 5 },
+      rawBody: '{"id":5}',
+      headers: { 'x-test': 'header-value' },
+    };
+    expect(result.data).toEqual({ id: 5 });
+    expect(result.rawBody).toBe('{"id":5}');
+    expect(result.headers['x-test']).toBe('header-value');
+  });
+});

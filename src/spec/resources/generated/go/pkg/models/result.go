@@ -36,6 +36,16 @@ func (o *Result) Equal(other *Result) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Result) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Result{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithOk returns a copy of the model with Ok replaced; the receiver is unchanged.
 func (o Result) WithOk(value bool) Result {
 	o.Ok = &value

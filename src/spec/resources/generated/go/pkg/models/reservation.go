@@ -40,6 +40,16 @@ func (o *Reservation) Equal(other *Reservation) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Reservation) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Reservation{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithReservationId returns a copy of the model with ReservationId replaced; the receiver is unchanged.
 func (o Reservation) WithReservationId(value int64) Reservation {
 	o.ReservationId = value
