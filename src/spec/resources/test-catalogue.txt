@@ -2005,4 +2005,8 @@ langjava039 | The README's schema constraints section says what the server valid
 langjava040 | The README's retries section documents the retry option and does not say requests are never retried.
 langjava041 | The README says every operation takes an options object.
 langjava042 | The README names the environment variable of every credential.
+langjava043 | Without per-call settings a call uses the plain send path with no overrides applied.
+langjava044 | A response body with no charset is decoded as UTF-8.
+langjava045 | An unknown response charset falls back to UTF-8 decoding.
+langjava046 | An optional array query parameter is serialized in the style its specification declares.
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
