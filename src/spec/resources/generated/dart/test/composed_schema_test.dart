@@ -806,4 +806,34 @@ void main() {
       },
     );
   });
+  group('Union schema and equality', () {
+    test(
+      'bhv misc 045 a payload that fails a variant schema is not accepted as that variant',
+      () {
+        for (final json in <Map<String, dynamic>>[
+          <String, dynamic>{'foodType': 'dry'},
+          <String, dynamic>{'foodType': 3, 'weightKg': 2.5},
+          <String, dynamic>{'FoodType': 'dry', 'weightKg': 2.5},
+          <String, dynamic>{'foodType': 'dry', 'weightKg': 'heavy'},
+        ]) {
+          expect(
+            () => PetFood.fromJson(json),
+            throwsA(isA<SerializationException>()),
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv misc 046 two unions holding equal bytes compare equal and hash equally even when their buffers differ',
+      () {
+        final first = PetFood(Uint8List.fromList([1, 2, 3]));
+        final second = PetFood(Uint8List.fromList([1, 2, 3]));
+
+        expect(first, equals(second));
+        expect(first.hashCode, equals(second.hashCode));
+        expect(first, isNot(equals(PetFood(Uint8List.fromList([1, 2, 4])))));
+      },
+    );
+  });
 }
