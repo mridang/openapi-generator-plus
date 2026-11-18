@@ -393,6 +393,13 @@ describe('StoreApi content-encoded query parameters', () => {
     expect(url).toContain('q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22');
   });
 
+  test('bhv serialization 008 a content-typed query parameter is JSON-encoded once, not twice', async () => {
+    const url = await captureSearch(new PhotoMetadata({ caption: 'a%b' }));
+
+    expect(url).toContain('a%25b');
+    expect(url).not.toContain('%2525');
+  });
+
   let hits = 0;
 
   async function captureRequest(call: (storeApi: StoreApi) => Promise<unknown>): Promise<string> {

@@ -5,6 +5,11 @@ import { SerializationError } from '../src/errors/serialization-error{{importFil
 
 describe('ValueSerializer', () => {
   describe('path location', () => {
+    test('bhv serialization 005 a path value keeps unreserved and sub-delimiters and encodes the rest', () => {
+      expect(ValueSerializer.serialize("a-._~!$&'()*+,;=:@", 'path', 'string')).toBe("a-._~!$&'()*+,;=:@");
+      expect(ValueSerializer.serialize('a/b?c#d[e]f g%', 'path', 'string')).toBe('a%2Fb%3Fc%23d%5Be%5Df%20g%25');
+    });
+
     test('bhv serializationparam 119 a tilde is kept literal in a path parameter value', () => {
       expect(ValueSerializer.serialize('a~b', 'path', 'string')).toBe('a~b');
     });
@@ -313,7 +318,7 @@ describe('ValueSerializer', () => {
       );
     });
 
-    test('simple style joins the Set elements', () => {
+    test('bhv serialization 013 simple style joins the Set elements', () => {
       expect(ValueSerializer.serializeStyled('ids', new Set([1, 2]), 'header', 'Set<number>', null, 'simple', false)).toBe(
         '1,2',
       );
@@ -420,7 +425,7 @@ describe('ValueSerializer', () => {
     }
     const criteria = new Criteria({ color: 'red', min_count: 3, note: null });
 
-    test('toWireMap keeps declaration order and drops nulls', () => {
+    test('bhv serialization 019 toWireMap keeps declaration order and drops nulls', () => {
       expect(ValueSerializer.toWireMap('criteria', criteria)).toEqual([
         ['color', 'red'],
         ['min_count', '3']
@@ -443,8 +448,28 @@ describe('ValueSerializer', () => {
       );
     });
 
-    test('toWireMap rejects an array leaf', () => {
+    test('bhv serialization 018 toWireMap rejects an array leaf', () => {
       expect(() => ValueSerializer.toWireMap('criteria', { tags: ['a'] })).toThrow(SerializationError);
+    });
+
+    test('bhv serialization 015 an object-valued parameter takes the prefix and separators of its style', () => {
+      expect(ValueSerializer.serializeStyled('criteria', criteria, 'path', 'Criteria', null, 'matrix', false)).toBe(';criteria=color,red,min_count,3');
+      expect(ValueSerializer.serializeStyled('criteria', criteria, 'path', 'Criteria', null, 'matrix', true)).toBe(';color=red;min_count=3');
+      expect(ValueSerializer.serializeStyled('criteria', criteria, 'path', 'Criteria', null, 'label', false)).toBe('.color,red,min_count,3');
+      expect(ValueSerializer.serializeStyled('criteria', criteria, 'path', 'Criteria', null, 'label', true)).toBe('.color=red.min_count=3');
+    });
+
+    test('bhv serialization 016 an object-valued parameter in a delimited style alternates keys and values', () => {
+      expect(ValueSerializer.serializeStyled('criteria', criteria, 'query', 'Criteria', null, 'pipeDelimited', false)).toBe('color|red|min_count|3');
+      expect(ValueSerializer.serializeStyled('criteria', criteria, 'query', 'Criteria', null, 'spaceDelimited', false)).toBe('color red min_count 3');
+    });
+
+    test('bhv serialization 017 a model is written under its wire names in declaration order in every style', () => {
+      for (const style of ['matrix', 'label', 'simple', 'form', 'spaceDelimited', 'pipeDelimited']) {
+        const written = ValueSerializer.serializeStyled('criteria', criteria, 'path', 'Criteria', null, style, false) as string;
+        expect(written).toContain('min_count');
+        expect(written.indexOf('color')).toBeLessThan(written.indexOf('min_count'));
+      }
     });
 
     test('bhv serializationparam 039 form with explode false is one comma-joined value', () => {
