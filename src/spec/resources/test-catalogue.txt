@@ -1968,3 +1968,17 @@ langswift023 | Every named client factory and the environment factory accept the
 langswift024 | A media type is JSON when it is application/json or uses a structured JSON suffix
 langswift025 | A redirect is followed to its target when redirects are enabled
 langswift026 | A multipart form body with a text field and a file part is sent as multipart form data
+langswift027 | Scalar multipart parts of every numeric width are sent as text
+langswift028 | A response body with bytes that are not valid UTF-8 decodes without failing
+langswift029 | A bare utf-16 charset label resolves to big-endian byte order
+langswift030 | The windows-1252 charset label resolves to the Windows-1252 encoding
+langswift031 | An unknown charset label has no registered encoding
+langswift032 | A residual gzip content-encoding header on a body without gzip magic passes the body through unchanged
+langswift033 | The transport session keeps no cookies and no cache
+langswift034 | The no-redirect session is reused across calls and inherits the primary configuration
+langswift035 | The proxy connection settings cover both the http and https target schemes
+langswift036 | A streamed body whose original is empty is treated as an empty body for replay
+langswift037 | A caller-supplied session still applies the redirect rules
+langswift038 | An explicit utf-16le charset label decodes without sniffing the byte order mark
+langswift039 | Parsing a CA certificate bundle reads every PEM block in it and ignores surrounding text
+langswift040 | A CA certificate in DER form is accepted and bytes that are not a certificate are rejected
