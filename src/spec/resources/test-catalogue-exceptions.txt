@@ -639,3 +639,12 @@ dart | misc100 | Dart always builds a Map body as multipart/form-data through pa
 dart | misc101 | Dart multipart parts are Uint8List values already held in memory and no stream part exists, so no source can fail to be read after the call is built
 dart | misc104 | the generic fixture models have no string field with the email format outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic email-format field exists to decode
 dart | misc112 | the generic fixture models have no unique-array field outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic set-typed field exists to decode
+swift | misc122 | The Swift test fixture declares no model with a string default, so a default containing quotes, backslashes or control characters cannot be observed
+swift | misc128 | the proxy credential is applied by URLSession to the proxy connection (a proxy challenge), below the request headers the redirect loop controls, and the test protocol never opens a proxy connection, so the credential cannot be observed on a redirected request
+swift | misc129 | the SDK adds no proxy credential header of its own (URLSession answers the proxy challenge), so a redirect has no SDK-added proxy header to re-send, and the test protocol never opens a proxy connection to observe one
+swift | misc135 | the Swift client has no client-level cancellation handle: cancellation is the task that awaits each call, and ConfigurationBuilder has no setter for one
+swift | misc140 | the Swift initializer takes each required property as a parameter with no default, so omitting one is a compile-time error and no runtime error naming the property can occur
+swift | misc147 | Swift models are value types, so a copy's nested model is an independent value and cannot be the same object as the original
+swift | misc149 | copy takes only the model's declared properties as typed parameters, so an undeclared attribute is a compile-time error and no runtime error naming it can occur
+swift | misc152 | Swift has no abort signal: a call is cancelled through Task cancellation, and no call takes a signal that could already be aborted
+swift | misc153 | Swift has no client-level or per-call cancel signal: cancellation is Task cancellation of the awaiting task, and the client has no signal to set

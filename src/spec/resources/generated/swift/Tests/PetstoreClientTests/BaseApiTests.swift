@@ -2861,4 +2861,9 @@ private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
     requests += 1
     return ApiHttpResponse(statusCode: 401, body: "{}", headers: [:])
   }
+
+  /* A cookie value the caller has already percent-encoded is written as given, with no second encoding. */
+  @Test func testBhvMisc123APercentEncodedCookieValueIsSentAsGiven() throws {
+    #expect(try BaseApi.cookieHeaderValue(["api_key": "a%20b"]) == "api_key=a%20b")
+  }
 }

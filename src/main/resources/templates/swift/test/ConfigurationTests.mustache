@@ -285,4 +285,15 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://builder.example.com").build()
         #expect(config.baseURL == "https://builder.example.com")
     }
+
+    /* The debug text shows the base URL and the non-sensitive default headers. */
+    @Test func testBhvMisc136TheDebugTextShowsTheBaseUrlAndNonSensitiveHeaders() {
+        let config = ConfigurationBuilder()
+            .baseURL("https://api.example.com")
+            .defaultHeader(name: "Accept", value: "text/plain")
+            .build()
+        #expect(config.debugDescription.contains("https://api.example.com"))
+        #expect(config.debugDescription.contains("Accept"))
+        #expect(config.debugDescription.contains("text/plain"))
+    }
 }

@@ -2675,4 +2675,24 @@ import Testing
         let decoded = try #require(try ObjectSerializer.deserialize(Data("{\"values\":[\"a\",\"a\",\"b\"]}".utf8), as: UniqueTags.self))
         #expect(decoded.values == ["a", "b"])
     }
+
+    /* An object with no declared schema is written as a JSON object of its properties. */
+    @Test func testBhvMisc121AnObjectWithNoDeclaredSchemaIsWrittenAsAJsonObject() throws {
+        let data = try JSONEncoder().encode(Metadata(additionalProperties: ["a": AnyCodable(1), "b": AnyCodable("x")]))
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(json["a"] as? Int == 1)
+        #expect(json["b"] as? String == "x")
+    }
+
+    /* A generated enum lists its declared values and reports whether a given value is one of them. */
+    @Test func testBhvMisc137AGeneratedEnumListsItsDeclaredValues() {
+        #expect(OrderStatusEnum.allCases.map(\.rawValue) == ["placed", "approved", "delivered"])
+        #expect(OrderStatusEnum(rawValue: "approved") != nil)
+        #expect(OrderStatusEnum(rawValue: "cancelled") == nil)
+    }
+
+    /* Converting an enum member to text yields its wire value. */
+    @Test func testBhvMisc138ConvertingAnEnumMemberToTextYieldsItsWireValue() {
+        #expect("\(OrderStatusEnum.approved)" == "approved")
+    }
 }
