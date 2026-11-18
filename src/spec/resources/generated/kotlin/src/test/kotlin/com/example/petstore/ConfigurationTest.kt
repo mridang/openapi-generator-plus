@@ -404,4 +404,27 @@ class ConfigurationTest {
             assertNull(Configuration.defaultConfiguration().callHook)
         }
     }
+
+    @Test
+    fun bhvMisc276DefaultConfigurationUsesTheSpecBaseUrl() =
+        runBlocking<Unit> {
+            assertEquals("/api/v3", Configuration.defaultConfiguration().baseUrl)
+            assertEquals("/api/v3", Configuration.builder().build().baseUrl)
+        }
+
+    @Test
+    fun bhvMisc277EachDefaultConfigurationIsADistinctObject() =
+        runBlocking<Unit> {
+            assertNotSame(Configuration.defaultConfiguration(), Configuration.defaultConfiguration())
+        }
+
+    @Test
+    fun bhvMisc279ChangingReturnedHeadersLeavesTheConfigurationUnchanged() =
+        runBlocking<Unit> {
+            val config = Configuration.builder().defaultHeader("X-Team", "alpha").build()
+            assertThrowsExactly(UnsupportedOperationException::class.java) {
+                (config.defaultHeaders as MutableMap<String, String>)["X-Team"] = "beta"
+            }
+            assertEquals("alpha", config.defaultHeaders["X-Team"])
+        }
 }
