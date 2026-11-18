@@ -1594,22 +1594,9 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         final CodegenProperty property =
                 super.fromProperty(name, p, required, schemaIsFromAdditionalProperties);
         if (property != null && property.dataType != null) {
-            property.dataType = annotateContextualElements(annotateAnyAsContextual(property.dataType));
+            property.dataType = annotateAnyAsContextual(property.dataType);
         }
         return property;
-    }
-
-    /**
-     * Annotates the element type of a container ({@code List<Duration>},
-     * {@code Map<String, Duration>}) with {@code @Contextual} when it is one of the types the
-     * SDK serializes through a contextual serializer; without the annotation the compiler
-     * plugin cannot find a serializer for the element. A scalar property is annotated by the
-     * model template instead. Idempotent.
-     */
-    private static String annotateContextualElements(String dataType) {
-        return dataType.replaceAll(
-                "(?<=[<,] ?)(Duration|OffsetDateTime|LocalDate|LocalTime|BigDecimal|Uuid|URI)(?=[>,])",
-                "@Contextual $1");
     }
 
     /**
