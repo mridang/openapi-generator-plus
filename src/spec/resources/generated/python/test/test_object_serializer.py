@@ -826,6 +826,15 @@ class TestUuidRoundtrip:
 
 
 class TestExtraFieldsOnDeserialize:
+    def test_bhv_serialization_072_several_undeclared_keys_of_any_shape_are_skipped(
+        self,
+    ) -> None:
+        json_str = '{"id":1,"name":"Dogs","a":1,"b":"x","c":{"d":[1,2]},"e":null}'
+        category = ObjectSerializer().deserialize(json_str, "Category")
+        assert isinstance(category, Category)
+        assert category.id == 1
+        assert category.name == "Dogs"
+
     def test_bhv_serializationobject_082_extra_field_in_json_is_ignored(self) -> None:
         json_str = '{"id":1,"name":"Dogs","unknown_field":"extra"}'
         category = ObjectSerializer().deserialize(json_str, "Category")
@@ -1279,6 +1288,10 @@ class TestBomTolerance:
 
 
 class TestRequiredFieldNullRejection:
+    def test_bhv_serialization_073_a_null_required_field_fails_decoding(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"name": null, "photoUrls": []}', "Pet")
+
     """Gap AJ — null or missing on a required non-nullable field must raise.
 
     Pydantic 2 already rejects None for non-Optional typed fields; this test
@@ -1314,6 +1327,14 @@ class TestRequiredFieldNullRejection:
 
 
 class TestUnknownEnumRejection:
+    def test_bhv_serialization_075_an_enum_value_decodes_from_its_wire_string_to_its_member(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer().deserialize('"placed"', OrderStatusEnum)
+            == OrderStatusEnum.PLACED
+        )
+
     """unknown-enum-deserialize-throws: an enum value not declared in the
     schema must raise the SDK's SerializationException on deserialize, never fall
     back to a silent default or an 'unknown' member. All 12 SDKs converge here.
@@ -1439,7 +1460,7 @@ class TestConstructionKeepsWhatItIsGiven:
         values.update(fields)
         return Pet(**values)
 
-    def test_a_wrong_type_is_kept_as_given(self) -> None:
+    def test_bhv_serialization_068_a_wrong_type_is_kept_as_given(self) -> None:
         assert self._built(name=123).name == 123
 
     def test_an_unknown_enum_string_is_kept_as_given(self) -> None:
@@ -1491,6 +1512,12 @@ class TestConstructionKeepsWhatItIsGiven:
 
 
 class TestDecodeValidates:
+    def test_bhv_serialization_081_a_value_of_the_wrong_json_type_is_rejected_not_coerced(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"name":123,"photoUrls":[]}', "Pet")
+
     """F316: a document is validated when it is decoded, and an unknown enum value fails loudly."""
 
     def test_bhv_serializationobject_180_a_wrong_type_is_rejected(self) -> None:
@@ -1524,6 +1551,14 @@ class TestDecodeValidates:
 
 
 class TestModelsAreImmutable:
+    def test_bhv_serialization_079_a_copy_changes_only_the_named_fields(self) -> None:
+        pet = Pet(name="Fido", photoUrls=["x"])
+        copy = pet.model_copy(update={"name": "Rex"})
+        assert copy is not pet
+        assert copy.name == "Rex"
+        assert pet.name == "Fido"
+        assert copy.photo_urls == pet.photo_urls
+
     """F868 / F870: a model never changes after construction, is hashable and is copied with ``model_copy``."""
 
     @staticmethod

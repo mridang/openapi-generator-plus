@@ -1008,7 +1008,7 @@ class TestBodyReplayOnTlsDowngrade:
     body over plaintext. The existing Authorization-strip guard covers the
     credential header path; this guard covers the body itself."""
 
-    def test_307_downgrade_with_body_raises(self) -> None:
+    def test_bhv_retries_051_307_downgrade_with_body_raises(self) -> None:
         from petstore_client.errors import ApiException
 
         class _Pool:

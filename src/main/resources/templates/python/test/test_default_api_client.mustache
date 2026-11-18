@@ -225,7 +225,7 @@ class TestRequestTimeout:
 class TestRedirectChainTimeoutIsOneBudget:
     # Three hops of 500 ms each: one end-to-end budget of 1200 ms must fail
     # where a per-hop timer would pass; 5000 ms is the positive control.
-    def test_a_chain_longer_than_the_budget_times_out(self, chasm_http_url: Any) -> None:
+    def test_bhv_redirects_054_a_chain_longer_than_the_budget_times_out(self, chasm_http_url: Any) -> None:
         from {{packageName}}.errors import NetworkTimeoutException
 
         client = DefaultApiClient(TransportOptions.builder().timeout(1200).build())
@@ -658,6 +658,32 @@ class TestN1RedirectBodyReplayMatrix:
                 assert pool.calls[1][2] is None
             else:
                 assert pool.calls[1][2] in (body, body.encode())
+
+    def test_bhv_redirects_055_a_redirect_to_a_non_http_scheme_is_refused_with_an_error(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        resp_cls = self._FakeResp
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                return resp_cls(302, {'location': 'ftp://example.com/file'})
+
+        pool = _Pool()
+        client = DefaultApiClient(TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request('GET', 'https://example.com/start', {}, None)
+        assert len(pool.calls) == 1
+
+    def test_bhv_retries_046_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme(self) -> None:
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(307)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request('POST', 'http://example.com/start', {}, '{"a":1}')
+        assert pool.calls[1][0] == 'POST'
+        assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
 
     def test_bhv_redirects_036_a_303_turns_every_method_except_head_into_get(self) -> None:
         for method in ('POST', 'PUT', 'PATCH', 'DELETE'):

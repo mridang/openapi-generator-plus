@@ -3338,7 +3338,9 @@ class TestAutomaticRetries:
         assert excinfo.value.status_code == 503
         assert len(server.requests) == 3
 
-    async def test_max_retries_sets_the_number_of_retries(self, scripted: Any) -> None:
+    async def test_bhv_retries_049_max_retries_sets_the_number_of_retries(
+        self, scripted: Any
+    ) -> None:
         server = scripted((503, _SOON, "{}"))
 
         with pytest.raises(ServerException):
@@ -3376,7 +3378,9 @@ class TestAutomaticRetries:
         assert time.monotonic() - started >= 0.9
         assert len(server.requests) == 2
 
-    async def test_retry_after_as_an_http_date_is_honoured(self, scripted: Any) -> None:
+    async def test_bhv_retries_050_retry_after_as_an_http_date_is_honoured(
+        self, scripted: Any
+    ) -> None:
         when = formatdate(time.time() + 2, usegmt=True)
         server = scripted((503, {"Retry-After": when}, "{}"), _OK)
         started = time.monotonic()
