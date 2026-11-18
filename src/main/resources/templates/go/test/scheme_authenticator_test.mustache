@@ -249,7 +249,7 @@ func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}{{#firstBearer}}BhvAuthbe
 	}
 }
 
-func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}{{#failsId}}{{.}}{{/failsId}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func Test{{#failsId}}{{.}}{{/failsId}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range scheme{{className}}Variables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {
@@ -271,7 +271,7 @@ func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}{{#failsId}}{{.}}{{/fails
 	}
 }
 
-func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}{{#firstBearer}}BhvAuthscheme010_{{/firstBearer}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func Test{{#firstBearer}}BhvAuthscheme010_{{/firstBearer}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range scheme{{className}}Variables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {

@@ -301,7 +301,7 @@ func TestBhvOptions024_TransportOptions_InvalidProxyUrlThrowsException(t *testin
 	}
 }
 
-func TestTransportOptions_MissingCaCertFileIsRejected(t *testing.T) {
+func TestBhvErrors083_TransportOptions_MissingCaCertFileIsRejected(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().
 		CACertPath("/nonexistent/ca.pem").

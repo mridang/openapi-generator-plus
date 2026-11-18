@@ -855,7 +855,7 @@ func TestBhvAuthoauthtwotokenmgr032_OAuth2TokenManager_TokenEndpointErrorRespons
 // RFC 6749 section 5.2: `error` must be a non-empty string, and a non-string
 // error_description or error_uri is dropped on its own without losing a valid
 // code. A body that is not an error object keeps the raw body as the message.
-func TestOAuth2TokenManager_TokenEndpointErrorFieldTypesAreCheckedIndependently(t *testing.T) {
+func TestBhvErrors082_OAuth2TokenManager_TokenEndpointErrorFieldTypesAreCheckedIndependently(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name            string

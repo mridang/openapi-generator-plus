@@ -160,7 +160,7 @@ var (
 // TestApiError_ForeignError_DoesNotSatisfyOpenAPIError confirms the brand is exclusive:
 // an arbitrary error, even one wrapping nothing SDK-shaped, must not match
 // OpenAPIError, or errors.As against the brand would tell a caller nothing.
-func TestApiError_ForeignError_DoesNotSatisfyOpenAPIError(t *testing.T) {
+func TestBhvErrors076_ApiError_ForeignError_DoesNotSatisfyOpenAPIError(t *testing.T) {
 	t.Parallel()
 	for _, err := range []error{errors.New("boom"), fmt.Errorf("wrapped: %w", errors.New("boom"))} {
 		if _, ok := err.(OpenAPIErrorBrand); ok {
@@ -382,7 +382,7 @@ func TestBhvErrors017_ApiError_GetTypedErrorBodyMalformedBodyIsSerializationErro
 	}
 }
 
-func TestApiError_GetTypedErrorBodyStripsByteOrderMark(t *testing.T) {
+func TestBhvErrors072_ApiError_GetTypedErrorBodyStripsByteOrderMark(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(400, "bad request", "\xEF\xBB\xBF"+`{"id":7}`, nil, nil, nil)
 
@@ -974,7 +974,7 @@ func TestBhvErrors011_ApiError_ErrorNamesTheRequestItAnswers(t *testing.T) {
 	}
 }
 
-func TestApiError_AttachRequestKeepsTheFirstRequestAndIgnoresAnIncompleteOne(t *testing.T) {
+func TestBhvErrors079_ApiError_AttachRequestKeepsTheFirstRequestAndIgnoresAnIncompleteOne(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(500, "boom", "", nil, nil, nil)
 	err.AttachRequest("", "/missing-method")
@@ -1170,5 +1170,72 @@ func TestBhvErrors037_ApiError_FromResponseThrowsTheStatusSpecificError(t *testi
 	var internal *apierrors.InternalServerError
 	if !errors.As(apierrors.FromResponse(500, nil, ""), &internal) {
 		t.Error("expected *InternalServerError for status 500")
+	}
+}
+
+func TestBhvErrors073_ApiError_NestedBodyWithinTheDepthLimitIsKeptAsData(t *testing.T) {
+	t.Parallel()
+	// 900 nested arrays sit under the 1000 cap, deeper than common parser defaults.
+	deep := strings.Repeat("[", 900) + strings.Repeat("]", 900)
+
+	err, ok := apierrors.FromResponse(400, nil, deep).(*apierrors.BadRequestError)
+	if !ok {
+		t.Fatalf("expected *BadRequestError, got %T", apierrors.FromResponse(400, nil, deep))
+	}
+	if err.ErrorBody() == nil {
+		t.Fatal("expected the nested body kept as structured data")
+	}
+	var typed any
+	decodeErr := err.GetTypedErrorBody(&typed)
+	if decodeErr != nil || typed == nil {
+		t.Errorf("expected the nested body to decode, got %v (error %v)", typed, decodeErr)
+	}
+}
+
+func TestBhvErrors074_ApiError_ErrorWithoutAResponseIsTheMessageAlone(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewNetworkError("connection refused", nil)
+	if got := err.Error(); got != "connection refused" {
+		t.Errorf("expected the message alone with no status line, got %q", got)
+	}
+}
+
+func TestBhvErrors075_ApiError_CutOfTheRenderedBodyNeverSplitsACharacter(t *testing.T) {
+	t.Parallel()
+	// The 1024-byte cut falls inside the second byte of a two-byte character.
+	body := "a" + strings.Repeat("\u00e9", 600)
+	msg := apierrors.NewApiError(500, "boom", body, nil, nil, nil).Error()
+	if strings.Contains(msg, "\uFFFD") {
+		t.Errorf("the cut left a broken character in %q", msg)
+	}
+	if !strings.Contains(msg, strings.Repeat("\u00e9", 511)+"... (178 more bytes)") {
+		t.Errorf("expected the body cut before the split character, got %q", msg)
+	}
+}
+
+func TestBhvErrors080_ApiError_TypedErrorIsCaughtByTheRootTypeWithItsStatus(t *testing.T) {
+	t.Parallel()
+	var err error = apierrors.FromResponse(404, nil, "")
+
+	var root apierrors.OpenAPIError
+	if !errors.As(err, &root) {
+		t.Fatalf("expected the SDK root error type to catch %T", err)
+	}
+	var notFound *apierrors.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected *NotFoundError, got %T", err)
+	}
+	if notFound.StatusCode() != 404 {
+		t.Errorf("expected status 404, got %d", notFound.StatusCode())
+	}
+}
+
+func TestBhvErrors084_ApiError_ErrorBuiltWithoutAResponseReportsStatusZero(t *testing.T) {
+	t.Parallel()
+	if got := apierrors.NewNetworkError("connection refused", nil).StatusCode(); got != 0 {
+		t.Errorf("expected status 0 for a network error, got %d", got)
+	}
+	if got := apierrors.NewNetworkTimeoutError("timed out", nil).StatusCode(); got != 0 {
+		t.Errorf("expected status 0 for a timeout error, got %d", got)
 	}
 }

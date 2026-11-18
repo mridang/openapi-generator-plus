@@ -1426,7 +1426,7 @@ func TestBhvRedirects020_DefaultApiClientUnit_RedirectToNonHttpSchemeIsApiErrorW
 
 // A query-parameter API key must not reach an error message: net/http prints
 // the full request URL, so the SDK replaces the query with "***".
-func TestDefaultApiClientUnit_NetworkErrorMessageRedactsTheQuery(t *testing.T) {
+func TestBhvErrors078_DefaultApiClientUnit_NetworkErrorMessageRedactsTheQuery(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	closedURL := server.URL
@@ -3015,7 +3015,7 @@ func TestBhvRetries033_DefaultApiClientUnit_TheLastNetworkErrorIsReportedOnceThe
 // A 401 with no authenticator to renew surfaces as an *UnauthorizedError.
 func TestBhvErrors071_DefaultApiClientUnit_A401SurfacesAsAnUnauthorizedError(t *testing.T) {
 	t.Parallel()
-	client := &retryScriptClient{maxRetries: 0, replies: []retryScriptReply}
+	client := &retryScriptClient{maxRetries: 0, replies: []retryScriptReply{{status: 401}}}
 
 	err := retryScriptCall(client, nil, retryScriptParams())
 
@@ -3278,5 +3278,17 @@ func TestBhvOptions059_DefaultApiClientUnit_InjectedTransportHookIsUnsetUnlessGi
 	}
 	if built.roundTripper != hook {
 		t.Errorf("expected the supplied transport kept unchanged, got %v", built.roundTripper)
+	}
+}
+
+func TestBhvErrors077_DefaultApiClientUnit_DiagnosticUrlKeepsOnlySchemeHostPortAndPath(t *testing.T) {
+	t.Parallel()
+	parsed, err := url.Parse("https://user:pass-secret@api.example.com:8443/v1/items?api_key=SECRET-KEY#frag-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := redactURL(parsed)
+	if got != "https://api.example.com:8443/v1/items?***" {
+		t.Errorf("expected only the scheme, host, port and path, got %q", got)
 	}
 }
