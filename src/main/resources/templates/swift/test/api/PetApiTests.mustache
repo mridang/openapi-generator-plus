@@ -653,7 +653,7 @@ final class PetApiTests {
     }
 
     /* Without a server of its own the call uses the configured base URL. */
-    @Test func testOperationWithoutServerUsesTheBaseUrl() async throws {
+    @Test func testBhvOperations153OperationWithoutServerUsesTheBaseUrl() async throws {
         #expect(
             try await operationServerUrl { try await $0.getStagingPetInfo(petId: 4) }
                 == "https://example.com/pet/4/staging")
@@ -803,6 +803,74 @@ final class PetApiTests {
         }
         #expect(caught?.statusCode == 200)
         #expect(caught?.message.contains("Expected a response body for getPetById but received none") == true)
+    }
+
+    /* A malformed 2xx body fails loud with a serialization error, never as the raw string. */
+    @Test func testBhvOperations127MalformedSuccessBodyFailsLoudWithASerializationError() async throws {
+        let mockApi = petApiForMock(statusCode: 200, body: "{not valid json")
+        await #expect(throws: SerializationError.self) {
+            _ = try await mockApi.getPetById(petId: 1)
+        }
+    }
+
+    /* A bare JSON null body from a model operation is an ApiError that names the operation. */
+    @Test func testBhvOperations136BareNullBodyThrowsApiErrorNamingTheOperation() async throws {
+        let mockApi = petApiForMock(statusCode: 200, body: "null")
+        let error = await #expect(throws: ApiError.self) {
+            _ = try await mockApi.getPetById(petId: 1)
+        }
+        #expect(error?.message.contains("getPetById") == true)
+    }
+
+    /* An error status is thrown as the class for that status, through the typed routes. */
+    @Test func testBhvOperations138ErrorStatusIsThrownAsItsStatusSpecificClass() async throws {
+        let mockApi = petApiForMock(statusCode: 404, body: "{\"message\":\"Item not found\"}")
+        let error = await #expect(throws: NotFoundError.self) {
+            _ = try await mockApi.getPetById(petId: 1)
+        }
+        #expect(error?.statusCode == 404)
+    }
+
+    /* The options struct's required fields are checked in declaration order, so the first missing one is named. */
+    @Test func testBhvOperations132MissingRequiredOptionsFieldNamesTheFirstOne() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await api.getPetByName(
+                name: "item", options: GetPetByNameOptions(category: "", xCorrelationId: ""))
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        #expect(message == "Missing the required parameter 'category' when calling PetApi.getPetByName")
+        #expect(mockClient.lastURL.isEmpty, "transport must not be called when a required field is missing")
+    }
+
+    /* Multipart parts go on the wire in the order the operation declares them. */
+    @Test func testBhvOperations147MultipartPartsAreSentInDeclarationOrder() async throws {
+        let client = MockApiClient()
+        client.responseStatusCode = 200
+        client.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: client, config: config)
+        let takenAt = ISO8601DateFormatter().date(from: "2024-01-15T10:30:00Z")!
+
+        _ = try await api.uploadPetDocument(
+            petId: 1,
+            options: UploadPetDocumentOptions(
+                file: Data("doc".utf8), isPrimary: true, pageCount: 3, takenAt: takenAt, swatch: .red)
+        )
+
+        let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+        let names = ["name=\"isPrimary\"", "name=\"pageCount\"", "name=\"takenAt\"", "name=\"swatch\""]
+        let positions = try names.map { try #require(body.range(of: $0)).lowerBound }
+        #expect(zip(positions, positions.dropFirst()).allSatisfy { $0 < $1 })
     }
 
     /* F857: addPet accepts apiKeyHeader first and petStoreBearer second, so
