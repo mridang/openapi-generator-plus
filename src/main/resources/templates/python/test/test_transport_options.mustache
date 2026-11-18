@@ -146,6 +146,13 @@ class TestTransportOptions:
             'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080'
         )
 
+    def test_bhv_misc_026_a_configuration_mistake_is_not_an_api_error(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions(timeout=-1)
+        assert not isinstance(exc_info.value, ApiException)
+
     def test_bhv_options_051_a_proxy_url_with_a_scheme_other_than_http_or_https_is_rejected(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             TransportOptions.builder().proxy('socks5://proxy.example.com:1080')

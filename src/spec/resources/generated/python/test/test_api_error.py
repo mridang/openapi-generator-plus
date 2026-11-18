@@ -415,6 +415,12 @@ class TestFromResponse:
             assert not isinstance(err, ClientException)
             assert not isinstance(err, ServerException)
 
+    def test_bhv_misc_023_an_unmapped_5xx_is_the_generic_server_error_and_another_unmapped_status_the_base_error(
+        self,
+    ) -> None:
+        assert type(ApiException.from_response(520, {}, None)) is ServerException
+        assert type(ApiException.from_response(399, {}, None)) is ApiException
+
     def test_bhv_errors_056_status_at_or_above_600_is_not_a_server_error(self) -> None:
         # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
         # base ApiException, never ServerException.
@@ -642,6 +648,20 @@ class TestApiErrorRendering:
 
         assert "Bearer abc" not in str(err)
         assert "realm=x" not in str(err)
+
+    def test_bhv_misc_019_an_error_request_target_is_reduced_to_its_path(self) -> None:
+        err = ApiException.from_response(404, {}, "missing", "GET", "/items/7?x=1#frag")
+
+        assert "Request: GET /items/7" in str(err)
+        assert "?x=1" not in str(err)
+        assert "#frag" not in str(err)
+
+    def test_bhv_misc_020_the_request_line_needs_both_the_method_and_the_path(
+        self,
+    ) -> None:
+        err = ApiException.from_response(500, {}, "x", None, "/items")
+
+        assert "Request:" not in str(err)
 
     def test_bhv_errors_023_masks_credential_headers_in_the_rendered_headers(
         self,
@@ -928,6 +948,17 @@ class TestApiErrorTypedBodyFailures:
 
 
 class TestOAuth2ServerExceptionMessage:
+    def test_bhv_misc_018_a_non_json_token_error_body_exposes_status_no_code_and_the_raw_text(
+        self,
+    ) -> None:
+        from petstore_client.errors import OAuth2ServerException
+
+        err = OAuth2ServerException(500, None, None, None, "upstream exploded")
+
+        assert err.status_code == 500
+        assert err.code is None
+        assert err.raw_body == "upstream exploded"
+
     def test_bhv_errors_049_names_the_status_and_the_error_code(self) -> None:
         err = OAuth2ServerException(400, "invalid_grant", None, None, "{}")
 

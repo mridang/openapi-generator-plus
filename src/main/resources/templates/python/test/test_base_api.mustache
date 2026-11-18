@@ -116,6 +116,11 @@ def api(chasm_http_url: Any) -> StubApi:
 
 
 class TestExceptionDispatch:
+    async def test_bhv_misc_025_a_typed_call_fails_when_the_server_answers_a_client_error(self) -> None:
+        stub = StubApi(api_client=_ScriptedApiClient(_json(404, '{}')), config=Configuration(base_url='https://example.test'))
+        with pytest.raises(NotFoundException):
+            await stub.call('GET', '/items', {}, {}, None, ['application/json'], 'application/json', 'str')
+
 
     @pytest.mark.parametrize('status,expected_class', [
         (400, BadRequestException),

@@ -1885,6 +1885,12 @@ class TestCaCertPathFailsFast:
         with pytest.raises(ValueError, match="/nonexistent/ca.pem"):
             DefaultApiClient(transport)
 
+    def test_bhv_misc_042_a_caller_http_client_with_verification_disabled_is_refused_naming_the_setting(self) -> None:
+        transport = TransportOptions.builder().verify_ssl(False).build()
+
+        with pytest.raises(ValueError, match='verify_ssl=False'):
+            DefaultApiClient(transport, pool_manager=urllib3.PoolManager())
+
     def test_bhv_errors_041_nonexistent_ca_cert_path_raises_value_error(self) -> None:
         from {{packageName}}.errors import {{errorPrefix}}Exception
 
