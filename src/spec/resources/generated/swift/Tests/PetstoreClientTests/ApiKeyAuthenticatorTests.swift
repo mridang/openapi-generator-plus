@@ -382,4 +382,23 @@ import Testing
       )
     }
   }
+  // MARK: - Behaviour catalogue: API key placement and redaction
+
+  /* An API key sent in a header appears under the header name the spec declares. */
+  @Test func testBhvAuth006ApiKeyInAHeaderUsesTheDeclaredName() async throws {
+    let auth = try ApiKeyAuthenticator(
+      host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "key-123",
+      location: .header)
+    let headers = try await auth.authHeaders()
+    #expect(headers["X-API-Key"] == "key-123")
+  }
+
+  /* A secret passed to an authenticator never appears in its description or dump. */
+  @Test func testBhvAuth018ApiKeySecretNeverAppearsInItsDescription() throws {
+    let auth = try ApiKeyAuthenticator(
+      host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "key-secret-018",
+      location: .header)
+    #expect(!String(describing: auth).contains("key-secret-018"))
+    #expect(!String(reflecting: auth).contains("key-secret-018"))
+  }
 }

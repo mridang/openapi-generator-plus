@@ -886,6 +886,7 @@ import Testing
   @Test func testBhvSerializationparam081SemicolonIsPreservedInPathSegment() {
     #expect(ValueSerializer.encodePathSegment("a;b") == "a;b")
   }
+
   // MARK: - Behaviour catalogue: path, header, style and object parameters
 
   @Test func testBhvSerialization005PathSegmentKeepsOnlyUnreservedAndSubDelimitersLiteral() {
@@ -947,5 +948,12 @@ import Testing
     let parameter = try #require(result as? ValueSerializer.ObjectParameter)
     #expect(parameter.failure != nil)
     #expect(parameter.fields.isEmpty)
+  }
+  // MARK: - Behaviour catalogue: encoding of a content-typed parameter
+
+  /* A content-typed parameter is encoded once, and the cookie encoder does not encode it again. */
+  @Test func testBhvSerialization008ContentTypedParameterIsEncodedOnlyOnce() {
+    #expect(ValueSerializer.encodeCookieValue("{\"a\":1}") == "%7B%22a%22%3A1%7D")
+    #expect(ValueSerializer.encodeCookieValue("%7B") == "%257B")
   }
 }

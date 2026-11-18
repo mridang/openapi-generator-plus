@@ -2109,35 +2109,7 @@ import Testing
     #expect(result.statusCode == 201)
     #expect(result.data == nil)
   }
-}
 
-/// A client whose transport always fails before a response arrives.
-private final class FailingApiClient: ApiClient, @unchecked Sendable {
-  func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-    async throws -> ApiHttpResponse
-  {
-    try await sendRequest(
-      method: method, url: url, headers: headers, body: body, noRedirect: false)
-  }
-
-  func sendRequest(
-    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-  )
-    async throws -> ApiHttpResponse
-  {
-    throw NetworkError(statusCode: 0, message: "connection reset")
-  }
-}
-
-/// A string enum standing in for a generated enum in the multipart tests.
-private enum MultipartEnumFixture: String, Codable {
-  case crimson = "crimson-red"
-}
-
-/// A Codable struct standing in for a generated model in the multipart tests.
-private struct MultipartModelPartFixture: Codable {
-  let isEnabled: Bool
-  let recordedAt: Date
   // MARK: - Behaviour catalogue: status, body and query serialization
 
   /* A 201 body that matches neither the 201 schema nor any other is refused. */
@@ -2183,5 +2155,122 @@ private struct MultipartModelPartFixture: Codable {
     mixed["unset"] = nil
     mixed["status"] = "available"
     #expect(BaseApi.buildQueryString(mixed) == "status=available")
+  }
+
+  // MARK: - Behaviour catalogue: per-call options
+
+  /* Per-call headers apply to the one call they are passed to, not the next call. */
+  @Test func testBhvOptions053PerCallOptionsTakeEffectOnThatCallOnly() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getInventory(options: GetInventoryOptions(headers: ["X-Once": "1"]))
+    #expect(mockClient.lastHeaders["X-Once"] == "1")
+    _ = try await api.getInventory()
+    #expect(mockClient.lastHeaders["X-Once"] == nil)
+  }
+
+  /* An operation with arguments takes its per-call options alongside them. */
+  @Test func testBhvOptions054OperationAcceptsPerCallOptionsAlongsideItsArguments() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let info = try await api.getPetByIdWithHTTPInfo(
+      petId: 1, options: GetPetByIdOptions(timeout: 2000, headers: ["X-Trace": "1"], maxRetries: 0))
+    #expect(info.statusCode == 200)
+    #expect(mockClient.lastHeaders["X-Trace"] == "1")
+  }
+
+  /* A call made without per-call options sends none of the headers an earlier call carried. */
+  @Test func testBhvOptions055CallWithoutPerCallOptionsLeavesTheClientSettingsInForce() async throws
+  {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetById(petId: 1)
+    #expect(mockClient.lastHeaders["X-Trace"] == nil)
+    #expect(mockClient.lastHeaders["Accept"] != nil)
+  }
+
+  /* A per-call timeout below one millisecond is refused before any request is sent. */
+  @Test func testBhvOptions057PerCallTimeoutBelowOneMillisecondIsRefused() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    await #expect(throws: ConfigurationError.invalidTimeout(-1)) {
+      _ = try await api.getInventory(options: GetInventoryOptions(timeout: -1))
+    }
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
+  // MARK: - Behaviour catalogue: Accept header and retry refusal
+
+  /* The Accept header lists media types without quality weights. */
+  @Test func testBhvHeaders032AcceptHeaderHasNoQualityWeights() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    _ = try await api.getPetById(petId: 1)
+    #expect(mockClient.lastHeaders["Accept"] != nil)
+    #expect(mockClient.lastHeaders["Accept"]?.contains("q=") == false)
+  }
+
+  /* A 401 with no authenticator able to supply fresh credentials is returned after one request. */
+  @Test func testBhvRetries043UnauthorizedIsNotReplayedWithoutFreshCredentials() async throws {
+    let client = UnauthorizedOnceApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: client, config: config)
+    await #expect(throws: UnauthorizedError.self) {
+      _ = try await api.getInventory()
+    }
+    #expect(client.requests == 1)
+  }
+
+}
+
+/// A client whose transport always fails before a response arrives.
+private final class FailingApiClient: ApiClient, @unchecked Sendable {
+  func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+    async throws -> ApiHttpResponse
+  {
+    try await sendRequest(
+      method: method, url: url, headers: headers, body: body, noRedirect: false)
+  }
+
+  func sendRequest(
+    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+  )
+    async throws -> ApiHttpResponse
+  {
+    throw NetworkError(statusCode: 0, message: "connection reset")
+  }
+}
+
+/// A string enum standing in for a generated enum in the multipart tests.
+private enum MultipartEnumFixture: String, Codable {
+  case crimson = "crimson-red"
+}
+
+/// A Codable struct standing in for a generated model in the multipart tests.
+private struct MultipartModelPartFixture: Codable {
+  let isEnabled: Bool
+  let recordedAt: Date
+}
+
+private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
+  var requests = 0
+
+  func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws
+    -> ApiHttpResponse
+  {
+    requests += 1
+    return ApiHttpResponse(statusCode: 401, body: "{}", headers: [:])
   }
 }

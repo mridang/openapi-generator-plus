@@ -313,6 +313,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         refreshHeaders: (@Sendable () async throws -> [String: String])?,
         timeout: Int? = nil, maxRetries callRetries: Int? = nil, sendDefaultHeaders: Bool = true
     ) async throws -> ApiHttpResponse {
+        /* A line break in a header value would start a header line of its own. */
+        for (name, value) in headers where value.unicodeScalars.contains(where: { $0 == "\r" || $0 == "\n" }) {
+            throw ConfigurationError.invalidArgument(
+                "Header '\(name)' must not contain a carriage return or line feed")
+        }
         /* One logical request, retries included, counts as one in flight: a
            retry or a refreshed token after close() still finishes. */
         guard lifecycle.enter() else {

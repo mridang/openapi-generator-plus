@@ -16,7 +16,7 @@ import Foundation
 /// This type is immutable and thread-safe.
 ///
 /// See also ``ServerConfiguration``.
-public struct ServerVariable: Sendable {
+public struct ServerVariable: Sendable, Equatable {
   /// The default value for this variable.
   public let defaultValue: String
 

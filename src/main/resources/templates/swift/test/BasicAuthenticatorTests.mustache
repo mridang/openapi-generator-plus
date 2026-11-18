@@ -217,4 +217,30 @@ import Testing
         #expect(auth.description.contains("username: alice"))
         #expect(!auth.description.contains("masked-password-value"))
     }
+    // MARK: - Behaviour catalogue: credential resolution
+
+    /* A credential that is not passed is read from its own environment variable, and no other. */
+    @Test func testBhvAuth007GenericCredentialReadsOnlyItsOwnVariable() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try BaseAuthenticator.credential(nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["OTHER_TOKEN": "x"])
+        }
+    }
+
+    /* The explicit argument is used before the environment variable. */
+    @Test func testBhvAuth022ExplicitArgumentBeatsTheEnvironmentVariable() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit", name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "explicit")
+    }
+
+    /* Each credential field takes its own environment variable, independently of the other fields. */
+    @Test func testBhvAuth024EachFieldReadsItsOwnEnvironmentVariable() throws {
+        let environment = ["EXAMPLE_USERNAME": "alice", "EXAMPLE_PASSWORD": "s3cret"]
+        let username = try BaseAuthenticator.credential(
+            nil, name: "username", variable: "EXAMPLE_USERNAME", environment: environment)
+        let password = try BaseAuthenticator.credential(
+            nil, name: "password", variable: "EXAMPLE_PASSWORD", environment: environment)
+        #expect(username == "alice")
+        #expect(password == "s3cret")
+    }
 }

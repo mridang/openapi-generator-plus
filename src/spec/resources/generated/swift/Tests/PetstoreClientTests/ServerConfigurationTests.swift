@@ -151,4 +151,34 @@ import Testing
       _ = try server.url()
     }
   }
+
+  // MARK: - Behaviour catalogue: server variables are values
+
+  /* Changing the variables a server was built from, after building it, changes nothing. */
+  @Test func testBhvServers025ChangingTheBuiltVariablesDoesNotChangeTheServer() {
+    var variables = ["env": ServerVariable(defaultValue: "prod")]
+    let server = ServerConfiguration(urlTemplate: "https://{env}.example.com", variables: variables)
+    variables["env"] = ServerVariable(defaultValue: "dev")
+    #expect(server.variables["env"]?.defaultValue == "prod")
+  }
+
+  /* Changing the allowed-values list a variable was built from does not change its allowed values. */
+  @Test func testBhvServers026ChangingTheBuiltAllowedValuesDoesNotChangeTheVariable() {
+    var allowed = ["prod", "dev"]
+    let variable = ServerVariable(defaultValue: "prod", enumValues: allowed)
+    allowed.append("test")
+    #expect(variable.enumValues == ["prod", "dev"])
+  }
+
+  /* Two server variables with the same default, description and allowed values are equal. */
+  @Test func testBhvServers027VariablesWithTheSameFieldsAreEqual() {
+    let first = ServerVariable(
+      defaultValue: "prod", description: "stage", enumValues: ["prod", "dev"])
+    let same = ServerVariable(
+      defaultValue: "prod", description: "stage", enumValues: ["prod", "dev"])
+    let other = ServerVariable(
+      defaultValue: "dev", description: "stage", enumValues: ["prod", "dev"])
+    #expect(first == same)
+    #expect(first != other)
+  }
 }

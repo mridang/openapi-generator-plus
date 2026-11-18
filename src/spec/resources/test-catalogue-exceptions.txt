@@ -209,3 +209,9 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+swift | models014 | Swift model properties are declared with let, so reassigning one is a compile-time error that no runtime test can observe
+swift | options063 | Swift per-call options are structs whose fields are declared with let, so changing a built one is a compile-time error that no runtime test can observe
+swift | servers028 | Swift generated server lists are let constants, so changing one after creation is a compile-time error that no runtime test can observe
+swift | serialization011 | Swift writes model keys sorted through JSONEncoder with sortedKeys, a forced divergence recorded as D85, so model keys are not in declaration order
+swift | serialization041 | Swift maps format time to String with no time-of-day type in Foundation, so the wire string is the value and is never parsed into a time value
+swift | serialization043 | Swift maps format time to String with no time-of-day type in Foundation, so a time of day is kept as its wire string and never written from a time value

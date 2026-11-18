@@ -2337,4 +2337,125 @@ import Testing
       ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes") as? String
         == "a|b|c")
   }
+  // MARK: - Behaviour catalogue: JSON reading and writing
+
+  /* A top-level JSON scalar decodes to a value of that scalar's own type. */
+  @Test func testBhvSerialization022TopLevelScalarDecodesToItsOwnType() throws {
+    #expect(try ObjectSerializer.deserialize("\"abc\"", as: String.self) == "abc")
+    #expect(try ObjectSerializer.deserialize("42", as: Int.self) == 42)
+    #expect(try ObjectSerializer.deserialize("true", as: Bool.self) == true)
+  }
+
+  /* A payload with content after the document is not well-formed JSON and fails to decode. */
+  @Test func testBhvSerialization023ContentAfterTheDocumentFailsToDecode() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"id\":1} trailing", as: Order.self)
+    }
+  }
+
+  /* Brackets inside JSON strings never count toward the depth limit, and deeper nesting is refused. */
+  @Test func testBhvSerialization024BracketsInStringsDoNotCountTowardDepth() {
+    let inString = Data("{\"a\":\"[[[\"}".utf8)
+    #expect(ObjectSerializer.jsonMaxDepth(inString) == 1)
+    let deep =
+      String(repeating: "[", count: ObjectSerializer.maxJsonDepth + 1)
+      + String(repeating: "]", count: ObjectSerializer.maxJsonDepth + 1)
+    #expect(ObjectSerializer.jsonMaxDepth(Data(deep.utf8)) > ObjectSerializer.maxJsonDepth)
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(deep, as: [Int].self)
+    }
+  }
+
+  /* A JSON object decodes to a map of its typed values, and an empty object to an empty map. */
+  @Test func testBhvSerialization026JsonObjectDecodesToATypedMap() throws {
+    #expect(
+      try ObjectSerializer.deserialize("{\"a\":1,\"b\":2}", as: [String: Int].self) == [
+        "a": 1, "b": 2,
+      ])
+    #expect(try ObjectSerializer.deserialize("{}", as: [String: Int].self) == [:])
+  }
+
+  /* An empty JSON array decodes to an empty collection, which is present and not absent. */
+  @Test func testBhvSerialization027EmptyArrayDecodesToAnEmptyCollection() throws {
+    let decoded = try ObjectSerializer.deserialize("[]", as: [Int].self)
+    #expect(decoded != nil)
+    #expect(decoded?.isEmpty == true)
+  }
+
+  /* A JSON value of the wrong kind for a model, list or map is refused. */
+  @Test func testBhvSerialization028WrongKindForModelListOrMapIsRefused() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("[1]", as: Order.self)
+    }
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"a\":1}", as: [Int].self)
+    }
+  }
+
+  /* A quoted number for an integer field is the wrong kind and is refused. */
+  @Test func testBhvSerialization029QuotedNumberForAScalarFieldIsRefused() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"id\":\"7\"}", as: Order.self)
+    }
+  }
+
+  /* A date-time field accepts only a string, so a JSON number there is refused. */
+  @Test func testBhvSerialization030DateTimeFieldAcceptsOnlyAString() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"shipDate\":12345}", as: Order.self)
+    }
+  }
+
+  /* NaN and Infinity are not JSON, so a payload holding them is refused when decoded. */
+  @Test func testBhvSerialization035NonStandardFloatLiteralsAreRefused() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"a\":NaN}", as: [String: Double].self)
+    }
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"a\":Infinity}", as: [String: Double].self)
+    }
+  }
+
+  /* A date-time read from any RFC 3339 spelling gives the same instant. */
+  @Test func testBhvSerialization039AnyRfc3339SpellingGivesTheSameInstant() throws {
+    let utc = try #require(ObjectSerializer.parseDate("2024-01-15T10:30:00Z"))
+    let offset = try #require(ObjectSerializer.parseDate("2024-01-15T11:30:00+01:00"))
+    #expect(utc == offset)
+    let fraction = try #require(ObjectSerializer.parseDate("2024-01-15T10:30:00.5Z"))
+    #expect(fraction.timeIntervalSince(utc) == 0.5)
+  }
+
+  /* A malformed duration string is refused with an error rather than decoded to a wrong value. */
+  @Test func testBhvSerialization045MalformedDurationIsRefused() {
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.decodeDuration("soon")
+    }
+  }
+
+  /* A URI-format value must be absolute, and a relative or empty string is refused. */
+  @Test func testBhvSerialization049UriFormatValueMustBeAbsolute() throws {
+    #expect(throws: (any Error).self) {
+      try ObjectSerializer.requireAbsoluteUri("/relative/path", property: "homepage")
+    }
+    #expect(throws: (any Error).self) {
+      try ObjectSerializer.requireAbsoluteUri("", property: "homepage")
+    }
+    try ObjectSerializer.requireAbsoluteUri("https://example.com/x", property: "homepage")
+  }
+
+  /* A collection of unique values is written as a JSON array of its members. */
+  @Test func testBhvSerialization064SetIsWrittenAsAJsonArray() throws {
+    #expect(try ObjectSerializer.serialize(Set(["only"])) == "[\"only\"]")
+  }
+
+  /* Raw bytes are written as padded standard base64 text at the top level. */
+  @Test func testBhvSerialization063RawBytesAreWrittenAsPaddedBase64() throws {
+    #expect(try ObjectSerializer.serialize(Data([0x01, 0x02, 0x03, 0x04])) == "\"AQIDBA==\"")
+  }
+
+  /* A null inside an array of plain values is kept as null in its own position on decode. */
+  @Test func testBhvSerialization065NullInsideAnArrayIsKeptInPlace() throws {
+    let decoded = try ObjectSerializer.deserialize("[1,null,3]", as: [Int?].self)
+    #expect(decoded == [1, nil, 3])
+  }
 }

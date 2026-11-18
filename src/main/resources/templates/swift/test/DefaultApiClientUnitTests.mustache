@@ -1941,6 +1941,59 @@ import FoundationNetworking
         }
         #expect(DefaultApiClient.redirectMethod(status: 303, method: "HEAD") == "HEAD")
     }
+
+    // MARK: - Behaviour catalogue: header refusal and lifecycle
+
+    /* A header value with a line break is refused before the request is sent. */
+    @Test func testBhvHeaders031HeaderValueWithLineBreakIsRefusedBeforeSend() async throws {
+        var sent = 0
+        let client = makeClient { _ in
+            sent += 1
+            return (Data("{}".utf8), 200, [:])
+        }
+        await #expect(throws: ConfigurationError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com/headers", headers: ["X-Bad": "a\r\nInjected: yes"], body: nil)
+        }
+        #expect(sent == 0)
+    }
+
+    /* Closing while a request is in flight releases the transport only after that request finishes, once. */
+    @Test func testBhvLifecycle037CloseReleasesTheTransportOnlyAfterTheInFlightRequest() async throws {
+        let gate = CloseGate()
+        let client = makeClient { _ in
+            gate.holdRequest()
+            return (Data("{}".utf8), 200, [:])
+        }
+        let inFlight = Task {
+            try await client.sendRequest(
+                method: "GET", url: "https://example.com/in-flight", headers: [:], body: nil)
+        }
+        try await gate.waitUntilHeld()
+
+        client.close()
+        client.close()
+        #expect(!client.isTransportReleased)
+
+        gate.release()
+        let response = try await inFlight.value
+        #expect(response.statusCode == 200)
+        #expect(client.isTransportReleased)
+    }
+
+    /* Leaving a scope that defers close() closes the client and releases its transport. */
+    @Test func testBhvLifecycle040ScopedDisposalClosesTheClientAndReleasesItsTransport() async throws {
+        let client = makeClient { _ in (Data("{}".utf8), 200, [:]) }
+        do {
+            defer { client.close() }
+            let response = try await client.sendRequest(
+                method: "GET", url: "https://example.com/scoped", headers: [:], body: nil)
+            #expect(response.statusCode == 200)
+        }
+        #expect(client.isClosed)
+        #expect(client.isTransportReleased)
+    }
+
 }
 
 // MARK: - Model-part stand-in for multipart unit tests
@@ -1959,9 +2012,6 @@ private enum MultipartEnumFixture: String, Codable {
     case crimson = "crimson-red"
 }
 
-// MARK: - Close-lifecycle helpers
-
-/// Holds a stubbed request in flight until the test lets it go.
 private final class CloseGate: @unchecked Sendable {
     private let lock = NSLock()
     private var flag = false
