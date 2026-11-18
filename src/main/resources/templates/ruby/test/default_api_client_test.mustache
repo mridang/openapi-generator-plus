@@ -9,6 +9,73 @@ describe {{moduleName}}::DefaultApiClient do
   parallelize_me!
 
   describe 'TLS verification disabled' do
+    it 'bhv_misc_266 caller default headers replace the SDK user agent and request id on the wire regardless of header name case' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .user_agent('SdkDefault/9.9')
+        .inject_request_id(true)
+        .default_header('user-agent', 'MyApp')
+        .default_header('x-request-id', 'abc')
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['headers']['user-agent']).must_equal('MyApp')
+      _(json['headers']['x-request-id']).must_equal('abc')
+      _(response.body).wont_include('SdkDefault')
+    end
+
+    it 'bhv_misc_271 with no proxy configured the client connects directly even when a proxy environment variable is set' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      dead = %w[HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy]
+      bypass = %w[NO_PROXY no_proxy]
+      saved = {} #: Hash[String, String?]
+      (dead + bypass).each { |name| saved[name] = ENV.fetch(name, nil) }
+      dead.each { |name| ENV[name] = 'http://127.0.0.1:1' }
+      bypass.each { |name| ENV.delete(name) }
+
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.build)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+    ensure
+      saved&.each { |name, value| ENV[name] = value }
+    end
+
+    it 'bhv_misc_272 an authenticating proxy accepts the credentials carried in the proxy URL end to end' do
+      chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
+      transport = {{moduleName}}::TransportOptions.builder
+        .proxy("http://user:pass@#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(JSON.parse(response.body)['method']).must_equal('GET')
+    end
+
+    it 'bhv_misc_269 a self-signed endpoint is reached with verification disabled and rejected with it on' do
+      chasm_url = ENV.fetch('CHASM_HTTPS_URL')
+      off = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.verify_ssl(false).build)
+      _(off.send_request(:GET, "#{chasm_url}/test/echo", {}, nil).status_code).must_equal(200)
+
+      on = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.build)
+      _(proc { on.send_request(:GET, "#{chasm_url}/test/echo", {}, nil) }).must_raise {{moduleName}}::Errors::NetworkError
+    end
+
+    it 'bhv_misc_270 a missing CA certificate file is rejected even with verification disabled' do
+      transport = {{moduleName}}::TransportOptions.builder.verify_ssl(false).ca_cert_path('/nonexistent/missing-ca.pem').build
+      err = assert_raises(StandardError) do
+        {{moduleName}}::DefaultApiClient.new(transport).send_request(:GET, 'http://localhost/echo', {}, nil)
+      end
+      _(err.message).must_include 'missing-ca.pem'
+    end
+
     it 'bhv_transport_018 makes HTTPS request with verify_ssl=false' do
       chasm_url = ENV.fetch('CHASM_HTTPS_URL')
 

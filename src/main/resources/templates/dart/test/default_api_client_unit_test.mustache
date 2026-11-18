@@ -4840,6 +4840,43 @@ void main() {
       expect(seen!.headers.keys.map((k) => k.toLowerCase()),
           isNot(contains('user-agent')));
     });
+
+    test('bhv serialization 119 a response is decoded by its declared charset, falling back to UTF-8 and reading BOM-less UTF-16 as big-endian', () async {
+      final cases = <String, List<int>>{
+        'ISO-8859-1': latin1.encode('café'),
+        'no-such-charset': utf8.encode('café'),
+        'utf-16': [0x00, 0x68, 0x00, 0x69],
+      };
+      final expected = <String, String>{
+        'ISO-8859-1': 'café',
+        'no-such-charset': 'café',
+        'utf-16': 'hi',
+      };
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        final charset = request.uri.path.substring(1);
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Type', 'text/plain; charset=$charset')
+          ..add(cases[charset]!)
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        for (final charset in cases.keys) {
+          final resp = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/$charset',
+            {},
+            null,
+          );
+          expect(resp.body, equals(expected[charset]), reason: charset);
+        }
+      } finally {
+        await server.close(force: true);
+      }
+    });
     test('bhv misc 267 A default header on a caller-supplied HTTP client is sent with each request', () async {
       http.BaseRequest? seen;
       final custom = _DefaultHeaderClient(MockClient((request) async {

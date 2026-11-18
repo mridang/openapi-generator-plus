@@ -643,4 +643,13 @@ class TransportOptionsTest {
                 assertThrowsExactly(IllegalArgumentException.class, () -> TransportOptions.builder().timeout(0));
         assertFalse(thrown instanceof {{errorPrefix}}Exception);
     }
+
+    @Test
+    void bhvMisc186AReadyMadeConnectionWithACaBundleIsRejectedWhenBuilt() {
+        assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder()
+                        .httpClient(java.net.http.HttpClient.newHttpClient())
+                        .caCertPath("/tmp/ca.pem")
+                        .build());
+    }
 }
