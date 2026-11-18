@@ -646,7 +646,7 @@ class ComposedSchemaTest {
 
     @Test
     @DisplayName("throws when no oneOf variant matches (no silent raw accept)")
-    void testNoMatchThrows() {
+    void bhvLangjava058TestNoMatchThrows() {
       // A JSON object matches neither the single-byte[] nor the
       // array-of-byte[] variant. The deserializer must reject it rather
       // than silently store the raw tree as the actualInstance.

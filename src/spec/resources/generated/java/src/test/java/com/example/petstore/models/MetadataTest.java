@@ -85,7 +85,7 @@ class MetadataTest {
   }
 
   @Test
-  void testAdditionalPropertiesAreWrittenThroughTheBuilderNotASetter() {
+  void bhvLangjava028TestAdditionalPropertiesAreWrittenThroughTheBuilderNotASetter() {
     assertThat(
             java.util.Arrays.stream(Metadata.class.getMethods())
                 .map(java.lang.reflect.Method::getName))
@@ -101,7 +101,7 @@ class MetadataTest {
   }
 
   @Test
-  void testBuilderPutAllRemoveAndReplaceTheAdditionalProperties() {
+  void bhvLangjava029TestBuilderPutAllRemoveAndReplaceTheAdditionalProperties() {
     Metadata.Builder builder =
         Metadata.builder()
             .putAllAdditionalProperties(java.util.Map.of("a", "1", "b", "2"))
@@ -201,7 +201,7 @@ class MetadataTest {
   }
 
   @Test
-  void testToBuilderCopiesWithOnePropertyChanged() {
+  void bhvLangjava030TestToBuilderCopiesWithOnePropertyChanged() {
     java.time.OffsetDateTime first = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
     java.time.OffsetDateTime second = java.time.OffsetDateTime.parse("2025-02-03T04:05:06Z");
     Metadata original =
@@ -216,7 +216,7 @@ class MetadataTest {
   }
 
   @Test
-  void testBuilderDoesNotShareStateWithTheInstanceItBuilt() {
+  void bhvLangjava031TestBuilderDoesNotShareStateWithTheInstanceItBuilt() {
     Metadata.Builder builder = Metadata.builder().putAdditionalProperty("a", "1");
     Metadata built = builder.build();
 
@@ -226,7 +226,7 @@ class MetadataTest {
   }
 
   @Test
-  void testCollectionPropertyIsCopiedAndUnmodifiable() {
+  void bhvLangjava032TestCollectionPropertyIsCopiedAndUnmodifiable() {
     java.util.Set<String> urls = new java.util.LinkedHashSet<>(java.util.Set.of("u"));
     Pet pet = new Pet("Rex", urls);
 
@@ -238,14 +238,14 @@ class MetadataTest {
   }
 
   @Test
-  void testBuilderRejectsAMissingRequiredProperty() {
+  void bhvLangjava033TestBuilderRejectsAMissingRequiredProperty() {
     assertThatThrownBy(() -> Pet.builder().build())
         .isInstanceOf(NullPointerException.class)
         .hasMessage("name is required");
   }
 
   @Test
-  void testToBuilderChangesOnePropertyAndKeepsTheOthers() {
+  void bhvLangjava034TestToBuilderChangesOnePropertyAndKeepsTheOthers() {
     Pet original = Pet.builder().name("Rex").photoUrls(java.util.Set.of("u")).id(7L).build();
 
     Pet renamed = original.toBuilder().name("Max").build();
@@ -257,7 +257,7 @@ class MetadataTest {
   }
 
   @Test
-  void testDefaultedPropertyKeepsItsDefaultUntilSet() {
+  void bhvLangjava035TestDefaultedPropertyKeepsItsDefaultUntilSet() {
     assertThat(Order.builder().build().status).isEqualTo(Order.StatusEnum.PLACED);
   }
 
@@ -314,7 +314,7 @@ class MetadataTest {
   }
 
   @Test
-  void testPomLicenseNameAndUrlComeFromTheSameLicense() throws IOException {
+  void bhvLangjava036TestPomLicenseNameAndUrlComeFromTheSameLicense() throws IOException {
     String contents = Files.readString(Path.of("pom.xml"));
     Matcher matcher =
         Pattern.compile("<license>\\s*<name>(.*?)</name>\\s*<url>(.*?)</url>").matcher(contents);
@@ -324,7 +324,7 @@ class MetadataTest {
   }
 
   @Test
-  void testDeclaredDevDependenciesAreInTheProjectManifest() throws IOException {
+  void bhvLangjava037TestDeclaredDevDependenciesAreInTheProjectManifest() throws IOException {
     Path declared = Path.of(".openapi-generator", "DEV-DEPENDENCIES");
     assertThat(Files.exists(declared))
         .as(".openapi-generator/DEV-DEPENDENCIES must exist at the project root")

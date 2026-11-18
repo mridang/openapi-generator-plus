@@ -175,7 +175,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("equals preserved (sub-delimiter)")
-    void equalsPreserved() {
+    void bhvLangjava055EqualsPreserved() {
       assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null));
     }
 
@@ -203,7 +203,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("tilde preserved in styled path array items")
-    void tildePreservedInStyledArray() {
+    void bhvLangjava056TildePreservedInStyledArray() {
       assertEquals(
           "a~b,c~d",
           ValueSerializer.serializeStyled(

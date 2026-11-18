@@ -368,7 +368,7 @@ class TransportOptionsTest {
         "http://[::1:3128|Invalid proxy URL: http://[::1:3128"
     })
     @DisplayName("an unusable proxy URL is rejected with the exact message")
-    void unusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
+    void bhvOptions010UnusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
         IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
                 TransportOptions.builder().proxy(proxy).build());
         assertEquals(message, ex.getMessage());

@@ -303,7 +303,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void toStringDoesNotPrintTheCallHook() {
+  void bhvLangjava059ToStringDoesNotPrintTheCallHook() {
     CallHook hook = (info, headers) -> null;
 
     assertFalse(Configuration.builder().callHook(hook).build().toString().contains("callHook"));

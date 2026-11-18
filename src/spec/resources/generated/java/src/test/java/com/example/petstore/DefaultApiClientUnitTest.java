@@ -1845,7 +1845,8 @@ class DefaultApiClientUnitTest {
         "😀.png | filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
         "plain.txt | filename=\"plain.txt\""
       })
-  void multipartFilenameDirectiveFollowsTheCanonicalRule(String filename, String expected) {
+  void bhvSerializationwire028MultipartFilenameDirectiveFollowsTheCanonicalRule(
+      String filename, String expected) {
     assertEquals(expected, DefaultApiClient.buildFilenameDirective(filename));
   }
 
