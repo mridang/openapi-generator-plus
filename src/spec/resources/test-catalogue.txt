@@ -2304,6 +2304,9 @@ langnode046 | The generated README lists the features that are not generated
 langnode047 | The generated docs cancel through the per-call signal only
 langnode048 | The generated docs show how to stub the transport with a canned fetch
 langnode049 | An empty API key is rejected at construction
+langcsharp054 | A rendered error body is capped in length and names how many characters were hidden
+langcsharp055 | A declared error schema exception subclasses its status class and holds an absent typed body
+langcsharp056 | The response factory that cannot be used directly is not part of the public surface
 langphp014 | A GET request is sent through the PSR-18 client and its response is returned to the caller.
 langphp015 | A JSON body is sent with a POST request through the PSR-18 client with its content type set.
 langphp016 | Response header names are returned lowercased whatever case the server sent them in.
@@ -2356,6 +2359,9 @@ langnode086 | Undeclared wire keys survive deserialization
 langnode087 | A constructed instance exposes its undeclared keys
 langnode088 | The undeclared-keys map is typed like an index signature
 langnode089 | The undeclared-keys map is not serialised as a data key
+langcsharp057 | The cancellation token defaults to none when none is supplied
+langcsharp058 | A supplied cancellation token is kept when the options are read back
+langcsharp059 | Supplying both a client and a handler together fails fast
 langnode090 | The synchronous header getter throws rather than returning unauthenticated headers
 langnode091 | setAccessToken rejects a token containing a forbidden character
 langphp026 | Data methods declare the language's native return type rather than a generic one. | multi
@@ -2368,8 +2374,21 @@ langphp032 | The OpenID Connect authenticator masks its client secret in debug o
 langphp033 | A third global server keeps its URL, description and variable through a round trip.
 langphp034 | A multipart text part carries only a Content-Disposition header.
 langphp035 | The retry backoff doubles from half a second up to a cap of eight seconds.
+langcsharp060 | A non-finite expires_in value skips caching of the token
 langphp036 | A date-only cookie value is written as yyyy-mm-dd.
 langphp037 | Each date in a query array is written as yyyy-mm-dd.
 langphp038 | A date-time query value keeps its time when no date marker is present.
 langphp039 | A set query parameter in multi format expands to repeated values.
 langphp040 | An exploded styled form set expands to repeated values.
+langphp041 | Every SDK class autoloads from its own file in a fresh process.
+langphp042 | The README names the published package and the proxy setter that exists.
+langphp043 | File upload parameters are typed as the file object the options require.
+langphp044 | The test runner configuration runs the hand written spec directory as well as the tests.
+langphp045 | A call hook set on the builder is returned by the configuration.
+langphp046 | A configuration has no call hook unless one was set.
+langphp047 | The debug output of a configuration omits its call hook.
+langphp048 | A secret constructor parameter is marked sensitive so its value is hidden from stack traces and dumps. | multi
+langphp049 | An explicit API key takes precedence over the environment variable and a key provider.
+langphp050 | The base authenticator class reads no environment variable. | multi
+langphp051 | The printable form of a bearer authenticator never shows its token.
+langphp052 | An operation with no security sends no API key even when one is configured.

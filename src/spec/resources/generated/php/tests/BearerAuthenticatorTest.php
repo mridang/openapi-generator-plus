@@ -104,7 +104,7 @@ test('bhv auth 033 token is masked in var_dump and print_r output', function ():
     expect($printR)->toContain('***');
 });
 
-test('secret constructor parameters are marked sensitive', function (): void {
+test('bhv langphp 048 secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
     foreach ((new \ReflectionMethod(BearerAuthenticator::class, '__construct'))->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
@@ -234,7 +234,7 @@ test('bhv auth 022 an explicit token, then the environment variable, then the pr
     });
 });
 
-test('the base class reads no environment variable', function (): void {
+test('bhv langphp 050 the base class reads no environment variable', function (): void {
     withBearerTokenEnvironment('from-environment', function (): void {
         $message = '';
         try {
@@ -393,7 +393,7 @@ test('bhv auth 009 a bearer token that is blank or holds a control character is 
     'nul' => ["abc\x00def"],
 ]);
 
-test('a bearer token from a provider that holds a line feed is refused when the header is built', function (): void {
+test('bhv misc 194 a bearer token from a provider that holds a line feed is refused when the header is built', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', null, fn (): string => "abc\ndef");
     expect(fn (): array => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
 });
@@ -419,14 +419,14 @@ test('bhv auth 023 an explicitly passed empty bearer token is refused and not re
         ->toThrow(\InvalidArgumentException::class, 'must not be empty');
 });
 
-test('a bearer authenticator built with no token, no provider and no environment is refused', function (): void {
+test('bhv misc 196 a bearer authenticator built with no token, no provider and no environment is refused', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com'))
         ->toThrow(\InvalidArgumentException::class, 'Bearer token is required');
     expect(fn () => new BearerAuthenticator('https://api.example.com'))
         ->toThrow(\InvalidArgumentException::class, 'Bearer token is required');
 });
 
-test('the printable form of a bearer authenticator names its type and never shows the token', function (): void {
+test('bhv langphp 051 the printable form of a bearer authenticator names its type and never shows the token', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', 'tok-secret-123');
 
     ob_start();
