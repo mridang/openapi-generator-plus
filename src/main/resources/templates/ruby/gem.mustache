@@ -39,6 +39,9 @@ require '{{modulePath}}/errors/network_timeout_error'
 require '{{modulePath}}/errors/serialization_error'
 require '{{modulePath}}/errors/oauth2_server_error'
 require '{{modulePath}}/errors/oauth2_token_error'
+{{#errorSchemas}}
+require '{{modulePath}}/errors/{{#lambda.rubySnake}}{{className}}{{/lambda.rubySnake}}'
+{{/errorSchemas}}
 require '{{modulePath}}/version'
 require '{{modulePath}}/types'
 require '{{modulePath}}/configuration'

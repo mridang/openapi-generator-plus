@@ -1759,6 +1759,26 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
 
     /** {@inheritDoc} */
     @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        return Path.of(
+                        getOutputDir(),
+                        LIB_FOLDER,
+                        modulePath,
+                        "errors",
+                        NamingConvention.SNAKE_CASE.apply(className) + ".rb")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         final String modulePath =
                 NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));

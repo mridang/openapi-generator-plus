@@ -23,6 +23,7 @@ module Petstore::Client
       # @param options [GetFallbackOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Result]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::UnexpectedFailureError] on HTTP default with a UnexpectedFailure body
       def get_fallback(fallback_id, options = nil)
         result = get_fallback_with_http_info(fallback_id, options)
         # This operation declares a non-void return type. When the server
@@ -43,6 +44,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::UnexpectedFailureError] on HTTP default with a UnexpectedFailure body
       def get_fallback_with_http_info(fallback_id, options = nil)
         if fallback_id.nil?
           raise ArgumentError,
@@ -67,6 +69,9 @@ module Petstore::Client
           'application/json',
           'Result',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          error_schemas: {
+            'default' => ::Petstore::Client::Errors::UnexpectedFailureError
+          },
           operation_id: 'ProblemsApi.get_fallback',
           request_options: options
         )
@@ -77,6 +82,7 @@ module Petstore::Client
       # @param options [GetMemberOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Result]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::MemberNotFoundError] on HTTP 404 with a MemberNotFound body
       def get_member(member_id, options = nil)
         result = get_member_with_http_info(member_id, options)
         # This operation declares a non-void return type. When the server
@@ -97,6 +103,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::MemberNotFoundError] on HTTP 404 with a MemberNotFound body
       def get_member_with_http_info(member_id, options = nil)
         if member_id.nil?
           raise ArgumentError,
@@ -121,6 +128,9 @@ module Petstore::Client
           'application/json',
           'Result',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          error_schemas: {
+            '404' => ::Petstore::Client::Errors::MemberNotFoundError
+          },
           operation_id: 'ProblemsApi.get_member',
           request_options: options
         )
@@ -131,6 +141,7 @@ module Petstore::Client
       # @param options [GetProjectOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Result]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::ProjectNotFoundError] on HTTP 404 with a ProjectNotFound body
       def get_project(project_id, options = nil)
         result = get_project_with_http_info(project_id, options)
         # This operation declares a non-void return type. When the server
@@ -151,6 +162,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::ProjectNotFoundError] on HTTP 404 with a ProjectNotFound body
       def get_project_with_http_info(project_id, options = nil)
         if project_id.nil?
           raise ArgumentError,
@@ -175,6 +187,9 @@ module Petstore::Client
           'application/json',
           'Result',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          error_schemas: {
+            '404' => ::Petstore::Client::Errors::ProjectNotFoundError
+          },
           operation_id: 'ProblemsApi.get_project',
           request_options: options
         )
@@ -185,6 +200,7 @@ module Petstore::Client
       # @param options [GetRangeOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Result]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::RejectedRequestError] on HTTP 4XX with a RejectedRequest body
       def get_range(range_id, options = nil)
         result = get_range_with_http_info(range_id, options)
         # This operation declares a non-void return type. When the server
@@ -205,6 +221,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::RejectedRequestError] on HTTP 4XX with a RejectedRequest body
       def get_range_with_http_info(range_id, options = nil)
         if range_id.nil?
           raise ArgumentError,
@@ -229,6 +246,9 @@ module Petstore::Client
           'application/json',
           'Result',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          error_schemas: {
+            '4XX' => ::Petstore::Client::Errors::RejectedRequestError
+          },
           operation_id: 'ProblemsApi.get_range',
           request_options: options
         )
@@ -239,6 +259,7 @@ module Petstore::Client
       # @param options [GetUpstreamOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Result]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::UpstreamFailureError] on HTTP 5XX with a UpstreamFailure body
       def get_upstream(upstream_id, options = nil)
         result = get_upstream_with_http_info(upstream_id, options)
         # This operation declares a non-void return type. When the server
@@ -259,6 +280,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::UpstreamFailureError] on HTTP 5XX with a UpstreamFailure body
       def get_upstream_with_http_info(upstream_id, options = nil)
         if upstream_id.nil?
           raise ArgumentError,
@@ -283,6 +305,9 @@ module Petstore::Client
           'application/json',
           'Result',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          error_schemas: {
+            '5XX' => ::Petstore::Client::Errors::UpstreamFailureError
+          },
           operation_id: 'ProblemsApi.get_upstream',
           request_options: options
         )
@@ -293,6 +318,8 @@ module Petstore::Client
       # @param options [TakeLockOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Result]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::StateConflictError] on HTTP 409 with a StateConflict body
+      # @raise [::Petstore::Client::Errors::StateConflictError] on HTTP 423 with a StateConflict body
       def take_lock(lock_id, options = nil)
         result = take_lock_with_http_info(lock_id, options)
         # This operation declares a non-void return type. When the server
@@ -313,6 +340,8 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::StateConflictError] on HTTP 409 with a StateConflict body
+      # @raise [::Petstore::Client::Errors::StateConflictError] on HTTP 423 with a StateConflict body
       def take_lock_with_http_info(lock_id, options = nil)
         if lock_id.nil?
           raise ArgumentError,
@@ -337,6 +366,10 @@ module Petstore::Client
           'application/json',
           'Result',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          error_schemas: {
+            '409' => ::Petstore::Client::Errors::StateConflictError,
+            '423' => ::Petstore::Client::Errors::StateConflictError
+          },
           operation_id: 'ProblemsApi.take_lock',
           request_options: options
         )

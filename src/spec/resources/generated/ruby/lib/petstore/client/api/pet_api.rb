@@ -181,6 +181,7 @@ module Petstore::Client
       # @param options [AddPetOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       def add_pet(pet, options = nil)
         result = add_pet_with_http_info(pet, options)
         # This operation declares a non-void return type. When the server
@@ -201,6 +202,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       def add_pet_with_http_info(pet, options = nil)
         if pet.nil?
           raise ArgumentError,
@@ -236,6 +238,7 @@ module Petstore::Client
       # @param options [AddPetPhotosOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Array<Photo>]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def add_pet_photos(pet_id, options)
         result = add_pet_photos_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
@@ -256,6 +259,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def add_pet_photos_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
@@ -359,12 +363,14 @@ module Petstore::Client
       # @param options [DeletePetOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [nil]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       def delete_pet(pet_id, options = nil)
         delete_pet_with_http_info(pet_id, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       def delete_pet_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -409,6 +415,7 @@ module Petstore::Client
       # @param options [DownloadPetDocumentOptions] per-call options: the optional timeout, headers and max_retries
       # @return [StringIO]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def download_pet_document(pet_id, document_id, options = nil)
         result = download_pet_document_with_http_info(pet_id, document_id, options)
         # This operation declares a non-void return type. When the server
@@ -429,6 +436,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def download_pet_document_with_http_info(pet_id, document_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -512,6 +520,8 @@ module Petstore::Client
       # @param options [FindPetsByStatusOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Array<Pet>]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
       def find_pets_by_status(options = nil)
@@ -534,6 +544,8 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+
       # @deprecated This operation is deprecated.
       def find_pets_by_status_with_http_info(options = nil)
         path = '/pet/findByStatus'
@@ -691,6 +703,7 @@ module Petstore::Client
       # @param options [GetPetAvatarOptions] per-call options: the optional timeout, headers and max_retries
       # @return [StringIO]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_avatar(pet_id, options = nil)
         result = get_pet_avatar_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
@@ -711,6 +724,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_avatar_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -741,6 +755,7 @@ module Petstore::Client
       # @param options [GetPetAvatarThumbnailOptions] per-call options: the optional timeout, headers and max_retries
       # @return [String]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_avatar_thumbnail(pet_id, options = nil)
         result = get_pet_avatar_thumbnail_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
@@ -761,6 +776,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_avatar_thumbnail_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -793,6 +809,9 @@ module Petstore::Client
       # @param options [GetPetByIdOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
+
       # @deprecated This operation is deprecated.
       def get_pet_by_id(pet_id, options = nil, server: nil)
         result = get_pet_by_id_with_http_info(pet_id, options, server: server)
@@ -814,6 +833,9 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
+
       # @deprecated This operation is deprecated.
       def get_pet_by_id_with_http_info(pet_id, options = nil, server: nil)
         if pet_id.nil?
@@ -932,6 +954,7 @@ module Petstore::Client
       # @param options [GetPetPassportOptions] per-call options: the optional timeout, headers and max_retries
       # @return [PetPassport]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_passport(pet_id, options = nil)
         result = get_pet_passport_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
@@ -952,6 +975,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_passport_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -983,6 +1007,7 @@ module Petstore::Client
       # @param options [GetPetPhotoOptions] per-call options: the optional timeout, headers and max_retries
       # @return [StringIO]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_photo(pet_id, photo_id, options = nil)
         result = get_pet_photo_with_http_info(pet_id, photo_id, options)
         # This operation declares a non-void return type. When the server
@@ -1003,6 +1028,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_photo_with_http_info(pet_id, photo_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -1040,6 +1066,7 @@ module Petstore::Client
       # @param options [GetPetSummaryOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [String]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_summary(pet_id, as_of, options)
         result = get_pet_summary_with_http_info(pet_id, as_of, options)
         # This operation declares a non-void return type. When the server
@@ -1060,6 +1087,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_summary_with_http_info(pet_id, as_of, options)
         if pet_id.nil?
           raise ArgumentError,
@@ -1302,12 +1330,14 @@ module Petstore::Client
       # @param request_content_type [String, nil] selects the request Content-Type among the declared types (image/jpeg, image/png, application/json); defaults to 'image/jpeg' when nil
       # @return [nil]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def set_pet_avatar(pet_id, body, options = nil, request_content_type: nil)
         set_pet_avatar_with_http_info(pet_id, body, options, request_content_type: request_content_type).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def set_pet_avatar_with_http_info(pet_id, body, options = nil, request_content_type: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -1371,12 +1401,14 @@ module Petstore::Client
       # @param options [SetPetAvatarThumbnailOptions] per-call options: the optional timeout, headers and max_retries
       # @return [nil]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request, options = nil)
         set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, options = nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -1418,6 +1450,7 @@ module Petstore::Client
       # @param options [SetPetPreferencesOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def set_pet_preferences(pet_id, options)
         result = set_pet_preferences_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
@@ -1438,6 +1471,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def set_pet_preferences_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
@@ -1484,6 +1518,8 @@ module Petstore::Client
       # @param options [UpdatePetOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def update_pet(pet_id, pet, options = nil)
         result = update_pet_with_http_info(pet_id, pet, options)
         # This operation declares a non-void return type. When the server
@@ -1504,6 +1540,8 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def update_pet_with_http_info(pet_id, pet, options = nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -1545,6 +1583,7 @@ module Petstore::Client
       # @param options [UploadPetCertificateOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def upload_pet_certificate(pet_id, options)
         result = upload_pet_certificate_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
@@ -1565,6 +1604,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def upload_pet_certificate_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
@@ -1603,6 +1643,7 @@ module Petstore::Client
       # @param request_content_type [String, nil] selects the request Content-Type among the declared types (multipart/form-data, application/octet-stream); defaults to 'multipart/form-data' when nil
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def upload_pet_document(pet_id, options, request_content_type: nil)
         result = upload_pet_document_with_http_info(pet_id, options, request_content_type: request_content_type)
         # This operation declares a non-void return type. When the server
@@ -1623,6 +1664,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def upload_pet_document_with_http_info(pet_id, options, request_content_type: nil)
         if pet_id.nil?
           raise ArgumentError,

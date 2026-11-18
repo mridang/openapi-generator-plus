@@ -98,11 +98,16 @@ module Petstore::Client
       # @param request_options [Object, nil] the per-call options of the operation: its +timeout+
       #   (milliseconds), +headers+ and +max_retries+ apply to this call alone, and nil members
       #   keep the client's values. A custom ApiClient receives the headers only.
+      # @param error_schemas [Hash{String => Class}, nil] the error classes the operation declares,
+      #   by declared status (+'404'+, +'4XX'+, +'5XX'+ or +'default'+), nil when it declares none
       # @return [ApiResult] ApiResult containing deserialized data, status code, raw body, and headers
       # @raise [Errors::ApiError] if the API call fails
+      # @raise [Errors::SerializationError] if the response body cannot be decoded; the error
+      #   carries the response status, headers and raw body and the request method and path
       def invoke_api_for_result(
         method, path, query_params, header_params, body,
-        accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil
+        accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
+        error_schemas: nil
       )
         url = if path.start_with?('http://', 'https://')
                 path
@@ -179,42 +184,20 @@ module Petstore::Client
           end
           response = dispatch_request(method, url, renewed, serialized_body, fresh_headers, call_options) if renewed
         end
-        throw_api_error(response, method, url) if response.status_code < 200 || response.status_code >= 300
+        throw_api_error(response, method, url, error_schemas) if response.status_code < 200 || response.status_code >= 300
 
         data = nil
         decode_type = return_type_for_status(return_type, response.status_code)
         if decode_type && response.body && !response.body.empty?
-          # @type var resp_content_type: String?
-          ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
-          resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
-          data = if binary_return_type?(decode_type)
-                   # Binary return types (File) must never be JSON-deserialized,
-                   # even when content negotiation makes the server label the
-                   # raw bytes `application/json`. Detect by the target return
-                   # type, not the response Content-Type. The transport
-                   # base64-encodes the body for binary content types and leaves
-                   # text content types (including JSON) as a decoded string, so
-                   # recover the raw bytes accordingly before wrapping.
-                   raw_bytes = if text_response_content_type?(resp_content_type)
-                                 response.body
-                               else
-                                 Base64.strict_decode64(response.body)
-                               end
-                   StringIO.new(raw_bytes)
-                 elsif !resp_content_type || @header_selector.json_mime?(resp_content_type)
-                   ::Petstore::Client::ObjectSerializer.deserialize(response.body, decode_type)
-                 elsif decode_type == 'String'
-                   response.body
-                 else
-                   # A non-JSON body can only be returned verbatim for a String
-                   # return type (the transport base64-encodes binary types);
-                   # anything else would be a raw string typed as a model, so
-                   # refuse it and name the Content-Type.
-                   raise ::Petstore::Client::Errors::SerializationError.new(
-                     "Unexpected response Content-Type '#{resp_content_type}' for " \
-                     "#{operation_id || self.class.name.to_s.split('::').last}: expected a JSON body", nil
-                   )
-                 end
+          begin
+            data = decode_success_body(response, decode_type, operation_id)
+          rescue ::Petstore::Client::Errors::SerializationError => e
+            # The error learns which response and request it belongs to.
+            raise e.with_response(
+              status_code: response.status_code, headers: response.headers, body: response.body,
+              request_method: method.to_s, request_path: request_path_of(url)
+            )
+          end
         end
 
         ::Petstore::Client::ApiResult.new(
@@ -300,15 +283,56 @@ module Petstore::Client
         body.nil? || body.is_a?(String)
       end
 
+      # Decodes the body of a success response as +decode_type+.
+      #
+      # @param response [ApiHttpResponse] the success response
+      # @param decode_type [String] the type name to decode the body into
+      # @param operation_id [String, nil] the calling operation, named in a serialization error
+      # @return [Object, nil] the decoded body
+      # @raise [Errors::SerializationError] if the body cannot be decoded
+      def decode_success_body(response, decode_type, operation_id)
+        # @type var resp_content_type: String?
+        ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
+        resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
+        if binary_return_type?(decode_type)
+          # Binary return types (File) must never be JSON-deserialized,
+          # even when content negotiation makes the server label the
+          # raw bytes `application/json`. Detect by the target return
+          # type, not the response Content-Type. The transport
+          # base64-encodes the body for binary content types and leaves
+          # text content types (including JSON) as a decoded string, so
+          # recover the raw bytes accordingly before wrapping.
+          raw_bytes = if text_response_content_type?(resp_content_type)
+                        response.body
+                      else
+                        Base64.strict_decode64(response.body)
+                      end
+          StringIO.new(raw_bytes)
+        elsif !resp_content_type || @header_selector.json_mime?(resp_content_type)
+          ::Petstore::Client::ObjectSerializer.deserialize(response.body, decode_type)
+        elsif decode_type == 'String'
+          response.body
+        else
+          # A non-JSON body can only be returned verbatim for a String
+          # return type (the transport base64-encodes binary types);
+          # anything else would be a raw string typed as a model, so
+          # refuse it and name the Content-Type.
+          raise ::Petstore::Client::Errors::SerializationError.new(
+            "Unexpected response Content-Type '#{resp_content_type}' for " \
+            "#{operation_id || self.class.name.to_s.split('::').last}: expected a JSON body", nil
+          )
+        end
+      end
+
       # Raises the error ApiError.from_response maps the response to, carrying
       # the method and the path (never the query string) of the request. The
       # body is parsed as JSON where possible so that structured error data
       # (e.g. from a +default+ response schema) is available via
       # {Errors::ApiError#error_body}.
-      def throw_api_error(response, method, url)
+      def throw_api_error(response, method, url, error_schemas = nil)
         raise ::Petstore::Client::Errors::ApiError.from_response(
           response.status_code, response.headers, response.body,
-          request_method: method.to_s, request_path: request_path_of(url)
+          request_method: method.to_s, request_path: request_path_of(url), error_schemas: error_schemas
         )
       end
 
