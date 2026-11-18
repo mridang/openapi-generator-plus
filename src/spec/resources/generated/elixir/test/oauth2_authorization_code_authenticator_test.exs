@@ -724,6 +724,47 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
     end
 
+    test "bhv misc 077 a generated PKCE verifier is 43 unreserved characters and differs on every call" do
+      auth = create_authenticator()
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.code_verifier(auth.token_manager)
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+      second = PetstoreClient.Auth.OAuth.OAuth2TokenManager.code_verifier(auth.token_manager)
+
+      assert first =~ ~r/\A[A-Za-z0-9\-._~]{43}\z/
+      assert first != second
+    end
+
+    test "bhv misc 076 a call after a dropped code exchange sees the code as not yet exchanged" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          %NetworkFailingApiClient{}
+        )
+
+      assert_raise RuntimeError, "connection reset", fn ->
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+          auth,
+          "auth-code-xyz"
+        )
+      end
+
+      caught =
+        try do
+          PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
+          nil
+        rescue
+          e in RuntimeError -> e
+        end
+
+      assert caught != nil
+      assert caught.message == "Must call exchange_code() before making API requests"
+    end
+
     test "bhv authoauthtwoauthcode 009 every authorization URL starts a new verifier" do
       auth = create_authenticator()
 
@@ -1050,6 +1091,25 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
         )
 
       assert String.starts_with?(url, "https://auth.example.com/authorize?")
+      assert query_params(url)["scope"] == "read write"
+    end
+
+    test "bhv misc 058 the configured authorization endpoint reaches the authorization URL exactly as configured" do
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          create_authenticator()
+        )
+
+      assert String.starts_with?(url, "https://auth.example.com/authorize?")
+      refute url =~ "/authorize/?"
+    end
+
+    test "bhv misc 062 the scopes the scheme declares reach the authorization URL" do
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          create_authenticator()
+        )
+
       assert query_params(url)["scope"] == "read write"
     end
 

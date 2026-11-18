@@ -140,6 +140,27 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
+  void bhvMisc058TheAuthorizationEndpointAndRedirectUriReachTheUrlExactly() {
+    String url = createAuthenticator().buildAuthorizationUrl(null);
+
+    assertTrue(url.startsWith("https://auth.example.com/authorize?"), url);
+    assertTrue(
+        url.matches(".*[?&]redirect_uri=https%3A%2F%2Fapp\\.example\\.com%2Fcallback(&.*)?"), url);
+  }
+
+  @Test
+  void bhvMisc062TheAuthorizationUrlCarriesTheSchemeDeclaredScopes() {
+    UserAuthAuthorizationCodeAuthenticator auth =
+        new UserAuthAuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://app.example.com/callback");
+
+    assertTrue(auth.buildAuthorizationUrl(null).contains("scope=pets%3Aread%20pets%3Awrite"));
+  }
+
+  @Test
   void bhvAuthOauthTwoAuthCode020SchemeWrapperSendsTheSpecScopesAndUrls() {
     List<String> urls = new java.util.ArrayList<>();
     ApiClient client =

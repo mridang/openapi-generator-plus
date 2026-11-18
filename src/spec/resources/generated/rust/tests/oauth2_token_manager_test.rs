@@ -2078,3 +2078,28 @@ async fn test_bhv_misc_059_a_token_with_a_non_finite_lifetime_is_not_cached() {
 
     assert_eq!(2, client.requests().len());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_069_an_unusable_token_response_is_refused_naming_the_problem() {
+    let cases = [
+        (r#"[1]"#, "not a JSON object"),
+        (r#"{"access_token":42}"#, "access_token"),
+        (r#"{"access_token":""}"#, "access_token"),
+    ];
+    for (body, problem) in cases {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(body, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let err = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect_err("an unusable token response must fail");
+
+        assert!(err.downcast_ref::<OAuth2TokenError>().is_some(), "{}", err);
+        assert!(err.to_string().contains(problem), "{}", err);
+    }
+}

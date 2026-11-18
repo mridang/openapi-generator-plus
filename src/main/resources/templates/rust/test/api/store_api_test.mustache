@@ -967,3 +967,40 @@ async fn test_bhv_misc_048_a_success_status_no_row_names_decodes_as_the_union() 
         "{result:?}"
     );
 }
+
+#[tokio::test]
+async fn test_bhv_misc_079_each_success_status_decodes_as_the_type_declared_for_it() {
+    let created = new_store_api_for_mock(
+        201,
+        "application/json",
+        r#"{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}"#,
+    )
+    .reserve_stock(None)
+    .await
+    .expect("a 201 must decode");
+    let existing = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"reservationId":31,"quantity":4}"#,
+    )
+    .reserve_stock(None)
+    .await
+    .expect("a 200 must decode");
+
+    assert!(matches!(created, ReserveStockResponse::ReservationReceipt(_)), "{created:?}");
+    assert!(matches!(existing, ReserveStockResponse::Reservation(_)), "{existing:?}");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_080_a_body_is_refused_against_the_schema_of_another_status() {
+    let err = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}"#,
+    )
+    .reserve_stock(None)
+    .await
+    .expect_err("a 200 body that matches only the 201 schema must be refused");
+
+    assert!(err.downcast_ref::<SerializationError>().is_some(), "{}", err);
+}

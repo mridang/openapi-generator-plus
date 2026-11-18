@@ -23,6 +23,40 @@ import FoundationNetworking
         Data(s.utf8)
     }
 
+    /* An options object sends its per-call headers, and a transport default the call does not replace still reaches the request. */
+    @Test func testBhvMisc050PerCallHeadersAreSentAndAnUnsetOptionFallsThrough() async throws {
+        var seen: [String: String] = [:]
+        let transport = try TransportOptionsBuilder().defaultHeader(name: "X-Client", value: "kept").build()
+        let client = makeClient(transport: transport, handler: { request in
+            seen = request.allHTTPHeaderFields ?? [:]
+            return (Data("{\"available\":1}".utf8), 200, ["Content-Type": "application/json"])
+        })
+        let api = StoreApi(apiClient: client, config: ConfigurationBuilder().baseURL("http://localhost").build())
+        _ = try await api.getInventory(options: GetInventoryOptions(headers: ["X-Per-Call": "yes"]))
+        #expect(seen["X-Per-Call"] == "yes")
+        #expect(seen["X-Client"] == "kept")
+    }
+
+    /* A per-call retry budget of zero sends the request once and returns the failed status. */
+    @Test func testBhvMisc053APerCallRetryBudgetOfZeroSendsOnce() async throws {
+        var calls = 0
+        let client = makeClient(transport: try TransportOptionsBuilder().build(), handler: { _ in
+            calls += 1
+            return (Data(), 503, ["Retry-After": "0"])
+        })
+        let api = StoreApi(apiClient: client, config: ConfigurationBuilder().baseURL("http://localhost").build())
+        await #expect(throws: ApiError.self) {
+            _ = try await api.getInventory(options: GetInventoryOptions(maxRetries: 0))
+        }
+        #expect(calls == 1)
+    }
+
+    /* Setting the proxy to an empty string removes a proxy set earlier. */
+    @Test func testBhvMisc056AnEmptyProxyRemovesTheEarlierProxy() throws {
+        let opts = try TransportOptionsBuilder().proxy("http://127.0.0.1:1").proxy("").build()
+        #expect(opts.proxy == nil)
+    }
+
     /* A proxy credential exists only when the proxy URL carries user information. */
     @Test func testBhvMisc031ProxyCredentialIsSentOnlyWithUserInfo() throws {
         let withUser = try TransportOptionsBuilder().proxy("http://user:pass@127.0.0.1:8080").build()

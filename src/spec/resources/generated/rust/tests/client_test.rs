@@ -328,6 +328,37 @@ fn test_bhv_lifecycle_015_takes_one_optional_keyword_credential_per_security_sch
     let client = Client::with_credentials(host, credentials, None);
     let _ = &client;
 }
+
+#[test]
+fn test_bhv_misc_073_a_credential_setter_exists_for_every_declared_scheme() {
+    let host = "/api/v3";
+    let _ = petstore::Credentials::new()
+        .with_pet_store_basic(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_admin_basic(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_pet_store_bearer(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_service_token(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_api_key_header(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_internal_api_key(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_api_key_query(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_session_cookie(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_machine_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_legacy_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_user_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_browser_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_sso_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+}
 #[test]
 fn test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_at_construction() {
     let no_host = Client::with_token(None, Some("token"), None);

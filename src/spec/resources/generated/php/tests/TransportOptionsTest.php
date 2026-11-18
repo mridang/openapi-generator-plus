@@ -396,3 +396,12 @@ test('bhv misc 026 a configuration mistake raises an error that is not an api er
         expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\ApiException::class);
     }
 });
+
+test('bhv misc 051 an unknown option is refused by the builder rather than ignored', function (): void {
+    expect(fn () => TransportOptions::builder()->noSuchOption(1))->toThrow(\Error::class);
+});
+
+test('bhv misc 056 setting the proxy to null removes a proxy set earlier', function (): void {
+    $opts = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->proxy(null)->build();
+    expect($opts->proxy)->toBeNull();
+});
