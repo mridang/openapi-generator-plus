@@ -2382,4 +2382,14 @@ class PetApiTest {
     assertThat(capturing.capturedHeaders)
         .containsEntry("Content-Type", "application/x-www-form-urlencoded");
   }
+
+  @Test
+  void bhvMisc191AnAuthCookieWithAForbiddenOctetRaisesAnArgumentErrorNotAnApiError() {
+    PetApi petApi =
+        new PetApi(
+            new CapturingApiClient(), Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey("bad\u0001value")))
+        .isExactlyInstanceOf(IllegalArgumentException.class);
+  }
 }

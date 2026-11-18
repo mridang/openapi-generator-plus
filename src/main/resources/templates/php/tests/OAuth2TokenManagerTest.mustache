@@ -1076,3 +1076,34 @@ test('bhv misc 069 a non string access token is refused with an error that names
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
         ->toThrow(OAuth2TokenException::class, 'access_token');
 });
+
+test('bhv misc 286 an OAuth server error message names both its HTTP status and its OAuth error code', function (int $status, string $body, string $expected): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse($status, $body, ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        test()->fail('Expected OAuth2ServerException');
+    } catch (OAuth2ServerException $error) {
+        expect($error->getMessage())->toBe($expected);
+    }
+})->with([
+    'code and description' => [
+        400,
+        '{"error":"invalid_grant","error_description":"refresh token expired"}',
+        'Token request failed with status 400: invalid_grant -- refresh token expired',
+    ],
+    'code only' => [
+        401,
+        '{"error":"invalid_client"}',
+        'Token request failed with status 401: invalid_client',
+    ],
+    'raw body when no error code' => [
+        502,
+        '<html>bad gateway</html>',
+        'Token request failed with status 502: <html>bad gateway</html>',
+    ],
+]);

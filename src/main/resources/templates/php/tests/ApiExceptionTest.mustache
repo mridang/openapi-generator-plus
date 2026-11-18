@@ -888,3 +888,19 @@ test('bhv errors 097 an unrecognised 4xx status raises the generic client error'
 
     expect($ex::class)->toBe(\{{invokerPackage}}\Errors\ClientException::class);
 });
+
+test('bhv misc 284 a status with a typed error raises that typed error', function (): void {
+    $cases = [
+        400 => \{{invokerPackage}}\Errors\BadRequestException::class,
+        403 => \{{invokerPackage}}\Errors\ForbiddenException::class,
+        404 => \{{invokerPackage}}\Errors\NotFoundException::class,
+        409 => \{{invokerPackage}}\Errors\ConflictException::class,
+        422 => \{{invokerPackage}}\Errors\UnprocessableEntityException::class,
+        429 => \{{invokerPackage}}\Errors\TooManyRequestsException::class,
+        500 => \{{invokerPackage}}\Errors\InternalServerErrorException::class,
+        502 => \{{invokerPackage}}\Errors\BadGatewayException::class,
+    ];
+    foreach ($cases as $status => $class) {
+        expect(ApiException::fromResponse($status, [], ''))->toBeInstanceOf($class);
+    }
+});
