@@ -1,0 +1,68 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+import { {{parentClassName}} } from './{{parentFileName}}{{importFileExtension}}';
+import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
+import { {{schemaName}} } from '../models/index{{importFileExtension}}';
+
+/**
+ * Error for a response whose body is a {@link {{schemaName}}}, declared under HTTP
+ * {{#statuses}}{{.}}{{^-last}}, {{/-last}}{{/statuses}}. Its `errorBody` is the decoded
+ * {@link {{schemaName}}}.
+ */
+export class {{className}} extends {{parentClassName}}<{{schemaName}}> {
+  constructor(
+{{#parentIsFamily}}
+    statusCode: number,
+{{/parentIsFamily}}
+    message: string = '',
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: {{schemaName}} | null = null,
+    options?: ApiErrorOptions
+  ) {
+    super({{#parentIsFamily}}statusCode, {{/parentIsFamily}}message, responseHeaders, responseBody, errorBody, options);
+    this.name = '{{className}}';
+  }
+
+  /**
+   * Builds the error for a response, decoding the body as {@link {{schemaName}}}. A body
+   * that does not match the schema yields the status error with the raw body and the
+   * decoding failure as its `cause`.
+   *
+   * @param statusCode the HTTP status code of the response
+   * @param responseHeaders the response headers
+   * @param responseBody the raw response body, if any
+   * @param request the method and path (without query string) of the request, if known
+   * @returns the error to throw
+   */
+  static fromErrorResponse(
+    statusCode: number,
+    responseHeaders: Record<string, string> | null,
+    responseBody: string | null,
+    request?: { readonly method: string; readonly path: string }
+  ): ApiError {
+    if (responseBody == null || responseBody === '') {
+      return ApiError.fromResponse(statusCode, responseHeaders, responseBody, request);
+    }
+    try {
+      const decoded = ObjectSerializer.deserialize(ObjectSerializer.parseJson(responseBody), {{schemaName}});
+      if (decoded == null) {
+        throw new TypeError('Error body is empty');
+      }
+      return new {{className}}(
+{{#parentIsFamily}}
+        statusCode,
+{{/parentIsFamily}}
+        `API returned status code ${statusCode}`,
+        responseHeaders,
+        responseBody,
+        decoded,
+        request != null ? { requestMethod: request.method, requestPath: request.path } : undefined
+      );
+    } catch (cause) {
+      return ApiError.statusFallback(statusCode, responseHeaders, responseBody, request, cause);
+    }
+  }
+}

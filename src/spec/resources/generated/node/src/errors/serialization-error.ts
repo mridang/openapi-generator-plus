@@ -7,6 +7,15 @@
 
 import { OpenAPIError } from "./open-api-error.js";
 
+/** The response, and the request it answers, a {@link SerializationError} is about. */
+export interface SerializationErrorResponse {
+  readonly statusCode: number;
+  readonly responseHeaders: Record<string, string> | null;
+  readonly responseBody: string | null;
+  readonly requestMethod: string;
+  readonly requestPath: string;
+}
+
 /**
  * Exception raised when serialization or deserialization fails. Extends the
  * branded {@link OpenAPIError} root so it shares a common `instanceof
@@ -15,9 +24,43 @@ import { OpenAPIError } from "./open-api-error.js";
 export class SerializationError extends OpenAPIError {
   public readonly cause?: Error;
 
-  constructor(message: string, cause?: Error) {
+  /** HTTP status code of the response whose body could not be decoded, or null when the error is not about a response. */
+  public readonly statusCode: number | null;
+
+  /** Headers of that response, or null. */
+  public readonly responseHeaders: Record<string, string> | null;
+
+  /** Raw body of that response, or null. */
+  public readonly responseBody: string | null;
+
+  /** HTTP method of the request that drew that response, or null. */
+  public readonly requestMethod: string | null;
+
+  /** Path of that request without its query string, or null. */
+  public readonly requestPath: string | null;
+
+  constructor(
+    message: string,
+    cause?: Error,
+    response?: SerializationErrorResponse,
+  ) {
     super(message);
     this.name = "SerializationError";
     this.cause = cause;
+    this.statusCode = response?.statusCode ?? null;
+    this.responseHeaders = response?.responseHeaders ?? null;
+    this.responseBody = response?.responseBody ?? null;
+    this.requestMethod = response?.requestMethod ?? null;
+    this.requestPath = response?.requestPath ?? null;
+  }
+
+  /**
+   * The same error, carrying the response whose body it could not decode.
+   *
+   * @param response the response and the request it answers
+   * @returns a new error with this message, this error as its `cause` and the response context
+   */
+  withResponse(response: SerializationErrorResponse): SerializationError {
+    return new SerializationError(this.message, this, response);
   }
 }
