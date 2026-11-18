@@ -1570,31 +1570,33 @@ import Testing
     #expect(DefaultApiClient.sameOrigin(explicit, implicit))
   }
 
-  /* A 302 to the same origin spelled with its scheme's default port is still the same origin,
-   * so the Authorization header reaches the second hop. */
-  @Test func testBhvRedirects037RedirectToExplicitDefaultPortKeepsAuthorization() async throws {
-    let transport = try TransportOptionsBuilder().followRedirects(true).build()
-    var hops = 0
-    var followUp: [String: String]?
-    /* The redirect rules ride on the SDK's session delegate, which a plain
-       stub session does not have (URLSession then returns the 3xx unfollowed),
-       so this client is built on the stub protocol with that delegate. */
-    UnitStubURLProtocol.handler = { req in
-      hops += 1
-      if hops == 1 {
-        return (Data(), 302, ["Location": "https://example.com:443/landing"])
+  #if !os(Linux)
+    /* A 302 to the same origin spelled with its scheme's default port is still the same origin,
+     * so the Authorization header reaches the second hop. */
+    @Test func testBhvRedirects037RedirectToExplicitDefaultPortKeepsAuthorization() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
+      var hops = 0
+      var followUp: [String: String]?
+      /* The redirect rules ride on the SDK's session delegate, which a plain
+         stub session does not have (URLSession then returns the 3xx unfollowed),
+         so this client is built on the stub protocol with that delegate. */
+      UnitStubURLProtocol.handler = { req in
+        hops += 1
+        if hops == 1 {
+          return (Data(), 302, ["Location": "https://example.com:443/landing"])
+        }
+        followUp = req.allHTTPHeaderFields ?? [:]
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
       }
-      followUp = req.allHTTPHeaderFields ?? [:]
-      return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      let client = DefaultApiClient(
+        transportOptions: transport, protocolClasses: [UnitStubURLProtocol.self])
+      let resp = try await client.sendRequest(
+        method: "GET", url: "https://example.com/start",
+        headers: ["Authorization": "Bearer secret-token"], body: nil)
+      #expect(resp.statusCode == 200)
+      #expect(followUp?["Authorization"] == "Bearer secret-token")
     }
-    let client = DefaultApiClient(
-      transportOptions: transport, protocolClasses: [UnitStubURLProtocol.self])
-    let resp = try await client.sendRequest(
-      method: "GET", url: "https://example.com/start",
-      headers: ["Authorization": "Bearer secret-token"], body: nil)
-    #expect(resp.statusCode == 200)
-    #expect(followUp?["Authorization"] == "Bearer secret-token")
-  }
+  #endif
 
   // MARK: - Accept-Encoding
 
@@ -2440,14 +2442,18 @@ private final class UnitStubURLProtocol: URLProtocol {
       return
     }
     /* URLSession follows a redirect only when the protocol reports it through
-     * wasRedirectedTo; a 3xx delivered as a plain response is returned unfollowed. */
-    if (300..<400).contains(statusCode), let location = headers["Location"],
-      let redirectURL = URL(string: location, relativeTo: requestURL)?.absoluteURL
-    {
-      var next = request
-      next.url = redirectURL
-      client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
-    }
+     * wasRedirectedTo; a 3xx delivered as a plain response is returned unfollowed.
+     * swift-corelibs-foundation traps on wasRedirectedTo, so on Linux the stub
+     * never reports one and the redirect-following tests are Darwin-only. */
+    #if !os(Linux)
+      if (300..<400).contains(statusCode), let location = headers["Location"],
+        let redirectURL = URL(string: location, relativeTo: requestURL)?.absoluteURL
+      {
+        var next = request
+        next.url = redirectURL
+        client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
+      }
+    #endif
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     if failWith == "cannotDecodeContentData" {
       client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))
