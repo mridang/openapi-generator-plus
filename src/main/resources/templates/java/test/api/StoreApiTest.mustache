@@ -650,4 +650,12 @@ class StoreApiTest {
         assertThatThrownBy(mockApi::reserveStock)
                 .isInstanceOf({{invokerPackage}}.errors.SerializationException.class);
     }
+
+    @Test
+    void bhvMisc114ASuccessResponseIsDecodedForTheStatusActuallyReceived() throws Exception {
+        String receipt = "{\"receiptCode\":\"R-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+        {{modelPackage}}.ReserveStockResponse created =
+                newStoreApiForMock(201, "application/json", receipt).reserveStock();
+        assertThat(created.getActualInstance()).isInstanceOf({{modelPackage}}.ReservationReceipt.class);
+    }
 }
