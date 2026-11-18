@@ -153,7 +153,7 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
       const spy = jest.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(((array: Uint8Array) => {
         array.set(appendixVerifier);
         return array;
-      }) as typeof globalThis.crypto.getRandomValues);
+      }) as unknown as typeof globalThis.crypto.getRandomValues);
       try {
         const query = new URL(authenticator.buildAuthorizationUrl()).searchParams;
         expect(query.get('code_challenge')).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
