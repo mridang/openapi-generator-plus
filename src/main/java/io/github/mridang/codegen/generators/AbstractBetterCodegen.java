@@ -70,7 +70,12 @@ import org.openapitools.codegen.utils.ModelUtils;
 import io.github.mridang.codegen.rules.ContentEncodingRule;
 import io.github.mridang.codegen.rules.DropInternalOperationsRule;
 import io.github.mridang.codegen.rules.MultipleSuccessResponsesRule;
+import io.github.mridang.codegen.rules.InlinePathItemReferencesRule;
+import io.github.mridang.codegen.rules.NormalizeConstRule;
+import io.github.mridang.codegen.rules.NormalizeNullTypeRule;
 import io.github.mridang.codegen.rules.NormalizePrefixItemsRule;
+import io.github.mridang.codegen.rules.NormalizeTypeArrayRule;
+import io.github.mridang.codegen.rules.WarnUnsupportedKeywordsRule;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -556,6 +561,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
            gemspec saying MIT alongside an Apache-2.0 LICENSE file. The value is
            an SPDX identifier, and licenseUrl is derived from it for the manifests
            that want a link rather than an identifier. */
+        licenseIdExplicit = additionalProperties.get("licenseId") != null;
+        licenseUrlExplicit = additionalProperties.get("licenseUrl") != null;
         final String licenseId = getPropertyOrDefault("licenseId", "MIT");
         getPropertyOrDefault("licenseUrl", "https://opensource.org/licenses/" + licenseId);
 
@@ -662,6 +669,35 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 "appNameBase",
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
         computeSchemeEnvVars(openAPI);
+        // Webhooks are out of scope (S11); the stock generator would write each one into an API
+        // class as an ordinary operation and overwrite the untagged operations of the document.
+        if (openAPI.getWebhooks() != null && !openAPI.getWebhooks().isEmpty()) {
+            LOGGER.warn(
+                    "Spec warning: webhooks ({}) are not supported and are ignored, pointer"
+                            + " #/webhooks.",
+                    String.join(", ", openAPI.getWebhooks().keySet()));
+            openAPI.setWebhooks(null);
+        }
+        if (openAPI.getInfo() != null
+                && openAPI.getInfo().getLicense() != null
+                && !licenseIdExplicit
+                && openAPI.getInfo().getLicense().getIdentifier() != null) {
+            final String identifier = openAPI.getInfo().getLicense().getIdentifier();
+            additionalProperties.put("licenseId", identifier);
+            if (!licenseUrlExplicit) {
+                additionalProperties.put(
+                        "licenseUrl",
+                        openAPI.getInfo().getLicense().getUrl() != null
+                                ? openAPI.getInfo().getLicense().getUrl()
+                                : "https://spdx.org/licenses/" + identifier + ".html");
+            }
+        }
+        WarnUnsupportedKeywordsRule.check(openAPI, LOGGER);
+        new InlinePathItemReferencesRule()
+                .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new NormalizeNullTypeRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new NormalizeTypeArrayRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new NormalizeConstRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         // Gap AZ — degrade OAS 3.1 `prefixItems` tuple arrays to plain
         // array-of-Object before the rest of the pipeline inspects schemas.
         // See NormalizePrefixItemsRule for the chosen cross-language strategy.
@@ -1657,6 +1693,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return Path.of(outputFolder, getSourceFolder(),
                 apiPackage.replace('.', '/')).toString();
     }
+
+    /** Whether the user supplied {@code licenseId}; if not, {@code info.license.identifier} wins. */
+    private boolean licenseIdExplicit;
+
+    /** Whether the user supplied {@code licenseUrl}. */
+    private boolean licenseUrlExplicit;
 
     /** HTTP methods that never change server state (RFC 9110 and the QUERY draft). */
     private static final Set<String> SAFE_HTTP_METHODS =
@@ -4616,6 +4658,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
                 item.setSummary(htmlUnescape(item.getSummary()));
                 item.setDescription(htmlUnescape(item.getDescription()));
+                for (Operation operation : item.readOperations()) {
+                    if (operation.getSummary() == null && item.getSummary() != null) {
+                        operation.setSummary(item.getSummary());
+                    }
+                    if (operation.getDescription() == null && item.getDescription() != null) {
+                        operation.setDescription(item.getDescription());
+                    }
+                }
                 for (Operation op : item.readOperations()) {
                     unescapeOperationDocText(op, seen);
                 }
