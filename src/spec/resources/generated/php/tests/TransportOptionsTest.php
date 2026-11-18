@@ -4,6 +4,42 @@ declare(strict_types=1);
 
 use PetstoreClient\TransportOptions;
 
+test('bhv options 060 the static builder entry point carries the values set on it and the same defaults as a direct build', function (): void {
+    $built = TransportOptions::builder()->timeout(2500)->build();
+
+    expect($built->timeout)->toBe(2500);
+    expect(TransportOptions::builder()->build())->toEqual(new TransportOptions());
+});
+
+test('bhv options 062 an options object reports the values it was built with and unset fields read back as absent', function (): void {
+    $options = TransportOptions::builder()->timeout(2500)->maxRetries(4)->build();
+
+    expect($options->timeout)->toBe(2500);
+    expect($options->maxRetries)->toBe(4);
+    expect($options->proxy)->toBeNull();
+    expect($options->caCertPath)->toBeNull();
+    expect($options->maxRedirects)->toBeNull();
+    expect($options->defaultHeaders)->toBe([]);
+});
+
+test('bhv options 065 the printable form of transport options never shows a proxy password or a secret header', function (): void {
+    $options = TransportOptions::builder()
+        ->proxy('http://user:hunter2@proxy.example.com:8080')
+        ->defaultHeader('Authorization', 'Bearer s3cret-token')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->not->toContain('hunter2');
+    expect($printed)->not->toContain('s3cret-token');
+});
+
+test('bhv options 066 the printable form of transport options shows a proxy url without credentials exactly as configured', function (): void {
+    $options = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->build();
+
+    expect(print_r($options, true))->toContain('http://proxy.example.com:8080');
+});
+
 test('bhv options 043 verify ssl defaults to true', function (): void {
     $opts = TransportOptions::builder()->build();
     expect($opts->verifySsl)->toBeTrue();

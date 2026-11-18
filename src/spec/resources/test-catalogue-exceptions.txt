@@ -284,3 +284,6 @@ swift | serialization041 | Swift maps format time to String with no time-of-day 
 swift | serialization043 | Swift maps format time to String with no time-of-day type in Foundation, so a time of day is kept as its wire string and never written from a time value
 swift | auth001 | Swift OAuth2 authenticators expose only the async authHeaders() requirement, so a synchronous header call does not compile and there is no sync accessor to raise from
 swift | transport076 | Swift on Linux refuses any proxy setting because URLSession applies no proxy there, so proxy credentials never reach a request on this platform and cannot be checked
+php | options058 | TransportOptions holds no HTTP client field: the injected PSR-18 client is a constructor argument of Psr18ApiClient and is not stored on the built options, so there is no value to read back as the same instance or as unset
+php | options059 | TransportOptions holds no transport hook field: the caller's transport is the PSR-18 client constructor argument, so there is no option to read back as unset or kept
+php | redirects045 | the PSR-18 interface exposes no redirect policy, so the SDK cannot detect that an injected client follows redirects itself; the contract is documented on Psr18ApiClient instead
