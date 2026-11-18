@@ -221,6 +221,7 @@ config013 | Builder sets single default header
 config014 | Default configuration is stateless
 config015 | Inspect masks sensitive default headers | multi
 config016 | Invalid server variable enum value throws
+equality001 | Two models built from the same values are equal, and a change in any nested value makes them unequal
 errors001 | Escapes control characters in the rendered body
 errors002 | Every status exception carries the request context | multi
 errors003 | Every status-specific error accepts an optional cause | multi
