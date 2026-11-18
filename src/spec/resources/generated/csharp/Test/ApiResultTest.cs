@@ -112,4 +112,20 @@ public class ApiResultTest
             result.Headers is not IDictionary<string, string> writable || writable.IsReadOnly
         );
     }
+
+    [Fact]
+    public void BhvResults007AResultKeepsItsDataRawBodyAndHeadersTogether()
+    {
+        var headers = new Dictionary<string, string> { ["X-Request-Id"] = "42" };
+        var result = new ApiResult<Freeform>(
+            200,
+            new Freeform { Label = "x" },
+            "{\"label\":\"x\"}",
+            headers
+        );
+
+        Assert.Equal("x", result.Data!.Label);
+        Assert.Equal("{\"label\":\"x\"}", result.RawBody);
+        Assert.Equal("42", result.Headers["X-Request-Id"]);
+    }
 }

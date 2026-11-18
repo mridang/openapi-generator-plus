@@ -5418,6 +5418,206 @@ public class DefaultApiClientUnitTest
         Assert.Equal("aGk=", response.Body);
     }
 
+    private sealed class SlowRedirectHandler : HttpMessageHandler
+    {
+        public int Hops { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Hops++;
+            await Task.Delay(150, cancellationToken);
+            var response = new HttpResponseMessage(HttpStatusCode.Redirect);
+            response.Headers.Location = new Uri("http://origin.example.com/next");
+            return response;
+        }
+    }
+
+    [Fact]
+    public async Task BhvRedirects047ARefusalInOneRequestDoesNotChangeAConcurrentRequest()
+    {
+        var refused = new DefaultApiClient(
+            new HttpClient(
+                new RedirectingHandler(HttpStatusCode.Redirect, new Uri("file:///etc/passwd"))
+            )
+        );
+        var succeeding = new DefaultApiClient(CreateMockHttpClient(HttpStatusCode.OK, "{}"));
+
+        var failing = Assert.ThrowsAsync<ApiException>(() => SendGet(refused));
+        var ok = SendGet(succeeding);
+        await Task.WhenAll(failing, ok);
+
+        Assert.Equal(200, (await ok).StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvRedirects054ARedirectChainPastTheTimeoutFailsWithOneBudgetAcrossAllHops()
+    {
+        var handler = new SlowRedirectHandler();
+        var transport = TransportOptions
+            .Builder()
+            .Timeout(300)
+            .MaxRedirects(10)
+            .MaxRetries(0)
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await Assert.ThrowsAnyAsync<NetworkException>(() => SendGet(client));
+
+        Assert.InRange(handler.Hops, 2, 3);
+    }
+
+    [Fact]
+    public async Task BhvRedirects055ARedirectToANonHttpSchemeIsRefusedWithAnError()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.Redirect,
+            new Uri("gopher://example.com/1")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => SendGet(client));
+
+        Assert.Contains("Refusing to follow redirect", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvRedirects056AnOptOutRequestSendsNoTransportDefaultHeadersAndTheNextOneSendsThem()
+    {
+        var sent = new List<HttpRequestMessage>();
+        var handler = new CapturingHandler(req =>
+        {
+            sent.Add(req);
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions
+            .Builder()
+            .DefaultHeader("X-Custom", "custom-value")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null,
+            true,
+            CancellationToken.None
+        );
+        await SendGet(client);
+
+        Assert.False(sent[0].Headers.Contains("X-Custom"));
+        Assert.True(sent[1].Headers.Contains("X-Custom"));
+    }
+
+    [Fact]
+    public async Task BhvRetries046ARequestBodyIsResentUnchangedOn307WhenTheSchemeIsKept()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.TemporaryRedirect,
+            new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        await SendGet(client, body: new byte[] { 1, 2, 3 }, method: "POST");
+
+        Assert.Equal(new byte[] { 1, 2, 3 }, handler.Bodies[1]);
+    }
+
+    [Fact]
+    public async Task BhvRetries047ARetryWaitThatWouldOverrunTheTimeoutIsNotTaken()
+    {
+        var handler = new SequenceHandler(_ => Respond(429, "10"));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        var response = await SendWithCallOptions(client, 300, 5);
+
+        Assert.Equal(429, response.StatusCode);
+        Assert.Single(handler.Requests);
+        Assert.True(
+            watch.Elapsed < TimeSpan.FromSeconds(5),
+            "the overrunning wait must not be taken"
+        );
+    }
+
+    [Fact]
+    public async Task BhvRetries048TheDefaultClientRetriesA503AndReturnsTheLaterSuccess()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(503, "0") : Respond(200, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvRetries049MaxRetriesAllowsThatManyRetriesAfterTheFirstAttempt()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(4).Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Equal(5, handler.Requests.Count);
+    }
+
+    [Fact]
+    public void BhvRetries050AHttpDateRetryAfterWaitsUntilThatDate()
+    {
+        var now = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var date = now.AddSeconds(30)
+            .ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.Equal(
+            TimeSpan.FromSeconds(30),
+            DefaultApiClient.RetryDelay(0, Header(date), now, 0)
+        );
+    }
+
+    [Fact]
+    public async Task BhvRetries051ABodyIsRefusedWith307WhenARedirectDowngradesHttpsToHttp()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.TemporaryRedirect,
+            new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("https://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                new byte[] { 1, 2, 3 },
+                false,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Equal(307, ex.StatusCode);
+    }
+
     private static byte[] GzipBytes(string text)
     {
         using var compressed = new MemoryStream();
@@ -6327,5 +6527,241 @@ public sealed class MultipartShadeConverter
 
         public override void Write(byte[] buffer, int offset, int count) =>
             throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task BhvSerialization120AMultipartFileWithAnUnknownExtensionIsOctetStream()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "file.xyzzy", new byte[] { 0x01, 0x02 } },
+        };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "Content-Type: application/octet-stream",
+            wireText,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvSerialization121AModelPartUsesItsWireNamesAndTheDateTimeFormat()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            {
+                "meta",
+                new EdgeCases { ExpiresAt = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero) }
+            },
+        };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "\"expiresAt\":\"2026-01-02T03:04:05.000+00:00\"",
+            wireText,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("Content-Type: application/json", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization123AFieldNameWithANulCharacterIsRejectedBeforeAnyRequest()
+    {
+        var handler = new SequenceHandler(_ => Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "a\0b", "value" } };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("http://example.com/resource/1/files"),
+                new Dictionary<string, string>(),
+                formData
+            )
+        );
+
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public void BhvSerialization124ANonAsciiFilenameKeepsAnRfc5987Form()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("naïve.txt");
+        Assert.Contains("filename*=UTF-8''na%C3%AFve.txt", directive, StringComparison.Ordinal);
+        Assert.StartsWith("filename=\"na_ve.txt\"", directive, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization126ANonAsciiMultipartFieldNameIsUtf8InThePartHeader()
+    {
+        byte[]? wireBytes = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireBytes = await req.Content!.ReadAsByteArrayAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "nomé", new byte[] { 0x78 } } };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireBytes);
+        Assert.Contains(
+            "name=\"nomé\"",
+            Encoding.UTF8.GetString(wireBytes!),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task BhvSerialization127APrimitiveMultipartPartIsPlainTextInCanonicalForm()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "count", 3 } };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains("\r\n\r\n3\r\n", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerialization119ABodyDecodesWithItsDeclaredCharsetAndFallsBackToUtf8()
+    {
+        Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+        async Task<string?> Decode(byte[] bytes, string contentType)
+        {
+            var handler = new RawByteHandler(HttpStatusCode.OK, bytes, contentType);
+            var client = new DefaultApiClient(new HttpClient(handler));
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/charset"),
+                new Dictionary<string, string>(),
+                null
+            );
+            return response.Body;
+        }
+
+        Assert.Equal("é", await Decode(new byte[] { 0xE9 }, "text/plain; charset=ISO-8859-1"));
+        Assert.Equal("héllo", await Decode(Encoding.UTF8.GetBytes("héllo"), "text/plain"));
+        Assert.Equal(
+            "héllo",
+            await Decode(Encoding.UTF8.GetBytes("héllo"), "text/plain; charset=not-a-real-charset")
+        );
+    }
+
+    private sealed class GzipLieHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes("plain text, not gzip")),
+            };
+            response.Content.Headers.ContentEncoding.Add("gzip");
+            return Task.FromResult(response);
+        }
+    }
+
+    [Fact]
+    public async Task BhvTransport089AContentEncodingThatDoesNotMatchTheBodyRaisesTheApiError()
+    {
+        var client = new DefaultApiClient(new HttpClient(new GzipLieHandler()));
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/bad-gzip"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(typeof(ApiException), ex.GetType());
+    }
+
+    [Fact]
+    public async Task BhvTransport091ACallerSuppliedUploadStreamIsLeftOpenAfterSending()
+    {
+        var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+        var client = new DefaultApiClient(
+            new HttpClient(new CapturingHandler(_ => Task.CompletedTask))
+        );
+        var formData = new Dictionary<string, object> { { "upload.bin", stream } };
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.True(stream.CanRead);
+    }
+
+    [Fact]
+    public async Task BhvTransport092TheSuppliedHttpClientReceivesTheRequest()
+    {
+        Uri? received = null;
+        var handler = new CapturingHandler(req =>
+        {
+            received = req.RequestUri;
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal("/echo", received?.AbsolutePath);
     }
 }

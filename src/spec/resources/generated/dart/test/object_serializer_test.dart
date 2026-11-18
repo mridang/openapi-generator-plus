@@ -100,6 +100,17 @@ void main() {
     });
 
     test(
+      'bhv misc 111 a set of unique strings is written in code point order',
+      () {
+        final wire = wireList<String>(
+          {'pear', 'Apple', 'apple'},
+          {'pear', 'Apple', 'apple'},
+        );
+        expect(wire, ['Apple', 'apple', 'pear']);
+      },
+    );
+
+    test(
       'bhv misc 113 a string form shows the contents of list, map and byte fields',
       () {
         final text = BinaryVault(

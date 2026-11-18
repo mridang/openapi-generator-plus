@@ -981,6 +981,22 @@ class TestExtraFieldsOnDeserialize:
         assert category.id == 1
         assert category.name == 'Dogs'
 
+    def test_bhv_misc_288_a_snake_case_key_at_the_top_level_is_captured_as_an_undeclared_extra(self) -> None:
+        from {{packageName}}.models.freeform import Freeform
+
+        model = ObjectSerializer().deserialize('{"label":"x","snake_case_key":1}', 'Freeform')
+
+        assert isinstance(model, Freeform)
+        assert model.additional_properties == {'snake_case_key': 1}
+
+    def test_bhv_misc_289_a_snake_case_key_inside_a_list_element_is_captured_as_an_undeclared_extra(self) -> None:
+        from {{packageName}}.models.freeform import Freeform
+
+        items = ObjectSerializer().deserialize('[{"label":"x","snake_case_key":1}]', 'List[Freeform]')
+
+        assert isinstance(items[0], Freeform)
+        assert items[0].additional_properties == {'snake_case_key': 1}
+
 
 class TestUnevaluatedPropertiesFalseRejectsExtraKeys:
     """A model declaring ``unevaluatedProperties: false`` (StrictTag) refuses an
