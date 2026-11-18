@@ -260,4 +260,18 @@ defmodule PetstoreClient.ConfigurationTest do
 
     assert config.base_url == "https://builder.example.com"
   end
+
+  describe "misc parity four" do
+    test "bhv misc 136 the debug text shows the base URL and the non-sensitive default headers" do
+      config =
+        PetstoreClient.Configuration.new(
+          base_url: "https://api.example.com",
+          default_headers: %{"Accept" => "text/plain"}
+        )
+
+      text = inspect(config)
+      assert text =~ "https://api.example.com"
+      assert text =~ "text/plain"
+    end
+  end
 end

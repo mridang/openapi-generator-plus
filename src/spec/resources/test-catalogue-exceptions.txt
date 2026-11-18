@@ -526,6 +526,8 @@ elixir | misc100 | Elixir always writes a multipart body as multipart/form-data 
 elixir | misc101 | Elixir multipart file and raw parts carry their bytes in memory as given to the call and no source is read later, so there is no unreadable source to fail on
 elixir | misc103 | Elixir decodes every model leniently and has no strict-mode option, so no single model can reject undeclared keys while others ignore them
 elixir | misc116 | Elixir generated models do not enforce declared integer minimum and maximum bounds, so an out-of-range integer decodes like any other integer
+elixir | misc135 | Elixir has no cancellation handle or signal option on the client or its configuration: a call is cancelled by ending the calling process, so the builder stores no signal
+elixir | misc152 | Elixir has no cancel signal for a call: a call is cancelled by ending the calling process, so no call can be given an already-aborted signal to reject with
 rust | misc047 | Rust unions are enums, so a value that is not one of the variants cannot be built and the compiler admits only variants when serializing, so no run-time error naming the union exists
 rust | misc050 | RequestOptions is a plain struct whose flags default to false, so an unset per-call flag cannot be told apart from an explicit false and cannot fall through to the transport options
 rust | misc051 | Rust builders expose only typed setters, so an option the builder does not have cannot be passed and the compiler rejects it before any run-time check

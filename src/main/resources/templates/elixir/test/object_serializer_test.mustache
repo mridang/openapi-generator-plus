@@ -2941,5 +2941,94 @@ defmodule {{moduleName}}.ObjectSerializerTest do
     end
   end
 
+
+  describe "misc parity four" do
+    test "bhv misc 137 a generated enum lists its declared values and reports a value outside them as an error" do
+      assert {{moduleName}}.Models.Rank.all_values() == [:low, :medium, :high]
+      assert {{moduleName}}.Models.Rank.from_value(4) == {:error, 4}
+    end
+
+    test "bhv misc 138 converting an enum member to its wire value yields the declared wire value" do
+      assert {{moduleName}}.Models.Rank.value(:low) == 1
+    end
+
+    test "bhv misc 139 a collection passed into a model is held as copied, and the model cannot change it" do
+      source = [<<4, 5>>]
+      vault = %{{moduleName}}.Models.BinaryVault{seal: <<1>>, shards: source}
+      assert vault.shards == [<<4, 5>>]
+    end
+
+    test "bhv misc 140 building a model without one of its required properties fails and names the property" do
+      assert_raise ArgumentError, ~r/username/, fn ->
+        struct!({{moduleName}}.Models.Account, [])
+      end
+    end
+
+    test "bhv misc 141 a model built without a value for a defaulted property holds the default" do
+      defaults = %{{moduleName}}.Models.Defaults{}
+      assert defaults.retries == 3
+      assert defaults.mode == :medium
+    end
+
+    test "bhv misc 142 additional properties are returned unchanged by key and the map holds exactly the stored entries" do
+      meta = {{moduleName}}.ObjectSerializer.deserialize(~s({"note":"x","owner":"ann"}), "Metadata")
+      assert meta.additional_properties["note"] == "x"
+      assert Enum.sort(Map.keys(meta.additional_properties)) == ["note", "owner"]
+    end
+
+    test "bhv misc 143 a copy keeps the additional-properties entries and compares equal to the original" do
+      original = %{{moduleName}}.Models.Metadata{additional_properties: %{"customField" => "a"}}
+      copy = struct({{moduleName}}.Models.Metadata, Map.from_struct(original))
+      assert copy.additional_properties == %{"customField" => "a"}
+      assert copy == original
+    end
+
+    test "bhv misc 144 validating a model refuses a string given for a numeric field" do
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(~s({"retries":"3"}), "Defaults")
+      end
+    end
+
+    test "bhv misc 145 changing the undeclared keys read back from a model leaves the instance unchanged" do
+      metadata = %{{moduleName}}.Models.Metadata{additional_properties: %{"a" => 1}}
+      _ = Map.put(metadata.additional_properties, "b", 2)
+      assert metadata.additional_properties == %{"a" => 1}
+    end
+
+    test "bhv misc 146 a copy of a model with no changes is a new instance that compares equal to the original" do
+      category = %{{moduleName}}.Models.Category{id: 1, name: "Dogs"}
+      copy = struct({{moduleName}}.Models.Category, Map.from_struct(category))
+      assert copy == category
+    end
+
+    test "bhv misc 147 a copy of a model holds the same nested object as the original" do
+      edge = %{{moduleName}}.Models.EdgeCases{last_error: %{{moduleName}}.Models.Error{code: 1}}
+      copy = struct({{moduleName}}.Models.EdgeCases, Map.from_struct(edge))
+      assert copy.last_error === edge.last_error
+    end
+
+    test "bhv misc 148 a copy of a model serializes to the same wire form as the original with its changes applied" do
+      updated = %{%{{moduleName}}.Models.Category{id: 1, name: "Dogs"} | name: "Cats"}
+      assert {{moduleName}}.ObjectSerializer.serialize(updated) == {{moduleName}}.ObjectSerializer.serialize(%{{moduleName}}.Models.Category{id: 1, name: "Cats"})
+    end
+
+    test "bhv misc 149 copying a model with an attribute it does not declare is refused with an error naming the attribute" do
+      assert_raise KeyError, ~r/bogus/, fn ->
+        struct!({{moduleName}}.Models.Category, bogus: 1)
+      end
+    end
+
+    test "bhv misc 150 two models whose fields hold equal values compare equal, and unequal values compare unequal" do
+      assert %{{moduleName}}.Models.Category{id: 1, name: "Dogs"} == %{{moduleName}}.Models.Category{id: 1, name: "Dogs"}
+      refute %{{moduleName}}.Models.Category{id: 1, name: "Dogs"} == %{{moduleName}}.Models.Category{id: 2, name: "Dogs"}
+    end
+
+    test "bhv misc 151 a model holding a map compares equal when the entries match and unequal when any entry differs" do
+      held = %{{moduleName}}.Models.Metadata{additional_properties: %{"k" => "v"}}
+      assert held == %{{moduleName}}.Models.Metadata{additional_properties: %{"k" => "v"}}
+      refute held == %{{moduleName}}.Models.Metadata{additional_properties: %{"k" => "w"}}
+    end
+  end
+
 end
 {{/generateTests}}
