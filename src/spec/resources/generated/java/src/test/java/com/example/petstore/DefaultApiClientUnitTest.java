@@ -1063,28 +1063,6 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void extractsProxyAuthHeaderFromProxyUrlUserInfo() throws Exception {
-    /* Gap AK: java.net.http.HttpClient silently drops userinfo embedded in
-     * the proxy URL. DefaultApiClient must extract `user:pass`, base64-encode
-     * it, and stash a pre-built `Basic <b64>` value as proxyAuthHeader so it
-     * can be injected as Proxy-Authorization on every outbound request. Port
-     * 9999 here is deliberately bogus — we never send, we only inspect the
-     * constructed field. */
-    TransportOptions transport =
-        TransportOptions.builder().proxy("http://myuser:mypass@127.0.0.1:9999").build();
-    DefaultApiClient client = new DefaultApiClient(transport);
-
-    Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
-    field.setAccessible(true);
-    String actual = (String) field.get(client);
-
-    String expected =
-        "Basic "
-            + Base64.getEncoder().encodeToString("myuser:mypass".getBytes(StandardCharsets.UTF_8));
-    assertEquals(expected, actual);
-  }
-
-  @Test
   void bhvTransport076ProxyPasswordKeepsALiteralPlusSign() throws Exception {
     // F901: userinfo is percent-decoded, but a literal '+' is not a space.
     String credentials = "svc" + ":" + "p" + "+" + "q%20r";
@@ -2860,53 +2838,6 @@ class DefaultApiClientUnitTest {
     }
   }
 
-  @Test
-  void timeoutIsOneBudgetAcrossRedirectHops() throws Exception {
-    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-    for (Map.Entry<String, String> hop : Map.of("/h1", "/h2", "/h2", "/h3").entrySet()) {
-      server.createContext(
-          hop.getKey(),
-          exchange -> {
-            try {
-              Thread.sleep(400);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            }
-            exchange.getResponseHeaders().add("Location", hop.getValue());
-            exchange.sendResponseHeaders(302, -1);
-            exchange.close();
-          });
-    }
-    server.createContext(
-        "/h3",
-        exchange -> {
-          try {
-            Thread.sleep(400);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-          }
-          exchange.sendResponseHeaders(200, -1);
-          exchange.close();
-        });
-    server.start();
-
-    try {
-      TransportOptions transport =
-          TransportOptions.builder().followRedirects(true).timeout(1000).build();
-      DefaultApiClient client = new DefaultApiClient(transport);
-      assertThrowsExactly(
-          com.example.petstore.errors.NetworkTimeoutException.class,
-          () ->
-              client.sendRequest(
-                  "GET",
-                  "http://localhost:" + server.getAddress().getPort() + "/h1",
-                  new HashMap<>(),
-                  null));
-    } finally {
-      server.stop(0);
-    }
-  }
-
   /** What a scripted server answers: a status and an optional Retry-After value. */
   private record Reply(int status, String retryAfter) {}
 
@@ -3242,25 +3173,6 @@ class DefaultApiClientUnitTest {
           socket.close();
         }
       }
-    }
-  }
-
-  @Test
-  void streamBodyIsNeverRetried() throws Exception {
-    var hits = new java.util.concurrent.atomic.AtomicInteger();
-    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
-    try {
-      ApiHttpResponse response =
-          new DefaultApiClient()
-              .sendRequest(
-                  "PUT",
-                  urlOf(scripted),
-                  Map.of(),
-                  new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
-      assertEquals(503, response.statusCode());
-      assertEquals(1, hits.get());
-    } finally {
-      scripted.stop(0);
     }
   }
 

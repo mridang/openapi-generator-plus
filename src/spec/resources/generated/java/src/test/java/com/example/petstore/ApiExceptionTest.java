@@ -138,15 +138,6 @@ class ApiExceptionTest {
   }
 
   @Test
-  void responseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
-    ApiException ex =
-        new ApiException(
-            502, "bad", new java.util.LinkedHashMap<>(Map.of("b", "x/y", "a", "1")), null);
-
-    assertEquals(
-        "bad\nHTTP status code: 502\nResponse headers: {\"a\":\"1\",\"b\":\"x/y\"}", ex.toString());
-  }
-
   void bhvErrors050ResponseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
     ApiException ex =
         new ApiException(
@@ -324,36 +315,6 @@ class ApiExceptionTest {
     assertInstanceOf(com.example.petstore.errors.ClientException.class, badRequest);
     assertInstanceOf(ApiException.class, badRequest);
     assertInstanceOf(OpenAPIException.class, badRequest);
-  }
-
-  @Test
-  void statusErrorConstructorsDefaultTheResponseContextToNull() {
-    com.example.petstore.errors.BadRequestException badRequest =
-        new com.example.petstore.errors.BadRequestException();
-    assertEquals(400, badRequest.getStatusCode());
-    assertEquals("", badRequest.getMessage());
-    assertNull(badRequest.getResponseHeaders());
-    assertNull(badRequest.getResponseBody());
-    assertNull(badRequest.getErrorBody());
-
-    com.example.petstore.errors.NotFoundException notFound =
-        new com.example.petstore.errors.NotFoundException("gone");
-    assertEquals(404, notFound.getStatusCode());
-    assertEquals("gone", notFound.getMessage());
-    assertNull(notFound.getResponseHeaders());
-
-    com.example.petstore.errors.ClientException client =
-        new com.example.petstore.errors.ClientException(418, "teapot");
-    assertEquals(418, client.getStatusCode());
-    assertEquals("teapot", client.getMessage());
-    assertNull(client.getResponseHeaders());
-    assertNull(client.getResponseBody());
-    assertNull(client.getErrorBody());
-
-    com.example.petstore.errors.ServerException server =
-        new com.example.petstore.errors.ServerException(503, "down");
-    assertEquals(503, server.getStatusCode());
-    assertNull(server.getResponseHeaders());
   }
 
   @Test

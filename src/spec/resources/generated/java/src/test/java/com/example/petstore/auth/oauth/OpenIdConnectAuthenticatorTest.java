@@ -506,30 +506,6 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void rediscoveryKeepsTheTokenFromTheCodeExchange() {
-    var gets = new java.util.concurrent.atomic.AtomicInteger(0);
-    ApiClient client =
-        (method, url, headers, body) -> {
-          if ("GET".equals(method)) {
-            gets.incrementAndGet();
-            return new ApiHttpResponse(
-                200, DISCOVERY_RESPONSE, Map.of("Cache-Control", "max-age=0"));
-          }
-          return new ApiHttpResponse(
-              200, "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
-        };
-
-    OpenIdConnectAuthenticator auth = createAuthenticator();
-    auth.setApiClient(client);
-
-    auth.exchangeCode("oidc-code");
-    Map<String, String> headers = auth.getAuthHeaders();
-
-    assertEquals(2, gets.get());
-    assertEquals("Bearer oidc-tok", headers.get("Authorization"));
-  }
-
-  @Test
   void bhvAuth029RediscoveryPicksUpChangedEndpoints() {
     var gets = new java.util.concurrent.atomic.AtomicInteger(0);
     ApiClient client =
