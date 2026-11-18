@@ -350,7 +350,7 @@ module Petstore::Client
       def self.decode: (String?) -> untyped
     end
     def initialize: (?TransportOptions?) -> void
-    def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool, ?retry_headers: (^() -> Hash[String, String])?, ?no_default_headers: bool, ?timeout: Numeric?, ?max_retries: Integer?) -> ApiHttpResponse
+    def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool, ?retry_headers: (^() -> Hash[String, String])?, ?no_default_headers: bool, ?timeout: (Numeric | false)?, ?max_retries: Integer?) -> ApiHttpResponse
     def close: () -> void
     def self.supported_encodings: () -> String
     private
