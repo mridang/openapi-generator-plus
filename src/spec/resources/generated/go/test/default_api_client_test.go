@@ -2618,3 +2618,116 @@ func TestBhvRedirects051_DefaultApiClient_A303TurnsAFollowUpIntoAGetExceptHead(t
 		t.Errorf("expected HEAD to stay HEAD, got %s", got)
 	}
 }
+
+// originRedirectRoundTripper answers /start with a redirect to a fixed Location and records the
+// Authorization header of every request it sees.
+type originRedirectRoundTripper struct {
+	location string
+	mu       sync.Mutex
+	seen     map[string]string
+}
+
+func (rt *originRedirectRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.mu.Lock()
+	rt.seen[req.URL.String()] = req.Header.Get("Authorization")
+	rt.mu.Unlock()
+	header := http.Header{}
+	status := 200
+	if req.URL.Path == "/start" {
+		status = 302
+		header.Set("Location", rt.location)
+	}
+	return &http.Response{
+		StatusCode: status,
+		Header:     header,
+		Body:       io.NopCloser(strings.NewReader("")),
+		Request:    req,
+	}, nil
+}
+
+// Authorization is kept on a same-origin redirect and removed when the scheme changes between
+// https and http on the same host, in either direction.
+func TestBhvRedirects053_DefaultApiClient_AuthorizationFollowsTheSameOriginOnly(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		start    string
+		location string
+		keeps    bool
+	}{
+		{"same origin", "https://api.example.com/start", "https://api.example.com/target", true},
+		{"https to http", "https://api.example.com/start", "http://api.example.com/target", false},
+		{"http to https", "http://api.example.com/start", "https://api.example.com/target", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rt := &originRedirectRoundTripper{location: tc.location, seen: map[string]string{}}
+			opts, err := NewTransportOptionsBuilder().RoundTripper(rt).Build()
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := NewDefaultApiClient(opts)
+			defer func() { _ = client.Close() }()
+
+			if _, err := client.SendRequest("GET", tc.start, map[string]string{"Authorization": "Bearer secret-token"}, nil); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := rt.seen[tc.location]
+			if tc.keeps && got != "Bearer secret-token" {
+				t.Errorf("expected Authorization kept on the redirect, got %q", got)
+			}
+			if !tc.keeps && got != "" {
+				t.Errorf("expected Authorization removed on the redirect, got %q", got)
+			}
+		})
+	}
+}
+
+// A redirect refusal or a successful redirect in one request does not change the outcome of other
+// requests running at the same time.
+func TestBhvRedirects047_DefaultApiClient_ConcurrentRedirectsDoNotInterfere(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ok", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "/target")
+		w.WriteHeader(303)
+	})
+	mux.HandleFunc("/refuse", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "ftp://example.com/file")
+		w.WriteHeader(302)
+	})
+	mux.HandleFunc("/target", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	var wg sync.WaitGroup
+	errs := make(chan string, 40)
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if i%2 == 0 {
+				if _, err := client.SendRequest("GET", server.URL+"/ok", nil, nil); err != nil {
+					errs <- fmt.Sprintf("redirect that should succeed failed: %v", err)
+				}
+				return
+			}
+			if _, err := client.SendRequest("GET", server.URL+"/refuse", nil, nil); err == nil || !strings.Contains(err.Error(), "refusing to follow redirect") {
+				errs <- fmt.Sprintf("redirect that should be refused: %v", err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for msg := range errs {
+		t.Error(msg)
+	}
+}

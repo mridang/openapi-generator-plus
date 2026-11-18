@@ -2575,3 +2575,107 @@ func TestBhvOperations164_PetApi_AMissingRequiredParameterSendsNoRequest(t *test
 	default:
 	}
 }
+
+// variantRecordingRoundTripper answers every request locally and reports the URL it was sent to.
+type variantRecordingRoundTripper struct {
+	seen chan string
+}
+
+func (rt *variantRecordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	select {
+	case rt.seen <- req.URL.String():
+	default:
+	}
+	return &http.Response{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":1,"name":"Test","photoUrls":[]}`)),
+		Request:    req,
+	}, nil
+}
+
+// A call to an external-variant operation is sent to the URL of the generated server variant.
+func TestBhvOperations160_PetApi_AServerVariantSendsTheCallToItsUrl(t *testing.T) {
+	t.Parallel()
+	rt := &variantRecordingRoundTripper{seen: make(chan string, 1)}
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(rt).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := {{packageName}}.New{{clientClassName}}WithToken("https://api.example.com", "test-token", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetMultiServerPetInfo(context.Background(), int64(1), {{packageName}}.GetMultiServerPetInfoServerPrimary{}); err != nil {
+		t.Fatalf("GetMultiServerPetInfo failed: %v", err)
+	}
+	if got := <-rt.seen; !strings.HasPrefix(got, "https://primary.example.com/v1/") {
+		t.Errorf("expected the request sent to the primary server variant, got %q", got)
+	}
+}
+
+// A date-only parameter is sent as a bare date with no time component in the path, query and header positions.
+func TestBhvOperations162_PetApi_ADateOnlyParameterIsSentAsABareDate(t *testing.T) {
+	t.Parallel()
+	var gotPath, gotQuery, gotReportDate string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotQuery, gotReportDate = r.URL.EscapedPath(), r.URL.RawQuery, r.Header.Get("Report-Date")
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "summary") {
+			_, _ = w.Write([]byte(`"ok"`))
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	days := []string{"2026-01-03"}
+	if _, err := client.Pet.GetPetSummary(context.Background(), int64(1), "2026-01-02", &options.GetPetSummaryOptions{Session: "s", Days: &days}); err != nil {
+		t.Fatalf("GetPetSummary failed: %v", err)
+	}
+	if !strings.HasSuffix(gotPath, ";asOf=2026-01-02") || strings.Contains(gotPath, "T") {
+		t.Errorf("expected a bare date in the path, got %q", gotPath)
+	}
+	if !strings.Contains(gotQuery, "days=2026-01-03") || strings.Contains(gotQuery, "T") {
+		t.Errorf("expected a bare date in the query, got %q", gotQuery)
+	}
+
+	reportDate := "2026-01-04"
+	if _, err := client.Pet.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{ReportDate: &reportDate}); err != nil {
+		t.Fatalf("FindPetsByStatus failed: %v", err)
+	}
+	if gotReportDate != "2026-01-04" {
+		t.Errorf("expected a bare date in the header, got %q", gotReportDate)
+	}
+}
+
+// A path parameter is written into the request path using the serialization style the operation declares.
+func TestBhvOperations165_PetApi_APathParameterUsesTheDeclaredStyle(t *testing.T) {
+	t.Parallel()
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`""`))
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetSummary(context.Background(), int64(7), "2026-01-02", &options.GetPetSummaryOptions{Session: "s"}); err != nil {
+		t.Fatalf("GetPetSummary failed: %v", err)
+	}
+	if !strings.HasSuffix(gotPath, "/pet/7/summary/;asOf=2026-01-02") {
+		t.Errorf("expected the matrix style in the path, got %q", gotPath)
+	}
+}
