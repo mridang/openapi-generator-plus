@@ -509,6 +509,7 @@ describe('Composed Schema', () => {
   });
 });
 
+
 describe('Composed Schema misc behaviours', () => {
   test('bhv misc 291 a payload matching several union variants decodes to the first declared variant', () => {
     const record = ObjectSerializer.deserialize({ drugName: 'a', procedureName: 'b' }, TreatmentRecord) as TreatmentRecord;

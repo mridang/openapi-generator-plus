@@ -493,6 +493,18 @@ describe('TransportOptions builder refusals and proxy', () => {
   });
 });
 
+describe('TransportOptions inspected form misc behaviours', () => {
+  it('bhv misc 180 the inspect form shows the values of non-sensitive default headers and hides sensitive ones', () => {
+    const options = TransportOptions.builder()
+      .defaultHeader('X-Visible', 'shown-value')
+      .defaultHeader('Authorization', 'Bearer hidden-secret')
+      .build();
+    expect(String(options)).toContain('shown-value');
+    expect(String(options)).not.toContain('hidden-secret');
+  });
+});
+
+
 describe('TransportOptions misc proxy schemes', () => {
   test('bhv options 068 a SOCKS proxy scheme fails at construction with the documented error message', () => {
     expect(() => TransportOptions.builder().proxy('socks5://proxy.example.com:1080')).toThrow(

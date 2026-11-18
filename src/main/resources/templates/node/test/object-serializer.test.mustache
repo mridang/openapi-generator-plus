@@ -3124,23 +3124,6 @@ describe('ObjectSerializer union variants', () => {
 });
 
 describe('ObjectSerializer misc behaviours', () => {
-  test('bhv serialization 074 nested arrays decode and encode back to the same nested shape', () => {
-    const decoded = ObjectSerializer.deserializeArray([[1, 2], [3]], (x: unknown) =>
-      ObjectSerializer.deserializeArray(x, (v: unknown) => v as number),
-    );
-    expect(JSON.stringify(decoded)).toBe('[[1,2],[3]]');
-  });
-
-  test('bhv serialization 083 a serialization error is caught as the library error type and carries a non-empty message', () => {
-    let caught: unknown = null;
-    try {
-      ObjectSerializer.deserializeArray({}, (v: unknown) => v);
-    } catch (e) {
-      caught = e;
-    }
-    expect(caught).toBeInstanceOf(SerializationError);
-    expect((caught as Error).message).not.toBe('');
-||||||| e3b1f22a2
   it('bhv misc 103 rejecting undeclared keys on one strict model leaves other models accepting and ignoring them', () => {
     expect(() => ObjectSerializer.deserialize('{"rogue":"x"}', StrictTag)).toThrow(SerializationError);
     expect(ObjectSerializer.deserialize('{"rogue":"x"}', Metadata)).toBeInstanceOf(Metadata);
@@ -3191,5 +3174,55 @@ describe('ObjectSerializer misc behaviours', () => {
 
   it('bhv misc 121 an object with no declared schema is written as a JSON object of its properties', () => {
     expect(JSON.parse(ObjectSerializer.serialize({ a: 1, b: 'x' }))).toEqual({ a: 1, b: 'x' });
+  });
+});
+
+describe('ObjectSerializer enum and default misc behaviours', () => {
+  it('bhv misc 122 a string default from the schema is applied as the exact literal', () => {
+    const filled = ObjectSerializer.deserialize({}, Defaults) as Defaults;
+    expect(filled.greeting).toBe('it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b');
+  });
+
+  it('bhv misc 137 a generated enum lists its declared values and refuses any other', () => {
+    expect(Object.values(Separator)).toEqual([' ', '@@', 'a-b', 'a_b']);
+    expect(() =>
+      ObjectSerializer.deserializeEnum<Separator>('nope', Separator as unknown as Record<string, unknown>),
+    ).toThrow();
+  });
+
+  it('bhv misc 138 converting an enum member to text yields its wire value', () => {
+    expect(String(Separator.AB)).toBe('a-b');
+    expect(`${Separator.SPACE1}`).toBe(' ');
+  });
+
+  it('bhv misc 141 a model built without a defaulted property holds the default', () => {
+    const model = new Defaults();
+    expect(model.retries).toBe(3);
+    expect(model.greeting).toBe('it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b');
+  });
+
+  it('bhv misc 144 validating a model refuses a string given for a numeric field', () => {
+    expect(() => ObjectSerializer.deserialize('{"retries":"3"}', Defaults)).toThrow(SerializationError);
+  });
+});
+
+
+describe('ObjectSerializer misc behaviours', () => {
+  test('bhv serialization 074 nested arrays decode and encode back to the same nested shape', () => {
+    const decoded = ObjectSerializer.deserializeArray([[1, 2], [3]], (x: unknown) =>
+      ObjectSerializer.deserializeArray(x, (v: unknown) => v as number),
+    );
+    expect(JSON.stringify(decoded)).toBe('[[1,2],[3]]');
+  });
+
+  test('bhv serialization 083 a serialization error is caught as the library error type and carries a non-empty message', () => {
+    let caught: unknown = null;
+    try {
+      ObjectSerializer.deserializeArray({}, (v: unknown) => v);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(SerializationError);
+    expect((caught as Error).message).not.toBe('');
   });
 });

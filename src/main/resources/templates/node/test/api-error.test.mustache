@@ -882,6 +882,7 @@ describe('ApiError misc behaviours', () => {
   });
 });
 
+
 describe('ApiError misc status mapping', () => {
   test('bhv misc 281 headers from a received response are copied onto the error raised for that response', () => {
     const err = ApiError.fromResponse(500, { 'x-trace': 'trace-281' }, '{}');

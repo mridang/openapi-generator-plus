@@ -166,6 +166,32 @@ describe("OpenIdConnectAuthenticator", () => {
     );
   });
 
+  test("bhv misc 201 a failed discovery request reports its path without the query string", async () => {
+    authenticator = new OpenIdConnectAuthenticator(
+      "https://api.example.com",
+      "https://auth.example.com/.well-known/openid-configuration?tenant=a",
+      "my-client-id",
+      "my-client-secret",
+      "https://myapp.example.com/callback",
+      ["openid"],
+    );
+    authenticator.setApiClient(mockClient);
+    mockClient.responses = [
+      {
+        statusCode: 503,
+        body: "down",
+        headers: { "content-type": "text/plain" },
+      },
+    ];
+
+    const error = await authenticator
+      .buildAuthorizationUrl()
+      .catch((e: unknown) => e);
+
+    expect((error as ApiError).requestPath).toBe(
+      "/.well-known/openid-configuration",
+    );
+  });
   test("bhv authoidc 033 a failed discovery request reports its method and path in the error", async () => {
     mockClient.responses = [
       {
@@ -246,6 +272,15 @@ describe("OpenIdConnectAuthenticator", () => {
       expect(query.has("nonce")).toBe(false);
     });
 
+    test("bhv misc 199 discovery runs again when the cached document has a zero max-age", async () => {
+      mockClient.responses = [
+        discoveryResponse("max-age=0"),
+        discoveryResponse("max-age=0"),
+      ];
+      await authenticator.buildAuthorizationUrl();
+      await authenticator.buildAuthorizationUrl();
+      expect(mockClient.callCount).toBe(2);
+    });
     test("bhvMisc076 a call after a dropped code exchange reuses the discovered configuration and sees the code as not yet exchanged", async () => {
       mockClient.responses = [
         discoveryResponse("max-age=3600"),
