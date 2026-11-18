@@ -1,0 +1,115 @@
+{{>api_info}}
+
+from dataclasses import dataclass
+from types import MappingProxyType
+from typing import Dict, List, Mapping, Optional, Protocol, runtime_checkable
+
+
+@dataclass(frozen=True)
+class CallInfo:
+    """What a :class:`CallHook` is told about a call when it starts.
+
+    ``operation_id`` is the operation id exactly as written in the spec,
+    ``method`` the upper-case HTTP method, ``url_template`` the spec path
+    template without the server base path, ``url`` the request URL without its
+    query string and fragment, and ``server_address`` the lower-case host of
+    the URL without its port and without the brackets of an IPv6 literal.
+    """
+
+    operation_id: str
+    method: str
+    url_template: str
+    url: str
+    server_address: str
+
+
+@dataclass(frozen=True)
+class CallOutcome:
+    """How a call ended, handed to :meth:`CallObserver.finish`.
+
+    ``status_code`` is ``0`` and ``headers`` is ``None`` when no response
+    arrived. ``headers`` is otherwise the read-only map of the response headers
+    with lower-cased names. ``error`` is the very error the caller receives, or
+    ``None`` when the call succeeded.
+    """
+
+    status_code: int
+    headers: Optional[Mapping[str, str]]
+    error: Optional[BaseException]
+
+    def __post_init__(self) -> None:
+        if self.headers is not None and not isinstance(self.headers, MappingProxyType):
+            object.__setattr__(
+                self,
+                'headers',
+                MappingProxyType({name.lower(): value for name, value in self.headers.items()}),
+            )
+
+
+@runtime_checkable
+class CallObserver(Protocol):
+    """Observes how one call ended."""
+
+    def finish(self, outcome: CallOutcome) -> None:
+        """Called exactly once when the call ends, whatever the outcome.
+
+        An error raised here is swallowed, so the call still returns its
+        result or its own error.
+        """
+        ...
+
+
+@runtime_checkable
+class CallHook(Protocol):
+    """One small hook around every operation call.
+
+    It can edit the request headers before the send and observe the status or
+    the error afterwards. It runs once per call however many sends happen
+    inside it, and it runs above the transport, so it also fires when you
+    supply your own pool manager. ``start`` and ``finish`` are plain functions
+    called inline on the event loop: they must not block.
+    """
+
+    def start(self, info: CallInfo, headers: Dict[str, str]) -> Optional[CallObserver]:
+        """Called once the header set of the call is final, before the first send.
+
+        ``headers`` is the mutable header map of the request; a header you set
+        is on every send of the call. Reuse the existing spelling of a name to
+        replace it. Return a :class:`CallObserver` to be told how the call
+        ended, or ``None``. An error raised here reaches the caller unchanged,
+        nothing is sent and ``finish`` is not called.
+        """
+        ...
+
+
+class _ChainedObserver:
+    def __init__(self, observers: List[CallObserver]) -> None:
+        self._observers = observers
+
+    def finish(self, outcome: CallOutcome) -> None:
+        for observer in reversed(self._observers):
+            try:
+                observer.finish(outcome)
+            except Exception:
+                pass
+
+
+class _ChainedHook:
+    def __init__(self, hooks: List[CallHook]) -> None:
+        self._hooks = hooks
+
+    def start(self, info: CallInfo, headers: Dict[str, str]) -> Optional[CallObserver]:
+        observers: List[CallObserver] = []
+        for hook in self._hooks:
+            observer = hook.start(info, headers)
+            if observer is not None:
+                observers.append(observer)
+        return _ChainedObserver(observers)
+
+
+def chain(*hooks: CallHook) -> CallHook:
+    """A hook that starts the given hooks in the order given and finishes
+    their observers in the reverse order. A hook that returns ``None`` from
+    ``start`` is skipped when finishing.
+    """
+    return _ChainedHook(list(hooks))

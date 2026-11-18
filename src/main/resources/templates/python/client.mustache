@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Optional
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
 from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
+from {{packageName}}.call_hook import CallHook
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.transport_options import TransportOptions
@@ -65,6 +66,7 @@ class {{clientClassName}}:
         authenticator: Optional[Authenticator] = None,
         transport_options: Optional[TransportOptions] = None,
         pool_manager: Optional[Any] = None,
+        call_hook: Optional[CallHook] = None,
 {{#hasClientSchemes}}
         *,
 {{#clientSchemes}}
@@ -95,6 +97,8 @@ class {{clientClassName}}:
                 on top of it and the SDK never closes it. It cannot be
                 combined with a proxy or TLS setting in ``transport_options``;
                 a conflict raises :class:`ValueError`.
+            call_hook: A :class:`CallHook` that runs around every operation
+                call: it can edit the request headers and observe the outcome.
 {{#clientSchemes}}
             {{paramName}}: The credential of the ``{{{schemeId}}}`` security scheme.
 {{/clientSchemes}}
@@ -124,6 +128,7 @@ class {{clientClassName}}:
         config = (
             Configuration.builder()
             .base_url(credentials[0].get_host())
+            .call_hook(call_hook)
             .build()
         )
 {{#apiInfo}}
@@ -145,6 +150,7 @@ class {{clientClassName}}:
         transport_options: Optional[TransportOptions] = None,
         pool_manager: Optional[Any] = None,
         token_provider: Optional[Callable[[], str]] = None,
+        call_hook: Optional[CallHook] = None,
     ) -> '{{clientClassName}}':
         """Creates a client authenticated with a Bearer token.
 
@@ -163,6 +169,7 @@ class {{clientClassName}}:
             pool_manager: Optional caller-owned ``urllib3.PoolManager``.
             token_provider: Optional callable returning the current token.
                 It replaces ``access_token`` and the environment variable.
+            call_hook: Optional :class:`CallHook` around every operation call.
 
         Returns:
             Configured client instance.
@@ -190,7 +197,7 @@ class {{clientClassName}}:
                     'or set {{envPrefix}}_ACCESS_TOKEN'
                 )
             authenticator = BearerAuthenticator(resolved_host, resolved_token)
-        return cls(authenticator, transport_options, pool_manager)
+        return cls(authenticator, transport_options, pool_manager, call_hook)
 
     @classmethod
     def with_authenticator(
@@ -198,6 +205,7 @@ class {{clientClassName}}:
         authenticator: Authenticator,
         transport_options: Optional[TransportOptions] = None,
         pool_manager: Optional[Any] = None,
+        call_hook: Optional[CallHook] = None,
     ) -> '{{clientClassName}}':
         """Creates a client from a ready-made authenticator.
 
@@ -213,11 +221,12 @@ class {{clientClassName}}:
             transport_options: Optional HTTP transport configuration (proxy,
                 TLS, timeouts, etc.).
             pool_manager: Optional caller-owned ``urllib3.PoolManager``.
+            call_hook: Optional :class:`CallHook` around every operation call.
 
         Returns:
             Configured client instance.
         """
-        return cls(authenticator, transport_options, pool_manager)
+        return cls(authenticator, transport_options, pool_manager, call_hook)
 
     def close(self) -> None:
         """Closes the client gracefully; calling it again does nothing.

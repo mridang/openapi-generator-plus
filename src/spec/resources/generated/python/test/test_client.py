@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import threading
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 import urllib3
@@ -11,6 +11,7 @@ from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
+from petstore_client.call_hook import CallInfo, CallObserver
 from petstore_client.client import Client
 from petstore_client.transport_options import TransportOptions
 
@@ -211,6 +212,7 @@ class TestClientSchemeCredentials:
             "authenticator",
             "transport_options",
             "pool_manager",
+            "call_hook",
             "pet_store_basic",
             "admin_basic",
             "pet_store_bearer",
@@ -338,6 +340,22 @@ class TestClientSchemeCredentials:
         assert list(client.problems._scheme_authenticators.values()) == [held]
         assert client.store._authenticator is default
         assert list(client.store._scheme_authenticators.values()) == [held]
+
+    def test_the_call_hook_reaches_every_api_group(self) -> None:
+        class _Hook:
+            def start(
+                self, info: CallInfo, headers: dict[str, str]
+            ) -> Optional[CallObserver]:
+                return None
+
+        hook = _Hook()
+        client = Client(
+            BearerAuthenticator("https://default.example.com", "tok"), call_hook=hook
+        )
+
+        assert client.pet._config.call_hook is hook
+        assert client.problems._config.call_hook is hook
+        assert client.store._config.call_hook is hook
 
     def test_a_credential_that_needs_the_transport_is_given_it(self) -> None:
         class _NeedsTransport(HttpAwareAuthenticator):

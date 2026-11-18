@@ -1,6 +1,8 @@
 import pytest
 from types import MappingProxyType
+from typing import Optional
 
+from petstore_client.call_hook import CallInfo, CallObserver
 from petstore_client.configuration import Configuration, ConfigurationBuilder
 from petstore_client.server_configuration import ServerConfiguration, ServerVariable
 
@@ -250,3 +252,29 @@ class TestConfigurationRepr:
 
         assert "base_url='https://api.example.com'" in repr(config)
         assert "'Accept': 'text/plain'" in repr(config)
+
+
+class _Hook:
+    def start(self, info: CallInfo, headers: dict[str, str]) -> Optional[CallObserver]:
+        return None
+
+
+class TestConfigurationCallHook:
+    def test_there_is_no_call_hook_by_default(self) -> None:
+        assert Configuration().call_hook is None
+        assert Configuration.builder().build().call_hook is None
+
+    def test_the_builder_sets_the_call_hook_and_the_configuration_reads_it_back(
+        self,
+    ) -> None:
+        hook = _Hook()
+
+        config = Configuration.builder().call_hook(hook).build()
+
+        assert config.call_hook is hook
+
+    def test_the_string_form_does_not_print_the_call_hook(self) -> None:
+        config = Configuration.builder().call_hook(_Hook()).build()
+
+        assert "_Hook" not in repr(config)
+        assert "call_hook" not in repr(config)

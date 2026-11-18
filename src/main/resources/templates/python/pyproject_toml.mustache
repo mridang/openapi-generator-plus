@@ -41,6 +41,11 @@ compression = [
     "brotli>=1.0.0",
     "zstandard>=0.23.0",
 ]
+# The OpenTelemetry call hook (opentelemetry_call_hook.py) is OPTIONAL and built
+# on the API package only; the rest of the package never imports it.
+opentelemetry = [
+    "opentelemetry-api>=1.20.0",
+]
 
 [dependency-groups]
 dev = [

@@ -22,7 +22,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from urllib.parse import quote, urlencode, urlsplit
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 from pydantic import BaseModel
 
@@ -37,6 +37,7 @@ from ..default_api_client import (
     _remove_header,
     _retry_delay,
 )
+from ..call_hook import CallInfo, CallObserver, CallOutcome
 from ..configuration import Configuration
 from ..object_serializer import ObjectSerializer
 from ..value_serializer import ValueSerializer, AllowReservedValue
@@ -233,6 +234,8 @@ class BaseApi:
         request_options: Optional[CallOptions] = None,
         decode_success: Optional[Callable[[int, str], Any]] = None,
         error_schemas: Optional[Mapping[str, ErrorFactory]] = None,
+        operation_id: str = "",
+        url_template: str = "",
     ) -> "ApiResult[Any]":
         """Invoke an API operation and return the full result including status
         code, headers, and raw body alongside the deserialized data.
@@ -261,6 +264,10 @@ class BaseApi:
             error_schemas: The factories of the error schemas this operation
                 declares, by declared status (``'404'``, ``'4XX'``,
                 ``'default'``), or ``None`` when it declares none.
+            operation_id: The operation id exactly as written in the spec,
+                handed to the call hook.
+            url_template: The spec path template of the operation, handed to
+                the call hook.
 
         Returns:
             ApiResult containing deserialized data, status code, raw body,
@@ -284,6 +291,17 @@ class BaseApi:
 
         # The path of the request without its query, named on every error.
         request_path = urlsplit(url).path
+        # The URL the call hook sees: no query string, fragment or credentials.
+        split_url = urlsplit(url)
+        hook_url = urlunsplit(
+            (
+                split_url.scheme,
+                split_url.netloc.rpartition("@")[2],
+                split_url.path,
+                "",
+                "",
+            )
+        )
 
         # Resolve auth into three states (see _NoAuth):
         #   - auth is NO_AUTH         -> suppress auth; do NOT fall back to the
@@ -361,13 +379,22 @@ class BaseApi:
             "multipart/"
         )
 
-        async def build_headers() -> Dict[str, str]:
+        # What the call hook changed in the header set: the headers it set and
+        # the names it removed. Every send rebuilds the headers, so the edits
+        # are applied again to each rebuilt set.
+        hook_set: Dict[str, str] = {}
+        hook_removed: List[str] = []
+
+        async def build_headers(replay: bool = False) -> Dict[str, str]:
             """Build the request headers from scratch, authentication included.
 
             Every send, a retry and the replay after a 401 alike, is a fresh
             request, so the headers (the token, the trace context) are built
-            again rather than reused.
+            again rather than reused. The edits of the call hook are applied
+            again, except that the fresh authentication headers of a replay
+            replace a hook header of the same name.
             """
+            auth_names: set[str] = set()
             headers = self._header_selector.select_headers(
                 accepts, content_type or "", is_multipart
             )
@@ -385,6 +412,7 @@ class BaseApi:
                 # so offloading the auth step keeps the whole auth+send path off the
                 # loop thread and lets concurrent requests make progress.
                 auth_headers = await asyncio.to_thread(effective_auth.get_auth_headers)
+                auth_names = {name.lower() for name in auth_headers}
                 _merge_headers(headers, auth_headers)
                 cookies = effective_auth.get_cookie_params()
                 if cookies:
@@ -413,6 +441,17 @@ class BaseApi:
                     else:
                         headers["Cookie"] = cookie_str
             inject_trace_context(headers)
+            if hook_set or hook_removed:
+                for name in hook_removed:
+                    _remove_header(headers, name)
+                _merge_headers(
+                    headers,
+                    {
+                        name: value
+                        for name, value in hook_set.items()
+                        if not (replay and name.lower() in auth_names)
+                    },
+                )
 
             # Remove Content-Type when there is no body (semantically wrong to send it)
             if body is None:
@@ -421,165 +460,227 @@ class BaseApi:
 
         headers = await build_headers()
 
-        serialized_body = None
-        if body is not None:
-            if is_multipart:
-                serialized_body = body
-            elif raw_body:
-                # The operation's body is format: binary. Whatever declared
-                # Content-Type the caller selected (application/json included),
-                # the caller's bytes / stream go out verbatim; the selector only
-                # changes the header, it never re-encodes the payload.
-                serialized_body = body
-            elif content_type is not None and (
-                content_type.startswith("image/")
-                or content_type == "application/octet-stream"
-            ):
-                # Raw-binary selection. When the operation also declares a
-                # multipart content type the body was assembled as a dict of
-                # form parts (file + optional metadata). A raw binary request
-                # has no envelope, so we must NOT hand that dict to the
-                # transport -- it would dispatch on `isinstance(body, dict)`
-                # and emit a multipart/form-data body, contradicting the
-                # caller's explicit octet-stream selection. Instead, send the
-                # single file part's raw bytes; the text metadata parts have
-                # no place on the wire for a raw stream and are dropped. A
-                # body that is already bytes / a file-like object is passed
-                # through unchanged.
-                if isinstance(body, dict):
-                    binary_part = None
-                    for _part_value in body.values():
-                        if isinstance(_part_value, (bytes, bytearray)) or hasattr(
-                            _part_value, "read"
-                        ):
-                            binary_part = _part_value
-                            break
-                    serialized_body = binary_part if binary_part is not None else body
-                else:
-                    serialized_body = body
-            elif content_type == "text/plain":
-                serialized_body = str(body)
-            elif content_type == "application/x-www-form-urlencoded":
-                # Build a (key, value) pair list so array values become
-                # repeated keys (`tags=a&tags=b`) rather than a single
-                # `tags=['a', 'b']` Python-repr. Each scalar is stringified
-                # through ObjectSerializer so bools render as `true`/`false`
-                # and enums/dates use their wire form, matching the other
-                # SDKs. None-valued fields are omitted, and None elements
-                # inside an array are skipped. urlencode(..., doseq=True)
-                # then percent-encodes with `quote_plus`, so a space becomes
-                # `+` (HTML form encoding), not `%20`.
-                # A model, map or array of objects has no defined form encoding
-                # (no OAS encoding style is emitted), so it is rejected rather
-                # than sent as its Python repr.
-                form_pairs: List[tuple[str, str]] = []
-                for form_key, form_value in body.items():
-                    if form_value is None:
-                        continue
-                    if isinstance(form_value, (BaseModel, dict)) or (
-                        isinstance(form_value, list)
-                        and any(
-                            isinstance(item, (BaseModel, dict, list))
-                            for item in form_value
-                        )
-                    ):
-                        raise SerializationException(
-                            f"form-urlencoded field {form_key} must be a scalar or array of scalars"
-                        )
-                    if isinstance(form_value, list):
-                        for form_item in form_value:
-                            if form_item is None:
-                                continue
-                            form_pairs.append(
-                                (form_key, self._object_serializer.stringify(form_item))
-                            )
-                    else:
-                        form_pairs.append(
-                            (form_key, self._object_serializer.stringify(form_value))
-                        )
-                serialized_body = urlencode(form_pairs, doseq=True)
-            else:
-                serialized_body = self._object_serializer.serialize(body)
-
-        try:
-            response = await self._send_with_policy(
-                method,
-                url,
+        observer: Optional[CallObserver] = None
+        hook = self._config.call_hook
+        if hook is not None:
+            before = dict(headers)
+            observer = hook.start(
+                CallInfo(
+                    operation_id=operation_id or operation_name,
+                    method=method.upper(),
+                    url_template=url_template,
+                    url=hook_url,
+                    server_address=(split_url.hostname or "").lower(),
+                ),
                 headers,
-                serialized_body,
-                build_headers,
-                effective_auth,
-                call_timeout,
-                call_max_retries,
             )
-        except NetworkException as error:
-            error._with_request(method, request_path)
-            raise
+            hook_set.update(
+                {
+                    name: value
+                    for name, value in headers.items()
+                    if before.get(name) != value
+                }
+            )
+            hook_removed.extend(name for name in before if name not in headers)
 
-        if response.status_code < 200 or response.status_code >= 300:
-            self._throw_api_exception(response, method, request_path, error_schemas)
-
-        data: Any = None
+        response: Optional[ApiHttpResponse] = None
         try:
-            if return_type is not None and response.body:
-                resp_content_type = ""
-                for k, v in response.headers.items():
-                    if k.lower() == "content-type":
-                        resp_content_type = v.split(";")[0].strip()
-                        break
-                if resp_content_type and not self._header_selector.is_json_mime(
-                    resp_content_type
+            serialized_body = None
+            if body is not None:
+                if is_multipart:
+                    serialized_body = body
+                elif raw_body:
+                    # The operation's body is format: binary. Whatever declared
+                    # Content-Type the caller selected (application/json included),
+                    # the caller's bytes / stream go out verbatim; the selector only
+                    # changes the header, it never re-encodes the payload.
+                    serialized_body = body
+                elif content_type is not None and (
+                    content_type.startswith("image/")
+                    or content_type == "application/octet-stream"
                 ):
-                    if return_type == "bytes":
-                        import base64
-
-                        data = base64.b64decode(response.body) if response.body else b""
-                    elif return_type in (
-                        "str",
-                        "StrictStr",
-                    ) and self._is_text_media_type(resp_content_type):
-                        data = response.body
-                    else:
-                        raise SerializationException(
-                            f"Unexpected response Content-Type '{resp_content_type}' "
-                            f"for {self._operation_label(operation_name)}: expected a JSON body"
+                    # Raw-binary selection. When the operation also declares a
+                    # multipart content type the body was assembled as a dict of
+                    # form parts (file + optional metadata). A raw binary request
+                    # has no envelope, so we must NOT hand that dict to the
+                    # transport -- it would dispatch on `isinstance(body, dict)`
+                    # and emit a multipart/form-data body, contradicting the
+                    # caller's explicit octet-stream selection. Instead, send the
+                    # single file part's raw bytes; the text metadata parts have
+                    # no place on the wire for a raw stream and are dropped. A
+                    # body that is already bytes / a file-like object is passed
+                    # through unchanged.
+                    if isinstance(body, dict):
+                        binary_part = None
+                        for _part_value in body.values():
+                            if isinstance(_part_value, (bytes, bytearray)) or hasattr(
+                                _part_value, "read"
+                            ):
+                                binary_part = _part_value
+                                break
+                        serialized_body = (
+                            binary_part if binary_part is not None else body
                         )
-                elif return_type == "bytes" and not isinstance(
-                    ObjectSerializer.parse_json(response.body), str
-                ):
-                    # A binary operation that may also answer application/json (content
-                    # negotiation) gets a JSON document that is not a base64 string:
-                    # hand back the raw body bytes, the same as every SDK that returns
-                    # the bytes of whatever body arrived.
-                    data = (
-                        response.body.encode("utf-8")
-                        if isinstance(response.body, str)
-                        else response.body
-                    )
-                elif decode_success is not None:
-                    data = decode_success(response.status_code, response.body)
+                    else:
+                        serialized_body = body
+                elif content_type == "text/plain":
+                    serialized_body = str(body)
+                elif content_type == "application/x-www-form-urlencoded":
+                    # Build a (key, value) pair list so array values become
+                    # repeated keys (`tags=a&tags=b`) rather than a single
+                    # `tags=['a', 'b']` Python-repr. Each scalar is stringified
+                    # through ObjectSerializer so bools render as `true`/`false`
+                    # and enums/dates use their wire form, matching the other
+                    # SDKs. None-valued fields are omitted, and None elements
+                    # inside an array are skipped. urlencode(..., doseq=True)
+                    # then percent-encodes with `quote_plus`, so a space becomes
+                    # `+` (HTML form encoding), not `%20`.
+                    # A model, map or array of objects has no defined form encoding
+                    # (no OAS encoding style is emitted), so it is rejected rather
+                    # than sent as its Python repr.
+                    form_pairs: List[tuple[str, str]] = []
+                    for form_key, form_value in body.items():
+                        if form_value is None:
+                            continue
+                        if isinstance(form_value, (BaseModel, dict)) or (
+                            isinstance(form_value, list)
+                            and any(
+                                isinstance(item, (BaseModel, dict, list))
+                                for item in form_value
+                            )
+                        ):
+                            raise SerializationException(
+                                f"form-urlencoded field {form_key} must be a scalar or array of scalars"
+                            )
+                        if isinstance(form_value, list):
+                            for form_item in form_value:
+                                if form_item is None:
+                                    continue
+                                form_pairs.append(
+                                    (
+                                        form_key,
+                                        self._object_serializer.stringify(form_item),
+                                    )
+                                )
+                        else:
+                            form_pairs.append(
+                                (
+                                    form_key,
+                                    self._object_serializer.stringify(form_value),
+                                )
+                            )
+                    serialized_body = urlencode(form_pairs, doseq=True)
                 else:
-                    data = self._object_serializer.deserialize(
-                        response.body, return_type
-                    )
-        except SerializationException as error:
-            # The response itself is what could not be decoded: keep what came
-            # back so the caller can see the status, the headers and the body.
-            error._with_response(
-                response.status_code,
-                response.headers,
-                response.body,
-                method,
-                request_path,
-            )
-            raise
+                    serialized_body = self._object_serializer.serialize(body)
 
-        return ApiResult(
-            status_code=response.status_code,
-            data=data,
-            raw_body=response.body,
-            headers=response.headers,
-        )
+            try:
+                response = await self._send_with_policy(
+                    method,
+                    url,
+                    headers,
+                    serialized_body,
+                    build_headers,
+                    effective_auth,
+                    call_timeout,
+                    call_max_retries,
+                )
+            except NetworkException as error:
+                error._with_request(method, request_path)
+                raise
+
+            if response.status_code < 200 or response.status_code >= 300:
+                self._throw_api_exception(response, method, request_path, error_schemas)
+
+            data: Any = None
+            try:
+                if return_type is not None and response.body:
+                    resp_content_type = ""
+                    for k, v in response.headers.items():
+                        if k.lower() == "content-type":
+                            resp_content_type = v.split(";")[0].strip()
+                            break
+                    if resp_content_type and not self._header_selector.is_json_mime(
+                        resp_content_type
+                    ):
+                        if return_type == "bytes":
+                            import base64
+
+                            data = (
+                                base64.b64decode(response.body)
+                                if response.body
+                                else b""
+                            )
+                        elif return_type in (
+                            "str",
+                            "StrictStr",
+                        ) and self._is_text_media_type(resp_content_type):
+                            data = response.body
+                        else:
+                            raise SerializationException(
+                                f"Unexpected response Content-Type '{resp_content_type}' "
+                                f"for {self._operation_label(operation_name)}: expected a JSON body"
+                            )
+                    elif return_type == "bytes" and not isinstance(
+                        ObjectSerializer.parse_json(response.body), str
+                    ):
+                        # A binary operation that may also answer application/json (content
+                        # negotiation) gets a JSON document that is not a base64 string:
+                        # hand back the raw body bytes, the same as every SDK that returns
+                        # the bytes of whatever body arrived.
+                        data = (
+                            response.body.encode("utf-8")
+                            if isinstance(response.body, str)
+                            else response.body
+                        )
+                    elif decode_success is not None:
+                        data = decode_success(response.status_code, response.body)
+                    else:
+                        data = self._object_serializer.deserialize(
+                            response.body, return_type
+                        )
+            except SerializationException as error:
+                # The response itself is what could not be decoded: keep what came
+                # back so the caller can see the status, the headers and the body.
+                error._with_response(
+                    response.status_code,
+                    response.headers,
+                    response.body,
+                    method,
+                    request_path,
+                )
+                raise
+
+            result = ApiResult(
+                status_code=response.status_code,
+                data=data,
+                raw_body=response.body,
+                headers=response.headers,
+            )
+        except BaseException as error:
+            self._finish_call(observer, response, error)
+            raise
+        self._finish_call(observer, response, None)
+        return result
+
+    @staticmethod
+    def _finish_call(
+        observer: Optional[CallObserver],
+        response: Optional[ApiHttpResponse],
+        error: Optional[BaseException],
+    ) -> None:
+        """Tell the call hook's observer how the call ended; its own errors are swallowed."""
+        if observer is None:
+            return
+        try:
+            observer.finish(
+                CallOutcome(
+                    status_code=response.status_code if response is not None else 0,
+                    headers=response.headers if response is not None else None,
+                    error=error,
+                )
+            )
+        except Exception:
+            pass
 
     async def _send_with_policy(
         self,
@@ -587,7 +688,7 @@ class BaseApi:
         url: str,
         headers: Dict[str, str],
         body: Any,
-        rebuild_headers: Callable[[], Awaitable[Dict[str, str]]],
+        rebuild_headers: Callable[..., Awaitable[Dict[str, str]]],
         auth: Optional[Authenticator],
         call_timeout: Optional[int] = None,
         call_max_retries: Optional[int] = None,
@@ -635,7 +736,7 @@ class BaseApi:
             # A failed re-authentication leaves the 401 as it is.
             invalidate()
             try:
-                fresh_headers = await rebuild_headers()
+                fresh_headers = await rebuild_headers(True)
             except OpenAPIException:
                 return response
             return await self._send_with_retries(
@@ -649,7 +750,7 @@ class BaseApi:
         url: str,
         headers: Dict[str, str],
         body: Any,
-        rebuild_headers: Callable[[], Awaitable[Dict[str, str]]],
+        rebuild_headers: Callable[..., Awaitable[Dict[str, str]]],
         max_retries: int,
         deadline: Optional[float],
     ) -> ApiHttpResponse:

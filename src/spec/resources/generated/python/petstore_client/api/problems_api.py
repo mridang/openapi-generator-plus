@@ -121,6 +121,8 @@ class ProblemsApi(BaseApi):
             "Result",
             NO_AUTH,
             operation_name="get_fallback",
+            operation_id="getFallback",
+            url_template="/fallbacks/{fallbackId}",
             request_options=options,
             error_schemas={
                 "default": _errors.UnexpectedFailureException.from_error_response,
@@ -200,6 +202,8 @@ class ProblemsApi(BaseApi):
             "Result",
             NO_AUTH,
             operation_name="get_member",
+            operation_id="getMember",
+            url_template="/members/{memberId}",
             request_options=options,
             error_schemas={
                 "404": _errors.MemberNotFoundException.from_error_response,
@@ -279,6 +283,8 @@ class ProblemsApi(BaseApi):
             "Result",
             NO_AUTH,
             operation_name="get_project",
+            operation_id="getProject",
+            url_template="/projects/{projectId}",
             request_options=options,
             error_schemas={
                 "404": _errors.ProjectNotFoundException.from_error_response,
@@ -358,6 +364,8 @@ class ProblemsApi(BaseApi):
             "Result",
             NO_AUTH,
             operation_name="get_range",
+            operation_id="getRange",
+            url_template="/ranges/{rangeId}",
             request_options=options,
             error_schemas={
                 "4XX": _errors.RejectedRequestException.from_error_response,
@@ -443,6 +451,8 @@ class ProblemsApi(BaseApi):
             "Result",
             NO_AUTH,
             operation_name="get_upstream",
+            operation_id="getUpstream",
+            url_template="/upstreams/{upstreamId}",
             request_options=options,
             error_schemas={
                 "5XX": _errors.UpstreamFailureException.from_error_response,
@@ -524,6 +534,8 @@ class ProblemsApi(BaseApi):
             "Result",
             NO_AUTH,
             operation_name="take_lock",
+            operation_id="takeLock",
+            url_template="/locks/{lockId}",
             request_options=options,
             error_schemas={
                 "409": _errors.StateConflictException.from_error_response,
