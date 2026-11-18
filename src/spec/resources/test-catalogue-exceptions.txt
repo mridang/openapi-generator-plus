@@ -749,3 +749,33 @@ kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 
 dart | retries045 | Dart has no streamed request body: the body is an in-memory byte list, so there is no one-shot stream that a replay could exhaust
 dart | serialization078 | Dart has no time-of-day type: a format: time property is a String that the SDK passes through unchanged (serializationobject114), so there is no HH:mm:ss or .SSS format
 ||||||| 5eb3e42e5
+||||||| e126d5cc1
+php | misc283 | PHP has no package root module that could re-export names; each error class is declared once in the Errors namespace.
+||||||| 3712f2407
+elixir | misc242 | Elixir sends a read-only property and receives a write-only one like any other field, as the generated model documentation states, so no read-only field is left off the wire and no write-only field is removed from a response
+elixir | transport083 | Elixir has no client-level cancellation: a call is cancelled only by its own process exiting (S7), and the SDK never receives a caller's cancellation to apply to an in-flight request
+elixir | transport084 | Elixir has no cancellation handle on a call: the only cancellation is the calling process exiting, which bhv transport 060 asserts reaches the request, so there is no separate handle to cancel through
+elixir | transport085 | Elixir has no cancellation token or signal argument, so there is no cancellation that could be supplied and left unfired
+elixir | transport091 | Elixir multipart file content is in-memory bytes given to the call and the SDK never opens a caller file or stream, so no caller handle exists that could stay open after the request
+elixir | serialization129 | Elixir Duration holds microseconds at most, so a nanosecond-precision value cannot be built and the nine-digit fraction is never produced from a Duration
+ruby | misc256 | ruby writes a protobuf duration fraction at a fixed three-digit width, so 1.1s is written as 1.100s (see bhv_serializationobject_179) and trailing zeros are not trimmed
+ruby | misc267 | ruby's DefaultApiClient builds its own HTTP connection from TransportOptions and accepts no caller-supplied HTTP client, so there are no caller client default headers to send (default headers come from TransportOptions, see bhv_transport_011)
+ruby | misc268 | The fixture certificate names every host the test helpers reach it by (localhost, 127.0.0.1, chasm and the host gateway), so no reachable address is missing from its names and a hostname mismatch cannot be produced
+||||||| 0eff42cc7
+dart | misc231 | Dart's typed constructor takes an int for quantity, so a fractional number cannot be passed in code and the compiler refuses it before any run-time check
+dart | misc241 | Dart has no time-of-day type: a format: time property is a String passed through unchanged (serializationobject164), so there is no HH:mm:ss or millisecond truncation to test
+dart | misc242 | Dart sends a readOnly or writeOnly property like any other, as the generated model documents (models/model.mustache), so these properties do have a wire effect
+php | misc088 | php has no decimal type: a decimal decodes to a float, which cannot keep the places it was written with
+php | misc091 | the php generator emits no length, pattern or range constraints for a property, so decoding has no constraint to refuse a value by
+php | misc095 | php's charset conversion replaces invalid bytes with the mbstring substitute character, which is '?' and not U+FFFD, and the SDK does not set U+FFFD
+php | misc104 | the php fixture declares an email-format field only on a petstore model, which templates may not name, so there is no neutral model to decode against
+||||||| 63bf0fe99
+java | misc185 | The Java OAuth2 token manager has no stop operation and runs no background task, so there is nothing to stop twice and no later token request that a stop could refuse
+java | misc187 | The Java authenticators never read the API base URL from the environment and document the host as never read from it, so a client cannot take its host from the environment
+||||||| 07b23c518
+node | retries045 | node has no streamed request body: sendRequest accepts only a string, Buffer, record or null, all held in memory, so a 401 replay never has a stream to consume
+||||||| 9baccfecf
+dart | misc256 | Dart date-times are written with a fixed three-digit millisecond part by formatDateTimeOffset, so trailing zeros are kept by design and no fraction trimming exists to test
+dart | misc260 | url takes its overrides as Map<String, String>, so a null value for an enum variable cannot be passed and the compiler refuses it before any run-time check
+dart | misc262 | The SDK always wraps an http.ClientException from a cancelled request in NetworkException (abstract_api_client), so a cancellation is never surfaced to the caller unwrapped
+||||||| 9606d5116

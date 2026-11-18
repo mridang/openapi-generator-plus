@@ -348,6 +348,38 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 249 a free-form object field keeps its object and integer entries through a JSON round trip',
+      () {
+        final json = serialize({
+          'props': {'count': 3, 'tag': 'x'},
+        });
+        expect(
+          jsonDecode(json),
+          equals({
+            'props': {'count': 3, 'tag': 'x'},
+          }),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 251 a duration string with a day designator is rejected',
+      () {
+        expect(
+          () => parseProtobufDuration('1d'),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 252 an enum wire value containing separators round-trips unchanged',
+      () {
+        expect(parseJson(serialize('a,b;c d/e:f')), equals('a,b;c d/e:f'));
+      },
+    );
+
     test('bhv serializationobject 147 serialize map to JSON', () {
       final input = {'name': 'Fido', 'age': 3};
 
@@ -4468,6 +4500,72 @@ void main() {
         expect(
           () => deserialize<Order>('{"status":"PLACED"}', Order.fromJson),
           throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 112 a password is masked in the string form and written verbatim on the wire',
+      () {
+        const account = Account(username: 'u', password: 'p-secret-value');
+        expect(account.toString(), isNot(contains('p-secret-value')));
+        expect(serialize(account), contains('"password":"p-secret-value"'));
+      },
+    );
+
+    test(
+      'bhv serialization 113 a string value passes through unchanged without normalising its form',
+      () {
+        expect(stringify('é'), equals('é'));
+      },
+    );
+
+    test(
+      'bhv serialization 114 a decoded number keeps its full magnitude and fractional part',
+      () {
+        final food = deserialize<DryFood>(
+          '{"foodType":"dry","weightKg":12345678901234567890.5}',
+          DryFood.fromJson,
+        );
+        expect(food?.weightKg, equals(12345678901234567890.5));
+      },
+    );
+
+    test(
+      'bhv serialization 115 an integral JSON number decoded into a floating-point field becomes a float',
+      () {
+        final food = deserialize<DryFood>(
+          '{"foodType":"dry","weightKg":5}',
+          DryFood.fromJson,
+        );
+        expect(food?.weightKg, equals(5.0));
+        expect(food?.weightKg, isA<double>());
+      },
+    );
+
+    test(
+      'bhv serialization 116 a property named as a language keyword keeps its exact wire key',
+      () {
+        expect(
+          deserialize<EdgeCases>('{"class":"x"}', EdgeCases.fromJson)?.class_,
+          equals('x'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 117 a protobuf duration string decodes to a duration both standalone and as a property',
+      () {
+        expect(
+          parseProtobufDuration('3600s'),
+          equals(const Duration(hours: 1)),
+        );
+        expect(
+          deserialize<EdgeCases>(
+            '{"retryAfter":"3600s"}',
+            EdgeCases.fromJson,
+          )?.retryAfter,
+          equals(const Duration(hours: 1)),
         );
       },
     );
