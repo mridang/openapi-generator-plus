@@ -503,6 +503,42 @@ func TestBhvAuthoidc031_OpenIdConnectAuthenticator_DiscoveryIsFetchedAgainOnceIt
 	}
 }
 
+// Once the cached discovery document has expired, the endpoints come from the newly
+// fetched document.
+func TestBhvAuth029_OpenIdConnectAuthenticator_EndpointsComeFromTheNewlyFetchedDocument(t *testing.T) {
+	t.Parallel()
+	moved := fakeResponse{
+		body:       `{"authorization_endpoint":"https://moved.example.com/authorize","token_endpoint":"https://moved.example.com/token"}`,
+		statusCode: 200,
+		headers:    map[string]string{"cache-control": "max-age=1"},
+	}
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=1"),
+		moved,
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	first, err := authObj.BuildAuthorizationURL("")
+	if err != nil {
+		t.Fatalf("unexpected error on the first use: %v", err)
+	}
+	if !strings.Contains(first, "auth.example.com/authorize") {
+		t.Fatalf("expected the first document's endpoint, got %q", first)
+	}
+	latest := first
+	deadline := time.Now().Add(10 * time.Second)
+	for client.requestCount() < 2 && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+		latest, err = authObj.BuildAuthorizationURL("")
+		if err != nil {
+			t.Fatalf("unexpected error while waiting for the max-age: %v", err)
+		}
+	}
+	if !strings.Contains(latest, "moved.example.com/authorize") {
+		t.Errorf("expected the newly fetched document's endpoint after expiry, got %q", latest)
+	}
+}
+
 // A discovered authorization endpoint on plain http, not loopback, is refused.
 func TestBhvAuthoidc032_OpenIdConnectAuthenticator_DiscoveredEndpointThatIsNotHttpsIsRejected(t *testing.T) {
 	t.Parallel()

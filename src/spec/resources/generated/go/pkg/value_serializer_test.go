@@ -138,7 +138,8 @@ func TestBhvSerializationparam065_ValueSerializer_SerializeValue_CookieNull(t *t
 	}
 }
 
-func TestValueSerializer_SerializeValue_NilQuery(t *testing.T) {
+// An unset query value produces no query entry at all.
+func TestBhvSerialization014_ValueSerializer_SerializeValue_NilQueryProducesNoEntry(t *testing.T) {
 	t.Parallel()
 	result := serializeValue(nil, "query", "string", "")
 	if result != nil {
@@ -440,6 +441,17 @@ func TestBhvSerializationparam005_ValueSerializer_SerializeValue_HeaderArray(t *
 	result := serializeValue([]string{"a", "b", "c"}, "header", "array", "")
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", result)
+	}
+}
+
+// An array in an unstyled or simple header style is written as its items, comma-joined.
+func TestBhvSerialization013_ValueSerializer_SerializeValue_ArrayInHeaderWritesItsItems(t *testing.T) {
+	t.Parallel()
+	if result := serializeValue([]string{"a", "b"}, "header", "array", "simple"); result != "a,b" {
+		t.Errorf("expected the simple-style header array written as its items, got %v", result)
+	}
+	if result := serializeValue([]string{"a", "b"}, "header", "array", ""); result != "a,b" {
+		t.Errorf("expected the unstyled header array written as its items, got %v", result)
 	}
 }
 

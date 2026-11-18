@@ -128,3 +128,24 @@ func TestBhvResults002_ApiResult_ExposesHeadersAsACopy(t *testing.T) {
 		t.Error("Headers aliases the caller's map; X-Added leaked into the result")
 	}
 }
+
+// The headers are a copy taken when the result is built, so a later removal from
+// the source map does not reach the result either.
+func TestBhvResults006_ApiResult_HeadersAreCopiedWhenBuilt(t *testing.T) {
+	t.Parallel()
+	headers := map[string]string{"Content-Type": "application/json", "X-Trace": "abc"}
+
+	result := petstore.NewApiResult[string](200, nil, "", headers)
+	delete(headers, "X-Trace")
+	delete(headers, "Content-Type")
+
+	if result.Headers["Content-Type"] != "application/json" {
+		t.Errorf("Headers[Content-Type] = %q, want %q after the source was cleared", result.Headers["Content-Type"], "application/json")
+	}
+	if result.Headers["X-Trace"] != "abc" {
+		t.Errorf("Headers[X-Trace] = %q, want %q after the source was cleared", result.Headers["X-Trace"], "abc")
+	}
+	if len(result.Headers) != 2 {
+		t.Errorf("expected both headers to survive the source change, got %v", result.Headers)
+	}
+}
