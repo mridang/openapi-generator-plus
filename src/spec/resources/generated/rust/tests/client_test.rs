@@ -115,7 +115,7 @@ fn test_bhv_lifecycle_001_client_api_groups_are_accessible() {
 /* F824: closing the facade closes the transport it built, and a request made
  * afterwards is rejected with the closed-client error. */
 #[test]
-fn test_client_close_marks_the_client_closed() {
+fn test_bhv_misc_188_client_close_marks_the_client_closed() {
     let client =
         Client::with_token(Some("/api/v3"), Some("test-token"), None).expect("valid token");
     assert!(!client.is_closed());

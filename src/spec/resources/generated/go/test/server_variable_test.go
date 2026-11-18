@@ -23,7 +23,7 @@ func TestBhvServers015_ServerVariable_EnumValuesIsNilWhenUnconstrained(t *testin
 	}
 }
 
-func TestServerVariable_ConstructorCopiesEnumSlice(t *testing.T) {
+func TestBhvLanggo095_ServerVariable_ConstructorCopiesEnumSlice(t *testing.T) {
 	t.Parallel()
 	source := []string{"v2", "v3"}
 	v := petstore.NewServerVariable("v3", "", source)

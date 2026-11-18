@@ -64,7 +64,7 @@ class TestChain:
             "finish a",
         ]
 
-    def test_bhv_hooks_020_a_hook_that_returns_nothing_is_skipped_when_finishing(
+    def test_bhv_lang_python_203_a_hook_that_returns_nothing_is_skipped_when_finishing(
         self,
     ) -> None:
         log = _Log()
@@ -84,16 +84,18 @@ class TestChain:
             "finish a",
         ]
 
-    def test_a_chain_of_no_hooks_does_nothing(self) -> None:
+    def test_bhv_lang_python_040_a_chain_of_no_hooks_does_nothing(self) -> None:
         observer = chain().start(_INFO, {})
 
         assert observer is not None
         observer.finish(CallOutcome(status_code=0, headers=None, error=None))
 
-    def test_a_chain_is_a_call_hook(self) -> None:
+    def test_bhv_lang_python_041_a_chain_is_a_call_hook(self) -> None:
         assert isinstance(chain(), CallHook)
 
-    def test_one_failing_observer_does_not_stop_the_others(self) -> None:
+    def test_bhv_lang_python_042_one_failing_observer_does_not_stop_the_others(
+        self,
+    ) -> None:
         log = _Log()
 
         class _Broken:
@@ -113,12 +115,16 @@ class TestChain:
 
 
 class TestCallOutcome:
-    def test_the_response_headers_are_lower_cased_and_read_only(self) -> None:
+    def test_bhv_lang_python_043_the_response_headers_are_lower_cased_and_read_only(
+        self,
+    ) -> None:
         outcome = CallOutcome(status_code=200, headers={"X-Mixed": "v"}, error=None)
 
         assert outcome.headers is not None
         assert outcome.headers["x-mixed"] == "v"
         assert isinstance(outcome.headers, MappingProxyType)
 
-    def test_no_response_means_no_headers_rather_than_an_empty_map(self) -> None:
+    def test_bhv_lang_python_044_no_response_means_no_headers_rather_than_an_empty_map(
+        self,
+    ) -> None:
         assert CallOutcome(status_code=0, headers=None, error=None).headers is None

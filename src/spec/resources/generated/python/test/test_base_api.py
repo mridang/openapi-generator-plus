@@ -260,14 +260,16 @@ class TestErrorHeaders:
     headers to None, conflating 'empty headers' with 'no response'.
     """
 
-    def test_empty_headers_pass_through_as_empty_dict_not_none(self) -> None:
+    def test_bhv_lang_python_009_empty_headers_pass_through_as_empty_dict_not_none(
+        self,
+    ) -> None:
         resp = ApiHttpResponse(status_code=400, body='{"error":"bad"}', headers={})
         with pytest.raises(BadRequestException) as exc_info:
             BaseApi._throw_api_exception(resp)
         assert exc_info.value.response_headers == {}
         assert exc_info.value.response_headers is not None
 
-    def test_present_headers_pass_through(self) -> None:
+    def test_bhv_lang_python_010_present_headers_pass_through(self) -> None:
         resp = ApiHttpResponse(
             status_code=400,
             body='{"error":"bad"}',
@@ -705,7 +707,7 @@ class TestMultipleSuccessResponses:
 
         assert isinstance(result.actual_instance, Reservation)
 
-    async def test_status_201_decodes_the_second_schema_even_when_the_body_fits_both(
+    async def test_bhv_lang_python_011_status_201_decodes_the_second_schema_even_when_the_body_fits_both(
         self,
     ) -> None:
         api = StoreApi(
@@ -717,7 +719,9 @@ class TestMultipleSuccessResponses:
 
         assert isinstance(result.actual_instance, ReservationReceipt)
 
-    async def test_with_http_info_keeps_the_status_and_the_decoded_union(self) -> None:
+    async def test_bhv_lang_python_012_with_http_info_keeps_the_status_and_the_decoded_union(
+        self,
+    ) -> None:
         api = StoreApi(
             api_client=_ScriptedApiClient(_json(201, self.BOTH)),
             config=Configuration(base_url="https://example.test"),
@@ -946,7 +950,7 @@ class TestQuerySerialization:
         )
         assert client.captured_url == "http://localhost/test/echo?q=a%26admin%3D1%20x"
 
-    async def test_a_query_parameter_name_with_reserved_characters_is_percent_encoded(
+    async def test_bhv_lang_python_013_a_query_parameter_name_with_reserved_characters_is_percent_encoded(
         self,
     ) -> None:
         client = CapturingApiClient()
@@ -984,7 +988,9 @@ class TestQuerySerialization:
         )
         assert client.captured_url == "http://localhost/test/echo?q=a%2Bb"
 
-    async def test_non_ascii_query_text_is_sent_as_percent_encoded_utf8(self) -> None:
+    async def test_bhv_lang_python_014_non_ascii_query_text_is_sent_as_percent_encoded_utf8(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         stub = StubApi(
             api_client=client, config=Configuration(base_url="http://localhost")
@@ -1001,7 +1007,9 @@ class TestQuerySerialization:
         )
         assert client.captured_url == "http://localhost/test/echo?q=%C3%A9"
 
-    async def test_non_ascii_form_text_is_sent_as_percent_encoded_utf8(self) -> None:
+    async def test_bhv_lang_python_015_non_ascii_form_text_is_sent_as_percent_encoded_utf8(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         stub = StubApi(
             api_client=client, config=Configuration(base_url="http://localhost")
@@ -1352,7 +1360,9 @@ class TestAuthInjection:
         finally:
             release.set()
 
-    async def test_get_auth_headers_runs_off_the_event_loop_thread(self) -> None:
+    async def test_bhv_lang_python_016_get_auth_headers_runs_off_the_event_loop_thread(
+        self,
+    ) -> None:
         # Regression (H5): on the async path, auth-header acquisition must be
         # offloaded via asyncio.to_thread, not run inline on the event-loop
         # thread. For OAuth, get_auth_headers acquires a threading.Lock and may
@@ -1465,7 +1475,9 @@ class TestNoAuthSentinel:
         )
         assert client.captured_headers.get("X-Client-Auth") == "client-level-token"
 
-    async def test_sentinel_is_identity_distinct_from_none(self) -> None:
+    async def test_bhv_lang_python_017_sentinel_is_identity_distinct_from_none(
+        self,
+    ) -> None:
         # The sentinel must be a dedicated, identity-comparable marker that is
         # neither None nor a real authenticator.
         assert NO_AUTH is not None
@@ -1638,7 +1650,7 @@ class TestSchemeCredentials:
         assert client.captured_headers["X-API-Key"] == "k"
         assert "Authorization" not in client.captured_headers
 
-    async def test_the_default_authenticator_serves_an_operation_no_scheme_matches(
+    async def test_bhv_misc_197_the_default_authenticator_serves_an_operation_no_scheme_matches(
         self,
     ) -> None:
         client = JsonReplyApiClient(_PET_REPLY)
@@ -1678,7 +1690,7 @@ class TestSchemeCredentials:
 
         assert "Authorization" not in client.captured_headers
 
-    async def test_an_operation_naming_only_an_undeclared_scheme_uses_the_default(
+    async def test_bhv_lang_python_018_an_operation_naming_only_an_undeclared_scheme_uses_the_default(
         self,
     ) -> None:
         # add_pet_treatment requires petstore_auth, which the spec never declares.
@@ -1718,7 +1730,9 @@ class TestSchemeCredentials:
 
         assert "Authorization" not in client.captured_headers
 
-    def test_the_first_credential_the_client_holds_is_returned(self) -> None:
+    def test_bhv_lang_python_019_the_first_credential_the_client_holds_is_returned(
+        self,
+    ) -> None:
         held = self._token("Bearer b")
         api = self._api(CapturingApiClient(), scheme_authenticators={"b": held})
 
@@ -1726,7 +1740,7 @@ class TestSchemeCredentials:
         assert api._scheme_authenticator("a", "c") is None
         assert api._scheme_authenticator() is None
 
-    async def test_a_scheme_credential_is_given_the_apis_transport_when_it_needs_one(
+    async def test_bhv_lang_python_020_a_scheme_credential_is_given_the_apis_transport_when_it_needs_one(
         self,
     ) -> None:
         class _NeedsTransport(StubAuthenticator, HttpAwareAuthenticator):
@@ -1813,7 +1827,7 @@ class TestCloseFinishesCallsInFlight:
         assert pool.requests == 2
         assert pool.cleared is True
 
-    async def test_a_call_started_after_close_raises_the_client_closed_error(
+    async def test_bhv_lang_python_021_a_call_started_after_close_raises_the_client_closed_error(
         self,
     ) -> None:
         pool = _GatedPool([])
@@ -1957,7 +1971,7 @@ class TestBodySerialization:
         assert "name=alice" in str(client.captured_body)
 
     @pytest.mark.parametrize("declared", ["multipart/mixed", "multipart/related"])
-    async def test_non_form_data_multipart_body_stays_a_parts_dict(
+    async def test_bhv_lang_python_022_non_form_data_multipart_body_stays_a_parts_dict(
         self, declared: str
     ) -> None:
         client = CapturingApiClient()
@@ -2098,7 +2112,9 @@ class TestBodySerialization:
         )
         assert str(client.captured_body) == "emoji=%F0%9F%98%80"
 
-    async def test_form_bool_field_serializes_lowercase(self) -> None:
+    async def test_bhv_lang_python_023_form_bool_field_serializes_lowercase(
+        self,
+    ) -> None:
         # Form scalars route through ObjectSerializer.stringify so a bool
         # renders as `true`/`false` (the JSON/wire form), not Python's `True`.
         client = CapturingApiClient()
@@ -2367,7 +2383,9 @@ class TestContentTypeDeserialization:
         assert excinfo.value.request_method == "GET"
         assert excinfo.value.request_path == "/test/echo"
 
-    async def test_unexpected_content_type_names_the_operation(self) -> None:
+    async def test_bhv_lang_python_024_unexpected_content_type_names_the_operation(
+        self,
+    ) -> None:
         client = PlainTextApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
@@ -2453,7 +2471,9 @@ class TestDateOnlyParamsSerializeWithoutTime:
     """`format: date` params are typed datetime.date and must go on the wire
     as YYYY-MM-DD with no time component, in query, header and form."""
 
-    async def test_query_and_header_date_params_emit_date_only(self) -> None:
+    async def test_bhv_misc_236_query_and_header_date_params_emit_date_only(
+        self,
+    ) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         api = PetApi(api_client=client, config=config)
@@ -2620,7 +2640,7 @@ class TestHeaderFlowThrough:
         ]
         assert client.captured_headers["accept"] == "text/plain"
 
-    async def test_a_lower_case_default_content_type_is_dropped_without_a_body(
+    async def test_bhv_misc_177_a_lower_case_default_content_type_is_dropped_without_a_body(
         self,
     ) -> None:
         client = CapturingApiClient()
@@ -2849,7 +2869,7 @@ class TestNoPerCallBaseUrlParam:
     on operation methods -- the other 11 SDKs have no such parameter. Operations
     use the client configuration's base URL only."""
 
-    def test_operation_has_no_base_url_parameter(self) -> None:
+    def test_bhv_lang_python_025_operation_has_no_base_url_parameter(self) -> None:
         import inspect
 
         sig = inspect.signature(PetApi.find_pets_by_status)
@@ -2981,7 +3001,9 @@ _PET_REPLY = '{"id":1,"name":"sample","photoUrls":[]}'
 
 
 class TestDatePathParam:
-    async def test_format_date_path_param_is_date_only(self) -> None:
+    async def test_bhv_lang_python_026_format_date_path_param_is_date_only(
+        self,
+    ) -> None:
         client = JsonReplyApiClient("[]")
         api = PetApi(
             api_client=client, config=Configuration(base_url="http://localhost")
@@ -2993,7 +3015,9 @@ class TestDatePathParam:
 
 
 class TestNamedEnumParams:
-    async def test_path_query_and_header_carry_the_wire_value(self) -> None:
+    async def test_bhv_misc_082_path_query_and_header_carry_the_wire_value(
+        self,
+    ) -> None:
         from petstore_client.api.options.get_by_swatch_options import (
             GetBySwatchOptions,
         )
@@ -3032,7 +3056,7 @@ class TestNamedEnumParams:
 
 
 class TestOperationCookieParam:
-    async def test_cookie_value_is_sent_in_the_cookie_header(self) -> None:
+    async def test_bhv_misc_176_cookie_value_is_sent_in_the_cookie_header(self) -> None:
         from petstore_client.api.options.delete_pet_options import DeletePetOptions
 
         client = JsonReplyApiClient("")
@@ -3045,7 +3069,7 @@ class TestOperationCookieParam:
         assert client.captured_headers["Cookie"] == "api_key=abc123"
 
     @pytest.mark.parametrize("value", ["abc\r\nInjected: yes", "abc\x00def"])
-    async def test_control_characters_fail_closed_before_the_transport(
+    async def test_bhv_lang_python_027_control_characters_fail_closed_before_the_transport(
         self, value: str
     ) -> None:
         from petstore_client.api.options.delete_pet_options import DeletePetOptions
@@ -3066,7 +3090,7 @@ class TestOperationCookieParam:
         assert client.captured_url == ""
 
     @pytest.mark.parametrize("value", ["a b", "a,b", "a;b", 'a"b', "a\\b", "caf\u00e9"])
-    async def test_a_value_outside_the_cookie_octets_is_refused_before_sending(
+    async def test_bhv_lang_python_028_a_value_outside_the_cookie_octets_is_refused_before_sending(
         self, value: str
     ) -> None:
         from petstore_client.api.options.delete_pet_options import DeletePetOptions
@@ -3084,7 +3108,9 @@ class TestOperationCookieParam:
     @pytest.mark.parametrize(
         "value", ["a=b==", "100%25", "a/b+c", "!#$%&'()*+-./:<=>?@[]^_`{|}~"]
     )
-    async def test_a_value_made_of_cookie_octets_is_sent_raw(self, value: str) -> None:
+    async def test_bhv_misc_192_a_value_made_of_cookie_octets_is_sent_raw(
+        self, value: str
+    ) -> None:
         from petstore_client.api.options.delete_pet_options import DeletePetOptions
 
         client = JsonReplyApiClient("")
@@ -3096,7 +3122,9 @@ class TestOperationCookieParam:
 
         assert client.captured_headers["Cookie"] == "api_key=" + value
 
-    async def test_a_value_the_caller_percent_encoded_is_sent_as_given(self) -> None:
+    async def test_bhv_misc_123_a_value_the_caller_percent_encoded_is_sent_as_given(
+        self,
+    ) -> None:
         from petstore_client.api.options.delete_pet_options import DeletePetOptions
 
         client = JsonReplyApiClient("")
@@ -3125,7 +3153,7 @@ class TestOperationServerVariants:
             ("sandbox", "v3", "https://sandbox.example.com/api/v3"),
         ],
     )
-    def test_templated_variant_substitutes_every_variable(
+    def test_bhv_lang_python_029_templated_variant_substitutes_every_variable(
         self, environment: str, version: str, expected: str
     ) -> None:
         from petstore_client.api.pet_api import (
@@ -3157,7 +3185,9 @@ class TestOperationServerVariants:
         with pytest.raises(ValueError, match="'production' is not a valid"):
             GetStagingPetInfoServerEnvironment("production")
 
-    def test_multi_server_operation_offers_each_server(self) -> None:
+    def test_bhv_lang_python_030_multi_server_operation_offers_each_server(
+        self,
+    ) -> None:
         from petstore_client.api.pet_api import (
             GetMultiServerPetInfoServerPrimary,
             GetMultiServerPetInfoServerRegionalRegion,
@@ -3199,7 +3229,7 @@ class TestOperationServerVariants:
 
         assert client.captured_url == "https://sandbox.example.com/api/v3/pet/7/staging"
 
-    async def test_request_goes_to_the_regional_server_of_a_multi_server_operation(
+    async def test_bhv_lang_python_031_request_goes_to_the_regional_server_of_a_multi_server_operation(
         self,
     ) -> None:
         from petstore_client.api.pet_api import (
@@ -3365,7 +3395,7 @@ class TestAutomaticRetries:
         assert time.monotonic() - started < 10
 
     @pytest.mark.parametrize("status", [408, 409, 429, 500, 502, 503, 504, 599])
-    async def test_a_retryable_status_is_sent_again(
+    async def test_bhv_lang_python_032_a_retryable_status_is_sent_again(
         self, scripted: Any, status: int
     ) -> None:
         server = scripted((status, _SOON, "{}"), _OK)
@@ -3426,7 +3456,9 @@ class TestAutomaticRetries:
 
         assert len(server.requests) == 1
 
-    async def test_the_backoff_waits_before_the_retry(self, scripted: Any) -> None:
+    async def test_bhv_lang_python_033_the_backoff_waits_before_the_retry(
+        self, scripted: Any
+    ) -> None:
         server = scripted((503, {}, "{}"), _OK)
         started = time.monotonic()
 

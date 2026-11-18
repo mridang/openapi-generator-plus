@@ -122,7 +122,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
                    end
     end
 
-    test "scheme authenticator keeps the declared scopes" do
+    test "bhv langelixir 017 scheme authenticator keeps the declared scopes" do
       auth =
         PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.new(
           "https://api.example.com",

@@ -97,7 +97,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
                    fn -> ServerConfiguration.url(config, %{"env" => "dev"}) end
     end
 
-    test "the allowed values of a three-element enum render as a bracketed comma list" do
+    test "bhv langelixir 019 the allowed values of a three-element enum render as a bracketed comma list" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",
         variables: %{
@@ -236,7 +236,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
   end
 
   describe "Servers.all/0" do
-    test "lists every server in declaration order, as SKILLS.md documents" do
+    test "bhv misc 156 lists every server in declaration order, as SKILLS.md documents" do
       assert PetstoreClient.Servers.all() == [
                PetstoreClient.Servers.server_0(),
                PetstoreClient.Servers.server_1(),

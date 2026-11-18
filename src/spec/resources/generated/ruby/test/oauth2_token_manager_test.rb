@@ -288,7 +288,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     ['an empty string', { 'access_token' => '' }],
     ['a non-string value', { 'access_token' => 42 }]
   ].each do |label, payload|
-    it "an access_token that is #{label} is reported as missing or empty" do
+    it "bhv_langruby_046 an access_token that is #{label} is reported as missing or empty" do
       client = FakeTokenClient.new([{ status: 200, body: payload }])
       manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
@@ -843,7 +843,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(error.uri).must_be_nil
   end
 
-  it 'a non-string error value is not taken as an error code' do
+  it 'bhv_langruby_047 a non-string error value is not taken as an error code' do
     client = FakeTokenClient.new([{ status: 400, body: { 'error' => 7 } }])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client

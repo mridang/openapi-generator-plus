@@ -96,7 +96,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
                "Basic " <> Base.encode64("alice:s3:cret")
     end
 
-    test "rejects each invalid credential with its own message" do
+    test "bhv langelixir 046 rejects each invalid credential with its own message" do
       assert_raise ArgumentError,
                    "Basic auth username must not contain CR, LF, or NUL characters",
                    fn ->
@@ -153,7 +153,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   # bearer-no-empty-token-guard: an empty/whitespace Bearer token must be
   # rejected at construction, not silently emit `Authorization: Bearer `.
   describe "BearerAuthenticator empty-token guard" do
-    test "rejects empty token" do
+    test "bhv langelixir 047 rejects empty token" do
       assert_raise ArgumentError, fn ->
         BearerAuthenticator.new("https://api.example.com", "")
       end

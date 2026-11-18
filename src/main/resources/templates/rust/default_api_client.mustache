@@ -1157,7 +1157,7 @@ mod tests {
     /* F1093: the redirect strip also covers any header the redaction rule calls
      * a credential, not only the spec's own names. */
     #[test]
-    fn test_is_credential_header_covers_the_redaction_rule() {
+    fn test_bhv_langrust_007_is_credential_header_covers_the_redaction_rule() {
         for name in ["Authorization", "COOKIE", "Proxy-Authorization", "X-Tenant-Token", "Api-Key", "X-Client-Secret"] {
             assert!(is_credential_header(name), "{name} must be stripped across origins");
         }
@@ -1169,7 +1169,7 @@ mod tests {
     /* D13: a refusal carries the headers of the response that arrived, so the
      * helper keeps every name lower-case and joins repeated lines in order. */
     #[test]
-    fn test_collect_headers_lowercases_names_and_joins_repeated_lines() {
+    fn test_bhv_transport_090_collect_headers_lowercases_names_and_joins_repeated_lines() {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.append("Location", "http://b.example/y".parse().unwrap());
         headers.append("Set-Cookie", "a=1".parse().unwrap());
@@ -1353,7 +1353,7 @@ mod tests {
     /* ── Per-part MIME sniffing ── */
 
     #[test]
-    fn test_mime_for_filename_image_extensions() {
+    fn test_bhv_langrust_008_mime_for_filename_image_extensions() {
         assert_eq!(mime_for_filename("photo.png"), "image/png");
         assert_eq!(mime_for_filename("photo.JPG"), "image/jpeg");
         assert_eq!(mime_for_filename("photo.jpeg"), "image/jpeg");
@@ -1361,7 +1361,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mime_for_filename_document_extensions() {
+    fn test_bhv_langrust_009_mime_for_filename_document_extensions() {
         assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
         assert_eq!(mime_for_filename("payload.json"), "application/json");
         assert_eq!(mime_for_filename("notes.txt"), "text/plain");
@@ -1716,7 +1716,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multipart_non_ascii_field_name_preserved_as_utf8_file_part() {
+    fn test_bhv_serialization_126_multipart_non_ascii_field_name_preserved_as_utf8_file_part() {
         /* CJK field name on a bytes (file) part — must also survive as UTF-8. */
         let field_name = "日本.png"; // emits image/png too (behavior 4 cross-check)
         let fields = [(field_name.to_string(), MultipartValue::Bytes(vec![0, 1, 2]))];
@@ -1860,7 +1860,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_charset_extracts_quoted_value() {
+    fn test_bhv_langrust_010_parse_charset_extracts_quoted_value() {
         assert_eq!(
             parse_charset("text/plain; charset=\"UTF-8\""),
             Some("UTF-8".to_string())

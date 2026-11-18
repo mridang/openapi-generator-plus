@@ -142,7 +142,9 @@ class TestMetadataTypedAdditionalProperties:
             "additional_properties": "bar",
         }
 
-    def test_wire_key_named_additional_properties_alongside_other_extras(self) -> None:
+    def test_bhv_misc_287_wire_key_named_additional_properties_alongside_other_extras(
+        self,
+    ) -> None:
         # The string-valued `additional_properties` wire key coexists with other
         # genuine extras; none are lost.
         from petstore_client.models import Metadata
@@ -156,7 +158,9 @@ class TestMetadataTypedAdditionalProperties:
         assert metadata.additional_properties["additional_properties"] == "bar"
         assert metadata.additional_properties["region"] == "eu"
 
-    def test_field_name_kwargs_bucket_is_spread_not_nested(self) -> None:
+    def test_bhv_lang_python_086_field_name_kwargs_bucket_is_spread_not_nested(
+        self,
+    ) -> None:
         # The internal bucket on the field-name path (direct kwargs) is spread
         # into `additional_properties`, never re-nested under itself.
         from petstore_client.models import Metadata
@@ -177,7 +181,7 @@ class TestMetadataTypedAdditionalProperties:
         wire = json.loads(ObjectSerializer().serialize(metadata))
         assert wire["region"] == "eu"
 
-    def test_dict_valued_wire_key_survives_full_round_trip(self) -> None:
+    def test_bhv_misc_290_dict_valued_wire_key_survives_full_round_trip(self) -> None:
         # End-to-end: deserialize -> serialize -> deserialize keeps the
         # string-valued `additional_properties` wire property intact. The
         # deserializing convenience method is wrapped so an unexpected
@@ -272,7 +276,9 @@ class TestPackageManifest:
         assert isinstance(description, str)
         assert description.strip() != ""
 
-    def test_pyproject_description_keeps_quotes_and_markup_unescaped(self) -> None:
+    def test_bhv_lang_python_087_pyproject_description_keeps_quotes_and_markup_unescaped(
+        self,
+    ) -> None:
         with open(os.path.join(os.getcwd(), "pyproject.toml"), "rb") as handle:
             description = tomllib.load(handle)["project"]["description"]
         assert '"quoted"' in description
@@ -281,7 +287,7 @@ class TestPackageManifest:
 
 
 class TestMakefileTestTarget:
-    def test_make_test_runs_the_configured_testpaths_not_only_the_test_directory(
+    def test_bhv_lang_python_088_make_test_runs_the_configured_testpaths_not_only_the_test_directory(
         self,
     ) -> None:
         with open(os.path.join(os.getcwd(), "pyproject.toml"), "rb") as handle:
@@ -306,13 +312,15 @@ class TestReadmeAndSkillsText:
         with open(os.path.join(os.getcwd(), "pyproject.toml"), "rb") as handle:
             return str(tomllib.load(handle)["project"]["name"])
 
-    def test_readme_package_name_is_the_manifest_name(self) -> None:
+    def test_bhv_lang_python_089_readme_package_name_is_the_manifest_name(self) -> None:
         assert f"- Name: `{self._manifest_name()}`\n" in self._read("README.md")
 
-    def test_skills_install_command_uses_the_manifest_name(self) -> None:
+    def test_bhv_lang_python_090_skills_install_command_uses_the_manifest_name(
+        self,
+    ) -> None:
         assert f"pip install {self._manifest_name()}\n" in self._read("SKILLS.md")
 
-    def test_readme_opens_with_installation_and_usage_that_link_the_skills(
+    def test_bhv_lang_python_091_readme_opens_with_installation_and_usage_that_link_the_skills(
         self,
     ) -> None:
         readme = self._read("README.md")
@@ -324,7 +332,9 @@ class TestReadmeAndSkillsText:
         assert f"pip install {self._manifest_name()}\n" in readme
         assert "[SKILLS.md](SKILLS.md)" in readme
 
-    def test_readme_files_supported_features_outside_not_supported(self) -> None:
+    def test_bhv_lang_python_092_readme_files_supported_features_outside_not_supported(
+        self,
+    ) -> None:
         readme = self._read("README.md")
         not_supported = readme.index("## Not supported")
         for heading in (
@@ -335,7 +345,7 @@ class TestReadmeAndSkillsText:
         ):
             assert readme.index(heading) < not_supported
 
-    def test_readme_documents_credentials_per_call_options_and_the_behaviours_to_know(
+    def test_bhv_lang_python_093_readme_documents_credentials_per_call_options_and_the_behaviours_to_know(
         self,
     ) -> None:
         readme = self._read("README.md")
@@ -358,17 +368,21 @@ class TestReadmeAndSkillsText:
         assert "Streaming is not supported" in readme
         assert "stay separate objects" in readme
 
-    def test_readme_not_supported_lists_xml_links_and_mutual_tls(self) -> None:
+    def test_bhv_lang_python_094_readme_not_supported_lists_xml_links_and_mutual_tls(
+        self,
+    ) -> None:
         readme = self._read("README.md")
         for heading in ("### XML bodies", "### Link Objects", "### Mutual TLS"):
             assert readme.index(heading) > readme.index("## Not supported")
 
-    def test_skills_models_sample_passes_the_required_fields(self) -> None:
+    def test_bhv_lang_python_095_skills_models_sample_passes_the_required_fields(
+        self,
+    ) -> None:
         skills = self._read("SKILLS.md")
         sample = skills[skills.index("## Models") : skills.index("## Binary")]
         assert "Required fields must be passed to the constructor" in sample
 
-    def test_readme_and_skills_name_the_credential_of_each_security_scheme(
+    def test_bhv_lang_python_096_readme_and_skills_name_the_credential_of_each_security_scheme(
         self,
     ) -> None:
         for name in [
@@ -389,7 +403,9 @@ class TestReadmeAndSkillsText:
             assert f"`{name}`" in self._read("README.md")
             assert f"`{name}`" in self._read("SKILLS.md")
 
-    def test_readme_and_skills_describe_a_graceful_close_and_raw_cookies(self) -> None:
+    def test_bhv_lang_python_097_readme_and_skills_describe_a_graceful_close_and_raw_cookies(
+        self,
+    ) -> None:
         for document in ("README.md", "SKILLS.md"):
             text = self._read(document)
             assert "graceful" in text
@@ -428,12 +444,16 @@ class TestReadmeAndSkillsText:
         assert "max_retries(0)" in section
         assert "`Retry-After`" in section
 
-    def test_skills_call_the_authenticator_an_abstract_base_class(self) -> None:
+    def test_bhv_lang_python_098_skills_call_the_authenticator_an_abstract_base_class(
+        self,
+    ) -> None:
         skills = self._read("SKILLS.md")
         assert "The `Authenticator` abstract base class is the seam for tests" in skills
         assert "`Authenticator` protocol" not in skills
 
-    def test_skills_error_handling_example_passes_real_arguments(self) -> None:
+    def test_bhv_lang_python_099_skills_error_handling_example_passes_real_arguments(
+        self,
+    ) -> None:
         skills = self._read("SKILLS.md")
         section = skills.split("## Error Handling", 1)[1].split("\n## ", 1)[0]
         block = section.split("```python\n", 1)[1].split("```", 1)[0]
@@ -497,7 +517,7 @@ class TestOptionsPerCallSettings:
         with pytest.raises(ValueError, match="max_retries"):
             self._options()(max_retries=max_retries)
 
-    def test_zero_retries_is_allowed(self) -> None:
+    def test_bhv_lang_python_100_zero_retries_is_allowed(self) -> None:
         assert self._options()(max_retries=0).max_retries == 0
 
     def test_bhv_misc_054_the_headers_are_a_read_only_copy(self) -> None:
@@ -885,7 +905,7 @@ class TestEveryOperationTakesOptions:
     @pytest.mark.parametrize(
         "module,api,operation,options_name,call_settings_only", OPERATIONS
     )
-    def test_the_options_object_carries_the_per_call_settings(
+    def test_bhv_lang_python_101_the_options_object_carries_the_per_call_settings(
         self,
         module: str,
         api: str,
@@ -972,7 +992,7 @@ class TestMetadataEquality:
 
         assert Defaults(ratio=Decimal("1.5")) == Defaults(ratio=Decimal("1.50"))
 
-    def test_instances_differing_only_in_additional_properties_are_not_equal(
+    def test_bhv_lang_python_102_instances_differing_only_in_additional_properties_are_not_equal(
         self,
     ) -> None:
         first = self._decode('{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}')

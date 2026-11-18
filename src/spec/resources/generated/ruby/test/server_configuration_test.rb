@@ -18,7 +18,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url).must_equal 'https://api.example.com/v1'
   end
 
-  it 'substitutes default variable values when no overrides are given' do
+  it 'bhv_misc_278 substitutes default variable values when no overrides are given' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/v{version}',
       variables: {
@@ -51,7 +51,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'version' => '3' })).must_equal 'https://prod.api.example.com/v3'
   end
 
-  it 'substitutes a value containing backslash sequences literally' do
+  it 'bhv_misc_261 substitutes a value containing backslash sequences literally' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{host}.example.com/{host}',
       variables: { 'host' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
@@ -78,7 +78,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'env' => '{version}' })).must_equal 'https://{version}.api.example.com/v2'
   end
 
-  it 'leaves an undeclared placeholder in the template as written' do
+  it 'bhv_misc_259 leaves an undeclared placeholder in the template as written' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/{unknown}',
       variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
@@ -122,7 +122,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.variables).must_equal variables
   end
 
-  it 'is immutable and freezes its variables map' do
+  it 'bhv_langruby_079 is immutable and freezes its variables map' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://api.example.com',
       variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }

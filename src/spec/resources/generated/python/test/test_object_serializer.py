@@ -166,18 +166,20 @@ class TestContainerDatetimeAwareDecodeRule:
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize(text, "datetime")
 
-    def test_container_datetime_accepts_a_long_fraction(self) -> None:
+    def test_bhv_lang_python_110_container_datetime_accepts_a_long_fraction(
+        self,
+    ) -> None:
         result = ObjectSerializer()._deserialize(
             "2024-01-01T12:30:45.123456789+01:00", "datetime"
         )
         assert result.utcoffset() == datetime.timedelta(hours=1)
 
-    def test_awaredatetime_alias_rejects_naive(self) -> None:
+    def test_bhv_lang_python_111_awaredatetime_alias_rejects_naive(self) -> None:
         # The 'AwareDatetime' type name resolves to the same decode rule.
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize("2024-01-01T12:30:45", "AwareDatetime")
 
-    def test_list_of_datetime_rejects_naive_element(self) -> None:
+    def test_bhv_lang_python_112_list_of_datetime_rejects_naive_element(self) -> None:
         # The container path (List[datetime]) shares the same rule element-wise.
         with pytest.raises((ValueError, SerializationException)):
             ObjectSerializer()._deserialize(["2024-01-01T12:30:45"], "List[datetime]")
@@ -203,7 +205,9 @@ class TestNonAsciiSerialization:
         assert r"\t" in result
 
     @pytest.mark.parametrize("char", ["\u2028", "\u2029", "\x7f", "/", "<", ">", "&"])
-    def test_d84_characters_are_written_literally_in_a_string(self, char: str) -> None:
+    def test_bhv_lang_python_113_d84_characters_are_written_literally_in_a_string(
+        self, char: str
+    ) -> None:
         assert ObjectSerializer().serialize(f"a{char}b") == f'"a{char}b"'
 
     @pytest.mark.parametrize("char", ["\u2028", "\u2029", "\x7f", "/", "<", ">", "&"])
@@ -220,6 +224,13 @@ class TestNonAsciiSerialization:
 
 
 class TestDeserializationErrorWrapping:
+    def test_bhv_serialization_071_json_nested_beyond_the_depth_cap_is_refused_before_parsing(
+        self,
+    ) -> None:
+        deep = "[" * 1001 + "]" * 1001
+        with pytest.raises(SerializationException, match="exceeds limit 1000"):
+            ObjectSerializer.parse_json(deep)
+
     @pytest.mark.parametrize(
         ("payload", "type_name"),
         [
@@ -289,7 +300,7 @@ class TestStrictFloatAcceptsIntegralWireValue:
     (format: double → StrictFloat → LaxFloat) is the fixture shape.
     """
 
-    def test_integral_json_decodes_to_float(self) -> None:
+    def test_bhv_serialization_115_integral_json_decodes_to_float(self) -> None:
         try:
             restored = ObjectSerializer().deserialize(
                 '{"foodType": "dry", "weightKg": 5}', "DryFood"
@@ -310,7 +321,7 @@ class TestStrictFloatAcceptsIntegralWireValue:
         assert restored is not None
         assert restored.weight_kg == 1.5
 
-    def test_string_value_still_rejected(self) -> None:
+    def test_bhv_lang_python_114_string_value_still_rejected(self) -> None:
         # LaxFloat only widens int -> float; a string is still a wire-type bug.
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(
@@ -328,7 +339,7 @@ class TestUriRoundTripsByteIdentical:
     Pet.homepage_url (format: uri) is the fixture shape.
     """
 
-    def test_host_only_url_keeps_no_trailing_slash(self) -> None:
+    def test_bhv_lang_python_115_host_only_url_keeps_no_trailing_slash(self) -> None:
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "https://example.com"}'
         try:
             restored = ObjectSerializer().deserialize(wire, "Pet")
@@ -341,7 +352,7 @@ class TestUriRoundTripsByteIdentical:
         assert '"https://example.com"' in reserialized
         assert "https://example.com/" not in reserialized
 
-    def test_default_port_and_host_case_preserved(self) -> None:
+    def test_bhv_lang_python_116_default_port_and_host_case_preserved(self) -> None:
         url = "http://Example.COM:80/Path"
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "' + url + '"}'
         try:
@@ -596,6 +607,16 @@ class TestNativeValueFormats:
         assert ObjectSerializer.stringify(Decimal("1E+3")) == "1000"
 
 
+class TestNullOptionalField:
+    def test_bhv_serialization_070_a_json_null_for_an_optional_field_decodes_to_none(
+        self,
+    ) -> None:
+        pet = ObjectSerializer().deserialize(
+            '{"name":"Fido","photoUrls":[],"category":null}', "Pet"
+        )
+        assert pet.category is None
+
+
 class TestNumberIsLossless:
     """A `type: number` field decodes and encodes without float rounding and
     rejects a quoted string."""
@@ -606,13 +627,15 @@ class TestNumberIsLossless:
         assert restored is not None
         assert restored.weight_kg == Decimal("0.1234567890123456789")
 
-    def test_decode_keeps_a_large_magnitude_with_a_fraction(self) -> None:
+    def test_bhv_serialization_114_decode_keeps_a_large_magnitude_with_a_fraction(
+        self,
+    ) -> None:
         wire = '{"name": "Fido", "photoUrls": [], "weightKg": 12345678901234567890.5}'
         restored = ObjectSerializer().deserialize(wire, "Pet")
         assert restored is not None
         assert restored.weight_kg == Decimal("12345678901234567890.5")
 
-    def test_encode_writes_every_digit_unquoted(self) -> None:
+    def test_bhv_lang_python_117_encode_writes_every_digit_unquoted(self) -> None:
         pet = Pet(
             name="Fido", photoUrls=set(), weightKg=Decimal("0.1234567890123456789")
         )
@@ -626,20 +649,36 @@ class TestNumberIsLossless:
             restored
         )
 
-    def test_a_list_of_models_keeps_the_exact_digits(self) -> None:
+    def test_bhv_lang_python_118_a_list_of_models_keeps_the_exact_digits(self) -> None:
         pet = Pet(
             name="Fido", photoUrls=set(), weightKg=Decimal("0.1234567890123456789")
         )
         assert '"weightKg":0.1234567890123456789' in ObjectSerializer().serialize([pet])
 
-    def test_decode_rejects_a_quoted_number(self) -> None:
+    def test_bhv_lang_python_119_decode_rejects_a_quoted_number(self) -> None:
         wire = '{"name": "Fido", "photoUrls": [], "weightKg": "12.345"}'
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(wire, "Pet")
 
-    def test_constructor_rejects_a_string(self) -> None:
+    def test_bhv_lang_python_120_constructor_rejects_a_string(self) -> None:
         with pytest.raises(ValidationError):
             Pet.model_validate({"name": "Fido", "photoUrls": [], "weightKg": "12.345"})
+
+
+class TestDurationRoundTrip:
+    def test_bhv_serialization_077_a_duration_round_trips_for_zero_negative_sub_second_multi_day_and_extreme(
+        self,
+    ) -> None:
+        values = [
+            datetime.timedelta(0),
+            datetime.timedelta(seconds=-90, microseconds=-250000),
+            datetime.timedelta(microseconds=1500),
+            datetime.timedelta(days=3, seconds=5),
+            datetime.timedelta(seconds=315576000000),
+        ]
+        for value in values:
+            text = ObjectSerializer.stringify(value)
+            assert ObjectSerializer()._deserialize(text, "datetime.timedelta") == value
 
 
 class TestSetSanitization:
@@ -655,15 +694,15 @@ class TestSetSanitization:
         assert '"values":[1,2,3]' in result
         assert "{1, 2, 3}" not in result
 
-    def test_frozenset_serializes_as_json_array(self) -> None:
+    def test_bhv_lang_python_121_frozenset_serializes_as_json_array(self) -> None:
         result = ObjectSerializer().serialize({"values": frozenset({"b", "a"})})
         assert '"values":["a","b"]' in result
 
-    def test_top_level_set_serializes_as_json_array(self) -> None:
+    def test_bhv_lang_python_122_top_level_set_serializes_as_json_array(self) -> None:
         result = ObjectSerializer().serialize({2, 1, 3})
         assert result == "[1,2,3]"
 
-    def test_sanitize_set_returns_list(self) -> None:
+    def test_bhv_lang_python_123_sanitize_set_returns_list(self) -> None:
         sanitized = ObjectSerializer._sanitize_for_serialization({1, 2, 3})
         assert isinstance(sanitized, list)
         assert sorted(sanitized) == [1, 2, 3]
@@ -708,7 +747,7 @@ class TestCollectionsOfModelsUseTheModelWireForm:
         assert wire["first"]["shipDate"] == "2020-01-02T03:04:05.000+00:00"
         assert wire == {"first": json.loads(ObjectSerializer().serialize(order))}
 
-    def test_list_of_models_emits_bytes_as_base64(self) -> None:
+    def test_bhv_lang_python_124_list_of_models_emits_bytes_as_base64(self) -> None:
         import json
         from petstore_client.models.binary_vault import BinaryVault
 
@@ -717,6 +756,56 @@ class TestCollectionsOfModelsUseTheModelWireForm:
 
 
 class TestStringify:
+    def test_bhv_misc_088_a_decimal_keeps_the_decimal_places_it_was_written_with(
+        self,
+    ) -> None:
+        assert ObjectSerializer.stringify(Decimal("1.50")) == "1.50"
+
+    def test_bhv_serialization_113_a_string_passes_through_without_normalising_its_form(
+        self,
+    ) -> None:
+        assert ObjectSerializer.stringify("e\u0301") == "e\u0301"
+
+    def test_bhv_serialization_117_a_protobuf_duration_string_decodes_to_a_standalone_duration(
+        self,
+    ) -> None:
+        assert ObjectSerializer()._deserialize(
+            "3600s", "datetime.timedelta"
+        ) == datetime.timedelta(hours=1)
+
+    def test_bhv_serialization_106_a_non_exploded_array_query_value_joins_with_commas(
+        self,
+    ) -> None:
+        assert ObjectSerializer.to_query_value(["a", "b"]) == "a,b"
+
+    def test_bhv_serialization_088_bytes_are_written_as_base64_including_each_list_element(
+        self,
+    ) -> None:
+        import json
+
+        assert ObjectSerializer.stringify(b"hi") == "aGk="
+        assert json.loads(ObjectSerializer().serialize([b"hi"])) == ["aGk="]
+
+    def test_bhv_serialization_089_a_base64_wire_string_decodes_into_bytes(
+        self,
+    ) -> None:
+        assert ObjectSerializer()._deserialize("aGk=", "bytes") == b"hi"
+
+    def test_bhv_serialization_090_malformed_base64_is_rejected_not_repaired(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('"aGk"', "bytes")
+
+    def test_bhv_serialization_091_bytes_with_the_high_bit_set_survive_a_round_trip(
+        self,
+    ) -> None:
+        data = b"\xff\x80\x00"
+        assert (
+            ObjectSerializer()._deserialize(ObjectSerializer.stringify(data), "bytes")
+            == data
+        )
+
     def test_bhv_serializationobject_110_none_returns_empty_string(self) -> None:
         assert ObjectSerializer.stringify(None) == ""
 
@@ -867,10 +956,14 @@ class TestToQueryValue:
     ) -> None:
         assert ObjectSerializer.to_query_value([1, None, 3], "ssv") == "1  3"
 
-    def test_keeps_empty_slot_for_null_array_element_in_pipes(self) -> None:
+    def test_bhv_lang_python_125_keeps_empty_slot_for_null_array_element_in_pipes(
+        self,
+    ) -> None:
         assert ObjectSerializer.to_query_value([1, None, 3], "pipes") == "1||3"
 
-    def test_keeps_empty_slot_for_null_array_element_in_multi(self) -> None:
+    def test_bhv_lang_python_126_keeps_empty_slot_for_null_array_element_in_multi(
+        self,
+    ) -> None:
         assert ObjectSerializer.to_query_value([1, None, 3], "multi") == ["1", "", "3"]
 
 
@@ -939,6 +1032,56 @@ class TestToCookieValue:
 
 
 class TestSerialize:
+    def test_bhv_serialization_112_a_password_is_masked_in_the_printable_forms_and_not_on_the_wire(
+        self,
+    ) -> None:
+        from petstore_client.models.account import Account
+
+        account = Account(username="u", password=SecretStr("p-secret-value"))
+        assert "p-secret-value" not in repr(account)
+        assert "p-secret-value" not in str(account)
+        assert '"password":"p-secret-value"' in ObjectSerializer().serialize(account)
+
+    def test_bhv_serialization_130_a_failed_serialize_reports_the_canonical_prefix(
+        self,
+    ) -> None:
+        import math
+
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().serialize({"val": math.nan})
+        assert str(exc_info.value).startswith("Failed to serialize object to JSON: ")
+
+    def test_bhv_serialization_094_html_ampersand_and_slash_in_a_model_field_are_written_verbatim(
+        self,
+    ) -> None:
+        import json
+
+        text = ObjectSerializer().serialize(Pet(name="<a>&/b", photoUrls=set()))
+        assert json.loads(text)["name"] == "<a>&/b"
+        assert "\\u003c" not in text
+        assert "\\u0026" not in text
+
+    def test_bhv_serialization_098_an_unset_optional_field_is_omitted_at_depth(
+        self,
+    ) -> None:
+        import json
+
+        data = json.loads(
+            ObjectSerializer().serialize({"current": Category(id=None, name="Dogs")})
+        )
+        assert "id" not in data["current"]
+        assert data["current"]["name"] == "Dogs"
+
+    def test_bhv_serialization_093_a_date_time_keeps_its_sub_seconds_and_a_numeric_offset(
+        self,
+    ) -> None:
+        moment = datetime.datetime(
+            2024, 1, 2, 3, 4, 5, 5000, tzinfo=datetime.timezone.utc
+        )
+        out = ObjectSerializer.stringify(moment)
+        assert out.endswith("+00:00")
+        assert ".005" in out
+
     def test_bhv_serializationobject_152_serializes_model_to_valid_json(self) -> None:
         import json
 
@@ -1007,6 +1150,15 @@ class TestUuidRoundtrip:
 
 
 class TestExtraFieldsOnDeserialize:
+    def test_bhv_serialization_072_several_undeclared_keys_of_any_shape_are_skipped(
+        self,
+    ) -> None:
+        json_str = '{"id":1,"name":"Dogs","a":1,"b":"x","c":{"d":[1,2]},"e":null}'
+        category = ObjectSerializer().deserialize(json_str, "Category")
+        assert isinstance(category, Category)
+        assert category.id == 1
+        assert category.name == "Dogs"
+
     def test_bhv_serializationobject_082_extra_field_in_json_is_ignored(self) -> None:
         json_str = '{"id":1,"name":"Dogs","unknown_field":"extra"}'
         category = ObjectSerializer().deserialize(json_str, "Category")
@@ -1032,7 +1184,9 @@ class TestUnevaluatedPropertiesFalseRejectsExtraKeys:
         assert isinstance(tag, StrictTag)
         assert (tag.id, tag.name) == (1, "x")
 
-    def test_the_strict_flag_does_not_leak_onto_other_models(self) -> None:
+    def test_bhv_lang_python_127_the_strict_flag_does_not_leak_onto_other_models(
+        self,
+    ) -> None:
         category = ObjectSerializer().deserialize(
             '{"id":1,"name":"Dogs","unexpected":true}', "Category"
         )
@@ -1058,7 +1212,9 @@ class TestFixtureModelsOnTheWire:
         )
         assert wire["trackingId"] == self._TRACKING_ID.lower()
 
-    def test_an_upper_case_uuid_decodes_and_comes_back_lowercase(self) -> None:
+    def test_bhv_serialization_104_an_upper_case_uuid_decodes_and_comes_back_lowercase(
+        self,
+    ) -> None:
         import json
         from petstore_client.models.order import Order
 
@@ -1255,7 +1411,9 @@ class TestWireNamesMapsAndFreeForm:
         )
         assert items[0].additional_properties == {"region": "eu"}
 
-    def test_undeclared_keys_are_kept_on_each_value_of_a_map(self) -> None:
+    def test_bhv_lang_python_128_undeclared_keys_are_kept_on_each_value_of_a_map(
+        self,
+    ) -> None:
         values = ObjectSerializer().deserialize(
             '{"a":{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}}',
             "Dict[str, Metadata]",
@@ -1279,7 +1437,7 @@ class TestWireNamesMapsAndFreeForm:
         assert isinstance(decoded.free_form_any, str)
         assert decoded.free_form_any == "7"
 
-    def test_a_free_form_null_stays_null(self) -> None:
+    def test_bhv_lang_python_129_a_free_form_null_stays_null(self) -> None:
         decoded = ObjectSerializer().deserialize('{"freeFormAny":null}', "EdgeCases")
         assert decoded.free_form_any is None
 
@@ -1347,6 +1505,95 @@ class TestExcludeNoneOnSerialize:
 
 
 class TestDeserialize:
+    def test_bhv_serialization_083_a_serialization_error_is_the_library_error_type_with_a_message(
+        self,
+    ) -> None:
+        with pytest.raises(OpenAPIException) as exc_info:
+            ObjectSerializer().deserialize("{", "Pet")
+        assert str(exc_info.value)
+
+    def test_bhv_serialization_085_a_date_time_field_decodes_from_its_iso_string(
+        self,
+    ) -> None:
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z"}', "Metadata"
+        )
+        assert isinstance(metadata.created_at, datetime.datetime)
+
+    def test_bhv_serialization_095_an_explicit_null_on_the_wire_replaces_the_default(
+        self,
+    ) -> None:
+        from petstore_client.models.defaults import Defaults
+
+        decoded = ObjectSerializer().deserialize('{"label":null}', Defaults)
+        assert decoded is not None
+        assert decoded.label is None
+
+    def test_bhv_serialization_096_an_absent_field_decodes_to_its_declared_default(
+        self,
+    ) -> None:
+        from petstore_client.models.defaults import Defaults
+
+        decoded = ObjectSerializer().deserialize("{}", Defaults)
+        assert decoded is not None
+        assert decoded.retries == 3
+
+    def test_bhv_serialization_097_an_enum_default_is_written_when_the_field_is_serialized(
+        self,
+    ) -> None:
+        import json
+
+        order = ObjectSerializer().deserialize('{"id":10,"petId":198772}', "Order")
+        assert json.loads(ObjectSerializer().serialize(order))["status"] == "placed"
+
+    def test_bhv_serialization_099_a_strict_model_rejects_an_undeclared_key_and_a_plain_model_drops_it(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(
+                '{"id":1,"name":"x","unexpected":true}', "StrictTag"
+            )
+        assert (
+            ObjectSerializer()
+            .deserialize('{"id":1,"name":"x","unexpected":true}', "Category")
+            .id
+            == 1
+        )
+
+    def test_bhv_serialization_100_every_declared_field_of_a_valid_payload_decodes(
+        self,
+    ) -> None:
+        pet = ObjectSerializer().deserialize(
+            '{"id":1,"name":"Fido","photoUrls":["x"],"category":{"id":2,"name":"Dogs"}}',
+            "Pet",
+        )
+        assert pet.id == 1
+        assert pet.name == "Fido"
+        assert pet.category.name == "Dogs"
+
+    def test_bhv_serialization_102_a_zulu_timestamp_decodes_to_the_same_instant_as_its_offset_form(
+        self,
+    ) -> None:
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z"}', "Metadata"
+        )
+        assert metadata.created_at == datetime.datetime(
+            2024, 1, 1, tzinfo=datetime.timezone.utc
+        )
+
+    def test_bhv_serialization_103_a_malformed_document_error_describes_it(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer.parse_json('{"a":')
+        assert str(exc_info.value)
+
+    def test_bhv_serialization_105_an_enum_value_with_the_wrong_case_raises(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('"PLACED"', OrderStatusEnum)
+
     def test_bhv_serializationobject_231_omitting_an_optional_field_leaves_it_unset(
         self,
     ) -> None:
@@ -1460,6 +1707,10 @@ class TestBomTolerance:
 
 
 class TestRequiredFieldNullRejection:
+    def test_bhv_serialization_073_a_null_required_field_fails_decoding(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"name": null, "photoUrls": []}', "Pet")
+
     """Gap AJ — null or missing on a required non-nullable field must raise.
 
     Pydantic 2 already rejects None for non-Optional typed fields; this test
@@ -1495,6 +1746,14 @@ class TestRequiredFieldNullRejection:
 
 
 class TestUnknownEnumRejection:
+    def test_bhv_serialization_075_an_enum_value_decodes_from_its_wire_string_to_its_member(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer().deserialize('"placed"', OrderStatusEnum)
+            == OrderStatusEnum.PLACED
+        )
+
     """unknown-enum-deserialize-throws: an enum value not declared in the
     schema must raise the SDK's SerializationException on deserialize, never fall
     back to a silent default or an 'unknown' member. All 12 SDKs converge here.
@@ -1528,19 +1787,19 @@ class TestNanInfinityRejection:
     Python's default json module accepts them; ObjectSerializer must
     override that to align with Java/Go/Node/etc which reject."""
 
-    def test_serialize_nan_raises(self) -> None:
+    def test_bhv_lang_python_130_serialize_nan_raises(self) -> None:
         import math
 
         with pytest.raises(SerializationException):
             ObjectSerializer().serialize({"val": math.nan})
 
-    def test_serialize_infinity_raises(self) -> None:
+    def test_bhv_lang_python_131_serialize_infinity_raises(self) -> None:
         import math
 
         with pytest.raises(SerializationException):
             ObjectSerializer().serialize({"val": math.inf})
 
-    def test_serialize_negative_infinity_raises(self) -> None:
+    def test_bhv_lang_python_132_serialize_negative_infinity_raises(self) -> None:
         import math
 
         with pytest.raises(SerializationException):
@@ -1560,7 +1819,7 @@ class TestNanInfinityRejection:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"val": NaN}', "object")
 
-    def test_deserialize_infinity_raises(self) -> None:
+    def test_bhv_lang_python_133_deserialize_infinity_raises(self) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"val": Infinity}', "object")
 
@@ -1573,7 +1832,7 @@ class TestNanInfinityRejection:
         with pytest.raises(ValidationError, match="finite number"):
             PhotoMetadataLocation.model_validate({"lat": value, "lng": 0.0})
 
-    def test_model_double_field_is_frozen_and_still_rejects_a_non_finite_value(
+    def test_bhv_lang_python_134_model_double_field_is_frozen_and_still_rejects_a_non_finite_value(
         self,
     ) -> None:
         from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
@@ -1586,7 +1845,9 @@ class TestNanInfinityRejection:
                 {**location.model_dump(), "lat": float("nan")}
             )
 
-    def test_a_non_finite_double_never_reaches_the_wire(self) -> None:
+    def test_bhv_lang_python_135_a_non_finite_double_never_reaches_the_wire(
+        self,
+    ) -> None:
         from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
 
         location = PhotoMetadataLocation(lat=float("nan"), lng=0.0)
@@ -1601,17 +1862,29 @@ class TestNanInfinityRejection:
                 '{"lat":1e999,"lng":0}', "PhotoMetadataLocation"
             )
 
-    def test_serialize_non_finite_decimal_number_raises(self) -> None:
+    def test_bhv_lang_python_136_serialize_non_finite_decimal_number_raises(
+        self,
+    ) -> None:
         pet = Pet(name="Fido", photoUrls=set(), weightKg=Decimal("Infinity"))
         with pytest.raises(SerializationException, match="finite JSON number"):
             ObjectSerializer().serialize(pet)
 
-    def test_serialize_decimal_number_beyond_double_range_is_exact(self) -> None:
+    def test_bhv_lang_python_137_serialize_decimal_number_beyond_double_range_is_exact(
+        self,
+    ) -> None:
         pet = Pet(name="Fido", photoUrls=set(), weightKg=Decimal("1e400"))
         assert '"weightKg":1' + "0" * 400 in ObjectSerializer().serialize(pet)
 
 
 class TestConstructionKeepsWhatItIsGiven:
+    def test_bhv_serialization_069_a_value_outside_a_schema_bound_is_kept_at_construction(
+        self,
+    ) -> None:
+        assert (
+            self._built(nickname="a-nickname-far-too-long").nickname
+            == "a-nickname-far-too-long"
+        )
+
     """F316: building a model never raises on a value; decoding is where validation happens."""
 
     @staticmethod
@@ -1620,16 +1893,16 @@ class TestConstructionKeepsWhatItIsGiven:
         values.update(fields)
         return Pet(**values)
 
-    def test_a_wrong_type_is_kept_as_given(self) -> None:
+    def test_bhv_serialization_068_a_wrong_type_is_kept_as_given(self) -> None:
         assert self._built(name=123).name == 123
 
-    def test_an_unknown_enum_string_is_kept_as_given(self) -> None:
+    def test_bhv_lang_python_138_an_unknown_enum_string_is_kept_as_given(self) -> None:
         assert self._built(status="bogus").status == "bogus"
 
-    def test_a_valid_value_is_still_coerced(self) -> None:
+    def test_bhv_lang_python_139_a_valid_value_is_still_coerced(self) -> None:
         assert self._built(photoUrls=["a", "b"]).photo_urls == {"a", "b"}
 
-    def test_the_attribute_name_and_the_wire_name_both_work_when_a_value_is_kept(
+    def test_bhv_lang_python_140_the_attribute_name_and_the_wire_name_both_work_when_a_value_is_kept(
         self,
     ) -> None:
         values: dict[str, Any] = {"name": 123, "photo_urls": set(), "weightKg": "heavy"}
@@ -1637,31 +1910,41 @@ class TestConstructionKeepsWhatItIsGiven:
 
         assert (pet.name, pet.weight_kg) == (123, "heavy")
 
-    def test_a_kept_value_goes_out_on_the_wire_as_given(self) -> None:
+    def test_bhv_lang_python_141_a_kept_value_goes_out_on_the_wire_as_given(
+        self,
+    ) -> None:
         wire = ObjectSerializer().serialize(self._built(status="bogus"))
 
         assert json.loads(wire)["status"] == "bogus"
 
-    def test_a_required_argument_left_out_raises_a_type_error(self) -> None:
+    def test_bhv_lang_python_142_a_required_argument_left_out_raises_a_type_error(
+        self,
+    ) -> None:
         values: dict[str, Any] = {"photoUrls": set()}
 
         with pytest.raises(TypeError, match="missing required argument: 'name'"):
             Pet(**values)
 
-    def test_the_other_values_of_a_model_with_a_kept_value_are_unchanged(self) -> None:
+    def test_bhv_lang_python_143_the_other_values_of_a_model_with_a_kept_value_are_unchanged(
+        self,
+    ) -> None:
         pet = self._built(status="bogus", id=7)
 
         assert pet.id == 7
         assert pet.model_fields_set == {"name", "photo_urls", "status", "id"}
 
-    def test_a_model_with_a_kept_value_is_still_frozen_and_hashable(self) -> None:
+    def test_bhv_lang_python_144_a_model_with_a_kept_value_is_still_frozen_and_hashable(
+        self,
+    ) -> None:
         pet = self._built(status="bogus")
 
         with pytest.raises(ValidationError, match="frozen"):
             pet.name = "Rex"
         assert hash(pet) == hash(self._built(status="bogus"))
 
-    def test_a_map_model_keeps_a_wrong_value_and_the_unknown_keys(self) -> None:
+    def test_bhv_lang_python_145_a_map_model_keeps_a_wrong_value_and_the_unknown_keys(
+        self,
+    ) -> None:
         from petstore_client.models.metadata import Metadata
 
         values: dict[str, Any] = {"createdAt": "yesterday", "extra": 1}
@@ -1672,6 +1955,12 @@ class TestConstructionKeepsWhatItIsGiven:
 
 
 class TestDecodeValidates:
+    def test_bhv_serialization_081_a_value_of_the_wrong_json_type_is_rejected_not_coerced(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"name":123,"photoUrls":[]}', "Pet")
+
     """F316: a document is validated when it is decoded, and an unknown enum value fails loudly."""
 
     def test_bhv_serializationobject_180_a_wrong_type_is_rejected(self) -> None:
@@ -1686,13 +1975,15 @@ class TestDecodeValidates:
                 '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
             )
 
-    def test_a_value_outside_the_declared_constraints_is_rejected(self) -> None:
+    def test_bhv_misc_091_a_value_outside_the_declared_constraints_is_rejected(
+        self,
+    ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(
                 '{"name":"Fido","photoUrls":[],"nickname":"' + "x" * 40 + '"}', "Pet"
             )
 
-    def test_model_validate_still_validates(self) -> None:
+    def test_bhv_lang_python_146_model_validate_still_validates(self) -> None:
         with pytest.raises(ValidationError):
             Pet.model_validate({"name": 123, "photoUrls": []})
 
@@ -1705,6 +1996,33 @@ class TestDecodeValidates:
 
 
 class TestModelsAreImmutable:
+    def test_bhv_serialization_067_extra_properties_are_written_beside_the_declared_fields(
+        self,
+    ) -> None:
+        import json
+
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', "Metadata"
+        )
+        wire = json.loads(ObjectSerializer().serialize(metadata))
+        assert wire["region"] == "eu"
+        assert "createdAt" in wire
+
+    def test_bhv_serialization_074_nested_arrays_serialize_to_the_same_nested_shape(
+        self,
+    ) -> None:
+        import json
+
+        assert json.loads(ObjectSerializer().serialize([[1, 2], [3]])) == [[1, 2], [3]]
+
+    def test_bhv_serialization_079_a_copy_changes_only_the_named_fields(self) -> None:
+        pet = Pet(name="Fido", photoUrls={"x"})
+        copy = pet.model_copy(update={"name": "Rex"})
+        assert copy is not pet
+        assert copy.name == "Rex"
+        assert pet.name == "Fido"
+        assert copy.photo_urls == pet.photo_urls
+
     """F868 / F870: a model never changes after construction, is hashable and is copied with ``model_copy``."""
 
     @staticmethod
@@ -1735,7 +2053,9 @@ class TestModelsAreImmutable:
     ) -> None:
         assert len({self._pet(), self._pet().model_copy(update={"name": "Rex"})}) == 2
 
-    def test_a_composed_wrapper_is_frozen_and_hashable(self) -> None:
+    def test_bhv_lang_python_147_a_composed_wrapper_is_frozen_and_hashable(
+        self,
+    ) -> None:
         from petstore_client.models.pet_food import PetFood
 
         food = ObjectSerializer().deserialize(
@@ -1781,6 +2101,17 @@ class TestModelValueEquality:
 
 
 class TestTimeFormat:
+    def test_bhv_serialization_092_a_time_of_day_round_trips_through_its_string_form(
+        self,
+    ) -> None:
+        original = datetime.time(23, 59, 59)
+        assert (
+            ObjectSerializer()._deserialize(
+                ObjectSerializer.stringify(original), "datetime.time"
+            )
+            == original
+        )
+
     """4.8: ``format: time`` round-trips through ``datetime.time``."""
 
     def test_bhv_serializationobject_158_stringify_time_emits_iso8601(self) -> None:
@@ -1801,7 +2132,17 @@ class TestTimeFormat:
             == "10:30:00.999"
         )
 
-    def test_stringify_time_drops_a_sub_millisecond_part(self) -> None:
+    def test_bhv_serialization_078_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second(
+        self,
+    ) -> None:
+        assert ObjectSerializer.stringify(datetime.time(9, 5, 3)) == "09:05:03"
+        assert (
+            ObjectSerializer.stringify(datetime.time(9, 5, 3, 500000)) == "09:05:03.500"
+        )
+
+    def test_bhv_lang_python_148_stringify_time_drops_a_sub_millisecond_part(
+        self,
+    ) -> None:
         assert ObjectSerializer.stringify(datetime.time(13, 45, 30, 400)) == "13:45:30"
 
     def test_bhv_serializationobject_219_serialize_time_in_dict_keeps_milliseconds(
@@ -1859,6 +2200,35 @@ class TestTimeFormat:
 
 
 class TestDurationFormat:
+    def test_bhv_serialization_084_protobuf_fractions_parse_to_their_exact_value_with_padding(
+        self,
+    ) -> None:
+        assert ObjectSerializer()._deserialize(
+            "1.5s", "datetime.timedelta"
+        ) == datetime.timedelta(seconds=1, microseconds=500000)
+        assert ObjectSerializer()._deserialize(
+            "0.1s", "datetime.timedelta"
+        ) == datetime.timedelta(microseconds=100000)
+        assert ObjectSerializer()._deserialize(
+            "1.000001s", "datetime.timedelta"
+        ) == datetime.timedelta(seconds=1, microseconds=1)
+
+    def test_bhv_serialization_086_a_duration_is_written_as_protobuf_seconds_with_days_folded_in(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer.stringify(datetime.timedelta(days=1, seconds=5))
+            == "86405s"
+        )
+        assert ObjectSerializer.stringify(datetime.timedelta(seconds=2)) == "2s"
+
+    def test_bhv_serialization_087_a_tiny_duration_is_fixed_point_never_scientific(
+        self,
+    ) -> None:
+        out = ObjectSerializer.stringify(datetime.timedelta(microseconds=1))
+        assert out == "0.000001s"
+        assert "e" not in out.lower()
+
     """4.8: ``format: duration`` round-trips through ``datetime.timedelta``
     using the protobuf-JSON duration grammar (``-?[0-9]+(\\.[0-9]{1,9})?s``).
     A protobuf-JSON API validates google.protobuf.Duration, so the wire form is a
@@ -1869,7 +2239,7 @@ class TestDurationFormat:
         out = ObjectSerializer.stringify(td)
         assert out == "5400s"
 
-    def test_stringify_duration_with_days(self) -> None:
+    def test_bhv_lang_python_149_stringify_duration_with_days(self) -> None:
         td = datetime.timedelta(days=3, hours=4)
         out = ObjectSerializer.stringify(td)
         assert out == "273600s"
@@ -1891,7 +2261,7 @@ class TestDurationFormat:
         out = ObjectSerializer.stringify(td)
         assert out == "-1s"
 
-    def test_serialize_duration_in_dict(self) -> None:
+    def test_bhv_lang_python_150_serialize_duration_in_dict(self) -> None:
         td = datetime.timedelta(minutes=5)
         result = ObjectSerializer().serialize({"ttl": td})
         assert "300s" in result
@@ -1982,12 +2352,12 @@ class TestDurationFormat:
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize(f"{bound + 1}s", "datetime.timedelta")
 
-    def test_bare_integer_duration_is_rejected(self) -> None:
+    def test_bhv_lang_python_151_bare_integer_duration_is_rejected(self) -> None:
         # A second count without the trailing 's' is not a valid duration.
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize("3600", "datetime.timedelta")
 
-    def test_non_ascii_digits_are_rejected(self) -> None:
+    def test_bhv_lang_python_152_non_ascii_digits_are_rejected(self) -> None:
         # Python's \d matches Arabic-Indic digits; the grammar is ASCII only.
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize("\u0663s", "datetime.timedelta")
@@ -2048,7 +2418,7 @@ class TestModelDurationField:
         assert restored is not None
         assert restored.retry_after == datetime.timedelta(days=1, seconds=30)
 
-    def test_model_fractional_duration_emits_fraction(self) -> None:
+    def test_bhv_misc_090_model_fractional_duration_emits_fraction(self) -> None:
         from petstore_client.models.edge_cases import EdgeCases
 
         model = EdgeCases(retryAfter=datetime.timedelta(seconds=3600, microseconds=1))
@@ -2111,13 +2481,20 @@ class TestDiscriminatorAutoInjection:
 
 
 class TestIntegerBackedEnum:
+    def test_bhv_serialization_101_an_integer_enum_decodes_from_a_json_number_to_its_member(
+        self,
+    ) -> None:
+        from petstore_client.models.priority import Priority
+
+        assert ObjectSerializer().deserialize("2", Priority) == Priority(2)
+
     """Scenario 1 — an integer-backed enum (Priority) must round-trip as a
     JSON NUMBER, not a quoted string. The model template mixes `int` (not
     `str`) into the enum so a member serializes to `2` and deserializing the
     bare number `2` yields the member. The 7 SDKs that hard-coded String
     backing emitted `"2"` here; Python now matches Dart's int backing."""
 
-    def test_member_value_is_an_int(self) -> None:
+    def test_bhv_lang_python_153_member_value_is_an_int(self) -> None:
         from petstore_client.models.priority import Priority
 
         # The enum mixes in int, so a member IS an int and equals its value.
@@ -2214,7 +2591,7 @@ class TestNonLowercaseStringEnum:
         assert member.value == "on-hold"
         assert ObjectSerializer().serialize(member) == '"on-hold"'
 
-    def test_deserialize_yields_correct_member(self) -> None:
+    def test_bhv_lang_python_154_deserialize_yields_correct_member(self) -> None:
         from petstore_client.models.availability import Availability
 
         result = ObjectSerializer().deserialize('"Available"', Availability)
@@ -2233,7 +2610,7 @@ class TestByteFormatBase64RoundTrip:
     (PetPassport.scans). `_sanitize_for_serialization` base64-encodes bytes;
     `_deserialize` base64-decodes them back to raw bytes."""
 
-    def test_scalar_byte_serializes_to_base64(self) -> None:
+    def test_bhv_lang_python_155_scalar_byte_serializes_to_base64(self) -> None:
         import base64
 
         raw = b"\x89PNG\r\n\x1a\n"
@@ -2260,7 +2637,7 @@ class TestByteFormatBase64RoundTrip:
         decoded = [base64.b64decode(s) for s in json.loads(out)]
         assert decoded == scans
 
-    def test_scalar_byte_decodes_from_base64_string(self) -> None:
+    def test_bhv_lang_python_156_scalar_byte_decodes_from_base64_string(self) -> None:
         # The deserialize side of the scalar byte path: a base64 wire string
         # decodes back to the original raw bytes.
         import base64
@@ -2294,10 +2671,12 @@ class TestByteModelFieldHoldsRawBytes:
     ) -> None:
         assert self._vault()(seal=self.RAW).seal == self.RAW
 
-    def test_constructing_with_bytes_that_look_like_base64_keeps_them(self) -> None:
+    def test_bhv_lang_python_157_constructing_with_bytes_that_look_like_base64_keeps_them(
+        self,
+    ) -> None:
         assert self._vault()(seal=b"test").seal == b"test"
 
-    def test_copying_with_raw_bytes_keeps_them(self) -> None:
+    def test_bhv_misc_102_copying_with_raw_bytes_keeps_them(self) -> None:
         vault = self._vault()().model_copy(update={"seal": b"hello world"})
         assert vault.seal == b"hello world"
 
@@ -2308,11 +2687,11 @@ class TestByteModelFieldHoldsRawBytes:
         assert vault.seal == self.RAW
         assert ObjectSerializer().deserialize('"AP8QQg=="', bytes) == self.RAW
 
-    def test_copying_the_decoded_value_is_stable(self) -> None:
+    def test_bhv_lang_python_158_copying_the_decoded_value_is_stable(self) -> None:
         vault = ObjectSerializer().deserialize('{"seal":"dGVzdA=="}', "BinaryVault")
         assert vault.model_copy(update={"seal": vault.seal}).seal == b"test"
 
-    def test_serializing_base64_encodes_the_raw_bytes(self) -> None:
+    def test_bhv_lang_python_159_serializing_base64_encodes_the_raw_bytes(self) -> None:
         assert (
             ObjectSerializer().serialize(self._vault()(seal=self.RAW))
             == '{"seal":"AP8QQg=="}'
@@ -2359,7 +2738,9 @@ class TestByteModelFieldHoldsRawBytes:
             seal=bytes(self.RAW), shards=[bytes(self.RAW)], labels={"k": b"other"}
         )
 
-    def test_pet_passport_thumbnail_and_scans_round_trip(self) -> None:
+    def test_bhv_lang_python_160_pet_passport_thumbnail_and_scans_round_trip(
+        self,
+    ) -> None:
         wire = '{"thumbnail":"dGVzdA==","scans":["AQID"]}'
         passport = ObjectSerializer().deserialize(wire, "PetPassport")
         assert passport.thumbnail == b"test"
@@ -2373,7 +2754,9 @@ class TestByteModelFieldHoldsRawBytes:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"seal":"%s"}' % malformed, "BinaryVault")
 
-    def test_malformed_base64_is_rejected_inside_an_array_and_a_map(self) -> None:
+    def test_bhv_lang_python_161_malformed_base64_is_rejected_inside_an_array_and_a_map(
+        self,
+    ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"shards":["AQID","!!!!"]}', "BinaryVault")
         with pytest.raises(SerializationException):
@@ -2417,13 +2800,13 @@ class TestDateTimeModelFieldRejectsNonStrings:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"shipDate":%s}' % value, "Order")
 
-    def test_non_string_constructor_value_is_rejected(self) -> None:
+    def test_bhv_lang_python_162_non_string_constructor_value_is_rejected(self) -> None:
         from petstore_client.models.order import Order
 
         with pytest.raises(ValidationError):
             Order.model_validate({"ship_date": 1700000000})
 
-    def test_string_wire_value_is_still_accepted(self) -> None:
+    def test_bhv_lang_python_163_string_wire_value_is_still_accepted(self) -> None:
         order = ObjectSerializer().deserialize(
             '{"shipDate":"2023-11-14T22:13:20Z"}', "Order"
         )
@@ -2475,7 +2858,7 @@ class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
         # string must NOT be mis-parsed element-by-element into a list.
         assert not isinstance(restored.actual_instance, list)
 
-    def test_array_variant_serializes_to_base64_strings(self) -> None:
+    def test_bhv_misc_049_array_variant_serializes_to_base64_strings(self) -> None:
         import json
 
         model = self._model()
@@ -2500,7 +2883,7 @@ class TestNumberFieldFromIntegralJson:
     value is a legal JSON number for a float and must be coerced, not
     rejected."""
 
-    def test_integral_value_coerced_to_float(self) -> None:
+    def test_bhv_lang_python_164_integral_value_coerced_to_float(self) -> None:
         from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
 
         result = ObjectSerializer().deserialize(
@@ -2510,7 +2893,7 @@ class TestNumberFieldFromIntegralJson:
         assert result.lat == 5.0
         assert result.lng == -3.0
 
-    def test_fractional_value_still_parses(self) -> None:
+    def test_bhv_lang_python_165_fractional_value_still_parses(self) -> None:
         result = ObjectSerializer().deserialize(
             '{"lat":5.5,"lng":0.25}', "PhotoMetadataLocation"
         )
@@ -2593,7 +2976,7 @@ class TestNestedContainerDeepRoundTrip:
         assert department.lead.department is not None
         assert department.lead.department.name == "d2"
 
-    def test_nested_array_round_trips(self) -> None:
+    def test_bhv_lang_python_166_nested_array_round_trips(self) -> None:
         original = ObjectSerializer().deserialize(
             '{"priority":1,"matrix":[[7,8],[9]]}', "StockItem"
         )
@@ -2623,7 +3006,9 @@ class TestResponseLeavesAreStrict:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize("[1,%s]" % leaf, "List[StrictInt]")
 
-    def test_nested_array_of_integers_rejects_a_quoted_leaf(self) -> None:
+    def test_bhv_lang_python_167_nested_array_of_integers_rejects_a_quoted_leaf(
+        self,
+    ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('[[1,2],["3"]]', "List[List[StrictInt]]")
 
@@ -2640,7 +3025,7 @@ class TestResponseLeavesAreStrict:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"a":null}', "Dict[str, StrictInt]")
 
-    def test_integers_are_still_accepted(self) -> None:
+    def test_bhv_lang_python_168_integers_are_still_accepted(self) -> None:
         assert ObjectSerializer().deserialize(
             '{"a":5,"b":0}', "Dict[str, StrictInt]"
         ) == {"a": 5, "b": 0}
@@ -2666,7 +3051,9 @@ class TestResponseLeavesAreStrict:
         assert ObjectSerializer().deserialize("[1.5,2]", "List[LaxFloat]") == [1.5, 2.0]
 
     @pytest.mark.parametrize("klass", ["StrictInt", "StrictBool", "StrictStr"])
-    def test_scalar_response_rejects_a_value_of_another_type(self, klass: str) -> None:
+    def test_bhv_lang_python_169_scalar_response_rejects_a_value_of_another_type(
+        self, klass: str
+    ) -> None:
         wrong = {"StrictInt": '"5"', "StrictBool": '"false"', "StrictStr": "5"}[klass]
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(wrong, klass)
@@ -2693,7 +3080,7 @@ class TestReferencedEnumFieldRejection:
                 '{"priority":1,"availability":"teleported"}', "StockItem"
             )
 
-    def test_known_referenced_enum_value_accepted(self) -> None:
+    def test_bhv_lang_python_170_known_referenced_enum_value_accepted(self) -> None:
         from petstore_client.models.availability import Availability
 
         item = ObjectSerializer().deserialize(
@@ -2771,7 +3158,7 @@ class TestCanonicalSerdeBehaviours:
         within = "[" * 600 + "]" * 600
         assert ObjectSerializer().deserialize(within, "object") is not None
 
-    def test_deep_json_beyond_cap_is_rejected(self) -> None:
+    def test_bhv_lang_python_171_deep_json_beyond_cap_is_rejected(self) -> None:
         beyond = "[" * 1500 + "]" * 1500
         with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(beyond, "object")
@@ -2789,11 +3176,15 @@ class TestWireDecodeIgnoresAttributeNames:
     """Models accept the snake_case attribute name in constructors, but a wire
     payload is matched on the declared property name only, as in the other SDKs."""
 
-    def test_attribute_name_does_not_satisfy_a_required_property(self) -> None:
+    def test_bhv_lang_python_172_attribute_name_does_not_satisfy_a_required_property(
+        self,
+    ) -> None:
         with pytest.raises(SerializationException, match="photoUrls"):
             ObjectSerializer().deserialize('{"name":"Fido","photo_urls":["a"]}', "Pet")
 
-    def test_attribute_name_is_ignored_as_an_unknown_key(self) -> None:
+    def test_bhv_lang_python_173_attribute_name_is_ignored_as_an_unknown_key(
+        self,
+    ) -> None:
         from petstore_client.models.order import Order
 
         result = ObjectSerializer().deserialize('{"pet_id":5}', "Order")
@@ -2809,13 +3200,13 @@ class TestWireDecodeIgnoresAttributeNames:
         assert isinstance(result, Order)
         assert result.pet_id == 7
 
-    def test_list_elements_ignore_the_attribute_name(self) -> None:
+    def test_bhv_lang_python_174_list_elements_ignore_the_attribute_name(self) -> None:
         result = ObjectSerializer().deserialize(
             '[{"pet_id":5},{"petId":6}]', "List[Order]"
         )
         assert [order.pet_id for order in result] == [None, 6]
 
-    def test_dict_values_ignore_the_attribute_name(self) -> None:
+    def test_bhv_lang_python_175_dict_values_ignore_the_attribute_name(self) -> None:
         result = ObjectSerializer().deserialize(
             '{"a":{"pet_id":5},"b":{"petId":6}}', "Dict[str, Order]"
         )
@@ -2824,12 +3215,16 @@ class TestWireDecodeIgnoresAttributeNames:
             "b": 6,
         }
 
-    def test_direct_validation_still_accepts_the_attribute_name(self) -> None:
+    def test_bhv_lang_python_176_direct_validation_still_accepts_the_attribute_name(
+        self,
+    ) -> None:
         from petstore_client.models.order import Order
 
         assert Order.model_validate({"pet_id": 5}).pet_id == 5
 
-    def test_attribute_name_is_captured_as_an_additional_property(self) -> None:
+    def test_bhv_lang_python_177_attribute_name_is_captured_as_an_additional_property(
+        self,
+    ) -> None:
         from petstore_client.models.metadata import Metadata
 
         result = ObjectSerializer().deserialize(
@@ -2853,14 +3248,16 @@ class TestWireDecodeIgnoresAttributeNames:
         )
         assert result.additional_properties == {"region": "eu"}
 
-    def test_attribute_name_is_captured_for_list_elements(self) -> None:
+    def test_bhv_lang_python_178_attribute_name_is_captured_for_list_elements(
+        self,
+    ) -> None:
         result = ObjectSerializer().deserialize(
             '[{"created_at":"x"}]', "List[Metadata]"
         )
         assert result[0].created_at is None
         assert result[0].additional_properties == {"created_at": "x"}
 
-    def test_direct_validation_still_accepts_the_attribute_name_for_an_extras_model(
+    def test_bhv_lang_python_179_direct_validation_still_accepts_the_attribute_name_for_an_extras_model(
         self,
     ) -> None:
         from petstore_client.models.metadata import Metadata
@@ -2878,13 +3275,17 @@ class TestDeprecatedFieldWarnsOnAccessOnly:
 
     WIRE = '{"name":"Fido","photoUrls":[],"status":"available"}'
 
-    def test_decoding_a_response_with_the_deprecated_field_does_not_warn(self) -> None:
+    def test_bhv_lang_python_180_decoding_a_response_with_the_deprecated_field_does_not_warn(
+        self,
+    ) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             result = ObjectSerializer().deserialize(self.WIRE, "Pet")
         assert isinstance(result, Pet)
 
-    def test_serializing_the_deprecated_field_does_not_warn(self) -> None:
+    def test_bhv_lang_python_181_serializing_the_deprecated_field_does_not_warn(
+        self,
+    ) -> None:
         pet = ObjectSerializer().deserialize(self.WIRE, "Pet")
         with warnings.catch_warnings():
             warnings.simplefilter("error")
@@ -2955,7 +3356,7 @@ class TestNicknameConstraints:
 
         assert pet.nickname == "ZZZZZZZZZZ"
 
-    def test_the_whole_models_package_imports_with_the_look_around_pattern(
+    def test_bhv_lang_python_182_the_whole_models_package_imports_with_the_look_around_pattern(
         self,
     ) -> None:
         import importlib
@@ -2986,7 +3387,7 @@ class TestPasswordFormatSendsTheRealValue:
 
         assert '"password":"p"' in out
 
-    def test_repr_still_masks_the_password(self) -> None:
+    def test_bhv_lang_python_183_repr_still_masks_the_password(self) -> None:
         from petstore_client.models.account import Account
 
         assert "'p'" not in repr(Account(username="u", password=SecretStr("p")))
@@ -3004,7 +3405,9 @@ class TestPasswordFormatSendsTheRealValue:
 
 
 class TestPatternIsTheSpecRegex:
-    def test_matching_value_is_accepted_on_construction(self) -> None:
+    def test_bhv_lang_python_184_matching_value_is_accepted_on_construction(
+        self,
+    ) -> None:
         from petstore_client.models.edge_cases import EdgeCases
 
         assert EdgeCases(slug="12/ab").slug == "12/ab"
@@ -3019,13 +3422,15 @@ class TestPatternIsTheSpecRegex:
         assert decoded is not None
         assert decoded.slug == "12/ab"
 
-    def test_non_matching_value_is_rejected_on_decode(self) -> None:
+    def test_bhv_lang_python_185_non_matching_value_is_rejected_on_decode(self) -> None:
         from petstore_client.models.edge_cases import EdgeCases
 
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"slug":"ab/12"}', EdgeCases)
 
-    def test_non_matching_value_is_kept_by_the_constructor(self) -> None:
+    def test_bhv_lang_python_186_non_matching_value_is_kept_by_the_constructor(
+        self,
+    ) -> None:
         from petstore_client.models.edge_cases import EdgeCases
 
         assert EdgeCases(slug="ab/12").slug == "ab/12"
@@ -3096,7 +3501,9 @@ class TestObjectSerializerBehaviours:
         assert tag is not None
         assert tag.name == "[" * 2000
 
-    def test_a_payload_nested_past_the_depth_limit_is_refused(self) -> None:
+    def test_bhv_lang_python_187_a_payload_nested_past_the_depth_limit_is_refused(
+        self,
+    ) -> None:
         payload = "[" * 1001 + "]" * 1001
 
         with pytest.raises(SerializationException):

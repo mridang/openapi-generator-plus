@@ -97,7 +97,7 @@ func TestBhvAuthoauthtwotokenmgr035_OAuth2TokenManager_TokenRequestCarriesFormCo
 
 // The manager holds the live access and refresh tokens, so no formatting verb
 // may print them.
-func TestOAuth2TokenManager_RedactsStoredTokens(t *testing.T) {
+func TestBhvLanggo062_OAuth2TokenManager_RedactsStoredTokens(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"access_token":"secret-access","refresh_token":"secret-refresh","expires_in":3600}`,

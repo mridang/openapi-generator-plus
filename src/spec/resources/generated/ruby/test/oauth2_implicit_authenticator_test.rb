@@ -58,7 +58,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(url).must_equal auth.build_authorization_url
   end
 
-  it 'treats an empty access token as unset' do
+  it 'bhv_misc_069 treats an empty access token as unset' do
     auth.access_token = ''
     err = assert_raises(RuntimeError) { auth.auth_headers }
     _(err.message).must_equal 'Must set the access token before making API requests'

@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn test_utc_serializes_with_numeric_offset_never_z() {
+    fn test_bhv_serialization_093_utc_serializes_with_numeric_offset_never_z() {
         let result = instant("2024-01-01T12:30:45Z").to_string();
         assert_eq!(result, "2024-01-01T12:30:45.000+00:00");
         assert!(
@@ -210,7 +210,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_is_lenient() {
+    fn test_bhv_langrust_003_deserialize_is_lenient() {
         for text in [
             "2024-01-01T12:30:45Z",
             "2024-01-01T12:30:45+00:00",
@@ -265,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chrono_conversions() {
+    fn test_bhv_langrust_004_chrono_conversions() {
         let utc: chrono::DateTime<chrono::Utc> = "2024-01-01T12:30:45Z"
             .parse()
             .expect("reference instant must parse");
@@ -281,7 +281,7 @@ mod tests {
     /// The wire form must be canonical in every position, not only direct
     /// struct fields: this is the reason the type owns its serde impls.
     #[test]
-    fn test_canonical_wire_form_in_every_position() {
+    fn test_bhv_langrust_005_canonical_wire_form_in_every_position() {
         const CANONICAL: &str = "2024-01-01T12:30:45.000+00:00";
         let value = instant("2024-01-01T12:30:45Z");
 
@@ -338,7 +338,7 @@ mod tests {
     /// multipart text values) yields the canonical string, and an array
     /// parameter's items are canonical individually.
     #[test]
-    fn test_parameter_path_emits_canonical_string() {
+    fn test_bhv_langrust_006_parameter_path_emits_canonical_string() {
         let value = instant("2024-01-01T12:30:45Z");
         assert_eq!(
             crate::object_serializer::stringify(&value),
