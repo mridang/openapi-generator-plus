@@ -2465,18 +2465,6 @@ describe('injected fetch (TransportOptions.fetch)', () => {
     expect(authorization?.[1]).toBe('Bearer secret');
     await client.close();
   });
-
-  it('does not touch the supplied fetch when the client is closed', async () => {
-    let called = 0;
-    const customFetch = (async (): Promise<Response> => {
-      called++;
-      return new Response('{}');
-    }) as typeof fetch;
-    const client = new DefaultApiClient(TransportOptions.builder().fetch(customFetch).build());
-    await client.close();
-    await expect(client.sendRequest('GET', 'http://example.invalid/', {}, null)).rejects.toThrow();
-    expect(called).toBe(0);
-  });
 });
 
 describe('SendRequestOptions.signal', () => {

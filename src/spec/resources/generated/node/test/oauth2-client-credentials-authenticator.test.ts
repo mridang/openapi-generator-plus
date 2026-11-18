@@ -132,14 +132,6 @@ describe("OAuth2ClientCredentialsAuthenticator", () => {
     expect(authenticator.getHost()).toBe("https://api.example.com");
   });
 
-  test("client secret is not leaked in default string representation", () => {
-    // client-secret-leak-in-default-repr: console.log / util.inspect /
-    // JSON.stringify must never expose the stored OAuth2 client secret.
-    expect(util.inspect(authenticator)).not.toContain("my-client-secret");
-    expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
-    expect(util.inspect(authenticator)).toContain("***");
-  });
-
   it("bhv authoauthtwoclientcred 007 redacts secret", () => {
     expect(util.inspect(authenticator)).not.toContain("my-client-secret");
     expect(JSON.stringify(authenticator)).not.toContain("my-client-secret");
