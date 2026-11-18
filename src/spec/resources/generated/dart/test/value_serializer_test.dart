@@ -33,6 +33,18 @@ void main() {
     );
 
     test(
+      'bhv misc 120 an object parameter becomes name and value pairs sorted by wire name, without absent values',
+      () {
+        final result = serializeDeepObject('filter', {
+          'b': '2',
+          'c': null,
+          'a': '1',
+        });
+        expect(result.keys.toList(), equals(['filter[a]', 'filter[b]']));
+      },
+    );
+
+    test(
       'bhv misc 084 a set optional scalar sends its value in every location',
       () {
         expect(serializeValue(7, 'path', 'integer', ''), equals('7'));

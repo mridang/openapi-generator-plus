@@ -392,6 +392,41 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert headers["x-probe"] == "caller"
   end
 
+  test "bhv misc 273 the request-id header carries a UUID v4 when enabled and is omitted when disabled" do
+    {base_url, _port} = start_header_capture_server()
+
+    enabled = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(inject_request_id: true))
+    {{moduleName}}.DefaultApiClient.send_request(enabled, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, on_headers}, 5000
+    assert Regex.match?(~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/, on_headers["x-request-id"])
+
+    disabled = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(inject_request_id: false))
+    {{moduleName}}.DefaultApiClient.send_request(disabled, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, off_headers}, 5000
+    refute Map.has_key?(off_headers, "x-request-id")
+  end
+
+  test "bhv misc 267 a caller-supplied HTTP client's own default headers are sent on the wire with each request" do
+    {base_url, _port} = start_header_capture_server()
+    transport = {{moduleName}}.TransportOptions.new(req_options: [headers: [{"x-client-default", "kept"}]])
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["x-client-default"] == "kept"
+  end
+
+  test "bhv misc 266 default headers supplied by the caller replace the SDK user agent and request id regardless of case" do
+    {base_url, _port} = start_header_capture_server()
+    transport = {{moduleName}}.TransportOptions.new(inject_request_id: true, default_headers: %{"USER-AGENT" => "Caller/2.0", "x-request-id" => "caller-42"})
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["user-agent"] == "Caller/2.0"
+    assert headers["x-request-id"] == "caller-42"
+  end
+
   test "bhv misc 298 a client cannot be constructed from a malformed proxy URL" do
     assert_raise ArgumentError, ~r/Invalid proxy URL/, fn ->
       {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(proxy: "http://[::1:3128"))
@@ -979,6 +1014,24 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     end
   end
 
+  test "bhv misc 274 a non-2xx response is returned to the caller with its status code intact" do
+    client = routed_client(%{"https://status.invalid/missing" => {404, [], "nope"}})
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://status.invalid/missing", %{}, nil)
+
+    assert response.status_code == 404
+  end
+
+  test "bhv misc 265 a redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status" do
+    client = routed_client(%{"https://scheme.invalid/start" => {302, [{"location", "ftp://files.invalid/x"}], ""}})
+
+    error = assert_raise {{moduleName}}.Errors.ApiError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://scheme.invalid/start", %{}, nil)
+    end
+
+    assert error.status_code == 302
+  end
+
   test "bhv retries 011 a 308 from HTTPS to HTTP refuses the replay of a real body" do
     https = "https://api.example.com/x"
     http = "http://api.example.com/y"
@@ -1127,6 +1180,27 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     client = {{moduleName}}.DefaultApiClient.new(transport)
 
     assert {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code == 302
+  end
+
+  test "bhv misc 225 a 3xx response with no Location header is returned as the final response instead of raising" do
+    source = start_server(302, "text/plain", "")
+
+    transport = {{moduleName}}.TransportOptions.new(follow_redirects: true)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    assert {{moduleName}}.DefaultApiClient.send_request(client, :get, source, %{}, nil).status_code == 302
+  end
+
+  test "bhv misc 224 transport default headers are not sent on a request that goes to another origin after a redirect" do
+    {target_url, _port} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, target_url)
+
+    transport = {{moduleName}}.TransportOptions.new(follow_redirects: true, default_headers: %{"X-Probe" => "transport"})
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
+
+    assert_receive {:captured_headers, headers}, 5000
+    refute Map.has_key?(headers, "x-probe")
   end
 
   test "bhv redirects 031 a 3xx without a Location header is returned unchanged instead of failing" do
@@ -1747,6 +1821,15 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     err = assert_raise ArgumentError, fn -> {{moduleName}}.DefaultApiClient.new(transport) end
 
     assert err.message == "failed to read CA certificate from #{inspect(path)}: no such file or directory"
+  end
+
+  test "bhv misc 270 a missing CA certificate file is rejected even when certificate verification is disabled" do
+    path = "/nonexistent/ca-#{System.unique_integer([:positive])}.pem"
+    transport = {{moduleName}}.TransportOptions.new(verify_ssl: false, ca_cert_path: path)
+
+    err = assert_raise ArgumentError, fn -> {{moduleName}}.DefaultApiClient.new(transport) end
+
+    assert err.message =~ inspect(path)
   end
 
   test "bhv transport 072 a deadline that expires while sending the body raises the timeout error, a refused connection does not" do
@@ -2402,6 +2485,76 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     test "bhv misc 099 every multipart filename becomes one canonical content directive, with a quoted ASCII fallback and an extended form only when the name needs it" do
       directive = {{moduleName}}.DefaultApiClient.build_content_disposition("file", "naïve.txt")
       assert directive =~ "filename*=UTF-8''na%C3%AFve.txt"
+    end
+  end
+
+
+  test "bhv misc 125 a 307 redirect that upgrades HTTP to HTTPS keeps the body" do
+    refute {{moduleName}}.DefaultApiClient.refuse_body_replay?(307, "http://api.example.com/x", "https://api.example.com/y", ~s({"a":1}))
+  end
+
+  test "bhv misc 126 a HEAD request redirected by 303 is followed as HEAD" do
+    assert {{moduleName}}.DefaultApiClient.redirect_method(303, :head) == :head
+  end
+
+  test "bhv misc 127 a Location that holds only a query keeps the redirected path and replaces its query" do
+    client =
+      routed_client(%{
+        "https://query.invalid/v1/items/1?page=1" => {302, [{"location", "?page=2"}], ""},
+        "https://query.invalid/v1/items/1?page=2" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://query.invalid/v1/items/1?page=1", %{}, nil)
+    assert [_first, second] = collect_hops()
+    assert URI.to_string(second.url) == "https://query.invalid/v1/items/1?page=2"
+  end
+
+  test "bhv misc 130 a credential removed by a cross-origin hop is not restored when a later hop returns to the original origin" do
+    client =
+      routed_client(%{
+        "https://home.invalid/start" => {302, [{"location", "https://away.invalid/hop"}], ""},
+        "https://away.invalid/hop" => {302, [{"location", "https://home.invalid/back"}], ""},
+        "https://home.invalid/back" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://home.invalid/start", %{"Authorization" => "Bearer secret"}, nil)
+    assert [_first, _away, back] = collect_hops()
+    refute Map.has_key?(back.headers, "authorization")
+  end
+
+  test "bhv misc 131 a supplied session follows a redirect under the SDK rules" do
+    client =
+      routed_client(%{
+        "https://session.invalid/start" => {302, [{"location", "https://session.invalid/landing"}], ""},
+        "https://session.invalid/landing" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://session.invalid/start", %{}, nil)
+    assert response.status_code == 200
+    assert [_first, _second] = collect_hops()
+  end
+
+  test "bhv misc 132 a per-call header with a credential word in its name is dropped on a cross-origin redirect" do
+    client =
+      routed_client(%{
+        "https://call.invalid/start" => {302, [{"location", "https://other.invalid/end"}], ""},
+        "https://other.invalid/end" => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://call.invalid/start", %{"X-Call-Token" => "abc"}, nil)
+    assert [_first, second] = collect_hops()
+    refute Map.has_key?(second.headers, "x-call-token")
+  end
+
+  test "bhv misc 133 a 300 or 305 response with a Location is returned unfollowed" do
+    for status <- [300, 305] do
+      client = routed_client(%{"https://multi.invalid/start" => {status, [{"location", "https://multi.invalid/elsewhere"}], ""}})
+
+      assert_raise {{moduleName}}.Errors.ApiError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://multi.invalid/start", %{}, nil)
+      end
+
+      assert [_only] = collect_hops()
     end
   end
 

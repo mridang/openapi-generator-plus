@@ -319,3 +319,15 @@ describe("Configuration", () => {
     expect(config.toString()).not.toContain("start");
   });
 });
+
+describe("Configuration debug text misc behaviours", () => {
+  test("bhv misc 136 the debug text shows the base URL and the non-sensitive default headers", () => {
+    const config = Configuration.builder()
+      .baseUrl("https://api.example.com")
+      .defaultHeader("Accept", "text/plain")
+      .build();
+    const text = config.toString();
+    expect(text).toContain("https://api.example.com");
+    expect(text).toContain("text/plain");
+  });
+});

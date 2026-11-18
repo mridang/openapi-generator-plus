@@ -4268,3 +4268,29 @@ func TestBhvMisc208_DefaultApiClientUnit_EmptyEnvironmentVariableCountsAsUnset(t
 		t.Errorf("expected an empty variable to be treated as unset, got %v", err)
 	}
 }
+
+func TestBhvMisc224_DefaultApiClientUnit_TransportDefaultHeadersAreNotSentAfterACrossOriginRedirect(t *testing.T) {
+	t.Parallel()
+	var leaked atomic.Bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Default-Header") != "" {
+			leaked.Store(true)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/", http.StatusTemporaryRedirect)
+	}))
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).DefaultHeader("X-Default-Header", "transport-default").Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, _ = client.SendRequest(http.MethodGet, origin.URL+"/", nil, nil)
+	_ = client.Close()
+	origin.Close()
+	target.Close()
+	if leaked.Load() {
+		t.Error("expected the transport default header not to reach the other origin")
+	}
+}
