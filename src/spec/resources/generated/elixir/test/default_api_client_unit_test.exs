@@ -1012,7 +1012,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert headers["x-trace"] == "keep"
   end
 
-  test "3.1: strips any header named like a credential on cross-origin redirect" do
+  test "bhv redirects 052 strips any header named like a credential on a cross-origin redirect" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
 
@@ -1363,6 +1363,135 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert response.status_code == 200
     assert [_first, second] = collect_hops()
     assert second.method == :get
+  end
+
+  test "bhv redirects 046 a chain within the redirect limit is followed and one past it raises too many redirects" do
+    routes = %{
+      "https://limit.invalid/start" => {302, [{"location", "https://limit.invalid/next"}], ""},
+      "https://limit.invalid/next" =>
+        {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+    }
+
+    followed = routed_client(routes, follow_redirects: true, max_redirects: 1)
+
+    assert PetstoreClient.DefaultApiClient.send_request(
+             followed,
+             :get,
+             "https://limit.invalid/start",
+             %{},
+             nil
+           ).status_code == 200
+
+    refused = routed_client(routes, follow_redirects: true, max_redirects: 0)
+
+    err =
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          refused,
+          :get,
+          "https://limit.invalid/start",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 302
+    assert err.message == "Too many redirects (exceeded 0)"
+  end
+
+  test "bhv redirects 047 a refused redirect in one request does not change a redirect followed at the same time" do
+    routes = %{
+      "https://race.invalid/start" => {302, [{"location", "https://race.invalid/next"}], ""},
+      "https://race.invalid/next" =>
+        {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+    }
+
+    refused = routed_client(routes, follow_redirects: true, max_redirects: 0)
+    followed = routed_client(routes, follow_redirects: true, max_redirects: 1)
+
+    refusal =
+      Task.async(fn ->
+        assert_raise PetstoreClient.Errors.ApiError, fn ->
+          PetstoreClient.DefaultApiClient.send_request(
+            refused,
+            :get,
+            "https://race.invalid/start",
+            %{},
+            nil
+          )
+        end
+      end)
+
+    success =
+      Task.async(fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          followed,
+          :get,
+          "https://race.invalid/start",
+          %{},
+          nil
+        )
+      end)
+
+    assert Task.await(success).status_code == 200
+    assert Task.await(refusal).status_code == 302
+  end
+
+  test "bhv redirects 050 the follow-up method matches the RFC 9110 table for 301, 302, 303, 307 and 308" do
+    assert DefaultApiClient.redirect_method(301, :post) == :get
+    assert DefaultApiClient.redirect_method(302, :post) == :get
+    assert DefaultApiClient.redirect_method(303, :post) == :get
+    assert DefaultApiClient.redirect_method(303, :head) == :head
+    assert DefaultApiClient.redirect_method(307, :post) == :post
+    assert DefaultApiClient.redirect_method(308, :post) == :post
+  end
+
+  test "bhv redirects 051 a 303 turns a follow-up into a GET except that a HEAD request stays HEAD" do
+    assert DefaultApiClient.redirect_method(303, :post) == :get
+    assert DefaultApiClient.redirect_method(303, :get) == :get
+    assert DefaultApiClient.redirect_method(303, :head) == :head
+  end
+
+  test "bhv redirects 053 keeps Authorization on a same-origin redirect and drops it when the scheme changes" do
+    same =
+      routed_client(%{
+        "https://same.invalid/start" => {302, [{"location", "https://same.invalid/next"}], ""},
+        "https://same.invalid/next" =>
+          {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+      })
+
+    PetstoreClient.DefaultApiClient.send_request(
+      same,
+      :get,
+      "https://same.invalid/start",
+      %{"Authorization" => "Bearer secret"},
+      nil
+    )
+
+    assert [_first, kept] = collect_hops()
+    assert kept.headers["authorization"] == ["Bearer secret"]
+
+    for {from, to} <- [
+          {"https://scheme.invalid/start", "http://scheme.invalid/next"},
+          {"http://scheme.invalid/start", "https://scheme.invalid/next"}
+        ] do
+      client =
+        routed_client(%{
+          from => {302, [{"location", to}], ""},
+          to => {200, [{"content-type", "application/json"}], ~s({"ok":true})}
+        })
+
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        from,
+        %{"Authorization" => "Bearer secret"},
+        nil
+      )
+
+      assert [_first, dropped] = collect_hops()
+      refute Map.has_key?(dropped.headers, "authorization")
+    end
   end
 
   test "bhv redirects 040 a 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused" do
@@ -2513,7 +2642,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert DefaultApiClient.redirect_method(308, :delete) == :delete
     end
 
-    test "301 and 302 turn only POST into GET" do
+    test "bhv redirects 048 301 and 302 turn only POST into GET" do
       for status <- [301, 302] do
         assert DefaultApiClient.redirect_method(status, :post) == :get
         assert DefaultApiClient.redirect_method(status, :put) == :put
@@ -2532,7 +2661,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert DefaultApiClient.redirect_method(303, :head) == :head
     end
 
-    test "307 and 308 never change the method" do
+    test "bhv redirects 049 a 307 or 308 keeps the method of the follow-up" do
       for status <- [307, 308], method <- [:post, :put, :patch, :delete, :get, :head] do
         assert DefaultApiClient.redirect_method(status, method) == method
       end

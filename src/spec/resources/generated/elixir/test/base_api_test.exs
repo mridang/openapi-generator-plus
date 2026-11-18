@@ -351,7 +351,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Content-Type check -- non-JSON response skips deserialization
 
-  test "returns raw body when Content-Type is text/plain", %{state: state} do
+  test "bhv operations 161 returns raw body when Content-Type is text/plain", %{state: state} do
     assert {:ok, result} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -916,6 +916,54 @@ defmodule PetstoreClient.Api.BaseApiTest do
         # The echo endpoint may not be reachable; that's OK for this test
         :ok
     end
+  end
+
+  defmodule CapturingBodyApiClient do
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> nil end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured_body(name), do: Agent.get(name, & &1)
+
+    def send_request(_method, _url, _headers, body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> body end)
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
+    end
+  end
+
+  test "bhv operations 157 a binary body is sent as its exact raw bytes with no multipart encoding" do
+    {:ok, name} = CapturingBodyApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingBodyApiClient}
+    body = <<0x00, 0xFF, 0x10>>
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/test/echo",
+        %{},
+        %{},
+        body,
+        ["application/octet-stream"],
+        "application/octet-stream",
+        nil
+      )
+
+    assert CapturingBodyApiClient.captured_body(name) == body
+
+    Agent.stop(name)
   end
 
   test "bhv operations 014 passes binary body as-is for octet-stream", %{state: state} do
@@ -1576,6 +1624,30 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     refute Map.has_key?(headers, "Content-Type"),
            "Content-Type must NOT be sent when body is nil"
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 163 a request with no body sends no Content-Type header" do
+    {:ok, name} = CapturingHeadersApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingHeadersApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :delete,
+        "/test/echo",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    headers = CapturingHeadersApiClient.captured_headers(name)
+    refute Map.has_key?(headers, "Content-Type")
 
     Agent.stop(name)
   end

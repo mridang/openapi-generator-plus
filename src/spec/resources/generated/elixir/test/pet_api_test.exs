@@ -385,6 +385,24 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
+  test "bhv operations 165 a path parameter is written into the path in the style the operation declares" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    _result =
+      PetstoreClient.Api.PetApi.get_pet_tag(
+        api,
+        5,
+        "cute",
+        %PetstoreClient.Api.Options.GetPetTagOptions{}
+      )
+
+    assert PathCapturingApiClient.captured_url(name) == "http://localhost/pet/;petId=5/tag/.cute"
+
+    Agent.stop(name)
+  end
+
   test "bhv operations 060 get_pet_tag renders petId as a matrix segment and tagName as a label segment" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
@@ -916,7 +934,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert error.message =~ "Expected a response body for get_pet_by_id but received none"
   end
 
-  test "bang variant raises typed ApiError on empty 200 body" do
+  test "bhv operations 159 bang variant raises typed ApiError on empty 200 body" do
     api = new_pet_api_for_mock(200, "application/json", "")
 
     assert_raise PetstoreClient.Errors.ApiError, fn ->
@@ -1228,7 +1246,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_external_pet_info sends the request to the generated variant's URL" do
+  test "bhv operations 160 get_external_pet_info sends the request to the generated variant's URL" do
     {name, api} = stub_pet_api(@sample_pet)
 
     assert {:ok, _result} =
@@ -1320,6 +1338,31 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   # A format: date path parameter renders as YYYY-MM-DD with no time component.
+  test "bhv operations 158 a header supplied on an individual call is sent with that call" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, nil,
+        headers: %{"X-Trace" => "call-1"}
+      )
+
+    assert HeaderCapturingApiClient.captured_headers(name)["X-Trace"] == "call-1"
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 162 a date-only path parameter is sent as a bare date" do
+    {name, api} = stub_pet_api("[]")
+
+    assert {:ok, []} = PetstoreClient.Api.PetApi.find_pets_born_on(api, ~D[2024-01-01])
+
+    assert StubResponseApiClient.captured(name).url == "http://localhost/pet/born-on/2024-01-01"
+
+    Agent.stop(name)
+  end
+
   test "bhv operations 043 find_pets_born_on serialises the date path param as YYYY-MM-DD" do
     {name, api} = stub_pet_api("[]")
 
@@ -1754,6 +1797,23 @@ defmodule PetstoreClient.Api.PetApiTest do
   # required-nested-param-validation: get_pet_by_name has a REQUIRED query param
   # `category`. A nil value or empty string must raise before any HTTP call,
   # and a present value must be serialized onto the wire.
+  test "bhv operations 164 a call with a nil required parameter raises an argument error and sends no request" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
+        api,
+        "rex",
+        %PetstoreClient.Api.Options.GetPetByNameOptions{category: nil, x_correlation_id: "c-1"}
+      )
+    end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
   test "bhv operations 125 get_pet_by_name raises when required category is nil" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")

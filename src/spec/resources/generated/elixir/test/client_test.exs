@@ -26,14 +26,19 @@ defmodule PetstoreClient.ClientTest do
     assert %PetstoreClient.Client{} = client
   end
 
-  test "construct with a custom Req adapter in the transport options" do
-    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
-    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+  test "bhv lifecycle 042 a client built with a caller-supplied Req adapter sends its requests through it" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, :through_adapter)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
     transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
 
-    client = PetstoreClient.Client.new(authenticator, transport)
-
-    assert %PetstoreClient.Client{} = client
+    assert {:ok, _result} = call_through(client).()
+    assert_received :through_adapter
   end
 
   test "close releases the transport and the authenticator's token manager" do
@@ -214,20 +219,35 @@ defmodule PetstoreClient.ClientTest do
     refute_received :reached_transport
   end
 
-  test "a request that starts while another is in flight after close still fails" do
+  test "bhv lifecycle 043 a new request after close fails with the closed-client error" do
+    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()})
+    assert PetstoreClient.Client.close(client) == :ok
+
+    error = assert_raise RuntimeError, call_through(client)
+    assert error.message == "ApiClient has been closed and can no longer send requests"
+  end
+
+  test "bhv lifecycle 044 a request in flight when the client is closed still completes" do
     {_adapter, transport} = blocked_transport()
     client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
-    call = call_through(client)
 
-    task = Task.async(call)
+    task = Task.async(call_through(client))
     assert_receive {:waiting, in_flight}, 5_000
     assert PetstoreClient.Client.close(client) == :ok
 
-    error = assert_raise RuntimeError, call
-    assert error.message == "ApiClient has been closed and can no longer send requests"
-
     send(in_flight, :proceed)
     assert {:ok, _result} = Task.await(task)
+  end
+
+  test "bhv lifecycle 045 closing a client does not close the HTTP client the caller supplied" do
+    adapter = fn request -> {request, Req.Response.new(status: 200, body: "")} end
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+
+    first = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+    assert PetstoreClient.Client.close(first) == :ok
+
+    second = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+    assert {:ok, _result} = call_through(second).()
   end
 
   test "bhv lifecycle 036 close twice releases the authenticator once" do
