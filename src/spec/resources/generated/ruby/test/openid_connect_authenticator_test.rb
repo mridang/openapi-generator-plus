@@ -478,7 +478,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(err).must_be_same_as failure
   end
 
-  it 'a transport failure during the code exchange reaches the caller unchanged' do
+  it 'bhv_misc_028 a transport failure during the code exchange reaches the caller unchanged' do
     failure = Petstore::Client::Errors::NetworkError.new(message: 'connection reset')
     auth = oidc_authenticator(FailingOidcClient.new(failure, discovery: discovery_response))
 

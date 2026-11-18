@@ -87,6 +87,12 @@ describe {{moduleName}}::Auth::BearerAuthenticator do
   # authenticator-secret-in-default-string-repr: the default object
   # representation must mask the stored token — the secret value must be absent
   # and a *** redaction marker present.
+  it 'bhv_auth_033 redacts the token from inspect and to_s' do
+    auth = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
+    _(auth.inspect).wont_include 'super-secret-token'
+    _(auth.to_s).wont_include 'super-secret-token'
+  end
+
   it 'bhv_authbearer_011 redacts the token from inspect and to_s' do
     auth = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
     _(auth.inspect).wont_include 'super-secret-token'
@@ -156,6 +162,28 @@ describe {{moduleName}}::Auth::BearerAuthenticator do
       env["#{prefix}_TOKEN"] = 'second'
 
       _(auth.auth_headers['Authorization']).must_equal 'Bearer first'
+    end
+
+    it 'bhv_auth_039 refuses a token and a token provider passed together' do
+      _(-> {
+        {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'explicit', token_provider: -> { 'p' })
+      }).must_raise ArgumentError
+    end
+
+    it 'bhv_auth_040 treats a set but empty token variable as unset' do
+      prefix = {{moduleName}}::Auth::BaseAuthenticator::ENV_PREFIX
+      _(-> {
+        {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => '' })
+      }).must_raise ArgumentError
+    end
+
+    it 'bhv_auth_037 asks the token provider again on every request and sends its current value' do
+      calls = 0
+      auth = {{moduleName}}::Auth::BearerAuthenticator.new(
+        'https://api.example.com', token_provider: -> { "token-#{calls += 1}" }, env: {}
+      )
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer token-1'
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer token-2'
     end
 
     it 'bhv_auth_022 prefers the environment variable to the token provider' do

@@ -157,6 +157,11 @@ describe 'DefaultApiClientUnit' do
     _(encoder.encode({ 'q' => 'a b' })).must_equal 'q=a%20b'
   end
 
+  it 'bhv_serialization_111 only RFC 3986 unreserved characters stay literal and every other character is percent-encoded as UTF-8' do
+    encoder = {{moduleName}}::DefaultApiClient::QueryParamsEncoder
+    _(encoder.encode({ 'q' => "a~*!'()" })).must_equal 'q=a~%2A%21%27%28%29'
+  end
+
   it 'bhv_serializationparam_107 a query value keeps only the unreserved set literal and percent-encodes the sub-delimiters' do
     encoder = {{moduleName}}::DefaultApiClient::QueryParamsEncoder
     _(encoder.encode({ 'q' => "a~*!'()" })).must_equal 'q=a~%2A%21%27%28%29'
@@ -504,6 +509,16 @@ describe 'DefaultApiClientUnit' do
 
   # ── Multipart filename sanitization (Gap F) ──
 
+  it 'bhv_serialization_123 multipart field names and filenames with CR, LF, NUL or quote characters are rejected' do
+    require 'stringio'
+    client = {{moduleName}}::DefaultApiClient.new
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { "a\r\nX-Injected: yes" }
+    assert_raises(ArgumentError) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+  end
+
   it 'bhv_serializationwire_043 rejects multipart filename containing CRLF (header injection)' do
     require 'stringio'
     client = {{moduleName}}::DefaultApiClient.new
@@ -563,6 +578,26 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_serialization_124 a non-ASCII multipart filename is sent with an ASCII fallback and an RFC 5987 form' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { '日本.pdf' }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::ASCII_8BIT)
+    _(body_str).must_include "filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf"
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_serializationwire_044 emits RFC 5987 filename* for non-ASCII multipart filenames' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -606,6 +641,28 @@ describe 'DefaultApiClientUnit' do
   # parameter — not transliterated to '?', not stripped to ASCII. The field
   # name is interpolated raw (after CR/LF/NUL rejection and quote escaping)
   # and the part is built as binary, so the UTF-8 bytes survive intact.
+  it 'bhv_serialization_126 a non-ASCII multipart field name is preserved as UTF-8 in the part header' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      # 'café' is a plain scalar form field whose NAME is non-ASCII.
+      client.send_request('POST', 'http://localhost/upload', {}, { 'café' => 'value' })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::UTF_8)
+    _(body_str).must_include 'name="café"'
+    # The raw UTF-8 bytes for 'é' (0xC3 0xA9) must be present unmangled.
+    body_bytes = captured_body.to_s.dup.force_encoding(Encoding::ASCII_8BIT)
+    _(body_bytes).must_include 'caf'.b + "\xC3\xA9".b
+    _(body_bytes).wont_include 'name="caf?"'.b
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_serializationwire_046 preserves a non-ASCII multipart field name as UTF-8' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -638,6 +695,35 @@ describe 'DefaultApiClientUnit' do
   # produces the same wire keys (isEnabled/recordedAt) and date-time formatting as
   # the JSON-body path. A model is sent as the "metadata" part — here we build
   # that part directly and assert the wire form.
+  it 'bhv_serialization_121 a model sent as a multipart part is serialized with its wire property names' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    metadata = MultipartModelPart.new(
+      is_enabled: true,
+      recorded_at: Time.utc(2020, 1, 2, 3, 4, 5, 123_000)
+    )
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'metadata' => metadata })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::UTF_8)
+    # Wire property names, not the snake_case Ruby attribute names.
+    _(body_str).must_include '"isEnabled":true'
+    _(body_str).must_include '"recordedAt"'
+    _(body_str).wont_include 'is_enabled'
+    _(body_str).wont_include 'recorded_at'
+    # The date-time carries the SDK's millisecond-precision wire format.
+    _(body_str).must_include '"recordedAt":"2020-01-02T03:04:05.123'
+    # The part still declares application/json.
+    _(body_str).must_include 'Content-Type: application/json'
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_serializationwire_045 serialises a multipart model part with wire keys and formatted date-time' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -664,6 +750,36 @@ describe 'DefaultApiClientUnit' do
     _(body_str).must_include '"recordedAt":"2020-01-02T03:04:05.123'
     # The part still declares application/json.
     _(body_str).must_include 'Content-Type: application/json'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serialization_127 primitive multipart parts are sent as plain text and only model parts are sent as JSON' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    form = {
+      'flag' => true,
+      'count' => 3,
+      'stamp' => Time.utc(2024, 1, 15, 10, 30, 0),
+      'shade' => 'red',
+      'meta' => MultipartModelPart.new(is_enabled: true)
+    }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, form)
+    end
+    parts = captured_body.to_s.dup.force_encoding(Encoding::UTF_8).split(/--[0-9a-f-]{36}(?:--)?\r\n/).reject(&:empty?)
+    _(parts.first(4)).must_equal [
+      "Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n",
+      "Content-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n",
+      "Content-Disposition: form-data; name=\"stamp\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n",
+      "Content-Disposition: form-data; name=\"shade\"\r\n\r\nred\r\n"
+    ]
+    _(parts.last).must_include "Content-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true"
     stubs.verify_stubbed_calls
   end
 
@@ -780,6 +896,25 @@ describe 'DefaultApiClientUnit' do
       _(captured_body.to_s).must_include "Content-Type: #{mime}"
       stubs.verify_stubbed_calls
     end
+  end
+
+  it 'bhv_serialization_120 a multipart file part takes its Content-Type from its file extension' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('bytes')
+    io.define_singleton_method(:path) { 'blob.xyzunknown' }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: application/octet-stream'
+    stubs.verify_stubbed_calls
   end
 
   it 'bhv_serializationwire_040 falls back to application/octet-stream for unknown extension' do
@@ -919,6 +1054,20 @@ describe 'DefaultApiClientUnit' do
   end
 
   # ── Response charset decoding (Gap H) ──
+
+  it 'bhv_serialization_119 a response body is decoded using its declared charset label, falling back to UTF-8' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/shift-jis') do
+        [200, { 'content-type' => 'text/plain; charset=Shift_JIS' }, "\x82\xA0".b]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/shift-jis', {}, nil)
+      _(response.body).must_equal "\u3042"
+    end
+    stubs.verify_stubbed_calls
+  end
 
   it 'bhv_serializationwire_033 decodes a body in the charset its Content-Type declares' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -2436,7 +2585,7 @@ describe 'DefaultApiClientUnit' do
     _(delays).must_be_empty
   end
 
-  it 'sends 1 + max_retries requests at most' do
+  it 'bhv_retries_049 sends 1 + max_retries requests at most' do
     options = {{moduleName}}::TransportOptions.builder.max_retries(1).build
     _outcome, envs, = run_retry_probe(options: options) { [503, {}, 'busy'] }
 
@@ -2453,6 +2602,13 @@ describe 'DefaultApiClientUnit' do
     _outcome, _envs, delays = run_retry_probe(options: long_budget, &ok_after(1, [503, { 'Retry-After' => '3600' }, 'later']))
 
     _(delays).must_equal [60.0]
+  end
+
+  it 'bhv_retries_050 a Retry-After header given as an HTTP date is honoured' do
+    date = (Time.now.utc + 30).httpdate
+    _outcome, _envs, delays = run_retry_probe(options: long_budget, &ok_after(1, [503, { 'retry-after' => date }, 'later']))
+
+    _(delays.first).must_be_within_delta 30, 1.5
   end
 
   it 'bhv_retries_022 reads a Retry-After header that is an HTTP date' do

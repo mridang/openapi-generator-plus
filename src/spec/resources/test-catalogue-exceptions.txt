@@ -383,3 +383,10 @@ php | auth038 | settled credential order F862: the environment variable is read 
 php | lifecycle044 | PHP runs one request at a time in one process, so a close() cannot race a request that is still in flight
 python | retries045 | python has no streamed request body: the SDK materialises a body as a dict, bytes, bytearray, memoryview or str before the call, so a replay after a 401 never has a stream to exhaust
 python | serialization129 | python datetime.timedelta stores microseconds at most, so a nanosecond-precision duration cannot be represented; the duration test pins the refusal of a nanosecond argument instead
+ruby | auth038 | settled credential order F862: the environment variable is read before the token provider
+ruby | transport083 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no client-level signal can abort a request in flight
+ruby | transport084 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call handle exists to cancel a request or drop an in-flight call
+ruby | transport085 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancellation token or signal can be supplied alongside a timeout
+ruby | operations159 | the generated Ruby client returns nil for a value-returning call with an empty success body instead of raising a typed ApiError; the cross-language contract is not settled yet
+ruby | misc029 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a caller's cancellation is never seen or surfaced by the SDK
+ruby | misc035 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can carry an already-aborted signal

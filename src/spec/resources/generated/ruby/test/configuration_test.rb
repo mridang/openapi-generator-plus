@@ -16,6 +16,14 @@ describe Petstore::Client::Configuration do
     _(builder).must_be_instance_of(Petstore::Client::Configuration::Builder)
   end
 
+  it 'bhv_config_026 a configuration built through the builder returns the base URL set on the builder' do
+    config = Petstore::Client::Configuration.builder
+      .base_url('https://custom.example.com')
+      .build
+
+    _(config.base_url).must_equal('https://custom.example.com')
+  end
+
   it 'bhv_config_011 builder sets base_url' do
     config = Petstore::Client::Configuration.builder
       .base_url('https://custom.example.com')

@@ -235,6 +235,49 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.auth_headers).must_equal('X-Api-Key' => 'first')
   end
 
+  it 'bhv_auth_031 sends the key in the header under its exact name and value' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Custom-Key', 'k-123', Petstore::Client::Auth::ApiKeyLocation::HEADER
+    )
+    _(auth.auth_headers).must_equal({ 'X-Custom-Key' => 'k-123' })
+  end
+
+  it 'bhv_auth_032 sends the session key as the SESSION_ID cookie with its exact name and value' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'SESSION_ID', 'sess-456', Petstore::Client::Auth::ApiKeyLocation::COOKIE
+    )
+    _(auth.cookie_params).must_equal({ 'SESSION_ID' => 'sess-456' })
+  end
+
+  it 'bhv_auth_034 rejects an empty or blank key at construction' do
+    ['', " \t "].each do |key|
+      _(lambda {
+        Petstore::Client::Auth::ApiKeyAuthenticator.new(
+          'https://api.example.com', 'X-API-Key', key, Petstore::Client::Auth::ApiKeyLocation::HEADER
+        )
+      }).must_raise ArgumentError
+    end
+  end
+
+  it 'bhv_auth_035 rejects a control, NUL or non-ASCII key at construction' do
+    location = Petstore::Client::Auth::ApiKeyLocation
+    [["abc\r\n", location::QUERY], ["abc\0def", location::COOKIE], ['kéy', location::HEADER]].each do |key, where|
+      _(lambda {
+        Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key, where)
+      }).must_raise ArgumentError
+    end
+  end
+
+  it 'bhv_auth_042 rejects an explicit empty key instead of reading the environment variable' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    _(lambda {
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'X-API-Key', '', Petstore::Client::Auth::ApiKeyLocation::HEADER,
+        env: { "#{prefix}_API_KEY" => 'from-env' }
+      )
+    }).must_raise ArgumentError
+  end
+
   it 'bhv_authapikey_016 passes a valid query key at construction' do
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'api_key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::QUERY

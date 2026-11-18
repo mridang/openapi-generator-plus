@@ -47,6 +47,12 @@ describe 'Composed Schema' do
         .must_raise {{moduleName}}::Errors::SerializationError
     end
 
+    it 'bhv_serialization_082 a missing or null discriminator property fails decoding and names the missing key' do
+      json = '{"weightKg":2.5}'
+      _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
+        .must_raise {{moduleName}}::Errors::SerializationError
+    end
+
     it 'bhv_unions_015 raises SerializationError for missing discriminator' do
       json = '{"weightKg":2.5}'
       _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
@@ -87,6 +93,20 @@ describe 'Composed Schema' do
       serialized = {{moduleName}}::ObjectSerializer.serialize(result)
 
       _(serialized).must_include('dry')
+    end
+
+    it 'bhv_unions_045 two union values built from the same data compare equal' do
+      left = {{moduleName}}::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+      right = {{moduleName}}::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+      other = {{moduleName}}::ObjectSerializer.deserialize('"BQYHCA=="', 'SetPetAvatarThumbnailRequest')
+      _(left).must_equal(right)
+      _(left.hash).must_equal(right.hash)
+      _(left).wont_equal(other)
+
+      food = {{moduleName}}::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+      same_food = {{moduleName}}::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+      _(food).must_equal(same_food)
+      _(food.hash).must_equal(same_food.hash)
     end
 
     it 'bhv_unions_029 oneOf wrappers have value equality' do
@@ -137,6 +157,11 @@ describe 'Composed Schema' do
       assert_nil({{moduleName}}::Models::PetFood.as_dry_food(food))
     end
 
+    it 'bhv_unions_047 a discriminator value not in the mapping, including an empty one, raises a clear error' do
+      _ { {{moduleName}}::ObjectSerializer.deserialize('{"foodType":"frozen","weightKg":3.0}', 'PetFood') }
+        .must_raise {{moduleName}}::Errors::SerializationError
+    end
+
     it 'bhv_unions_035 a discriminator value not listed in the mapping fails even when the payload fits a variant' do
       _ { {{moduleName}}::ObjectSerializer.deserialize('{"foodType":"frozen","weightKg":3.0}', 'PetFood') }
         .must_raise {{moduleName}}::Errors::SerializationError
@@ -161,6 +186,15 @@ describe 'Composed Schema' do
         _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood') }
           .must_raise {{moduleName}}::Errors::SerializationError
       end
+    end
+
+    it 'bhv_unions_044 each union variant has a typed factory and accessor that identify the variant' do
+      food = {{moduleName}}::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+
+      _(food).must_be_kind_of({{moduleName}}::Models::DryFood)
+      _({{moduleName}}::Models::PetFood.as_dry_food(food)).must_be_same_as(food)
+      assert_nil({{moduleName}}::Models::PetFood.as_wet_food(food))
+      _({{moduleName}}::Models::PetFood.wet_food_variant?(food)).must_equal(false)
     end
 
     it 'bhv_unions_040 a typed accessor returns the variant a decoded union holds and nothing for the other' do
@@ -206,6 +240,31 @@ describe 'Composed Schema' do
       _(result).must_be_kind_of({{moduleName}}::Models::Surgery)
       _(result.procedure_name).must_equal('Spay')
       _(result.duration_minutes).must_equal(45)
+    end
+
+    it 'bhv_unions_046 each matching anyOf variant reports itself as matched and keeps its value' do
+      # PetTreatment is documented as "a medication, a surgery, OR BOTH". A
+      # payload satisfying BOTH variants at once must retain BOTH — the old
+      # first-match build silently dropped the Surgery fields and lost them on
+      # re-encode. Assert every field of both variants is reachable on the
+      # decoded value, then re-serialize and assert all four fields survive the
+      # round-trip (no silent drop).
+      json = '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}'
+      result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetTreatment')
+
+      # Both variants' data are accessible off the single decoded value.
+      _(result.drug_name).must_equal('Amoxicillin')
+      _(result.dosage).must_equal('250mg')
+      _(result.procedure_name).must_equal('Spay')
+      _(result.duration_minutes).must_equal(45)
+
+      # Re-serialize: the union of ALL FOUR fields round-trips losslessly.
+      serialized = {{moduleName}}::ObjectSerializer.serialize(result)
+      reparsed = JSON.parse(serialized)
+      _(reparsed['drugName']).must_equal('Amoxicillin')
+      _(reparsed['dosage']).must_equal('250mg')
+      _(reparsed['procedureName']).must_equal('Spay')
+      _(reparsed['durationMinutes']).must_equal(45)
     end
 
     it 'bhv_unions_009 anyOf retains all matching variants (medication and surgery) losslessly' do
@@ -296,6 +355,17 @@ describe 'Composed Schema' do
         .must_raise {{moduleName}}::Errors::SerializationError
     end
 
+    it 'bhv_serialization_076 a union value that matches none of its candidates raises a serialization error' do
+      # oneof-nondiscriminator-no-match-silent: a body matching neither
+      # Medication nor Surgery must raise rather than return a silently-empty
+      # union. The anyOf build raises on union no-match, and deserialize wraps
+      # every schema-validation failure uniformly as SerializationError so a
+      # caller can rescue a single branded type.
+      json = '{"unrelatedKey":"value","anotherUnknown":123}'
+      _ { {{moduleName}}::ObjectSerializer.deserialize(json, 'PetTreatment') }
+        .must_raise {{moduleName}}::Errors::SerializationError
+    end
+
     it 'bhv_unions_007 raises for anyOf payload matching no variant' do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty
@@ -351,6 +421,16 @@ describe 'Composed Schema' do
     # as raw text). The deserialize side goes through the normal #deserialize
     # entry point, which dispatches to the union's #build.
 
+    it 'bhv_serialization_088 byte values are written as base64 strings, including each element of a list' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
+      json = {{moduleName}}::ObjectSerializer.serialize(encoded)
+
+      _(json).must_equal('"AQIDBA=="')
+      _(json).wont_equal('[1,2,3,4]')
+      _(json).wont_include('[')
+    end
+
     it 'bhv_unions_019 serializes the scalar byte variant as a base64 string (not an int-array, not raw)' do
       raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
       encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
@@ -359,6 +439,15 @@ describe 'Composed Schema' do
       _(json).must_equal('"AQIDBA=="')
       _(json).wont_equal('[1,2,3,4]')
       _(json).wont_include('[')
+    end
+
+    it 'bhv_serialization_089 a base64 string on the wire decodes into a byte value' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      result = {{moduleName}}::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+
+      _(result).must_be_kind_of(String)
+      _(result.bytes).must_equal([0x01, 0x02, 0x03, 0x04])
+      _(result.b).must_equal(raw.b)
     end
 
     it 'bhv_unions_023 deserializes a base64 string back to the original scalar bytes (round-trip)' do

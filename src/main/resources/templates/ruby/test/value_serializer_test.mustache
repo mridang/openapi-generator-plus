@@ -377,6 +377,11 @@ describe {{moduleName}}::ValueSerializer do
     end
 
     describe 'null style falls back to location default' do
+      it 'bhv_serialization_108 a parameter with no declared style uses the default style for its location' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
+        _(result).must_equal('5')
+      end
+
       it 'bhv_serializationparam_106 path with null style behaves like simple' do
         result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
         _(result).must_equal('5')
@@ -514,6 +519,11 @@ describe {{moduleName}}::ValueSerializer do
         .must_equal(';name=a%2Fb,c')
     end
 
+    it 'bhv_operations_165 a path parameter is written in the serialization style the operation declares' do
+      result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'a b', :path, 'string', nil, 'matrix', false)
+      _(result).must_equal(';color=a%20b')
+    end
+
     it 'bhv_serializationparam_059 matrix style encodes value' do
       result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'a b', :path, 'string', nil, 'matrix', false)
       _(result).must_equal(';color=a%20b')
@@ -629,6 +639,12 @@ describe {{moduleName}}::ValueSerializer do
     it 'bhv_serializationparam_028 Date in path returns YYYY-MM-DD' do
       date = Date.new(2024, 1, 15)
       _({{moduleName}}::ValueSerializer.serialize(date, :path, 'string')).must_equal('2024-01-15')
+    end
+
+    it 'bhv_operations_162 a date-only parameter is sent as a bare date with no time component' do
+      date = Date.new(2024, 1, 15)
+      result = {{moduleName}}::ValueSerializer.serialize_styled('since', date, :path, 'string', nil, 'simple', false)
+      _(result).must_equal('2024-01-15')
     end
 
     it 'bhv_serializationparam_054 Date via serialize_styled simple returns YYYY-MM-DD' do

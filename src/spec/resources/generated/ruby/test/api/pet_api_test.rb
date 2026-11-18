@@ -660,7 +660,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     # S16 / F406: a caller-supplied stream is read, never closed.
-    it 'leaves a caller-supplied upload stream open' do
+    it 'bhv_transport_091 leaves a caller-supplied upload stream open' do
       api, server, thread, captured_body, = capture_document_request
       begin
         io = StringIO.new('doc')
@@ -956,6 +956,26 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
+    it 'bhv_operations_164 raises ArgumentError when the required query param category is nil' do
+      # Deliberately breaks the signature, which types category as String.
+      # @type var missing: untyped
+      missing = nil
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
+    it 'bhv_misc_004 calling an operation with required fields and no options object raises naming the first missing field' do
+      # Deliberately breaks the signature, which types category as String.
+      # @type var missing: untyped
+      missing = nil
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
     it 'bhv_operations_125 raises ArgumentError naming the required query param category when it is nil' do
       # Deliberately breaks the signature, which types category as String.
       # @type var missing: untyped
@@ -966,7 +986,7 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
-    it 'raises ArgumentError when the required path param name is nil' do
+    it 'bhv_misc_012 raises ArgumentError when the required path param name is nil' do
       err = assert_raises(ArgumentError) do
         @api.get_pet_by_name(nil, Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
       end
@@ -1838,6 +1858,13 @@ describe Petstore::Client::Api::PetApi do
       api = Petstore::Client::Api::PetApi.new(client, config)
       yield api, operation_server
       client.url
+    end
+
+    it 'bhv_operations_160 a call to an external-variant operation is sent to the URL of the generated server variant' do
+      url = url_sent_to(Petstore::Client::Api::GetExternalPetInfoServerServer0.new) do |api, server|
+        api.get_external_pet_info(7, server: server)
+      end
+      _(url).must_equal 'https://external-api.example.com/v1/pet/7/external'
     end
 
     it 'bhv_operations_083 sends the single-server operation to its fixed URL' do

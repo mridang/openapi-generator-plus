@@ -27,6 +27,34 @@ describe 'Metadata' do
     _(metadata).must_be_kind_of(Petstore::Client::Models::Metadata)
   end
 
+  it 'bhv_serialization_067 extra properties are written as top-level keys beside the declared fields' do
+    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
+    metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
+
+    # Undeclared keys are captured (not silently dropped) so a round-trip
+    # preserves them, matching the SDKs that round-trip additionalProperties.
+    _(metadata.additional_properties).must_equal('customField' => 'hello', 'count' => '3')
+
+    data = JSON.parse(Petstore::Client::ObjectSerializer.serialize(metadata))
+    _(data['customField']).must_equal('hello')
+    _(data['count']).must_equal('3')
+    _(data['createdAt']).wont_be_nil
+  end
+
+  it 'bhv_models_026 undeclared keys in incoming JSON survive deserialization and are written back at the top level' do
+    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
+    metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
+
+    # Undeclared keys are captured (not silently dropped) so a round-trip
+    # preserves them, matching the SDKs that round-trip additionalProperties.
+    _(metadata.additional_properties).must_equal('customField' => 'hello', 'count' => '3')
+
+    data = JSON.parse(Petstore::Client::ObjectSerializer.serialize(metadata))
+    _(data['customField']).must_equal('hello')
+    _(data['count']).must_equal('3')
+    _(data['createdAt']).wont_be_nil
+  end
+
   it 'bhv_models_001 captures and round-trips additionalProperties' do
     json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
     metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
@@ -125,7 +153,7 @@ describe 'Metadata', 'with' do
     _(metadata.inspect).must_include 'customField'
   end
 
-  it 'returns a copy with the changes applied and leaves the receiver as it was' do
+  it 'bhv_serialization_079 returns a copy with the changes applied and leaves the receiver as it was' do
     original = Petstore::Client::Models::Metadata.new(
       created_at: Time.utc(2024, 1, 1, 0, 0, 0),
       additional_properties: { 'customField' => 'a' }
@@ -156,6 +184,17 @@ describe 'Metadata', 'round-trip and constants' do
     data = JSON.parse(json)
 
     _(data['createdAt']).wont_be_nil
+  end
+
+  it 'bhv_models_025 two instances that differ only in undeclared extra properties are not equal' do
+    first = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
+    same = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
+    other = Petstore::Client::ObjectSerializer.deserialize('{"customField":"b"}', 'Metadata')
+
+    _(first).must_equal(same)
+    _(first.hash).must_equal(same.hash)
+    _(first).wont_equal(other)
+    _(first.eql?(other)).must_equal(false)
   end
 
   it 'bhv_models_005 equality includes the additional properties' do
@@ -293,6 +332,11 @@ describe 'Metadata', 'copy, equality and enum contract' do
     _(Set.new([first, same]).size).must_equal(1)
   end
 
+  it 'bhv_serialization_101 an integer-backed enum is written as a JSON number and a number decodes back to its member' do
+    _(Petstore::Client::Models::Priority::NUMBER_1).must_equal(1)
+    _(Petstore::Client::Models::Priority::NUMBER_3).must_equal(3)
+  end
+
   it 'bhv_models_021 each member of an integer-backed enum carries its declared number as its value' do
     _(Petstore::Client::Models::Priority::NUMBER_1).must_equal(1)
     _(Petstore::Client::Models::Priority::NUMBER_3).must_equal(3)
@@ -306,6 +350,12 @@ describe 'Metadata', 'copy, equality and enum contract' do
 
   it 'bhv_models_024 a newly built model leaves its optional properties unset' do
     _(Petstore::Client::Models::Metadata.new.created_at).must_be_nil
+  end
+
+  it 'bhv_serialization_114 numeric values keep every digit when serialized, including long decimals and full 64-bit integers' do
+    short = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.5}', 'Pet')
+    padded = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.50}', 'Pet')
+    _(short).must_equal(padded)
   end
 
   it 'bhv_models_018 models whose decimal fields hold numerically equal values compare equal' do

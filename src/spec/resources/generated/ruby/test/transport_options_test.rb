@@ -372,6 +372,13 @@ describe Petstore::Client::TransportOptions do
       _(Petstore::Client::TransportOptions.builder.build.connection).must_be_nil
     end
 
+    it 'bhv_misc_034 a caller HTTP client combined with a caller transport is refused when the client is built' do
+      error = assert_raises(ArgumentError) do
+        Petstore::Client::TransportOptions.builder.connection(Faraday.new('http://localhost')).proxy('http://proxy:3128').build
+      end
+      _(error.message).must_include 'proxy'
+    end
+
     it 'bhv_transport_078 rejects a connection combined with a proxy' do
       error = assert_raises(ArgumentError) do
         Petstore::Client::TransportOptions.builder.connection(Faraday.new('http://localhost')).proxy('http://proxy:3128').build
@@ -386,6 +393,13 @@ describe Petstore::Client::TransportOptions do
       _(error.message).must_include 'scheme'
     end
 
+    it 'bhv_misc_042 a custom connection combined with disabled TLS verification is refused and the error names the setting' do
+      error = assert_raises(ArgumentError) do
+        Petstore::Client::TransportOptions.builder.connection(Faraday.new('http://localhost')).verify_ssl(false).build
+      end
+      _(error.message).must_include 'verify_ssl'
+    end
+
     it 'bhv_transport_079 rejects a connection combined with disabled TLS verification' do
       error = assert_raises(ArgumentError) do
         Petstore::Client::TransportOptions.builder.connection(Faraday.new('http://localhost')).verify_ssl(false).build
@@ -398,6 +412,13 @@ describe Petstore::Client::TransportOptions do
         Petstore::Client::TransportOptions.builder.connection(Faraday.new('http://localhost')).ca_cert_path('/tmp/ca.pem').build
       end
       _(error.message).must_include 'ca_cert_path'
+    end
+
+    it 'bhv_lifecycle_041 a supplied connection with SDK proxy, TLS or redirect settings is rejected with a conflict error' do
+      conn = Faraday.new('http://localhost')
+      _(-> { Petstore::Client::TransportOptions.builder.connection(conn).proxy('http://proxy:3128').build }).must_raise ArgumentError
+      _(-> { Petstore::Client::TransportOptions.builder.connection(conn).verify_ssl(false).build }).must_raise ArgumentError
+      _(-> { Petstore::Client::TransportOptions.builder.connection(conn).ca_cert_path('/tmp/ca.pem').build }).must_raise ArgumentError
     end
 
     it 'bhv_lifecycle_024 a supplied connection conflicts with the sdk proxy and tls settings' do

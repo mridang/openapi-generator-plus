@@ -513,7 +513,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   end
 
   ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
-    it "bhv_authoauthtwotokenmgr_046 expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
+    it "bhv_auth_056 expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
       client = FakeTokenClient.new([
                                      { status: 200, body: { 'access_token' => 'first', 'expires_in' => raw } },
                                      { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
@@ -544,7 +544,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     end
   end
 
-  it 'bhv_authoauthtwotokenmgr_045 expires_in as a padded decimal string with a fraction is accepted' do
+  it 'bhv_auth_056 expires_in as a padded decimal string with a fraction is accepted' do
     client = FakeTokenClient.new([
                                    { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
                                  ])
