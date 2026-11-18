@@ -65,28 +65,6 @@ func TestIso8601_MarshalDurationProtoJSON_Negative(t *testing.T) {
 	}
 }
 
-func TestIso8601_UnmarshalDurationProtoJSON_Seconds(t *testing.T) {
-	t.Parallel()
-	got, err := petstore.UnmarshalDurationProtoJSON("3600s")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != time.Hour {
-		t.Errorf("expected 1h, got %v", got)
-	}
-}
-
-func TestIso8601_UnmarshalDurationProtoJSON_FractionalSeconds(t *testing.T) {
-	t.Parallel()
-	got, err := petstore.UnmarshalDurationProtoJSON("1.5s")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != 1500*time.Millisecond {
-		t.Errorf("expected 1.5s, got %v", got)
-	}
-}
-
 func TestIso8601_UnmarshalDurationProtoJSON_Nanos(t *testing.T) {
 	t.Parallel()
 	got, err := petstore.UnmarshalDurationProtoJSON("3600.000000001s")

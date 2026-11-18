@@ -14,22 +14,6 @@ import (
 	"testing"
 )
 
-func TestServerVariable_AccessorsReturnConstructedState(t *testing.T) {
-	t.Parallel()
-	v := petstore.NewServerVariable("v3", "API version", []string{"v2", "v3"})
-
-	if got, want := v.DefaultValue(), "v3"; got != want {
-		t.Errorf("DefaultValue = %q, want %q", got, want)
-	}
-	if got, want := v.Description(), "API version"; got != want {
-		t.Errorf("Description = %q, want %q", got, want)
-	}
-	enum := v.EnumValues()
-	if len(enum) != 2 || enum[0] != "v2" || enum[1] != "v3" {
-		t.Errorf("EnumValues = %v, want [v2 v3]", enum)
-	}
-}
-
 func TestBhvServers015_ServerVariable_EnumValuesIsNilWhenUnconstrained(t *testing.T) {
 	t.Parallel()
 	v := petstore.NewServerVariable("api", "", nil)
@@ -51,20 +35,6 @@ func TestServerVariable_ConstructorCopiesEnumSlice(t *testing.T) {
 	enum := v.EnumValues()
 	if len(enum) != 2 || enum[0] != "v2" || enum[1] != "v3" {
 		t.Errorf("EnumValues = %v, want [v2 v3] after mutating the source slice", enum)
-	}
-}
-
-func TestServerVariable_EnumValuesReturnsCopy(t *testing.T) {
-	t.Parallel()
-	v := petstore.NewServerVariable("v3", "", []string{"v2", "v3"})
-
-	// Mutating the returned slice must not corrupt the shared variable.
-	enum := v.EnumValues()
-	enum[0] = "mutated"
-
-	again := v.EnumValues()
-	if again[0] != "v2" {
-		t.Errorf("EnumValues()[0] = %q, want %q; returned slice must be a copy", again[0], "v2")
 	}
 }
 

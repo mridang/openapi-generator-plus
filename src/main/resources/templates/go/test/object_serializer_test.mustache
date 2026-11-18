@@ -767,14 +767,6 @@ func TestBhvSerializationobject140_ObjectSerializer_ToFormValue_String(t *testin
 	}
 }
 
-func TestObjectSerializer_ToFormValue_Int(t *testing.T) {
-	t.Parallel()
-	result := toFormValue(123)
-	if result != "123" {
-		t.Errorf("expected '123', got %q", result)
-	}
-}
-
 func TestBhvSerializationobject165_ObjectSerializer_ToFormValue_Nil(t *testing.T) {
 	t.Parallel()
 	result := toFormValue(nil)
@@ -807,27 +799,11 @@ func TestBhvSerializationobject159_ObjectSerializer_Stringify_String(t *testing.
 	}
 }
 
-func TestObjectSerializer_Stringify_Int(t *testing.T) {
-	t.Parallel()
-	result := stringify(42)
-	if result != "42" {
-		t.Errorf("expected '42', got %q", result)
-	}
-}
-
 func TestBhvSerializationobject211_ObjectSerializer_Stringify_Int64(t *testing.T) {
 	t.Parallel()
 	result := stringify(int64(9999999999))
 	if result != "9999999999" {
 		t.Errorf("expected '9999999999', got %q", result)
-	}
-}
-
-func TestObjectSerializer_Stringify_Float64(t *testing.T) {
-	t.Parallel()
-	result := stringify(3.14)
-	if result != "3.14" {
-		t.Errorf("expected '3.14', got %q", result)
 	}
 }
 

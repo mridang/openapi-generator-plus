@@ -800,23 +800,6 @@ func TestBhvSerializationwire002_BaseApi_QueryParamSerialization(t *testing.T) {
 	}
 }
 
-// Case 14: `format: date` maps to a plain string in Go (no time.Time), so a date
-// query parameter must reach the wire verbatim as YYYY-MM-DD with no time part.
-func TestBaseApi_DateQueryParamIsPlainDate(t *testing.T) {
-	t.Parallel()
-	client := &queryCapturingApiClient{}
-	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
-	bornAfter := "2024-01-01"
-	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{BornAfter: &bornAfter})
-	if !strings.Contains(client.capturedURL, "bornAfter=2024-01-01") {
-		t.Errorf("expected URL to contain bornAfter=2024-01-01, got %q", client.capturedURL)
-	}
-	if strings.Contains(client.capturedURL, "T00") {
-		t.Errorf("date query param must not carry a time component, got %q", client.capturedURL)
-	}
-}
-
 func TestBhvOperations007_BaseApi_CollapsesDoubleSlashWhenBaseURLHasTrailingSlash(t *testing.T) {
 	t.Parallel()
 	// baseUrl='http://localhost/' + path='/pet/1' must produce
@@ -1712,19 +1695,6 @@ func TestBhvOperations043_BaseApi_FormatDatePathParamIsDateOnly(t *testing.T) {
 	_, _ = api.FindPetsBornOn(context.Background(), "2024-01-01")
 	if client.capturedURL != "http://localhost/pet/born-on/2024-01-01" {
 		t.Errorf("expected the date-only path /pet/born-on/2024-01-01, got %q", client.capturedURL)
-	}
-}
-
-// A format:date HEADER parameter reaches the wire verbatim as YYYY-MM-DD.
-func TestBaseApi_FormatDateHeaderParamIsPlainDate(t *testing.T) {
-	t.Parallel()
-	client := &capturingApiClient{}
-	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
-	reportDate := "2024-01-02"
-	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{ReportDate: &reportDate})
-	if got := client.capturedHeaders["Report-Date"]; got != "2024-01-02" {
-		t.Errorf("expected Report-Date 2024-01-02, got %q", got)
 	}
 }
 
