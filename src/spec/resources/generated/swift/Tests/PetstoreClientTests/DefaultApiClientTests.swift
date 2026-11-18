@@ -1459,4 +1459,52 @@ import Testing
     #expect(response.body.contains("userId"))
   }
 
+  /* A client built with the default configuration, or with only a timeout, completes a request
+     and returns its response. */
+  @Test(arguments: [false, true])
+  func testBhvTransport082AClientWithDefaultsOrOnlyATimeoutCompletes(withTimeout: Bool) async throws
+  {
+    let client = try DefaultApiClient(
+      transportOptions: withTimeout ? TransportOptionsBuilder().timeout(10000).build() : nil)
+    let response = try await client.sendRequest(
+      method: "GET", url: chasmHttpUrl + "/test/echo", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+  }
+
+  /* Cancelling the Swift task of an in-flight request aborts it with the platform's
+     CancellationError, not a timeout error. */
+  @Test func testBhvTransport060CancellingAnInFlightCallAbortsItWithoutReportingATimeout()
+    async throws
+  {
+    let client = DefaultApiClient()
+    let task = Task {
+      try await client.sendRequest(
+        method: "GET", url: chasmHttpUrl + "/test/slow", headers: [:], body: nil)
+    }
+    try await Task.sleep(nanoseconds: 300_000_000)
+    task.cancel()
+    let error: (any Error)?
+    do {
+      _ = try await task.value
+      error = nil
+    } catch let caught {
+      error = caught
+    }
+    #expect(error is CancellationError)
+    #expect(!(error is NetworkTimeoutError))
+  }
+
+  /* A caller-supplied session carries the request of the SDK, with the caller's headers unchanged. */
+  @Test func testBhvTransport081ASuppliedSessionCarriesTheRequestUnchanged() async throws {
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.finishTasksAndInvalidate() }
+    let transport = try TransportOptionsBuilder().session(session).build()
+    let client = try DefaultApiClient(transportOptions: transport)
+    let response = try await client.sendRequest(
+      method: "GET", url: chasmHttpUrl + "/test/echo", headers: ["X-Caller": "1"],
+      body: nil)
+    #expect(response.statusCode == 200)
+    #expect(try echoedHeaders(response)["x-caller"] as? String == "1")
+  }
+
 }
