@@ -1151,7 +1151,7 @@ describe('ObjectSerializer', () => {
     // return Foo instances, not raw JSON values. The dedicated
     // `deserializeMap` helper walks the entries.
 
-    test('deserializeMap returns model instances for each value', () => {
+    test('bhv serializationobject 229 deserializeMap returns model instances for each value', () => {
       const wire = {
         dogs: { id: 1, name: 'Dogs' },
         cats: { id: 2, name: 'Cats' },
@@ -1457,7 +1457,7 @@ describe('ObjectSerializer', () => {
         expect(() => Temporal.PlainTime.from('25:99:99')).toThrow();
       });
 
-      test('round-trip: stringify then PlainTime.from yields an equal value', () => {
+      test('bhv serializationobject 230 round-trip: stringify then PlainTime.from yields an equal value', () => {
         const original = Temporal.PlainTime.from('11:22:33');
         const restored = Temporal.PlainTime.from(ObjectSerializer.stringify(original));
         expect(restored.equals(original)).toBe(true);
@@ -2463,6 +2463,13 @@ describe('toBinary', () => {
       expect(decoded.true).toBe(true);
       expect(decoded.false).toBe(false);
       expect(decoded.n2fa).toBe(true);
+    });
+
+    test('bhv serializationobject 231 a payload that omits the optional fields leaves them unset', () => {
+      const decoded = ObjectSerializer.deserialize({ username: 'u' }, Account)!;
+
+      expect(decoded.id).toBeUndefined();
+      expect(decoded.password).toBeUndefined();
     });
 
     test('bhv serializationobject 014 a readOnly property is decoded', () => {

@@ -66,7 +66,7 @@ describe("Metadata", () => {
       }
     });
 
-    test("a model externalDocs description is rendered raw, without HTML entities", () => {
+    test("bhv serializationobject 227 a model externalDocs description is rendered raw, without HTML entities", () => {
       const source = fs.readFileSync(
         path.resolve(__dirname, "..", "src", "models", "account.ts"),
         "utf-8",

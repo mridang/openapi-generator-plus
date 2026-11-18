@@ -14,6 +14,10 @@ import { SerializationError } from "../src/errors/serialization-error.js";
 
 describe("ValueSerializer", () => {
   describe("path location", () => {
+    test("bhv serializationparam 119 a tilde is kept literal in a path parameter value", () => {
+      expect(ValueSerializer.serialize("a~b", "path", "string")).toBe("a~b");
+    });
+
     test("bhv serializationparam 065 null returns empty string", () => {
       expect(ValueSerializer.serialize(null, "path", "string")).toBe("");
     });
@@ -116,6 +120,12 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.serialize(["a", "b", "c"], "query", "array")).toBe(
         "a,b,c",
       );
+    });
+
+    test("bhv serializationparam 115 a csv array keeps an empty slot for a null element", () => {
+      expect(
+        ValueSerializer.serialize(["a", null, "c"], "query", "array", "csv"),
+      ).toBe("a,,c");
     });
 
     test("bhv serializationparam 007 array joins with comma for csv", () => {
@@ -592,6 +602,20 @@ describe("ValueSerializer", () => {
       },
     );
 
+    test("bhv serializationparam 117 a Set in form style without explode joins its elements with commas like an array", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "labels",
+          new Set(["red", "blue"]),
+          "query",
+          "Set<string>",
+          null,
+          "form",
+          false,
+        ),
+      ).toBe("red,blue");
+    });
+
     test("simple style joins the Set elements", () => {
       expect(
         ValueSerializer.serializeStyled(
@@ -743,6 +767,20 @@ describe("ValueSerializer", () => {
       ).toBe("5");
     });
 
+    test("bhv serializationparam 109 an unknown style falls back to plain value serialization", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "color",
+          "a b",
+          "query",
+          "string",
+          null,
+          "unknownStyle",
+          false,
+        ),
+      ).toBe("a b");
+    });
+
     test("bhv serializationparam 035 empty style falls back to location default", () => {
       expect(
         ValueSerializer.serializeStyled(
@@ -806,7 +844,7 @@ describe("ValueSerializer", () => {
       ]);
     });
 
-    test("toWireMap rejects a nested object leaf", () => {
+    test("bhv serializationparam 108 toWireMap rejects a nested object leaf", () => {
       const error = (() => {
         try {
           ValueSerializer.toWireMap("criteria", { inner: { deeper: 1 } });
@@ -897,7 +935,7 @@ describe("ValueSerializer", () => {
       ).toBe("2024-01-01T00:00:00.000+00:00");
     });
 
-    test("deepObject uses wire names and rejects a nested leaf", () => {
+    test("bhv serializationparam 111 deepObject uses wire names and rejects a nested leaf", () => {
       expect(
         ValueSerializer.serializeDeepObject(
           "criteria",
@@ -1166,7 +1204,7 @@ describe("ValueSerializer", () => {
   /* `format: date` is a plain YYYY-MM-DD string: stringifyDate validates it and
    * sends it unchanged, and reads a Date as its UTC date. */
   describe("format:date stringifyDate helper", () => {
-    test("Date instance returns YYYY-MM-DD (UTC)", () => {
+    test("bhv serializationparam 110 Date instance returns YYYY-MM-DD (UTC)", () => {
       const date = new Date(Date.UTC(2024, 0, 15, 14, 30, 45));
       expect(ValueSerializer.stringifyDate(date)).toBe("2024-01-15");
     });
@@ -1277,7 +1315,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("encodeQueryComponent", () => {
-    test("encodes a content cookie value to the shared bytes", () => {
+    test("bhv serializationparam 118 encodes a content cookie value to the shared bytes", () => {
       const json = JSON.stringify({ k: "a b~*\u00e9" });
       const encoded = ValueSerializer.encodeQueryComponent(json);
       expect(encoded).toBe("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D");

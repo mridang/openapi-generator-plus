@@ -1098,7 +1098,7 @@ describe("PetApi request content-type selector", () => {
 
 describe("PetApi operation servers", () => {
   test.each(["a$&b", "{version}", "unknown"])(
-    "a server variable value outside the declared enum is rejected: %s",
+    "bhv servers 020 a server variable value outside the declared enum is rejected: %s",
     (value) => {
       expect(
         () =>
@@ -1109,6 +1109,15 @@ describe("PetApi operation servers", () => {
       ).toThrow(/Invalid value .* for server variable 'environment'/);
     },
   );
+
+  test("bhv servers 021 a server URL with special characters in its default and enum values resolves to the raw characters", () => {
+    const server = Servers.SERVER_2;
+
+    expect(server.getUrl()).toBe("https://o'neil.example.com/api");
+    expect(server.getUrl({ tenant: "a&b" })).toBe(
+      "https://a&b.example.com/api",
+    );
+  });
 
   test("a declared server variable value is substituted into the URL", () => {
     const server = new GetStagingPetInfoServerStagingServer(
@@ -1352,6 +1361,14 @@ describe("PetApi against a recording client", () => {
       expect(recorded[0]!.url).toContain(`/pet/byName/${name}?`);
     },
   );
+
+  test("bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire", async () => {
+    await recordingApi.getPetTag(5, "sample", {
+      revision: "v1.0/beta:rc1@x,y;z=1",
+    });
+
+    expect(recorded[0]!.url).toContain("revision=v1.0/beta:rc1@x,y;z=1");
+  });
 
   test("bhv operations 066 getPetTag percent-encodes # in an allowReserved value", async () => {
     await recordingApi.getPetTag(5, "sample", {
@@ -1602,7 +1619,7 @@ describe("PetApi against a recording client", () => {
     );
   });
 
-  test("getPetSummary sends each format:date array item as YYYY-MM-DD", async () => {
+  test("bhv serializationparam 120 getPetSummary sends each format:date array item as YYYY-MM-DD", async () => {
     await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {
       session: "abc",
       days: [

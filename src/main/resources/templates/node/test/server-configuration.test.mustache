@@ -54,7 +54,7 @@ describe('ServerConfiguration', () => {
     expect(config.getUrl()).toBe('https://{version}.api.example.com/v2');
   });
 
-  it('substitutes a value containing replacement patterns literally', () => {
+  it('bhv servers 023 substitutes a value containing replacement patterns literally', () => {
     const config = new ServerConfiguration(
       'https://{env}.api.example.com',
       null,
