@@ -7,6 +7,7 @@
 #nullable enable
 
 using PetstoreClient;
+using PetstoreClient.Api;
 using PetstoreClient.Auth;
 using PetstoreClient.Auth.OAuth;
 using Xunit;
@@ -196,6 +197,207 @@ public sealed class ClientTest : IDisposable
             Disposed = true;
             base.Dispose(disposing);
         }
+    }
+
+    [Fact]
+    public void BhvMocking001EveryGroupHasAnInterfaceTheClassImplements()
+    {
+        Assert.True(typeof(IPetApi).IsAssignableFrom(typeof(PetApi)));
+        var PetListed = typeof(IPetApi).GetMethods().Select(m => m.Name).ToHashSet();
+        Assert.Contains("AddPetAsync", PetListed);
+        Assert.Contains("AddPetWithHttpInfoAsync", PetListed);
+        Assert.Contains("AddPetPhotosAsync", PetListed);
+        Assert.Contains("AddPetPhotosWithHttpInfoAsync", PetListed);
+        Assert.Contains("AddPetTreatmentAsync", PetListed);
+        Assert.Contains("AddPetTreatmentWithHttpInfoAsync", PetListed);
+        Assert.Contains("DeletePetAsync", PetListed);
+        Assert.Contains("DeletePetWithHttpInfoAsync", PetListed);
+        Assert.Contains("DownloadPetDocumentAsync", PetListed);
+        Assert.Contains("DownloadPetDocumentWithHttpInfoAsync", PetListed);
+        Assert.Contains("FindPetsBornOnAsync", PetListed);
+        Assert.Contains("FindPetsBornOnWithHttpInfoAsync", PetListed);
+        Assert.Contains("FindPetsByStatusAsync", PetListed);
+        Assert.Contains("FindPetsByStatusWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetExternalPetInfoAsync", PetListed);
+        Assert.Contains("GetExternalPetInfoWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetMultiServerPetInfoAsync", PetListed);
+        Assert.Contains("GetMultiServerPetInfoWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetPetAvatarAsync", PetListed);
+        Assert.Contains("GetPetAvatarWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetPetAvatarThumbnailAsync", PetListed);
+        Assert.Contains("GetPetAvatarThumbnailWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetPetByIdAsync", PetListed);
+        Assert.Contains("GetPetByIdWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetPetByNameAsync", PetListed);
+        Assert.Contains("GetPetByNameWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetPetPassportAsync", PetListed);
+        Assert.Contains("GetPetPassportWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetPetPhotoAsync", PetListed);
+        Assert.Contains("GetPetPhotoWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetPetSummaryAsync", PetListed);
+        Assert.Contains("GetPetSummaryWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetPetTagAsync", PetListed);
+        Assert.Contains("GetPetTagWithHttpInfoAsync", PetListed);
+        Assert.Contains("GetStagingPetInfoAsync", PetListed);
+        Assert.Contains("GetStagingPetInfoWithHttpInfoAsync", PetListed);
+        Assert.Contains("SetPetAvatarAsync", PetListed);
+        Assert.Contains("SetPetAvatarWithHttpInfoAsync", PetListed);
+        Assert.Contains("SetPetAvatarThumbnailAsync", PetListed);
+        Assert.Contains("SetPetAvatarThumbnailWithHttpInfoAsync", PetListed);
+        Assert.Contains("SetPetPreferencesAsync", PetListed);
+        Assert.Contains("SetPetPreferencesWithHttpInfoAsync", PetListed);
+        Assert.Contains("UpdatePetAsync", PetListed);
+        Assert.Contains("UpdatePetWithHttpInfoAsync", PetListed);
+        Assert.Contains("UploadPetCertificateAsync", PetListed);
+        Assert.Contains("UploadPetCertificateWithHttpInfoAsync", PetListed);
+        Assert.Contains("UploadPetDocumentAsync", PetListed);
+        Assert.Contains("UploadPetDocumentWithHttpInfoAsync", PetListed);
+        Assert.True(typeof(IProblemsApi).IsAssignableFrom(typeof(ProblemsApi)));
+        var ProblemsListed = typeof(IProblemsApi).GetMethods().Select(m => m.Name).ToHashSet();
+        Assert.Contains("GetFallbackAsync", ProblemsListed);
+        Assert.Contains("GetFallbackWithHttpInfoAsync", ProblemsListed);
+        Assert.Contains("GetMemberAsync", ProblemsListed);
+        Assert.Contains("GetMemberWithHttpInfoAsync", ProblemsListed);
+        Assert.Contains("GetProjectAsync", ProblemsListed);
+        Assert.Contains("GetProjectWithHttpInfoAsync", ProblemsListed);
+        Assert.Contains("GetRangeAsync", ProblemsListed);
+        Assert.Contains("GetRangeWithHttpInfoAsync", ProblemsListed);
+        Assert.Contains("GetUpstreamAsync", ProblemsListed);
+        Assert.Contains("GetUpstreamWithHttpInfoAsync", ProblemsListed);
+        Assert.Contains("TakeLockAsync", ProblemsListed);
+        Assert.Contains("TakeLockWithHttpInfoAsync", ProblemsListed);
+        Assert.True(typeof(IStoreApi).IsAssignableFrom(typeof(StoreApi)));
+        var StoreListed = typeof(IStoreApi).GetMethods().Select(m => m.Name).ToHashSet();
+        Assert.Contains("CreateAccountAsync", StoreListed);
+        Assert.Contains("CreateAccountWithHttpInfoAsync", StoreListed);
+        Assert.Contains("DeleteOrderAsync", StoreListed);
+        Assert.Contains("DeleteOrderWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetBySwatchAsync", StoreListed);
+        Assert.Contains("GetBySwatchWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetDefaultsAsync", StoreListed);
+        Assert.Contains("GetDefaultsWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetDepartmentAsync", StoreListed);
+        Assert.Contains("GetDepartmentWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetGroupedCategoriesAsync", StoreListed);
+        Assert.Contains("GetGroupedCategoriesWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetInventoryAsync", StoreListed);
+        Assert.Contains("GetInventoryWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetMatrixAsync", StoreListed);
+        Assert.Contains("GetMatrixWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetOrderByIdAsync", StoreListed);
+        Assert.Contains("GetOrderByIdWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetOrderByTrackingIdAsync", StoreListed);
+        Assert.Contains("GetOrderByTrackingIdWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetStockItemAsync", StoreListed);
+        Assert.Contains("GetStockItemWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetSwatchAsync", StoreListed);
+        Assert.Contains("GetSwatchWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetSwatchGroupsAsync", StoreListed);
+        Assert.Contains("GetSwatchGroupsWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetTimestampGroupsAsync", StoreListed);
+        Assert.Contains("GetTimestampGroupsWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetTreeAsync", StoreListed);
+        Assert.Contains("GetTreeWithHttpInfoAsync", StoreListed);
+        Assert.Contains("PlaceOrderAsync", StoreListed);
+        Assert.Contains("PlaceOrderWithHttpInfoAsync", StoreListed);
+        Assert.Contains("ReserveStockAsync", StoreListed);
+        Assert.Contains("ReserveStockWithHttpInfoAsync", StoreListed);
+        Assert.Contains("SearchStoreAsync", StoreListed);
+        Assert.Contains("SearchStoreWithHttpInfoAsync", StoreListed);
+    }
+
+    private static SortedSet<string> PublicMethodNames(
+        IEnumerable<System.Reflection.MethodInfo> methods
+    ) => new(methods.Where(m => !m.IsSpecialName).Select(m => m.Name));
+
+    [Fact]
+    public void BhvMocking002GroupInterfaceListsExactlyThePublicOperationsOfTheClass()
+    {
+        Assert.Equal(
+            PublicMethodNames(
+                typeof(PetApi).GetMethods(
+                    System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.Instance
+                        | System.Reflection.BindingFlags.DeclaredOnly
+                )
+            ),
+            PublicMethodNames(typeof(IPetApi).GetMethods())
+        );
+        Assert.Equal(
+            PublicMethodNames(
+                typeof(ProblemsApi).GetMethods(
+                    System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.Instance
+                        | System.Reflection.BindingFlags.DeclaredOnly
+                )
+            ),
+            PublicMethodNames(typeof(IProblemsApi).GetMethods())
+        );
+        Assert.Equal(
+            PublicMethodNames(
+                typeof(StoreApi).GetMethods(
+                    System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.Instance
+                        | System.Reflection.BindingFlags.DeclaredOnly
+                )
+            ),
+            PublicMethodNames(typeof(IStoreApi).GetMethods())
+        );
+    }
+
+    [Fact]
+    public async Task BhvMocking007ClientInterfaceExposesEveryGroupTypedAsItsInterfaceAndDispose()
+    {
+        var client = new Client(_authenticator);
+        IClient viaInterface = client;
+
+        Assert.Equal(typeof(IPetApi), typeof(IClient).GetProperty("Pet")!.PropertyType);
+        Assert.Same(client.Pet, viaInterface.Pet);
+        Assert.Equal(typeof(IProblemsApi), typeof(IClient).GetProperty("Problems")!.PropertyType);
+        Assert.Same(client.Problems, viaInterface.Problems);
+        Assert.Equal(typeof(IStoreApi), typeof(IClient).GetProperty("Store")!.PropertyType);
+        Assert.Same(client.Store, viaInterface.Store);
+        viaInterface.Dispose();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.Store.GetInventoryAsync());
+    }
+
+    private sealed class FakeClient : IClient
+    {
+        public int Disposed { get; private set; }
+
+        public IPetApi Pet { get; } = System.Reflection.DispatchProxy.Create<IPetApi, NullProxy>();
+
+        public IProblemsApi Problems { get; } =
+            System.Reflection.DispatchProxy.Create<IProblemsApi, NullProxy>();
+
+        public IStoreApi Store { get; } =
+            System.Reflection.DispatchProxy.Create<IStoreApi, NullProxy>();
+
+        public void Dispose() => Disposed++;
+    }
+
+    public class NullProxy : System.Reflection.DispatchProxy
+    {
+        protected override object? Invoke(
+            System.Reflection.MethodInfo? targetMethod,
+            object?[]? args
+        ) => null;
+    }
+
+    [Fact]
+    public void BhvMocking008ClientBuiltFromFakesNeverConnectsAndDisposesWithoutError()
+    {
+        var fake = new FakeClient();
+        IClient viaInterface = fake;
+
+        Assert.NotNull(viaInterface.Pet);
+        Assert.NotNull(viaInterface.Problems);
+        Assert.NotNull(viaInterface.Store);
+        viaInterface.Dispose();
+        viaInterface.Dispose();
+
+        Assert.Equal(2, fake.Disposed);
     }
 
     private const string HostVariable = "SWAGGER_PETSTORE_OPEN_API_3_0_HOST";

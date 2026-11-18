@@ -89,7 +89,7 @@ public sealed class {{serverTypeName}}{{variantName}} : {{serverTypeName}}
 {{#tagExternalDocs}}
 /// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/tagExternalDocs}}
-public class {{classname}} : BaseApi
+public class {{classname}} : BaseApi, I{{classname}}
 {
 {{#operation}}{{#produces}}{{#-first}}
     private static readonly string[] {{operationId}}Accepts = [{{/-first}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{#-last}}];

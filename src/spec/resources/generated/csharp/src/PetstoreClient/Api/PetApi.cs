@@ -245,7 +245,7 @@ public sealed class GetStagingPetInfoServerStagingServer(
 /// </summary>
 /// <seealso href="https://example.com/docs/pets">Find out more about pets (it's */ here)
 /// on two lines</seealso>
-public class PetApi : BaseApi
+public class PetApi : BaseApi, IPetApi
 {
     private static readonly string[] AddPetAccepts = ["application/json"];
 

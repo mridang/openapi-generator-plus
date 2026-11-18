@@ -3,6 +3,7 @@
 using {{packageName}};
 using {{packageName}}.Auth;
 using {{packageName}}.Auth.OAuth;
+using {{packageName}}.{{apiPackage}};
 using Xunit;
 
 /* These tests exercise the SDK without a test-runner cancellation token on purpose. */
@@ -143,6 +144,102 @@ public sealed class ClientTest : IDisposable
             Disposed = true;
             base.Dispose(disposing);
         }
+    }
+
+    [Fact]
+    public void BhvMocking001EveryGroupHasAnInterfaceTheClassImplements()
+    {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        Assert.True(typeof(I{{classname}}).IsAssignableFrom(typeof({{classname}})));
+        var {{clientPropertyName}}Listed = typeof(I{{classname}}).GetMethods().Select(m => m.Name).ToHashSet();
+{{#operation}}
+        Assert.Contains("{{operationId}}Async", {{clientPropertyName}}Listed);
+        Assert.Contains("{{operationId}}WithHttpInfoAsync", {{clientPropertyName}}Listed);
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    private static SortedSet<string> PublicMethodNames(IEnumerable<System.Reflection.MethodInfo> methods) =>
+        new(methods.Where(m => !m.IsSpecialName).Select(m => m.Name));
+
+    [Fact]
+    public void BhvMocking002GroupInterfaceListsExactlyThePublicOperationsOfTheClass()
+    {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        Assert.Equal(
+            PublicMethodNames(typeof({{classname}}).GetMethods(
+                System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.DeclaredOnly)),
+            PublicMethodNames(typeof(I{{classname}}).GetMethods()));
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    [Fact]
+    public async Task BhvMocking007ClientInterfaceExposesEveryGroupTypedAsItsInterfaceAndDispose()
+    {
+        var client = new {{clientClassName}}(_authenticator);
+        I{{clientClassName}} viaInterface = client;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        Assert.Equal(typeof(I{{classname}}), typeof(I{{clientClassName}}).GetProperty("{{clientPropertyName}}")!.PropertyType);
+        Assert.Same(client.{{clientPropertyName}}, viaInterface.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        viaInterface.Dispose();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.Store.GetInventoryAsync());
+    }
+
+    private sealed class FakeClient : I{{clientClassName}}
+    {
+        public int Disposed { get; private set; }
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        public I{{classname}} {{clientPropertyName}} { get; } =
+            System.Reflection.DispatchProxy.Create<I{{classname}}, NullProxy>();
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        public void Dispose() => Disposed++;
+    }
+
+    public class NullProxy : System.Reflection.DispatchProxy
+    {
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args) => null;
+    }
+
+    [Fact]
+    public void BhvMocking008ClientBuiltFromFakesNeverConnectsAndDisposesWithoutError()
+    {
+        var fake = new FakeClient();
+        I{{clientClassName}} viaInterface = fake;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        Assert.NotNull(viaInterface.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        viaInterface.Dispose();
+        viaInterface.Dispose();
+
+        Assert.Equal(2, fake.Disposed);
     }
 
     private const string HostVariable = "{{envVarPrefix}}_HOST";

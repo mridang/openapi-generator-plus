@@ -17,7 +17,7 @@ namespace PetstoreClient.Api;
 /// ProblemsApi provides methods for the Problems API group.
 /// Operations that declare typed error responses
 /// </summary>
-public class ProblemsApi : BaseApi
+public class ProblemsApi : BaseApi, IProblemsApi
 {
     private static readonly string[] GetFallbackAccepts = ["application/json"];
 

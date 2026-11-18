@@ -1,0 +1,24 @@
+{{>api_info}}
+
+using {{packageName}}.{{apiPackage}};
+
+namespace {{packageName}};
+
+/// <summary>
+/// Contract of <see cref="{{clientClassName}}"/>: every API group typed as its group interface,
+/// plus <see cref="IDisposable.Dispose"/>. Depend on it instead of the class to substitute a
+/// hand-written fake client in your own tests; a fake client built from fake groups opens no
+/// connection, and disposing it does nothing.
+/// </summary>
+public interface I{{clientClassName}} : IDisposable
+{
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /// <summary>API operations for the {{classname}} group.</summary>
+    I{{classname}} {{clientPropertyName}} { get; }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}

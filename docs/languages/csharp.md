@@ -89,6 +89,7 @@ The model namespace is always `Models` and the API namespace is always `Api`; th
 - **Raw responses.** Every operation has a `...WithHttpInfoAsync` variant returning `ApiResult<T>`.
 - **Custom transport.** `TransportOptionsBuilder.HttpClient(...)` and `HttpMessageHandler(...)` carry requests on your own client or handler; combining them with `Proxy`, `CaCertPath` or `VerifySsl(false)` fails in `Build()` with `ArgumentException`. You can also implement `IApiClient` and inject it.
 - **Trimming.** The SDK works with `PublishTrimmed`; expect the `IL2026` and `IL2075` trim warnings that any reflection-based serializer produces.
+- Testing your code: `I<Group>Api` (file `I<Group>Api.cs`, named by an `apiFilename` override in `BetterCSharpCodegen`) and `IClient : IDisposable`. `Client` implements `IClient` and each group property through an explicit implementation, so `client.Pet` keeps its concrete type. The interface repeats the default parameter values of the class.
 
 ## Known limits
 

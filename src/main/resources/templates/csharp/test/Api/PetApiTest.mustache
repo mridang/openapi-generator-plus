@@ -1824,4 +1824,99 @@ public class PetApiTest
 
         await Assert.ThrowsAsync(expected, () => routed.GetPetByIdAsync(1L));
     }
+
+    /// <summary>A recording fake of the group: every call that reaches it is kept.</summary>
+    public class RecordingPetApi : System.Reflection.DispatchProxy
+    {
+        public List<object?[]> Calls { get; } = new();
+
+        public Exception? FailWith { get; set; }
+
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args)
+        {
+            Calls.Add(args ?? Array.Empty<object?>());
+            if (FailWith is not null)
+            {
+                return Task.FromException<Pet>(FailWith);
+            }
+
+            return Task.FromResult(new Pet("fake", new HashSet<string>()));
+        }
+    }
+
+    private static (IPetApi Api, RecordingPetApi Fake) FakeApi(Exception? failWith = null)
+    {
+        var api = System.Reflection.DispatchProxy.Create<IPetApi, RecordingPetApi>();
+        var fake = (RecordingPetApi)(object)api;
+        fake.FailWith = failWith;
+        return (api, fake);
+    }
+
+    // Code under test: it takes the group interface, never the generated class.
+    private static Task<Pet> LookUp(IPetApi group, long id) => group.GetPetByIdAsync(id);
+
+    private static async Task<string> Classify(Func<Task> call)
+    {
+        try
+        {
+            await call();
+            return "none";
+        }
+        catch ({{packageName}}.Errors.NotFoundException)
+        {
+            return "not found";
+        }
+        catch ({{packageName}}.Errors.ApiException)
+        {
+            return "api error";
+        }
+    }
+
+    [Fact]
+    public async Task BhvMocking003FakeIsAcceptedWhereTheInterfaceIsAcceptedAndReceivesTheArguments()
+    {
+        var (api, fake) = FakeApi();
+
+        var pet = await LookUp(api, 42L);
+
+        Assert.Equal("fake", pet.Name);
+        Assert.Single(fake.Calls);
+        Assert.Equal(42L, fake.Calls[0][0]);
+    }
+
+    [Fact]
+    public async Task BhvMocking004FakeRaisesTheTypedErrorAndTheCallerHandlesItLikeTheRealClients()
+    {
+        var (api, _) = FakeApi(new {{packageName}}.Errors.NotFoundException("missing"));
+        var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
+
+        Assert.Equal("not found", await Classify(() => LookUp(api, 1L)));
+        Assert.Equal(await Classify(() => LookUp(mockApi, 1L)), await Classify(() => LookUp(api, 1L)));
+        await Assert.ThrowsAsync<{{packageName}}.Errors.ApiException>(() => LookUp(api, 1L));
+    }
+
+    [Fact]
+    public async Task BhvMocking005InterfaceCallSendsTheSameRequestAndReturnsTheSameResultAsTheClassCall()
+    {
+        IPetApi viaInterface = _api;
+
+        var direct = await _api.GetPetByIdWithHttpInfoAsync(1L);
+        var through = await viaInterface.GetPetByIdWithHttpInfoAsync(1L);
+
+        Assert.Equal(direct.StatusCode, through.StatusCode);
+        Assert.Equal(direct.RawBody, through.RawBody);
+        Assert.Equal(direct.Data?.Id, through.Data?.Id);
+    }
+
+    [Fact]
+    public async Task BhvMocking006CallWithoutOptionsReachesTheFullSignatureWithNoneSet()
+    {
+        var (api, fake) = FakeApi();
+
+        await LookUp(api, 7L);
+
+        var call = Assert.Single(fake.Calls);
+        Assert.Equal(7L, call[0]);
+        Assert.All(call.Skip(1), a => Assert.True(a is null || a is CancellationToken));
+    }
 }

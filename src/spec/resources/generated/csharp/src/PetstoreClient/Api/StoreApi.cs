@@ -17,7 +17,7 @@ namespace PetstoreClient.Api;
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
 /// </summary>
-public class StoreApi : BaseApi
+public class StoreApi : BaseApi, IStoreApi
 {
     private static readonly string[] CreateAccountAccepts = ["application/json"];
 
