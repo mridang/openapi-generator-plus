@@ -3914,3 +3914,28 @@ async fn test_bhv_hooks_019_a_panic_in_finish_is_swallowed_and_the_caller_gets_i
     );
     assert_eq!(2, log.finishes.lock().unwrap().len());
 }
+
+#[tokio::test]
+async fn test_bhv_errors_092_every_request_error_carries_method_and_path_and_a_timeout_stays_a_timeout(
+) {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Timeout, Scripted::Status(200, None)],
+        2,
+        None,
+    );
+    let err = retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect_err("a timeout fails the call");
+    let timeout = err
+        .downcast_ref::<NetworkTimeoutError>()
+        .expect("a timeout stays a timeout");
+    assert_eq!(
+        Some("DELETE"),
+        timeout.network_error().api_error().request_method()
+    );
+    assert_eq!(
+        Some("/pet/1"),
+        timeout.network_error().api_error().request_path()
+    );
+}

@@ -43,6 +43,17 @@ void main() {
       },
     );
 
+    test(
+      'bhv config 026 the builder returns the base URL that was set on it',
+      () {
+        final config = ConfigurationBuilder()
+            .baseUrl('https://builder.example.com')
+            .build();
+
+        expect(config.baseUrl, equals('https://builder.example.com'));
+      },
+    );
+
     test('bhv config 011 builder sets baseUrl', () {
       final config = ConfigurationBuilder()
           .baseUrl('https://custom.example.com')

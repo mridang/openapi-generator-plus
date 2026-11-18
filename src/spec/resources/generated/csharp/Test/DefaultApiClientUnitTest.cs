@@ -3138,6 +3138,17 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public void BhvErrors098AMissingCaPathNamesTheCertificateAndWrapsTheNotFoundCause()
+    {
+        var transport = TransportOptions.Builder().CaCertPath("/nonexistent/ca.pem").Build();
+
+        var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
+
+        Assert.Contains("/nonexistent/ca.pem", ex.Message, StringComparison.Ordinal);
+        Assert.IsType<System.IO.FileNotFoundException>(ex.InnerException);
+    }
+
+    [Fact]
     public void BhvErrors041NonexistentCaCertPathThrowsArgumentExceptionAtConstruction()
     {
         // ca-cert-fail-fast: an explicitly configured CA certificate path that
