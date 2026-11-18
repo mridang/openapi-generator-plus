@@ -2306,3 +2306,4 @@ langnode087 | A constructed instance exposes its undeclared keys
 langnode088 | The undeclared-keys map is typed like an index signature
 langnode089 | The undeclared-keys map is not serialised as a data key
 langnode090 | The synchronous header getter throws rather than returning unauthenticated headers
+langnode091 | setAccessToken rejects a token containing a forbidden character
