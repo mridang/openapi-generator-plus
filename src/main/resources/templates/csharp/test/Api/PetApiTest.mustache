@@ -1083,6 +1083,94 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOperations159ASuccessWithAnEmptyBodyRaisesATypedApiError()
+    {
+        var mockApi = NewPetApiForMock(200, "application/json", "");
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.ApiException>(
+            () => mockApi.GetPetByIdAsync(1L));
+        Assert.Equal(200, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvOperations160AnExternalVariantOperationGoesToItsServerVariantUrl()
+    {
+        const string externalServer = "https://external-api.example.com/v1";
+        var redirecting = new RedirectingApiClient(externalServer, _baseUrl);
+        var externalApi = new PetApi(redirecting, _config);
+
+        _ = await externalApi.GetExternalPetInfoAsync(1L, new GetExternalPetInfoServerServer0());
+
+        var requested = Assert.Single(redirecting.RequestedUrls);
+        Assert.StartsWith(externalServer + "/", requested.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations162ADateOnlyParameterIsSentAsABareDate()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        try
+        {
+            await api.GetPetSummaryAsync(7L, new DateOnly(2024, 1, 15), new GetPetSummaryOptions { Session = "s" });
+        }
+        catch (OpenAPIException)
+        {
+            // The request is captured before the empty body fails to deserialize.
+        }
+
+        Assert.Contains("2024-01-15", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("T00:00", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations164ACallMissingARequiredParameterIsRefusedBeforeAnyRequest()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAnyAsync<ArgumentException>(() => api.GetPetSummaryAsync(
+            7L, new DateOnly(2024, 1, 15), new GetPetSummaryOptions { Session = "" }));
+
+        Assert.StartsWith("Missing the required parameter 'session'", ex.Message, StringComparison.Ordinal);
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task BhvOperations165APathParameterIsWrittenWithTheDeclaredStyle()
+    {
+        var client = new UrlCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetTagAsync(7L, "cute", new GetPetTagOptions());
+
+        Assert.Contains("/pet/;petId=7/tag/.cute", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations163ABodylessCallSendsNoContentTypeWhateverTheDefaultHeaderCase()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("content-type", "application/json")
+            .Build();
+        var api = new PetApi(client, config);
+
+        try
+        {
+            await api.GetPetByIdAsync(1L);
+        }
+        catch (OpenAPIException)
+        {
+            // The request is captured before the empty body fails to deserialize.
+        }
+
+        Assert.False(client.CapturedHeaders.Keys.Any(key => string.Equals(key, "Content-Type", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
     public async Task BhvOperations078TestAddPetUsesConfiguredCredentialsWhenAuthOmitted()
     {
         // When no per-call auth is supplied (Options omitted entirely), the
