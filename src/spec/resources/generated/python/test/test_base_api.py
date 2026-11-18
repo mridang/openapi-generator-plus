@@ -391,6 +391,28 @@ def _json(status: int, body: str, **headers: str) -> ApiHttpResponse:
 class TestPerCallOptions:
     """F827: the Options object of one call overrides the timeout, the headers and the retry budget."""
 
+    async def test_bhv_operations_158_a_header_given_on_one_call_is_sent_with_that_call(
+        self,
+    ) -> None:
+        client = _ScriptedApiClient(_json(200, "{}"))
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        await api.call_result(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            request_options=FindPetsByStatusOptions(headers={"X-Call-Id": "abc"}),
+        )
+
+        assert client.sent[0]["X-Call-Id"] == "abc"
+
     async def test_bhv_operations_001_per_call_headers_replace_a_configured_default_header_of_the_same_name(
         self,
     ) -> None:
@@ -723,6 +745,25 @@ class TestExceptionHierarchy:
 
 
 class TestSuccessDeserialization:
+    async def test_bhv_operations_159_an_empty_success_body_for_a_value_return_raises_a_typed_error(
+        self,
+    ) -> None:
+        stub = StubApi(
+            api_client=_ScriptedApiClient(_json(200, "")),
+            config=Configuration(base_url="https://example.test"),
+        )
+        with pytest.raises(SerializationException):
+            await stub.call(
+                "GET",
+                "/items",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                "Tag",
+            )
+
     async def test_bhv_serializationwire_004_deserializes_json_response(
         self, api: Any
     ) -> None:
@@ -1742,7 +1783,9 @@ class _GatedPool:
 class TestCloseFinishesCallsInFlight:
     """F1078: a call that started before close() runs to its end, retries included."""
 
-    async def test_a_call_that_retries_after_close_still_finishes(self) -> None:
+    async def test_bhv_lifecycle_044_a_call_that_retries_after_close_still_finishes(
+        self,
+    ) -> None:
         pool = _GatedPool(
             [
                 _GatedResponse(503, {"retry-after": "0"}, b""),
@@ -2178,6 +2221,34 @@ class VendorJsonApiClient(CapturingApiClient):
 
 
 class TestContentTypeDeserialization:
+    async def test_bhv_operations_161_a_text_plain_body_is_returned_raw_even_when_it_looks_like_base64(
+        self,
+    ) -> None:
+        class _Base64LookingText(CapturingApiClient):
+            def send_request(
+                self,
+                method: str,
+                url: str,
+                headers: dict[str, str],
+                body: Any = None,
+                no_redirect: bool = False,
+            ) -> ApiHttpResponse:
+                super().send_request(method, url, headers, body)
+                return ApiHttpResponse(
+                    status_code=200,
+                    body="aGVsbG8=",
+                    headers={"Content-Type": "text/plain"},
+                )
+
+        stub = StubApi(
+            api_client=_Base64LookingText(),
+            config=Configuration(base_url="http://localhost"),
+        )
+        result = await stub.call(
+            "GET", "/test/echo", {}, {}, None, ["text/plain"], "application/json", "str"
+        )
+        assert result == "aGVsbG8="
+
     async def test_bhv_serializationwire_025_skips_deserialization_for_non_json_content_type(
         self,
     ) -> None:
@@ -2358,7 +2429,7 @@ class TestDateOnlyParamsSerializeWithoutTime:
         assert "bornAfter=2024-01-01T" not in client.captured_url, client.captured_url
         assert client.captured_headers["Report-Date"] == "2024-01-01"
 
-    async def test_form_date_param_emits_date_only(self) -> None:
+    async def test_bhv_operations_162_form_date_param_emits_date_only(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         api = PetApi(api_client=client, config=config)
@@ -2998,7 +3069,7 @@ class TestOperationCookieParam:
 
 
 class TestOperationServerVariants:
-    def test_fixed_url_variant(self) -> None:
+    def test_bhv_operations_160_fixed_url_variant(self) -> None:
         from petstore_client.api.pet_api import GetExternalPetInfoServerServer0
 
         assert (

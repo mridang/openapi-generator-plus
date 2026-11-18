@@ -97,6 +97,22 @@ class TestOAuth2TokenManager:
 
         assert mock_client.send_request.call_count == 1
 
+    def test_bhv_auth_056_a_padded_plain_decimal_expires_in_is_cached(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({"access_token": "pad-tok", "expires_in": "  3600  "}),
+            headers={"content-type": "application/json"},
+        )
+        manager.set_api_client(mock_client)
+        params = {"grant_type": "client_credentials"}
+
+        manager.get_access_token("https://auth.example.com/token", params)
+        manager.get_access_token("https://auth.example.com/token", params)
+
+        assert mock_client.send_request.call_count == 1
+
     @pytest.mark.parametrize("raw", ["0x1000", "1e4", "1_000_000", "3600d", "-5"])
     def test_bhv_authoauthtwotokenmgr_046_a_string_expires_in_outside_the_decimal_grammar_leaves_the_token_stale(
         self,
@@ -1082,7 +1098,9 @@ class TestRefreshGrant:
         assert second[0][1] == _REFRESH_URL
         assert second[0][2]["Authorization"] == "Basic abc"
 
-    def test_a_rejected_refresh_re_runs_the_grant_at_the_token_url(self) -> None:
+    def test_bhv_auth_057_a_rejected_refresh_re_runs_the_grant_at_the_token_url(
+        self,
+    ) -> None:
         manager, client = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _invalid_grant(),

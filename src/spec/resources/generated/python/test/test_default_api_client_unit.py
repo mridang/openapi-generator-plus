@@ -1339,7 +1339,9 @@ class TestRedirectRefusals:
             "x-request-id": "r1",
         }
 
-    def test_an_exhausted_budget_is_refused_with_the_canonical_message(self) -> None:
+    def test_bhv_redirects_046_an_exhausted_budget_is_refused_with_the_canonical_message(
+        self,
+    ) -> None:
         from petstore_client.errors import ApiException
 
         hop = {"Location": "https://example.com/next"}
@@ -1472,12 +1474,16 @@ class TestHeaderMergeIsCaseInsensitive:
             "accept-encoding"
         ]
 
-    def test_a_lower_case_content_type_is_dropped_on_a_bodyless_request(self) -> None:
+    def test_bhv_operations_163_a_lower_case_content_type_is_dropped_on_a_bodyless_request(
+        self,
+    ) -> None:
         sent = self._send({"content-type": "application/json"})
         assert not any(k.lower() == "content-type" for k in sent)
 
     @pytest.mark.parametrize("make", [bytearray, memoryview])
-    def test_a_byte_like_body_is_sent_verbatim(self, make: Any) -> None:
+    def test_bhv_operations_157_a_byte_like_body_is_sent_verbatim(
+        self, make: Any
+    ) -> None:
         sent = self._send({"Content-Type": "image/png"}, make(b"\x89PNG"), "PUT")
         assert self.body == b"\x89PNG"
         assert sent["Content-Type"] == "image/png"
@@ -2011,6 +2017,16 @@ class TestCaCertPathFailsFast:
             DefaultApiClient(transport)
         assert type(excinfo.value) is ValueError
         assert not isinstance(excinfo.value, OpenAPIException)
+
+    def test_bhv_lifecycle_041_a_caller_pool_manager_combined_with_an_sdk_proxy_is_refused(
+        self,
+    ) -> None:
+        transport = (
+            TransportOptions.builder().proxy("http://proxy.example.com:3128").build()
+        )
+
+        with pytest.raises(ValueError, match="owns the proxy and TLS settings"):
+            DefaultApiClient(transport, pool_manager=urllib3.PoolManager())
 
     def test_bhv_transport_048_nonexistent_ca_cert_path_raises_even_when_verify_ssl_is_false(
         self,

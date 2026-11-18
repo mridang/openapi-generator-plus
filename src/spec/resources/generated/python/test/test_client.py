@@ -573,7 +573,35 @@ class TestClientPoolManager:
 
         assert pool.cleared is False
 
-    def test_with_token_accepts_a_pool_manager(self) -> None:
+    def test_bhv_lifecycle_043_a_request_after_close_fails_and_never_reaches_the_pool(
+        self,
+    ) -> None:
+        class _CountingPool(urllib3.PoolManager):
+            requests = 0
+
+            def request(self, *args: Any, **kwargs: Any) -> Any:
+                self.requests += 1
+                return super().request(*args, **kwargs)
+
+        pool = _CountingPool()
+        client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
+        client.close()
+
+        with pytest.raises(RuntimeError, match="closed"):
+            client._api_client.send_request("GET", "/api/v3/x", {}, None)
+        assert pool.requests == 0
+
+    def test_bhv_lifecycle_045_closing_the_client_leaves_a_supplied_pool_manager_open(
+        self,
+    ) -> None:
+        pool = _OwnedPool()
+        client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
+
+        client.close()
+
+        assert pool.cleared is False
+
+    def test_bhv_lifecycle_042_with_token_accepts_a_pool_manager(self) -> None:
         pool = _OwnedPool()
 
         with Client.with_token("/api/v3", "test-token", pool_manager=pool):

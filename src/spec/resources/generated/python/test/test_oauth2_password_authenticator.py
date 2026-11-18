@@ -337,6 +337,33 @@ class TestPasswordRefreshUrlRouting:
             "https://auth.example.com/oauth/refresh",
         ]
 
+    def test_bhv_auth_058_a_held_refresh_token_is_used_before_the_password_grant_is_repeated(
+        self,
+    ) -> None:
+        auth = OAuth2PasswordAuthenticator(
+            host="https://api.example.com",
+            client_id="my_client_id",
+            client_secret="my_client_secret",
+            token_url="https://auth.example.com/token",
+            username="testuser",
+            password="testpass",
+            scopes=["read"],
+            refresh_url="https://auth.example.com/refresh",
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _token_reply(access_token="t1", refresh_token="r1", expires_in=0),
+            _token_reply(access_token="t2", expires_in=3600),
+        ]
+        auth.set_api_client(mock_client)
+
+        auth.get_auth_headers()
+        auth.get_auth_headers()
+
+        assert _form_of(mock_client.send_request.call_args_list[1])["grant_type"] == [
+            "refresh_token"
+        ]
+
     def test_bhv_authoauthtwopassword_006_refresh_falls_back_to_the_token_url_without_a_refresh_url(
         self,
     ) -> None:

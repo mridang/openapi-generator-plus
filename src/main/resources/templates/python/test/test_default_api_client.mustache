@@ -430,7 +430,7 @@ class TestRedirectSecurityGuards:
     These exercise the manual redirect loop in DefaultApiClient.
     """
 
-    def test_strips_authorization_on_https_to_http_downgrade(self) -> None:
+    def test_bhv_redirects_053_strips_authorization_on_https_to_http_downgrade(self) -> None:
         """Guard 2: an HTTPS -> HTTP redirect is a TLS downgrade and
         MUST strip Authorization / Cookie before re-issuing. Same host
         is not enough: the scheme change is the threat."""
@@ -463,6 +463,36 @@ class TestRedirectSecurityGuards:
         # Sensitive headers must be gone on the downgraded follow-up.
         assert not any(k.lower() == 'authorization' for k in followup_headers)
         assert not any(k.lower() == 'cookie' for k in followup_headers)
+
+    def test_bhv_redirects_052_a_cross_origin_redirect_removes_the_credential_headers(self) -> None:
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
+                self.status = status
+                self.headers = headers
+            def read(self) -> bytes:
+                return b''
+            def release_conn(self) -> None:
+                return None
+
+        class _FakePool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get('headers') or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {'location': 'https://other.example.org/next'})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        headers = {'Authorization': 'Bearer secret', 'Cookie': 'sid=abc', 'X-Custom-Auth-Key': 'k'}
+        client.send_request('GET', 'https://example.com/start', headers, None)
+        assert len(pool.calls) == 2
+        followup = {k.lower() for k in pool.calls[1][2]}
+        assert 'authorization' not in followup
+        assert 'cookie' not in followup
+        assert 'x-custom-auth-key' not in followup
 
     def test_strips_credential_named_headers_on_a_cross_origin_hop(self) -> None:
         """A default or authenticator header named like a credential
@@ -597,7 +627,7 @@ class TestN1RedirectBodyReplayMatrix:
                 assert pool.calls[1][0] == method
                 assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
 
-    def test_301_and_302_turn_post_into_get(self) -> None:
+    def test_bhv_redirects_048_301_and_302_turn_post_into_get(self) -> None:
         for status in (301, 302):
             transport = TransportOptions.builder().follow_redirects(True).build()
             pool = self._pool(status)
@@ -605,6 +635,29 @@ class TestN1RedirectBodyReplayMatrix:
             client.send_request('POST', 'http://example.com/start', {}, '{"a":1}')
             assert pool.calls[1][0] == 'GET'
             assert pool.calls[1][2] is None
+
+    def test_bhv_redirects_049_a_307_or_308_repeats_the_method_and_body_and_is_followed_by_default(self) -> None:
+        for status in (307, 308):
+            transport = TransportOptions.builder().build()
+            pool = self._pool(status)
+            client = DefaultApiClient(transport, pool_manager=pool)
+            client.send_request('POST', 'http://example.com/start', {}, '{"a":1}')
+            assert pool.calls[1][0] == 'POST'
+            assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
+
+    def test_bhv_redirects_050_each_redirect_status_gives_the_rfc_9110_follow_up_method_and_body(self) -> None:
+        rows = [(301, 'GET', None), (302, 'GET', None), (303, 'GET', None),
+                (307, 'POST', '{"a":1}'), (308, 'POST', '{"a":1}')]
+        for status, method, body in rows:
+            transport = TransportOptions.builder().follow_redirects(True).build()
+            pool = self._pool(status)
+            client = DefaultApiClient(transport, pool_manager=pool)
+            client.send_request('POST', 'http://example.com/start', {}, '{"a":1}')
+            assert pool.calls[1][0] == method
+            if body is None:
+                assert pool.calls[1][2] is None
+            else:
+                assert pool.calls[1][2] in (body, body.encode())
 
     def test_bhv_redirects_036_a_303_turns_every_method_except_head_into_get(self) -> None:
         for method in ('POST', 'PUT', 'PATCH', 'DELETE'):
@@ -615,7 +668,7 @@ class TestN1RedirectBodyReplayMatrix:
             assert pool.calls[1][0] == 'GET'
             assert pool.calls[1][2] is None
 
-    def test_303_keeps_head_as_head(self) -> None:
+    def test_bhv_redirects_051_303_keeps_head_as_head(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._pool(303)
         client = DefaultApiClient(transport, pool_manager=pool)
@@ -785,7 +838,7 @@ class TestConcurrentRedirects:
             'request "too many redirects" refusal'
         )
 
-    def test_concurrent_live_redirects_each_resolve_independently(
+    def test_bhv_redirects_047_concurrent_live_redirects_each_resolve_independently(
         self, chasm_http_url: Any
     ) -> None:
         """End-to-end variant against the live mock: many concurrent
