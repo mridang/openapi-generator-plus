@@ -2225,3 +2225,17 @@ describe("PetApi mocking", () => {
     expect(calls).toEqual([[7, undefined, undefined]]);
   });
 });
+
+describe("PetApi misc behaviours", () => {
+  test("bhv misc 010 an operation whose options have required fields refuses a call that omits the options argument", async () => {
+    await expect(api.addPetPhotos(1, undefined as never)).rejects.toThrow(
+      TypeError,
+    );
+  });
+
+  test("bhv misc 012 a nil required argument raises a TypeError that names it", async () => {
+    const error = await api.addPet(null as never).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).toContain("'pet'");
+  });
+});

@@ -26,6 +26,59 @@ import org.junit.jupiter.api.Test
 class ApiExceptionTest {
 
     @Test
+    @DisplayName("bhvMisc015 a typed view of an error body that is valid JSON but not an object is a serialization error")
+    fun bhvMisc015TypedViewOfNonObjectErrorBodyIsASerializationError() {
+        val ex = ApiException.fromResponse(400, emptyMap(), "[1,2]")
+
+        assertThrows(SerializationException::class.java) { ex.getTypedErrorBody<{{modelPackage}}.Category>() }
+    }
+
+    @Test
+    @DisplayName("bhvMisc016 the rendered error body is capped and the text states how many bytes were omitted")
+    fun bhvMisc016RenderedErrorBodyIsCappedAndStatesTheBytesOmitted() {
+        val ex = ApiException(502, "bad gateway", emptyMap(), "a".repeat(3000))
+
+        assertTrue(ex.toString().contains("more bytes"))
+        assertTrue(ex.toString().length < 1500)
+    }
+
+    @Test
+    @DisplayName("bhvMisc018 a token endpoint error with a non-JSON body exposes the status, no code and the raw text")
+    fun bhvMisc018NonJsonTokenErrorExposesStatusNoCodeAndRawText() {
+        val ex = {{invokerPackage}}.errors.OAuth2ServerException(500, null, null, null, "upstream exploded")
+
+        assertEquals(500, ex.statusCode)
+        assertNull(ex.code)
+        assertEquals("upstream exploded", ex.rawBody)
+    }
+
+    @Test
+    @DisplayName("bhvMisc020 the request line is shown only when both the request method and the request path are known")
+    fun bhvMisc020RequestLineNeedsBothTheMethodAndThePath() {
+        val ex = ApiException.fromResponse(500, emptyMap(), "x", null, "/items")
+
+        assertFalse(ex.toString().contains("Request:"))
+    }
+
+    @Test
+    @DisplayName("bhvMisc022 a server error is an instance of the SDK root error type and wraps the API error as its cause")
+    fun bhvMisc022ServerErrorIsTheRootTypeAndWrapsItsApiError() {
+        val api = ApiException.fromResponse(503, null, null)
+        val server = ServerException(503, "down", cause = api)
+
+        assertTrue(server is {{errorPrefix}}Exception)
+        assertSame(api, server.cause)
+    }
+
+    @Test
+    @DisplayName("bhvMisc023 an unmapped 5xx is the generic server error and another unmapped status the base error")
+    fun bhvMisc023UnmappedServerStatusIsGenericServerErrorAndOtherUnmappedIsBase() {
+        assertEquals(ServerException::class.java, ApiException.fromResponse(520, null, null).javaClass)
+        assertEquals(ApiException::class.java, ApiException.fromResponse(399, null, null).javaClass)
+    }
+
+
+    @Test
     @DisplayName("bhvErrors085 the rendered body escapes control characters so a line break cannot forge a line")
     fun bhvErrors085RenderedBodyEscapesControlCharacters() {
         val ex = ApiException(statusCode = 500, message = "boom", responseHeaders = null, responseBody = "a\r\nb")

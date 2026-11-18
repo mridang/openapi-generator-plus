@@ -763,4 +763,24 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         assertTrue(refresh.contains("grant_type=refresh_token"), refresh);
         assertFalse(refresh.contains("refresh_token=r1"), refresh);
     }
+
+    @Test
+    void bhvMisc028ATransportFailureDuringTheCodeExchangeReachesTheCallerUnchanged() {
+        RuntimeException cause = new IllegalStateException("connection reset");
+        OAuth2AuthorizationCodeAuthenticator auth = new OAuth2AuthorizationCodeAuthenticator(
+                "https://api.example.com",
+                "my-client-id",
+                "my-client-secret",
+                "https://auth.example.com/authorize",
+                "https://auth.example.com/token",
+                "https://app.example.com/callback",
+                List.of("read"),
+                "https://auth.example.com/oauth/refresh");
+        auth.setApiClient((method, url, headers, body) -> {
+            throw cause;
+        });
+        RuntimeException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, () -> auth.exchangeCode("the-code"));
+        org.junit.jupiter.api.Assertions.assertSame(cause, thrown);
+    }
 }

@@ -278,3 +278,11 @@ describe('BearerAuthenticator', () => {
     }
   });
 });
+
+describe('BearerAuthenticator misc behaviours', () => {
+  test('bhv misc 017 a rejected credential is never named in the construction error', () => {
+    const construct = (): unknown => new BearerAuthenticator('https://api.example.com', 'tok\r\nInjected: yes');
+    expect(construct).toThrow(TypeError);
+    expect(construct).not.toThrow(/Injected/);
+  });
+});

@@ -3143,4 +3143,99 @@ public class BaseApiTest
 
         Assert.False(headers.ContainsKey("traceparent"));
     }
+
+    [Fact]
+    public async Task BhvMisc006ABareJsonNullResponseGivesNoDataAndKeepsTheRawBody()
+    {
+        var api = new TestableApi(new CallOptionsApiClient(200, "null"), "http://localhost");
+
+        ApiResult<JsonNode> result = await api.CallForResultAsync<JsonNode>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        Assert.Null(result.Data);
+        Assert.Equal("null", result.RawBody);
+    }
+
+    [Fact]
+    public async Task BhvMisc008ASuppliedCookieParameterIsSentInTheCookieHeader()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("https://example.test"));
+
+        await api.DeletePetAsync(1L, new DeletePetOptions { ApiKey = "k1" });
+
+        Assert.Equal("api_key=k1", client.CapturedHeaders["Cookie"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc009AnOperationCalledWithoutOptionsSendsNoCookieHeader()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("https://example.test"));
+
+        await api.DeletePetAsync(1L);
+
+        Assert.False(client.CapturedHeaders.ContainsKey("Cookie"));
+    }
+
+    [Fact]
+    public async Task BhvMisc012ANilRequiredArgumentNamesItAndSendsNothing()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("https://example.test"));
+
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            api.AddPetPhotosAsync(1L, null!)
+        );
+
+        Assert.Equal("options", ex.ParamName);
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task BhvMisc019ARequestTargetIsReducedToItsPathInTheError()
+    {
+        var api = new TestableApi(new StatusSequenceApiClient(500), "https://example.test/v2/");
+
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(() =>
+            api.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        Assert.Equal("/v2/items/7", ex.RequestPath);
+    }
+
+    [Fact]
+    public async Task BhvMisc021TheRequestPathKeepsTheBasePathAndDropsTheQuery()
+    {
+        var api = new TestableApi(new StatusSequenceApiClient(500), "http://localhost/v2/");
+
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(() =>
+            api.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?> { ["limit"] = 5 },
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        Assert.Equal("/v2/items/7", ex.RequestPath);
+    }
 }

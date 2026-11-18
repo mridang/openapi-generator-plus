@@ -2473,4 +2473,34 @@ private func classify(_ call: () async throws -> Void) async -> String {
     _ = try await api.getPetById(petId: 1)
     #expect(mockClient.lastHeaders["X-Call-Id"] == nil)
   }
+
+  /* A call to an operation whose success body is the literal null, and which must return a body, is an ApiError. */
+  @Test func testBhvMisc014ALiteralNullSuccessBodyThrowsAnApiError() async throws {
+    let mockApi = petApiForMock(statusCode: 200, body: "null")
+    await #expect(throws: ApiError.self) {
+      _ = try await mockApi.getPetById(petId: 1)
+    }
+  }
+
+  /* A typed operation call throws when the server answers with a client error status. */
+  @Test func testBhvMisc025ATypedCallFailsOnAClientErrorStatus() async throws {
+    let mockApi = petApiForMock(statusCode: 404, body: "{}")
+    await #expect(throws: ApiError.self) {
+      _ = try await mockApi.getPetById(petId: 1)
+    }
+  }
+
+  /* The request path an error reports keeps the base URL's path prefix. */
+  @Test func testBhvMisc021TheErrorPathKeepsTheBasePathPrefix() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 404
+    mockClient.responseBody = "{}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com/v1").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await api.getPetById(petId: 1)
+    }
+    #expect(error?.requestPath == "/v1/pet/1")
+  }
 }
