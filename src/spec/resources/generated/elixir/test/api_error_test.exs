@@ -894,4 +894,90 @@ defmodule PetstoreClient.ApiErrorTest do
     assert %PetstoreClient.Errors.InternalServerError{} = err
     assert Enum.reduce(1..depth, err.error_body, fn _, acc -> acc["a"] end) == 1
   end
+
+  test "bhv errors 085 a carriage return, line feed or other control character in an error's response body appears escaped in the rendered message" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        status_code: 500,
+        message: "boom",
+        response_body: "a\r\nb"
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) ==
+             "boom\nHTTP status code: 500\nResponse body: a\\r\\nb"
+  end
+
+  test "bhv errors 087 credential and challenge headers are masked in the rendered message" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        status_code: 401,
+        message: "denied",
+        response_headers: %{
+          "authorization" => "Bearer abc",
+          "www-authenticate" => "Basic realm=x"
+        },
+        response_body: ""
+      )
+
+    message = PetstoreClient.Errors.ApiError.message(err)
+    refute message =~ "Bearer abc"
+    refute message =~ "realm=x"
+  end
+
+  test "bhv errors 088 the rendered message leaves out absent or empty sections and keeps the present ones" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        status_code: 500,
+        message: "down",
+        response_headers: %{},
+        response_body: ""
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) == "down\nHTTP status code: 500"
+  end
+
+  test "bhv errors 089 an error with a nil or empty message renders the default message text" do
+    for message <- [nil, ""] do
+      err = PetstoreClient.Errors.ApiError.exception(status_code: 0, message: message)
+
+      assert PetstoreClient.Errors.ApiError.message(err) ==
+               "Error message: the server returns an error"
+    end
+  end
+
+  test "bhv errors 090 an error with no response data keeps its body and headers as nil" do
+    err = PetstoreClient.Errors.ApiError.exception(status_code: 0, message: "connection reset")
+
+    assert err.response_body == nil
+    assert err.response_headers == nil
+  end
+
+  test "bhv errors 091 the rendered message names the method and path of the request it failed on" do
+    err =
+      PetstoreClient.Errors.ApiError.from_response(404, %{}, "missing")
+      |> PetstoreClient.Errors.ApiError.with_request(:get, "/items/7")
+
+    assert PetstoreClient.Errors.ApiError.message(err) =~ "Request: GET /items/7"
+  end
+
+  test "bhv errors 093 an error body prefixed with a byte order mark is parsed into the error body" do
+    bom = <<0xEF, 0xBB, 0xBF>> <> ~s({"a":1})
+    err = PetstoreClient.Errors.ApiError.from_response(400, %{}, bom)
+
+    assert %PetstoreClient.Errors.BadRequestError{} = err
+    assert err.error_body == %{"a" => 1}
+    assert err.response_body == bom
+  end
+
+  test "bhv errors 096 a status outside every class range falls back to the base error" do
+    for status <- [399, 600] do
+      assert %PetstoreClient.Errors.ApiError{} =
+               PetstoreClient.Errors.ApiError.from_response(status, %{}, nil)
+    end
+  end
+
+  test "bhv errors 097 an unrecognised 4xx status raises the generic client error" do
+    assert %PetstoreClient.Errors.ClientError{} =
+             PetstoreClient.Errors.ApiError.from_response(499, %{}, nil)
+  end
 end
