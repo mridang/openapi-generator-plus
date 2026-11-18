@@ -2030,6 +2030,21 @@ langdart085 | two unions with differing byte values compare unequal
 langdart086 | a deflate content coding over a body that is not deflate data surfaces as an API error, not a crash
 ||||||| 2231357ed
 ||||||| f622b5d59
+||||||| d921d1c70
+langphp001 | An object without a string form is stringified through its fallback rather than failing.
+langphp002 | A forward slash in a serialized string is written without escaping.
+langphp003 | A string leaf inside a container keeps its text and is never parsed as JSON again.
+langphp004 | An anyOf value that matches no variant raises an error.
+langphp005 | A decoded property keeps the value received on the wire rather than the schema default.
+langphp006 | A byte model exposes only its encoded form and no raw bytes accessor.
+langphp007 | Numeric additional properties beside named fields stay members of the same object.
+langphp008 | A date-time body sent as a JSON string literal is unwrapped to its value.
+langphp009 | A composed model container leaf given as JSON text is rejected and never parsed.
+langphp010 | A model container leaf given as JSON text is rejected and never parsed.
+langphp011 | A model container leaf given as an object deserializes into the model.
+langphp012 | A byte field rejects base64 that is not strict RFC 4648 text.
+langphp013 | A byte list element rejects base64 that is not strict RFC 4648 text.
+||||||| cef6fbad1
 langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
 langnode002 | An error constructor accepts an optional cause
 langnode003 | Reading an error's message property returns the rendered text
