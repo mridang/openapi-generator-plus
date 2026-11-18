@@ -928,7 +928,8 @@ import Testing
                 params: ["grant_type": "client_credentials"])
         }
         #expect(error?.errorDescription == "Token response is not valid JSON")
-        #expect(!(error?.errorDescription ?? "").contains(secret))
+        let description = error?.errorDescription ?? ""
+        #expect(!description.contains(secret))
     }
 
     /* D07: the three token failures have one canonical text each, with no

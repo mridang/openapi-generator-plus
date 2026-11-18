@@ -248,18 +248,18 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
         do {
             let val = options.{{paramName}}
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
         }
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
         }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}

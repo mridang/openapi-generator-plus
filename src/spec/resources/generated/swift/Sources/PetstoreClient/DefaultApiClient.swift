@@ -491,6 +491,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         ordered: formParts, boundary: boundary)
     } else if let data = body as? Data {
       request.httpBody = data
+    } else if let text = body as? String {
+      /* A text body is sent as its UTF-8 bytes, the same on every attempt. */
+      request.httpBody = Data(text.utf8)
     } else {
       for name in merged.keys where name.caseInsensitiveCompare("Content-Type") == .orderedSame {
         merged.removeValue(forKey: name)
@@ -865,19 +868,27 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// The lowercased, unquoted `charset=` value of a Content-Type header, or
   /// nil when there is none.
   static func charsetLabel(_ contentType: String?) -> String? {
-    guard let contentType = contentType,
-      let range = contentType.range(of: "charset=", options: .caseInsensitive)
-    else {
+    guard let contentType = contentType else {
       return nil
     }
-    let after = contentType[range.upperBound...]
-    let raw = after.split(separator: ";").first.map(String.init) ?? ""
-    var charset = raw.trimmingCharacters(in: .whitespaces)
-    /* Strip surrounding quotes if present (charset values may be quoted). */
-    if charset.hasPrefix("\"") && charset.hasSuffix("\"") && charset.count >= 2 {
-      charset = String(charset.dropFirst().dropLast())
+    /* Only a parameter NAMED charset counts: a parameter whose name merely
+       ends in charset (xcharset=) is not the charset. The first element is
+       the media type, so it is skipped. */
+    for parameter in contentType.split(separator: ";").dropFirst() {
+      let pair = parameter.split(separator: "=", maxSplits: 1)
+      guard pair.count == 2,
+        String(pair[0]).trimmingCharacters(in: .whitespaces).lowercased() == "charset"
+      else {
+        continue
+      }
+      var charset = String(pair[1]).trimmingCharacters(in: .whitespaces)
+      /* Strip surrounding quotes if present (charset values may be quoted). */
+      if charset.hasPrefix("\"") && charset.hasSuffix("\"") && charset.count >= 2 {
+        charset = String(charset.dropFirst().dropLast())
+      }
+      return charset.lowercased()
     }
-    return charset.lowercased()
+    return nil
   }
 
   /// Parses the `charset=` parameter from a Content-Type header and
