@@ -2130,3 +2130,8 @@ langpython187 | A payload nested past the depth limit is refused.
 langpython188 | A loopback http endpoint is accepted.
 langpython001 | Operation prose reaches the docstring verbatim.
 langpython002 | Path parameter doc carries the required label.
+langpython189 | It builds from its environment variables alone.
+langpython190 | A missing credential names its variable.
+langpython191 | The environment supplies the token.
+langpython192 | The environment supplies the username and password.
+langpython193 | The environment supplies the key.
