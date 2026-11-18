@@ -2528,3 +2528,31 @@ describe('BaseApi per-call credentials and context', () => {
     expect(client.capturedHeaders['X-Late']).toBe('first');
   });
 });
+
+describe('BaseApi body and response encoding behaviours (bhv serialization 122, 125, 128)', () => {
+  it('bhv serialization 122 a form-urlencoded body repeats the key for each array element and keeps the order of its pairs', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('POST', '/test/echo', {}, {}, { tags: ['a', 'b'], z: 'last' },
+      ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect(client.capturedBody).toBe('tags=a&tags=b&z=last');
+  });
+
+  it('bhv serialization 125 form-urlencoded keys and values percent-encode reserved characters, and a plus sign is sent as %2B', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('POST', '/test/echo', {}, {}, { q: 'a+b&c' },
+      ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect(client.capturedBody).toBe('q=a%2Bb%26c');
+  });
+
+  it('bhv serialization 128 a response whose declared type is a string is returned unchanged whatever its content type', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"a":1}';
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    const result = await testApi.call('GET', '/test/echo', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as string, undefined, 'string');
+    expect(result).toBe('{"a":1}');
+  });
+});
