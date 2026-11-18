@@ -363,3 +363,26 @@ fn test_bhv_auth_012_each_refused_token_states_why() {
         }
     }
 }
+
+/// The token provider is read again for every request, so a value that changes between requests is the one sent.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_037_a_token_provider_is_asked_again_for_each_request() {
+    let current = std::sync::Arc::new(std::sync::Mutex::new("first".to_string()));
+    let source = current.clone();
+    let provider: petstore::auth::TokenProvider =
+        std::sync::Arc::new(move || source.lock().unwrap().clone());
+    let auth = BearerAuthenticator::with_token_provider("https://api.example.com", provider);
+
+    let before = auth.auth_headers().await;
+    *current.lock().unwrap() = "second".to_string();
+    let after = auth.auth_headers().await;
+
+    assert_eq!(
+        before.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer first")
+    );
+    assert_eq!(
+        after.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer second")
+    );
+}

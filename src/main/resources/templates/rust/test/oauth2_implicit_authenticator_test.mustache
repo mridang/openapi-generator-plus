@@ -232,3 +232,14 @@ async fn test_bhv_misc_001_replacing_the_token_while_headers_are_read_is_race_fr
         assert!(token == "token-0" || written, "a read observed a token that was never set: {token}");
     }
 }
+
+/// The implicit flow's authorize URL is exact: response_type token, the client id, and the scopes with a space written as %20.
+#[test]
+fn test_bhv_auth_049_the_implicit_flow_builds_an_exact_authorize_url() {
+    let url = create_authenticator().build_authorization_url("");
+    assert_eq!(
+        url,
+        "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write"
+    );
+}
+

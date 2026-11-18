@@ -680,3 +680,48 @@ async fn test_bhv_authoauthtwopassword_021_password_grant_body_uses_the_fixed_pa
         client.last_body().expect("should have body")
     );
 }
+
+/// auth051: the password grant posts the declared scopes to the token URL, and a refresh goes to the declared refresh URL.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_051_the_password_grant_posts_to_the_token_url_and_refreshes_at_the_refresh_url(
+) {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+    let mut auth = OAuth2PasswordAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/token",
+        "testuser",
+        "testpass",
+        vec!["read".to_string(), "write".to_string()],
+        "https://auth.example.com/refresh",
+    );
+    auth.set_api_client(client.clone());
+
+    auth.auth_headers().await;
+    let grant_body = client
+        .last_body()
+        .expect("the password grant must send a body");
+    assert!(grant_body.contains("grant_type=password"), "{}", grant_body);
+    assert!(grant_body.contains("scope=read+write"), "{}", grant_body);
+    auth.auth_headers().await;
+
+    assert_eq!(
+        vec![
+            "https://auth.example.com/token".to_string(),
+            "https://auth.example.com/refresh".to_string()
+        ],
+        client.urls()
+    );
+    let refresh_body = client.last_body().expect("the refresh must send a body");
+    assert!(
+        refresh_body.contains("grant_type=refresh_token"),
+        "{}",
+        refresh_body
+    );
+}

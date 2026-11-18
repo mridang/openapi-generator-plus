@@ -397,3 +397,4 @@ dart | operations162 | the fixture has no date-only path parameter
 dart | operations165 | the fixture has no operation with a path serialization style
 go | auth039 | Go's client constructors take a token or a token provider through separate constructors (NewClientWithToken and NewClientWithTokenProvider), so no call can pass both
 go | auth042 | Go strings have no absent value, so an explicitly passed empty string is the same argument as an omitted one and both read the environment (bhv authapikey021 pins that); keeping them apart needs a pointer parameter on every credential constructor, a breaking change to the public API
+rust | auth039 | BearerAuthenticator takes a fixed token in new(host, token) and a token provider in with_token_provider(host, provider), so one call cannot pass both and the refusal is a compile error with no run-time check to test

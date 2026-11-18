@@ -386,7 +386,7 @@ mod admin_basic_authenticator {
     }
 
     #[test]
-    fn test_an_explicit_argument_is_not_overridden_by_the_environment() {
+    fn test_bhv_auth_041_an_explicit_argument_is_not_overridden_by_the_environment() {
         /* The variables hold values no authenticator accepts, so the call can
          * only succeed when they were never consulted. */
         let unusable: Vec<(&str, Option<&str>)> = vec![
@@ -509,6 +509,54 @@ mod pet_store_bearer_authenticator {
                 Some("explicit-token")
             )
             .is_ok());
+        });
+    }
+
+    /// A token provider takes the place of the token the environment would supply, so the provider's value is sent.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_auth_038_a_token_provider_takes_precedence_over_the_environment_token() {
+        let auth = with_variables(&set_all(), || {
+            PetStoreBearerAuthenticator::with_token_provider(
+                "https://api.example.com",
+                std::sync::Arc::new(|| "from-provider".to_string()),
+            )
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer from-provider")
+        );
+    }
+
+    /// An environment variable that is set but empty counts as unset, and the refusal names it.
+    #[test]
+    fn test_bhv_auth_040_an_environment_variable_set_but_empty_is_treated_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    /// An explicitly passed empty token is kept and refused by the authenticator, not replaced by the environment.
+    #[test]
+    fn test_bhv_auth_042_an_explicit_empty_value_is_refused_not_replaced_by_the_environment() {
+        with_variables(&set_all(), || {
+            let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
+                "https://api.example.com",
+                Some(""),
+            ));
+            assert!(
+                !text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"),
+                "{}",
+                text
+            );
         });
     }
 

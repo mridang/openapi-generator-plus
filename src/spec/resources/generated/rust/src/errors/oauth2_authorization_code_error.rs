@@ -22,6 +22,8 @@ pub enum OAuth2AuthorizationCodeError {
     CodeNotExchanged,
     /// `exchange_code` was called with an empty or whitespace-only code.
     EmptyCode,
+    /// The access token expired and the token response held no refresh token; `exchange_code` must run again.
+    NoRefreshToken,
 }
 
 impl fmt::Display for OAuth2AuthorizationCodeError {
@@ -31,6 +33,9 @@ impl fmt::Display for OAuth2AuthorizationCodeError {
                 f.write_str("Must call exchange_code() before making API requests")
             }
             Self::EmptyCode => f.write_str("Authorization code must not be empty"),
+            Self::NoRefreshToken => f.write_str(
+                "Access token expired and no refresh token is held; call exchange_code() again",
+            ),
         }
     }
 }

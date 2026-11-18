@@ -1655,7 +1655,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("apikey"));
         entry.put("bearerIdOnce", bearer && bhvIdsClaimed.add("bearer"));
         /* The explicit-wins test (authscheme 009) carries its catalogue id in one module only. */
-        entry.put("explicitWinsOnce", bhvIdsClaimed.add("explicit_wins"));
+        final boolean explicitWins = bhvIdsClaimed.add("explicit_wins");
+        entry.put("explicitWinsOnce", explicitWins);
+        /* The explicit-over-environment test without the explicit-wins id (catalogue auth041) is
+         * rendered by every other scheme, so only the first of them carries the id. */
+        entry.put("explicitNotOverriddenOnce", !explicitWins && bhvIdsClaimed.add("explicit_not_overridden"));
         final String emptyVariableBhv = EMPTY_VARIABLE_BHV_IDS.get(stem);
         entry.put("emptyVariableBhv", emptyVariableBhv != null);
         entry.put("emptyVariableToken", emptyVariableBhv == null ? "" : emptyVariableBhv);
