@@ -2012,4 +2012,8 @@ langjava046 | An optional array query parameter is serialized in the style its s
 langjava047 | The error handling example in the skill ends with the API exception arm.
 langjava048 | The configuration section of the skill has the shared subsections in the shared order.
 langjava049 | The skill documents the environment variable of every credential.
+langjava050 | Each scheme authenticator prints its own name with its secret redacted.
+langjava051 | The client routes each scheme's credential only to the operations that require that scheme.
+langjava052 | A tilde in a path parameter is left unencoded in the request path.
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
+langjava064 | A null path parameter beside a null required options object is the first violation reported.
