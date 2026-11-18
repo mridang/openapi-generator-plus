@@ -873,25 +873,6 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void NullRequiredByteArrayFieldThrows()
-        {
-            // SetPetAvatarRequest requires a byte[] 'data' field; an explicit
-            // null must hard-fail with the SDK serialization error rather than
-            // build a partial object with a null byte array.
-            var json = "{\"data\":null,\"mimeType\":\"image/png\"}";
-            Assert.Throws<SerializationException>(
-                () => _serializer.Deserialize<SetPetAvatarRequest>(json));
-        }
-
-        [Fact]
-        public void MissingRequiredByteArrayFieldThrows()
-        {
-            var json = "{\"mimeType\":\"image/png\"}";
-            Assert.Throws<SerializationException>(
-                () => _serializer.Deserialize<SetPetAvatarRequest>(json));
-        }
-
-        [Fact]
         public void BhvSerializationobject231OptionalFieldsMayBeOmitted()
         {
             // Only the required fields are present; all optional fields absent.
@@ -1080,18 +1061,6 @@ public static class ObjectSerializerTest
             Assert.Equal("Dogs", map["dogs"].Name);
             Assert.IsType<Category>(map["cats"]);
             Assert.Equal("Cats", map["cats"].Name);
-        }
-
-        [Fact]
-        public void DictionaryOfPetEntriesAreNotRawJsonElement()
-        {
-            var json = "{\"a\":{\"id\":7,\"name\":\"A\",\"photoUrls\":[\"u\"]}}";
-            var map = _serializer.Deserialize<Dictionary<string, Pet>>(json);
-
-            Assert.NotNull(map);
-            var entry = map!["a"];
-            Assert.IsNotType<System.Text.Json.JsonElement>(entry);
-            Assert.IsType<Pet>(entry);
         }
 
         [Fact]

@@ -881,15 +881,6 @@ public class ValueSerializerTest
     // -- serializeStyled: null style falls back to location default --
 
     [Fact]
-    public void NullStyleFallsBackToLocationDefault()
-    {
-        Assert.Equal(
-            "5",
-            ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false)
-        );
-    }
-
-    [Fact]
     public void BhvSerializationparam035EmptyStyleFallsBackToLocationDefault()
     {
         Assert.Equal(

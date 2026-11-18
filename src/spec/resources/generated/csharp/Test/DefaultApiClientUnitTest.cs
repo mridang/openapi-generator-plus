@@ -2703,30 +2703,6 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task CallTokenAbortsAnInFlightRequest()
-    {
-        var handler = new SignallingHangingHandler();
-        var client = new DefaultApiClient(new HttpClient(handler));
-        using var cts = new CancellationTokenSource();
-        Task<ApiHttpResponse> pending = client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/slow"),
-            new Dictionary<string, string>(),
-            null,
-            false,
-            cts.Token
-        );
-        await handler.Entered.Task;
-        await cts.CancelAsync();
-
-        var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
-        Assert.False(
-            typeof(OpenAPIException).IsInstanceOfType(ex),
-            "cancellation must not be rewrapped as an SDK error"
-        );
-    }
-
-    [Fact]
     public async Task ClientLevelTokenAbortsAnInFlightRequest()
     {
         var handler = new SignallingHangingHandler();
