@@ -151,6 +151,24 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 063 a per-scheme wrapper posts its token request to the declared token URL',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final auth = MachineAuthClientCredentialsAuthenticator(
+          host: 'https://api.example.com',
+          clientId: 'cid',
+          clientSecret: 'sec',
+        );
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+
+        expect(client.urls, equals(['https://auth.example.com/oauth/token']));
+      },
+    );
+
     test('bhv authoauthtwoclientcred 012 sends request to token URL', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');

@@ -570,3 +570,58 @@ func TestBhvMisc093_Model_NumericAdditionalPropertyNamesAreTopLevelKeys(t *testi
 		t.Errorf("expected the numeric names as top-level members, got %s", data)
 	}
 }
+
+func TestBhvMisc137_Model_AnEnumReportsWhetherAValueIsOneOfItsDeclaredValues(t *testing.T) {
+	t.Parallel()
+	for _, member := range models.AllAvailabilityValues() {
+		if !member.IsValid() {
+			t.Errorf("expected declared member %q to be valid", member)
+		}
+	}
+	if models.Availability("extreme").IsValid() {
+		t.Error("expected a value outside the declared members to be invalid")
+	}
+}
+
+func TestBhvMisc138_Model_AnEnumMemberConvertsToItsWireValueText(t *testing.T) {
+	t.Parallel()
+	if got := models.AvailabilityOclock.String(); got != "o'clock" {
+		t.Errorf("expected the text form to be the wire value o'clock, got %q", got)
+	}
+}
+
+func TestBhvMisc139_Model_ACollectionPassedInIsCopiedSoLaterChangesDoNotReachTheModel(t *testing.T) {
+	t.Parallel()
+	source := map[string]string{"owner": "team-a"}
+	item := models.Metadata{}.WithAdditionalProperties(source)
+	source["owner"] = "team-b"
+	source["extra"] = "added"
+	if item.AdditionalProperties["owner"] != "team-a" || len(item.AdditionalProperties) != 1 {
+		t.Errorf("expected the model to keep a copy of the source, got %v", item.AdditionalProperties)
+	}
+}
+
+func TestBhvMisc140_Model_ABuildWithoutARequiredPropertyFailsNamingIt(t *testing.T) {
+	t.Parallel()
+	var account models.Account
+	err := json.Unmarshal([]byte(`{"id":1}`), &account)
+	if err == nil || !strings.Contains(err.Error(), "username") {
+		t.Errorf("expected an error naming username, got %v", err)
+	}
+}
+
+func TestBhvMisc141_Model_AModelBuiltWithoutAValueHoldsTheSchemaDefault(t *testing.T) {
+	t.Parallel()
+	item := models.NewStockItem(models.PriorityNumber1)
+	if item.Availability == nil || *item.Availability != models.AvailabilityOnHold {
+		t.Errorf("expected the default on-hold to be held, got %v", item.Availability)
+	}
+}
+
+func TestBhvMisc142_Model_AdditionalPropertiesReadBackUnchangedAndHoldExactlyTheStoredEntries(t *testing.T) {
+	t.Parallel()
+	item := models.Metadata{}.WithAdditionalProperties(map[string]string{"owner": "team-a", "tier": "gold"})
+	if item.AdditionalProperties["owner"] != "team-a" || item.AdditionalProperties["tier"] != "gold" || len(item.AdditionalProperties) != 2 {
+		t.Errorf("expected exactly the stored entries back, got %v", item.AdditionalProperties)
+	}
+}

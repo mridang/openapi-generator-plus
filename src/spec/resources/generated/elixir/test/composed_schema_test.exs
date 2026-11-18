@@ -369,6 +369,57 @@ defmodule PetstoreClient.ComposedSchemaTest do
       end
     end
 
+    test "bhv misc 045 a payload that does not satisfy a variant's schema is not accepted as that variant" do
+      for json <- [
+            ~s({"foodType":3,"weightKg":2.5}),
+            ~s({"FoodType":"dry","weightKg":2.5}),
+            ~s({"foodType":"fish","weightKg":2.5}),
+            ~s({"foodType":"dry"})
+          ] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+        end
+      end
+    end
+
+    test "bhv misc 046 unions holding equal content compare equal and hash equally" do
+      medication = %PetstoreClient.Models.Medication{drug_name: "Amoxicillin", dosage: "500mg"}
+      first = PetstoreClient.Models.PetTreatment.from_medication(medication)
+
+      second =
+        PetstoreClient.Models.PetTreatment.from_medication(%PetstoreClient.Models.Medication{
+          drug_name: "Amoxicillin",
+          dosage: "500mg"
+        })
+
+      other =
+        PetstoreClient.Models.PetTreatment.from_medication(%PetstoreClient.Models.Medication{
+          drug_name: "Ibuprofen",
+          dosage: "200mg"
+        })
+
+      assert first == second
+      assert :erlang.phash2(first) == :erlang.phash2(second)
+      assert first != other
+    end
+
+    test "bhv misc 047 serializing a union holding a value that is not one of its variants names the union" do
+      assert_raise PetstoreClient.Errors.SerializationError,
+                   ~r/SetPetAvatarThumbnailRequest/,
+                   fn ->
+                     PetstoreClient.Models.SetPetAvatarThumbnailRequest.build(42)
+                   end
+    end
+
+    test "bhv misc 049 an array variant of byte values serializes each element to a base64 string" do
+      payloads = [<<0x01, 0x02, 0x03, 0x04>>, <<0x05, 0x06, 0x07, 0x08>>]
+
+      assert PetstoreClient.Models.SetPetAvatarThumbnailRequest.serialize(payloads) == [
+               "AQIDBA==",
+               "BQYHCA=="
+             ]
+    end
+
     test "bhv misc 293 an anyOf value keeps the matching variant and skips the one that does not match" do
       json = ~s({"procedureName":"Spay","durationMinutes":45})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")

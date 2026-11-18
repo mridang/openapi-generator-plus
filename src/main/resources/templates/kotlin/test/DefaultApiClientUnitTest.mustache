@@ -1994,6 +1994,59 @@ class DefaultApiClientUnitTest {
     inner class DecodedResponseHeaders {
 
         @Test
+        @DisplayName("bhvMisc032 the raw response exposes its status code, body and headers under public names")
+        fun bhvMisc032RawResponseExposesPublicNames() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "{\"ok\":true}",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type" to listOf("application/json"), "X-Test-Header" to listOf("test-value")),
+                )
+            }
+            val response = runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }).sendRequest("GET", "http://localhost/echo", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals("{\"ok\":true}", response.body)
+            assertEquals("test-value", response.headers["x-test-header"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc037 an undecoded body keeps its Content-Length header")
+        fun bhvMisc037UndecodedBodyKeepsContentLength() {
+            val body = "plain body"
+            val engine = MockEngine { _ ->
+                respond(
+                    content = body,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type" to listOf("text/plain"), "Content-Length" to listOf(body.length.toString())),
+                )
+            }
+            val response = runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }).sendRequest("GET", "http://localhost/plain", emptyMap(), null)
+            }
+            assertEquals(body, response.body)
+            assertEquals(body.length.toString(), response.headers["content-length"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc040 response header names are returned in lower case")
+        fun bhvMisc040ResponseHeaderNamesAreLowerCase() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "{}",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type" to listOf("application/json"), "X-Mixed-Case" to listOf("value")),
+                )
+            }
+            val response = runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }).sendRequest("GET", "http://localhost/echo", emptyMap(), null)
+            }
+            assertTrue(response.headers.isNotEmpty(), "the response must carry headers")
+            assertTrue(response.headers.keys.all { it == it.lowercase() }, response.headers.keys.toString())
+        }
+
+        @Test
         @DisplayName("bhvTransport027 D92: a decoded body drops Content-Encoding and Content-Length from the returned headers")
         fun decodedBodyDropsEncodingAndLength() {
             val gzipped =
@@ -2155,6 +2208,24 @@ class DefaultApiClientUnitTest {
     @DisplayName("Content-Encoding decoding and Accept-Encoding")
     inner class ContentEncodingDecoding {
 
+        @Test
+        @DisplayName("bhvMisc039 a well-formed gzip stream whose content is empty or zero is returned as that content")
+        fun bhvMisc039WellFormedGzipWithEmptyOrZeroContentIsReturnedAsThat() {
+            fun gzipped(text: String): ByteArray =
+                java.io.ByteArrayOutputStream().also { out ->
+                    java.util.zip.GZIPOutputStream(out).use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                }.toByteArray()
+            for ((text, expected) in listOf("0" to "0", "" to "")) {
+                val engine = MockEngine { _ ->
+                    respond(content = gzipped(text), status = HttpStatusCode.OK, headers = headersOf("Content-Encoding", "gzip"))
+                }
+                val response = runBlocking {
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false }).sendRequest("GET", "http://localhost/gz", emptyMap(), null)
+                }
+                assertEquals(expected, response.body)
+            }
+        }
+
         private fun encodedResponse(content: ByteArray, encoding: String): ApiHttpResponse {
             val engine = MockEngine { _ ->
                 respond(
@@ -2284,6 +2355,14 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("buildProxyAuthHeader")
     inner class ProxyAuthHeader {
+
+        @Test
+        @DisplayName("bhvMisc031 the proxy credential is sent exactly when the proxy URL includes user information")
+        fun bhvMisc031ProxyCredentialIsSentExactlyWhenUserInfoIsPresent() {
+            val expected = java.util.Base64.getEncoder().encodeToString("alice:s3cret".toByteArray(Charsets.UTF_8))
+            assertEquals("Basic $expected", buildProxyAuthHeader("http://alice:s3cret@127.0.0.1:3128"))
+            assertNull(buildProxyAuthHeader("http://127.0.0.1:3128"))
+        }
 
         @Test
         @DisplayName("bhvTransport076 a literal plus in the proxy userinfo is kept, not turned into a space")
@@ -2647,6 +2726,32 @@ class DefaultApiClientUnitTest {
     inner class NetworkFailures {
 
         @Test
+        @DisplayName("bhvMisc027 a transport failure with no HTTP response is a network error that keeps its cause")
+        fun bhvMisc027TransportFailureIsANetworkErrorWithItsCause() {
+            val failure = java.io.IOException("connection reset")
+            val client = HttpClient(MockEngine { _ -> throw failure }) { followRedirects = false }
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking { DefaultApiClient(client).sendRequest("GET", "http://localhost/down", emptyMap(), null) }
+            }
+            assertInstanceOf({{invokerPackage}}.errors.NetworkException::class.java, ex)
+            assertEquals(0, ex.statusCode)
+            assertNotNull(ex.cause, "the transport failure must be kept as the cause")
+        }
+
+        @Test
+        @DisplayName("bhvMisc036 a caller body part stays readable after the request it was sent with fails")
+        fun bhvMisc036CallerBodyPartStaysReadableAfterAFailure() {
+            val part = "part-bytes".toByteArray(Charsets.UTF_8)
+            val client = HttpClient(MockEngine { _ -> throw java.io.IOException("fetch failed") }) { followRedirects = false }
+            runCatching {
+                runBlocking {
+                    DefaultApiClient(client).sendRequest("POST", "http://localhost/up", emptyMap(), mapOf<String, Any?>("file" to part))
+                }
+            }
+            assertEquals("part-bytes", part.toString(Charsets.UTF_8))
+        }
+
+        @Test
         @DisplayName("bhvTransport032 connection refused raises NetworkException with status 0 and the cause kept")
         fun connectionRefusedRaisesNetworkException() {
             val apiClient = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
@@ -2735,6 +2840,36 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("coroutine cancellation")
     inner class CoroutineCancellation {
+
+        @Test
+        @DisplayName("bhvMisc029 a caller timeout surfaces as the caller's timeout and is never wrapped in the SDK error type")
+        fun bhvMisc029CallerTimeoutIsNeverWrapped() {
+            val engine = MockEngine { _ ->
+                kotlinx.coroutines.delay(5_000)
+                respond("late", HttpStatusCode.OK)
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            assertThrows(kotlinx.coroutines.TimeoutCancellationException::class.java) {
+                runBlocking {
+                    kotlinx.coroutines.withTimeout(50) {
+                        apiClient.sendRequest("GET", "http://localhost/slow", emptyMap(), null)
+                    }
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc035 a call whose coroutine is already cancelled before it starts is a cancellation, not a timeout")
+        fun bhvMisc035AlreadyCancelledCallIsACancellationNotATimeout() {
+            val apiClient = DefaultApiClient(HttpClient(MockEngine { _ -> respond("ok", HttpStatusCode.OK) }) { followRedirects = false })
+            val job = kotlinx.coroutines.Job()
+            job.cancel()
+            assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+                runBlocking(job) {
+                    apiClient.sendRequest("GET", "http://localhost/x", emptyMap(), null)
+                }
+            }
+        }
 
         @Test
         @DisplayName("bhvLangkotlin026 withTimeout surfaces TimeoutCancellationException, never ApiException")
@@ -3131,6 +3266,40 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("wire transport behaviours")
     inner class WireTransportBehaviours {
+
+        @Test
+        @DisplayName("bhvMisc041 a request with a non-standard HTTP method is sent with its body intact")
+        fun bhvMisc041NonStandardMethodIsSentWithItsBody() {
+            var method: String? = null
+            var sent: String? = null
+            val engine = MockEngine { request ->
+                method = request.method.value
+                sent = (request.body as? io.ktor.http.content.TextContent)?.text
+                respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type" to listOf("application/json")))
+            }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }).sendRequest(
+                    "PROPFIND", "http://localhost/echo", mapOf("Content-Type" to "application/json"), "{\"key\":\"value\"}",
+                )
+            }
+            assertEquals("PROPFIND", method)
+            assertEquals("{\"key\":\"value\"}", sent)
+        }
+
+        @Test
+        @DisplayName("bhvMisc043 an explicitly cleared user agent is omitted from the request")
+        fun bhvMisc043ClearedUserAgentIsOmittedFromTheRequest() {
+            var agent: String? = "unset"
+            val engine = MockEngine { request ->
+                agent = request.headers[io.ktor.http.HttpHeaders.UserAgent]
+                respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type" to listOf("application/json")))
+            }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }, TransportOptions.builder().userAgent(null).build())
+                    .sendRequest("GET", "http://localhost/echo", emptyMap(), null)
+            }
+            assertNull(agent, "a cleared user agent must not be sent")
+        }
 
         @Test
         @DisplayName("bhvTransport067 a successful response with no body is returned as a success with an empty body")

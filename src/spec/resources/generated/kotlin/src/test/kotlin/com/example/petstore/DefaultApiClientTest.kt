@@ -130,6 +130,20 @@ class DefaultApiClientTest {
         private fun causes(ex: Throwable): List<Throwable> = generateSequence(ex) { it.cause }.toList()
 
         @Test
+        @DisplayName("bhvMisc038 with no CA certificate configured, server certificates are verified against the platform trust store")
+        fun bhvMisc038NoCaCertificateUsesThePlatformTrustStore() {
+            val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
+                    runBlocking {
+                        client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null)
+                    }
+                }
+            assertEquals(0, ex.statusCode)
+            assertNotNull(ex.cause, "the certificate failure must be kept as the cause")
+        }
+
+        @Test
         @DisplayName("bhvTransport023 the default transport rejects a certificate from an untrusted CA")
         fun defaultTransportRejectsUntrustedCa() {
             val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())

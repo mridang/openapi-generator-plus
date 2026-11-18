@@ -386,3 +386,13 @@ test('bhv options 039 timeout defaults to 10000 milliseconds', function (): void
     $opts = TransportOptions::builder()->build();
     expect($opts->timeout)->toBe(10000);
 });
+
+test('bhv misc 026 a configuration mistake raises an error that is not an api error', function (): void {
+    try {
+        TransportOptions::builder()->proxy('http://[::1')->build();
+        test()->fail('Expected InvalidArgumentException');
+    } catch (\Throwable $e) {
+        expect($e)->toBeInstanceOf(\InvalidArgumentException::class);
+        expect($e)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\ApiException::class);
+    }
+});

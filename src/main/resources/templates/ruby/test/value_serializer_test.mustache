@@ -6,6 +6,12 @@ describe {{moduleName}}::ValueSerializer do
   parallelize_me!
 
   describe 'path location' do
+    it 'bhv_misc_084 a set optional scalar parameter sends its value in every location' do
+      %i[path query header cookie].each do |location|
+        _({{moduleName}}::ValueSerializer.serialize('on-hold', location, 'string')).must_equal('on-hold')
+      end
+    end
+
     it 'bhv_misc_082 an enum value is sent as its wire value in a path, query or header parameter' do
       %i[path query header].each do |location|
         _({{moduleName}}::ValueSerializer.serialize('on-hold', location, 'string')).must_equal('on-hold')
