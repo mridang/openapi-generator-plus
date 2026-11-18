@@ -434,3 +434,4 @@ python | misc006 | a bare JSON null for a required response is an ApiException n
 rust | misc004 | Rust operations take required parameters as positional arguments, so omitting one is refused by the compiler and no run-time argument error naming the field exists
 ||||||| 92a9dd837
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
+kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPhotos options argument, since the parameter has no default value, so no runtime call without it can be made

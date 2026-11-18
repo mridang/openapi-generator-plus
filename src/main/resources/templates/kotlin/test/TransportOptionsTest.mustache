@@ -14,6 +14,12 @@ import org.junit.jupiter.api.Assertions.*
 class TransportOptionsTest {
 
     @Test
+    @DisplayName("bhvMisc026 a configuration mistake is an argument error and not an API error")
+    fun bhvMisc026ConfigurationMistakeIsAnArgumentErrorNotAnApiError() {
+        assertThrowsExactly(IllegalArgumentException::class.java) { TransportOptions.builder().timeout(-1L).build() }
+    }
+
+    @Test
     @DisplayName("bhvErrors098 a missing CA certificate names the path and wraps the not-found cause")
     fun bhvErrors098MissingCaCertificateNamesThePathAndWrapsTheCause() {
         val path = "/nonexistent/ca-certificate.pem"
