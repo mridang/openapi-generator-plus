@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace {{invokerPackage}}\Test;
 
 use {{apiPackage}}\BaseApi;
+use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Auth\Authenticator;
 
 class TestableApi extends BaseApi
@@ -35,6 +36,43 @@ class TestableApi extends BaseApi
             $contentType,
             $returnType,
             $auth
+        );
+    }
+
+    /**
+     * Sends a request the way a generated operation does, naming the operation, so a test can
+     * see what the call hook is told.
+     *
+     * @param array<string, mixed>  $queryParams
+     * @param array<string, string> $headerParams
+     * @param array<string>         $accepts
+     * @return ApiResult<mixed>
+     */
+    public function callOperation(
+        string $operationId,
+        string $urlTemplate,
+        string $method,
+        string $path,
+        array $queryParams = [],
+        array $headerParams = [],
+        mixed $body = null,
+        array $accepts = ['application/json'],
+        ?string $contentType = null,
+        ?string $returnType = null,
+        ?Authenticator $auth = null,
+    ): ApiResult {
+        return $this->invokeApiForResult(
+            $method,
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            $accepts,
+            $contentType,
+            $returnType,
+            $auth,
+            operationId: $operationId,
+            urlTemplate: $urlTemplate
         );
     }
 

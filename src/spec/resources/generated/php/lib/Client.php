@@ -136,6 +136,9 @@ class Client
      *                                              operation uses the scheme its security requirement names;
      *                                              once any scheme credential is given, an operation whose
      *                                              requirement none of them meets sends no credential.
+     * @param CallHook|null       $callHook         Hook called once around every operation call; it can edit the
+     *                                              request headers and observe the outcome, and it fires with a
+     *                                              supplied transport too. See {@see CallHook}.
      * @throws \InvalidArgumentException when neither an authenticator nor a scheme credential is given
      */
     public function __construct(
@@ -154,7 +157,8 @@ class Client
         ?Authenticator $legacyAuth = null,
         ?Authenticator $userAuth = null,
         ?Authenticator $browserAuth = null,
-        ?Authenticator $ssoAuth = null
+        ?Authenticator $ssoAuth = null,
+        ?CallHook $callHook = null
     ) {
         $schemeAuthenticators = [];
         if ($petStoreBasic instanceof \PetstoreClient\Auth\Authenticator) {
@@ -217,6 +221,7 @@ class Client
 
         $config = Configuration::builder()
             ->baseUrl($hostAuthenticator->getHost())
+            ->callHook($callHook)
             ->build();
         $this->pet = new PetApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
         $this->problems = new ProblemsApi($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
@@ -253,15 +258,35 @@ class Client
      * @param string $accessToken Bearer token.
      * @param TransportOptions|null $transportOptions Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
      * @param ApiClient|null $apiClient Optional custom transport (e.g. a {@see Psr18ApiClient}).
+     * @param CallHook|null $callHook Optional hook called once around every operation call.
      * @return self Configured client instance.
      */
     public static function withToken(
         string $host,
         string $accessToken,
         ?TransportOptions $transportOptions = null,
-        ?ApiClient $apiClient = null
+        ?ApiClient $apiClient = null,
+        ?CallHook $callHook = null
     ): self {
-        return new self(new BearerAuthenticator($host, $accessToken), $transportOptions, $apiClient);
+        return new self(
+            new BearerAuthenticator($host, $accessToken),
+            $transportOptions,
+            $apiClient,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            $callHook
+        );
     }
 
     /**
@@ -277,14 +302,34 @@ class Client
      * @param Authenticator $authenticator Provides host URL and auth headers.
      * @param TransportOptions|null $transportOptions Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
      * @param ApiClient|null $apiClient Optional custom transport (e.g. a {@see Psr18ApiClient}).
+     * @param CallHook|null $callHook Optional hook called once around every operation call.
      * @return self Configured client instance.
      */
     public static function withAuthenticator(
         Authenticator $authenticator,
         ?TransportOptions $transportOptions = null,
-        ?ApiClient $apiClient = null
+        ?ApiClient $apiClient = null,
+        ?CallHook $callHook = null
     ): self {
-        return new self($authenticator, $transportOptions, $apiClient);
+        return new self(
+            $authenticator,
+            $transportOptions,
+            $apiClient,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            $callHook
+        );
     }
 
     /**
@@ -304,6 +349,7 @@ class Client
      * @param RequestFactoryInterface $requestFactory   PSR-17 factory used to build requests.
      * @param StreamFactoryInterface  $streamFactory    PSR-17 factory used to build request bodies.
      * @param TransportOptions|null   $transportOptions Request-level options (default headers, User-Agent, request id).
+     * @param CallHook|null           $callHook         Optional hook called once around every operation call.
      * @return self Configured client instance.
      * @throws \InvalidArgumentException when $transportOptions sets a proxy, a CA bundle or disables TLS
      *                                   verification, which the supplied client owns.
@@ -313,7 +359,8 @@ class Client
         ClientInterface $httpClient,
         RequestFactoryInterface $requestFactory,
         StreamFactoryInterface $streamFactory,
-        ?TransportOptions $transportOptions = null
+        ?TransportOptions $transportOptions = null,
+        ?CallHook $callHook = null
     ): self {
         $transportOptions ??= TransportOptions::builder()->build();
         $conflicts = $transportOptions->proxy !== null
@@ -329,7 +376,21 @@ class Client
         return new self(
             $authenticator,
             $transportOptions,
-            new Psr18ApiClient($httpClient, $requestFactory, $streamFactory, $transportOptions)
+            new Psr18ApiClient($httpClient, $requestFactory, $streamFactory, $transportOptions),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            $callHook
         );
     }
 }

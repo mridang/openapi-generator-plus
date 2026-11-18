@@ -35,11 +35,21 @@ final class Configuration
     /**
      * @param string               $baseUrl        Base URL for all API requests
      * @param array<string, string> $defaultHeaders Headers to include in every API request
+     * @param CallHook|null        $callHook       Hook called once around every operation call, or null for none
      */
     public function __construct(
         public readonly string $baseUrl = '/api/v3',
         public readonly array $defaultHeaders = [],
+        public readonly ?CallHook $callHook = null,
     ) {
+    }
+
+    /**
+     * The hook called once around every operation call, or null when none is set.
+     */
+    public function getCallHook(): ?CallHook
+    {
+        return $this->callHook;
     }
 
     /**

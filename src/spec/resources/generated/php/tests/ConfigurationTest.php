@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use PetstoreClient\CallHook;
 use PetstoreClient\Configuration;
 use PetstoreClient\ConfigurationBuilder;
 use PetstoreClient\ServerConfiguration;
 use PetstoreClient\ServerVariable;
+use PetstoreClient\Test\RecordingCallHook;
 
 test('default constructor uses spec base url', function (): void {
     $config = new Configuration();
@@ -306,4 +308,25 @@ test('bhv config 004 builder merges single and bulk default headers', function (
         ->defaultHeader('X-Third', 'three')
         ->build();
     expect($config->defaultHeaders)->toBe(['X-First' => 'one', 'X-Second' => 'two', 'X-Third' => 'three']);
+});
+
+test('a call hook set on the builder is returned by the configuration', function (): void {
+    $hook = new RecordingCallHook();
+
+    $config = Configuration::builder()->callHook($hook)->build();
+
+    expect($config->getCallHook())->toBe($hook);
+    expect($config->callHook)->toBeInstanceOf(CallHook::class);
+});
+
+test('a configuration has no call hook unless one is set', function (): void {
+    expect(Configuration::builder()->build()->getCallHook())->toBeNull();
+    expect((new Configuration())->getCallHook())->toBeNull();
+    expect(Configuration::builder()->callHook(new RecordingCallHook())->callHook(null)->build()->getCallHook())->toBeNull();
+});
+
+test('the debug output of a configuration does not show the call hook', function (): void {
+    $config = Configuration::builder()->callHook(new RecordingCallHook())->build();
+
+    expect(print_r($config, true))->not->toContain('RecordingCallHook');
 });

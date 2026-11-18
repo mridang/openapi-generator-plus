@@ -10,6 +10,7 @@ use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
+use PetstoreClient\Test\RecordingCallHook;
 use PetstoreClient\Test\StubPsr18Client;
 use Nyholm\Psr7\Factory\Psr17Factory;
 
@@ -309,4 +310,28 @@ test('a supplied psr18 client conflicts with sdk proxy and tls settings', functi
 test('bhv lifecycle 016 with token fails when the token is empty', function (): void {
     expect(fn () => Client::withToken('/api/v3', ''))
         ->toThrow(\InvalidArgumentException::class);
+});
+
+test('a call hook given to the client is handed to every api group', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new Client($this->authenticator, null, null, callHook: $hook);
+
+    $configs = [];
+    $configs[] = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))
+        ->getProperty('config')
+        ->getValue($client->pet);
+    $configs[] = (new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))
+        ->getProperty('config')
+        ->getValue($client->problems);
+    $configs[] = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))
+        ->getProperty('config')
+        ->getValue($client->store);
+
+    foreach ($configs as $config) {
+        expect($config)->toBeInstanceOf(\PetstoreClient\Configuration::class);
+        if ($config instanceof \PetstoreClient\Configuration) {
+            expect($config->getCallHook())->toBe($hook);
+        }
+    }
+    expect($configs)->not->toBe([]);
 });
