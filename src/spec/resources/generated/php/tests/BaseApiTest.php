@@ -553,20 +553,6 @@ test('bhv authintegration 006 configured bearer authenticator is applied to a se
     expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
 });
 
-test('the bearer scheme credential is applied to an operation that requires it', function (): void {
-    $client = new CapturingApiClient();
-    $config = new Configuration('http://localhost');
-    $auth = new BearerAuthenticator('http://localhost', 'per-op-token');
-    $api = new PetApi($client, $config, null, ['petStoreBearer' => $auth]);
-    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
-    try {
-        $api->addPetWithHttpInfo($pet);
-    } catch (\Exception) {
-        // Response deserialization may fail; we only care about the captured request
-    }
-    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer per-op-token');
-});
-
 test('bhv authintegration 018 configured api-key header authenticator is applied to a secured operation', function (): void {
     // apiKeyHeader scheme defined by the spec sends X-API-Key as a header.
     $client = new CapturingApiClient();

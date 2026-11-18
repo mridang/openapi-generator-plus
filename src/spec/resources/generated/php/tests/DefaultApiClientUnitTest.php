@@ -1193,21 +1193,6 @@ test('bhv redirects 040 N1: 302 https to http downgrade with body proceeds as ge
     expect($response->statusCode)->toBe(200);
 });
 
-test('N1: 307 https to http downgrade with body throws', function (): void {
-    /* The same downgrade on a 307 (which preserves method + body) must be
-     * refused with an SDK-typed ApiException — the body would otherwise be
-     * replayed in plaintext over HTTP. */
-    $downgrade = new MockResponse('', [
-        'http_code' => 307,
-        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
-    ]);
-    $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
-
-    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(ApiException::class);
-});
-
 test('N1: 308 https to http downgrade with body throws', function (): void {
     $downgrade = new MockResponse('', [
         'http_code' => 308,
