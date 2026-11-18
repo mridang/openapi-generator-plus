@@ -3346,7 +3346,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200])
     body = Stream.repeatedly(fn -> "payload" end) |> Stream.take(1)
 
-    assert {:error, %PetstoreClient.Errors.ServerError{status_code: 503}} =
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{status_code: 503}} =
              put_thing(state, body, "application/octet-stream")
 
     assert length(attempts()) == 1
