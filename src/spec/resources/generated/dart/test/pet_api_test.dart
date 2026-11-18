@@ -1408,6 +1408,172 @@ void main() {
       },
     );
 
+    test(
+      'bhv auth 043 an operation sends the credential of one scheme it names and never both',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {
+              'apiKeyHeader': _FixedHeaderAuth('X-API-Key', 'key-token'),
+              'petStoreBearer': _FixedHeaderAuth(
+                'Authorization',
+                'Bearer bearer-token',
+              ),
+            },
+          );
+
+          await api.addPet(
+            Pet(
+              name: 'Fido',
+              photoUrls: <String>{'http://example.com/fido.jpg'},
+            ),
+            null,
+          );
+
+          expect(
+            received.containsKey('x-api-key') !=
+                received.containsKey('authorization'),
+            isTrue,
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv auth 044 an operation with no security requirement sends no credential on the wire',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":7,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {
+              'petStoreBearer': _FixedHeaderAuth(
+                'Authorization',
+                'Bearer bearer-token',
+              ),
+            },
+          );
+
+          await api.getPetById(7, null, null);
+
+          expect(received.containsKey('authorization'), isFalse);
+          expect(received.containsKey('x-api-key'), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv auth 046 an operation that inherits the document-level security receives the client authenticator on the wire',
+      () async {
+        String? capturedAuth;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"x","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('Authorization', 'Bearer client-token')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.addPet(
+            Pet(
+              name: 'Inherit',
+              photoUrls: <String>{'http://example.com/p.jpg'},
+            ),
+            null,
+          );
+
+          expect(capturedAuth, equals('Bearer client-token'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv auth 047 an operation with several schemes sends no scheme credential when the client holds none',
+      () async {
+        Map<String, String> received = {};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach((name, values) {
+            received[name] = values.first;
+          });
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.addPet(
+            Pet(
+              name: 'Fido',
+              photoUrls: <String>{'http://example.com/fido.jpg'},
+            ),
+            null,
+          );
+
+          expect(received.containsKey('authorization'), isFalse);
+          expect(received.containsKey('x-api-key'), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     /* required-nested-param-validation: getPetByName's `category` is a
      * REQUIRED query param carried on a REQUIRED (non-null) Options object,
      * so GetPetByNameOptions generates it as a non-nullable field

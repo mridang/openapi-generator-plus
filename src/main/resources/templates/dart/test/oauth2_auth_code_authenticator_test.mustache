@@ -147,6 +147,58 @@ void main() {
       );
     });
 
+    test('bhv auth 048 the authorization-code flow calls the token URL with the declared scopes after the exact authorize URL', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      expect(auth.buildAuthorizationUrl(), contains('scope=read%20write'));
+      await auth.exchangeCode('code-a');
+
+      expect(client.urls, equals(['https://auth.example.com/token']));
+      expect(client.bodies.single, contains('read+write'));
+    });
+
+    test('bhv auth 052 an OAuth authenticator that holds no token refuses auth headers synchronously and asynchronously', () async {
+      final auth = _createAuthenticator();
+
+      expect(() => auth.authHeaders(), throwsA(isA<StateError>()));
+      await expectLater(auth.authHeadersAsync(), throwsA(isA<StateError>()));
+    });
+
+    test('bhv auth 053 exchanging a code discards the refresh token held before it', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+      client.enqueue('{"access_token":"tok2","expires_in":0}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('code-a');
+      await auth.exchangeCode('code-b');
+      try {
+        await auth.authHeadersAsync();
+      } catch (_) {
+        // With no refresh token the authenticator cannot refresh; the refusal is not under test.
+      }
+
+      expect(client.bodies.where((b) => b.startsWith('grant_type=refresh_token')), isEmpty);
+    });
+
+    test('bhv auth 054 a non-success token response surfaces as an OAuth2 server exception with its status and error code', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.exchangeCode('code-a'),
+        throwsA(isA<OAuth2ServerException>()
+            .having((e) => e.statusCode, 'statusCode', equals(400))
+            .having((e) => e.code, 'code', equals('invalid_grant'))),
+      );
+    });
+
     test('bhv authoauthtwoauthcode 030 authHeaders before exchangeCode names the precondition', () {
       final auth = _createAuthenticator();
       expect(

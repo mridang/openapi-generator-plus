@@ -288,6 +288,33 @@ void main() {
     );
 
     test(
+      'bhv auth 051 the password grant posts to the token URL and refreshes at the refresh URL with the declared scopes',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = build(
+          refreshUrl: 'https://auth.example.com/oauth/refresh',
+        );
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
+
+        expect(
+          client.urls,
+          equals([
+            'https://auth.example.com/token',
+            'https://auth.example.com/oauth/refresh',
+          ]),
+        );
+        expect(client.bodies[0], contains('read+write'));
+      },
+    );
+
+    test(
       'bhv authoauthtwopassword 009 a BODY mode refresh carries client_id and client_secret',
       () async {
         final client = _FakeApiClient();
