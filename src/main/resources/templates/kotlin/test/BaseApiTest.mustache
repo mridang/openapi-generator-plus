@@ -1599,6 +1599,23 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvHeaders030 a default header in another case replaces the negotiated one, never sits beside it")
+        fun defaultHeaderInAnotherCaseReplacesTheNegotiatedOne() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("accept", "application/xml")
+                .build()
+            val testApi = TestableApiWithConfig(client, config)
+            runBlocking {
+                testApi.call("GET", "/test/echo", accepts = arrayOf("application/json"))
+            }
+            val accepts = client.capturedHeaders.filterKeys { it.equals("accept", ignoreCase = true) }
+            assertEquals(1, accepts.size, "two spellings of Accept were sent: $accepts")
+            assertEquals("application/xml", accepts.values.first())
+        }
+
+        @Test
         @DisplayName("bhvOperations008 config default headers Accept wins over every negotiated Accept value")
         fun configDefaultHeadersAcceptWinsOverAllNegotiatedValues() {
             val client = CapturingApiClient()
@@ -1863,6 +1880,20 @@ class BaseApiTest {
         @Test
         @DisplayName("bhvTransport059 an authenticating proxy refuses a request without credentials")
         fun proxyWithoutCredentialsIsRefused() {
+            val chasmUrl = ChasmContainer.getInternalHttpUrl()
+            val transport = TransportOptions.builder()
+                .proxy(SquidContainer.getAuthProxyUrl())
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+            }
+            assertEquals(407, response.statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvTransport063 a proxy that requires credentials answers 407 when none are sent")
+        fun proxyThatRequiresCredentialsAnswers407WhenNoneAreSent() {
             val chasmUrl = ChasmContainer.getInternalHttpUrl()
             val transport = TransportOptions.builder()
                 .proxy(SquidContainer.getAuthProxyUrl())
