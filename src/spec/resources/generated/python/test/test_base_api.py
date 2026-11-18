@@ -234,6 +234,50 @@ class TestExceptionDispatch:
         assert exc_info.value.response_body is not None
         assert len(exc_info.value.response_body) > 0
 
+    @pytest.mark.parametrize("status", [400, 401, 403, 404, 409, 422, 429, 500, 502])
+    async def test_bhv_misc_264_each_listed_error_status_raises_the_api_error_with_that_code(
+        self, status: int
+    ) -> None:
+        client = _ScriptedApiClient(_json(status, "{}"))
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        with pytest.raises(ApiException) as exc_info:
+            await api.call(
+                "GET",
+                "/items",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+
+        assert exc_info.value.status_code == status
+
+    async def test_bhv_misc_274_a_non_2xx_response_is_returned_to_the_caller_with_its_status(
+        self,
+    ) -> None:
+        client = _ScriptedApiClient(_json(404, "{}"))
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        result = await api.call_result(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+
+        assert result.status_code == 404
+
 
 class TestErrorBodyParsing:
     async def test_bhv_errors_034_parses_json_error_body(self, api: Any) -> None:
@@ -447,6 +491,56 @@ class TestCallerCancellation:
             assert not isinstance(exc_info.value, ApiException)
         finally:
             client.release.set()
+
+    async def test_bhv_misc_262_cancelling_the_call_surfaces_the_cancelled_error_unwrapped(
+        self,
+    ) -> None:
+        client = _BlockingApiClient()
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+        try:
+            task = asyncio.ensure_future(
+                api.call(
+                    "GET",
+                    "/items",
+                    {},
+                    {},
+                    None,
+                    ["application/json"],
+                    "application/json",
+                    None,
+                )
+            )
+            await asyncio.sleep(0.05)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            client.release.set()
+
+    async def test_bhv_misc_263_a_per_call_timeout_longer_than_the_client_timeout_lets_a_slow_response_complete(
+        self,
+    ) -> None:
+        client = _BlockingApiClient()
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+        threading.Timer(0.2, client.release.set).start()
+
+        result = await api.call_result(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            request_options=FindPetsByStatusOptions(timeout=5000),
+        )
+
+        assert result.status_code == 200
 
 
 class _ScriptedApiClient(ApiClient):
@@ -2201,6 +2295,30 @@ class TestBodySerialization:
         )
         assert client.captured_body is parts
         assert client.captured_headers["Content-Type"] == declared
+
+    async def test_bhv_misc_179_a_form_urlencoded_body_sends_its_content_type(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"name": "alice"},
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+
+        assert (
+            client.captured_headers["Content-Type"]
+            == "application/x-www-form-urlencoded"
+        )
 
     async def test_bhv_misc_178_a_declared_multipart_content_type_reaches_the_transport_unchanged(
         self,
@@ -4633,9 +4751,11 @@ class _ScriptedPool:
     def __init__(self, *replies: Any) -> None:
         self.replies = list(replies)
         self.calls = 0
+        self.seen_headers: list[Any] = []
 
     def request(self, *args: Any, **kwargs: Any) -> Any:
         self.calls += 1
+        self.seen_headers.append(kwargs.get("headers"))
         reply = self.replies.pop(0)
         if isinstance(reply, BaseException):
             raise reply
@@ -4876,6 +4996,49 @@ class TestRetryOutcomesAndBodyReplay:
             await api_post_text(_pool_api(pool), '{"a":1}')
 
         assert pool.calls == 1
+
+    async def test_bhv_misc_181_a_header_value_is_sent_exactly_as_serialised_without_percent_encoding(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(_OK)
+        api = _retry_api(server)
+
+        await api.call(
+            "GET",
+            "/x",
+            {},
+            {"X-Raw": "a b%20c/d"},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+
+        assert server.requests[0]["x-raw"] == "a b%20c/d"
+
+    async def test_bhv_misc_182_removing_a_header_matches_every_spelling_of_its_name(
+        self,
+    ) -> None:
+        for spelling in ("Authorization", "authorization", "AUTHORIZATION"):
+            pool = _ScriptedPool(
+                _FakeResponse(302, {"location": "https://other.example.test/"}),
+                _FakeResponse(200, {}, b"{}"),
+            )
+            api = _pool_api(pool, max_retries=0)
+
+            await api.call(
+                "GET",
+                "/x",
+                {},
+                {spelling: "Bearer secret"},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+
+            sent = {str(name).lower() for name in pool.seen_headers[1]}
+            assert "authorization" not in sent, spelling
 
 
 async def api_post_text(api: StubApi, text: str) -> Any:

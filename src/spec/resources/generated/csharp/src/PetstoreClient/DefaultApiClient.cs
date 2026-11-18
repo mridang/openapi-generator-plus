@@ -502,6 +502,32 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         return body is null or string or byte[];
     }
 
+    /// <summary>Whether a request may be sent again after the connection dropped before any response.</summary>
+    private static bool IsIdempotent(string method)
+    {
+        return method.ToUpperInvariant()
+            is "GET"
+                or "HEAD"
+                or "OPTIONS"
+                or "TRACE"
+                or "PUT"
+                or "DELETE"
+                or "QUERY";
+    }
+
+    /// <summary>Whether a transport failure came from TLS or certificate validation, which a retry cannot fix.</summary>
+    private static bool IsTlsFailure(Exception ex)
+    {
+        for (Exception? current = ex; current != null; current = current.InnerException)
+        {
+            if (current is System.Security.Authentication.AuthenticationException)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>Tells the retry loop whether a response had started to arrive.</summary>
     private sealed class AttemptState
     {
@@ -671,6 +697,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     && attempt < effectiveMaxRetries
                     && !state.ResponseReceived
                     && ex is not Errors.NetworkTimeoutException
+                    && IsIdempotent(method)
+                    && !IsTlsFailure(ex)
                 )
             {
                 delay = RetryDelay(
@@ -768,13 +796,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
            inject another one, so the request is refused before it is built. */
         foreach (KeyValuePair<string, string> header in mergedHeaders)
         {
-            if (
-                header.Value.Contains('\r', StringComparison.Ordinal)
-                || header.Value.Contains('\n', StringComparison.Ordinal)
-            )
+            if (header.Value.IndexOfAny(['\r', '\n', '\0']) >= 0)
             {
                 throw new ArgumentException(
-                    $"Header {header.Key} must not contain CR or LF characters",
+                    $"Header {header.Key} must not contain CR, LF or NUL characters",
                     nameof(headers)
                 );
             }

@@ -4385,3 +4385,308 @@ func TestBhvMisc213_BaseApi_OptionalArrayQueryParamIsNotRenderedAsBracketsOrComm
 		}
 	}
 }
+
+func TestBhvMisc216_BaseApi_BinaryResponseIsReturnedDecodedWhileRawBodyKeepsTheEncodedText(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("aGVsbG8="))
+	}))
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
+
+	result, err := api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Data == nil || string(*result.Data) != "hello" {
+		t.Errorf("expected the decoded bytes hello, got %v", result.Data)
+	}
+	if result.RawBody != "aGVsbG8=" {
+		t.Errorf("expected the raw body to keep the encoded text, got %q", result.RawBody)
+	}
+}
+
+func TestBhvMisc217_BaseApi_BinaryUploadAcceptsInMemoryBytesAndSendsThem(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var received []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		received = body
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
+
+	_, _ = api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: bytes.NewReader([]byte("document-bytes"))})
+	mu.Lock()
+	defer mu.Unlock()
+	if !bytes.Contains(received, []byte("document-bytes")) {
+		t.Errorf("expected the in-memory bytes in the upload, got %q", received)
+	}
+}
+
+func TestBhvMisc218_BaseApi_PerCallHeaderTakesPrecedenceWithoutADuplicateKey(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var values []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		values = r.Header.Values("X-Trace")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, func(b *petstore.TransportOptionsBuilder) {
+		b.DefaultHeader("X-Trace", "configured")
+	}, nil)
+
+	_ = addPetCall(api)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(values) != 1 || values[0] != "configured" {
+		t.Errorf("expected one X-Trace header, got %v", values)
+	}
+}
+
+func TestBhvMisc221_BaseApi_CredentialIsSentInTheDeclaredApiKeyHeader(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var apiKey, bearer string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		apiKey = r.Header.Get("X-Api-Key")
+		bearer = r.Header.Get("Authorization")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	authObj, err := auth.NewApiKeyAuthenticator(server.URL, "X-Api-Key", "key-1", auth.ApiKeyLocationHeader)
+	if err != nil {
+		t.Fatalf("unexpected error from NewApiKeyAuthenticator: %v", err)
+	}
+	api := retryApi(t, &scriptedServer{Server: server}, nil, authObj)
+
+	_ = addPetCall(api)
+	mu.Lock()
+	defer mu.Unlock()
+	if apiKey != "key-1" || bearer != "" {
+		t.Errorf("expected the key in X-Api-Key and no Authorization, got %q and %q", apiKey, bearer)
+	}
+}
+
+func TestBhvMisc222_BaseApi_CreatedWithAnEmptyBodyReturnsNoData(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
+
+	pet, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
+	if err != nil {
+		t.Fatalf("expected no error for a 201 with an empty body, got %v", err)
+	}
+	if pet != nil {
+		t.Errorf("expected no data for an empty body, got %+v", pet)
+	}
+}
+
+func TestBhvMisc223_BaseApi_SeeOtherDropsTheBodyWhenTheFollowUpBecomesAGet(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var method string
+	var bodyLength int64
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		method = r.Method
+		bodyLength = r.ContentLength
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(target.Close)
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/", http.StatusSeeOther)
+	}))
+	t.Cleanup(origin.Close)
+	api := retryApi(t, &scriptedServer{Server: origin}, func(b *petstore.TransportOptionsBuilder) { b.FollowRedirects(true) }, nil)
+
+	_ = addPetCall(api)
+	mu.Lock()
+	defer mu.Unlock()
+	if method != http.MethodGet || bodyLength > 0 {
+		t.Errorf("expected a GET with no body after 303, got %s with length %d", method, bodyLength)
+	}
+}
+
+func TestBhvMisc225_BaseApi_RedirectWithoutLocationIsReturnedAsTheFinalResponse(t *testing.T) {
+	t.Parallel()
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusFound)
+	}))
+	t.Cleanup(origin.Close)
+	api := retryApi(t, &scriptedServer{Server: origin}, func(b *petstore.TransportOptionsBuilder) { b.FollowRedirects(true) }, nil)
+
+	result, err := api.AddPetWithHTTPInfo(context.Background(), *models.NewPet("Test", []string{}), nil)
+	if err != nil {
+		t.Fatalf("expected no error for a 3xx without Location, got %v", err)
+	}
+	if result.StatusCode != http.StatusFound {
+		t.Errorf("expected the 302 as the final response, got %d", result.StatusCode)
+	}
+}
+
+func TestBhvMisc226_BaseApi_FoundRedirectIsFollowedToItsTarget(t *testing.T) {
+	t.Parallel()
+	var targetHits atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetHits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(target.Close)
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/", http.StatusFound)
+	}))
+	t.Cleanup(origin.Close)
+	api := retryApi(t, &scriptedServer{Server: origin}, func(b *petstore.TransportOptionsBuilder) { b.FollowRedirects(true) }, nil)
+
+	_ = addPetCall(api)
+	if got := targetHits.Load(); got != 1 {
+		t.Errorf("expected the redirect target to be reached once, got %d", got)
+	}
+}
+
+func TestBhvMisc227_BaseApi_ConnectionDroppedBeforeAnyResponseIsRetried(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hits.Add(1) == 1 {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err == nil {
+				_ = conn.Close()
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
+
+	_ = addPetCall(api)
+	if got := hits.Load(); got != 2 {
+		t.Errorf("expected a second request after the dropped connection, got %d", got)
+	}
+}
+
+func TestBhvMisc228_BaseApi_UnparseableRetryAfterFallsBackToTheNormalBackoff(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: "soon"}, scriptedReply{status: 200})
+	api := retryApi(t, srv, nil, nil)
+
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if got := srv.hits.Load(); got != 2 {
+		t.Errorf("expected one retry after the 503, got %d requests", got)
+	}
+}
+
+func TestBhvMisc229_BaseApi_PerCallMaxRetriesOverridesAClientWithNoRetries(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 500}, scriptedReply{status: 500}, scriptedReply{status: 200})
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+
+	if _, err := api.GetPetById(context.Background(), int64(1), nil, petstore.WithMaxRetries(2)); err != nil {
+		t.Fatalf("expected the call to succeed on its third attempt, got %v", err)
+	}
+	if got := srv.hits.Load(); got != 3 {
+		t.Errorf("expected 3 requests, got %d", got)
+	}
+}
+
+func TestBhvMisc230_BaseApi_ModelWithNoExtraPropertiesWritesOnlyItsDeclaredKeys(t *testing.T) {
+	t.Parallel()
+	data, err := json.Marshal(models.NewPet("Test", []string{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, key := range []string{"data", "additionalProperties"} {
+		if _, ok := fields[key]; ok {
+			t.Errorf("expected no nested %q key, got %s", key, data)
+		}
+	}
+}
+
+func TestBhvMisc232_BaseApi_SimpleStylePathParameterPercentEncodesSlashes(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var escaped string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		escaped = r.URL.EscapedPath()
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
+
+	_, _ = api.GetPetTag(context.Background(), int64(5), "a/b", nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if !strings.Contains(escaped, "a%2Fb") {
+		t.Errorf("expected the slash percent-encoded in the path, got %q", escaped)
+	}
+}
+
+// chosenServer is an operation server whose URL the call must use.
+type chosenServer struct{ url string }
+
+func (s chosenServer) GetUrl() string { return s.url }
+
+func TestBhvMisc219_BaseApi_OperationWithSeveralServersSendsToTheChosenServer(t *testing.T) {
+	t.Parallel()
+	base := newScriptedServer(t, scriptedReply{status: 200})
+	chosen := newScriptedServer(t, scriptedReply{status: 200})
+	api := retryApi(t, base, nil, nil)
+
+	_, _ = api.GetMultiServerPetInfo(context.Background(), int64(1), chosenServer{url: chosen.URL})
+	if got := chosen.hits.Load(); got != 1 {
+		t.Errorf("expected the chosen server to receive the request, got %d", got)
+	}
+	if got := base.hits.Load(); got != 0 {
+		t.Errorf("expected the default server to be skipped, got %d", got)
+	}
+}
+
+func TestBhvMisc220_BaseApi_FullResponseKeepsTheStatusAndDecodesTheUnionBody(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`))
+	}))
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
+
+	result, err := api.AddPetTreatmentWithHTTPInfo(context.Background(), int64(1), models.PetTreatment{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.StatusCode != http.StatusCreated {
+		t.Errorf("expected the status 201 to be kept, got %d", result.StatusCode)
+	}
+	if result.Data == nil {
+		t.Fatal("expected the union body to be decoded")
+	}
+	if _, ok := result.Data.ActualInstance().(models.Medication); !ok {
+		t.Errorf("expected the Medication variant, got %T", result.Data.ActualInstance())
+	}
+}
