@@ -913,7 +913,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiKeyQueryWrapperSendsItsKeyInTheSchemeQueryParameter()
+    public void BhvMisc189ApiKeyQueryWrapperSendsItsKeyInTheSchemeQueryParameter()
     {
         var auth = new ApiKeyQueryAuthenticator(Host, "k");
 
