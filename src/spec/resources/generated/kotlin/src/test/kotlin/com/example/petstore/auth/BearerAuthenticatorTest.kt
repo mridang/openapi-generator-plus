@@ -450,4 +450,28 @@ class BearerAuthenticatorTest {
         assertTrue(text.contains("***"), text)
         assertTrue(text.startsWith("BearerAuthenticator("), text)
     }
+
+    @Test
+    @DisplayName("bhvAuth039 passing both a token and a token provider is rejected with an error")
+    fun bhvAuth039TokenAndProviderTogetherAreRejected() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok", tokenProvider = { "tok2" })
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth042 an explicitly passed empty token is refused by its own validation, not replaced by the environment")
+    fun bhvAuth042ExplicitEmptyTokenIsRefusedNotReplaced() {
+        val previous = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { "tok-env" }
+        try {
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    BearerAuthenticator("https://api.example.com", token = "")
+                }
+            assertEquals("Bearer token must not be empty", ex.message)
+        } finally {
+            CredentialEnvironment.lookup = previous
+        }
+    }
 }

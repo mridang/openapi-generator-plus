@@ -1291,6 +1291,10 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    @DisplayName("bhvAuth054 a non-success token response surfaces as an OAuth2 server error naming status and body")
+    fun bhvAuth054TokenServerErrorNamesStatusAndBody() = tokenServerErrorMessageNamesTheStatusCodeAndDescription()
+
+    @Test
     @DisplayName(
         "bhvAuthoauthtwotokenmgr042 a token server error message names the status and, when present, the error code and description",
     )

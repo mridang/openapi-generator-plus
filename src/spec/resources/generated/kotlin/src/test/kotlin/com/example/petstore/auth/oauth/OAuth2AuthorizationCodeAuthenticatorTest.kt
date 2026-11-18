@@ -542,6 +542,11 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuth053 exchanging a code discards any refresh token previously held")
+    fun bhvAuth053ExchangeDiscardsThePreviousRefreshToken() =
+        bhvAuthoauthtwoauthcode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken()
+
+    @Test
     @DisplayName("bhvAuth014 the authorization URL encodes the spaces between scopes as percent 20, never as a plus sign")
     fun bhvAuth014ScopeSpacesAreEncodedAsPercent20() {
         val url = createAuthenticator().buildAuthorizationUrl()

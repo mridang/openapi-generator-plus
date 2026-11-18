@@ -967,6 +967,14 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvAuth044 an operation with no security requirement sends no credential on the wire")
+        fun bhvAuth044NoSecurityOperationSendsNoCredential() = securityNoneOperationSuppressesApiKeyHeaderAndQuery()
+
+        @Test
+        @DisplayName("bhvAuth046 an operation that inherits the document-level security receives the client authenticator")
+        fun bhvAuth046InheritedSecurityReceivesClientAuthenticator() = clientAuthenticatorAppliedForInheritedSecurityOperation()
+
+        @Test
         @DisplayName("bhvAuthintegration015 a security none operation suppresses a configured api-key client authenticator (header and query)")
         fun securityNoneOperationSuppressesApiKeyHeaderAndQuery() {
             val client = CapturingApiClient()

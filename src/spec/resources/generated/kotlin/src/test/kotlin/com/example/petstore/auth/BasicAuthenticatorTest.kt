@@ -269,4 +269,14 @@ class BasicAuthenticatorTest {
             }
         assertTrue(pass.message!!.contains("password"), pass.message)
     }
+
+    @Test
+    @DisplayName("bhvAuth036 a Basic username containing a colon is rejected with an error")
+    fun bhvAuth036UsernameWithColonIsRejected() {
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com", "al:ice", "s3cret")
+            }
+        assertTrue(ex.message!!.contains("':'"), ex.message)
+    }
 }
