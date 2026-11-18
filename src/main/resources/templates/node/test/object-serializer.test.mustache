@@ -2307,6 +2307,24 @@ describe('model value-equality', () => {
     expect(a.equals(c)).toBe(false);
   });
 
+  test('bhv equality 001 two models built from the same values are equal, and a change in any nested value makes them unequal', () => {
+    const build = (categoryName: string, photo: string): Pet =>
+      new Pet({
+        id: 7,
+        name: 'Rex',
+        photoUrls: new Set([photo]),
+        category: new Category({ id: 1, name: categoryName }),
+      });
+    expect(build('Dogs', 'http://example.com/a.jpg').equals(build('Dogs', 'http://example.com/a.jpg'))).toBe(true);
+    expect(build('Dogs', 'http://example.com/a.jpg').equals(build('Cats', 'http://example.com/a.jpg'))).toBe(false);
+    expect(build('Dogs', 'http://example.com/a.jpg').equals(build('Dogs', 'http://example.com/b.jpg'))).toBe(false);
+    expect(new Pet({ name: 'Rex', photoUrls: new Set() }).equals(build('Dogs', 'http://example.com/a.jpg'))).toBe(false);
+    expect(new Pet({ name: 'Rex', photoUrls: new Set() }).equals(new Pet({ name: 'Rex', photoUrls: new Set() }))).toBe(true);
+    expect(new Category({ id: 1, name: 'Dogs' }).equals(new Pet({ name: 'Dogs', photoUrls: new Set() }))).toBe(false);
+    expect(build('Dogs', 'http://example.com/a.jpg').equals(null)).toBe(false);
+    expect(build('Dogs', 'http://example.com/a.jpg').equals(undefined)).toBe(false);
+  });
+
   test('bhv serializationobject 005 a differing byte inside a map VALUE makes them unequal', () => {
     const vault = (seal: number[], shard: number[], label: number[]): BinaryVault =>
       new BinaryVault({
