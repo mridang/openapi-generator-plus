@@ -1981,4 +1981,13 @@ langjava015 | An empty explicit argument counts as not passed, so the value from
 langjava016 | A control character in a credential read from the environment is rejected when the authenticator is built. | multi
 langjava017 | Each wrapper authenticator emits its key at the location its security scheme declares.
 langjava018 | Each wrapper kind reads only its own environment variable, so one kind never sees another kind's value.
+langjava019 | JSON request content is written literally, with its characters such as angle brackets and ampersands left as they are.
+langjava020 | A JSON number of the wrong kind for its field, such as a float for an integer field, is refused naming the value it saw. | multi
+langjava021 | A whole number beyond the exact range of a double still decodes exactly into an integer field.
+langjava022 | An unset optional array field is left out of the serialized JSON rather than sent as null.
+langjava023 | An empty optional array in the JSON decodes to an unset field.
+langjava024 | A duration keeps all nine fractional digits when its nanoseconds need them.
+langjava025 | A duration drops the trailing zeros of its fractional seconds.
+langjava026 | A duration given a JSON array is refused with a serialization error.
+langjava027 | A structural dump of a container shows its elements by content, not by identity.
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
