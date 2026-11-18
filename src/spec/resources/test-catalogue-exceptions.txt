@@ -706,9 +706,42 @@ kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema fo
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
 kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
-kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
-||||||| c38bbe25c
 ||||||| 014d94da2
 php | misc068 | php takes credentials only as constructor arguments and never reads an environment variable, so an empty argument has no environment fallback
 php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
 ||||||| 83bc92ef3
+
+rust | misc083 | Rust builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written
+rust | misc085 | the trackingId parameter is typed uuid::Uuid, so a non-canonical value cannot be passed to the call or built into an Order; a malformed wire value is refused by the decoder
+rust | misc088 | Rust's number is f64 and documented lossy (serializationobject002), so the decimal places a value was written with are not kept and the exact-decimal writing this promise needs is not the Rust contract
+rust | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
+rust | misc098 | Rust multipart parts hold owned bytes (MultipartValue::Bytes(Vec<u8>)) and take no caller-supplied stream, so there is no stream the SDK could read into the body or leave open
+||||||| ed0ae8cea
+elixir | misc083 | Elixir takes query parameters as a keyword list that the SDK encodes itself, so there is no raw query text input whose repeated keys or existing percent-encodings could be kept as written
+elixir | misc087 | Elixir has no decimal type: a decimal field is a binary float, so it cannot be written with its exact digits in plain notation (see serializationobject410)
+elixir | misc088 | Elixir decodes a decimal into a binary float, so it cannot keep the number of decimal places it was written with (see serializationobject410)
+elixir | misc091 | Elixir decodes responses into plain maps and structs without checking the constraints or patterns the schema declares, so there is no decode-time refusal to test
+elixir | misc092 | Elixir structs have no separate SDK attribute name: a property is read only by the key it is decoded from, so there is no second name that could be matched
+elixir | misc098 | Elixir multipart parts take binary content only, so there is no caller-supplied stream for the SDK to read into the body or leave open
+elixir | misc262 | Elixir has no client-level cancellation to surface: a call is stopped only by its own process exiting (S7), and the SDK never receives or wraps a caller's cancellation (misc029)
+elixir | misc268 | The fixture certificate names every host the test helpers reach it by (localhost, 127.0.0.1, chasm and the host gateway, see TestCertificates), so no reachable address is missing from its names and a hostname mismatch cannot be produced
+elixir | misc277 | Elixir configuration is an immutable struct value with no object identity, so two calls return equal values rather than distinct objects; bhv config 023 asserts the equal values and bhv config 022 that a change does not leak
+||||||| 4294ae3e3
+elixir | misc100 | Elixir always writes a multipart body as multipart/form-data with a generated boundary and ignores a declared multipart subtype, so there is no declared value to keep or fall back from
+elixir | misc101 | Elixir multipart file and raw parts carry their bytes in memory as given to the call and no source is read later, so there is no unreadable source to fail on
+elixir | misc103 | Elixir decodes every model leniently and has no strict-mode option, so no single model can reject undeclared keys while others ignore them
+elixir | misc116 | Elixir generated models do not enforce declared integer minimum and maximum bounds, so an out-of-range integer decodes like any other integer
+elixir | misc135 | Elixir has no cancellation handle or signal option on the client or its configuration: a call is cancelled by ending the calling process, so the builder stores no signal
+elixir | misc152 | Elixir has no cancel signal for a call: a call is cancelled by ending the calling process, so no call can be given an already-aborted signal to reject with
+elixir | transport083 | Elixir has no client-level cancellation: a call is cancelled only by its own process exiting (S7), so no client setting can abort a request already in flight
+elixir | transport084 | Elixir has no cancellation handle on a call, so cancelling through a handle cannot exist here; dropping an in-flight call is asserted by bhv transport 060
+elixir | transport085 | Elixir has no cancellation token or signal argument (S7), so there is no unfired token to supply; the timeout error itself is asserted by bhv transport 086
+elixir | serialization129 | Elixir Duration holds microseconds only, so a nanosecond fraction cannot be held: the formatter writes at most six digits and the parser truncates digits past microseconds (bhv serializationobject 054)
+||||||| 721d0e950
+elixir | misc153 | Elixir has no cancel signal for a call or the client: a call is cancelled by ending the calling process, so no signal set anywhere reaches the in-flight request as a value
+elixir | transport091 | Elixir has no caller-supplied stream: a file or upload part is an in-memory binary the SDK never opens, so there is no handle for it to leave open (the same reason as transport061)
+csharp | misc135 | the C# client has no client-level cancellation handle: cancellation is a CancellationToken passed to each call, and ConfigurationBuilder has no setter for one
+dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
+
+kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
+||||||| c38bbe25c
