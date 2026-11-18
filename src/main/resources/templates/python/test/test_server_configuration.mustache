@@ -169,6 +169,17 @@ class TestServerVariableResolution:
             "Allowed values: [1, 2]"
         )
 
+    def test_bhv_servers_029_a_placeholder_from_a_default_stays_literal_in_the_url(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/{version}",
+            variables={
+                "env": ServerVariable(default_value="{version}"),
+                "version": ServerVariable(default_value="v2"),
+            },
+        )
+
+        assert config.get_url() == "https://{version}.api.example.com/v2"
+
     def test_bhv_servers_005_a_placeholder_introduced_by_a_value_is_not_expanded(self) -> None:
         config = ServerConfiguration(
             url_template="https://{env}.api.example.com/{version}",

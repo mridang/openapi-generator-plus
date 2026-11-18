@@ -448,6 +448,11 @@ class TestDefaultApiClientUnit:
 class TestCharsetDecoding:
     """Verify response body decoding honors the Content-Type charset."""
 
+    def test_bhv_serialization_119_the_declared_charset_is_used_and_an_unknown_one_falls_back_to_utf8(self) -> None:
+        assert _decode_with_charset("café".encode("latin-1"), "text/plain; charset=ISO-8859-1") == "café"
+        assert _decode_with_charset("café".encode("utf-8"), "text/plain; charset=no-such-charset") == "café"
+        assert _decode_with_charset(b"\x00h\x00i", "text/plain; charset=utf-16") == "hi"
+
     def test_extracts_charset_parameter(self) -> None:
         assert _charset_from_content_type("text/plain; charset=ISO-8859-1") == "ISO-8859-1"
         assert _charset_from_content_type("text/plain") is None
@@ -642,6 +647,24 @@ class TestMultipartContentType:
         file_like.name = "file.png"
         body = client._build_multipart_body({"upload": file_like}, "boundary")
         assert b"Content-Type: image/png" in body
+
+    def test_bhv_serialization_120_an_unknown_extension_gives_a_multipart_file_octet_stream(self) -> None:
+        import io
+        client = DefaultApiClient()
+        file_like = io.BytesIO(b"data")
+        file_like.name = "file.xyzzy"
+        body = client._build_multipart_body({"upload": file_like}, "boundary")
+        assert b"Content-Type: application/octet-stream" in body
+
+    def test_bhv_serialization_127_a_primitive_multipart_part_is_plain_text_in_canonical_form(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body({"count": 3}, "boundary")
+        assert b"\r\n\r\n3\r\n" in body
+
+    def test_bhv_serialization_126_a_non_ascii_multipart_field_name_is_utf8_in_the_part_header(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body({"nom\u00e9": b"x"}, "boundary")
+        assert 'name="nom\u00e9"'.encode("utf-8") in body
 
     def test_bhv_serializationwire_056_multipart_body_uses_octet_stream_for_bytes_without_filename(self) -> None:
         client = DefaultApiClient()

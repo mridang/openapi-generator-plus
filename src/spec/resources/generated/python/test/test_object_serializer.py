@@ -294,7 +294,7 @@ class TestStrictFloatAcceptsIntegralWireValue:
     (format: double → StrictFloat → LaxFloat) is the fixture shape.
     """
 
-    def test_integral_json_decodes_to_float(self) -> None:
+    def test_bhv_serialization_115_integral_json_decodes_to_float(self) -> None:
         try:
             restored = ObjectSerializer().deserialize(
                 '{"foodType": "dry", "weightKg": 5}', "DryFood"
@@ -442,7 +442,9 @@ class TestNumberIsLossless:
         assert restored is not None
         assert restored.weight_kg == Decimal("0.1234567890123456789")
 
-    def test_decode_keeps_a_large_magnitude_with_a_fraction(self) -> None:
+    def test_bhv_serialization_114_decode_keeps_a_large_magnitude_with_a_fraction(
+        self,
+    ) -> None:
         wire = '{"name": "Fido", "photoUrls": [], "weightKg": 12345678901234567890.5}'
         restored = ObjectSerializer().deserialize(wire, "Pet")
         assert restored is not None
@@ -569,6 +571,18 @@ class TestCollectionsOfModelsUseTheModelWireForm:
 
 
 class TestStringify:
+    def test_bhv_serialization_113_a_string_passes_through_without_normalising_its_form(
+        self,
+    ) -> None:
+        assert ObjectSerializer.stringify("e\u0301") == "e\u0301"
+
+    def test_bhv_serialization_117_a_protobuf_duration_string_decodes_to_a_standalone_duration(
+        self,
+    ) -> None:
+        assert ObjectSerializer()._deserialize(
+            "3600s", "datetime.timedelta"
+        ) == datetime.timedelta(hours=1)
+
     def test_bhv_serialization_106_a_non_exploded_array_query_value_joins_with_commas(
         self,
     ) -> None:
@@ -824,6 +838,25 @@ class TestToCookieValue:
 
 
 class TestSerialize:
+    def test_bhv_serialization_112_a_password_is_masked_in_the_printable_forms_and_not_on_the_wire(
+        self,
+    ) -> None:
+        from petstore_client.models.account import Account
+
+        account = Account(username="u", password=SecretStr("p-secret-value"))
+        assert "p-secret-value" not in repr(account)
+        assert "p-secret-value" not in str(account)
+        assert '"password":"p-secret-value"' in ObjectSerializer().serialize(account)
+
+    def test_bhv_serialization_130_a_failed_serialize_reports_the_canonical_prefix(
+        self,
+    ) -> None:
+        import math
+
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().serialize({"val": math.nan})
+        assert str(exc_info.value).startswith("Failed to serialize object to JSON: ")
+
     def test_bhv_serialization_094_html_ampersand_and_slash_in_a_model_field_are_written_verbatim(
         self,
     ) -> None:

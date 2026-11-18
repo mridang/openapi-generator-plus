@@ -1827,6 +1827,44 @@ class TestCloseFinishesCallsInFlight:
 
 
 class TestBodySerialization:
+    async def test_bhv_serialization_122_a_form_array_repeats_its_key_in_order(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"tags": ["a", "b"], "id": 1},
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+        assert client.captured_body == "tags=a&tags=b&id=1"
+
+    async def test_bhv_serialization_125_form_values_percent_encode_a_plus_sign(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"q": "a+b c"},
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+        assert client.captured_body == "q=a%2Bb+c"
+
     async def test_bhv_serializationwire_022_serializes_json_body(
         self, api: Any
     ) -> None:
