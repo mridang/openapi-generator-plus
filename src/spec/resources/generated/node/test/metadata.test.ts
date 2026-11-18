@@ -36,7 +36,7 @@ describe("Metadata", () => {
       expect(pkg.description!.length).toBeGreaterThan(0);
     });
 
-    test("declares sideEffects so a bundler can drop unused operations", () => {
+    test("bhv langnode 082 declares sideEffects so a bundler can drop unused operations", () => {
       // The only module with an import-time side effect is the serializer, which
       // loads reflect-metadata; everything else may be tree-shaken.
       const pkgPath = path.resolve(__dirname, "..", "package.json");
@@ -90,7 +90,7 @@ describe("Metadata", () => {
   });
 
   describe("schema constraints in model doc comments (documentation only)", () => {
-    test("a constrained property lists its pattern and bounds as doc tags", () => {
+    test("bhv langnode 083 a constrained property lists its pattern and bounds as doc tags", () => {
       const source = fs.readFileSync(
         path.resolve(__dirname, "..", "src", "models", "pet.ts"),
         "utf-8",
@@ -101,7 +101,7 @@ describe("Metadata", () => {
       expect(source).toMatch(/@pattern .*\(\?!admin\)/);
     });
 
-    test("the constraints are not enforced at runtime", () => {
+    test("bhv langnode 084 the constraints are not enforced at runtime", () => {
       expect(
         () =>
           new Pet({
@@ -114,7 +114,7 @@ describe("Metadata", () => {
   });
 
   describe("FindPetsByStatusOptions deprecated parameter (L3)", () => {
-    test("deprecated param status is marked deprecated in options", () => {
+    test("bhv langnode 085 deprecated param status is marked deprecated in options", () => {
       // L3: the spec declares the findPetsByStatus `status` query parameter
       // deprecated:true. The deprecation must propagate onto the per-operation
       // Options field — not just operations and model properties — so callers
@@ -266,7 +266,7 @@ describe("Metadata", () => {
   });
 
   describe("Metadata additionalProperties round-trip (H11)", () => {
-    test("undeclared wire keys survive deserialize instead of being dropped", () => {
+    test("bhv langnode 086 undeclared wire keys survive deserialize instead of being dropped", () => {
       // H11: Metadata declares `additionalProperties: {type: string}`, so keys
       // beyond the declared `createdAt` are free-form data that must SURVIVE a
       // round-trip. plainToInstance(excludeExtraneousValues) drops every key
@@ -343,7 +343,7 @@ describe("Metadata", () => {
       expect(metadata.additionalProperties).toEqual({});
     });
 
-    test("exposes the undeclared keys of a constructed instance", () => {
+    test("bhv langnode 087 exposes the undeclared keys of a constructed instance", () => {
       const metadata = new Metadata({
         createdAt: new Date("2024-01-01T00:00:00Z"),
         foo: 1,
@@ -371,20 +371,20 @@ describe("Metadata", () => {
       ).toBe(false);
     });
 
-    test("is typed like the index signature so typed values read without a cast", () => {
+    test("bhv langnode 088 is typed like the index signature so typed values read without a cast", () => {
       const metadata = new Metadata({ foo: "a", bar: "b" });
       const extras: Record<string, Metadata[string]> =
         metadata.additionalProperties;
       expect(extras).toEqual({ foo: "a", bar: "b" });
     });
 
-    test("returns a fresh record on every read", () => {
+    test("bhv misc 145 returns a fresh record on every read", () => {
       const metadata = new Metadata({ foo: 1 });
       metadata.additionalProperties["bar"] = "2";
       expect(metadata.additionalProperties).toEqual({ foo: 1 });
     });
 
-    test("is not serialised as a data key", () => {
+    test("bhv langnode 089 is not serialised as a data key", () => {
       const metadata = new Metadata({
         createdAt: new Date("2024-01-01T00:00:00Z"),
         foo: 1,
@@ -408,7 +408,7 @@ describe("Metadata", () => {
       expect(left.equals(new Metadata({ foo: 2 }))).toBe(false);
     });
 
-    test("a wire key literally named additionalProperties is kept as data", () => {
+    test("bhv misc 287 a wire key literally named additionalProperties is kept as data", () => {
       const metadata = ObjectSerializer.deserialize(
         { createdAt: "2024-01-01T00:00:00Z", additionalProperties: "x" },
         Metadata,
