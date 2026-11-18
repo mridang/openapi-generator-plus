@@ -168,3 +168,21 @@ class TestBasicSchemeWrappers:
         assert "s3cret" not in repr(auth)
         with pytest.raises(ValueError):
             cls("https://api.example.com", "ali:ce", "s3cret")
+
+
+class TestBasicBehaviours:
+    def test_bhv_auth_018_a_password_never_appears_in_a_refusal_or_in_the_printable_form(self) -> None:
+        with pytest.raises(ValueError) as excinfo:
+            BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cr3t')
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cr3t')
+
+        assert 's3cr3t' not in str(excinfo.value)
+        assert 's3cr3t' not in repr(auth)
+
+    def test_bhv_errors_081_a_refused_username_is_named_as_the_fault(self) -> None:
+        with pytest.raises(ValueError, match='username'):
+            BasicAuthenticator(host='https://api.example.com', username='alice\r\n', password='s3cret')
+
+    def test_a_refused_password_is_named_as_the_fault(self) -> None:
+        with pytest.raises(ValueError, match='password'):
+            BasicAuthenticator(host='https://api.example.com', username='alice', password='s3c\x00ret')

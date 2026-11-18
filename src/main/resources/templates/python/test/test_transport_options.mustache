@@ -401,3 +401,28 @@ class TestTransportOptionsRepr:
         opts = TransportOptions.builder().default_header('Accept', 'text/plain').build()
 
         assert "'Accept': 'text/plain'" in repr(opts)
+
+
+class TestTransportOptionsBehaviours:
+    def test_bhv_options_060_the_builder_defaults_match_a_direct_build(self) -> None:
+        assert TransportOptions.builder().build() == TransportOptions()
+
+    def test_bhv_options_061_a_user_agent_is_kept_as_given_and_none_leaves_it_unset(self) -> None:
+        assert TransportOptions.builder().user_agent('MyApp/1.0').build().user_agent == 'MyApp/1.0'
+        assert TransportOptions.builder().user_agent(None).build().user_agent is None
+
+    def test_bhv_options_062_an_options_object_reports_the_values_it_was_built_with(self) -> None:
+        opts = TransportOptions.builder().timeout(5000).build()
+
+        assert opts.timeout == 5000
+        assert opts.proxy is None
+        assert opts.ca_cert_path is None
+
+    def test_bhv_options_064_the_printable_form_shows_the_configured_retries(self) -> None:
+        opts = TransportOptions.builder().max_retries(3).build()
+
+        assert 'max_retries=3' in repr(opts)
+
+    def test_bhv_transport_080_a_proxy_the_client_cannot_apply_fails_construction(self) -> None:
+        with pytest.raises(ValueError):
+            TransportOptions.builder().proxy('socks5://127.0.0.1:1080').build()

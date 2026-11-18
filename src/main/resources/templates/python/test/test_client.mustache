@@ -121,7 +121,7 @@ class TestClientCredentials:
 
         assert _authorization(client) == 'Bearer arg-token'
 
-    def test_the_environment_fills_what_was_not_passed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_bhv_auth_024_the_environment_fills_what_was_not_passed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv('{{envPrefix}}_BASE_URL', 'https://env.example.com')
         monkeypatch.setenv('{{envPrefix}}_ACCESS_TOKEN', 'env-token')
 
