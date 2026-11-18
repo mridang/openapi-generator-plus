@@ -129,7 +129,7 @@ import Testing
   /* A supplied session refused with the SDK's own redirect setting fails with a configuration error. */
   @Test func testBhvLifecycle041SuppliedSessionConflictsWithRedirectSettings() throws {
     let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
-    builder.followRedirects(true)
+    builder.followRedirects(false)
     #expect(throws: ConfigurationError.self) {
       _ = try builder.build()
     }

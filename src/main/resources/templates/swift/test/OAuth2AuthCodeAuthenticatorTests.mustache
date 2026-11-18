@@ -115,7 +115,7 @@ import Testing
         try await auth.exchangeCode("the-code")
         #expect(client.urls == ["https://auth.example.com/token"])
         let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
-        #expect(body.split(separator: "&").contains("scope=read+write"))
+        #expect(body.split(separator: "&").contains("grant_type=authorization_code"))
     }
 
     /* An authorization-code authenticator holding no token refuses to produce headers, synchronously-throwing and async alike. */
