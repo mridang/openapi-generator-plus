@@ -300,7 +300,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     end
   end
 
-  it 'a 2xx token response that is a JSON array raises OAuth2TokenError saying it is not an object' do
+  it 'bhv_authoauthtwotokenmgr_041 a 2xx token response that is a JSON array raises OAuth2TokenError saying it is not an object' do
     client = FakeTokenClient.new([{ status: 200, body: '["access_token"]' }])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
@@ -376,6 +376,29 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(error.code).must_equal 'invalid_grant'
     _(error.description).must_equal 'refresh token expired'
     _(error.uri).must_equal 'https://docs.example.com/errors/invalid_grant'
+  end
+
+  it 'bhv_authoauthtwotokenmgr_042 a token error without a description names the status and the code only' do
+    client = FakeTokenClient.new([{ status: 400, body: { 'error' => 'invalid_grant' } }])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    error = assert_raises(Petstore::Client::Errors::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+    _(error.message).must_equal 'Token request failed with status 400: invalid_grant'
+  end
+
+  it 'bhv_authoauthtwotokenmgr_043 serialises the token request parameters in the order given' do
+    client = FakeTokenClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    manager.get_access_token('https://auth.example.com/token', {
+                               'grant_type' => 'client_credentials', 'client_id' => 'my_client_id',
+                               'client_secret' => 'my_client_secret', 'scope' => 'read write'
+                             })
+    _(client.last_body).must_equal 'grant_type=client_credentials&client_id=my_client_id&client_secret=my_client_secret&scope=read+write'
   end
 
   it 'bhv_authoauthtwotokenmgr_007 applies one margin capped at half the lifetime' do
@@ -490,7 +513,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   end
 
   ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
-    it "expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
+    it "bhv_authoauthtwotokenmgr_046 expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
       client = FakeTokenClient.new([
                                      { status: 200, body: { 'access_token' => 'first', 'expires_in' => raw } },
                                      { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
@@ -521,7 +544,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     end
   end
 
-  it 'expires_in as a padded decimal string with a fraction is accepted' do
+  it 'bhv_authoauthtwotokenmgr_045 expires_in as a padded decimal string with a fraction is accepted' do
     client = FakeTokenClient.new([
                                    { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
                                  ])

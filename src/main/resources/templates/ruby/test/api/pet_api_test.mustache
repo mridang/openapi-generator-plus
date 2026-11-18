@@ -906,7 +906,7 @@ describe {{moduleName}}::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
-    it 'raises ArgumentError when the required query param category is nil' do
+    it 'bhv_operations_125 raises ArgumentError naming the required query param category when it is nil' do
       # Deliberately breaks the signature, which types category as String.
       # @type var missing: untyped
       missing = nil
@@ -1537,7 +1537,7 @@ describe {{moduleName}}::Api::PetApi do
 
     # Canonical behavior 1 — a repeated-key array (`tags=a&tags=b`), not a
     # comma-joined value or a bracketed `tags[]` form.
-    it 'expands an array form property to repeated keys' do
+    it 'bhv_serializationwire_053 expands an array form property to repeated keys' do
       api, server, thread, captured = capture_request_body
       begin
         options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(

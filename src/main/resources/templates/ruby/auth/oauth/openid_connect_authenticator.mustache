@@ -152,7 +152,9 @@ module {{moduleName}}
           # same typed error an API call with that status raises.
           status = response.status_code.to_i
           if status < 200 || status >= 300
-            raise ::{{moduleName}}::Errors::ApiError.from_response(status, response.headers, response.body)
+            raise ::{{moduleName}}::Errors::ApiError.from_response(status, response.headers, response.body,
+                                                                  request_method: 'GET',
+                                                                  request_path: URI.parse(@openid_connect_url).path)
           end
 
           discovery = parse_discovery(response.body)

@@ -62,7 +62,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # A Unicode space is not ASCII blank, so the printable-ASCII rule rejects it
   # rather than the empty-token rule.
   it 'bhv_authbearer_016 a Unicode space is not blank, it fails the printable ASCII check instead' do
-    error = _(-> {
+    error = _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "\u00A0")
     }).must_raise ArgumentError
     _(error.message).must_equal 'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
@@ -72,21 +72,19 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # from .env / file reads, which would CRLF-inject the Authorization header.
   # Also reject non-ASCII.
   it 'bhv_authbearer_012 rejects CR/LF in the token' do
-    _(-> {
+    _(lambda {
+      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
+    }).must_raise ArgumentError
+  end
+
+  it 'bhv_authbearer_028 rejects a bearer token containing CRLF at construction' do
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
     }).must_raise ArgumentError
   end
 
   it 'bhv_authbearer_022 rejects a non-ASCII token' do
-
-  it 'bhv_authbearer_028 rejects a bearer token containing CRLF at construction' do
-    _(-> {
-      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
-    }).must_raise ArgumentError
-  end
-
-  it 'rejects a non-ASCII token' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'ñoño')
     }).must_raise ArgumentError
   end
@@ -98,7 +96,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
     _(auth.inspect).wont_include 'super-secret-token'
     _(auth.to_s).wont_include 'super-secret-token'
-    _("#{auth}").wont_include 'super-secret-token'
+    _(auth.to_s).wont_include 'super-secret-token'
     _(auth.inspect).must_include '***'
     _(auth.inspect).must_include 'host='
   end
@@ -203,7 +201,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   end
 
   it 'bhv_authbearer_026 a token and a token provider passed together are refused' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'explicit', token_provider: -> { 'from-provider' })
     }).must_raise ArgumentError
   end

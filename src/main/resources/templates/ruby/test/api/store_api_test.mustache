@@ -190,6 +190,19 @@ describe {{moduleName}}::Api::StoreApi do
   end
 
   describe '#place_order' do
+    it 'bhv_operations_126 a place_order call without an order sends no body and no content type' do
+      api, server, thread, captured = capture_wire_request('{"id":1}')
+      begin
+        api.place_order
+        sent = captured.pop
+        _(sent[:body]).must_be_empty
+        _(sent[:headers]).wont_include 'content-type'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     it 'bhv_operations_117 place_order' do
       order = {{moduleName}}::Models::Order.new(
         id: 1,

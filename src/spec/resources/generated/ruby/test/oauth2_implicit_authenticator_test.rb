@@ -88,6 +88,16 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(auth.to_s).must_include '***'
   end
 
+  it 'bhv_authoauthtwoimplicit_014 rejects a non-ASCII access token with the RFC 7230 message' do
+    err = assert_raises(ArgumentError) { auth.access_token = "t\u00F6ken" }
+    _(err.message).must_equal 'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+  end
+
+  it 'bhv_authoauthtwoimplicit_016 accepts an access token that contains a tab' do
+    auth.access_token = "abc\tdef"
+    _(auth.auth_headers['Authorization']).must_equal "Bearer abc\tdef"
+  end
+
   it 'bhv_authoauthtwoimplicit_001 keeps ~ literal and percent-encodes * ! \' ( ) in the authorize URL' do
     url = auth.build_authorization_url("state~*!'()")
     _(url).must_include 'state=state~%2A%21%27%28%29'

@@ -147,6 +147,16 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
+  it 'bhv_authoauthtwoauthcode_032 sends the code exchange parameters in a fixed order' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+                                    ])
+    auth.api_client = client
+
+    auth.exchange_code('auth_code_123')
+    _(client.last_body).must_equal 'grant_type=authorization_code&code=auth_code_123&client_id=my_client_id&client_secret=my_client_secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback'
+  end
+
   it 'bhv_authoauthtwoauthcode_015 includes refresh token on refresh' do
     client = FakeAuthCodeClient.new([
                                       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
@@ -242,7 +252,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
-  it 'refuses to produce headers before exchange_code was called' do
+  it 'bhv_authoauthtwoauthcode_030 refuses to produce headers before exchange_code was called' do
     err = assert_raises(RuntimeError) { auth.auth_headers }
     _(err.message).must_equal 'Must call exchange_code() before making API requests'
   end

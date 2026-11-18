@@ -573,7 +573,7 @@ describe Petstore::Client::ValueSerializer do
       _(encoded).must_equal('%7B%22k%22%3A%22a%22%7D')
     end
 
-    it 'keeps only the unreserved set literal and encodes the rest as UTF-8' do
+    it 'bhv_serializationparam_104 keeps only the unreserved set literal and encodes the rest as UTF-8' do
       encoded = Petstore::Client::ValueSerializer.encode_content_cookie('{"k":"a b~*é"}')
 
       _(encoded).must_equal('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D')

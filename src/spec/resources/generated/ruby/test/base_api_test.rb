@@ -202,7 +202,7 @@ describe Petstore::Client::Api::BaseApi do
     end
   end
 
-  it 'bhv_errors_048 418 throws ClientError' do
+  it 'bhv_errors_048 a 418 response throws ClientError' do
     err = assert_raises(Petstore::Client::Errors::ClientError) do
       api.call('GET', '/test/status/418', {}, {}, nil, ['application/json'], 'application/json', nil)
     end
@@ -556,6 +556,26 @@ describe Petstore::Client::Api::BaseApi do
   # NO_AUTH sentinel) into invoke_api, which must fall back to the client-level
   # authenticator. A configured client credential MUST reach the wire — the
   # regression that silently dropped auth on every inherited-security operation.
+  it 'bhv_authintegration_018 applies a configured client authenticator to a secured operation' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    client_auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'http://localhost', 'X-Api-Key', 'configured-key', Petstore::Client::Auth::ApiKeyLocation::HEADER
+    )
+    test_api = TestableApi.new(client, config, client_auth)
+    test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+    _(client.captured_headers['X-Api-Key']).must_equal 'configured-key'
+  end
+
+  it 'bhv_authintegration_019 an invalid auth cookie fails the call before any request is sent' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => "abc\n" })
+    _(-> { test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil, auth) }).must_raise ArgumentError
+    _(client.captured_url).must_be_nil
+  end
+
   it 'bhv_authintegration_012 applies the client authenticator on an inherited-security operation' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
