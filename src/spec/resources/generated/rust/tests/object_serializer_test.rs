@@ -1181,3 +1181,49 @@ fn test_bhv_serialization_051_a_strict_model_refuses_an_unknown_key_through_the_
         serde_json::from_str(r#"{"id":1,"name":"x"}"#).expect("declared keys decode");
     assert_eq!(known.id, Some(1));
 }
+
+/// serialization077: a duration written to its wire string and decoded back is the same duration, across zero, negative, sub-second, multi-day and extreme values.
+#[test]
+fn test_bhv_serializationobject_077_durations_round_trip_through_their_wire_string() {
+    use chrono::Duration;
+    use petstore::proto_duration;
+
+    for d in [
+        Duration::zero(),
+        -Duration::seconds(90),
+        Duration::milliseconds(250),
+        Duration::days(3),
+        Duration::seconds(315_576_000_000),
+    ] {
+        let wire = proto_duration::format(&d);
+        assert_eq!(proto_duration::parse(&wire).expect("parse"), d, "{}", wire);
+    }
+}
+
+/// serialization078: a time of day is written as zero-padded HH:MM:SS, with a fraction only when it has a sub-second value.
+#[test]
+fn test_bhv_serializationobject_078_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second(
+) {
+    use chrono::NaiveTime;
+
+    let whole = NaiveTime::from_hms_opt(9, 5, 3).expect("a valid time");
+    assert_eq!(
+        serde_json::to_string(&whole).expect("serialize"),
+        "\"09:05:03\""
+    );
+    let fractional = NaiveTime::from_hms_milli_opt(9, 5, 3, 250).expect("a valid time");
+    assert_eq!(
+        serde_json::to_string(&fractional).expect("serialize"),
+        "\"09:05:03.250\""
+    );
+}
+
+/// serialization080: protobuf durations are accepted across the full range, and a value one second past the upper bound is rejected.
+#[test]
+fn test_bhv_serializationobject_080_protobuf_durations_accept_the_full_range_and_reject_one_past() {
+    use petstore::proto_duration;
+
+    assert!(proto_duration::parse("315576000000s").is_ok());
+    assert!(proto_duration::parse("-315576000000s").is_ok());
+    assert!(proto_duration::parse("315576000001s").is_err());
+}

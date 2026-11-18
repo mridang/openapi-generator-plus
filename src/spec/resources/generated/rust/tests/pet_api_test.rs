@@ -2249,7 +2249,7 @@ fn test_operation_prose_is_raw_and_rustdoc_safe() {
 /* F823: the default transport retries a 503 and sends the call again as a
  * fresh request. */
 #[tokio::test]
-async fn test_pet_api_retries_a_503_with_the_default_transport() {
+async fn test_bhv_retries_048_pet_api_retries_a_503_with_the_default_transport() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let addr = listener.local_addr().unwrap();
     let served = Arc::new(std::sync::atomic::AtomicUsize::new(0));
