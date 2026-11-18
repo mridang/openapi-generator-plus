@@ -1992,3 +1992,8 @@ langcsharp033 | The readme documents the behaviour that most surprises callers
 langcsharp034 | The readme names the versioning policy the package follows
 langcsharp035 | The skills model sample supplies every required field
 langcsharp036 | The makefile carries a dependency audit target
+langcsharp037 | An enum query parameter is sent as its wire value
+langcsharp038 | An enum header parameter is sent as its wire value
+langcsharp039 | A set query parameter with a multi collection format expands to one entry per value
+langcsharp040 | A null element in a multi query array keeps an empty entry
+langcsharp041 | A byte array is encoded as one base64 string rather than a list
