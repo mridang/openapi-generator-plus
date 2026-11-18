@@ -3,6 +3,7 @@
 package {{package}};
 
 import {{invokerPackage}}.ApiResult;
+import {{invokerPackage}}.errors.ApiException;
 {{#imports}}import {{import}};
 {{/imports}}
 {{#optionsImports}}
@@ -19,9 +20,8 @@ import javax.annotation.Nullable;
  */
 public interface {{classname}}Interface {
 {{#operation}}
-
 {{#servers}}{{#-first}}
-    /** The {@code {{operationId}}} operation, using the server declared in the spec. */
+{{>api/operation_doc_noserver}}
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
@@ -29,7 +29,7 @@ public interface {{classname}}Interface {
         {{#returnType}}return {{operationId}}({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});{{/returnType}}
     }
 
-    /** The {@code {{operationId}}} operation with its HTTP details, using the server declared in the spec. */
+{{>api/operation_doc_result_noserver}}
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
@@ -38,8 +38,20 @@ public interface {{classname}}Interface {
     }
 {{/-first}}{{/servers}}
 {{#vendorExtensions.op.optionsArgOptional}}
-
-    /** The {@code {{operationId}}} operation without the optional per-call options. */
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument;
+     * any optional parameters and the per-call timeout, retry count and headers stay unset, so
+     * the client's configured settings apply.
+     *
+{{>api/operation_doc_args}}
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
@@ -47,7 +59,18 @@ public interface {{classname}}Interface {
         {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}
     }
 
-    /** The {@code {{operationId}}} operation with its HTTP details, without the optional per-call options. */
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument;
+     * any optional parameters and the per-call timeout, retry count and headers stay unset, so
+     * the client's configured settings apply.
+     *
+{{>api/operation_doc_args}}
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
@@ -56,8 +79,17 @@ public interface {{classname}}Interface {
     }
 {{/vendorExtensions.op.optionsArgOptional}}
 {{#vendorExtensions.hasOptionalBodyOnly}}
-
-    /** The {@code {{operationId}}} operation without the optional request body. */
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional request body.
+     *
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
@@ -65,36 +97,78 @@ public interface {{classname}}Interface {
         {{#returnType}}return {{operationId}}(null);{{/returnType}}{{^returnType}}{{operationId}}(null);{{/returnType}}
     }
 
-    /** The {@code {{operationId}}} operation with its HTTP details, without the optional request body. */
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional request body.
+     *
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
     default ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo() {
         return {{operationId}}WithHttpInfo(null);
     }
-{{/vendorExtensions.hasOptionalBodyOnly}}
 
-    /** The {@code {{operationId}}} operation. */
+{{/vendorExtensions.hasOptionalBodyOnly}}
+{{>api/operation_doc}}
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
     {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}});
 {{#vendorExtensions.hasMultipleConsumes}}
 
-    /** The {@code {{operationId}}} operation with the request content type chosen by the caller. */
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Overload that selects the request content-type among the types this
+     * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
+     * The selected value is sent as the {@code Content-Type} request header.
+     * Passing {@code null} defaults to the first declared type, matching the
+     * overload without a selector.
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{>api/operation_doc_server}}
+     * @param requestContentType the request content-type to send, or {@code null} for the default
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
     {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType);
 
-    /** The {@code {{operationId}}} operation with its HTTP details and the request content type chosen by the caller. */
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Overload that selects the request content-type among the types this
+     * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
+     * The selected value is sent as the {@code Content-Type} request header.
+     * Passing {@code null} defaults to the first declared type.
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{>api/operation_doc_server}}
+     * @param requestContentType the request content-type to send, or {@code null} for the default
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
     ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType);
 {{/vendorExtensions.hasMultipleConsumes}}
 
-    /** The {@code {{operationId}}} operation with its HTTP details. */
+
+{{>api/operation_doc_result}}
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}

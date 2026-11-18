@@ -15,6 +15,7 @@ import com.example.petstore.api.options.GetProjectOptions;
 import com.example.petstore.api.options.GetRangeOptions;
 import com.example.petstore.api.options.GetUpstreamOptions;
 import com.example.petstore.api.options.TakeLockOptions;
+import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.Result;
 import javax.annotation.Nullable;
 
@@ -26,113 +27,361 @@ import javax.annotation.Nullable;
  */
 public interface ProblemsApiInterface {
 
-  /** The {@code getFallback} operation without the optional per-call options. */
+  /**
+   * Read a fallback, declaring a default response
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param fallbackId (required)
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
+   *     UnexpectedFailure} body
+   */
   default Result getFallback(String fallbackId) {
     return getFallback(fallbackId, null);
   }
 
   /**
-   * The {@code getFallback} operation with its HTTP details, without the optional per-call options.
+   * Read a fallback, declaring a default response
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param fallbackId (required)
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
+   *     UnexpectedFailure} body
    */
   default ApiResult<Result> getFallbackWithHttpInfo(String fallbackId) {
     return getFallbackWithHttpInfo(fallbackId, null);
   }
 
-  /** The {@code getFallback} operation. */
+  /**
+   * Read a fallback, declaring a default response
+   *
+   * @param fallbackId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
+   *     UnexpectedFailure} body
+   */
   Result getFallback(String fallbackId, @Nullable GetFallbackOptions options);
 
-  /** The {@code getFallback} operation with its HTTP details. */
+  /**
+   * Read a fallback, declaring a default response
+   *
+   * @param fallbackId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a {@code
+   *     UnexpectedFailure} body
+   */
   ApiResult<Result> getFallbackWithHttpInfo(
       String fallbackId, @Nullable GetFallbackOptions options);
 
-  /** The {@code getMember} operation without the optional per-call options. */
+  /**
+   * Read a member, declaring a 404 with a different schema
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memberId (required)
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
+   *     MemberNotFound} body
+   */
   default Result getMember(String memberId) {
     return getMember(memberId, null);
   }
 
   /**
-   * The {@code getMember} operation with its HTTP details, without the optional per-call options.
+   * Read a member, declaring a 404 with a different schema
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memberId (required)
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
+   *     MemberNotFound} body
    */
   default ApiResult<Result> getMemberWithHttpInfo(String memberId) {
     return getMemberWithHttpInfo(memberId, null);
   }
 
-  /** The {@code getMember} operation. */
+  /**
+   * Read a member, declaring a 404 with a different schema
+   *
+   * @param memberId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
+   *     MemberNotFound} body
+   */
   Result getMember(String memberId, @Nullable GetMemberOptions options);
 
-  /** The {@code getMember} operation with its HTTP details. */
+  /**
+   * Read a member, declaring a 404 with a different schema
+   *
+   * @param memberId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a {@code
+   *     MemberNotFound} body
+   */
   ApiResult<Result> getMemberWithHttpInfo(String memberId, @Nullable GetMemberOptions options);
 
-  /** The {@code getProject} operation without the optional per-call options. */
+  /**
+   * Read a project, declaring a 404 with its own schema
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param projectId (required)
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
+   *     ProjectNotFound} body
+   */
   default Result getProject(String projectId) {
     return getProject(projectId, null);
   }
 
   /**
-   * The {@code getProject} operation with its HTTP details, without the optional per-call options.
+   * Read a project, declaring a 404 with its own schema
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param projectId (required)
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
+   *     ProjectNotFound} body
    */
   default ApiResult<Result> getProjectWithHttpInfo(String projectId) {
     return getProjectWithHttpInfo(projectId, null);
   }
 
-  /** The {@code getProject} operation. */
+  /**
+   * Read a project, declaring a 404 with its own schema
+   *
+   * @param projectId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
+   *     ProjectNotFound} body
+   */
   Result getProject(String projectId, @Nullable GetProjectOptions options);
 
-  /** The {@code getProject} operation with its HTTP details. */
+  /**
+   * Read a project, declaring a 404 with its own schema
+   *
+   * @param projectId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a {@code
+   *     ProjectNotFound} body
+   */
   ApiResult<Result> getProjectWithHttpInfo(String projectId, @Nullable GetProjectOptions options);
 
-  /** The {@code getRange} operation without the optional per-call options. */
+  /**
+   * Read a range, declaring one schema for every 4XX status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param rangeId (required)
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
+   *     RejectedRequest} body
+   */
   default Result getRange(String rangeId) {
     return getRange(rangeId, null);
   }
 
   /**
-   * The {@code getRange} operation with its HTTP details, without the optional per-call options.
+   * Read a range, declaring one schema for every 4XX status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param rangeId (required)
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
+   *     RejectedRequest} body
    */
   default ApiResult<Result> getRangeWithHttpInfo(String rangeId) {
     return getRangeWithHttpInfo(rangeId, null);
   }
 
-  /** The {@code getRange} operation. */
+  /**
+   * Read a range, declaring one schema for every 4XX status
+   *
+   * @param rangeId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
+   *     RejectedRequest} body
+   */
   Result getRange(String rangeId, @Nullable GetRangeOptions options);
 
-  /** The {@code getRange} operation with its HTTP details. */
+  /**
+   * Read a range, declaring one schema for every 4XX status
+   *
+   * @param rangeId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a {@code
+   *     RejectedRequest} body
+   */
   ApiResult<Result> getRangeWithHttpInfo(String rangeId, @Nullable GetRangeOptions options);
 
-  /** The {@code getUpstream} operation without the optional per-call options. */
+  /**
+   * Read an upstream, declaring one schema for every 5XX status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param upstreamId (required)
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
+   *     UpstreamFailure} body
+   */
   default Result getUpstream(String upstreamId) {
     return getUpstream(upstreamId, null);
   }
 
   /**
-   * The {@code getUpstream} operation with its HTTP details, without the optional per-call options.
+   * Read an upstream, declaring one schema for every 5XX status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param upstreamId (required)
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
+   *     UpstreamFailure} body
    */
   default ApiResult<Result> getUpstreamWithHttpInfo(String upstreamId) {
     return getUpstreamWithHttpInfo(upstreamId, null);
   }
 
-  /** The {@code getUpstream} operation. */
+  /**
+   * Read an upstream, declaring one schema for every 5XX status
+   *
+   * @param upstreamId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
+   *     UpstreamFailure} body
+   */
   Result getUpstream(String upstreamId, @Nullable GetUpstreamOptions options);
 
-  /** The {@code getUpstream} operation with its HTTP details. */
+  /**
+   * Read an upstream, declaring one schema for every 5XX status
+   *
+   * @param upstreamId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a {@code
+   *     UpstreamFailure} body
+   */
   ApiResult<Result> getUpstreamWithHttpInfo(
       String upstreamId, @Nullable GetUpstreamOptions options);
 
-  /** The {@code takeLock} operation without the optional per-call options. */
+  /**
+   * Take a lock, declaring one schema under two statuses
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param lockId (required)
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a {@code
+   *     StateConflict} body
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
+   *     StateConflict} body
+   */
   default Result takeLock(String lockId) {
     return takeLock(lockId, null);
   }
 
   /**
-   * The {@code takeLock} operation with its HTTP details, without the optional per-call options.
+   * Take a lock, declaring one schema under two statuses
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param lockId (required)
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a {@code
+   *     StateConflict} body
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
+   *     StateConflict} body
    */
   default ApiResult<Result> takeLockWithHttpInfo(String lockId) {
     return takeLockWithHttpInfo(lockId, null);
   }
 
-  /** The {@code takeLock} operation. */
+  /**
+   * Take a lock, declaring one schema under two statuses
+   *
+   * @param lockId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a {@code
+   *     StateConflict} body
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
+   *     StateConflict} body
+   */
   Result takeLock(String lockId, @Nullable TakeLockOptions options);
 
-  /** The {@code takeLock} operation with its HTTP details. */
+  /**
+   * Take a lock, declaring one schema under two statuses
+   *
+   * @param lockId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Result}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a {@code
+   *     StateConflict} body
+   * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a {@code
+   *     StateConflict} body
+   */
   ApiResult<Result> takeLockWithHttpInfo(String lockId, @Nullable TakeLockOptions options);
 }

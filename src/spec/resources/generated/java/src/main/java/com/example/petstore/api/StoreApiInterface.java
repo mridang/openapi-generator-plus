@@ -27,6 +27,7 @@ import com.example.petstore.api.options.GetTreeOptions;
 import com.example.petstore.api.options.PlaceOrderOptions;
 import com.example.petstore.api.options.ReserveStockOptions;
 import com.example.petstore.api.options.SearchStoreOptions;
+import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.Account;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
@@ -50,352 +51,914 @@ import javax.annotation.Nullable;
  */
 public interface StoreApiInterface {
 
-  /** The {@code createAccount} operation without the optional per-call options. */
+  /**
+   * Create an account
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param account (required)
+   * @return {@code Account}
+   * @throws ApiException if fails to make API call
+   */
   default Account createAccount(Account account) {
     return createAccount(account, null);
   }
 
   /**
-   * The {@code createAccount} operation with its HTTP details, without the optional per-call
-   * options.
+   * Create an account
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param account (required)
+   * @return the API result wrapping {@code Account}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Account> createAccountWithHttpInfo(Account account) {
     return createAccountWithHttpInfo(account, null);
   }
 
-  /** The {@code createAccount} operation. */
+  /**
+   * Create an account
+   *
+   * @param account (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Account}
+   * @throws ApiException if fails to make API call
+   */
   Account createAccount(Account account, @Nullable CreateAccountOptions options);
 
-  /** The {@code createAccount} operation with its HTTP details. */
+  /**
+   * Create an account
+   *
+   * @param account (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Account}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Account> createAccountWithHttpInfo(
       Account account, @Nullable CreateAccountOptions options);
 
-  /** The {@code deleteOrder} operation without the optional per-call options. */
+  /**
+   * Delete purchase order by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param orderId ID of the order to delete (required)
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default void deleteOrder(Long orderId) {
     deleteOrder(orderId, null);
   }
 
   /**
-   * The {@code deleteOrder} operation with its HTTP details, without the optional per-call options.
+   * Delete purchase order by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param orderId ID of the order to delete (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) {
     return deleteOrderWithHttpInfo(orderId, null);
   }
 
-  /** The {@code deleteOrder} operation. */
+  /**
+   * Delete purchase order by ID
+   *
+   * @param orderId ID of the order to delete (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   void deleteOrder(Long orderId, @Nullable DeleteOrderOptions options);
 
-  /** The {@code deleteOrder} operation with its HTTP details. */
+  /**
+   * Delete purchase order by ID
+   *
+   * @param orderId ID of the order to delete (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<Void> deleteOrderWithHttpInfo(Long orderId, @Nullable DeleteOrderOptions options);
 
-  /** The {@code getBySwatch} operation without the optional per-call options. */
+  /**
+   * Echoes a swatch supplied via path, query and header parameters.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param pathSwatch (required)
+   * @return {@code Category}
+   * @throws ApiException if fails to make API call
+   */
   default Category getBySwatch(Swatch pathSwatch) {
     return getBySwatch(pathSwatch, null);
   }
 
   /**
-   * The {@code getBySwatch} operation with its HTTP details, without the optional per-call options.
+   * Echoes a swatch supplied via path, query and header parameters.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param pathSwatch (required)
+   * @return the API result wrapping {@code Category}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Category> getBySwatchWithHttpInfo(Swatch pathSwatch) {
     return getBySwatchWithHttpInfo(pathSwatch, null);
   }
 
-  /** The {@code getBySwatch} operation. */
+  /**
+   * Echoes a swatch supplied via path, query and header parameters.
+   *
+   * @param pathSwatch (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code Category}
+   * @throws ApiException if fails to make API call
+   */
   Category getBySwatch(Swatch pathSwatch, @Nullable GetBySwatchOptions options);
 
-  /** The {@code getBySwatch} operation with its HTTP details. */
+  /**
+   * Echoes a swatch supplied via path, query and header parameters.
+   *
+   * @param pathSwatch (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code Category}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Category> getBySwatchWithHttpInfo(
       Swatch pathSwatch, @Nullable GetBySwatchOptions options);
 
-  /** The {@code getDefaults} operation without the optional per-call options. */
+  /**
+   * Returns a model exercising schema defaults on deserialize.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Defaults}
+   * @throws ApiException if fails to make API call
+   */
   default Defaults getDefaults() {
     return getDefaults(null);
   }
 
   /**
-   * The {@code getDefaults} operation with its HTTP details, without the optional per-call options.
+   * Returns a model exercising schema defaults on deserialize.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Defaults}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Defaults> getDefaultsWithHttpInfo() {
     return getDefaultsWithHttpInfo(null);
   }
 
-  /** The {@code getDefaults} operation. */
+  /**
+   * Returns a model exercising schema defaults on deserialize.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Defaults}
+   * @throws ApiException if fails to make API call
+   */
   Defaults getDefaults(@Nullable GetDefaultsOptions options);
 
-  /** The {@code getDefaults} operation with its HTTP details. */
+  /**
+   * Returns a model exercising schema defaults on deserialize.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Defaults}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Defaults> getDefaultsWithHttpInfo(@Nullable GetDefaultsOptions options);
 
-  /** The {@code getDepartment} operation without the optional per-call options. */
+  /**
+   * Returns a department (mutual-recursion codegen fixture).
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Department}
+   * @throws ApiException if fails to make API call
+   */
   default Department getDepartment() {
     return getDepartment(null);
   }
 
   /**
-   * The {@code getDepartment} operation with its HTTP details, without the optional per-call
-   * options.
+   * Returns a department (mutual-recursion codegen fixture).
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Department}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Department> getDepartmentWithHttpInfo() {
     return getDepartmentWithHttpInfo(null);
   }
 
-  /** The {@code getDepartment} operation. */
+  /**
+   * Returns a department (mutual-recursion codegen fixture).
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Department}
+   * @throws ApiException if fails to make API call
+   */
   Department getDepartment(@Nullable GetDepartmentOptions options);
 
-  /** The {@code getDepartment} operation with its HTTP details. */
+  /**
+   * Returns a department (mutual-recursion codegen fixture).
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Department}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Department> getDepartmentWithHttpInfo(@Nullable GetDepartmentOptions options);
 
-  /** The {@code getGroupedCategories} operation without the optional per-call options. */
+  /**
+   * Returns categories grouped into an array of string-keyed maps.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code List<Map<String, Category>>}
+   * @throws ApiException if fails to make API call
+   */
   default List<Map<String, Category>> getGroupedCategories() {
     return getGroupedCategories(null);
   }
 
   /**
-   * The {@code getGroupedCategories} operation with its HTTP details, without the optional per-call
-   * options.
+   * Returns categories grouped into an array of string-keyed maps.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<Map<String, Category>>}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<List<Map<String, Category>>> getGroupedCategoriesWithHttpInfo() {
     return getGroupedCategoriesWithHttpInfo(null);
   }
 
-  /** The {@code getGroupedCategories} operation. */
+  /**
+   * Returns categories grouped into an array of string-keyed maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<Map<String, Category>>}
+   * @throws ApiException if fails to make API call
+   */
   List<Map<String, Category>> getGroupedCategories(@Nullable GetGroupedCategoriesOptions options);
 
-  /** The {@code getGroupedCategories} operation with its HTTP details. */
+  /**
+   * Returns categories grouped into an array of string-keyed maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<Map<String, Category>>}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<List<Map<String, Category>>> getGroupedCategoriesWithHttpInfo(
       @Nullable GetGroupedCategoriesOptions options);
 
-  /** The {@code getInventory} operation without the optional per-call options. */
+  /**
+   * Returns pet inventories by status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Map<String, Integer>}
+   * @throws ApiException if fails to make API call
+   */
   default Map<String, Integer> getInventory() {
     return getInventory(null);
   }
 
   /**
-   * The {@code getInventory} operation with its HTTP details, without the optional per-call
-   * options.
+   * Returns pet inventories by status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Map<String, Integer>}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() {
     return getInventoryWithHttpInfo(null);
   }
 
-  /** The {@code getInventory} operation. */
+  /**
+   * Returns pet inventories by status
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Map<String, Integer>}
+   * @throws ApiException if fails to make API call
+   */
   Map<String, Integer> getInventory(@Nullable GetInventoryOptions options);
 
-  /** The {@code getInventory} operation with its HTTP details. */
+  /**
+   * Returns pet inventories by status
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Map<String, Integer>}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Map<String, Integer>> getInventoryWithHttpInfo(@Nullable GetInventoryOptions options);
 
-  /** The {@code getMatrix} operation without the optional per-call options. */
+  /**
+   * Returns a matrix as an array of integer arrays.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code List<List<Integer>>}
+   * @throws ApiException if fails to make API call
+   */
   default List<List<Integer>> getMatrix() {
     return getMatrix(null);
   }
 
   /**
-   * The {@code getMatrix} operation with its HTTP details, without the optional per-call options.
+   * Returns a matrix as an array of integer arrays.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<List<Integer>>}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<List<List<Integer>>> getMatrixWithHttpInfo() {
     return getMatrixWithHttpInfo(null);
   }
 
-  /** The {@code getMatrix} operation. */
+  /**
+   * Returns a matrix as an array of integer arrays.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<List<Integer>>}
+   * @throws ApiException if fails to make API call
+   */
   List<List<Integer>> getMatrix(@Nullable GetMatrixOptions options);
 
-  /** The {@code getMatrix} operation with its HTTP details. */
+  /**
+   * Returns a matrix as an array of integer arrays.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<List<Integer>>}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<List<List<Integer>>> getMatrixWithHttpInfo(@Nullable GetMatrixOptions options);
 
-  /** The {@code getOrderById} operation without the optional per-call options. */
+  /**
+   * Find purchase order by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param orderId ID of order to return (required)
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default Order getOrderById(Long orderId) {
     return getOrderById(orderId, null);
   }
 
   /**
-   * The {@code getOrderById} operation with its HTTP details, without the optional per-call
-   * options.
+   * Find purchase order by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param orderId ID of order to return (required)
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) {
     return getOrderByIdWithHttpInfo(orderId, null);
   }
 
-  /** The {@code getOrderById} operation. */
+  /**
+   * Find purchase order by ID
+   *
+   * @param orderId ID of order to return (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   Order getOrderById(Long orderId, @Nullable GetOrderByIdOptions options);
 
-  /** The {@code getOrderById} operation with its HTTP details. */
+  /**
+   * Find purchase order by ID
+   *
+   * @param orderId ID of order to return (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId, @Nullable GetOrderByIdOptions options);
 
-  /** The {@code getOrderByTrackingId} operation without the optional per-call options. */
+  /**
+   * Find purchase order by tracking id
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param trackingId (required)
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
   default Order getOrderByTrackingId(UUID trackingId) {
     return getOrderByTrackingId(trackingId, null);
   }
 
   /**
-   * The {@code getOrderByTrackingId} operation with its HTTP details, without the optional per-call
-   * options.
+   * Find purchase order by tracking id
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param trackingId (required)
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Order> getOrderByTrackingIdWithHttpInfo(UUID trackingId) {
     return getOrderByTrackingIdWithHttpInfo(trackingId, null);
   }
 
-  /** The {@code getOrderByTrackingId} operation. */
+  /**
+   * Find purchase order by tracking id
+   *
+   * @param trackingId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
   Order getOrderByTrackingId(UUID trackingId, @Nullable GetOrderByTrackingIdOptions options);
 
-  /** The {@code getOrderByTrackingId} operation with its HTTP details. */
+  /**
+   * Find purchase order by tracking id
+   *
+   * @param trackingId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Order> getOrderByTrackingIdWithHttpInfo(
       UUID trackingId, @Nullable GetOrderByTrackingIdOptions options);
 
-  /** The {@code getStockItem} operation without the optional per-call options. */
+  /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code StockItem}
+   * @throws ApiException if fails to make API call
+   */
   default StockItem getStockItem() {
     return getStockItem(null);
   }
 
   /**
-   * The {@code getStockItem} operation with its HTTP details, without the optional per-call
-   * options.
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code StockItem}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<StockItem> getStockItemWithHttpInfo() {
     return getStockItemWithHttpInfo(null);
   }
 
-  /** The {@code getStockItem} operation. */
+  /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code StockItem}
+   * @throws ApiException if fails to make API call
+   */
   StockItem getStockItem(@Nullable GetStockItemOptions options);
 
-  /** The {@code getStockItem} operation with its HTTP details. */
+  /**
+   * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code StockItem}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<StockItem> getStockItemWithHttpInfo(@Nullable GetStockItemOptions options);
 
-  /** The {@code getSwatch} operation without the optional per-call options. */
+  /**
+   * Returns a bare enum (value-type response codegen fixture).
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Swatch}
+   * @throws ApiException if fails to make API call
+   */
   default Swatch getSwatch() {
     return getSwatch(null);
   }
 
   /**
-   * The {@code getSwatch} operation with its HTTP details, without the optional per-call options.
+   * Returns a bare enum (value-type response codegen fixture).
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Swatch}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Swatch> getSwatchWithHttpInfo() {
     return getSwatchWithHttpInfo(null);
   }
 
-  /** The {@code getSwatch} operation. */
+  /**
+   * Returns a bare enum (value-type response codegen fixture).
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Swatch}
+   * @throws ApiException if fails to make API call
+   */
   Swatch getSwatch(@Nullable GetSwatchOptions options);
 
-  /** The {@code getSwatch} operation with its HTTP details. */
+  /**
+   * Returns a bare enum (value-type response codegen fixture).
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Swatch}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Swatch> getSwatchWithHttpInfo(@Nullable GetSwatchOptions options);
 
-  /** The {@code getSwatchGroups} operation without the optional per-call options. */
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code List<Map<String, Swatch>>}
+   * @throws ApiException if fails to make API call
+   */
   default List<Map<String, Swatch>> getSwatchGroups() {
     return getSwatchGroups(null);
   }
 
   /**
-   * The {@code getSwatchGroups} operation with its HTTP details, without the optional per-call
-   * options.
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<Map<String, Swatch>>}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<List<Map<String, Swatch>>> getSwatchGroupsWithHttpInfo() {
     return getSwatchGroupsWithHttpInfo(null);
   }
 
-  /** The {@code getSwatchGroups} operation. */
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<Map<String, Swatch>>}
+   * @throws ApiException if fails to make API call
+   */
   List<Map<String, Swatch>> getSwatchGroups(@Nullable GetSwatchGroupsOptions options);
 
-  /** The {@code getSwatchGroups} operation with its HTTP details. */
+  /**
+   * Returns swatches grouped as an array of string-keyed enum maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<Map<String, Swatch>>}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<List<Map<String, Swatch>>> getSwatchGroupsWithHttpInfo(
       @Nullable GetSwatchGroupsOptions options);
 
-  /** The {@code getTimestampGroups} operation without the optional per-call options. */
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code List<Map<String, OffsetDateTime>>}
+   * @throws ApiException if fails to make API call
+   */
   default List<Map<String, OffsetDateTime>> getTimestampGroups() {
     return getTimestampGroups(null);
   }
 
   /**
-   * The {@code getTimestampGroups} operation with its HTTP details, without the optional per-call
-   * options.
+   * Returns timestamps grouped as an array of string-keyed maps.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<Map<String, OffsetDateTime>>}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<List<Map<String, OffsetDateTime>>> getTimestampGroupsWithHttpInfo() {
     return getTimestampGroupsWithHttpInfo(null);
   }
 
-  /** The {@code getTimestampGroups} operation. */
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<Map<String, OffsetDateTime>>}
+   * @throws ApiException if fails to make API call
+   */
   List<Map<String, OffsetDateTime>> getTimestampGroups(@Nullable GetTimestampGroupsOptions options);
 
-  /** The {@code getTimestampGroups} operation with its HTTP details. */
+  /**
+   * Returns timestamps grouped as an array of string-keyed maps.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<Map<String, OffsetDateTime>>}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<List<Map<String, OffsetDateTime>>> getTimestampGroupsWithHttpInfo(
       @Nullable GetTimestampGroupsOptions options);
 
-  /** The {@code getTree} operation without the optional per-call options. */
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code TreeNode}
+   * @throws ApiException if fails to make API call
+   */
   default TreeNode getTree() {
     return getTree(null);
   }
 
-  /** The {@code getTree} operation with its HTTP details, without the optional per-call options. */
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code TreeNode}
+   * @throws ApiException if fails to make API call
+   */
   default ApiResult<TreeNode> getTreeWithHttpInfo() {
     return getTreeWithHttpInfo(null);
   }
 
-  /** The {@code getTree} operation. */
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code TreeNode}
+   * @throws ApiException if fails to make API call
+   */
   TreeNode getTree(@Nullable GetTreeOptions options);
 
-  /** The {@code getTree} operation with its HTTP details. */
+  /**
+   * Returns a self-referential tree (recursive-type codegen fixture)
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code TreeNode}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<TreeNode> getTreeWithHttpInfo(@Nullable GetTreeOptions options);
 
-  /** The {@code placeOrder} operation without the optional per-call options. */
+  /**
+   * Place an order for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param order (optional)
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   default Order placeOrder(@Nullable Order order) {
     return placeOrder(order, null);
   }
 
   /**
-   * The {@code placeOrder} operation with its HTTP details, without the optional per-call options.
+   * Place an order for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param order (optional)
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   default ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) {
     return placeOrderWithHttpInfo(order, null);
   }
 
-  /** The {@code placeOrder} operation without the optional request body. */
+  /**
+   * Place an order for a pet
+   *
+   * <p>Convenience overload that omits the optional request body.
+   *
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   default Order placeOrder() {
     return placeOrder(null);
   }
 
-  /** The {@code placeOrder} operation with its HTTP details, without the optional request body. */
+  /**
+   * Place an order for a pet
+   *
+   * <p>Convenience overload that omits the optional request body.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   default ApiResult<Order> placeOrderWithHttpInfo() {
     return placeOrderWithHttpInfo(null);
   }
 
-  /** The {@code placeOrder} operation. */
+  /**
+   * Place an order for a pet
+   *
+   * @param order (optional)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   Order placeOrder(@Nullable Order order, @Nullable PlaceOrderOptions options);
 
-  /** The {@code placeOrder} operation with its HTTP details. */
+  /**
+   * Place an order for a pet
+   *
+   * @param order (optional)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   ApiResult<Order> placeOrderWithHttpInfo(
       @Nullable Order order, @Nullable PlaceOrderOptions options);
 
-  /** The {@code reserveStock} operation without the optional per-call options. */
+  /**
+   * Reserve stock, answering with the existing or a new reservation
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code ReserveStockResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   default ReserveStockResponse reserveStock() {
     return reserveStock(null);
   }
 
   /**
-   * The {@code reserveStock} operation with its HTTP details, without the optional per-call
-   * options.
+   * Reserve stock, answering with the existing or a new reservation
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code ReserveStockResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   default ApiResult<ReserveStockResponse> reserveStockWithHttpInfo() {
     return reserveStockWithHttpInfo(null);
   }
 
-  /** The {@code reserveStock} operation. */
+  /**
+   * Reserve stock, answering with the existing or a new reservation Answers 200 with the existing
+   * Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies
+   * have different schemas.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code ReserveStockResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   ReserveStockResponse reserveStock(@Nullable ReserveStockOptions options);
 
-  /** The {@code reserveStock} operation with its HTTP details. */
+  /**
+   * Reserve stock, answering with the existing or a new reservation Answers 200 with the existing
+   * Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies
+   * have different schemas.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code ReserveStockResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   ApiResult<ReserveStockResponse> reserveStockWithHttpInfo(@Nullable ReserveStockOptions options);
 
-  /** The {@code searchStore} operation without the optional per-call options. */
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code List<Order>}
+   * @throws ApiException if fails to make API call
+   */
   default List<Order> searchStore() {
     return searchStore(null);
   }
 
   /**
-   * The {@code searchStore} operation with its HTTP details, without the optional per-call options.
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<Order>}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<List<Order>> searchStoreWithHttpInfo() {
     return searchStoreWithHttpInfo(null);
   }
 
-  /** The {@code searchStore} operation. */
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code List<Order>}
+   * @throws ApiException if fails to make API call
+   */
   List<Order> searchStore(@Nullable SearchStoreOptions options);
 
-  /** The {@code searchStore} operation with its HTTP details. */
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code List<Order>}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<List<Order>> searchStoreWithHttpInfo(@Nullable SearchStoreOptions options);
 }

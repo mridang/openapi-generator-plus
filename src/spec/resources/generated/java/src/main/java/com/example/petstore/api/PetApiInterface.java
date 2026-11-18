@@ -33,6 +33,7 @@ import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UpdatePetOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
 import com.example.petstore.api.options.UploadPetDocumentOptions;
+import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
 import com.example.petstore.models.PetPassport;
@@ -52,415 +53,1113 @@ import javax.annotation.Nullable;
  */
 public interface PetApiInterface {
 
-  /** The {@code addPet} operation without the optional per-call options. */
+  /**
+   * Add a new pet to the store
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param pet Create a new pet in the store (required)
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   default Pet addPet(Pet pet) {
     return addPet(pet, null);
   }
 
-  /** The {@code addPet} operation with its HTTP details, without the optional per-call options. */
+  /**
+   * Add a new pet to the store
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param pet Create a new pet in the store (required)
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   default ApiResult<Pet> addPetWithHttpInfo(Pet pet) {
     return addPetWithHttpInfo(pet, null);
   }
 
-  /** The {@code addPet} operation. */
+  /**
+   * Add a new pet to the store
+   *
+   * @param pet Create a new pet in the store (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   Pet addPet(Pet pet, @Nullable AddPetOptions options);
 
-  /** The {@code addPet} operation with its HTTP details. */
+  /**
+   * Add a new pet to the store
+   *
+   * @param pet Create a new pet in the store (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   ApiResult<Pet> addPetWithHttpInfo(Pet pet, @Nullable AddPetOptions options);
 
-  /** The {@code addPetPhotos} operation. */
+  /**
+   * Add photos to the pet's gallery Uploads one or more photos with structured metadata. The
+   * metadata part is serialised as JSON within the multipart body.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code List<Photo>}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   List<Photo> addPetPhotos(Long petId, AddPetPhotosOptions options);
 
-  /** The {@code addPetPhotos} operation with its HTTP details. */
+  /**
+   * Add photos to the pet's gallery Uploads one or more photos with structured metadata. The
+   * metadata part is serialised as JSON within the multipart body.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code List<Photo>}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<List<Photo>> addPetPhotosWithHttpInfo(Long petId, AddPetPhotosOptions options);
 
-  /** The {@code addPetTreatment} operation without the optional per-call options. */
+  /**
+   * Record a treatment for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param petTreatment (required)
+   * @return {@code PetTreatment}
+   * @throws ApiException if fails to make API call
+   */
   default PetTreatment addPetTreatment(Long petId, PetTreatment petTreatment) {
     return addPetTreatment(petId, petTreatment, null);
   }
 
   /**
-   * The {@code addPetTreatment} operation with its HTTP details, without the optional per-call
-   * options.
+   * Record a treatment for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param petTreatment (required)
+   * @return the API result wrapping {@code PetTreatment}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
       Long petId, PetTreatment petTreatment) {
     return addPetTreatmentWithHttpInfo(petId, petTreatment, null);
   }
 
-  /** The {@code addPetTreatment} operation. */
+  /**
+   * Record a treatment for a pet
+   *
+   * @param petId (required)
+   * @param petTreatment (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code PetTreatment}
+   * @throws ApiException if fails to make API call
+   */
   PetTreatment addPetTreatment(
       Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options);
 
-  /** The {@code addPetTreatment} operation with its HTTP details. */
+  /**
+   * Record a treatment for a pet
+   *
+   * @param petId (required)
+   * @param petTreatment (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code PetTreatment}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
       Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options);
 
-  /** The {@code deletePet} operation without the optional per-call options. */
+  /**
+   * Deletes a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId Pet id to delete (required)
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   default void deletePet(Long petId) {
     deletePet(petId, null);
   }
 
   /**
-   * The {@code deletePet} operation with its HTTP details, without the optional per-call options.
+   * Deletes a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId Pet id to delete (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   default ApiResult<Void> deletePetWithHttpInfo(Long petId) {
     return deletePetWithHttpInfo(petId, null);
   }
 
-  /** The {@code deletePet} operation. */
+  /**
+   * Deletes a pet
+   *
+   * @param petId Pet id to delete (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   void deletePet(Long petId, @Nullable DeletePetOptions options);
 
-  /** The {@code deletePet} operation with its HTTP details. */
+  /**
+   * Deletes a pet
+   *
+   * @param petId Pet id to delete (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   ApiResult<Void> deletePetWithHttpInfo(Long petId, @Nullable DeletePetOptions options);
 
-  /** The {@code downloadPetDocument} operation without the optional per-call options. */
+  /**
+   * Download a vet document
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param documentId (required)
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default InputStream downloadPetDocument(Long petId, Long documentId) {
     return downloadPetDocument(petId, documentId, null);
   }
 
   /**
-   * The {@code downloadPetDocument} operation with its HTTP details, without the optional per-call
-   * options.
+   * Download a vet document
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param documentId (required)
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
     return downloadPetDocumentWithHttpInfo(petId, documentId, null);
   }
 
-  /** The {@code downloadPetDocument} operation. */
+  /**
+   * Download a vet document Returns the raw document bytes as an octet-stream. The original MIME
+   * type is communicated via the Content-Type response header.
+   *
+   * @param petId (required)
+   * @param documentId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   InputStream downloadPetDocument(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options);
 
-  /** The {@code downloadPetDocument} operation with its HTTP details. */
+  /**
+   * Download a vet document Returns the raw document bytes as an octet-stream. The original MIME
+   * type is communicated via the Content-Type response header.
+   *
+   * @param petId (required)
+   * @param documentId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<InputStream> downloadPetDocumentWithHttpInfo(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options);
 
-  /** The {@code findPetsBornOn} operation without the optional per-call options. */
+  /**
+   * List pets born on a given date
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param bornOn Date of birth to match (required)
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
   default List<Pet> findPetsBornOn(LocalDate bornOn) {
     return findPetsBornOn(bornOn, null);
   }
 
   /**
-   * The {@code findPetsBornOn} operation with its HTTP details, without the optional per-call
-   * options.
+   * List pets born on a given date
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param bornOn Date of birth to match (required)
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(LocalDate bornOn) {
     return findPetsBornOnWithHttpInfo(bornOn, null);
   }
 
-  /** The {@code findPetsBornOn} operation. */
+  /**
+   * List pets born on a given date
+   *
+   * @param bornOn Date of birth to match (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
   List<Pet> findPetsBornOn(LocalDate bornOn, @Nullable FindPetsBornOnOptions options);
 
-  /** The {@code findPetsBornOn} operation with its HTTP details. */
+  /**
+   * List pets born on a given date
+   *
+   * @param bornOn Date of birth to match (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(
       LocalDate bornOn, @Nullable FindPetsBornOnOptions options);
 
-  /** The {@code findPetsByStatus} operation without the optional per-call options. */
+  /**
+   * Finds Pets by status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   */
   @Deprecated
   default List<Pet> findPetsByStatus() {
     return findPetsByStatus(null);
   }
 
   /**
-   * The {@code findPetsByStatus} operation with its HTTP details, without the optional per-call
-   * options.
+   * Finds Pets by status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   @Deprecated
   default ApiResult<List<Pet>> findPetsByStatusWithHttpInfo() {
     return findPetsByStatusWithHttpInfo(null);
   }
 
-  /** The {@code findPetsByStatus} operation. */
+  /**
+   * Finds Pets by status
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @deprecated This operation is deprecated. Find out more about filtering
+   * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
+   */
   @Deprecated
   List<Pet> findPetsByStatus(@Nullable FindPetsByStatusOptions options);
 
-  /** The {@code findPetsByStatus} operation with its HTTP details. */
+  /**
+   * Finds Pets by status
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @deprecated This operation is deprecated. Find out more about filtering
+   * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
+   */
   @Deprecated
   ApiResult<List<Pet>> findPetsByStatusWithHttpInfo(@Nullable FindPetsByStatusOptions options);
 
-  /** The {@code getExternalPetInfo} operation, using the server declared in the spec. */
+  /**
+   * Get external pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   default Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoOptions options) {
     return getExternalPetInfo(petId, null, options);
   }
 
   /**
-   * The {@code getExternalPetInfo} operation with its HTTP details, using the server declared in
-   * the spec.
+   * Get external pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Pet> getExternalPetInfoWithHttpInfo(
       Long petId, @Nullable GetExternalPetInfoOptions options) {
     return getExternalPetInfoWithHttpInfo(petId, null, options);
   }
 
-  /** The {@code getExternalPetInfo} operation without the optional per-call options. */
+  /**
+   * Get external pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   default Pet getExternalPetInfo(Long petId) {
     return getExternalPetInfo(petId, null);
   }
 
   /**
-   * The {@code getExternalPetInfo} operation with its HTTP details, without the optional per-call
-   * options.
+   * Get external pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Pet> getExternalPetInfoWithHttpInfo(Long petId) {
     return getExternalPetInfoWithHttpInfo(petId, null);
   }
 
-  /** The {@code getExternalPetInfo} operation. */
+  /**
+   * Get external pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   Pet getExternalPetInfo(
       Long petId,
       @Nullable PetApi.GetExternalPetInfoServer server,
       @Nullable GetExternalPetInfoOptions options);
 
-  /** The {@code getExternalPetInfo} operation with its HTTP details. */
+  /**
+   * Get external pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Pet> getExternalPetInfoWithHttpInfo(
       Long petId,
       @Nullable PetApi.GetExternalPetInfoServer server,
       @Nullable GetExternalPetInfoOptions options);
 
-  /** The {@code getMultiServerPetInfo} operation, using the server declared in the spec. */
+  /**
+   * Get multi-server pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   default Pet getMultiServerPetInfo(Long petId, @Nullable GetMultiServerPetInfoOptions options) {
     return getMultiServerPetInfo(petId, null, options);
   }
 
   /**
-   * The {@code getMultiServerPetInfo} operation with its HTTP details, using the server declared in
-   * the spec.
+   * Get multi-server pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
       Long petId, @Nullable GetMultiServerPetInfoOptions options) {
     return getMultiServerPetInfoWithHttpInfo(petId, null, options);
   }
 
-  /** The {@code getMultiServerPetInfo} operation without the optional per-call options. */
+  /**
+   * Get multi-server pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   default Pet getMultiServerPetInfo(Long petId) {
     return getMultiServerPetInfo(petId, null);
   }
 
   /**
-   * The {@code getMultiServerPetInfo} operation with its HTTP details, without the optional
-   * per-call options.
+   * Get multi-server pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(Long petId) {
     return getMultiServerPetInfoWithHttpInfo(petId, null);
   }
 
-  /** The {@code getMultiServerPetInfo} operation. */
+  /**
+   * Get multi-server pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   Pet getMultiServerPetInfo(
       Long petId,
       @Nullable PetApi.GetMultiServerPetInfoServer server,
       @Nullable GetMultiServerPetInfoOptions options);
 
-  /** The {@code getMultiServerPetInfo} operation with its HTTP details. */
+  /**
+   * Get multi-server pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
       Long petId,
       @Nullable PetApi.GetMultiServerPetInfoServer server,
       @Nullable GetMultiServerPetInfoOptions options);
 
-  /** The {@code getPetAvatar} operation without the optional per-call options. */
+  /**
+   * Get the pet's profile photo
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default InputStream getPetAvatar(Long petId) {
     return getPetAvatar(petId, null);
   }
 
   /**
-   * The {@code getPetAvatar} operation with its HTTP details, without the optional per-call
-   * options.
+   * Get the pet's profile photo
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
     return getPetAvatarWithHttpInfo(petId, null);
   }
 
-  /** The {@code getPetAvatar} operation. */
+  /**
+   * Get the pet's profile photo Returns the raw image bytes of the pet's current avatar.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   InputStream getPetAvatar(Long petId, @Nullable GetPetAvatarOptions options);
 
-  /** The {@code getPetAvatar} operation with its HTTP details. */
+  /**
+   * Get the pet's profile photo Returns the raw image bytes of the pet's current avatar.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<InputStream> getPetAvatarWithHttpInfo(
       Long petId, @Nullable GetPetAvatarOptions options);
 
-  /** The {@code getPetAvatarThumbnail} operation without the optional per-call options. */
+  /**
+   * Get the pet's avatar thumbnail as base64
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return {@code byte[]}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default byte[] getPetAvatarThumbnail(Long petId) {
     return getPetAvatarThumbnail(petId, null);
   }
 
   /**
-   * The {@code getPetAvatarThumbnail} operation with its HTTP details, without the optional
-   * per-call options.
+   * Get the pet's avatar thumbnail as base64
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return the API result wrapping {@code byte[]}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) {
     return getPetAvatarThumbnailWithHttpInfo(petId, null);
   }
 
-  /** The {@code getPetAvatarThumbnail} operation. */
+  /**
+   * Get the pet's avatar thumbnail as base64 Returns a compact base64-encoded thumbnail suitable
+   * for embedding directly in mobile UI without a separate image request.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code byte[]}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   byte[] getPetAvatarThumbnail(Long petId, @Nullable GetPetAvatarThumbnailOptions options);
 
-  /** The {@code getPetAvatarThumbnail} operation with its HTTP details. */
+  /**
+   * Get the pet's avatar thumbnail as base64 Returns a compact base64-encoded thumbnail suitable
+   * for embedding directly in mobile UI without a separate image request.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code byte[]}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(
       Long petId, @Nullable GetPetAvatarThumbnailOptions options);
 
-  /** The {@code getPetById} operation, using the server declared in the spec. */
+  /**
+   * Find pet by ID Returns a single pet
+   *
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   * @deprecated This operation is deprecated.
+   */
   @Deprecated
   default Pet getPetById(Long petId, @Nullable GetPetByIdOptions options) {
     return getPetById(petId, null, options);
   }
 
   /**
-   * The {@code getPetById} operation with its HTTP details, using the server declared in the spec.
+   * Find pet by ID Returns a single pet
+   *
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   * @deprecated This operation is deprecated.
    */
   @Deprecated
   default ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdOptions options) {
     return getPetByIdWithHttpInfo(petId, null, options);
   }
 
-  /** The {@code getPetById} operation without the optional per-call options. */
+  /**
+   * Find pet by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   @Deprecated
   default Pet getPetById(Long petId) {
     return getPetById(petId, null);
   }
 
   /**
-   * The {@code getPetById} operation with its HTTP details, without the optional per-call options.
+   * Find pet by ID
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Deprecated
   default ApiResult<Pet> getPetByIdWithHttpInfo(Long petId) {
     return getPetByIdWithHttpInfo(petId, null);
   }
 
-  /** The {@code getPetById} operation. */
+  /**
+   * Find pet by ID Returns a single pet
+   *
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   * @deprecated This operation is deprecated.
+   */
   @Deprecated
   Pet getPetById(
       Long petId, @Nullable PetApi.GetPetByIdServer server, @Nullable GetPetByIdOptions options);
 
-  /** The {@code getPetById} operation with its HTTP details. */
+  /**
+   * Find pet by ID Returns a single pet
+   *
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   * @deprecated This operation is deprecated.
+   */
   @Deprecated
   ApiResult<Pet> getPetByIdWithHttpInfo(
       Long petId, @Nullable PetApi.GetPetByIdServer server, @Nullable GetPetByIdOptions options);
 
-  /** The {@code getPetByName} operation. */
+  /**
+   * Look up a pet by name (simple string path param + required query)
+   *
+   * @param name (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   Pet getPetByName(String name, GetPetByNameOptions options);
 
-  /** The {@code getPetByName} operation with its HTTP details. */
+  /**
+   * Look up a pet by name (simple string path param + required query)
+   *
+   * @param name (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Pet> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options);
 
-  /** The {@code getPetPassport} operation without the optional per-call options. */
+  /**
+   * Get the pet's passport
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return {@code PetPassport}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default PetPassport getPetPassport(Long petId) {
     return getPetPassport(petId, null);
   }
 
   /**
-   * The {@code getPetPassport} operation with its HTTP details, without the optional per-call
-   * options.
+   * Get the pet's passport
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return the API result wrapping {@code PetPassport}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) {
     return getPetPassportWithHttpInfo(petId, null);
   }
 
-  /** The {@code getPetPassport} operation. */
+  /**
+   * Get the pet's passport Returns a single JSON document combining the pet's profile with an
+   * embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile
+   * clients that prefer a single-request workflow.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code PetPassport}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   PetPassport getPetPassport(Long petId, @Nullable GetPetPassportOptions options);
 
-  /** The {@code getPetPassport} operation with its HTTP details. */
+  /**
+   * Get the pet's passport Returns a single JSON document combining the pet's profile with an
+   * embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile
+   * clients that prefer a single-request workflow.
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code PetPassport}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<PetPassport> getPetPassportWithHttpInfo(
       Long petId, @Nullable GetPetPassportOptions options);
 
-  /** The {@code getPetPhoto} operation without the optional per-call options. */
+  /**
+   * Get a photo or its metadata
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param photoId (required)
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default InputStream getPetPhoto(Long petId, Long photoId) {
     return getPetPhoto(petId, photoId, null);
   }
 
   /**
-   * The {@code getPetPhoto} operation with its HTTP details, without the optional per-call options.
+   * Get a photo or its metadata
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param photoId (required)
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
     return getPetPhotoWithHttpInfo(petId, photoId, null);
   }
 
-  /** The {@code getPetPhoto} operation. */
+  /**
+   * Get a photo or its metadata Returns the raw image bytes or JSON metadata depending on the
+   * Accept header sent by the client.
+   *
+   * @param petId (required)
+   * @param photoId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   InputStream getPetPhoto(Long petId, Long photoId, @Nullable GetPetPhotoOptions options);
 
-  /** The {@code getPetPhoto} operation with its HTTP details. */
+  /**
+   * Get a photo or its metadata Returns the raw image bytes or JSON metadata depending on the
+   * Accept header sent by the client.
+   *
+   * @param petId (required)
+   * @param photoId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code InputStream}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<InputStream> getPetPhotoWithHttpInfo(
       Long petId, Long photoId, @Nullable GetPetPhotoOptions options);
 
-  /** The {@code getPetSummary} operation. */
+  /**
+   * Get a {@literal <}plain{@literal >} "text" summary {@literal &} it's short Returns '''plain'''
+   * text for /pets/#{id} and {@literal <}b{@literal >} {@literal &} "c" it's done
+   *
+   * @param petId (required)
+   * @param asOf Summary date, sent as a matrix-style path segment (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code String}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   String getPetSummary(Long petId, LocalDate asOf, GetPetSummaryOptions options);
 
-  /** The {@code getPetSummary} operation with its HTTP details. */
+  /**
+   * Get a {@literal <}plain{@literal >} "text" summary {@literal &} it's short Returns '''plain'''
+   * text for /pets/#{id} and {@literal <}b{@literal >} {@literal &} "c" it's done
+   *
+   * @param petId (required)
+   * @param asOf Summary date, sent as a matrix-style path segment (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code String}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<String> getPetSummaryWithHttpInfo(
       Long petId, LocalDate asOf, GetPetSummaryOptions options);
 
-  /** The {@code getPetTag} operation without the optional per-call options. */
+  /**
+   * Get a tag for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param tagName (required)
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   default Pet getPetTag(Long petId, String tagName) {
     return getPetTag(petId, tagName, null);
   }
 
   /**
-   * The {@code getPetTag} operation with its HTTP details, without the optional per-call options.
+   * Get a tag for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param tagName (required)
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Pet> getPetTagWithHttpInfo(Long petId, String tagName) {
     return getPetTagWithHttpInfo(petId, tagName, null);
   }
 
-  /** The {@code getPetTag} operation. */
+  /**
+   * Get a tag for a pet
+   *
+   * @param petId (required)
+   * @param tagName (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   Pet getPetTag(Long petId, String tagName, @Nullable GetPetTagOptions options);
 
-  /** The {@code getPetTag} operation with its HTTP details. */
+  /**
+   * Get a tag for a pet
+   *
+   * @param petId (required)
+   * @param tagName (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Pet> getPetTagWithHttpInfo(
       Long petId, String tagName, @Nullable GetPetTagOptions options);
 
-  /** The {@code getStagingPetInfo} operation, using the server declared in the spec. */
+  /**
+   * Get staging pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   default Pet getStagingPetInfo(Long petId, @Nullable GetStagingPetInfoOptions options) {
     return getStagingPetInfo(petId, null, options);
   }
 
   /**
-   * The {@code getStagingPetInfo} operation with its HTTP details, using the server declared in the
-   * spec.
+   * Get staging pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Pet> getStagingPetInfoWithHttpInfo(
       Long petId, @Nullable GetStagingPetInfoOptions options) {
     return getStagingPetInfoWithHttpInfo(petId, null, options);
   }
 
-  /** The {@code getStagingPetInfo} operation without the optional per-call options. */
+  /**
+   * Get staging pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   default Pet getStagingPetInfo(Long petId) {
     return getStagingPetInfo(petId, null);
   }
 
   /**
-   * The {@code getStagingPetInfo} operation with its HTTP details, without the optional per-call
-   * options.
+   * Get staging pet info
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
    */
   default ApiResult<Pet> getStagingPetInfoWithHttpInfo(Long petId) {
     return getStagingPetInfoWithHttpInfo(petId, null);
   }
 
-  /** The {@code getStagingPetInfo} operation. */
+  /**
+   * Get staging pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   Pet getStagingPetInfo(
       Long petId,
       @Nullable PetApi.GetStagingPetInfoServer server,
       @Nullable GetStagingPetInfoOptions options);
 
-  /** The {@code getStagingPetInfo} operation with its HTTP details. */
+  /**
+   * Get staging pet info
+   *
+   * @param petId (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
   ApiResult<Pet> getStagingPetInfoWithHttpInfo(
       Long petId,
       @Nullable PetApi.GetStagingPetInfoServer server,
       @Nullable GetStagingPetInfoOptions options);
 
-  /** The {@code setPetAvatar} operation without the optional per-call options. */
+  /**
+   * Set the pet's profile photo
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param body (required)
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default void setPetAvatar(Long petId, InputStream body) {
     setPetAvatar(petId, body, null);
   }
 
   /**
-   * The {@code setPetAvatar} operation with its HTTP details, without the optional per-call
-   * options.
+   * Set the pet's profile photo
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param body (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
     return setPetAvatarWithHttpInfo(petId, body, null);
   }
 
-  /** The {@code setPetAvatar} operation. */
+  /**
+   * Set the pet's profile photo Accepts either raw image bytes (image/jpeg or image/png) or a JSON
+   * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+   *
+   * @param petId (required)
+   * @param body (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   void setPetAvatar(Long petId, InputStream body, @Nullable SetPetAvatarOptions options);
 
-  /** The {@code setPetAvatar} operation with the request content type chosen by the caller. */
+  /**
+   * Set the pet's profile photo
+   *
+   * <p>Overload that selects the request content-type among the types this operation declares
+   * ({@code image/jpeg}, {@code image/png}, {@code application/json}). The selected value is sent
+   * as the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
+   * type, matching the overload without a selector.
+   *
+   * @param petId (required)
+   * @param body (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param requestContentType the request content-type to send, or {@code null} for the default
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   void setPetAvatar(
       Long petId,
       InputStream body,
@@ -468,8 +1167,20 @@ public interface PetApiInterface {
       @Nullable String requestContentType);
 
   /**
-   * The {@code setPetAvatar} operation with its HTTP details and the request content type chosen by
-   * the caller.
+   * Set the pet's profile photo
+   *
+   * <p>Overload that selects the request content-type among the types this operation declares
+   * ({@code image/jpeg}, {@code image/png}, {@code application/json}). The selected value is sent
+   * as the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
+   * type.
+   *
+   * @param petId (required)
+   * @param body (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param requestContentType the request content-type to send, or {@code null} for the default
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   ApiResult<Void> setPetAvatarWithHttpInfo(
       Long petId,
@@ -477,84 +1188,260 @@ public interface PetApiInterface {
       @Nullable SetPetAvatarOptions options,
       @Nullable String requestContentType);
 
-  /** The {@code setPetAvatar} operation with its HTTP details. */
+  /**
+   * Set the pet's profile photo Accepts either raw image bytes (image/jpeg or image/png) or a JSON
+   * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+   *
+   * @param petId (required)
+   * @param body (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<Void> setPetAvatarWithHttpInfo(
       Long petId, InputStream body, @Nullable SetPetAvatarOptions options);
 
-  /** The {@code setPetAvatarThumbnail} operation without the optional per-call options. */
+  /**
+   * Set the pet's avatar thumbnail as base64
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param setPetAvatarThumbnailRequest (required)
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default void setPetAvatarThumbnail(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
     setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest, null);
   }
 
   /**
-   * The {@code setPetAvatarThumbnail} operation with its HTTP details, without the optional
-   * per-call options.
+   * Set the pet's avatar thumbnail as base64
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId (required)
+   * @param setPetAvatarThumbnailRequest (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
     return setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest, null);
   }
 
-  /** The {@code setPetAvatarThumbnail} operation. */
+  /**
+   * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
+   * array of candidates; the server selects the most suitable one.
+   *
+   * @param petId (required)
+   * @param setPetAvatarThumbnailRequest (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   void setPetAvatarThumbnail(
       Long petId,
       SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
       @Nullable SetPetAvatarThumbnailOptions options);
 
-  /** The {@code setPetAvatarThumbnail} operation with its HTTP details. */
+  /**
+   * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
+   * array of candidates; the server selects the most suitable one.
+   *
+   * @param petId (required)
+   * @param setPetAvatarThumbnailRequest (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
       Long petId,
       SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
       @Nullable SetPetAvatarThumbnailOptions options);
 
-  /** The {@code setPetPreferences} operation. */
+  /**
+   * Update a pet's notification preferences Submits preferences as an
+   * application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key)
+   * serialization and optional-field omission so the wire bytes are identical across every SDK.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResponse setPetPreferences(Long petId, SetPetPreferencesOptions options);
 
-  /** The {@code setPetPreferences} operation with its HTTP details. */
+  /**
+   * Update a pet's notification preferences Submits preferences as an
+   * application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key)
+   * serialization and optional-field omission so the wire bytes are identical across every SDK.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<ApiResponse> setPetPreferencesWithHttpInfo(
       Long petId, SetPetPreferencesOptions options);
 
-  /** The {@code updatePet} operation without the optional per-call options. */
+  /**
+   * Update an existing pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId ID of pet to update (required)
+   * @param pet Pet object that needs to be updated (required)
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   default Pet updatePet(Long petId, Pet pet) {
     return updatePet(petId, pet, null);
   }
 
   /**
-   * The {@code updatePet} operation with its HTTP details, without the optional per-call options.
+   * Update an existing pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param petId ID of pet to update (required)
+   * @param pet Pet object that needs to be updated (required)
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   default ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) {
     return updatePetWithHttpInfo(petId, pet, null);
   }
 
-  /** The {@code updatePet} operation. */
+  /**
+   * Update an existing pet
+   *
+   * @param petId ID of pet to update (required)
+   * @param pet Pet object that needs to be updated (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   Pet updatePet(Long petId, Pet pet, @Nullable UpdatePetOptions options);
 
-  /** The {@code updatePet} operation with its HTTP details. */
+  /**
+   * Update an existing pet
+   *
+   * @param petId ID of pet to update (required)
+   * @param pet Pet object that needs to be updated (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet, @Nullable UpdatePetOptions options);
 
-  /** The {@code uploadPetCertificate} operation. */
+  /**
+   * Upload the pet's adoption certificate Attaches a single adoption certificate document. No
+   * metadata fields are required alongside the file.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResponse uploadPetCertificate(Long petId, UploadPetCertificateOptions options);
 
-  /** The {@code uploadPetCertificate} operation with its HTTP details. */
+  /**
+   * Upload the pet's adoption certificate Attaches a single adoption certificate document. No
+   * metadata fields are required alongside the file.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<ApiResponse> uploadPetCertificateWithHttpInfo(
       Long petId, UploadPetCertificateOptions options);
 
-  /** The {@code uploadPetDocument} operation. */
+  /**
+   * Attach a vet document or health record Accepts either a multipart upload with document
+   * classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer
+   * to stream bytes directly.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResponse uploadPetDocument(Long petId, UploadPetDocumentOptions options);
 
-  /** The {@code uploadPetDocument} operation with the request content type chosen by the caller. */
+  /**
+   * Attach a vet document or health record
+   *
+   * <p>Overload that selects the request content-type among the types this operation declares
+   * ({@code multipart/form-data}, {@code application/octet-stream}). The selected value is sent as
+   * the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
+   * type, matching the overload without a selector.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @param requestContentType the request content-type to send, or {@code null} for the default
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResponse uploadPetDocument(
       Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType);
 
   /**
-   * The {@code uploadPetDocument} operation with its HTTP details and the request content type
-   * chosen by the caller.
+   * Attach a vet document or health record
+   *
+   * <p>Overload that selects the request content-type among the types this operation declares
+   * ({@code multipart/form-data}, {@code application/octet-stream}). The selected value is sent as
+   * the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
+   * type.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @param requestContentType the request content-type to send, or {@code null} for the default
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
       Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType);
 
-  /** The {@code uploadPetDocument} operation with its HTTP details. */
+  /**
+   * Attach a vet document or health record Accepts either a multipart upload with document
+   * classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer
+   * to stream bytes directly.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
+   */
   ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
       Long petId, UploadPetDocumentOptions options);
 }
