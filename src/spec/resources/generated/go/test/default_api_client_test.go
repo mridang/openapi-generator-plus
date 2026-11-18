@@ -14,6 +14,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -3242,5 +3244,178 @@ func TestBhvMisc124_DefaultApiClient_A301HttpsToHttpWithBodyFailsWithoutReplay(t
 	}
 	if plainHits.Load() != 0 {
 		t.Errorf("expected no request to reach the plaintext target, got %d", plainHits.Load())
+	}
+}
+
+// An ISO-8859-1 error response body decodes to UTF-8 text in the error.
+func TestBhvMisc237_DefaultApiClient_Iso88591ErrorBodyDecodesToUtf8(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=ISO-8859-1")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte{'c', 'a', 'f', 0xE9})
+	}))
+	defer server.Close()
+	transport, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	resp, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{}, nil)
+	text := ""
+	if err != nil {
+		text = err.Error()
+	} else {
+		text = resp.Body
+	}
+	if !strings.Contains(text, "café") {
+		t.Errorf("expected the ISO-8859-1 body decoded to UTF-8, got %q", text)
+	}
+}
+
+// A cancelled call context surfaces the cancellation to the caller.
+func TestBhvMisc262_DefaultApiClient_CancelledContextSurfacesCancellation(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(2 * time.Second):
+			w.WriteHeader(200)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := NewDefaultApiClient(nil).SendRequestWithOptions("GET", server.URL+"/slow", map[string]string{}, nil, &RequestOptions{Context: ctx})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected errors.Is(err, context.Canceled), got %T: %v", err, err)
+	}
+}
+
+// A per-call timeout longer than the client's timeout lets a slow response complete.
+func TestBhvMisc263_DefaultApiClient_LongerPerCallTimeoutLetsSlowResponseComplete(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(300 * time.Millisecond):
+			w.WriteHeader(200)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	shortMs := 50
+	transport, buildErr := NewTransportOptionsBuilder().Timeout(&shortMs).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	budget := 2 * time.Second
+	resp, err := NewDefaultApiClient(transport).SendRequestWithOptions("GET", server.URL+"/slow", map[string]string{}, nil, &RequestOptions{Timeout: &budget})
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("expected the slow response to complete, got %v", err)
+	}
+}
+
+// Caller default headers replace the SDK's user agent and request id on the wire, whatever their case.
+func TestBhvMisc266_DefaultApiClient_CallerDefaultHeadersReplaceSdkHeaders(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	transport, buildErr := NewTransportOptionsBuilder().
+		InjectRequestID(true).
+		DefaultHeader("USER-AGENT", "MyApp").
+		DefaultHeader("X-REQUEST-ID", "abc").
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	received := <-seen
+	if got := received.Values("User-Agent"); len(got) != 1 || got[0] != "MyApp" {
+		t.Errorf("expected one User-Agent MyApp, got %v", got)
+	}
+	if got := received.Values("X-Request-Id"); len(got) != 1 || got[0] != "abc" {
+		t.Errorf("expected one X-Request-Id abc, got %v", got)
+	}
+}
+
+// A caller-supplied HTTP client's own default headers are sent on the wire with each request.
+type misc267HeaderTransport struct {
+	base http.RoundTripper
+}
+
+func (m misc267HeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.Header.Set("X-Client-Default", "caller")
+	return m.base.RoundTrip(clone)
+}
+
+func TestBhvMisc267_DefaultApiClient_CallerClientDefaultHeadersAreSent(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	own := &http.Client{Transport: misc267HeaderTransport{base: http.DefaultTransport}}
+	transport, buildErr := NewTransportOptionsBuilder().HttpClient(own).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := (<-seen).Get("X-Client-Default"); got != "caller" {
+		t.Errorf("expected X-Client-Default caller, got %q", got)
+	}
+}
+
+// A server certificate from a trusted CA is still rejected when the hostname does not match.
+func TestBhvMisc268_DefaultApiClient_TrustedCertForAnotherHostnameIsRejected(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	if err := os.WriteFile(caPath, pemBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	transport, buildErr := NewTransportOptionsBuilder().VerifySsl(true).CACertPath(caPath).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	mismatched := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", mismatched+"/items", map[string]string{}, nil); err == nil {
+		t.Fatal("expected the hostname mismatch to be rejected, got nil")
+	}
+}
+
+// A multipart form upload sends its file part with the file content echoed back in the request.
+func TestBhvMisc240_DefaultApiClient_MultipartFileUploadEchoesFileContent(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+	transport, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	payload := "--test-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\nContent-Type: text/plain\r\n\r\nhello-file\r\n--test-boundary--\r\n"
+	headers := map[string]string{"Content-Type": "multipart/form-data; boundary=test-boundary"}
+	resp, err := NewDefaultApiClient(transport).SendRequest("POST", server.URL+"/upload", headers, []byte(payload))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(resp.Body, "hello-file") {
+		t.Errorf("expected the file content echoed back, got %q", resp.Body)
 	}
 }
