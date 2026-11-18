@@ -1449,6 +1449,7 @@ import FoundationNetworking
         #expect(DefaultApiClient.sameOrigin(explicit, implicit))
     }
 
+#if !os(Linux)
     /* A 302 to the same origin spelled with its scheme's default port is still the same origin,
      * so the Authorization header reaches the second hop. */
     @Test func testBhvRedirects037RedirectToExplicitDefaultPortKeepsAuthorization() async throws {
@@ -1474,6 +1475,7 @@ import FoundationNetworking
         #expect(resp.statusCode == 200)
         #expect(followUp?["Authorization"] == "Bearer secret-token")
     }
+#endif
 
     // MARK: - Accept-Encoding
 
@@ -2263,7 +2265,10 @@ private final class UnitStubURLProtocol: URLProtocol {
             return
         }
         /* URLSession follows a redirect only when the protocol reports it through
-         * wasRedirectedTo; a 3xx delivered as a plain response is returned unfollowed. */
+         * wasRedirectedTo; a 3xx delivered as a plain response is returned unfollowed.
+         * swift-corelibs-foundation traps on wasRedirectedTo, so on Linux the stub
+         * never reports one and the redirect-following tests are Darwin-only. */
+#if !os(Linux)
         if (300..<400).contains(statusCode), let location = headers["Location"],
             let redirectURL = URL(string: location, relativeTo: requestURL)?.absoluteURL
         {
@@ -2271,6 +2276,7 @@ private final class UnitStubURLProtocol: URLProtocol {
             next.url = redirectURL
             client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
         }
+#endif
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         if failWith == "cannotDecodeContentData" {
             client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))
