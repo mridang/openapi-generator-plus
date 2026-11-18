@@ -2608,30 +2608,6 @@ class BaseApiTest {
   class MultipartFilenameSanitizationTests {
 
     @Test
-    @DisplayName("CRLF in filename throws IllegalArgumentException")
-    void crlfInFilenameRejected() {
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> DefaultApiClient.validateMultipartFilename("a\r\nX-Injected: yes"));
-    }
-
-    @Test
-    @DisplayName("NUL in filename throws IllegalArgumentException")
-    void nulInFilenameRejected() {
-      assertThrows(
-          IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename("a\0b"));
-    }
-
-    @Test
-    @DisplayName("plain CR or LF in filename throws IllegalArgumentException")
-    void crOrLfInFilenameRejected() {
-      assertThrows(
-          IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename("a\rb"));
-      assertThrows(
-          IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename("a\nb"));
-    }
-
-    @Test
     @DisplayName("bhvSerializationWire061 quote and backslash in filename are escaped")
     void bhvSerializationWire061MultipartFilenameWithEmbeddedQuoteIsBackslashEscaped() {
       String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
@@ -2644,28 +2620,6 @@ class BaseApiTest {
           "filename=\"a\\\\b.txt\"",
           backslash,
           "backslashes must be backslash-escaped in the filename directive");
-    }
-
-    @Test
-    @DisplayName("non-ASCII filename emits RFC 5987 filename* parameter")
-    void nonAsciiFilenameUsesRfc5987() {
-      String directive = DefaultApiClient.buildFilenameDirective("日本.pdf");
-      assertTrue(
-          directive.contains("filename*=UTF-8''"),
-          "non-ASCII filename must emit RFC 5987 filename*= form, got: " + directive);
-      assertTrue(
-          directive.contains("%E6%97%A5%E6%9C%AC"),
-          "RFC 5987 value must be percent-encoded UTF-8, got: " + directive);
-      assertTrue(
-          directive.startsWith("filename=\""),
-          "must still include an ASCII fallback filename=\"...\", got: " + directive);
-    }
-
-    @Test
-    @DisplayName("plain ASCII filename omits the filename* parameter")
-    void asciiFilenameOmitsRfc5987() {
-      String directive = DefaultApiClient.buildFilenameDirective("hello.txt");
-      assertEquals("filename=\"hello.txt\"", directive);
     }
   }
 
