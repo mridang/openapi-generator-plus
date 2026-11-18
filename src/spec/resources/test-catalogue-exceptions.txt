@@ -162,3 +162,4 @@ python | authscheme008 | python generates one authenticator class per security s
 rust | authbearer026 | BearerAuthenticator takes a fixed token in new(host, token) and a token provider in with_token_provider(host, provider), so one call cannot pass both and the refusal is a compile error with no run-time check to test
 rust | config024 | Rust has no process-wide mutable configuration default: Configuration::default() returns a fresh value and no setter is generated, so there is no call to assert on
 rust | lifecycle030 | rust's with_credentials takes the host as a required argument and its Credentials hold no default authenticator, so there is no second source for the base URL to fall back to
+rust | options045 | max_redirects takes an Option<usize>, so a negative count cannot be passed and the compiler rejects it before the builder runs

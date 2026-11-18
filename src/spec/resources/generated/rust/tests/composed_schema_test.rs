@@ -628,7 +628,7 @@ fn test_bhv_serializationobject_068_tree_node_deserialize_recursive() {
 // decode each level into a typed value, and the terminating edge must be
 // `None`. `Box` derefs transparently for field access.
 #[test]
-fn test_mutually_recursive_models_deserialize() {
+fn test_bhv_serializationobject_189_mutually_recursive_models_deserialize() {
     let json_data = r#"{"name":"Eng","lead":{"name":"Ada","department":{"name":"Core"}}}"#;
 
     let dept: Department =

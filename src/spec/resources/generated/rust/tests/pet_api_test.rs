@@ -232,7 +232,8 @@ async fn test_bhv_operations_027_pet_api_delete_pet() {
 }
 
 #[tokio::test]
-async fn test_pet_api_required_multipart_body_missing_names_first_required_part() {
+async fn test_bhv_operations_132_pet_api_required_multipart_body_missing_names_first_required_part()
+{
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
@@ -583,6 +584,61 @@ async fn test_bhv_operations_063_pet_api_get_pet_avatar_thumbnail_rejects_malfor
     );
 }
 
+/* A 2xx body that is valid JSON but breaks the declared model fails loud with a
+ * SerializationError; the partial object is never returned. */
+#[tokio::test]
+async fn test_bhv_operations_127_pet_api_a_2xx_body_that_breaks_the_model_fails_loud() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", r#"{"id":1}"#);
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a 2xx body missing the required fields must fail loud");
+    assert!(
+        err.downcast_ref::<SerializationError>().is_some(),
+        "expected a SerializationError, got {err}"
+    );
+}
+
+/* A 2xx body that is not JSON at all propagates the deserialization error. */
+#[tokio::test]
+async fn test_bhv_operations_130_pet_api_a_malformed_2xx_json_body_propagates_the_deserialization_error(
+) {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "{not valid json");
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("malformed JSON in a 2xx body must fail");
+    assert!(
+        err.downcast_ref::<SerializationError>().is_some(),
+        "expected a SerializationError, got {err}"
+    );
+}
+
+/* An error status is thrown as the class of that status through the typed
+ * route, not as a generic ApiError. */
+#[tokio::test]
+async fn test_bhv_operations_138_pet_api_typed_routes_throw_the_class_of_the_status() {
+    let (api, _) = new_pet_api_for_mock(500, "application/json", r#"{"message":"boom"}"#);
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a 500 must fail");
+    assert!(
+        err.downcast_ref::<InternalServerError>().is_some(),
+        "a 500 must be an InternalServerError, got {err}"
+    );
+
+    let (api, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"gone"}"#);
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a 404 must fail");
+    assert!(
+        err.downcast_ref::<NotFoundError>().is_some(),
+        "a 404 must be a NotFoundError, got {err}"
+    );
+}
+
 #[tokio::test]
 async fn test_bhv_operations_062_pet_api_get_pet_avatar_thumbnail_decodes_a_json_string_literal_as_base64(
 ) {
@@ -612,6 +668,64 @@ impl GetExternalPetInfoServer for MockExternalPetInfoServer {
     fn get_url(&self) -> String {
         testcontainers_helper::chasm_url().to_string()
     }
+}
+
+/* An operation with no server passed is sent to the client's base URL. */
+#[tokio::test]
+async fn test_bhv_operations_153_pet_api_operation_without_a_server_is_sent_to_the_base_url() {
+    let (api, client) = new_pet_api_recording_urls();
+    let _ = api.get_external_pet_info(7, None, None).await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].starts_with("http://localhost/pet/7/external"),
+        "{}",
+        urls[0]
+    );
+}
+
+/* The operation uses the credential of the first scheme its specification lists
+ * that the client holds. The bearer scheme is listed first and is held too, yet
+ * only the api key header goes out. */
+#[tokio::test]
+async fn test_bhv_operations_148_pet_api_uses_the_first_listed_scheme_the_client_holds() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let host = format!("http://{}", listener.local_addr().unwrap());
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+
+    let credentials = petstore::Credentials::new()
+        .with_pet_store_bearer(
+            petstore::auth::BearerAuthenticator::new(&host, "bearer-token")
+                .expect("valid bearer token"),
+        )
+        .with_api_key_header(
+            ApiKeyHeaderAuthenticator::new(&host, Some("key-token")).expect("valid api key"),
+        );
+    let client = petstore::Client::with_credentials(&host, credentials, None);
+
+    let _ = client
+        .pet
+        .add_pet(Pet::new("Rex".to_string(), HashSet::new()), None)
+        .await;
+
+    let head = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(head.contains("x-api-key: key-token"), "{}", head);
+    assert!(!head.contains("authorization:"), "{}", head);
 }
 
 #[tokio::test]
@@ -669,7 +783,7 @@ async fn test_bhv_operations_036_pet_api_get_pet_by_id_empty_body_throws_api_err
 /// same typed ApiError as for an empty body rather than a SerializationError,
 /// and `with_http_info` reports no data.
 #[tokio::test]
-async fn test_pet_api_get_pet_by_id_null_body_throws_api_error() {
+async fn test_bhv_operations_136_pet_api_get_pet_by_id_null_body_throws_api_error() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
 
     let err = api.get_pet_by_id(1, None, None).await.unwrap_err();

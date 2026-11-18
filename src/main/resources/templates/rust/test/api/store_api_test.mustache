@@ -137,7 +137,7 @@ async fn test_bhv_operations_097_store_api_search_store_content_query_uses_objec
 /// A content query value the serializer refuses surfaces as SerializationError
 /// and no request is sent (never an empty `q=` value).
 #[tokio::test]
-async fn test_store_api_search_store_content_query_serialization_failure_sends_nothing() {
+async fn test_bhv_operations_128_store_api_search_store_content_query_serialization_failure_sends_nothing() {
     let client = Arc::new(RecordingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = StoreApi::new(client.clone(), config, None);
@@ -638,4 +638,32 @@ async fn test_bhv_operations_120_store_api_reserve_stock_decodes_the_variant_of_
 
     assert!(matches!(created, ReserveStockResponse::ReservationReceipt(_)), "{created:?}");
     assert!(matches!(existing, ReserveStockResponse::Reservation(_)), "{existing:?}");
+}
+
+/* A 200 answer to reserveStock is the existing reservation, not the new receipt:
+ * the status alone picks the variant. */
+#[tokio::test]
+async fn test_bhv_operations_129_store_api_reserve_stock_decodes_a_200_as_the_existing_reservation() {
+    let body = r#"{"reservationId":1,"quantity":2,"receiptCode":"rcpt-1","expiresAt":"2030-01-01T00:00:00Z"}"#;
+    let existing = new_store_api_for_mock(200, "application/json", body)
+        .reserve_stock(None)
+        .await
+        .expect("a 200 must decode");
+    assert!(matches!(existing, ReserveStockResponse::Reservation(_)), "{existing:?}");
+}
+
+/* A time query parameter keeps its fractional seconds when they are not zero. */
+#[tokio::test]
+async fn test_bhv_operations_139_store_api_time_query_keeps_non_zero_fractional_seconds() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let at = chrono::NaiveTime::from_hms_milli_opt(10, 30, 0, 123).expect("a valid time");
+    let _ = api.search_store(Some(&SearchStoreOptions::new().at(at))).await;
+    let url = client.url.lock().unwrap().clone();
+    assert!(
+        url.contains("at=10%3A30%3A00.123"),
+        "expected the fractional seconds in the query, got: {}",
+        url
+    );
 }

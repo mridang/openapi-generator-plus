@@ -356,12 +356,38 @@ fn test_transport_options_ca_cert_block_without_end_line_is_rejected() {
 }
 
 #[test]
-fn test_transport_options_negative_timeout_is_rejected() {
+fn test_bhv_options_047_transport_options_negative_timeout_is_rejected() {
     let result = TransportOptionsBuilder::new().timeout(Some(-1)).build();
     assert!(
         matches!(result, Err(ConfigurationError::InvalidTimeout(-1))),
         "expected InvalidTimeout(-1), got {:?}",
         result
+    );
+}
+
+/* Built through the static entry point every SDK exposes, a proxy whose scheme
+ * is not http or https is refused when the options are built. */
+#[test]
+fn test_bhv_options_046_transport_options_builder_entry_point_refuses_a_non_http_proxy_scheme() {
+    let result = TransportOptions::builder().proxy("socks5://proxy.example.com:1080").build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidProxy(_))),
+        "expected InvalidProxy, got {:?}",
+        result
+    );
+}
+
+/* A proxy URL whose scheme is neither http nor https is refused with the
+ * canonical message, naming the scheme rule. */
+#[test]
+fn test_bhv_options_051_a_proxy_url_with_a_scheme_other_than_http_or_https_is_rejected_with_its_message() {
+    let err = TransportOptionsBuilder::new()
+        .proxy("socks5://proxy.example.com:1080")
+        .build()
+        .expect_err("a socks5 proxy must be rejected");
+    assert_eq!(
+        err.to_string(),
+        "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080"
     );
 }
 
