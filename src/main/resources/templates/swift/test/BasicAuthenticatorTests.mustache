@@ -31,7 +31,7 @@ import Testing
 
     /* A password may contain ':' (only the user-id may not) and an empty
      * password is still a valid credential. */
-    @Test func testPasswordMayContainColonAndMayBeEmpty() async throws {
+    @Test func testBhvAuthbasic018PasswordMayContainColonAndMayBeEmpty() async throws {
         let withColon = try BasicAuthenticator(
             host: "https://api.example.com", username: "alice", password: "a:b")
         #expect(try await withColon.authHeaders()["Authorization"] == "Basic YWxpY2U6YTpi")
@@ -188,12 +188,27 @@ import Testing
 
 {{/isBasicScheme}}
 {{/perSchemeAuthEntries}}
+    /* Each HTTP basic wrapper emits the same Basic header as the base authenticator it extends. */
+    @Test(arguments: ["AdminBasic", "PetStoreBasic"])
+    func testBhvAuthbasic019SchemeWrapperEmitsTheSameBasicHeaderAsTheBaseAuthenticator(scheme: String) async throws {
+        let base = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "s3cret")
+        let expected = try await base.authHeaders()
+        let wrapper = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
+        #expect(try await wrapper.authHeaders() == expected)
+    }
+
     private static func schemeWrapper(_ scheme: String, username: String, password: String) throws -> BasicAuthenticator {
         let host = "https://api.example.com"
         switch scheme {
         case "AdminBasic": return try AdminBasicAuthenticator(host: host, username: username, password: password)
         default: return try PetStoreBasicAuthenticator(host: host, username: username, password: password)
         }
+    }
+
+    /* A basic authenticator masks the password in its debug output. */
+    @Test func testBhvAuthbasic020AuthenticatorMasksThePasswordInDebugOutput() throws {
+        let auth = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "debug-password-value")
+        #expect(!String(reflecting: auth).contains("debug-password-value"))
     }
 
     @Test func testBhvAuthbasic010DescriptionShowsHostAndUsernameAndMasksPassword() throws {

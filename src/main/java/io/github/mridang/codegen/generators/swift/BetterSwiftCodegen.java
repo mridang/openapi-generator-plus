@@ -942,6 +942,18 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
      */
     private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
 
+    /**
+     * The behaviour token of the empty-variable failure test for the schemes the test catalogue
+     * names (authscheme003 to authscheme008); every other scheme keeps an unnumbered test name.
+     */
+    private static final java.util.Map<String, String> EMPTY_VARIABLE_BHV = java.util.Map.of(
+            "PetStoreBasicAuthenticator", "BhvAuthscheme003",
+            "AdminBasicAuthenticator", "BhvAuthscheme004",
+            "ApiKeyHeaderAuthenticator", "BhvAuthscheme005",
+            "ApiKeyQueryAuthenticator", "BhvAuthscheme006",
+            "SessionCookieAuthenticator", "BhvAuthscheme007",
+            "SsoAuthAuthenticator", "BhvAuthscheme008");
+
     /** {@inheritDoc} */
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
@@ -984,6 +996,15 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         entry.put("baseClass", spec.baseClass());
         entry.put("isBearerScheme", "BearerAuthenticator".equals(spec.baseClass()));
         entry.put("isBasicScheme", "BasicAuthenticator".equals(spec.baseClass()));
+        final boolean apiKey = "ApiKeyAuthenticator".equals(spec.baseClass());
+        entry.put("isApiKeyScheme", apiKey);
+        /* One catalogue id per behaviour: the id-carrying tests name only the first scheme of
+         * their kind, and the empty-variable failure carries the id of the scheme it is named for. */
+        entry.put("isFirstApiKeyScheme", apiKey && perSchemeAuthEntries.stream()
+                .noneMatch(e -> Boolean.TRUE.equals(e.get("isApiKeyScheme"))));
+        entry.put("isFirstBearerScheme", "BearerAuthenticator".equals(spec.baseClass())
+                && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBearerScheme"))));
+        entry.put("emptyVariableBhv", EMPTY_VARIABLE_BHV.getOrDefault(className, ""));
         entry.put("envVars", ctx.get("envVars"));
         perSchemeAuthEntries.add(entry);
         additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);

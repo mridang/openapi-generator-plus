@@ -164,3 +164,4 @@ rust | config024 | Rust has no process-wide mutable configuration default: Confi
 rust | lifecycle030 | rust's with_credentials takes the host as a required argument and its Credentials hold no default authenticator, so there is no second source for the base URL to fall back to
 rust | options045 | max_redirects takes an Option<usize>, so a negative count cannot be passed and the compiler rejects it before the builder runs
 rust | retries032 | RequestBody has only Bytes and Multipart variants and no stream body, so a streamed upload is not a request type here; the one body never sent twice is multipart, pinned by bhv retries 003
+swift | authbearer026 | BearerAuthenticator has a token initializer and a tokenProvider initializer as separate overloads, so passing both at once does not compile and no run-time test can observe it

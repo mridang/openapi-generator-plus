@@ -135,7 +135,7 @@ import Testing
     }
 
     /* The key is emitted at its own location and nowhere else. */
-    @Test func testKeyIsEmittedOnlyAtItsOwnLocation() async throws {
+    @Test func testBhvAuthapikey022KeyIsEmittedOnlyAtItsOwnLocation() async throws {
         let cases: [(ApiKeyLocation, [String: String], [String: String], [String: String])] = [
             (.header, ["k": "v"], [:], [:]),
             (.query, [:], ["k": "v"], [:]),
@@ -148,6 +148,12 @@ import Testing
             #expect(auth.queryParams() == query, "query for \(location)")
             #expect(auth.cookieParams() == cookie, "cookies for \(location)")
         }
+    }
+
+    /* A cookie key accepts a non-ASCII value and emits it unchanged. */
+    @Test func testBhvAuthapikey023CookieKeyAcceptsANonAsciiValue() throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "SESSION_ID", apiKey: "caf\u{E9}-session", location: .cookie)
+        #expect(auth.cookieParams() == ["SESSION_ID": "caf\u{E9}-session"])
     }
 
     // MARK: - Generated scheme wrappers
@@ -195,6 +201,28 @@ import Testing
         #expect(!String(describing: auth).contains("wrapper-key-value"))
     }
 
+    /* Every API-key wrapper keeps the key out of its debug output. */
+    @Test(arguments: ["ApiKeyHeader", "InternalApiKey", "ApiKeyQuery", "SessionCookie"])
+    func testBhvAuthapikey025SchemeWrapperMasksTheKeyInDebugOutput(scheme: String) throws {
+        let auth = try Self.schemeWrapper(scheme, apiKey: "debug-key-value")
+        #expect(!String(reflecting: auth).contains("debug-key-value"))
+    }
+
+{{#perSchemeAuthEntries}}
+{{#isFirstApiKeyScheme}}
+    /* The first API-key scheme reads its key from the environment when none is passed, and a passed key wins. */
+    @Test func testBhvAuthapikey021{{className}}ReadsTheKeyFromTheEnvironmentAndPrefersAPassedKey() async throws {
+        let fromEnvironment = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-key", {{/envVars}}])
+        let fromEnvironmentHeaders = await fromEnvironment.authHeaders()
+        let emitted = Array(fromEnvironmentHeaders.values) + Array(fromEnvironment.queryParams().values) + Array(fromEnvironment.cookieParams().values)
+        #expect(emitted == ["env-key"])
+        let explicit = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-key", {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-key", {{/envVars}}])
+        let explicitHeaders = await explicit.authHeaders()
+        let explicitEmitted = Array(explicitHeaders.values) + Array(explicit.queryParams().values) + Array(explicit.cookieParams().values)
+        #expect(explicitEmitted == ["explicit-key"])
+    }
+{{/isFirstApiKeyScheme}}
+{{/perSchemeAuthEntries}}
     private static func schemeWrapper(_ scheme: String, apiKey: String) throws -> ApiKeyAuthenticator {
         let host = "https://api.example.com"
         switch scheme {
@@ -245,6 +273,13 @@ import Testing
         #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' must not be empty")) {
             _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "\u{0B}", location: .query)
         }
+    }
+
+    /* An API key authenticator never shows its key in its default debug output. */
+    @Test func testBhvAuthapikey026AuthenticatorDoesNotLeakItsKeyInDebugOutput() throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "default-debug-value", location: .header)
+        #expect(!String(reflecting: auth).contains("default-debug-value"))
+        #expect(!String(describing: auth).contains("default-debug-value"))
     }
 
     @Test func testBhvAuthapikey012DescriptionShowsNonSecretFieldsAndMasksTheKey() throws {
