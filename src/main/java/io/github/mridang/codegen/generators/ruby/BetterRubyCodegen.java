@@ -307,7 +307,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 resolvedModuleName.replaceAll("::", "/"));
         final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
         final String errorsPath = Path.of(libPath, "errors").toString();
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("gem.mustache", LIB_FOLDER, resolvedGemName + ".rb"),
@@ -366,7 +366,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("yardopts.mustache", "", ".yardopts"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
-        );
+        ));
+        if (generateExamples) {
+            /* A script outside lib/: the Makefile runs it with -Ilib and the Steepfile's
+             * examples target type-checks it against sig/. */
+            specs.add(new SupportingFileSpec("examples/quickstart.mustache", "examples", "quickstart.rb"));
+        }
+        return specs;
     }
 
     /**

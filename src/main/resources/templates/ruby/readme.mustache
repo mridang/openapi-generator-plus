@@ -11,20 +11,18 @@ Auto-generated Ruby SDK client for the {{appName}} API.
 
 ## Installation
 
-Add the gem to your `Gemfile` and run `bundle install`:
+Add the gem to your `Gemfile` and install it with Bundler:
 
-```ruby
-gem '{{gemName}}'
+```bash
+bundle add {{gemName}}
 ```
 
 ## Usage
 
-```ruby
+```ruby statements
 require '{{gemName}}'
 
-client = {{moduleName}}::{{clientClassName}}.with_token('https://api.example.com', 'your-token')
-# Call an operation through an API group, e.g. client.<group>.<operation>(...), and read fields off the result.
-client.close
+{{>usage_statements}}
 ```
 
 ### Credentials
@@ -73,9 +71,18 @@ A cookie parameter is sent as it is, without percent-encoding, when every charac
 
 Every operation takes an optional Options object, which accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security has an Options object that carries only these three members.
 
-```ruby
-options = {{moduleName}}::Api::Options::<Operation>Options.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```ruby file
+require '{{gemName}}'
+
+def {{operationId}}_within_two_seconds(client)
+  options = {{moduleName}}::Api::Options::{{vendorExtensions.op.optionsClassName}}.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+  client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}(options)
+end
 ```
+{{/exampleOperation}}
+{{/hasExampleOperation}}
 
 ### `Configuration` and `TransportOptions`
 
@@ -155,7 +162,9 @@ base64 text from the wire. The transport layer base64-decodes on
 read and base64-encodes (strict, no line breaks) on write.
 
 {{#hasByteExample}}
-```ruby
+```ruby statements
+require '{{gemName}}'
+
 json = '{"{{byteExampleBaseName}}":"aGVsbG8="}'
 model = {{moduleName}}::ObjectSerializer.deserialize(json, '{{byteExampleClassname}}')
 model.{{byteExamplePropertyName}}.encoding  # => #<Encoding:ASCII-8BIT>

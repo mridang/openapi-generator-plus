@@ -1,0 +1,21 @@
+host = ENV.fetch('{{envVarPrefix}}_BASE_URL')
+token = ENV.fetch('{{envVarPrefix}}_TOKEN')
+client = {{moduleName}}::{{clientClassName}}.with_token(host, token)
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+begin
+{{#returnType}}
+  result = client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}
+  pp result
+{{/returnType}}
+{{^returnType}}
+  client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}
+{{/returnType}}
+ensure
+  client.close
+end
+{{/exampleOperation}}
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+client.close
+{{/hasExampleOperation}}
