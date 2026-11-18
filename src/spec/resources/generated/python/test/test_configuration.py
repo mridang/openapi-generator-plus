@@ -290,6 +290,11 @@ class TestConfigurationRepr:
             "x-client-SECRET",
         ],
     )
+    def test_bhv_config_026_the_builder_returns_the_base_url_that_was_set(self) -> None:
+        config = Configuration.builder().base_url("https://builder.example.com").build()
+
+        assert config.base_url == "https://builder.example.com"
+
     def test_bhv_config_015_repr_masks_sensitive_default_header_values(
         self, name: str
     ) -> None:

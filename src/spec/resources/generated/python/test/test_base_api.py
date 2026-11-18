@@ -3138,6 +3138,14 @@ class TestOperationServerVariants:
 
         assert server.get_url() == expected
 
+    def test_bhv_servers_030_a_value_not_in_the_declared_enum_is_rejected_with_an_error(
+        self,
+    ) -> None:
+        from petstore_client.api.pet_api import GetStagingPetInfoServerEnvironment
+
+        with pytest.raises(ValueError, match="'canary' is not a valid"):
+            GetStagingPetInfoServerEnvironment("canary")
+
     def test_bhv_servers_020_a_value_outside_the_variable_enum_is_rejected(
         self,
     ) -> None:

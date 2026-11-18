@@ -417,6 +417,16 @@ class TestDefaultApiClientUnit:
         assert str(uuid.UUID(request_id)) == request_id
         assert uuid.UUID(request_id).version == 4
 
+    def test_bhv_transport_089_a_content_encoding_that_does_not_match_the_body_raises_the_api_error(
+        self,
+    ) -> None:
+        from {{packageName}}.errors import ApiException
+
+        client = DefaultApiClient()
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", f"{self.base_url}/bad-gzip", {}, None)
+        assert type(excinfo.value) is ApiException
+
     def test_bhv_transport_030_content_encoding_gzip_lie_with_plaintext_body_surfaces_api_exception(
         self,
     ) -> None:
@@ -647,6 +657,14 @@ class TestMultipartContentType:
         file_like.name = "file.png"
         body = client._build_multipart_body({"upload": file_like}, "boundary")
         assert b"Content-Type: image/png" in body
+
+    def test_bhv_transport_091_a_caller_supplied_upload_stream_is_left_open_after_the_send(self) -> None:
+        import io
+        client = DefaultApiClient()
+        file_like = io.BytesIO(b"data")
+        file_like.name = "file.bin"
+        client._build_multipart_body({"upload": file_like}, "boundary")
+        assert not file_like.closed
 
     def test_bhv_serialization_120_an_unknown_extension_gives_a_multipart_file_octet_stream(self) -> None:
         import io
@@ -1738,6 +1756,16 @@ class TestNetworkErrors:
     """A request that gets no HTTP response raises NetworkException, and one
     that times out raises NetworkTimeoutException, both with status 0."""
 
+    def test_bhv_transport_087_a_connection_that_cannot_be_established_raises_the_network_error(self) -> None:
+        import socket
+        from {{packageName}}.errors import NetworkException
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        with pytest.raises(NetworkException):
+            DefaultApiClient().send_request("GET", f"http://127.0.0.1:{port}/x", {}, None)
+
     def test_bhv_transport_032_connection_refused_raises_network_exception(self) -> None:
         import socket
         from {{packageName}}.errors import ApiException, NetworkException, NetworkTimeoutException
@@ -1763,6 +1791,21 @@ class TestNetworkErrors:
         with pytest.raises(ValueError) as excinfo:
             client.send_request("GET", "http://[bad", {}, None)
         assert not isinstance(excinfo.value, {{errorPrefix}}Exception)
+
+    def test_bhv_transport_086_a_request_past_its_timeout_raises_the_network_timeout_error(self) -> None:
+        import urllib3
+        import urllib3.exceptions
+        from {{packageName}}.errors import NetworkTimeoutException
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                no_pool: Any = None
+                raise urllib3.exceptions.MaxRetryError(
+                    no_pool, url, urllib3.exceptions.ReadTimeoutError(no_pool, url, "read timed out")
+                )
+
+        with pytest.raises(NetworkTimeoutException):
+            DefaultApiClient(pool_manager=_Pool()).send_request("GET", "https://example.test/x", {}, None)
 
     def test_bhv_transport_058_read_timeout_raises_network_timeout_exception(self) -> None:
         import urllib3
@@ -2330,7 +2373,7 @@ class TestInjectedPoolManager:
     def teardown_class(cls) -> None:
         cls.server.shutdown()
 
-    def test_the_supplied_pool_manager_receives_the_request(self) -> None:
+    def test_bhv_transport_092_the_supplied_pool_manager_receives_the_request(self) -> None:
         pool = _RecordingPool()
         client = DefaultApiClient(pool_manager=pool)
 

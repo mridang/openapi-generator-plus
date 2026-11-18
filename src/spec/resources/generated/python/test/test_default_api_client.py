@@ -1268,7 +1268,7 @@ class TestCancellation:
             await asyncio.sleep(0.05)
         assert client._inflight == set()
 
-    async def test_a_request_cancelled_through_its_handle_ends_at_once(
+    async def test_bhv_transport_084_a_request_cancelled_through_its_handle_ends_at_once(
         self, chasm_http_url: Any
     ) -> None:
         from petstore_client.default_api_client import RequestHandle
