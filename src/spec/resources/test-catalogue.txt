@@ -2543,3 +2543,6 @@ langnode012 | No generated doc comment carries an HTML entity
 langnode013 | An operation's options argument is documented
 langnode014 | A path value containing replacement patterns is inserted literally
 langnode015 | A cookie value that cannot be sent is refused before the request goes out
+langnode016 | A set parameter is expanded like an array in a query
+langnode017 | A matrix parameter element of the wrong type is rejected
+langnode018 | An inventory parameter element of the wrong type is rejected
