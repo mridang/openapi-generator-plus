@@ -99,7 +99,8 @@ class MetadataTest {
         assertNotEquals(first, otherDate)
 
         assertFalse(first.equals("metadata"))
-        assertFalse(first.equals(null))
+        val absent: Any? = emptyList<Any>().firstOrNull()
+        assertFalse(first.equals(absent))
     }
 
     @Test
