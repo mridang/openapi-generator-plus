@@ -1982,3 +1982,75 @@ async fn test_pet_api_retries_a_503_with_the_default_transport() {
 
     assert_eq!(2, served.load(std::sync::atomic::Ordering::SeqCst));
 }
+
+/// auth043: an operation sends the credential of the scheme it names and no other scheme's credential.
+#[tokio::test]
+async fn test_bhv_auth_043_an_operation_sends_only_the_scheme_credential_it_names() {
+    let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
+    let request = add_pet_request_with(Credentials::new().with_api_key_header(key)).await;
+    assert!(request.contains("key-one"), "request: {}", request);
+    assert!(!request.contains("authorization:"), "request: {}", request);
+}
+
+/// auth044: an operation that declares no security requirement sends no credential, even when the client holds one.
+#[tokio::test]
+async fn test_bhv_auth_044_an_operation_with_no_security_requirement_sends_no_credential() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let store = StoreApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let _ = store.get_inventory(None).await;
+    let request = rx.recv().expect("expected a captured request").to_lowercase();
+    assert!(!request.contains("authorization:"), "request: {}", request);
+    assert!(!request.contains("bearer test-token"), "request: {}", request);
+}
+
+/// auth045: a credential supplied for the operation's scheme replaces a default Authorization header set on the client.
+#[tokio::test]
+async fn test_bhv_auth_045_an_operation_credential_replaces_the_default_authorization_header() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new()
+        .base_url(&base_url)
+        .default_header("Authorization", "Bearer default-token")
+        .build();
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let pet = Pet::new(
+        "ReplacedDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let _ = api.add_pet(pet, None).await;
+    let request = rx.recv().expect("expected a captured request").to_lowercase();
+    assert!(request.contains("authorization: bearer test-token"), "request: {}", request);
+    assert!(!request.contains("default-token"), "request: {}", request);
+}
+
+/// auth046: an operation with no security of its own inherits the document-level security, so the client's credential is sent.
+#[tokio::test]
+async fn test_bhv_auth_046_an_operation_without_its_own_security_receives_the_client_credential() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let _ = api.find_pets_by_status(None).await;
+    let request = rx.recv().expect("expected a captured request").to_lowercase();
+    assert!(request.contains("authorization: bearer test-token"), "request: {}", request);
+}
+
+/// auth047: with none of an operation's schemes held, no scheme credential is sent on the wire.
+#[tokio::test]
+async fn test_bhv_auth_047_an_operation_sends_no_scheme_credential_when_none_is_held() {
+    let request = add_pet_request_with(Credentials::new()).await;
+    assert!(!request.contains("authorization:"), "request: {}", request);
+    assert!(!request.contains("key-one"), "request: {}", request);
+}
+
