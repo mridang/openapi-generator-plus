@@ -262,6 +262,17 @@ void main() {
       });
     });
 
+    test('bhv authscheme 004 the AdminBasic scheme authenticator treats an empty environment variable as unset and names it', () {
+      expect(
+        () => AdminBasicAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'))),
+      );
+    });
+
     test('bhv authbasic 019 generated basic scheme wrappers emit the same Basic header as the base authenticator', () {
       final secret = ['s3', 'cret'].join();
       final base = BasicAuthenticator(
