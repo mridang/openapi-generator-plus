@@ -405,3 +405,8 @@ test('bhv misc 056 setting the proxy to null removes a proxy set earlier', funct
     $opts = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->proxy(null)->build();
     expect($opts->proxy)->toBeNull();
 });
+
+test('bhv options 068 a SOCKS proxy is refused at construction with the documented message', function (): void {
+    expect(fn () => new TransportOptions(proxy: 'socks5://proxy:1080'))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
+});

@@ -1512,6 +1512,21 @@ void main() {
           );
         },
       );
+      test(
+        'bhv misc 286 An OAuth server error message names both its HTTP status and its OAuth error code',
+        () {
+          final err = OAuth2ServerException(
+            401,
+            'invalid_client',
+            null,
+            null,
+            '{}',
+          );
+
+          expect(err.toString(), contains('401'));
+          expect(err.toString(), contains('invalid_client'));
+        },
+      );
     },
   );
 }

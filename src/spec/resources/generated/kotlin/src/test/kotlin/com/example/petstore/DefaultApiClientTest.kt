@@ -112,6 +112,14 @@ class DefaultApiClientTest {
             val json = ObjectMapper().readTree(response.body)
             assertEquals("GET", json.get("method").asText())
         }
+
+        @Test
+        fun bhvMisc269SelfSignedEndpointIsReachedWhenVerificationIsOff() =
+            runBlocking<Unit> {
+                val client = DefaultApiClient(TransportOptions.builder().verifySsl(false).build())
+                val response = client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null)
+                assertEquals(200, response.statusCode)
+            }
     }
 
     @Nested
@@ -188,6 +196,26 @@ class DefaultApiClientTest {
                 "the host name check must reject $address (the shared proxy may name it by container), got ${causes(ex)}",
             )
         }
+
+        @Test
+        fun bhvMisc268CustomCaCertStillRejectsHostnameMismatch() =
+            runBlocking<Unit> {
+                val transport =
+                    TransportOptions
+                        .builder()
+                        .proxy(SquidContainer.getProxyUrl())
+                        .verifySsl(true)
+                        .caCertPath(caCertPath)
+                        .maxRetries(0)
+                        .build()
+                val client = DefaultApiClient(transport)
+                val ex =
+                    assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
+                        runBlocking { client.sendRequest("GET", mismatchUrl(), emptyMap(), null) }
+                    }
+                assertEquals(0, ex.statusCode)
+                assertNotNull(ex.cause, "the host name failure must be kept as the cause")
+            }
     }
 
     @Nested
@@ -296,6 +324,22 @@ class DefaultApiClientTest {
             // base64("user:pass") == "dXNlcjpwYXNz"
             assertEquals("Basic dXNlcjpwYXNz", client.proxyAuthHeader)
         }
+
+        @Test
+        fun bhvMisc271NoProxyConfiguredRecordsNoProxyAuthentication() =
+            runBlocking<Unit> {
+                val transport = TransportOptions.builder().build()
+                assertNull(transport.proxy)
+                assertNull(DefaultApiClient(transport).proxyAuthHeader)
+            }
+
+        @Test
+        fun bhvMisc272AuthenticatingProxyAcceptsEmbeddedCredentialsEndToEnd() =
+            runBlocking<Unit> {
+                val client = DefaultApiClient(TransportOptions.builder().proxy(SquidContainer.getAuthProxyUrl()).build())
+                val response = client.sendRequest("GET", "${ChasmContainer.getInternalHttpUrl()}/test/echo", emptyMap(), null)
+                assertEquals(200, response.statusCode)
+            }
     }
 
     @Nested

@@ -2492,6 +2492,14 @@ test('bhv misc 202 a text body without a declared content type goes out with the
     $api->call('POST', '/test/echo', [], [], 'hello', ['application/json'], '');
     expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
 });
+test('bhv misc 296 a failed request is retried twice by default, so three requests reach the wire', function (): void {
+    /** @var \ArrayObject<int, string> $seen */
+    $seen = new \ArrayObject();
+    $api = flakyTransportApi(99, $seen, null);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
+        ->toThrow(ServerException::class);
+    expect(count($seen))->toBe(3);
 test('bhv misc 081 a base64 body under a binary content type is decoded before the caller gets it', function (): void {
     $client = new class implements ApiClient {
         public function close(): void

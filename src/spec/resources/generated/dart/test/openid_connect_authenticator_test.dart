@@ -291,6 +291,32 @@ void main() {
     );
 
     test(
+      'bhv misc 200 A discovery document whose issuer names another server is rejected.',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"issuer":"https://evil.example.net",'
+          '"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              'OIDC discovery document issuer does not match the discovery URL',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv authoidc 004 accepts an issuer that differs only by a trailing slash',
       () async {
         final client = _FakeApiClient();
@@ -457,6 +483,29 @@ void main() {
     // a 500 HTML error page) must surface as the same status-specific
     // exception an API call would throw, not a downstream "invalid JSON"
     // parse failure of the body.
+    test(
+      'bhv misc 201 a failed discovery request reports its path without the query string',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('', statusCode: 500);
+        final auth = OpenIdConnectAuthenticator(
+          host: 'https://api.example.com',
+          openIdConnectUrl:
+              'https://auth.example.com/.well-known/openid-configuration?tenant=a',
+          clientId: 'my-client-id',
+          clientSecret: 'my-client-secret',
+          redirectUri: 'https://app.example.com/callback',
+          scopes: ['openid'],
+        );
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(predicate((e) => !e.toString().contains('tenant'))),
+        );
+      },
+    );
+
     test(
       'bhv authoidc 027 throws when discovery returns a non-2xx status',
       () async {
@@ -703,6 +752,28 @@ void main() {
 
     test(
       'bhv authoidc 030 Cache-Control max-age=0 forces a rediscovery on the next call',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          document,
+          headers: {'Cache-Control': 'public, max-age=0'},
+        );
+        client.enqueue(
+          document,
+          headers: {'Cache-Control': 'public, max-age=0'},
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.buildAuthorizationUrl();
+        await auth.buildAuthorizationUrl();
+
+        expect(client.getCount, equals(2));
+      },
+    );
+
+    test(
+      'bhv misc 199 OIDC discovery runs again when the cached document expires or its max-age is zero, and the rediscovered endpoints are used.',
       () async {
         final client = _FakeApiClient();
         client.enqueue(

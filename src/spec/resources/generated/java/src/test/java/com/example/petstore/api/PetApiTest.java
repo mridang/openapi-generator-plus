@@ -2370,4 +2370,26 @@ class PetApiTest {
               assertThat(err.getRequestPath()).isEqualTo("/pet/7");
             });
   }
+
+  @Test
+  void bhvMisc179AFormUrlencodedBodySendsItsContentType() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.setPetPreferences(1L, new SetPetPreferencesOptions("a"));
+
+    assertThat(capturing.capturedHeaders)
+        .containsEntry("Content-Type", "application/x-www-form-urlencoded");
+  }
+
+  @Test
+  void bhvMisc191AnAuthCookieWithAForbiddenOctetRaisesAnArgumentErrorNotAnApiError() {
+    PetApi petApi =
+        new PetApi(
+            new CapturingApiClient(), Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey("bad\u0001value")))
+        .isExactlyInstanceOf(IllegalArgumentException.class);
+  }
 }
