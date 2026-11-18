@@ -142,6 +142,31 @@ fn test_bhv_unions_030_pet_food_subtype_without_its_discriminator_takes_the_mapp
 }
 
 #[test]
+fn test_bhv_misc_294_a_subtype_payload_without_its_discriminator_takes_the_mapping_value() {
+    let dry: DryFood = serde_json::from_str(r#"{"weightKg":4.0}"#).expect("failed to decode DryFood");
+    let wet: WetFood = serde_json::from_str(r#"{"volumeMl":250}"#).expect("failed to decode WetFood");
+
+    assert_eq!(dry.food_type, "dry", "the mapping value of DryFood");
+    assert_eq!(wet.food_type, "wet", "the mapping value of WetFood");
+}
+
+#[test]
+fn test_bhv_misc_295_a_byte_string_one_of_round_trips_through_base64_and_rejects_a_non_list() {
+    let value = SetPetAvatarThumbnailRequest::VecU8(vec![1, 2, 3]);
+
+    let data = serde_json::to_string(&value).expect("failed to serialize");
+    assert_eq!(data, r#""AQID""#, "the byte string is base64 on the wire");
+
+    let back: SetPetAvatarThumbnailRequest = serde_json::from_str(&data).expect("failed to decode");
+    assert_eq!(back, value);
+
+    assert!(
+        serde_json::from_str::<SetPetAvatarThumbnailRequest>("7").is_err(),
+        "a non-list, non-string value matches no variant and must be rejected"
+    );
+}
+
+#[test]
 fn test_pet_food_subtype_default_carries_its_mapping_value() {
     /* Struct-update syntax over `Default::default()` must keep the discriminator
      * `new()` promises, so the payload still routes through the parent oneOf. */
@@ -358,6 +383,23 @@ fn test_bhv_unions_009_pet_treatment_retains_all_matching_variants_losslessly() 
         parsed["durationMinutes"], 45,
         "durationMinutes must survive the round-trip, got: {data}"
     );
+}
+
+#[test]
+fn test_bhv_misc_293_any_of_fills_every_matching_variant_and_skips_the_rest() {
+    let surgery_only: PetTreatment =
+        serde_json::from_str(r#"{"procedureName":"Spay"}"#).expect("a surgery-only payload");
+    assert!(surgery_only.medication.is_none(), "Medication does not match and must be skipped");
+    assert_eq!(
+        surgery_only.surgery.as_ref().map(|s| s.procedure_name.as_str()),
+        Some("Spay")
+    );
+
+    let both: PetTreatment =
+        serde_json::from_str(r#"{"drugName":"Amoxicillin","procedureName":"Spay"}"#)
+            .expect("a payload matching both variants");
+    assert!(both.medication.is_some(), "Medication matches and must be kept");
+    assert!(both.surgery.is_some(), "Surgery matches and must be kept");
 }
 
 #[test]

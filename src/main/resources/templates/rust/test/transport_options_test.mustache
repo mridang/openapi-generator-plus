@@ -124,6 +124,17 @@ fn test_bhv_options_021_transport_options_follow_redirects_defaults_to_true_with
 /* D79: the proxy messages are the canonical ones, and the userinfo of the
  * rejected URL is shown as `***@`, so a proxy credential never reaches a log. */
 #[test]
+fn test_bhv_misc_298_a_malformed_proxy_url_fails_with_an_invalid_proxy_error() {
+    let result = TransportOptionsBuilder::new().proxy("http://").build();
+
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidProxy(_))),
+        "a proxy URL with no host must fail as InvalidProxy, got: {:?}",
+        result
+    );
+}
+
+#[test]
 fn test_bhv_options_024_transport_options_invalid_proxy_url_throws_exception() {
     for (proxy, message) in [
         ("not-a-valid-url", "Invalid proxy URL: not-a-valid-url"),

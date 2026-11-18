@@ -41,6 +41,18 @@ fn test_bhv_servers_010_url_substitutes_overrides() {
 }
 
 #[test]
+fn test_bhv_misc_297_every_template_variable_is_replaced_when_the_url_is_built() {
+    let server = server_with_vars();
+
+    let mut overrides = HashMap::new();
+    overrides.insert("env".to_string(), "staging".to_string());
+    overrides.insert("version".to_string(), "v2".to_string());
+
+    let url = server.url(&overrides).expect("valid overrides resolve");
+    assert_eq!(url, "https://staging.example.com/api/v2");
+}
+
+#[test]
 fn test_bhv_servers_001_partial_override_keeps_the_other_defaults() {
     let server = server_with_vars();
 
