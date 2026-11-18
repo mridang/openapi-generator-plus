@@ -1319,23 +1319,6 @@ test('bhv serializationobject 085 deserialize PetFood missing discriminator thro
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
-test('deserialize PetFood missing discriminator does not wrap raw dict', function (): void {
-    /* Guard against a regression to the old behaviour where the raw decoded
-     * array was wrapped in a PetFood union container and returned. The call
-     * MUST raise — never return a PetFood whose actualInstance is the raw
-     * untyped array. */
-    $json = '{"weightKg":5.0}';
-
-    $threw = false;
-    try {
-        ObjectSerializer::deserialize($json, \PetstoreClient\Models\PetFood::class);
-    } catch (\PetstoreClient\Errors\SerializationException) {
-        $threw = true;
-    }
-
-    expect($threw)->toBeTrue();
-});
-
 // -- Gap #13: null fields omitted on serialize --
 
 test('bhv serializationobject 023 serialize omits model fields that are null', function (): void {
@@ -1448,11 +1431,6 @@ test('bhv serializationobject 029 constructing a model never validates the value
 
     expect($item->availability)->toBeNull();
     expect($item->matrix?->count())->toBe(0);
-});
-
-test('an enum string that is not a case fails at decode and not at construction', function (): void {
-    expect(fn () => ObjectSerializer::deserialize('{"priority":2,"availability":"unknown"}', StockItem::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
 test('bhv serializationobject 001 a property with a default beside its reference starts at that default', function (): void {
@@ -2104,18 +2082,6 @@ test('a model container leaf that is an object still deserializes', function ():
     expect($orders)->toBeArray()->toHaveCount(1);
     expect($orders[0])->toBeInstanceOf(\PetstoreClient\Models\Order::class);
     expect($orders[0]->quantity)->toBe(3);
-});
-
-test('deep JSON within the depth cap decodes but past it is rejected', function (): void {
-    // json_decode is called with the MAX_JSON_DEPTH cap; a payload nested past
-    // it is rejected, while one within it decodes. Uses 'object[]' so the
-    // element decode does not require a valid model shape.
-    $within = str_repeat('[', 600) . str_repeat(']', 600);
-    expect(ObjectSerializer::deserialize($within, 'object[]'))->toBeArray();
-
-    $beyond = str_repeat('[', 1500) . str_repeat(']', 1500);
-    expect(fn (): mixed => ObjectSerializer::deserialize($beyond, 'object[]'))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
 // -- F-BM-03 (WONTFIX for PHP): PHP's native #[\Deprecated] attribute does

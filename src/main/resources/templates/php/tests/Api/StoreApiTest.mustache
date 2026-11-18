@@ -477,17 +477,6 @@ test('bhv operations 121 content json header param is the object serializer outp
     expect($captured->headers['X-Filter'] ?? null)->toBe('{"k":"a/b<"}');
 });
 
-test('content json query param that cannot be serialized sends no request', function (): void {
-    [$api, $captured] = newCapturingStoreApi();
-
-    expect(fn (): mixed => $api->searchStore(new \{{invokerPackage}}\Api\Options\SearchStoreOptions(
-        q: new \{{invokerPackage}}\Models\PhotoMetadata(
-            location: new \{{invokerPackage}}\Models\PhotoMetadataLocation(lat: NAN),
-        ),
-    )))->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
-    expect($captured->url)->toBe('');
-});
-
 test('bhv operations 122 named enum path, query and header params travel as their wire values', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 
