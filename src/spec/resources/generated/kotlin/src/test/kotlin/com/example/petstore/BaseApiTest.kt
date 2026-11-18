@@ -404,6 +404,10 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("bhvOperations163 a request with no body sends no Content-Type header")
+    fun bhvOperations163NoBodySendsNoContentType() = nullBodyPostDoesNotSendContentType()
+
+    @Test
     @DisplayName("bhvOperations013 null body POST does not send Content-Type")
     fun nullBodyPostDoesNotSendContentType() {
         val client = CapturingApiClient()
@@ -601,6 +605,10 @@ class BaseApiTest {
             assertEquals("GET", ex.requestMethod)
             assertEquals("/items", ex.requestPath)
         }
+
+        @Test
+        @DisplayName("bhvOperations158 a header supplied on an individual call is sent with that call")
+        fun bhvOperations158PerCallHeaderIsSent() = callHeadersReplaceAnyLayer()
 
         @Test
         @DisplayName("bhvOperations001 F827: per-call headers replace a header of the same name, whatever its case")
@@ -1700,6 +1708,10 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvOperations157 a binary request body is sent as its exact raw bytes with no multipart encoding")
+        fun bhvOperations157BinaryBodyIsSentRaw() = passesBinaryBody()
+
+        @Test
         @DisplayName("bhvOperations014 passes binary body as-is")
         fun passesBinaryBody() {
             val client = CapturingApiClient()
@@ -2230,6 +2242,10 @@ class BaseApiTest {
             assertEquals(200, result.statusCode)
             assertNull(result.data)
         }
+
+        @Test
+        @DisplayName("bhvOperations161 a text/plain response is returned as raw text and never decoded")
+        fun bhvOperations161TextPlainIsNeverDecoded() = textPlainResponseReturnsString()
 
         @Test
         @DisplayName("bhvOperations017 text/plain response returns string")

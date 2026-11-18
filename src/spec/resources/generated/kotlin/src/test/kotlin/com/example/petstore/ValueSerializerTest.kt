@@ -56,6 +56,10 @@ class ValueSerializerTest {
     @DisplayName("format:date path parameter emits YYYY-MM-DD")
     inner class FormatDatePathParamTests {
         @Test
+        @DisplayName("bhvOperations162 a date-only parameter is sent as a bare date with no time component")
+        fun bhvOperations162DateOnlyIsBare() = localDateInPathReturnsDateOnly()
+
+        @Test
         @DisplayName("bhvSerializationparam028 LocalDate in path returns YYYY-MM-DD")
         fun localDateInPathReturnsDateOnly() {
             val date = LocalDate.of(2024, 1, 15)
@@ -178,6 +182,10 @@ class ValueSerializerTest {
         fun alreadyEncodedReencoded() {
             assertEquals("a%2520b", ValueSerializer.serialize("a%20b", "path", "string", null))
         }
+
+        @Test
+        @DisplayName("bhvOperations165 a path parameter is written with the serialization style the operation declares")
+        fun bhvOperations165PathParamUsesDeclaredStyle() = matrixStyleEncodesValue()
 
         @Test
         @DisplayName("bhvSerializationparam059 matrix style with reserved char in value")
