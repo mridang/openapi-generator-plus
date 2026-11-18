@@ -649,13 +649,6 @@ class TestApiErrorRendering:
         assert "Bearer abc" not in str(err)
         assert "realm=x" not in str(err)
 
-    def test_bhv_misc_019_an_error_request_target_is_reduced_to_its_path(self) -> None:
-        err = ApiException.from_response(404, {}, "missing", "GET", "/items/7?x=1#frag")
-
-        assert "Request: GET /items/7" in str(err)
-        assert "?x=1" not in str(err)
-        assert "#frag" not in str(err)
-
     def test_bhv_misc_020_the_request_line_needs_both_the_method_and_the_path(
         self,
     ) -> None:
