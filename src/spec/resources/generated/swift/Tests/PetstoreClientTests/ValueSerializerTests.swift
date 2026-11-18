@@ -1018,4 +1018,36 @@ import Testing
     #expect(!cookie.contains(":"))
     #expect(cookie.contains("%3A"))
   }
+
+  /* An array item containing a comma keeps the literal comma across the simple, label and matrix path styles. */
+  @Test(arguments: ["simple", "label", "matrix"])
+  func testBhvMisc250AnArrayItemContainingACommaKeepsTheLiteralComma(
+    style: String
+  ) throws {
+    let result = ValueSerializer.serializeStyled(
+      "ids", value: ["a,b", "c"], location: "path", schemaType: "array", collectionFormat: "",
+      style: style, explode: false)
+    #expect(String(describing: result ?? "").contains("a,b"))
+  }
+
+  /* An allowReserved query value still percent-encodes hash and bracket characters. */
+  @Test func testBhvMisc253AnAllowReservedValueStillEncodesHashAndBrackets() throws {
+    let query = BaseApi.buildQueryString([
+      "revision": ValueSerializer.AllowReservedValue(value: "a/b#[c]")
+    ])
+    #expect(query.contains("a/b"))
+    #expect(query.contains("%23"))
+    #expect(query.contains("%5B"))
+    #expect(query.contains("%5D"))
+  }
+
+  /* An unmarked query value percent-encodes reserved characters such as slash and colon. */
+  @Test func testBhvMisc254AnUnmarkedQueryValuePercentEncodesSlashAndColon() throws {
+    #expect(BaseApi.buildQueryString(["q": "a/b:c"]).contains("a%2Fb%3Ac"))
+  }
+
+  /* Separate query parameters encode a space as %20. */
+  @Test func testBhvMisc255ASpaceInAQueryParameterIsEncodedAsPercent20() throws {
+    #expect(BaseApi.buildQueryString(["q": "a b"]).contains("a%20b"))
+  }
 }
