@@ -2505,4 +2505,92 @@ describe 'DefaultApiClientUnit' do
       _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
     end
   end
+
+  it 'bhv_errors_083 names the CA certificate path that cannot be read, at construction' do
+    path = '/nonexistent/bhv-ca.pem'
+    transport = {{moduleName}}::TransportOptions.builder.ca_cert_path(path).build
+    err = assert_raises(ArgumentError) { {{moduleName}}::DefaultApiClient.new(transport) }
+
+    _(err.message).must_include path
+  end
+
+  it 'bhv_errors_077 a URL in a transport failure keeps scheme, host, port and path and drops userinfo, query and fragment' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/v1/items') do
+        raise Faraday::ConnectionFailed, 'unreachable https://user:pw@api.example.test:8443/v1/items?token=abc#frag'
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::Errors::NetworkError) do
+        client.send_request(:GET, 'http://localhost/v1/items', {}, nil)
+      end
+      _(err.message).must_include 'https://api.example.test:8443/v1/items'
+      _(err.message).wont_include 'token=abc'
+      _(err.message).wont_include 'user:pw'
+      _(err.message).wont_include '#frag'
+    end
+  end
+
+  it 'bhv_errors_078 a transport failure message never shows the query string, even inside a cause' do
+    cause = SocketError.new('getaddrinfo: https://api.example.test/v1/items?api_key=SECRET failed')
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/v1/items') { raise Faraday::ConnectionFailed, cause }
+    end
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::Errors::NetworkError) do
+        client.send_request(:GET, 'http://localhost/v1/items', {}, nil)
+      end
+      _(err.message).must_include 'https://api.example.test/v1/items'
+      _(err.message).wont_include 'api_key'
+      _(err.message).wont_include 'SECRET'
+    end
+  end
+
+  it 'bhv_headers_031 refuses a header value containing a carriage return or line feed before sending' do
+    sent = false
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do
+        sent = true
+        [200, {}, 'ok']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      ["a\r\nInjected: b", "a\nb"].each do |value|
+        assert_raises(ArgumentError) do
+          client.send_request(:GET, 'http://localhost/echo', { 'X-Trace' => value }, nil)
+        end
+      end
+    end
+    _(sent).must_equal false
+  end
+
+  it 'bhv_lifecycle_037 sends nothing after close and keeps the connection open while a request is in flight' do
+    started = Queue.new
+    gate = Queue.new
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/slow') do
+        started << true
+        gate.pop
+        [200, {}, 'done']
+      end
+    end
+    closes = []
+    conn = stub_connection(stubs)
+    conn.define_singleton_method(:close) { closes << true }
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, conn) do
+      worker = Thread.new { client.send_request(:GET, 'http://localhost/slow', {}, nil) }
+      started.pop
+      client.close
+      _(closes).must_be_empty
+
+      gate << true
+      _(worker.value.status_code).must_equal 200
+      client.close
+      _(closes.length).must_equal 1
+    end
+  end
 end

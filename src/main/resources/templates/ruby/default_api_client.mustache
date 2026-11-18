@@ -150,6 +150,8 @@ module {{moduleName}}
     # @return [ApiHttpResponse] the HTTP response
     def send_request(method, url, headers, body, no_redirect: false, retry_headers: nil, no_default_headers: false,
                      timeout: nil, max_retries: nil)
+      validate_header_values!(headers)
+      validate_header_values!(@transport_options.default_headers) unless no_default_headers
       enter_request
       begin
         perform_request(method, url, headers, body, no_redirect, retry_headers, no_default_headers, timeout, max_retries)
@@ -444,7 +446,7 @@ module {{moduleName}}
           end
         end
       rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Faraday::SSLError => e
-        raise network_error_class(e).new(message: e.message)
+        raise network_error_class(e).new(message: redact_url_text(e.message))
       rescue URI::InvalidURIError => e
         raise ArgumentError, "Invalid request URL (#{e.message}): #{url}"
       end
@@ -598,6 +600,29 @@ module {{moduleName}}
         block&.call(req)
       end
       conn.builder.build_response(conn, request)
+    end
+
+    # Refuses a header whose value holds a carriage return or line feed, before
+    # anything is sent, so a value cannot split the request. The message names
+    # the header and never echoes its value.
+    #
+    # @raise [ArgumentError] if a value contains CR or LF
+    def validate_header_values!(headers)
+      headers.each do |name, value|
+        next unless value.to_s.match?(/[\r\n]/)
+
+        raise ArgumentError, "Header #{name} value must not contain a carriage return or line feed"
+      end
+    end
+
+    # +text+ with every URL in it reduced to scheme, host, port and path: the
+    # userinfo, query string and fragment are dropped, so a failure message
+    # never carries credentials or query parameters from the request URL.
+    #
+    # @param text [String, nil] a message that may quote a URL
+    # @return [String]
+    def redact_url_text(text)
+      text.to_s.gsub(%r{([A-Za-z][A-Za-z0-9+.-]*://)(?:[^\s/?#@]*@)?([^\s?#]*)(?:\?[^\s#]*)?(?:#\S*)?}) { "#{Regexp.last_match(1)}#{Regexp.last_match(2)}" }
     end
 
     # Whether +headers+ already holds +name+ under ASCII case-folding.

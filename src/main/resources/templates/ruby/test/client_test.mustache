@@ -380,4 +380,28 @@ describe 'Client' do
 
     _(closed).must_be_empty
   end
+
+  it 'bhv_config_025 an empty token variable is treated as unset and construction names it' do
+    prefix = {{moduleName}}::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = ''
+      error = _(-> { {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}') }).must_raise ArgumentError
+      _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{variable}"
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
+  end
+
+  it 'bhv_lifecycle_039 a client with no host or an empty token is refused at construction and a valid token builds one' do
+    _(-> { {{moduleName}}::{{clientClassName}}.with_token(nil, 'test-token') }).must_raise ArgumentError
+    _(-> { {{moduleName}}::{{clientClassName}}.with_token('', 'test-token') }).must_raise ArgumentError
+    _(-> { {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', '') }).must_raise ArgumentError
+    _({{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'test-token')).wont_be_nil
+  end
 end
