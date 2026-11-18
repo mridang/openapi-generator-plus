@@ -669,7 +669,7 @@ redirect_uri: \"https://app.example.com/callback\", scopes: [\"openid\", \"profi
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_concurrent_call_during_code_exchange_reuses_the_delegate() {
+async fn test_bhv_misc_076_concurrent_call_during_code_exchange_reuses_the_delegate() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(DISCOVERY, 200);
     client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
@@ -704,7 +704,7 @@ async fn test_concurrent_call_during_code_exchange_reuses_the_delegate() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_cancelled_code_exchange_keeps_the_delegate() {
+async fn test_bhv_langrust_043_cancelled_code_exchange_keeps_the_delegate() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(DISCOVERY, 200);
     client.enqueue(DISCOVERY, 200);
@@ -824,7 +824,7 @@ async fn test_bhv_authoidc_029_concurrent_cold_calls_issue_one_discovery_request
 /// `Send` and `Sync` follow from the fields, so the type needs no `unsafe impl`
 /// that would assert them regardless of what the fields hold.
 #[test]
-fn test_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls() {
+fn test_bhv_langrust_044_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<OpenIdConnectAuthenticator>();
 

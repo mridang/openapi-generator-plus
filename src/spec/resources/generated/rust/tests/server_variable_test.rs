@@ -81,7 +81,7 @@ fn test_bhv_servers_019_enum_does_not_contain_a_value_outside_the_allowed_set() 
 }
 
 #[test]
-fn test_accessors_return_constructed_state() {
+fn test_bhv_langrust_048_accessors_return_constructed_state() {
     // Two variables constructed from the same inputs must expose identical
     // state through their accessors (value equality via accessor output).
     let a = ServerVariable::new(

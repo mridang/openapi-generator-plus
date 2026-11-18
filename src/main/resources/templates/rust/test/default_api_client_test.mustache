@@ -906,7 +906,7 @@ async fn test_bhv_transport_019_default_api_client_post_with_null_body_sends_con
  * the supplied client (its default header is on the wire) while the SDK's own
  * defaults (User-Agent) are still applied on top. */
 #[tokio::test]
-async fn test_default_api_client_with_client_sends_through_supplied_client() {
+async fn test_bhv_langrust_035_default_api_client_with_client_sends_through_supplied_client() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let addr = listener.local_addr().unwrap();
     let (tx, rx) = std::sync::mpsc::channel::<String>();
