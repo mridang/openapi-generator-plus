@@ -536,7 +536,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void RenderedBodyIsCappedAndNamesTheHiddenLength()
+    public void BhvLangcsharp054RenderedBodyIsCappedAndNamesTheHiddenLength()
     {
         string body = new string('x', 1030);
 
@@ -871,7 +871,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void ADeclaredErrorSchemaExceptionSubclassesItsStatusClassAndHoldsAnAbsentTypedBody()
+    public void BhvLangcsharp055ADeclaredErrorSchemaExceptionSubclassesItsStatusClassAndHoldsAnAbsentTypedBody()
     {
         var ex = new UnexpectedFailureException(400, "declared");
 
@@ -900,7 +900,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void UnusableResponseFactoryIsNotPartOfThePublicSurface()
+    public void BhvLangcsharp056UnusableResponseFactoryIsNotPartOfThePublicSurface()
     {
         var factory = typeof(ApiException).GetMethod(
             "ForUnusableResponse",

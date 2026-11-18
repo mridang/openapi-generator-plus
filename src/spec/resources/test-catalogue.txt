@@ -2096,3 +2096,6 @@ langnode046 | The generated README lists the features that are not generated
 langnode047 | The generated docs cancel through the per-call signal only
 langnode048 | The generated docs show how to stub the transport with a canned fetch
 langnode049 | An empty API key is rejected at construction
+langcsharp054 | A rendered error body is capped in length and names how many characters were hidden
+langcsharp055 | A declared error schema exception subclasses its status class and holds an absent typed body
+langcsharp056 | The response factory that cannot be used directly is not part of the public surface
