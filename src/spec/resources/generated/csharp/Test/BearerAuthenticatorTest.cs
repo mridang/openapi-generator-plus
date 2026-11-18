@@ -249,6 +249,26 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvMisc194ATokenFromAProviderIsSentUnderTheSameBearerPrefixRule()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("xyz"));
+
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer xyz", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc195AWhitespaceOnlyTokenFromAProviderIsRejectedWhenTheRequestIsMade()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("   "));
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public void BhvAuthbearer010ANullTokenProviderIsRejected()
     {
         Assert.Throws<ArgumentNullException>(() =>

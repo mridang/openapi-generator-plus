@@ -3,6 +3,7 @@ package {{packageName}}
 
 import (
 	"fmt"
+	"net/url"
 	"errors"
 	"strings"
 	"testing"
@@ -1572,5 +1573,51 @@ func TestBhvMisc120_ValueSerializer_SerializeDeepObject_AbsentValuesAreLeftOut(t
 	}
 	if result["filter[type]"] != "alpha" {
 		t.Errorf("expected filter[type]='alpha', got %q", result["filter[type]"])
+	}
+}
+
+// A whole number query value is written as a plain number.
+func TestBhvMisc238_ValueSerializer_NumberQueryValueIsAPlainNumber(t *testing.T) {
+	t.Parallel()
+	if got := fmt.Sprint(toQueryValue(12, "")); got != "12" {
+		t.Errorf("expected query value 12, got %q", got)
+	}
+}
+
+// An array item containing a comma keeps the literal comma in every path style.
+func TestBhvMisc250_ValueSerializer_ArrayItemCommaIsKeptAcrossPathStyles(t *testing.T) {
+	t.Parallel()
+	for _, style := range []string{"simple", "label", "matrix"} {
+		got := fmt.Sprint(serializeStyled("ids", []string{"a,b", "c"}, "path", "array", "", style, false))
+		if !strings.Contains(got, "a,b") {
+			t.Errorf("style %s: expected the literal comma in %q", style, got)
+		}
+	}
+}
+
+// An allowReserved query value still percent-encodes hash and bracket characters.
+func TestBhvMisc253_ValueSerializer_AllowReservedStillEncodesHashAndBrackets(t *testing.T) {
+	t.Parallel()
+	got := fmt.Sprint(maybeAllowReserved("a/b#[c]", true))
+	for _, want := range []string{"a/b", "%23", "%5B", "%5D"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("expected %q in %q", want, got)
+		}
+	}
+}
+
+// An unmarked query value percent-encodes reserved characters such as slash and colon.
+func TestBhvMisc254_ValueSerializer_UnmarkedQueryEncodesSlashAndColon(t *testing.T) {
+	t.Parallel()
+	if got := url.QueryEscape("a/b:c"); got != "a%2Fb%3Ac" {
+		t.Errorf("expected a%%2Fb%%3Ac, got %q", got)
+	}
+}
+
+// Separate query parameters encode a space as %20.
+func TestBhvMisc255_ValueSerializer_QuerySpaceIsEncodedAsPercent20(t *testing.T) {
+	t.Parallel()
+	if got := encodeQueryAllowingReserved("a b"); got != "a%20b" {
+		t.Errorf("expected a%%20b, got %q", got)
 	}
 }
