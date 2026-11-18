@@ -1483,7 +1483,10 @@ describe("cross-origin redirect strips API-key headers", () => {
 
   it("bhv redirects 052 a cross-origin redirect removes Authorization, Cookie, Proxy-Authorization and a secret-named header", async () => {
     const client = new DefaultApiClient(
-      TransportOptions.builder().followRedirects(true).build(),
+      TransportOptions.builder()
+        .followRedirects(true)
+        .defaultHeaders({ "X-Client-Secret": "shh" })
+        .build(),
     );
     await client.sendRequest(
       "GET",
@@ -1492,7 +1495,6 @@ describe("cross-origin redirect strips API-key headers", () => {
         Authorization: "Bearer secret",
         Cookie: "session=xyz",
         "Proxy-Authorization": "Basic c2VjcmV0",
-        "X-Client-Secret": "shh",
         Accept: "application/json",
       },
       null,

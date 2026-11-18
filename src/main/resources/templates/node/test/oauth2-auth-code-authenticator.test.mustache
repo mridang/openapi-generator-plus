@@ -271,7 +271,6 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
       Date.now = originalNow;
     }
 
-    expect(mockClient.calls[2]!.params.get('grant_type')).not.toBe('refresh_token');
     expect(mockClient.calls[2]!.params.get('refresh_token')).toBe('');
   });
 

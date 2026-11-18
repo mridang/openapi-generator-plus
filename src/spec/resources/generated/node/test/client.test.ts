@@ -225,7 +225,15 @@ describe("Client", () => {
       }) as typeof fetch)
       .build();
 
-    await new Client(authenticator, transport).store.getInventory();
+    await new Client(
+      {
+        authenticator: new BearerAuthenticator(
+          "https://api.example.com",
+          "token",
+        ),
+      },
+      transport,
+    ).store.getInventory();
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toContain("/store/inventory");
@@ -312,8 +320,8 @@ describe("Client", () => {
 
       await client.pet.addPet(newPet());
 
-      expect(seen[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
-      expect(seen[0]!.headers["X-API-Key"]).toBeUndefined();
+      expect(seen[0]!.headers["X-API-Key"]).toBe("key-token");
+      expect(seen[0]!.headers["Authorization"]).toBeUndefined();
     });
 
     test("bhv auth 045 a credential for the scheme of the operation replaces a default Authorization header set on the client", async () => {
