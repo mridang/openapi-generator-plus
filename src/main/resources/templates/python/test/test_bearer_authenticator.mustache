@@ -64,6 +64,10 @@ class TestBearerAuthenticator:
         with pytest.raises(ValueError, match='provider boom'):
             auth.get_auth_headers()
 
+    def test_bhv_misc_060_supplying_both_a_token_and_a_token_provider_is_refused(self) -> None:
+        with pytest.raises(ValueError, match='not both'):
+            BearerAuthenticator(host='https://api.example.com', token='explicit', token_provider=lambda: 'p')
+
     def test_bhv_authbearer_005_rejects_empty_token(self) -> None:
         # bearer-no-empty-token-guard: an empty token would emit a bare
         # "Authorization: Bearer " header and send the request unauthenticated,
