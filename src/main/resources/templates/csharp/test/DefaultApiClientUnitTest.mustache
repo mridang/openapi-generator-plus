@@ -3425,6 +3425,204 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc160AnErrorThatIsNotANetworkFailureIsNeverRetried()
+    {
+        var handler = new SequenceHandler(_ => Respond(400));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(2).Build());
+
+        _ = await SendGet(client);
+
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvMisc161ANonIdempotentRequestIsSentOnceWhenTheConnectionDropsAndQueryIsIdempotent()
+    {
+        var dropped = new SequenceHandler(_ => throw new HttpRequestException("connection dropped"));
+        var client = new DefaultApiClient(new HttpClient(dropped), TransportOptions.Builder().MaxRetries(2).Build());
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() => SendGet(client, "{}", method: "POST"));
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() => SendGet(client, "{}", method: "PATCH"));
+
+        Assert.Equal(2, dropped.Requests.Count);
+
+        var query = new SequenceHandler(n => n == 0 ? throw new HttpRequestException("connection dropped") : Respond(200, null));
+        var queryClient = new DefaultApiClient(new HttpClient(query), TransportOptions.Builder().MaxRetries(2).Build());
+
+        var response = await SendGet(queryClient, method: "QUERY");
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, query.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc162AnIdempotentRequestIsSentAgainExactlyOnceWhenTheConnectionDrops()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? throw new HttpRequestException("connection dropped") : Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc163AOneShotStreamBodyIsNeverReplayedWhileBytesAndAnAbsentBodyAre()
+    {
+        var streamed = new SequenceHandler(_ => Respond(503));
+        var streamClient = new DefaultApiClient(new HttpClient(streamed), TransportOptions.Builder().MaxRetries(2).Build());
+        _ = await SendGet(streamClient, new MemoryStream([1, 2, 3]), method: "POST");
+        Assert.Single(streamed.Requests);
+
+        var bytes = new SequenceHandler(_ => Respond(503));
+        var bytesClient = new DefaultApiClient(new HttpClient(bytes), TransportOptions.Builder().MaxRetries(1).Build());
+        _ = await SendGet(bytesClient, new byte[] { 1, 2, 3 }, method: "POST");
+        Assert.Equal(2, bytes.Requests.Count);
+
+        var absent = new SequenceHandler(_ => Respond(503));
+        var absentClient = new DefaultApiClient(new HttpClient(absent), TransportOptions.Builder().MaxRetries(1).Build());
+        _ = await SendGet(absentClient);
+        Assert.Equal(2, absent.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc164ARetryWhoseWaitFitsTheTimeoutBudgetIsSent()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(503) : Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Timeout(60000).Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc165AnHttpToHttpRedirectReplaysTheBody()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/start"),
+            new Dictionary<string, string>(),
+            "payload"
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc166ACallWithoutADeadlineIsNotCutShortWhileItWaitsToRetry()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(503, "1") : Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendWithCallOptions(client, null, 1);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc167ARetryableStatusIsAttemptedUpToTheLimitAndTheLastResponseIsReturned()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(2).Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc168ByDefaultAFailingRequestIsSentThreeTimesInTotal()
+    {
+        var handler = new SequenceHandler(_ => Respond(503, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        _ = await SendGet(client);
+
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public void BhvMisc169TheRetryPauseStartsAtHalfASecondDoublesAndNeverExceedsEightSeconds()
+    {
+        var none = new Dictionary<string, string>();
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Equal(TimeSpan.FromSeconds(0.5), DefaultApiClient.RetryDelay(0, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(1), DefaultApiClient.RetryDelay(1, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(8), DefaultApiClient.RetryDelay(40, none, now, 0));
+    }
+
+    [Fact]
+    public async Task BhvMisc170ATlsFailureIsReportedOnTheFirstAttemptAndNeverRetried()
+    {
+        var handler = new SequenceHandler(_ => throw new HttpRequestException(
+            "tls", new System.Security.Authentication.AuthenticationException("bad certificate")));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(2).Build());
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() => SendGet(client));
+
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvMisc171APerCallMaxRetriesAboveTheTransportLimitAppliesToThatCall()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(0).Build());
+
+        _ = await SendWithCallOptions(client, null, 2);
+
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc173AnEmptyBodyIsReplayedAcrossAnHttpsToHttpRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc174AHeaderValueRefusedForALineBreakIsNeverRepeatedInTheError()
+    {
+        var client = new DefaultApiClient(new HttpClient(new SequenceHandler(_ => Respond(200, null))));
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/items"),
+            new Dictionary<string, string> { ["X-Token"] = "s3cr3t\r\nInjected" },
+            null,
+            false,
+            CancellationToken.None
+        ));
+
+        Assert.DoesNotContain("s3cr3t", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BhvTransport085TimeoutStaysDistinctFromCancellationWhenATokenIsSupplied()
     {
         var client = new DefaultApiClient(
