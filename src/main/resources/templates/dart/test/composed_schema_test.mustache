@@ -529,6 +529,54 @@ void main() {
 
       expect(a, isNot(equals(b)));
     });
+
+    test('bhv unions 037 a union wrapper built from a variant holds that exact value and returns it unchanged', () {
+      final dry = DryFood(weightKg: 2);
+      final food = PetFood.dryFood(dry);
+
+      expect(food.actualInstance, same(dry));
+    });
+
+    test('bhv unions 038 a union body that cannot be decoded raises the serialization error', () {
+      expect(() => PetFood.fromJson({'foodType': 'fish'}),
+          throwsA(isA<SerializationException>()));
+      expect(() => PetFood.fromJson({'FoodType': 'dry', 'weightKg': 2}),
+          throwsA(isA<SerializationException>()));
+      expect(() => PetFood.fromJson({'foodType': 7}),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv unions 039 building a union wrapper from any value never validates or throws', () {
+      expect(() => PetFood(null), returnsNormally);
+      expect(() => PetFood('not a food'), returnsNormally);
+      expect(() => PetFood.dryFood(DryFood(weightKg: 1)), returnsNormally);
+    });
+
+    test('bhv unions 040 a union wrapper typed accessor returns the variant it holds and nothing for the others', () {
+      final dry = DryFood(weightKg: 2);
+      final food = PetFood.dryFood(dry);
+
+      expect(food.isDryFood, isTrue);
+      expect(food.asDryFood, same(dry));
+      expect(food.isWetFood, isFalse);
+      expect(food.asWetFood, isNull);
+    });
+
+    test('bhv unions 042 a union wrapper built with a null variant holds no instance', () {
+      const food = PetFood(null);
+
+      expect(food.actualInstance, isNull);
+      expect(food.isDryFood, isFalse);
+      expect(food.isWetFood, isFalse);
+      expect(food.asDryFood, isNull);
+      expect(food.asWetFood, isNull);
+    });
+
+    test('bhv unions 043 a discriminator value already set on a subtype is written as given, not replaced by the default', () {
+      final dry = DryFood(foodType: 'custom', weightKg: 1);
+
+      expect(dry.toJson()['foodType'], equals('custom'));
+    });
   });
 }
 {{/generateTests}}

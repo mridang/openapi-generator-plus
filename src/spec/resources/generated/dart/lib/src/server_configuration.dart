@@ -33,6 +33,27 @@ class ServerVariable {
     this.description = '',
     List<String> enumValues = const [],
   }) : _enumValues = enumValues;
+
+  /// Two variables are equal when their default, description and allowed
+  /// values are equal, in order.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ServerVariable) return false;
+    if (defaultValue != other.defaultValue ||
+        description != other.description ||
+        _enumValues.length != other._enumValues.length) {
+      return false;
+    }
+    for (var i = 0; i < _enumValues.length; i++) {
+      if (_enumValues[i] != other._enumValues[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(defaultValue, description, Object.hashAll(_enumValues));
 }
 
 /// Represents a single server entry from the OpenAPI specification.

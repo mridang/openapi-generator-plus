@@ -64,17 +64,20 @@ void main() {
       expect(result.rawBody, equals('{"value":"payload"}'));
     });
 
-    test('ApiHttpResponse headers are an unmodifiable copy', () {
-      final source = {'content-type': 'text/plain'};
-      final response = ApiHttpResponse(
-        statusCode: 200,
-        body: '',
-        headers: source,
-      );
-      source['x'] = 'y';
-      expect(response.headers.containsKey('x'), isFalse);
-      expect(() => response.headers['z'] = '1', throwsUnsupportedError);
-    });
+    test(
+      'bhv results 006 ApiHttpResponse headers are an unmodifiable copy',
+      () {
+        final source = {'content-type': 'text/plain'};
+        final response = ApiHttpResponse(
+          statusCode: 200,
+          body: '',
+          headers: source,
+        );
+        source['x'] = 'y';
+        expect(response.headers.containsKey('x'), isFalse);
+        expect(() => response.headers['z'] = '1', throwsUnsupportedError);
+      },
+    );
 
     test(
       'bhv results 002 headers are an unmodifiable copy of the supplied map',

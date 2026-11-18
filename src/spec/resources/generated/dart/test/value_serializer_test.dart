@@ -1362,5 +1362,170 @@ void main() {
         );
       },
     );
+
+    test(
+      'bhv serialization 006 a query name or value percent-encodes reserved and space characters so it cannot add a parameter',
+      () {
+        expect(
+          serializeValue('a&b=c d', 'query', 'string', ''),
+          equals('a%26b%3Dc%20d'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 007 a literal plus sign is sent as %2B and non-ASCII text as percent-encoded UTF-8',
+      () {
+        expect(
+          serializeValue('a+é', 'query', 'string', ''),
+          equals('a%2B%C3%A9'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 005 a path value keeps unreserved and sub-delimiter characters literal and encodes the rest',
+      () {
+        expect(encodePathSegment('a~b.c-d_e!f'), equals('a~b.c-d_e!f'));
+        expect(encodePathSegment('a b/c'), equals('a%20b%2Fc'));
+      },
+    );
+
+    test(
+      'bhv serialization 013 a set or array in a simple style is written as its items',
+      () {
+        expect(
+          serializeStyled(
+            'ids',
+            ['a', 'b'],
+            'path',
+            'array',
+            '',
+            'simple',
+            false,
+          ),
+          equals('a,b'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 015 an object-valued parameter is written with the prefix and separators of its style',
+      () {
+        expect(
+          serializeStyled(
+            'color',
+            {'R': '100', 'G': '200'},
+            'path',
+            'object',
+            '',
+            'simple',
+            false,
+          ),
+          equals('R,100,G,200'),
+        );
+        expect(
+          serializeStyled(
+            'color',
+            {'R': '100'},
+            'path',
+            'object',
+            '',
+            'label',
+            false,
+          ),
+          equals('.R,100'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 017 an object-valued parameter built from a model is written under each property wire name in declaration order',
+      () {
+        final map = parameterObject(const Category(id: 1, name: 'dog'));
+
+        expect(map, isNotNull);
+        expect(map!.keys.toList(), equals(['id', 'name']));
+      },
+    );
+
+    test(
+      'bhv serialization 018 a nested object or array inside an object-valued parameter is refused with a serialization error',
+      () {
+        expect(
+          () => serializeStyled(
+            'p',
+            {
+              'a': {'b': 1},
+            },
+            'query',
+            'object',
+            '',
+            'form',
+            false,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => serializeStyled(
+            'p',
+            {
+              'a': [1, 2],
+            },
+            'query',
+            'object',
+            '',
+            'form',
+            false,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 042 a date-only string is passed through exactly as it was given',
+      () {
+        expect(stringifyDate(DateTime.utc(2024, 1, 2)), equals('2024-01-02'));
+      },
+    );
+
+    test(
+      'bhv serialization 044 a date-time given for a date-format parameter is written as its calendar date only',
+      () {
+        expect(
+          stringifyDate(DateTime.utc(2024, 1, 2, 15, 30)),
+          equals('2024-01-02'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 016 an object-valued parameter in a delimited style is written as alternating keys and values joined by the delimiter',
+      () {
+        expect(
+          serializeStyled(
+            'color',
+            {'R': '100', 'G': '200'},
+            'query',
+            'object',
+            '',
+            'form',
+            false,
+          ),
+          equals('R,100,G,200'),
+        );
+      },
+    );
+
+    test(
+      'bhv auth 017 a form-encoded value writes a space as a plus sign and percent-encodes reserved punctuation',
+      () {
+        expect(
+          encodeRfc3986QueryComponent('a b+c~d*', spaceToPlus: true),
+          equals('a+b%2Bc~d%2A'),
+        );
+      },
+    );
   });
 }

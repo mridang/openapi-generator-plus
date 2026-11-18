@@ -640,19 +640,22 @@ void main() {
       expect(err.responseBody, equals(body));
     });
 
-    test('does not cut a multi-byte character when capping the body', () {
-      final body = '${'x' * 1023}\u00e9tail';
-      final err = ApiException(
-        statusCode: 500,
-        message: 'boom',
-        responseBody: body,
-      );
+    test(
+      'bhv errors 075 does not cut a multi-byte character when capping the body',
+      () {
+        final body = '${'x' * 1023}\u00e9tail';
+        final err = ApiException(
+          statusCode: 500,
+          message: 'boom',
+          responseBody: body,
+        );
 
-      expect(
-        err.toString(),
-        endsWith('Response body: ${'x' * 1023}... (6 more bytes)'),
-      );
-    });
+        expect(
+          err.toString(),
+          endsWith('Response body: ${'x' * 1023}... (6 more bytes)'),
+        );
+      },
+    );
 
     test('bhv errors 001 escapes control characters in the rendered body', () {
       const err = ApiException(
@@ -757,7 +760,7 @@ void main() {
       }
     });
 
-    test('omits the status for a transport failure', () {
+    test('bhv errors 074 omits the status for a transport failure', () {
       const err = NetworkException(message: 'connection refused');
 
       expect(err.toString(), equals('connection refused'));
@@ -861,6 +864,146 @@ void main() {
             .map((file) => file.path)
             .toList();
         expect(strays, isEmpty);
+      },
+    );
+
+    test(
+      'bhv errors 072 a typed view of an error body that starts with a byte order mark decodes like the body without it',
+      () {
+        final withBom = ApiException(
+          statusCode: 400,
+          message: 'bad',
+          responseBody: '﻿{"id":7,"name":"missing"}',
+        ).getTypedErrorBody(Category.fromJson);
+        final withoutBom = ApiException(
+          statusCode: 400,
+          message: 'bad',
+          responseBody: '{"id":7,"name":"missing"}',
+        ).getTypedErrorBody(Category.fromJson);
+
+        expect(withBom?.id, equals(withoutBom?.id));
+        expect(withBom?.name, equals(withoutBom?.name));
+        expect(withBom?.name, equals('missing'));
+      },
+    );
+
+    test(
+      'bhv errors 073 an error body nested 500 levels deep is parsed and kept as structured data',
+      () {
+        final nested =
+            List.filled(500, '[').join() + List.filled(500, ']').join();
+        final err = ApiException(
+          statusCode: 400,
+          message: 'bad',
+          responseBody: '{"id":7,"name":"missing","deep":$nested}',
+        );
+
+        expect(
+          err.getTypedErrorBody(Category.fromJson)?.name,
+          equals('missing'),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 076 an error the SDK did not raise is not classified as one of its own errors, even when wrapped',
+      () {
+        final foreign = FormatException('not an SDK error');
+        final wrapped = Exception(foreign);
+
+        expect(foreign, isNot(isA<OpenAPIException>()));
+        expect(wrapped, isNot(isA<OpenAPIException>()));
+      },
+    );
+
+    test(
+      'bhv errors 077 a URL written into diagnostics keeps the path and drops the query string and fragment',
+      () {
+        final err = ApiException.fromResponse(
+          500,
+          const {},
+          null,
+          requestMethod: 'GET',
+          requestPath: '/a/b?token=secretvalue#frag',
+        );
+
+        expect(err.requestPath, equals('/a/b'));
+        expect(err.message, contains('/a/b'));
+        expect(err.message, isNot(contains('secretvalue')));
+        expect(err.message, isNot(contains('#frag')));
+      },
+    );
+
+    test(
+      'bhv errors 079 attaching request details keeps the first complete request and ignores later attachments',
+      () {
+        final first = ApiException.fromResponse(
+          500,
+          const {},
+          null,
+        ).withRequest('GET', '/first');
+        final second = first.withRequest('POST', '/second');
+
+        expect(second.requestMethod, equals('GET'));
+        expect(second.requestPath, equals('/first'));
+      },
+    );
+
+    test(
+      'bhv errors 080 a typed HTTP error is caught by the root exception type and keeps its status code',
+      () {
+        Object? caught;
+        try {
+          throw ApiException.fromResponse(404, const {}, null);
+        } on OpenAPIException catch (e) {
+          caught = e;
+        }
+
+        expect(caught, isA<NotFoundException>());
+        expect((caught as ApiException).statusCode, equals(404));
+      },
+    );
+
+    test(
+      'bhv errors 081 a credential refused at construction names the username or the password at fault',
+      () {
+        expect(
+          () => BasicAuthenticator(
+            host: 'api.example.com',
+            username: 'us:er',
+            password: 'pw',
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => '${e.message}',
+              'message',
+              contains('username'),
+            ),
+          ),
+        );
+        expect(
+          () => BasicAuthenticator(
+            host: 'api.example.com',
+            username: 'user',
+            password: 'p\u0000w',
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => '${e.message}',
+              'message',
+              contains('password'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 084 an error built without an HTTP response reports a status code of zero',
+      () {
+        const err = NetworkException(message: 'no response');
+
+        expect(err.statusCode, equals(0));
       },
     );
   });

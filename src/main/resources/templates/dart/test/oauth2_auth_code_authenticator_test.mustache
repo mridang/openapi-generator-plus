@@ -326,7 +326,7 @@ void main() {
       expect('?'.allMatches(url).length, equals(1));
     });
 
-    test('the PKCE challenge of the RFC 7636 appendix B verifier is the published one', () {
+    test('bhv auth 008 the PKCE challenge of the RFC 7636 appendix B verifier is the published one', () {
       expect(
         OAuth2AuthorizationCodeAuthenticator.pkceChallenge(
             'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'),
@@ -547,6 +547,72 @@ void main() {
           'https://auth.example.com/oauth/token',
           'https://auth.example.com/oauth/refresh',
         ]),
+      );
+    });
+
+    test('bhv auth 002 invalidating the access token before any exchange raises nothing and sends no request', () {
+      final client = _FakeApiClient();
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      auth.invalidateAccessToken();
+
+      expect(client.urls, isEmpty);
+    });
+
+    test('bhv auth 014 the authorization URL encodes the spaces between scopes as %20 and never as a plus sign', () {
+      final auth = _createAuthenticator();
+      final url = auth.buildAuthorizationUrl();
+
+      expect(url, contains('scope=read%20write'));
+      expect(url, isNot(contains('read+write')));
+    });
+
+    test('bhv auth 019 the authorization URL lists its parameters in one fixed order on every build', () {
+      final auth = _createAuthenticator();
+      final first = Uri.parse(auth.buildAuthorizationUrl('s')).queryParameters.keys.toList();
+      final second = Uri.parse(auth.buildAuthorizationUrl('s')).queryParameters.keys.toList();
+
+      expect(second, equals(first));
+    });
+
+    test('bhv auth 020 the PKCE verifier is sent with the first code exchange and never with a refresh', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      auth.buildAuthorizationUrl('s');
+      await auth.exchangeCode('the-code');
+      auth.invalidateAccessToken();
+      await auth.authHeadersAsync();
+
+      expect(client.bodies, hasLength(2));
+      expect(client.bodies.first, contains('code_verifier='));
+      expect(client.bodies.last, isNot(contains('code_verifier=')));
+    });
+
+    test('bhv auth 028 a failed first code exchange records no session and the client still reports it as unexchanged', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(auth.exchangeCode('bad-code'), throwsA(isA<OpenAPIException>()));
+      expect(() => auth.authHeaders(), throwsStateError);
+    });
+
+    test('bhv errors 082 a token endpoint error keeps a valid error code when its description is malformed or not a string', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"error":"invalid_grant","error_description":42,"error_uri":["x"]}', statusCode: 400);
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.exchangeCode('bad-code'),
+        throwsA(isA<OpenAPIException>()
+            .having((e) => '$e', 'text', contains('invalid_grant'))),
       );
     });
   });

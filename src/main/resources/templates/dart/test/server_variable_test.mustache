@@ -58,6 +58,22 @@ void main() {
 
       expect(() => variable.enumValues.add('dev'), throwsUnsupportedError);
     });
+
+    test('bhv servers 027 two server variables with the same default, description and allowed values are equal', () {
+      const first = ServerVariable(
+        defaultValue: 'prod',
+        description: 'environment',
+        enumValues: ['prod', 'dev'],
+      );
+      const second = ServerVariable(
+        defaultValue: 'prod',
+        description: 'environment',
+        enumValues: ['prod', 'dev'],
+      );
+
+      expect(first, equals(second));
+      expect(first.hashCode, equals(second.hashCode));
+    });
   });
 }
 {{/generateTests}}
