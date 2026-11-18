@@ -2135,3 +2135,5 @@ langpython190 | A missing credential names its variable.
 langpython191 | The environment supplies the token.
 langpython192 | The environment supplies the username and password.
 langpython193 | The environment supplies the key.
+langpython194 | Variables are read only.
+langpython195 | All is an immutable tuple.
