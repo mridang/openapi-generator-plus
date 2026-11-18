@@ -8,27 +8,27 @@ defmodule {{moduleName}}.Errors.ApiError do
   response headers, and response body.
   """
 
+  alias {{moduleName}}.Errors.BadGatewayError
   alias {{moduleName}}.Errors.BadRequestError
   alias {{moduleName}}.Errors.ClientError
   alias {{moduleName}}.Errors.ConflictError
   alias {{moduleName}}.Errors.ForbiddenError
-  alias {{moduleName}}.Errors.InternalServerError
-  alias {{moduleName}}.Errors.NotFoundError
-  alias {{moduleName}}.Errors.ServerError
-  alias {{moduleName}}.Errors.TooManyRequestsError
-  alias {{moduleName}}.Errors.PaymentRequiredError
-  alias {{moduleName}}.Errors.MethodNotAllowedError
-  alias {{moduleName}}.Errors.RequestTimeoutError
-  alias {{moduleName}}.Errors.GoneError
-  alias {{moduleName}}.Errors.PayloadTooLargeError
-  alias {{moduleName}}.Errors.UnsupportedMediaTypeError
-  alias {{moduleName}}.Errors.LockedError
-  alias {{moduleName}}.Errors.NotImplementedError
-  alias {{moduleName}}.Errors.BadGatewayError
-  alias {{moduleName}}.Errors.ServiceUnavailableError
   alias {{moduleName}}.Errors.GatewayTimeoutError
+  alias {{moduleName}}.Errors.GoneError
+  alias {{moduleName}}.Errors.InternalServerError
+  alias {{moduleName}}.Errors.LockedError
+  alias {{moduleName}}.Errors.MethodNotAllowedError
+  alias {{moduleName}}.Errors.NotFoundError
+  alias {{moduleName}}.Errors.NotImplementedError
+  alias {{moduleName}}.Errors.PayloadTooLargeError
+  alias {{moduleName}}.Errors.PaymentRequiredError
+  alias {{moduleName}}.Errors.RequestTimeoutError
+  alias {{moduleName}}.Errors.ServerError
+  alias {{moduleName}}.Errors.ServiceUnavailableError
+  alias {{moduleName}}.Errors.TooManyRequestsError
   alias {{moduleName}}.Errors.UnauthorizedError
   alias {{moduleName}}.Errors.UnprocessableEntityError
+  alias {{moduleName}}.Errors.UnsupportedMediaTypeError
 
   # The statuses with an error of their own; any other 4xx or 5xx is a
   # ClientError or ServerError.

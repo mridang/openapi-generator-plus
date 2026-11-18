@@ -2911,7 +2911,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   test "bhv retries 018 max_retries 0 sends the request once" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
 
-    assert {:error, %PetstoreClient.Errors.ServerError{status_code: 503}} = get_thing(state)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{status_code: 503}} =
+             get_thing(state)
+
     assert length(attempts()) == 1
   end
 
@@ -2956,11 +2958,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
     started = System.monotonic_time(:millisecond)
 
     asked = retry_state([{503, [{"retry-after", "5"}]}, 200], timeout: 300)
-    assert {:error, %PetstoreClient.Errors.ServerError{}} = get_thing(asked)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(asked)
     assert length(attempts()) == 1
 
     backoff = retry_state([503, 200], timeout: 100)
-    assert {:error, %PetstoreClient.Errors.ServerError{}} = get_thing(backoff)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(backoff)
     assert length(attempts()) == 1
 
     assert System.monotonic_time(:millisecond) - started < 1_000
@@ -3042,7 +3044,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
     state = retry_state([{503, [{"retry-after", "5"}]}, 200])
     started = System.monotonic_time(:millisecond)
 
-    assert {:error, %PetstoreClient.Errors.ServerError{}} = get_thing_with(state, timeout: 300)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} =
+             get_thing_with(state, timeout: 300)
+
     assert length(attempts()) == 1
     assert System.monotonic_time(:millisecond) - started < 1_000
   end
