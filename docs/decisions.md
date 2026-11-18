@@ -48,6 +48,10 @@ An API error carries the HTTP method and the path of the request, without the qu
 
 Closing a client is safe to do twice. A request that is already in flight finishes, a request that starts afterwards fails with the error for a closed client, and an HTTP client that you supplied is never closed by the SDK. To stop one request, cancel that request (see the options for a single call above), not the client.
 
+## Every API group and the client can be replaced in your tests
+
+Every API group has an interface (an interface, protocol, trait or behaviour, whichever the language has) listing the operations of the group, and the client has one where the language can state it, so a test can replace the SDK with a hand-written fake: no mocking library, no network. The interfaces sit next to the existing classes and change nothing about them. The forms of an operation that leave out the optional parameters are default methods or extensions, so a fake writes one form per operation. A new operation in the API adds a member to the interface, and a fake that implements the whole interface stops compiling after you regenerate; the README of each SDK says how to write a fake that does not. Go has no client interface, because a Go interface cannot hold fields, so its `Client` fields are typed as the group interfaces and a struct literal of fakes closes cleanly; Elixir calls modules, so its fake is a module that implements the group behaviour.
+
 ## Configuration and transport options are separate
 
 `Configuration` says what the API is (the base URL, the default headers and the server). `TransportOptions` says how bytes travel (proxy, TLS, timeout, retries and redirects). They overlap a little on purpose, because merging them would be a larger break than the overlap costs. The README of each SDK says which setting goes where.
