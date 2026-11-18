@@ -1942,6 +1942,20 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langphp001 | An object without a string form is stringified through its fallback rather than failing.
+langphp002 | A forward slash in a serialized string is written without escaping.
+langphp003 | A string leaf inside a container keeps its text and is never parsed as JSON again.
+langphp004 | An anyOf value that matches no variant raises an error.
+langphp005 | A decoded property keeps the value received on the wire rather than the schema default.
+langphp006 | A byte model exposes only its encoded form and no raw bytes accessor.
+langphp007 | Numeric additional properties beside named fields stay members of the same object.
+langphp008 | A date-time body sent as a JSON string literal is unwrapped to its value.
+langphp009 | A composed model container leaf given as JSON text is rejected and never parsed.
+langphp010 | A model container leaf given as JSON text is rejected and never parsed.
+langphp011 | A model container leaf given as an object deserializes into the model.
+langphp012 | A byte field rejects base64 that is not strict RFC 4648 text.
+langphp013 | A byte list element rejects base64 that is not strict RFC 4648 text.
+||||||| cef6fbad1
 langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
 langnode002 | An error constructor accepts an optional cause
 langnode003 | Reading an error's message property returns the rendered text
