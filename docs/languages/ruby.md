@@ -29,7 +29,7 @@ A review of the type mapping (see "Under review") found that Ruby 3.2 reached en
 | file upload and download | `File` or `StringIO` | Binary responses are returned as a stream object. |
 | `array` | `Array` | |
 | `array` with `uniqueItems` | `Set` | |
-| `additionalProperties` map | `Hash` | |
+| `additionalProperties` map | `Hash` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form object | `Object` | |
 | nullable or optional | `nil` | |
 | `enum` | a constant class with a `VALUES` array and `validate!` | Ruby has no enum type. |

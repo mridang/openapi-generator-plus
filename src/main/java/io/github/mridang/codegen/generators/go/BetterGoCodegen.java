@@ -905,6 +905,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 "isEnum", "hasFmtImport",
                 "hasInlineEnum", "hasFmtImport",
                 "hasRequired", "hasFmtImport",
+                "hasTypedAdditionalProperties", "hasFmtImport",
                 "isUnevaluatedPropertiesFalse", "hasFmtImport",
                 "hasOptionalDefault", "hasOptionalDefault",
                 "hasPasswordProperty", "hasPasswordProperty");

@@ -34,7 +34,7 @@ The floor is written once, in the project file above. The support policy is that
 | `boolean` | `bool` | |
 | `array` | `List<T>` | |
 | `array` with `uniqueItems` | `HashSet<T>` | sent in the set's enumeration order, not sorted |
-| `object` with `additionalProperties` | `Dictionary<string, T>` | |
+| `object` with `additionalProperties` | `Dictionary<string, T>` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object` | `object?` | `System.Text.Json` decodes it as a `JsonElement` |
 | optional or nullable property | `T?` | an absent key and an explicit `null` read the same and neither is written back; a required and nullable property keeps its key and is written as `null` |
 | `enum` | C# `enum` | each enum has its own JSON converter; an unknown value fails with `SerializationException`; `ToString()` gives the member name, not the wire value |

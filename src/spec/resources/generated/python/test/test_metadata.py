@@ -1,5 +1,6 @@
 from typing import Any, cast
 import ast
+import datetime
 import dataclasses
 import importlib
 import inspect
@@ -14,6 +15,7 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
+from petstore_client.errors import SerializationException
 from petstore_client.object_serializer import ObjectSerializer
 
 
@@ -43,11 +45,85 @@ class TestMetadataTypedAdditionalProperties:
         data = json.loads(serialized)
         assert data.get("createdAt") is not None
 
-    def test_bhv_models_009_additional_properties_field_exists(self) -> None:
-        json_str = '{"createdAt":"2024-01-01T00:00:00Z"}'
-        metadata = ObjectSerializer().deserialize(json_str, "Metadata")
+    def test_bhv_models_009_additional_properties_are_a_string_keyed_map_of_the_value_type(
+        self,
+    ) -> None:
+        metadata = ObjectSerializer().deserialize('{"customField":"hello"}', "Metadata")
         assert metadata is not None
-        assert hasattr(metadata, "additional_properties")
+        assert isinstance(metadata.additional_properties, dict)
+        assert isinstance(metadata.additional_properties["customField"], str)
+        annotation = str(
+            type(metadata).model_fields["additional_properties"].annotation
+        )
+        assert "Dict[str, str]" in annotation or "dict[str, str]" in annotation
+
+    def test_bhv_models_012_an_additional_property_of_the_wrong_json_type_fails_the_decode(
+        self,
+    ) -> None:
+        for body in ('{"a":2.5}', '{"a":"2"}'):
+            with pytest.raises(SerializationException):
+                ObjectSerializer().deserialize(body, "Counters")
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":3}', "Metadata")
+
+    def test_bhv_models_013_an_additional_property_whose_value_type_is_a_model_decodes_to_that_model(
+        self,
+    ) -> None:
+        from petstore_client.models import Category
+
+        roster = ObjectSerializer().deserialize(
+            '{"label":"l","a":{"id":1,"name":"x"}}', "Roster"
+        )
+        assert roster is not None
+        assert isinstance(roster.additional_properties["a"], Category)
+        assert roster.additional_properties["a"].id == 1
+        assert roster.additional_properties["a"].name == "x"
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":{"id":"x"}}', "Roster")
+
+    def test_bhv_models_014_a_null_additional_property_is_rejected_unless_the_value_schema_is_nullable(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":null}', "Counters")
+        sparse = ObjectSerializer().deserialize('{"a":null}', "Sparse")
+        assert sparse is not None
+        assert sparse.additional_properties == {"a": None}
+
+    def test_bhv_models_015_a_typed_additional_property_is_written_flat_in_its_wire_form(
+        self,
+    ) -> None:
+        from petstore_client.models import Blobs
+
+        moments = ObjectSerializer().deserialize(
+            '{"label":"l","at":"2024-01-01T00:00:00Z"}', "Moments"
+        )
+        assert moments is not None
+        assert isinstance(moments.additional_properties["at"], datetime.datetime)
+        data = json.loads(ObjectSerializer().serialize(moments))
+        assert list(data) == ["label", "at"]
+        assert data["at"].startswith("2024-01-01T00:00:00")
+        assert ObjectSerializer().deserialize(json.dumps(data), "Moments") == moments
+        blobs = ObjectSerializer().deserialize('{"b":"aGk="}', "Blobs")
+        assert blobs is not None
+        assert blobs.additional_properties["b"] == b"hi"
+        assert json.loads(
+            ObjectSerializer().serialize(Blobs(additional_properties={"b": b"hi"}))
+        ) == {"b": "aGk="}
+
+    def test_bhv_models_016_a_free_form_additional_properties_keeps_every_json_value_as_it_arrives(
+        self,
+    ) -> None:
+        freeform = ObjectSerializer().deserialize(
+            '{"a":1,"b":"x","c":[true],"d":null}', "Freeform"
+        )
+        assert freeform is not None
+        assert freeform.additional_properties == {
+            "a": 1,
+            "b": "x",
+            "c": [True],
+            "d": None,
+        }
 
     def test_wire_key_named_additional_properties_with_dict_value_preserved(
         self,

@@ -909,9 +909,18 @@ data class {{classname}}(
       a caller can supply it at construction. It is not serialized: the
       ObjectSerializer folds it into the wire form itself. }}
   @kotlinx.serialization.Transient
-  val additionalProperties: MutableMap<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}@Contextual Any?{{/additionalPropertiesType}}> = mutableMapOf(),
+  val additionalProperties: MutableMap<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}@Contextual Any?{{/vendorExtensions.additionalPropertiesValue}}> = mutableMapOf(),
 {{/isAdditionalPropertiesTrue}}
 ){{#parent}} : {{{.}}}{{/parent}} {
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isNullable}}
+
+  companion object {
+    /** The value schema of the additional properties is nullable: the serializer keeps a null value. */
+    const val ADDITIONAL_PROPERTIES_NULLABLE: Boolean = true
+  }
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
 {{#vars}}
 {{#isEnum}}
 {{#isInteger}}

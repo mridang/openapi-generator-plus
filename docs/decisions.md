@@ -60,6 +60,10 @@ A property that is optional and nullable is the language's own optional type, an
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
 
+## Extra properties have the type their schema declares
+
+A schema whose `additionalProperties` declares a value type (a string, an `int32`, a `date-time`, a `byte`, a model, an array or a map) exposes the extra keys as a string-keyed map of that type, so you read a `Map<String, String>` and never cast. Each extra value is decoded like an element of a map of the same type: a value of the wrong JSON type, an `int32` out of range, an unknown enum value or a model with a missing required property fails the decode with the SDK's serialization error, and a `null` is rejected unless the value schema is nullable. Extras are written back at the top level in their wire form, after the declared properties, and a declared property wins over an extra with the same name. A free-form `additionalProperties` (`true`, an empty schema or no `type`) keeps accepting and returning any JSON value. Constraint keywords such as `pattern` or `maximum` are not checked on extras, as for declared properties.
+
 ## Language version floors
 
 The minimum version of each language is the oldest release that its maintainers still support, and it is written in the build manifest of the generated SDK (`pom.xml`, `build.gradle.kts`, the `.csproj`, `package.json`, `pyproject.toml`, the gemspec, `composer.json`, `go.mod`, `Cargo.toml`, `Package.swift`, `pubspec.yaml` and `mix.exs`). A generated README states the same floor as its manifest, and the language page for each SDK is the single place where the floor is explained. The generated READMEs describe how a floor moves: the Node.js, C# and Swift READMEs say that dropping a runtime is a major release, and the Ruby README says that dropping an end-of-life Ruby is a minor release. The current floors are in the table in the [README](../README.md#languages).
@@ -86,7 +90,6 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 ### Deferred to an issue
 
 * **Streaming responses and uploads (#114).** The transport contract reads a whole response and sends a whole body in all twelve SDKs, so server-sent events, JSON Lines and very large files cannot be expressed. The shape has to be chosen once for all twelve, so nothing was built in one language first. Until then you can pass your own HTTP client.
-* **Typed values for `additionalProperties` (#103).** The extra-properties bucket is an untyped map in every language and its values are not checked on decode. Typing it changes the public model API, so it has to land in all twelve together.
 * **Validating the `id_token` and sending a nonce in the OIDC authenticator (#110).** PKCE is in place for the authorization-code flow, but replay of an `id_token` is not detected by the client.
 * **A maximum response size (#112).** No transport limits how much it reads or decompresses, so a hostile server can make a client read a very large body. The option and its default must be the same in all twelve.
 * **An end-to-end timeout that holds while the body is read (#116).** The default is a 10 second budget for the whole call, and a per-call timeout is in the options for a single call. Python and Ruby still apply the timeout per socket read, which needs a streaming reader, so a server that trickles a body can hold a call past the budget.
@@ -106,7 +109,6 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 
 Nothing below is decided. Each item is an open issue, and the list can change.
 
-* [#103](https://github.com/mridang/openapi-generator-plus/issues/103): type the values of `additionalProperties` instead of exposing an untyped map.
 * [#104](https://github.com/mridang/openapi-generator-plus/issues/104): support classic `allOf` inheritance with a discriminator in every SDK.
 * [#105](https://github.com/mridang/openapi-generator-plus/issues/105): run a vulnerability and unused-dependency audit on every generated SDK.
 * [#107](https://github.com/mridang/openapi-generator-plus/issues/107): decode Go models in a single pass.

@@ -33,7 +33,7 @@ The floor is written once, in `composer.json`, and PHPStan is configured with `p
 | `boolean` | `bool` | |
 | `array` | `\Ds\Vector` | from `php-ds`, with element types in PHPDoc |
 | `array` with `uniqueItems` | `\Ds\Set` | sent in insertion order, not sorted |
-| `object` with `additionalProperties` | `\Ds\Map` | |
+| `object` with `additionalProperties` | `\Ds\Map` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object` | `mixed` | |
 | nullable property | `?T` | an absent key and an explicit `null` read the same; a required and nullable property keeps its key and is written as `null` |
 | `enum` | backed enum | read the wire value with `->value`, map back with `::tryFrom()`; an unknown value fails with `SerializationException` |

@@ -32,7 +32,7 @@ On Linux the package uses `FoundationNetworking`.
 | `boolean` | `Bool` | |
 | `array` | `[T]` | |
 | `array` with `uniqueItems` | `Set<T>` | The order on the wire is unspecified. |
-| `object` with `additionalProperties` | `[String: T]` | Key order is not kept. |
+| `object` with `additionalProperties` | `[String: T]` | Key order is not kept.. `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object`, any type | `AnyCodable` | An SDK type, because `Codable` has no `Any`. |
 | nullable | `Optional<T>` | |
 | `enum` | `enum: String, Codable, Sendable, CaseIterable` | Integer enum members are named `number1`, `numberMinus1` and so on. |

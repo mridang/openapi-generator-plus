@@ -269,7 +269,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
   /// Additional properties not defined in the schema.
-  final Map<String, dynamic> additionalProperties;
+  final Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> additionalProperties;
 
 {{/isAdditionalPropertiesTrue}}
 {{#hasVars}}
@@ -360,12 +360,21 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       '{{baseName}}',
 {{/vars}}
     };
-    final additionalProperties = <String, dynamic>{};
+    final additionalPropertyEntries = <String, dynamic>{};
     for (final entry in json.entries) {
       if (!knownKeys.contains(entry.key)) {
-        additionalProperties[entry.key] = entry.value;
+        additionalPropertyEntries[entry.key] = entry.value;
       }
     }
+{{#vendorExtensions.additionalPropertiesValue}}
+    /* A typed extra is decoded like an element of a map of the same type, so a
+     * wrong JSON type fails with a SerializationException and a null is
+     * rejected unless the value schema is nullable. */
+    final additionalProperties = deserializeMap(additionalPropertyEntries, {{#isNullable}}(e) => e == null ? null : ({{>deserialize_arg}})(e){{/isNullable}}{{^isNullable}}{{>deserialize_arg}}{{/isNullable}});
+{{/vendorExtensions.additionalPropertiesValue}}
+{{^vendorExtensions.additionalPropertiesValue}}
+    final additionalProperties = additionalPropertyEntries;
+{{/vendorExtensions.additionalPropertiesValue}}
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
     /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -916,7 +925,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
      * whose key equals a declared wire name is dropped, so no key is written
      * twice and the typed value wins. */
     for (final entry in additionalProperties.entries) {
-      json.putIfAbsent(entry.key, () => entry.value);
+      json.putIfAbsent(entry.key, () => {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}entry.value == null ? null : {{/isNullable}}{{#isByteArray}}base64Encode(entry.value{{#isNullable}}!{{/isNullable}}){{/isByteArray}}{{#isDateTime}}formatDateTimeOffset(entry.value{{#isNullable}}!{{/isNullable}}){{/isDateTime}}{{#isUuid}}entry.value{{#isNullable}}!{{/isNullable}}.toString(){{/isUuid}}{{^isByteArray}}{{^isDateTime}}{{^isUuid}}entry.value{{/isUuid}}{{/isDateTime}}{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}entry.value{{/vendorExtensions.additionalPropertiesValue}});
     }
 {{/isAdditionalPropertiesTrue}}
     return json;
@@ -939,7 +948,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{/vendorExtensions.strictRequired}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
-    Map<String, dynamic>? additionalProperties,
+    Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}>? additionalProperties,
 {{/isAdditionalPropertiesTrue}}
   }) {
     return {{classname}}(
@@ -975,7 +984,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{/vendorExtensions.strictRequired}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
-    Map<String, dynamic>? additionalProperties,
+    Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}>? additionalProperties,
 {{/isAdditionalPropertiesTrue}}
   }) {
     return {{classname}}(

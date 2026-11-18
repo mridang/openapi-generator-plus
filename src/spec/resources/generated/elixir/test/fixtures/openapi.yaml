@@ -2443,6 +2443,60 @@ components:
       additionalProperties:
         type: string
 
+    # Typed additionalProperties (issue 103): one model per value kind, so each
+    # promise has a schema. None is referenced by an operation.
+    Counters:
+      type: object
+      properties:
+        label:
+          type: string
+      additionalProperties:
+        type: integer
+        format: int32
+
+    Roster:
+      type: object
+      properties:
+        label:
+          type: string
+      additionalProperties:
+        $ref: '#/components/schemas/Category'
+
+    Moments:
+      type: object
+      properties:
+        label:
+          type: string
+      additionalProperties:
+        type: string
+        format: date-time
+
+    Blobs:
+      type: object
+      properties:
+        label:
+          type: string
+      additionalProperties:
+        type: string
+        format: byte
+
+    Sparse:
+      type: object
+      properties:
+        label:
+          type: string
+      additionalProperties:
+        type:
+          - string
+          - "null"
+
+    Freeform:
+      type: object
+      properties:
+        label:
+          type: string
+      additionalProperties: true
+
     # Gap BE — byte-array equality shapes. A model's generated equality must
     # compare byte arrays by CONTENT, never by reference, and must distinguish a
     # LIST of byte arrays from a MAP of them: deep-array comparison takes a

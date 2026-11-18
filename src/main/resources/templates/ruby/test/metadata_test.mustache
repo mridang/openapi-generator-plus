@@ -53,6 +53,65 @@ describe 'Metadata' do
   end
 end
 
+describe 'Metadata', 'typed additional properties' do
+  parallelize_me!
+
+  serializer = {{moduleName}}::ObjectSerializer
+  failure = {{moduleName}}::Errors::SerializationError
+
+  it 'bhv_models_009 exposes the additional properties as a string-keyed map of the value type' do
+    metadata = serializer.deserialize('{"customField":"hello"}', 'Metadata')
+
+    _(metadata.additional_properties).must_be_kind_of(Hash)
+    _(metadata.additional_properties['customField']).must_be_kind_of(String)
+    _({{moduleName}}::Models::Metadata::ADDITIONAL_PROPERTIES_TYPE).must_equal('String')
+  end
+
+  it 'bhv_models_012 an additional property of the wrong JSON type fails the decode' do
+    ['{"a":2.5}', '{"a":"2"}', '{"a":3000000000}'].each do |body|
+      _ { serializer.deserialize(body, 'Counters') }.must_raise(failure)
+    end
+    _ { serializer.deserialize('{"a":3}', 'Metadata') }.must_raise(failure)
+  end
+
+  it 'bhv_models_013 an additional property whose value type is a model decodes to that model' do
+    roster = serializer.deserialize('{"label":"l","a":{"id":1,"name":"x"}}', 'Roster')
+
+    _(roster.additional_properties['a']).must_be_kind_of({{moduleName}}::Models::Category)
+    _(roster.additional_properties['a'].id).must_equal(1)
+    _(roster.additional_properties['a'].name).must_equal('x')
+    _ { serializer.deserialize('{"a":{"id":"x"}}', 'Roster') }.must_raise(failure)
+  end
+
+  it 'bhv_models_014 a null additional property is rejected unless the value schema is nullable' do
+    _ { serializer.deserialize('{"a":null}', 'Counters') }.must_raise(failure)
+    sparse = serializer.deserialize('{"a":null}', 'Sparse')
+
+    _(sparse.additional_properties).must_equal('a' => nil)
+  end
+
+  it 'bhv_models_015 a typed additional property is written flat in its wire form after the declared ones' do
+    moments = {{moduleName}}::Models::Moments.new(
+      label: 'l',
+      additional_properties: { 'at' => Time.utc(2024, 1, 1, 0, 0, 0) }
+    )
+    json = serializer.serialize(moments)
+
+    _(json).must_equal('{"label":"l","at":"2024-01-01T00:00:00.000+00:00"}')
+    _(serializer.deserialize(json, 'Moments')).must_equal(moments)
+    blobs = {{moduleName}}::Models::Blobs.new(additional_properties: { 'b' => 'hi' })
+
+    _(serializer.serialize(blobs)).must_equal('{"b":"aGk="}')
+    _(serializer.deserialize('{"b":"aGk="}', 'Blobs').additional_properties['b']).must_equal('hi')
+  end
+
+  it 'bhv_models_016 a free-form additionalProperties keeps every JSON value as it arrives' do
+    freeform = serializer.deserialize('{"a":1,"b":"x","c":[true],"d":null}', 'Freeform')
+
+    _(freeform.additional_properties).must_equal('a' => 1, 'b' => 'x', 'c' => [true], 'd' => nil)
+  end
+end
+
 describe 'Metadata', 'with' do
   parallelize_me!
 

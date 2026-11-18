@@ -27,7 +27,7 @@ data class Metadata(
     @Contextual
     val createdAt: OffsetDateTime? = null,
     @kotlinx.serialization.Transient
-    val additionalProperties: MutableMap<String, @Contextual Any?> = mutableMapOf(),
+    val additionalProperties: MutableMap<String, String> = mutableMapOf(),
 ) {
     /* Kotlin's synthesized data-class equals/hashCode compare Array and
      * ByteArray by reference identity (and List<ByteArray> bottoms out in

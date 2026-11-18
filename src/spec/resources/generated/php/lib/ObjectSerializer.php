@@ -389,11 +389,14 @@ class ObjectSerializer
              * array-key (int|string) rather than the Ds\Map's mixed key type;
              * additionalProperties keys are always JSON strings, and an
              * int|string casts to string cleanly (no phpstan cast.string). */
+            $extraType = self::additionalPropertiesType($value::class)[0];
             foreach ($value->additionalProperties->toArray() as $extraKey => $extraValue) {
                 if (array_key_exists((string) $extraKey, $normalized)) {
                     continue;
                 }
-                $normalized[(string) $extraKey] = self::sanitizeForSerialization($extraValue);
+                $normalized[(string) $extraKey] = self::sanitizeForSerialization(
+                    $extraType === 'byte' && is_string($extraValue) ? base64_encode($extraValue) : $extraValue
+                );
             }
             return self::asJsonObject($normalized);
         }
@@ -1499,6 +1502,30 @@ class ObjectSerializer
     }
 
     /**
+     * The decode type of the additional property values of a model with a typed
+     * additionalProperties, and whether a null value is allowed. A model marks
+     * them in its protected ADDITIONAL_PROPERTIES_TYPE and
+     * ADDITIONAL_PROPERTIES_NULLABLE constants, read through reflection so the
+     * markers are not part of the model's public surface. A free-form model has
+     * neither, and the result is `[null, true]`.
+     *
+     * @internal
+     * @return array{0: string|null, 1: bool} the value type and whether null is allowed
+     */
+    public static function additionalPropertiesType(string $class): array
+    {
+        if (!class_exists($class)) {
+            return [null, true];
+        }
+        $reflection = new \ReflectionClass($class);
+        $type = $reflection->getReflectionConstant('ADDITIONAL_PROPERTIES_TYPE');
+        if ($type === false || !is_string($type->getValue())) {
+            return [null, true];
+        }
+        return [$type->getValue(), $reflection->getReflectionConstant('ADDITIONAL_PROPERTIES_NULLABLE') !== false];
+    }
+
+    /**
      * Base64-encode the raw bytes a oneOf wrapper holds for a `format: byte`
      * variant, so the wire form is the base64 string (or list of strings).
      * The wrapper marks its byte variants in its protected BYTE_VARIANTS
@@ -1603,12 +1630,26 @@ class ObjectSerializer
             $declaredWireNames[self::wireNameOf($property)] = true;
         }
 
+        [$valueType, $nullable] = self::additionalPropertiesType($result::class);
+
         /** @var array<string, mixed> $extra */
         $extra = [];
         foreach ($data as $key => $value) {
-            if (!isset($declaredWireNames[(string) $key])) {
-                $extra[(string) $key] = $value;
+            if (isset($declaredWireNames[(string) $key])) {
+                continue;
             }
+            if ($valueType !== null) {
+                /* A typed bucket decodes each extra like the element of a map of the
+                 * same type: a wrong JSON type fails and a null is rejected unless the
+                 * value schema is nullable. */
+                if ($value === null && !$nullable) {
+                    throw new \InvalidArgumentException(
+                        sprintf("Null is not a valid additional property value for '%s'", (string) $key)
+                    );
+                }
+                $value = self::deserializeInternal($value, self::qualifySchemaName($valueType), null, true);
+            }
+            $extra[(string) $key] = $value;
         }
         if ($extra !== []) {
             /* The property is a read-only, non-null `\Ds\Map` (empty by default

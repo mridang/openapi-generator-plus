@@ -421,6 +421,32 @@ export function reattachAdditionalProperties(
       { __additionalPropertiesDeclaredKeys?: ReadonlySet<string> } | undefined
   )?.__additionalPropertiesDeclaredKeys;
   if (declaredKeys) {
+    /* A typed additionalProperties decodes every undeclared key like an element of a
+     * map of the value type; a model without one keeps the values as they arrived. */
+    const decode = (
+      value.constructor as {
+        __decodeAdditionalProperties?: (
+          extras: Record<string, unknown>,
+        ) => Record<string, unknown>;
+      }
+    ).__decodeAdditionalProperties;
+    let typed: Record<string, unknown> | undefined;
+    if (decode) {
+      const undeclared: Record<string, unknown> = {};
+      for (const [key, extra] of Object.entries(
+        raw as Record<string, unknown>,
+      )) {
+        if (key !== "additionalProperties" && !declaredKeys.has(key)) {
+          Object.defineProperty(undeclared, key, {
+            value: extra,
+            enumerable: true,
+            writable: true,
+            configurable: true,
+          });
+        }
+      }
+      typed = decode(undeclared);
+    }
     for (const [key, extra] of Object.entries(raw as Record<string, unknown>)) {
       if (key === "additionalProperties") {
         (
@@ -430,10 +456,15 @@ export function reattachAdditionalProperties(
               held: unknown,
             ) => void;
           }
-        ).__holdAdditionalPropertiesKey?.(value, extra);
+        ).__holdAdditionalPropertiesKey?.(
+          value,
+          typed
+            ? decode?.({ additionalProperties: extra }).additionalProperties
+            : extra,
+        );
       } else if (!declaredKeys.has(key)) {
         Object.defineProperty(value, key, {
-          value: extra,
+          value: typed ? typed[key] : extra,
           enumerable: true,
           writable: true,
           configurable: true,
@@ -1376,7 +1407,15 @@ export class ObjectSerializer {
    */
   static deserializeLeaf<T>(
     value: unknown,
-    kind: "int32" | "int64" | "double" | "boolean" | "date" | "plainDate",
+    kind:
+      | "int32"
+      | "int64"
+      | "double"
+      | "boolean"
+      | "string"
+      | "byte"
+      | "date"
+      | "plainDate",
     nullable = false,
   ): T {
     if (value === null || value === undefined) {
@@ -1387,6 +1426,22 @@ export class ObjectSerializer {
         throw new SerializationError(`Expected ${kind} but received: null`);
       }
       return null as T;
+    }
+    if (kind === "string") {
+      if (typeof value !== "string") {
+        throw new SerializationError(
+          `Expected string but received: ${typeof value}`,
+        );
+      }
+      return value as T;
+    }
+    if (kind === "byte") {
+      if (typeof value !== "string") {
+        throw new SerializationError(
+          `Expected a base64 string but received: ${typeof value}`,
+        );
+      }
+      return decodeBase64(value) as T;
     }
     if (kind === "plainDate") {
       if (typeof value !== "string" || !isPlainDate(value)) {

@@ -413,3 +413,5 @@ Recorded, not implemented here:
 - No `//` comments under `lib/` or in templates (`DartFormattingSpec`); use `///` doc comments or `/* */`. A Mustache `{{! }}` comment ends at the first `}}`, so never put `{{#items}}` inside one.
 - Set and `uniqueItems` changes need both deserialization (`.toList()` versus Set) and serialization updated. Changing a type mapping (`date` to `DateTime`) needs the generated tests changed together. `Uint8List` is a `List<int>`, so `isNot(isA<List>)` is wrong.
 - Never rely on a Java field default for names (`packageName = "petstore_client"` leaked the fixture name). Dart cannot skip brotli or zstd in pure Dart: skip those tests with a reason.
+
+- **F15 (typed `additionalProperties`, #103).** The bucket is `Map<String, V>`; `fromJson` runs `deserializeMap` with the `deserialize_arg` decoder of the value type, and `toJson` writes date-time, uuid and byte values in their wire form.

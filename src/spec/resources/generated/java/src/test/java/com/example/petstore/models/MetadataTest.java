@@ -51,7 +51,7 @@ class MetadataTest {
     Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
 
     assertThat(metadata.getAdditionalProperties().get("customField")).isEqualTo("hello");
-    java.util.Map<String, Object> extras = metadata.getAdditionalProperties();
+    java.util.Map<String, String> extras = metadata.getAdditionalProperties();
     assertThatThrownBy(() -> extras.put("other", "x"))
         .isInstanceOf(UnsupportedOperationException.class);
   }
@@ -126,10 +126,10 @@ class MetadataTest {
   }
 
   @Test
-  void bhvModels009TestAdditionalPropertiesAreTypedAsString() {
+  void bhvModels009TestAdditionalPropertiesAreTypedAsTheValueType() {
     Metadata metadata = Metadata.builder().putAdditionalProperty("key", "value").build();
 
-    java.util.Map<String, Object> additionalProps = metadata.getAdditionalProperties();
+    java.util.Map<String, String> additionalProps = metadata.getAdditionalProperties();
     assertThat(additionalProps).containsEntry("key", "value");
   }
 

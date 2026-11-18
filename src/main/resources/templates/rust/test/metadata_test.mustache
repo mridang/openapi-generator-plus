@@ -1,6 +1,6 @@
 {{>api_info}}
 
-use {{packageName}}::models::{Metadata, Pet};
+use {{packageName}}::models::{Blobs, Counters, Freeform, Metadata, Moments, Pet, Roster, Sparse};
 
 #[test]
 fn test_bhv_models_008_metadata_serialize_deserialize() {
@@ -38,7 +38,7 @@ fn test_bhv_models_004_metadata_deserialize_with_additional_properties() {
     // This test verifies that unknown fields are handled gracefully during
     // deserialization (either ignored or captured depending on schema config).
     let json_data =
-        r#"{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42}"#;
+        r#"{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":"42"}"#;
 
     let result = serde_json::from_str::<Metadata>(json_data);
     // Should either succeed (ignoring unknown keys) or fail gracefully
@@ -57,15 +57,15 @@ fn test_bhv_models_011_metadata_round_trip() {
 }
 
 #[test]
-fn test_bhv_serializationobject_020_metadata_additional_properties_round_trip_preserves_free_form_json() {
+fn test_bhv_serializationobject_020_freeform_additional_properties_round_trip_preserves_free_form_json() {
     /* FIX 3 (no serde_json in public fields): `additional_properties` is a
      * HashMap<String, JsonValue> where JsonValue is the SDK-owned wrapper.
      * Free-form JSON in unknown fields must round-trip losslessly. */
     let json_data =
-        r#"{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42,"nested":{"a":[1,2,3]}}"#;
+        r#"{"customField":"customValue","count":42,"nested":{"a":[1,2,3]}}"#;
 
-    let metadata: Metadata =
-        serde_json::from_str(json_data).expect("failed to deserialize Metadata");
+    let metadata: Freeform =
+        serde_json::from_str(json_data).expect("failed to deserialize Freeform");
 
     // The free-form values landed in additional_properties via the public
     // JsonValue wrapper (no serde_json::Value in the field signature).
@@ -86,9 +86,7 @@ fn test_bhv_serializationobject_020_metadata_additional_properties_round_trip_pr
     assert!(nested.is_object(), "expected nested to be a JSON object");
 
     // Re-serialize and confirm the free-form JSON fields are preserved
-    // verbatim. (The typed `createdAt` field is excluded because it is
-    // normalised to the canonical date-time wire form, which is unrelated to
-    // the free-form JsonValue round-trip under test.)
+    // verbatim. 
     let reserialized: serde_json::Value =
         serde_json::from_str(&serde_json::to_string(&metadata).expect("failed to serialize"))
             .expect("re-parsed JSON");
@@ -105,15 +103,15 @@ fn test_bhv_serializationobject_020_metadata_additional_properties_round_trip_pr
 }
 
 #[test]
-fn test_bhv_models_001_metadata_additional_properties_round_trip_preserves_free_form_json() {
+fn test_bhv_models_001_freeform_additional_properties_round_trip_preserves_free_form_json() {
     /* FIX 3 (no serde_json in public fields): `additional_properties` is a
      * HashMap<String, JsonValue> where JsonValue is the SDK-owned wrapper.
      * Free-form JSON in unknown fields must round-trip losslessly. */
     let json_data =
-        r#"{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42,"nested":{"a":[1,2,3]}}"#;
+        r#"{"customField":"customValue","count":42,"nested":{"a":[1,2,3]}}"#;
 
-    let metadata: Metadata =
-        serde_json::from_str(json_data).expect("failed to deserialize Metadata");
+    let metadata: Freeform =
+        serde_json::from_str(json_data).expect("failed to deserialize Freeform");
 
     // The free-form values landed in additional_properties via the public
     // JsonValue wrapper (no serde_json::Value in the field signature).
@@ -134,9 +132,7 @@ fn test_bhv_models_001_metadata_additional_properties_round_trip_preserves_free_
     assert!(nested.is_object(), "expected nested to be a JSON object");
 
     // Re-serialize and confirm the free-form JSON fields are preserved
-    // verbatim. (The typed `createdAt` field is excluded because it is
-    // normalised to the canonical date-time wire form, which is unrelated to
-    // the free-form JsonValue round-trip under test.)
+    // verbatim. 
     let reserialized: serde_json::Value =
         serde_json::from_str(&serde_json::to_string(&metadata).expect("failed to serialize"))
             .expect("re-parsed JSON");
@@ -150,17 +146,85 @@ fn test_bhv_models_001_metadata_additional_properties_round_trip_preserves_free_
             key
         );
     }
+}
+
+#[test]
+fn test_bhv_models_009_metadata_additional_properties_are_a_string_keyed_map_of_the_value_type() {
+    let metadata: Metadata =
+        serde_json::from_str(r#"{"customField":"hello"}"#).expect("failed to deserialize");
+
+    let extras: &std::collections::HashMap<String, String> = &metadata.additional_properties;
+    assert_eq!(extras.get("customField").map(String::as_str), Some("hello"));
+}
+
+#[test]
+fn test_bhv_models_012_additional_property_of_the_wrong_json_type_fails_the_decode() {
+    for body in [r#"{"a":2.5}"#, r#"{"a":"2"}"#, r#"{"a":3000000000}"#] {
+        assert!(serde_json::from_str::<Counters>(body).is_err(), "{body} must fail");
+    }
+    assert!(serde_json::from_str::<Metadata>(r#"{"a":3}"#).is_err());
+}
+
+#[test]
+fn test_bhv_models_013_additional_property_whose_value_type_is_a_model_decodes_to_that_model() {
+    let roster: Roster = serde_json::from_str(r#"{"label":"l","a":{"id":1,"name":"x"}}"#)
+        .expect("failed to deserialize");
+
+    let category = roster.additional_properties.get("a").expect("expected a");
+    assert_eq!(category.id, Some(1));
+    assert_eq!(category.name.as_deref(), Some("x"));
+    assert!(serde_json::from_str::<Roster>(r#"{"a":{"id":"x"}}"#).is_err());
+}
+
+#[test]
+fn test_bhv_models_014_null_additional_property_is_rejected_unless_the_value_schema_is_nullable() {
+    assert!(serde_json::from_str::<Counters>(r#"{"a":null}"#).is_err());
+    let sparse: Sparse = serde_json::from_str(r#"{"a":null}"#).expect("failed to deserialize");
+
+    assert_eq!(sparse.additional_properties.get("a"), Some(&None));
+}
+
+#[test]
+fn test_bhv_models_015_typed_additional_property_is_written_flat_in_its_wire_form() {
+    let moments: Moments = serde_json::from_str(r#"{"label":"l","at":"2024-01-01T00:00:00Z"}"#)
+        .expect("failed to deserialize");
+    let written = serde_json::to_string(&moments).expect("failed to serialize");
+
+    let keys: Vec<String> = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&written)
+        .expect("parse")
+        .keys()
+        .cloned()
+        .collect();
+    assert_eq!(keys, vec!["label".to_string(), "at".to_string()]);
+    assert!(written.contains("2024-01-01T00:00:00"));
+    let again: Moments = serde_json::from_str(&written).expect("failed to deserialize");
+    assert_eq!(again, moments);
+
+    let blobs: Blobs = serde_json::from_str(r#"{"b":"aGk="}"#).expect("failed to deserialize");
+    assert_eq!(blobs.additional_properties.get("b"), Some(&b"hi".to_vec()));
+    assert_eq!(serde_json::to_string(&blobs).expect("failed to serialize"), r#"{"b":"aGk="}"#);
+}
+
+#[test]
+fn test_bhv_models_016_free_form_additional_properties_keep_every_json_value() {
+    let freeform: Freeform = serde_json::from_str(r#"{"a":1,"b":"x","c":[true],"d":null}"#)
+        .expect("failed to deserialize");
+
+    assert_eq!(freeform.additional_properties.get("a").and_then(|v| v.as_i64()), Some(1));
+    assert_eq!(freeform.additional_properties.get("b").and_then(|v| v.as_str()), Some("x"));
+    assert!(freeform.additional_properties.contains_key("c"));
+    assert!(freeform.additional_properties.contains_key("d"));
 }
 
 /// Equality covers the free-form additional properties: two models that differ
 /// only in an extra property are not equal.
 #[test]
 fn test_bhv_models_005_metadata_equality_includes_additional_properties() {
-    let one: Metadata = serde_json::from_str(r#"{"extra":1}"#).expect("failed to deserialize");
-    let same: Metadata = serde_json::from_str(r#"{"extra":1}"#).expect("failed to deserialize");
-    let two: Metadata = serde_json::from_str(r#"{"extra":2}"#).expect("failed to deserialize");
+    let one: Metadata = serde_json::from_str(r#"{"extra":"1"}"#).expect("failed to deserialize");
+    let same: Metadata = serde_json::from_str(r#"{"extra":"1"}"#).expect("failed to deserialize");
+    let two: Metadata = serde_json::from_str(r#"{"extra":"2"}"#).expect("failed to deserialize");
     let other_key: Metadata =
-        serde_json::from_str(r#"{"other":1}"#).expect("failed to deserialize");
+        serde_json::from_str(r#"{"other":"1"}"#).expect("failed to deserialize");
 
     assert_eq!(one, same);
     assert_ne!(one, two);

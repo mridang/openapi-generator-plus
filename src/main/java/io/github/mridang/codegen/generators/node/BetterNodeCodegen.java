@@ -1830,6 +1830,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (nestsModel) {
                     serializerImports.add("reattachAdditionalProperties");
                 }
+                if (model.vendorExtensions.get("additionalPropertiesValue") != null) {
+                    serializerImports.add("ObjectSerializer");
+                }
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainNumberDecimal)) {
                     serializerImports.add("decodePlainNumber");
                 }

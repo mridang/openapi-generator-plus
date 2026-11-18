@@ -16,13 +16,13 @@ pub struct Metadata {
     /// the wire name of a declared property is not written: the declared
     /// property wins and the key appears once.
     #[serde(flatten, serialize_with = "serialize_additional_properties")]
-    pub additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,
+    pub additional_properties: std::collections::HashMap<String, String>,
 }
 
 /// Writes the additional properties of [`Metadata`] without the keys its
 /// declared properties already carry.
 fn serialize_additional_properties<S: serde::Serializer>(
-    value: &std::collections::HashMap<String, crate::json_value::JsonValue>,
+    value: &std::collections::HashMap<String, String>,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     const DECLARED: &[&str] = &["createdAt"];
@@ -49,7 +49,7 @@ impl Metadata {
     /// Returns this value with its additional properties replaced.
     pub fn with_additional_properties(
         mut self,
-        additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,
+        additional_properties: std::collections::HashMap<String, String>,
     ) -> Self {
         self.additional_properties = additional_properties;
         self

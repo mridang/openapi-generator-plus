@@ -464,3 +464,5 @@ Test: `test/object-serializer.test.mustache` (`validation happens at decode, nev
 
 ### Surface rules after round 4
 The transitional F830 rows for node are gone (the conditions are met). The idiom differences that remain: the trailing `requestOptions` in the optional-parameter list, no Options interface for an operation without parameters of its own, the `ClientCredentials` type and the credentials constructor shape, the `schemeAuthenticators` argument of an API class, and the absent per-call `auth` member (dropped by the other languages in their own adopt branches). F1085 (private keys in the shared fixture) is a shared change and is not done here.
+
+- **F15 (typed `additionalProperties`, #103).** The getter is `Record<string, V>`; the class index signature stays `unknown` (a declared `Date` property is not assignable to `string`). The model carries `__decodeAdditionalProperties`, which runs `ObjectSerializer.deserializeMap` with the element decoder of the value type (`deserialize_arg`, now with `string` and `byte` leaves), and `reattachAdditionalProperties` calls it.

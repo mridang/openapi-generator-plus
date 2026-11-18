@@ -12,14 +12,14 @@ public struct Metadata: Codable, Sendable, Equatable, Hashable {
   public let createdAt: Date?
 
   /// Additional properties not defined in the schema.
-  public let additionalProperties: [String: AnyCodable]
+  public let additionalProperties: [String: String]
 
   enum CodingKeys: String, CodingKey {
     case createdAt = "createdAt"
   }
 
   /// Creates a new Metadata instance.
-  public init(createdAt: Date? = nil, additionalProperties: [String: AnyCodable] = [:]) {
+  public init(createdAt: Date? = nil, additionalProperties: [String: String] = [:]) {
     self.createdAt = createdAt
     self.additionalProperties = additionalProperties
   }
@@ -27,7 +27,7 @@ public struct Metadata: Codable, Sendable, Equatable, Hashable {
   /// Returns a copy of this instance with the given properties replaced. A
   /// property left out keeps its value; to clear an optional property pass
   /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(createdAt: Date?? = .none, additionalProperties: [String: AnyCodable]? = nil)
+  public func copy(createdAt: Date?? = .none, additionalProperties: [String: String]? = nil)
     -> Metadata
   {
     return Metadata(
@@ -42,10 +42,10 @@ public struct Metadata: Codable, Sendable, Equatable, Hashable {
     /* Decode additional properties */
     let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
     let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
-    var additionalProperties = [String: AnyCodable]()
+    var additionalProperties = [String: String]()
     for key in dynamicContainer.allKeys {
       if !knownKeys.contains(key.stringValue) {
-        let value = try dynamicContainer.decode(AnyCodable.self, forKey: key)
+        let value = try dynamicContainer.decode(String.self, forKey: key)
         additionalProperties[key.stringValue] = value
       }
     }

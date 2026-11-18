@@ -15,6 +15,7 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+from pydantic import StrictStr
 from petstore_client._types import ApiModel, hash_model
 from typing import Any, Callable, Dict, Optional, Set
 
@@ -25,7 +26,7 @@ class Metadata(ApiModel):
     """
 
     created_at: Optional[OffsetDateTime] = Field(default=None, alias="createdAt")
-    additional_properties: Dict[str, Any] = Field(default_factory=dict)
+    additional_properties: Dict[str, StrictStr] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod

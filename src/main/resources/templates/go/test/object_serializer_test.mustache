@@ -145,7 +145,7 @@ func TestObjectSerializer_Serialize_NestedModelStringsAreNotHTMLEscaped(t *testi
 
 func TestObjectSerializer_Serialize_AdditionalPropertiesAreNotHTMLEscaped(t *testing.T) {
 	t.Parallel()
-	metadata := models.Metadata{AdditionalProperties: map[string]any{"q": "a<b>&c"}}
+	metadata := models.Metadata{AdditionalProperties: map[string]string{"q": "a<b>&c"}}
 
 	data, err := serialize(metadata)
 	if err != nil {
@@ -1879,12 +1879,12 @@ func TestBhvSerializationobject090_ObjectSerializer_ModelEqual_SliceBearingModel
 // not even comparable with `==` (it would fail to compile); Equal() must work.
 func TestObjectSerializer_ModelEqual_MapBearingModel(t *testing.T) {
 	t.Parallel()
-	a := models.Metadata{AdditionalProperties: map[string]any{"k": "v"}}
-	b := models.Metadata{AdditionalProperties: map[string]any{"k": "v"}}
+	a := models.Metadata{AdditionalProperties: map[string]string{"k": "v"}}
+	b := models.Metadata{AdditionalProperties: map[string]string{"k": "v"}}
 	if !a.Equal(&b) {
 		t.Errorf("expected map-bearing Metadata values to compare equal via Equal()")
 	}
-	c := models.Metadata{AdditionalProperties: map[string]any{"k": "w"}}
+	c := models.Metadata{AdditionalProperties: map[string]string{"k": "w"}}
 	if a.Equal(&c) {
 		t.Errorf("expected Metadata with differing AdditionalProperties to compare unequal")
 	}
@@ -2239,7 +2239,7 @@ func TestBhvSerializationobject071_ObjectSerializer_DoubleField_DeserializesFrom
 
 func TestBhvSerializationobject020_ObjectSerializer_AdditionalProperties_CapturedAndReSerializedAtTopLevel(t *testing.T) {
 	t.Parallel()
-	input := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42}`)
+	input := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":"42"}`)
 
 	var metadata models.Metadata
 	if err := deserialize(input, &metadata); err != nil {

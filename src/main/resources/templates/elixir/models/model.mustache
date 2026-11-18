@@ -491,7 +491,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
           {{name}}: {{#isEnum}}{{^isArray}}{{enumName}}.t(){{/isArray}}{{#isArray}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isArray}}{{/isEnum}}{{^isEnum}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isEnum}}{{^required}} | nil{{/required}}{{#required}}{{#isNullable}} | nil{{/isNullable}}{{/required}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
   {{/vars}}
   {{#isAdditionalPropertiesTrue}}
-          additional_properties: %{String.t() => any()}
+          additional_properties: %{String.t() => {{#vendorExtensions.additionalPropertiesValue}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#isNullable}} | nil{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any(){{/vendorExtensions.additionalPropertiesValue}}}
   {{/isAdditionalPropertiesTrue}}
         }
 
@@ -666,6 +666,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   @doc "The type of additional property values."
   def additional_properties_type, do: "{{{additionalPropertiesType}}}"
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isNullable}}
+
+  @doc "Whether a null additional property value is kept."
+  def additional_properties_nullable, do: true
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
 {{/additionalPropertiesType}}
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}

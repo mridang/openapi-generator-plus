@@ -415,3 +415,5 @@ Inside the generated module: `make lint`, `make vet`, `make staticcheck`, `make 
 - Every `{{#is...}}` branch of a hand-rolled `UnmarshalJSON` needs the same required-field check (the `isUnevaluatedPropertiesFalse` branch once skipped it); enum defaults map the var name to the wire value through `enumVars`, never lowercase it. Catch: a fixture with an additionalProperties-only model and a non-lowercase enum value.
 - Spec-enforced comment text: grep `src/spec` for `contains("` before rewording or deleting a "cruft" comment (the `preSeed` wording is asserted case-sensitively). gofmt rejects a raw U+FEFF, so write the escape in the test template.
 - `devbox run` hijacks `go` and golangci-lint is not installed locally, so Go is checked in Docker through the specs. Redirect guards compare against the previous hop, not `via[0]`.
+
+- **F15 (typed `additionalProperties`, #103).** `AdditionalProperties` is `map[string]V` (`*V` when nullable); `UnmarshalJSON` decodes each extra into `V`, and rejects a raw `null` unless nullable.

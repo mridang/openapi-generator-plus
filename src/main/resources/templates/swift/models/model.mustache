@@ -97,7 +97,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#isAdditionalPropertiesTrue}}
 
     /// Additional properties not defined in the schema.
-    public let additionalProperties: [String: AnyCodable]
+    public let additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}]
 {{/isAdditionalPropertiesTrue}}
 
 {{^isAdditionalPropertiesTrue}}
@@ -121,7 +121,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     /// Returns a copy of this instance with the given properties replaced. A
     /// property left out keeps its value; to clear an optional property pass
     /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}? = nil{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?? = .none{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: [String: AnyCodable]? = nil{{/isAdditionalPropertiesTrue}}) -> {{classname}} {
+    public func copy({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}? = nil{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?? = .none{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}]? = nil{{/isAdditionalPropertiesTrue}}) -> {{classname}} {
         return {{classname}}({{#requiredVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: additionalProperties ?? self.additionalProperties{{/isAdditionalPropertiesTrue}})
     }
 
@@ -306,7 +306,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{name}}: {{{dataType}}}{{#isNullable}}?{{/isNullable}}, {{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{^vendorExtensions.siblingDefaultIsEnum}} = nil{{/vendorExtensions.siblingDefaultIsEnum}}, {{/optionalVars}}additionalProperties: [String: AnyCodable] = [:]) {
+    public init({{#requiredVars}}{{name}}: {{{dataType}}}{{#isNullable}}?{{/isNullable}}, {{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{^vendorExtensions.siblingDefaultIsEnum}} = nil{{/vendorExtensions.siblingDefaultIsEnum}}, {{/optionalVars}}additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}] = [:]) {
 {{#requiredVars}}
         self.{{name}} = {{name}}
 {{/requiredVars}}
@@ -318,7 +318,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/hasVars}}
 {{^hasVars}}
     /// Creates a new {{classname}} instance.
-    public init(additionalProperties: [String: AnyCodable] = [:]) {
+    public init(additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}] = [:]) {
         self.additionalProperties = additionalProperties
     }
 {{/hasVars}}
@@ -326,7 +326,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     /// Returns a copy of this instance with the given properties replaced. A
     /// property left out keeps its value; to clear an optional property pass
     /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}? = nil{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?? = .none{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: [String: AnyCodable]? = nil{{/isAdditionalPropertiesTrue}}) -> {{classname}} {
+    public func copy({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}? = nil{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?? = .none{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}]? = nil{{/isAdditionalPropertiesTrue}}) -> {{classname}} {
         return {{classname}}({{#requiredVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: additionalProperties ?? self.additionalProperties{{/isAdditionalPropertiesTrue}})
     }
 
@@ -400,10 +400,10 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         /* Decode additional properties */
         let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
         let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
-        var additionalProperties = [String: AnyCodable]()
+        var additionalProperties = [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}]()
         for key in dynamicContainer.allKeys {
             if !knownKeys.contains(key.stringValue) {
-                let value = try dynamicContainer.decode(AnyCodable.self, forKey: key)
+                let value = try dynamicContainer.decode({{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}.self, forKey: key)
                 additionalProperties[key.stringValue] = value
             }
         }
@@ -756,12 +756,12 @@ public struct {{classname}}: Codable, @unchecked Sendable {
            member's value and the key is emitted exactly once. Scalar
            (non-object) variants are kept as a fallback only when no object
            variant produced a merge. */
-        var merged: [String: AnyCodable] = [:]
+        var merged: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}] = [:]
         var scalarFallback: Any?
         for variant in _values {
             guard let encodable = variant as? Encodable else { continue }
             let variantData = try ObjectSerializer.encodeToData(AnyEncodableBox(encodable))
-            if let object = try? ObjectSerializer.decodeFromData(variantData, as: [String: AnyCodable].self) {
+            if let object = try? ObjectSerializer.decodeFromData(variantData, as: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}].self) {
                 for (key, value) in object {
                     merged[key] = value
                 }

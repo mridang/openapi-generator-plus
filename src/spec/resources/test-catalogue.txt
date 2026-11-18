@@ -326,9 +326,14 @@ models005 | Equality includes additional_properties
 models006 | File header prints the info description without backslash-escaped quotes
 models007 | No generated model carries a literal "@example null" / "Example: null" doc line
 models008 | Serialize empty metadata
-models009 | Test additional properties are typed as string
+models009 | The additional properties of a model whose additionalProperties schema declares a value type are exposed as a string-keyed map of that value type, not a map of any
 models010 | Test declared property wins over colliding additional property
 models011 | Test round trip preserves additional properties
+models012 | An additional property whose value has the wrong JSON type fails the decode with the serialization error
+models013 | An additional property whose value type is a model decodes to that model
+models014 | A null additional property value is rejected unless the value schema is nullable
+models015 | A typed additional property is written back at the top level in its wire form after the declared properties
+models016 | A free-form additionalProperties keeps accepting and returning any JSON value
 operations001 | A per-call header replaces a default header of the same name
 operations002 | All headers from selector flow through
 operations003 | AllowEmptyValue param included when value is empty string

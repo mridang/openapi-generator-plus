@@ -100,8 +100,19 @@ module {{moduleName}}::Models
     ADDITIONAL_PROPERTIES: bool
 {{#additionalPropertiesType}}
     ADDITIONAL_PROPERTIES_TYPE: String
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isByteArray}}
+    ADDITIONAL_PROPERTIES_FORMAT: String
+{{/isByteArray}}
+{{#isUuid}}
+    ADDITIONAL_PROPERTIES_FORMAT: String
+{{/isUuid}}
+{{#isNullable}}
+    ADDITIONAL_PROPERTIES_NULLABLE: bool
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
 {{/additionalPropertiesType}}
-    attr_reader additional_properties: Hash[String, untyped]?
+    attr_reader additional_properties: Hash[String, {{#vendorExtensions.additionalPropertiesValue}}{{#lambda.rbsType}}{{{dataType}}}{{/lambda.rbsType}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}untyped{{/vendorExtensions.additionalPropertiesValue}}]?
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
     UNEVALUATED_PROPERTIES_FALSE: bool

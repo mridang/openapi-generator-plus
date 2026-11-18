@@ -296,14 +296,14 @@ void main() {
       () {
         final metadata = Metadata(
           createdAt: DateTime.utc(2024, 1, 15, 10, 30),
-          additionalProperties: const {'createdAt': 'x', 'extra': 1},
+          additionalProperties: const {'createdAt': 'x', 'extra': 'y'},
         );
 
         final json = jsonEncode(metadata.toJson());
 
         expect(
           json,
-          equals('{"createdAt":"2024-01-15T10:30:00.000+00:00","extra":1}'),
+          equals('{"createdAt":"2024-01-15T10:30:00.000+00:00","extra":"y"}'),
         );
       },
     );
@@ -332,11 +332,11 @@ void main() {
 
     test('bhv models 004 deserialize with additional properties', () {
       final jsonData =
-          '{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42}';
+          '{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":"42"}';
 
       final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
       expect(parsed['customField'], equals('customValue'));
-      expect(parsed['count'], equals(42));
+      expect(parsed['count'], equals('42'));
     });
 
     test('bhv models 011 round trip', () {
@@ -385,6 +385,110 @@ void main() {
         expect(wire['region'], equals('eu'));
         expect(wire.containsKey('additionalProperties'), isFalse);
         expect(wire.containsKey('additional_properties'), isFalse);
+      },
+    );
+  });
+
+  group('Typed additional properties', () {
+    test(
+      'bhv models 009 the additional properties are a string-keyed map of the value type',
+      () {
+        final Map<String, String> extras = Metadata.fromJson({
+          'customField': 'hello',
+        }).additionalProperties;
+
+        expect(extras['customField'], equals('hello'));
+      },
+    );
+
+    test(
+      'bhv models 012 an additional property of the wrong JSON type fails the decode',
+      () {
+        for (final body in [
+          {'a': 2.5},
+          {'a': '2'},
+          {'a': 3000000000},
+        ]) {
+          expect(
+            () => Counters.fromJson(body),
+            throwsA(isA<SerializationException>()),
+            reason: '$body',
+          );
+        }
+        expect(
+          () => Metadata.fromJson({'a': 3}),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv models 013 an additional property whose value type is a model decodes to that model',
+      () {
+        final roster = Roster.fromJson({
+          'label': 'l',
+          'a': {'id': 1, 'name': 'x'},
+        });
+        final Category category = roster.additionalProperties['a']!;
+
+        expect(category.id, equals(1));
+        expect(category.name, equals('x'));
+        expect(
+          () => Roster.fromJson({
+            'a': {'id': 'x'},
+          }),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv models 014 a null additional property is rejected unless the value schema is nullable',
+      () {
+        expect(
+          () => Counters.fromJson({'a': null}),
+          throwsA(isA<SerializationException>()),
+        );
+        final sparse = Sparse.fromJson({'a': null});
+
+        expect(sparse.additionalProperties.containsKey('a'), isTrue);
+        expect(sparse.additionalProperties['a'], isNull);
+      },
+    );
+
+    test(
+      'bhv models 015 a typed additional property is written flat in its wire form',
+      () {
+        final moments = Moments.fromJson({
+          'label': 'l',
+          'at': '2024-01-01T00:00:00+00:00',
+        });
+        final wire = moments.toJson();
+
+        expect(wire.keys.toList(), equals(['label', 'at']));
+        expect(wire['at'], startsWith('2024-01-01T00:00:00'));
+        expect(Moments.fromJson(wire), equals(moments));
+
+        final blobs = Blobs.fromJson({'b': 'aGk='});
+        expect(blobs.additionalProperties['b'], equals(utf8.encode('hi')));
+        expect(blobs.toJson(), equals({'b': 'aGk='}));
+      },
+    );
+
+    test(
+      'bhv models 016 a free-form additionalProperties keeps every JSON value as it arrives',
+      () {
+        final freeform = Freeform.fromJson({
+          'a': 1,
+          'b': 'x',
+          'c': [true],
+          'd': null,
+        });
+
+        expect(freeform.additionalProperties['a'], equals(1));
+        expect(freeform.additionalProperties['b'], equals('x'));
+        expect(freeform.additionalProperties['c'], equals([true]));
+        expect(freeform.additionalProperties.containsKey('d'), isTrue);
       },
     );
   });
@@ -447,13 +551,13 @@ void main() {
     test(
       'bhv models 005 instances with equal additionalProperties are equal and hash alike',
       () {
-        final first = Metadata(
+        final first = Freeform(
           additionalProperties: {
             'tags': ['a', 'b'],
             'region': 'eu',
           },
         );
-        final second = Metadata(
+        final second = Freeform(
           additionalProperties: {
             'region': 'eu',
             'tags': ['a', 'b'],
@@ -468,36 +572,36 @@ void main() {
     test(
       'bhv equality 001 models built from the same values are equal and a nested change makes them unequal',
       () {
-        final first = Metadata(
-          createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        final first = Freeform(
+          label: 'x',
           additionalProperties: {
             'tags': ['a', 'b'],
             'limits': {'max': 3},
           },
         );
-        final same = Metadata(
-          createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        final same = Freeform(
+          label: 'x',
           additionalProperties: {
             'tags': ['a', 'b'],
             'limits': {'max': 3},
           },
         );
-        final changedList = Metadata(
-          createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        final changedList = Freeform(
+          label: 'x',
           additionalProperties: {
             'tags': ['a', 'c'],
             'limits': {'max': 3},
           },
         );
-        final changedMap = Metadata(
-          createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        final changedMap = Freeform(
+          label: 'x',
           additionalProperties: {
             'tags': ['a', 'b'],
             'limits': {'max': 4},
           },
         );
         final Object? nothing = null;
-        final Object other = 'metadata';
+        final Object other = 'freeform';
 
         expect(first, equals(same));
         expect(first.hashCode, equals(same.hashCode));
@@ -509,8 +613,8 @@ void main() {
     );
 
     test('toString dumps the fields and the additionalProperties map', () {
-      final metadata = Metadata(
-        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+      final metadata = Freeform(
+        label: 'x',
         additionalProperties: const {
           'tags': ['a', 'b'],
         },
@@ -518,8 +622,8 @@ void main() {
 
       final text = metadata.toString();
 
-      expect(text, startsWith('Metadata('));
-      expect(text, contains('createdAt: 2024-01-15 10:30:00.000Z'));
+      expect(text, startsWith('Freeform('));
+      expect(text, contains('label: x'));
       expect(text, contains('additionalProperties: {tags: [a, b]}'));
       expect(text, isNot(contains("Instance of")));
     });

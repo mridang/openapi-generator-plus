@@ -30,7 +30,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `boolean` | `bool` | |
 | `array` | `[]T` | |
 | `array` with `uniqueItems` | `models.Set[T]` | Slice-backed, `T` is `comparable`. Scalar members are written sorted so the bytes are stable. |
-| `object` with `additionalProperties` | `map[string]T` | |
+| `object` with `additionalProperties` | `map[string]T` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object`, any type | `any` | |
 | nullable | `*T` | A required nullable property keeps its key in the output. |
 | `enum` | named string type with constants | Marshalling and unmarshalling reject values outside the enum. A `$ref` to an enum with a `default` next to it starts at that member, whether the model is built with its `New` function or decoded without the key. |

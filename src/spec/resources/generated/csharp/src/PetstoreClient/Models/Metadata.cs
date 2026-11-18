@@ -15,8 +15,21 @@ public record Metadata
     [JsonPropertyName("createdAt")]
     public DateTimeOffset? CreatedAt { get; init; }
 
+    /// <summary>
+    /// The additional, undeclared properties. They are decoded and encoded through the
+    /// same converters as a declared property, so a value of the wrong JSON type, or a
+    /// null where the value schema is not nullable, fails the decode.
+    /// </summary>
+    [JsonIgnore]
+    public Dictionary<string, string> AdditionalProperties { get; init; } = new();
+
+    /// <summary>
+    /// The raw undeclared properties as they arrive on the wire. System.Text.Json only
+    /// fills an extension-data dictionary of <see cref="JsonElement"/>; the serializer
+    /// converts it to and from <see cref="AdditionalProperties"/>.
+    /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, object> AdditionalProperties { get; init; } = new();
+    internal Dictionary<string, JsonElement> AdditionalPropertiesWire { get; set; } = new();
 
     /// <summary>Value-equality based on all declared fields
     /// (including the AdditionalProperties dictionary).</summary>

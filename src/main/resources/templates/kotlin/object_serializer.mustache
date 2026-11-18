@@ -29,6 +29,11 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.SetSerializer
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.serializer
 import kotlinx.serialization.json.JsonUnquotedLiteral
 import java.math.BigDecimal
@@ -434,7 +439,7 @@ internal class ObjectSerializer(
                     }
                 }
                 readAdditionalProperties(model)?.forEach { (key, extra) ->
-                    if (!merged.containsKey(key)) merged[key] = toJsonElementStatic(extra)
+                    if (!merged.containsKey(key)) merged[key] = encodeAdditionalValue(model, extra)
                 }
                 JsonObject(merged)
             }
@@ -707,7 +712,7 @@ internal class ObjectSerializer(
                         descriptor?.let { d -> (0 until d.elementsCount).map { d.getElementName(it) }.toSet() }
                             ?: emptySet()
                     for ((key, raw) in element) {
-                        if (key !in declared) target[key] = fromJsonElement(raw)
+                        if (key !in declared) target[key] = decodeAdditionalValue(model, key, raw)
                     }
                 }
                 if (descriptor != null) {
@@ -716,6 +721,105 @@ internal class ObjectSerializer(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * The value type of a model's typed `additionalProperties` (the second type argument
+     * of the bucket's generic return type), or null when the bucket is free-form
+     * (`Any?`) or the model has none. The bucket is `@Transient`, so this is read
+     * from its signature rather than from the serializer.
+     */
+    private fun additionalValueType(model: Any): java.lang.reflect.Type? {
+        val generic =
+            try {
+                model::class.java.getMethod("getAdditionalProperties").genericReturnType
+            } catch (_: ReflectiveOperationException) {
+                return null
+            }
+        var value = (generic as? java.lang.reflect.ParameterizedType)?.actualTypeArguments?.getOrNull(1) ?: return null
+        if (value is java.lang.reflect.WildcardType) value = value.upperBounds.first()
+        return if (value == Any::class.java) null else value
+    }
+
+    /** Whether the model's value schema for the additional properties allows null. */
+    private fun additionalValueNullable(model: Any): Boolean =
+        try {
+            model::class.java.getField("ADDITIONAL_PROPERTIES_NULLABLE")
+            true
+        } catch (_: ReflectiveOperationException) {
+            false
+        }
+
+    /**
+     * The serializer of a typed additional property value: the strict scalar
+     * serializers, like a declared property gets, and the configured module for
+     * everything else (models, enums, date-time, nested lists and maps).
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun additionalValueSerializer(type: java.lang.reflect.Type): KSerializer<Any?> {
+        val strict: KSerializer<*>? =
+            when (type) {
+                Int::class.javaObjectType -> StrictIntSerializer
+                Long::class.javaObjectType -> StrictLongSerializer
+                Double::class.javaObjectType -> StrictDoubleSerializer
+                Float::class.javaObjectType -> StrictFloatSerializer
+                Boolean::class.javaObjectType -> StrictBooleanSerializer
+                ByteArray::class.java -> Base64ByteArraySerializer
+                else -> null
+            }
+        if (strict != null) return strict as KSerializer<Any?>
+        if (type is java.lang.reflect.ParameterizedType) {
+            val raw = type.rawType as? Class<*>
+            val args = type.actualTypeArguments.map { arg ->
+                additionalValueSerializer(if (arg is java.lang.reflect.WildcardType) arg.upperBounds.first() else arg)
+            }
+            when {
+                raw != null && List::class.java.isAssignableFrom(raw) ->
+                    return ListSerializer(args[0]) as KSerializer<Any?>
+                raw != null && Set::class.java.isAssignableFrom(raw) ->
+                    return SetSerializer(args[0]) as KSerializer<Any?>
+                raw != null && Map::class.java.isAssignableFrom(raw) ->
+                    return MapSerializer(args[0], args[1]) as KSerializer<Any?>
+            }
+        }
+        if (type == String::class.java) return String.serializer() as KSerializer<Any?>
+        return json.serializersModule.serializer(type) as KSerializer<Any?>
+    }
+
+    /**
+     * Decodes one undeclared key into the typed bucket, like an element of a map of the
+     * same type: a value of the wrong JSON type fails the decode, and a null fails
+     * unless the value schema is nullable. A free-form bucket keeps the plain value.
+     */
+    private fun decodeAdditionalValue(model: Any, key: String, raw: JsonElement): Any? {
+        val type = additionalValueType(model) ?: return fromJsonElement(raw)
+        return try {
+            val serializer = additionalValueSerializer(type)
+            val decoded =
+                json.decodeFromJsonElement(
+                    if (additionalValueNullable(model)) serializer.nullable else serializer,
+                    raw,
+                )
+            if (decoded != null) captureAdditionalProperties(decoded, raw)
+            decoded
+        } catch (e: {{errorPrefix}}Exception) {
+            throw e
+        } catch (e: Exception) {
+            throw SerializationException("Failed to deserialize additional property '$key': ${e.message}", e)
+        }
+    }
+
+    /** Encodes one additional property value in its wire form. */
+    private fun encodeAdditionalValue(model: Any, value: Any?): JsonElement {
+        val type = additionalValueType(model) ?: return toJsonElementStatic(value)
+        return try {
+            val serializer = additionalValueSerializer(type)
+            json.encodeToJsonElement(if (additionalValueNullable(model)) serializer.nullable else serializer, value)
+        } catch (e: {{errorPrefix}}Exception) {
+            throw e
+        } catch (e: Exception) {
+            throw SerializationException("Failed to serialize additional property: ${e.message}", e)
         }
     }
 

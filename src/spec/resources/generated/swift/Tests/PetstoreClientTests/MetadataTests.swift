@@ -53,10 +53,10 @@ import Testing
     // This test verifies that unknown fields are handled gracefully during
     // deserialization (either ignored or captured depending on schema config).
     let jsonData = Data(
-      "{\"createdAt\":\"2024-01-15T10:30:00+00:00\",\"customField\":\"customValue\",\"count\":42}"
+      "{\"createdAt\":\"2024-01-15T10:30:00+00:00\",\"customField\":\"customValue\",\"count\":\"42\"}"
         .utf8)
 
-    // Use ObjectSerializer which silently ignores unknown keys via AnyCodable
+    // Use ObjectSerializer, which captures unknown keys into the typed bucket
     let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
     #expect(metadata != nil)
   }
@@ -65,21 +65,83 @@ import Testing
   @Test func testBhvModels001UndeclaredKeysAreCapturedIntoAdditionalProperties() throws {
     let jsonData = Data("{\"customField\":\"customValue\"}".utf8)
     let metadata = try #require(try ObjectSerializer.deserialize(jsonData, as: Metadata.self))
-    #expect(metadata.additionalProperties["customField"]?.value as? String == "customValue")
+    #expect(metadata.additionalProperties["customField"] == "customValue")
   }
 
-  /* additionalProperties holds AnyCodable values, and a string value reads back as a String. */
-  @Test func testBhvModels009AdditionalPropertiesHoldStringValues() {
-    let metadata = Metadata(additionalProperties: ["extra": AnyCodable("x")])
-    #expect(metadata.additionalProperties["extra"]?.value as? String == "x")
+  /* The additional properties are a string-keyed map of the value type: the compiler checks the annotation. */
+  @Test func testBhvModels009AdditionalPropertiesAreAMapOfTheValueType() throws {
+    let jsonData = Data("{\"extra\":\"x\"}".utf8)
+    let metadata = try #require(try ObjectSerializer.deserialize(jsonData, as: Metadata.self))
+    let extras: [String: String] = metadata.additionalProperties
+    #expect(extras["extra"] == "x")
+  }
+
+  /* A value of the wrong JSON type fails the decode with the SDK's serialization error. */
+  @Test func testBhvModels012AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode() {
+    for body in ["{\"a\":2.5}", "{\"a\":\"2\"}", "{\"a\":3000000000}"] {
+      #expect(throws: SerializationError.self) {
+        try ObjectSerializer.deserialize(Data(body.utf8), as: Counters.self)
+      }
+    }
+    #expect(throws: SerializationError.self) {
+      try ObjectSerializer.deserialize(Data("{\"a\":3}".utf8), as: Metadata.self)
+    }
+  }
+
+  /* A value whose type is a model decodes to that model. */
+  @Test func testBhvModels013ModelValuedAdditionalPropertyDecodesToTheModel() throws {
+    let jsonData = Data("{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}".utf8)
+    let roster = try #require(try ObjectSerializer.deserialize(jsonData, as: Roster.self))
+    let category: Category? = roster.additionalProperties["a"]
+    #expect(category?.id == 1)
+    #expect(category?.name == "x")
+    #expect(throws: SerializationError.self) {
+      try ObjectSerializer.deserialize(Data("{\"a\":{\"id\":\"x\"}}".utf8), as: Roster.self)
+    }
+  }
+
+  /* A null extra is rejected unless the value schema is nullable. */
+  @Test func testBhvModels014NullAdditionalPropertyIsRejectedUnlessNullable() throws {
+    #expect(throws: SerializationError.self) {
+      try ObjectSerializer.deserialize(Data("{\"a\":null}".utf8), as: Counters.self)
+    }
+    let sparse = try #require(
+      try ObjectSerializer.deserialize(Data("{\"a\":null}".utf8), as: Sparse.self))
+    #expect(sparse.additionalProperties.keys.contains("a"))
+  }
+
+  /* A typed extra is written flat in its wire form, after the declared properties. */
+  @Test func testBhvModels015TypedAdditionalPropertyIsWrittenFlatInWireForm() throws {
+    let when = Date(timeIntervalSince1970: 1_704_067_200)
+    let moments = Moments(label: "l", additionalProperties: ["at": when])
+    let json = try ObjectSerializer.serialize(moments)
+    #expect(json.contains("\"at\":\"2024-01-01T00:00:00"))
+    let back = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Moments.self))
+    #expect(back == moments)
+
+    let blobs = Blobs(additionalProperties: ["b": Data("hi".utf8)])
+    #expect(try ObjectSerializer.serialize(blobs) == "{\"b\":\"aGk=\"}")
+    let decoded = try #require(
+      try ObjectSerializer.deserialize(Data("{\"b\":\"aGk=\"}".utf8), as: Blobs.self))
+    #expect(decoded.additionalProperties["b"] == Data("hi".utf8))
+  }
+
+  /* A free-form additionalProperties keeps every JSON value as it arrives. */
+  @Test func testBhvModels016FreeFormAdditionalPropertiesKeepAnyValue() throws {
+    let jsonData = Data("{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}".utf8)
+    let freeform = try #require(try ObjectSerializer.deserialize(jsonData, as: Freeform.self))
+    #expect(freeform.additionalProperties["a"]?.value as? Int == 1)
+    #expect(freeform.additionalProperties["b"]?.value as? String == "x")
+    #expect(freeform.additionalProperties.keys.contains("c"))
+    #expect(freeform.additionalProperties.keys.contains("d"))
   }
 
   /* Two instances that differ only in the additionalProperties bucket are
    * not equal, and equal ones hash alike. */
   @Test func testBhvModels005EqualityIncludesAdditionalProperties() {
-    let first = Metadata(additionalProperties: ["extra": AnyCodable("x")])
-    let different = Metadata(additionalProperties: ["extra": AnyCodable("y")])
-    let same = Metadata(additionalProperties: ["extra": AnyCodable("x")])
+    let first = Metadata(additionalProperties: ["extra": "x"])
+    let different = Metadata(additionalProperties: ["extra": "y"])
+    let same = Metadata(additionalProperties: ["extra": "x"])
 
     #expect(first != different)
     #expect(first != Metadata())
@@ -91,7 +153,7 @@ import Testing
    * property: the declared value wins and the key is written once. */
   @Test func testBhvModels010DeclaredPropertyWinsOverCollidingAdditionalProperty() throws {
     let when = Date(timeIntervalSince1970: 1_705_315_800)
-    let metadata = Metadata(createdAt: when, additionalProperties: ["createdAt": AnyCodable("x")])
+    let metadata = Metadata(createdAt: when, additionalProperties: ["createdAt": "x"])
     let json = try ObjectSerializer.serialize(metadata)
     #expect(json.components(separatedBy: "\"createdAt\"").count == 2)
     #expect(!json.contains("\"x\""))
@@ -166,9 +228,9 @@ import Testing
 
   @Test func testCopyOfAModelWithAdditionalPropertiesKeepsThem() {
     let when = Date(timeIntervalSince1970: 1_705_315_800)
-    let original = Metadata(createdAt: when, additionalProperties: ["extra": AnyCodable("x")])
+    let original = Metadata(createdAt: when, additionalProperties: ["extra": "x"])
 
-    let renamed = original.copy(additionalProperties: ["other": AnyCodable("y")])
+    let renamed = original.copy(additionalProperties: ["other": "y"])
     #expect(renamed.createdAt == when)
     #expect(renamed.additionalProperties.keys.sorted() == ["other"])
 

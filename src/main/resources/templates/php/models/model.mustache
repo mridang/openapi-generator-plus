@@ -513,6 +513,21 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     ];
 
 {{/hasByteVars}}
+{{#vendorExtensions.hasTypedAdditionalProperties}}
+    /**
+     * The decode type of an additional property value: the serializer decodes each extra
+     * like the element of a map of this type.
+     */
+    protected const string ADDITIONAL_PROPERTIES_TYPE = '{{#vendorExtensions.additionalPropertiesValue}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{>deserialize_arg}}{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}}';
+
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isNullable}}
+    /** The value schema is nullable, so a null additional property is kept. */
+    protected const bool ADDITIONAL_PROPERTIES_NULLABLE = true;
+
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
+{{/vendorExtensions.hasTypedAdditionalProperties}}
 {{#hasRequiredNullableVars}}
     /**
      * The required properties that are nullable: their key is always on the wire, as null when unset.
@@ -702,7 +717,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
-    /** @var \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> */
+    /** @var \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}|null{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> */
     public readonly \Ds\Map $additionalProperties;
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
@@ -757,7 +772,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isMap}}
 {{/optionalVars}}
 {{#isAdditionalPropertiesTrue}}
-     * @param \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}>|null $additionalProperties
+     * @param \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}|null{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}>|null $additionalProperties
 {{/isAdditionalPropertiesTrue}}
      */
     public function __construct(
@@ -801,7 +816,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     /**
      * Returns a copy of this model with the additional properties replaced. This model is not changed.
      *
-     * @param \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> $additionalProperties
+     * @param \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}|null{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> $additionalProperties
      */
     public function withAdditionalProperties(\Ds\Map $additionalProperties): self
     {
