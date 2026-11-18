@@ -3455,6 +3455,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * The model class name of a declared error schema as it is spelled in the generated error
+     * types. The default is the data type as it is; a language whose data types are qualified
+     * names (php) returns the bare class name.
+     *
+     * @param dataType the data type of the response model
+     * @return the model class name
+     */
+    protected String errorSchemaModelName(String dataType) {
+        return dataType;
+    }
+
+    /**
      * The template of the per-schema error type, or null when the language does
      * not generate one yet. The template renders once per entry of
      * {@code errorSchemas}.
@@ -3523,7 +3535,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     continue;
                 }
                 final boolean model = response.isModel && response.dataType != null;
-                declared.add(new ErrorResponses.Declared(response.code, model ? response.dataType : null));
+                declared.add(
+                        new ErrorResponses.Declared(
+                                response.code, model ? errorSchemaModelName(response.dataType) : null));
             }
         }
         final String suffix = errorSuffix();

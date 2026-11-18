@@ -275,6 +275,74 @@ test('bhv errors 006 fromResponse maps every status to its exception', function 
     [600, ApiException::class],
 ]);
 
+test('bhv errors 201 an error is retryable exactly for the statuses the client retries', function (int $status, bool $retryable): void {
+    expect(ApiException::fromResponse($status, [], null)->isRetryable())->toBe($retryable);
+})->with([
+    [408, true],
+    [409, true],
+    [429, true],
+    [500, true],
+    [502, true],
+    [503, true],
+    [504, true],
+    [599, true],
+    [400, false],
+    [401, false],
+    [403, false],
+    [404, false],
+    [422, false],
+    [501, false],
+    [302, false],
+]);
+
+test('bhv errors 202 an error exposes the x-request-id response header as its request id', /** @param array<string, string>|null $headers */ function (?array $headers, ?string $expected): void {
+    expect(ApiException::fromResponse(500, $headers, null)->getRequestId())->toBe($expected);
+})->with([
+    [['X-Request-ID' => 'abc'], 'abc'],
+    [['x-request-id' => 'abc'], 'abc'],
+    [['other' => 'abc'], null],
+    [[], null],
+    [null, null],
+]);
+
+test('bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default', function (int $status, string $expected): void {
+    $factory = static fn (string $name): \Closure =>
+        /** @param array<string, string>|null $h */
+        static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, $name, $h, $b);
+    $factories = ['404' => $factory('exact'), '4XX' => $factory('range'), 'default' => $factory('default')];
+
+    expect(ApiException::fromResponse($status, [], '{}', 'GET', '/x', $factories)->getMessage())->toBe($expected);
+})->with([
+    [404, 'exact'],
+    [418, 'range'],
+    [502, 'default'],
+]);
+
+test('bhv errors 203 a status without a factory keeps the status exception', function (): void {
+    /** @param array<string, string>|null $h */
+    $other = static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, 'other', $h, $b);
+
+    expect(ApiException::fromResponse(502, [], '{}', 'GET', '/x', ['404' => $other])::class)
+        ->toBe(\{{invokerPackage}}\Errors\BadGatewayException::class);
+    expect(ApiException::fromResponse(404, [], '{}', 'GET', '/x', [])::class)
+        ->toBe(\{{invokerPackage}}\Errors\NotFoundException::class);
+});
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+test('bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause', function (): void {
+    $ex = \{{invokerPackage}}\Errors\{{{className}}}::fromErrorResponse({{sampleStatus}}, [], '[1, 2', 'GET', '/x');
+
+    expect($ex::class)->toBe(ApiException::fromResponse({{sampleStatus}}, [], '[1, 2', 'GET', '/x')::class);
+    expect($ex->getResponseBody())->toBe('[1, 2');
+    expect($ex->getStatusCode())->toBe({{sampleStatus}});
+    expect($ex->getPrevious())->toBeInstanceOf(SerializationException::class);
+});
+{{/-first}}
+{{/errorSchemas}}
+{{/hasErrorSchemas}}
+
 test('bhv errors 007 fromResponse carries the request method and the path without its query string', function (int $status, string $expected): void {
     $ex = ApiException::fromResponse($status, [], '{}', 'get', 'https://api.example.com/v2/items/7?token=secret#top');
 

@@ -9,3 +9,10 @@
             maxRetries: $options?->maxRetries,
 {{/vendorExtensions.op.hasOptionsParam}}
             securityRequirements: {{{vendorExtensions.phpSecurityRequirements}}},
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+            errorSchemas: [
+{{#vendorExtensions.op.errorSchemaResponses}}
+                '{{{status}}}' => \{{{invokerPackage}}}\Errors\{{{schemaClassName}}}::fromErrorResponse(...),
+{{/vendorExtensions.op.errorSchemaResponses}}
+            ],
+{{/vendorExtensions.op.hasErrorSchemaResponses}}

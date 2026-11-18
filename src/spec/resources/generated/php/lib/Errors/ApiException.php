@@ -94,15 +94,17 @@ class ApiException extends OpenAPIException
         $this->responseBody = $responseBody;
         $this->errorBody = $errorBody;
         $this->requestMethod = $requestMethod === null ? null : strtoupper($requestMethod);
-        $this->requestPath = $requestPath === null ? null : $this->pathWithoutQuery($requestPath);
+        $this->requestPath = $requestPath === null ? null : self::pathWithoutQuery($requestPath);
     }
 
     /**
      * The path of a request target with its query string and fragment removed,
      * so a secret carried in a query parameter never reaches an error message.
      * A full URL reduces to its path.
+     *
+     * @internal used by the SDK to build the request context of an error
      */
-    private function pathWithoutQuery(string $target): string
+    public static function pathWithoutQuery(string $target): string
     {
         if (preg_match('#^[A-Za-z][A-Za-z0-9+.-]*://[^/?\#]*#', $target, $match) === 1) {
             $target = substr($target, strlen($match[0]));
@@ -125,14 +127,31 @@ class ApiException extends OpenAPIException
      * @param array<string, string>|null $responseHeaders HTTP response headers
      * @param string|null $requestMethod HTTP method of the request that got this response
      * @param string|null $requestPath path (or URL) of that request; the query string is dropped
+     * @param array<int|string, \Closure(int, array<string, string>|null, string|null, string|null, string|null): self> $errorSchemas
+     *        the error factories of the operation by declared status (an exact status first, then
+     *        4XX or 5XX, then default); a status with a factory is built by it, and without
+     *        one the exception of the status is returned
+     * @param Throwable|null $previous the cause to attach to the exception of the status
      */
     public static function fromResponse(
         int $statusCode,
         ?array $responseHeaders,
         ?string $responseBody,
         ?string $requestMethod = null,
-        ?string $requestPath = null
+        ?string $requestPath = null,
+        array $errorSchemas = [],
+        ?Throwable $previous = null
     ): self {
+        if ($errorSchemas !== []) {
+            $factory = $errorSchemas[$statusCode]
+                ?? ($statusCode >= 400 && $statusCode < 500 ? ($errorSchemas['4XX'] ?? null) : null)
+                ?? ($statusCode >= 500 && $statusCode < 600 ? ($errorSchemas['5XX'] ?? null) : null)
+                ?? $errorSchemas['default']
+                ?? null;
+            if ($factory !== null) {
+                return $factory($statusCode, $responseHeaders, $responseBody, $requestMethod, $requestPath);
+            }
+        }
         $message = "API returned status code $statusCode";
         $errorBody = null;
         if ($responseBody !== null && trim($responseBody) !== '') {
@@ -160,7 +179,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 401 => new UnauthorizedException(
@@ -168,7 +187,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 403 => new ForbiddenException(
@@ -176,7 +195,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 404 => new NotFoundException(
@@ -184,7 +203,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 409 => new ConflictException(
@@ -192,7 +211,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 422 => new UnprocessableEntityException(
@@ -200,7 +219,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 429 => new TooManyRequestsException(
@@ -208,7 +227,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 402 => new PaymentRequiredException(
@@ -216,7 +235,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 405 => new MethodNotAllowedException(
@@ -224,7 +243,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 408 => new RequestTimeoutException(
@@ -232,7 +251,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 410 => new GoneException(
@@ -240,7 +259,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 413 => new PayloadTooLargeException(
@@ -248,7 +267,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 415 => new UnsupportedMediaTypeException(
@@ -256,7 +275,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 423 => new LockedException(
@@ -264,7 +283,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode >= 400 && $statusCode < 500 => new ClientException(
@@ -273,7 +292,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 500 => new InternalServerErrorException(
@@ -281,7 +300,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 501 => new NotImplementedException(
@@ -289,7 +308,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 502 => new BadGatewayException(
@@ -297,7 +316,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 503 => new ServiceUnavailableException(
@@ -305,7 +324,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode === 504 => new GatewayTimeoutException(
@@ -313,7 +332,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             $statusCode >= 500 && $statusCode < 600 => new ServerException(
@@ -322,7 +341,7 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
             default => new self(
@@ -331,10 +350,81 @@ class ApiException extends OpenAPIException
                 $responseHeaders,
                 $responseBody,
                 $errorBody,
-                null,
+                $previous,
                 ...$context
             ),
         };
+    }
+
+    /**
+     * Decode a response body as the schema an operation declares for an error status.
+     *
+     * @template T of object
+     * @param class-string<T> $class the model class of the declared schema
+     * @return T the decoded body
+     * @throws SerializationException when the body does not match the schema
+     * @internal used by the typed error of a declared schema
+     */
+    public static function decodeErrorBody(string $responseBody, string $class): object
+    {
+        $decoded = ObjectSerializer::deserialize($responseBody, $class);
+        if (!$decoded instanceof $class) {
+            throw new SerializationException('Error body does not match ' . $class);
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * The status exception for a response whose body did not match its declared schema: the same
+     * exception {@see fromResponse()} gives, with the decoding failure as its cause and the raw
+     * body kept.
+     *
+     * @param array<string, string>|null $responseHeaders HTTP response headers
+     * @internal used by the typed error of a declared schema
+     */
+    public static function statusFallback(
+        int $statusCode,
+        ?array $responseHeaders,
+        ?string $responseBody,
+        ?string $requestMethod,
+        ?string $requestPath,
+        Throwable $cause
+    ): self {
+        return self::fromResponse(
+            $statusCode,
+            $responseHeaders,
+            $responseBody,
+            $requestMethod,
+            $requestPath,
+            [],
+            $cause
+        );
+    }
+
+    /**
+     * Whether repeating the request can succeed: the status is 408, 409, 429 or a 5xx other
+     * than 501, the statuses the client itself retries.
+     */
+    public function isRetryable(): bool
+    {
+        return in_array($this->statusCode, [408, 409, 429], true)
+            || ($this->statusCode >= 500 && $this->statusCode < 600 && $this->statusCode !== 501);
+    }
+
+    /**
+     * The request id the server sent in the x-request-id response header, or null when the
+     * header is absent.
+     */
+    public function getRequestId(): ?string
+    {
+        foreach ($this->responseHeaders ?? [] as $name => $value) {
+            if (strtolower((string) $name) === 'x-request-id') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**
