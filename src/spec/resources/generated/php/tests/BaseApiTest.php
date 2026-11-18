@@ -2659,3 +2659,27 @@ test('bhv misc 065 scheme credentials are copied when the api is built', functio
 
     expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer first');
 });
+
+test('bhv misc 081 a base64 body under a binary content type is decoded before the caller gets it', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, base64_encode("\x89PNG\r\n"), ['Content-Type' => 'image/png']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+
+    $result = $testApi->call('GET', '/test/echo', [], [], null, ['image/png'], 'application/json', 'string');
+
+    expect($result)->toBe("\x89PNG\r\n");
+});

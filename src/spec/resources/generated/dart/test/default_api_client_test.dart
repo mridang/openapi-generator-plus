@@ -475,6 +475,62 @@ Future<void> main(List<String> args) async {
   final resp = await DefaultApiClient()
       .sendRequest('GET', args.first, <String, String>{}, null);
   print(resp.statusCode);
+    test('bhv misc 268 A server presenting a certificate from a trusted CA is still rejected when the hostname does not match', () async {
+      final uri = Uri.parse(chasmHttpsUrl);
+      final address = (await InternetAddress.lookup(uri.host)).first.address;
+      final transport = TransportOptionsBuilder()
+          .verifySsl(true)
+          .caCertPath(caCertPath)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+
+      await expectLater(
+        client.sendRequest('GET', '${uri.scheme}://$address:${uri.port}/test/echo', {}, null),
+        throwsA(isA<NetworkException>()),
+      );
+    });
+
+    test('bhv misc 269 A self-signed endpoint is reached only when certificate verification is disabled', () async {
+      final off = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().verifySsl(false).build(),
+      );
+      final resp = await off.sendRequest('GET', '$chasmHttpsUrl/test/echo', {}, null);
+      expect(resp.statusCode, equals(200));
+
+      final on = DefaultApiClient(transportOptions: TransportOptionsBuilder().build());
+      await expectLater(
+        on.sendRequest('GET', '$chasmHttpsUrl/test/echo', {}, null),
+        throwsA(isA<NetworkException>()),
+      );
+    });
+
+    test('bhv misc 271 With no proxy configured the client connects directly', () async {
+      final client = DefaultApiClient(transportOptions: TransportOptionsBuilder().build());
+
+      final resp = await client.sendRequest('GET', '$chasmHttpUrl/test/echo', {}, null);
+
+      expect(resp.statusCode, equals(200));
+    });
+
+    test('bhv misc 275 The request is sent with the intended HTTP method and the response is returned to the caller', () async {
+      final client = DefaultApiClient(transportOptions: TransportOptionsBuilder().build());
+
+      final resp = await client.sendRequest('PATCH', '$chasmHttpUrl/test/echo', {}, null);
+
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('PATCH'));
+      test('bhv redirects 054 A redirect chain that runs past the timeout budget fails with a timeout error', () async {
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().timeout(1200).build(),
+      );
+
+      await expectLater(
+        client.sendRequest('GET', '$chasmHttpUrl/test/redirect/chain/1', {}, null),
+        throwsA(isA<NetworkTimeoutException>().having((e) => e.statusCode, 'statusCode', 0)),
+      );
+    });
+  });
 }
 ''');
           final packages = File(

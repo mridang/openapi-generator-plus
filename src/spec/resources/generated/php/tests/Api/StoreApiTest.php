@@ -701,3 +701,25 @@ test('bhv misc 048 a success status that no declared response row names decodes 
     expect($union)->toBeInstanceOf(ReserveStockResponse::class);
     expect($union->isReservation())->toBeTrue();
 });
+
+test('bhv misc 079 a 201 body is decoded as the receipt schema declared for that status', function (): void {
+    $api = newStoreApiForMock(201, 'application/json', '{"receiptCode":"C1","expiresAt":"2030-01-01T00:00:00.000+00:00"}');
+
+    $union = $api->reserveStock();
+
+    expect($union->isReservationReceipt())->toBeTrue();
+    expect($union->asReservationReceipt()?->receiptCode)->toBe('C1');
+});
+
+test('bhv misc 080 a 200 body is refused when it only fits the 201 schema', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{"receiptCode":"C1","expiresAt":"2030-01-01T00:00:00.000+00:00"}');
+
+    expect(fn () => $api->reserveStock())
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv misc 085 a non canonical uuid text is refused as a type error when it is written as a parameter', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{}');
+
+    expect(fn () => $api->getOrderByTrackingId('not-a-uuid'))->toThrow(\TypeError::class);
+});

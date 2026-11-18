@@ -1198,6 +1198,36 @@ describe 'DefaultApiClientUnit' do
   end
 
 
+  it 'bhv_misc_237 an ISO-8859-1 error response body decodes to UTF-8 text' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/latin1-error') do
+        [400, { 'content-type' => 'text/plain; charset=ISO-8859-1' }, "caf\xE9".b]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/latin1-error', {}, nil)
+      _(response.body.encoding).must_equal Encoding::UTF_8
+      _(response.body).must_equal "café"
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_240 a multipart file part is sent with its content' do
+    captured = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/test/echo') do |env|
+        captured = env.body
+        [200, { 'content-type' => 'application/json' }, '{}']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/test/echo', { 'Content-Type' => 'multipart/form-data' }, { 'file' => 'file content' })
+    end
+    _(captured.to_s).must_include 'file content'
+  end
+
   it 'bhv_serializationwire_032 decodes ISO-8859-1 response body to UTF-8' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/latin1') do

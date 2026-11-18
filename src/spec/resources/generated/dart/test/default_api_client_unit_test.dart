@@ -72,6 +72,20 @@ class _RedirectBodyClient extends http.BaseClient {
       );
 }
 
+/* Adds the caller's own default header to every request it sends, the way a
+ * caller-supplied client with its own defaults would. */
+class _DefaultHeaderClient extends http.BaseClient {
+  _DefaultHeaderClient(this._inner);
+
+  final http.Client _inner;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers['X-Client'] = 'yes';
+    return _inner.send(request);
+  }
+}
+
 void main() {
   group('DefaultApiClientUnit', () {
     test(
@@ -1931,6 +1945,112 @@ void main() {
           expect(landedBody, equals('{"a":1}'));
         } finally {
           await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 177 a default Content-Type header in any letter case is not sent when the request has no body',
+      () async {
+        String? contentType = 'unset';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await request.drain<void>();
+          contentType = request.headers.value('content-type');
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .defaultHeader('content-type', 'application/json')
+                .build(),
+          );
+          await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/x',
+            {},
+            null,
+          );
+          expect(contentType, isNull);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 181 content placed in a header is sent exactly as serialised, with no percent-encoding applied',
+      () async {
+        String? raw;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await request.drain<void>();
+          raw = request.headers.value('x-raw');
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().build(),
+          );
+          await client.sendRequest('GET', 'http://localhost:${server.port}/x', {
+            'X-Raw': 'a%20b c/d',
+          }, null);
+          expect(raw, equals('a%20b c/d'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 182 a cross-origin redirect removes the Authorization header whatever its letter case',
+      () async {
+        final seen = <String?>[];
+        final other = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        other.listen((request) async {
+          await request.drain<void>();
+          seen.add(request.headers.value('authorization'));
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+        final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        origin.listen((request) async {
+          await request.drain<void>();
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', 'http://127.0.0.1:${other.port}/next')
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
+          );
+          for (final name in [
+            'Authorization',
+            'AUTHORIZATION',
+            'authorization',
+          ]) {
+            await client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${origin.port}/start',
+              {name: 'Bearer caller-secret'},
+              null,
+            );
+          }
+          expect(seen, everyElement(isNull));
+        } finally {
+          await origin.close();
+          await other.close();
         }
       },
     );
@@ -5569,6 +5689,271 @@ void main() {
           seen!.headers.keys.map((k) => k.toLowerCase()),
           isNot(contains('user-agent')),
         );
+      },
+    );
+    test(
+      'bhv misc 267 A default header on a caller-supplied HTTP client is sent with each request',
+      () async {
+        http.BaseRequest? seen;
+        final custom = _DefaultHeaderClient(
+          MockClient((request) async {
+            seen = request;
+            return http.Response('ok', 200);
+          }),
+        );
+        final transport = TransportOptionsBuilder().httpClient(custom).build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await client.sendRequest('GET', 'http://custom.test/ping', {}, null);
+
+        expect(seen, isNotNull);
+        expect(seen!.headers['X-Client'], equals('yes'));
+      },
+    );
+
+    test(
+      'bhv misc 270 A missing CA file is rejected even when certificate verification is disabled',
+      () {
+        final transport = TransportOptionsBuilder()
+            .verifySsl(false)
+            .caCertPath('/nonexistent/ca.pem')
+            .build();
+
+        expect(
+          () => DefaultApiClient(transportOptions: transport),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.toString(),
+              'message',
+              contains('/nonexistent/ca.pem'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 272 An authenticating proxy accepts the credentials from the proxy URL end to end',
+      () async {
+        final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => proxy.close(force: true));
+        final expected = 'Basic ${base64Encode(utf8.encode('user:pass'))}';
+        proxy.listen((request) {
+          final authorized =
+              request.headers.value('proxy-authorization') == expected;
+          request.response
+            ..statusCode = authorized ? 200 : 407
+            ..write(authorized ? 'proxied' : 'denied')
+            ..close();
+        });
+
+        final transport = TransportOptionsBuilder()
+            .proxy('http://user:pass@127.0.0.1:${proxy.port}')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          'http://target.test/ping',
+          {},
+          null,
+        );
+
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, equals('proxied'));
+      },
+    );
+
+    test(
+      'bhv misc 273 The request-id header carries a UUID v4 when enabled and is omitted when disabled',
+      () async {
+        String? enabledId;
+        String? disabledId = 'unset';
+        final on = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(
+                MockClient((request) async {
+                  enabledId = request.headers['x-request-id'];
+                  return http.Response('ok', 200);
+                }),
+              )
+              .injectRequestId(true)
+              .build(),
+        );
+        final off = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(
+                MockClient((request) async {
+                  disabledId = request.headers['x-request-id'];
+                  return http.Response('ok', 200);
+                }),
+              )
+              .injectRequestId(false)
+              .build(),
+        );
+
+        await on.sendRequest('GET', 'http://custom.test/ping', {}, null);
+        await off.sendRequest('GET', 'http://custom.test/ping', {}, null);
+
+        expect(enabledId, isNotNull);
+        expect(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          ).hasMatch(enabledId!),
+          isTrue,
+        );
+        expect(disabledId, isNull);
+      },
+    );
+
+    test(
+      'bhv misc 274 A non-2xx response is returned to the caller with its status code intact',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .httpClient(
+              MockClient((request) async => http.Response('missing', 404)),
+            )
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        final resp = await client.sendRequest(
+          'GET',
+          'http://custom.test/missing',
+          {},
+          null,
+        );
+
+        expect(resp.statusCode, equals(404));
+        expect(resp.body, equals('missing'));
+      },
+    );
+
+    test(
+      'bhv misc 282 A network failure raised after the connection drops keeps the transport error as its cause',
+      () async {
+        final boom = SocketException('Connection reset by peer');
+        final transport = TransportOptionsBuilder()
+            .httpClient(MockClient((request) async => throw boom))
+            .maxRetries(0)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await expectLater(
+          client.sendRequest('GET', 'http://custom.test/x', {}, null),
+          throwsA(
+            isA<NetworkException>().having((e) => e.cause, 'cause', same(boom)),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 285 An undecodable content encoding is refused with the exact unsupported-encoding message',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .httpClient(
+              MockClient(
+                (request) async => http.Response.bytes(
+                  [1, 2, 3],
+                  200,
+                  headers: {'content-encoding': 'br'},
+                ),
+              ),
+            )
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await expectLater(
+          client.sendRequest('GET', 'http://custom.test/encoded', {}, null),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              equals("Unsupported Content-Encoding 'br'"),
+            ),
+          ),
+        );
+      },
+    );
+    test(
+      'bhv misc 296 By default a failed request is retried twice so three requests reach the wire',
+      () async {
+        var hits = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        server.listen((request) {
+          hits++;
+          request.response
+            ..statusCode = 503
+            ..close();
+        });
+
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().build(),
+        );
+        await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/flaky',
+          {},
+          null,
+        );
+
+        expect(hits, equals(3));
+      },
+    );
+
+    test(
+      'bhv misc 299 A header the caller sets on a request is sent with the caller value, overriding the transport default',
+      () async {
+        http.BaseRequest? seen;
+        final transport = TransportOptionsBuilder()
+            .userAgent('MyApp/1.0')
+            .httpClient(
+              MockClient((request) async {
+                seen = request;
+                return http.Response('ok', 200);
+              }),
+            )
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await client.sendRequest('GET', 'http://custom.test/echo', {
+          'User-Agent': 'Caller/2.0',
+        }, null);
+
+        expect(seen, isNotNull);
+        expect(seen!.headers['user-agent'], equals('Caller/2.0'));
+      },
+    );
+
+    test(
+      'bhv redirects 056 An opted-out request sends no transport default header and the next normal request sends it',
+      () async {
+        final received = <String?>[];
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        server.listen((request) {
+          received.add(request.headers.value('x-default'));
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+        final transport = TransportOptionsBuilder()
+            .defaultHeader('X-Default', 'default-value')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final base = 'http://127.0.0.1:${server.port}';
+
+        await client.sendRequest(
+          'POST',
+          '$base/token',
+          {},
+          'a=b',
+          noRedirect: true,
+          noDefaultHeaders: true,
+        );
+        await client.sendRequest('GET', '$base/next', {}, null);
+
+        expect(received, equals([null, 'default-value']));
       },
     );
   });

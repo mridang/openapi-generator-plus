@@ -2824,4 +2824,19 @@ import Testing
         Data("{\"values\":[\"a\",\"a\",\"b\"]}".utf8), as: UniqueTags.self))
     #expect(decoded.values == ["a", "b"])
   }
+
+  /* An input object with no fields is filled with every declared default value. */
+  @Test func testBhvMisc215AnInputObjectWithNoFieldsIsFilledWithEveryDeclaredDefault() throws {
+    let defaults = Defaults()
+    #expect(defaults.retries == 3)
+    #expect(defaults.label == "untitled")
+    #expect(defaults.mode == DefaultsModeEnum(rawValue: "medium"))
+  }
+
+  /* A model with no extra properties writes exactly its declared keys, with no nested additionalProperties key. */
+  @Test func testBhvMisc230AModelWithNoExtraPropertiesWritesOnlyItsDeclaredKeys() throws {
+    let data = try JSONEncoder().encode(Freeform(label: "x"))
+    let fields = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(Set(fields.keys) == ["label"])
+  }
 }

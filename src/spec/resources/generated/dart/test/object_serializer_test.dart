@@ -4471,5 +4471,60 @@ void main() {
         );
       },
     );
+    test(
+      'bhv misc 287 A wire key literally named additional_properties is kept as an undeclared extra',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"additional_properties":"bar","region":"eu"}',
+          Metadata.fromJson,
+        )!;
+
+        expect(
+          metadata.additionalProperties,
+          containsPair('additional_properties', 'bar'),
+        );
+        expect(metadata.additionalProperties, containsPair('region', 'eu'));
+      },
+    );
+
+    test(
+      'bhv misc 288 A snake_case key at the top level of an object is captured as an undeclared extra',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"snake_case_key":1}',
+          Metadata.fromJson,
+        )!;
+
+        expect(metadata.additionalProperties, equals({'snake_case_key': 1}));
+      },
+    );
+
+    test(
+      'bhv misc 289 A snake_case key inside a list element is captured as an undeclared extra',
+      () {
+        final items = (jsonDecode('[{"snake_case_key":1}]') as List<dynamic>)
+            .map((item) => Metadata.fromJson(item as Map<String, dynamic>))
+            .toList();
+
+        expect(items.first.additionalProperties, equals({'snake_case_key': 1}));
+      },
+    );
+
+    test(
+      'bhv misc 290 An undeclared key whose value is a dictionary survives a full serialize and deserialize round trip',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"nested":{"a":1}}',
+          Metadata.fromJson,
+        )!;
+
+        final restored = deserialize<Metadata>(
+          serialize(metadata),
+          Metadata.fromJson,
+        )!;
+
+        expect(restored.additionalProperties['nested'], equals({'a': 1}));
+      },
+    );
   });
 }
