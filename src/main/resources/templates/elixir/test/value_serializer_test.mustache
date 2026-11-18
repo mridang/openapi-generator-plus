@@ -774,5 +774,26 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert {{moduleName}}.ValueSerializer.encode_path_segment("a b/c") == "a%20b%2Fc"
     end
   end
+
+  describe "bhv misc wire behaviours" do
+    test "bhv misc 082 an enum value in a path is sent as its wire value" do
+      assert {{moduleName}}.ValueSerializer.serialize(:pending, :path, "string") == "pending"
+    end
+
+    test "bhv misc 082 an enum value in a query is sent as its wire value" do
+      assert {{moduleName}}.ValueSerializer.serialize(:pending, :query, "string") == "pending"
+    end
+
+    test "bhv misc 082 an enum value in a header is sent as its wire value" do
+      assert {{moduleName}}.ValueSerializer.serialize(:pending, :header, "string") == "pending"
+    end
+
+    test "bhv misc 084 a set optional scalar is sent in every location" do
+      for location <- [:path, :query, :header] do
+        assert {{moduleName}}.ValueSerializer.serialize(5, location, "integer") == "5"
+      end
+    end
+  end
+
 end
 {{/generateTests}}

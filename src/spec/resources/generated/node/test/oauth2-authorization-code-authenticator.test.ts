@@ -130,6 +130,26 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
   });
 
   describe("PKCE (RFC 7636)", () => {
+    test("bhvMisc077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call", async () => {
+      const verifiers: string[] = [];
+      for (let i = 0; i < 2; i++) {
+        authenticator.buildAuthorizationUrl();
+        mockClient.responseBody = JSON.stringify({
+          access_token: "access-token",
+          expires_in: 3600,
+        });
+        await authenticator.exchangeCode("my-auth-code");
+        verifiers.push(
+          new URLSearchParams(mockClient.lastBody as string).get(
+            "code_verifier",
+          )!,
+        );
+      }
+      expect(verifiers[0]).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(verifiers[1]).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(verifiers[0]).not.toBe(verifiers[1]);
+    });
+
     const s256 = (verifier: string): string =>
       createHash("sha256").update(verifier).digest("base64url");
     const tokenBody = JSON.stringify({
