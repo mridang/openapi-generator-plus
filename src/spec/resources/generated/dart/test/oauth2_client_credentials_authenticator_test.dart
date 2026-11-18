@@ -299,6 +299,20 @@ void main() {
 
   group('OAuth2ClientCredentialsAuthenticator wire format', () {
     test(
+      'bhv misc 172 a request to a token endpoint is sent once and not retried, even when the server answers 503',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{}', statusCode: 503);
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(auth.authHeadersAsync(), throwsA(anything));
+        expect(client.urls, hasLength(1));
+      },
+    );
+
+    test(
       'bhv auth 056 an expires_in that is not a decimal number marks the token stale so the next call fetches again',
       () async {
         final client = _FakeApiClient();
