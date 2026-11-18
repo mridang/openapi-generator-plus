@@ -223,6 +223,11 @@ describe 'Metadata', 'copy, equality and enum contract' do
     _(Set.new([first, same]).size).must_equal(1)
   end
 
+  it 'bhv_serialization_101 an integer-backed enum is written as a JSON number and a number decodes back to its member' do
+    _({{moduleName}}::Models::Priority::NUMBER_1).must_equal(1)
+    _({{moduleName}}::Models::Priority::NUMBER_3).must_equal(3)
+  end
+
   it 'bhv_models_021 each member of an integer-backed enum carries its declared number as its value' do
     _({{moduleName}}::Models::Priority::NUMBER_1).must_equal(1)
     _({{moduleName}}::Models::Priority::NUMBER_3).must_equal(3)

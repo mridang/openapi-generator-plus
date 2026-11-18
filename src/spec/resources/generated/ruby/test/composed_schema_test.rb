@@ -47,6 +47,12 @@ describe 'Composed Schema' do
         .must_raise Petstore::Client::Errors::SerializationError
     end
 
+    it 'bhv_serialization_082 a missing or null discriminator property fails decoding and names the missing key' do
+      json = '{"weightKg":2.5}'
+      _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
+        .must_raise Petstore::Client::Errors::SerializationError
+    end
+
     it 'bhv_unions_015 raises SerializationError for missing discriminator' do
       json = '{"weightKg":2.5}'
       _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
@@ -362,6 +368,16 @@ describe 'Composed Schema' do
     # as raw text). The deserialize side goes through the normal #deserialize
     # entry point, which dispatches to the union's #build.
 
+    it 'bhv_serialization_088 byte values are written as base64 strings, including each element of a list' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      encoded = Petstore::Client::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
+      json = Petstore::Client::ObjectSerializer.serialize(encoded)
+
+      _(json).must_equal('"AQIDBA=="')
+      _(json).wont_equal('[1,2,3,4]')
+      _(json).wont_include('[')
+    end
+
     it 'bhv_unions_019 serializes the scalar byte variant as a base64 string (not an int-array, not raw)' do
       raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
       encoded = Petstore::Client::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
@@ -370,6 +386,15 @@ describe 'Composed Schema' do
       _(json).must_equal('"AQIDBA=="')
       _(json).wont_equal('[1,2,3,4]')
       _(json).wont_include('[')
+    end
+
+    it 'bhv_serialization_089 a base64 string on the wire decodes into a byte value' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      result = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+
+      _(result).must_be_kind_of(String)
+      _(result.bytes).must_equal([0x01, 0x02, 0x03, 0x04])
+      _(result.b).must_equal(raw.b)
     end
 
     it 'bhv_unions_023 deserializes a base64 string back to the original scalar bytes (round-trip)' do
