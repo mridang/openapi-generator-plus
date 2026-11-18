@@ -128,6 +128,16 @@ func (o *Pet) Equal(other *Pet) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Pet) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Pet{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithId returns a copy of the model with Id replaced; the receiver is unchanged.
 func (o Pet) WithId(value int64) Pet {
 	o.Id = &value

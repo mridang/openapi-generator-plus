@@ -37,6 +37,16 @@ func (o *StateConflict) Equal(other *StateConflict) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o StateConflict) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "StateConflict{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithCode returns a copy of the model with Code replaced; the receiver is unchanged.
 func (o StateConflict) WithCode(value int32) StateConflict {
 	o.Code = &value

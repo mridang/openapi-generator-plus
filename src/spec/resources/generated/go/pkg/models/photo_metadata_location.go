@@ -37,6 +37,16 @@ func (o *PhotoMetadataLocation) Equal(other *PhotoMetadataLocation) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o PhotoMetadataLocation) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "PhotoMetadataLocation{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithLat returns a copy of the model with Lat replaced; the receiver is unchanged.
 func (o PhotoMetadataLocation) WithLat(value float64) PhotoMetadataLocation {
 	o.Lat = &value
