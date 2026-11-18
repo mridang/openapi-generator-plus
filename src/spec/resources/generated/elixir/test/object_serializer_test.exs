@@ -3083,5 +3083,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
       value = %{"a" => %{"b" => [1, "x", nil]}}
       assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(value)) == value
     end
+
+    test "bhv misc 090 a duration field of a record writes its fractional seconds in the wire form" do
+      ttl = Duration.new!(second: 1, microsecond: {500_000, 6})
+      json = PetstoreClient.ObjectSerializer.serialize(%{"ttl" => ttl})
+      assert Jason.decode!(json)["ttl"] == "1.500000s"
+    end
   end
 end
