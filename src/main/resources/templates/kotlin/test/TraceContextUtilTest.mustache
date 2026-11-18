@@ -10,6 +10,10 @@ import io.opentelemetry.api.trace.TraceState
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.propagation.ContextPropagators
+import io.opentelemetry.context.propagation.TextMapGetter
+import io.opentelemetry.context.propagation.TextMapPropagator
+import io.opentelemetry.context.propagation.TextMapSetter
+import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter
 import io.opentelemetry.sdk.trace.SdkTracerProvider
@@ -94,6 +98,41 @@ class TraceContextUtilTest {
         assertEquals("Bearer token", headers["Authorization"])
         assertEquals("application/json", headers["Content-Type"])
         assertEquals("abc-123", headers["X-Request-ID"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc002 the trace propagator the caller registers injects the context and keeps the headers already present")
+    fun bhvMisc002TheRegisteredPropagatorIsUsedAndExistingHeadersAreKept() {
+        GlobalOpenTelemetry.resetForTest()
+        val custom =
+            object : TextMapPropagator {
+                override fun <C : Any?> inject(
+                    context: Context,
+                    carrier: C?,
+                    setter: TextMapSetter<C>,
+                ) {
+                    setter.set(carrier, "x-registered-propagator", "registered")
+                }
+
+                override fun <C : Any?> extract(
+                    context: Context,
+                    carrier: C?,
+                    getter: TextMapGetter<C>,
+                ): Context = context
+
+                override fun fields(): MutableCollection<String> = mutableListOf("x-registered-propagator")
+            }
+        try {
+            OpenTelemetrySdk.builder()
+                .setPropagators(ContextPropagators.create(custom))
+                .buildAndRegisterGlobal()
+            val headers = mutableMapOf("Authorization" to "Bearer token123")
+            TraceContextUtil.injectTraceContext(headers)
+            assertEquals("registered", headers["x-registered-propagator"])
+            assertEquals("Bearer token123", headers["Authorization"])
+        } finally {
+            GlobalOpenTelemetry.resetForTest()
+        }
     }
 
     /**

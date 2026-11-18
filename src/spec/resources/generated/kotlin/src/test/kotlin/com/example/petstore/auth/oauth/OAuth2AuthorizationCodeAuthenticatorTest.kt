@@ -542,6 +542,43 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuth014 the authorization URL encodes the spaces between scopes as percent 20, never as a plus sign")
+    fun bhvAuth014ScopeSpacesAreEncodedAsPercent20() {
+        val url = createAuthenticator().buildAuthorizationUrl()
+        assertTrue(url.contains("scope=read%20write"), url)
+        assertFalse(url.contains("+"), url)
+    }
+
+    @Test
+    @DisplayName("bhvAuth020 the PKCE verifier is sent with the first code exchange and never with a refresh")
+    fun bhvAuth020TheVerifierIsNeverSentWithARefresh() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertNotNull(verifierSentIn(client.lastBody), client.lastBody)
+        runBlocking { auth.getAuthHeaders() }
+        assertNull(verifierSentIn(client.lastBody), client.lastBody)
+    }
+
+    @Test
+    @DisplayName("bhvAuth028 a failed first code exchange records no session and the client still reports it unexchanged")
+    fun bhvAuth028AFailedFirstExchangeRecordsNoSession() {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        assertThrows(com.example.petstore.errors.OAuth2ServerException::class.java) {
+            runBlocking { auth.exchangeCode("bad-code") }
+        }
+        val ex = assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Must call exchangeCode() before making API requests", ex.message)
+    }
+
+    @Test
     @DisplayName("bhvAuthoauthtwoauthcode030 auth headers before the code exchange fail naming the exchange call to make first")
     fun authHeadersBeforeTheExchangeNameTheExchangeCall() {
         val auth = createAuthenticator()

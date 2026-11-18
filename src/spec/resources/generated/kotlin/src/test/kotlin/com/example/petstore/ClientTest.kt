@@ -445,6 +445,67 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("bhvConfig025 an empty token environment value counts as unset, so withToken fails naming the variable")
+    fun bhvConfig025AnEmptyTokenVariableCountsAsUnset() {
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "")) {
+                    Client.withToken("https://api.example.com")
+                }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle039 an empty token is refused at construction and a valid token builds a client")
+    fun bhvLifecycle039AnEmptyTokenIsRefusedAndAValidTokenBuilds() {
+        assertThrows(IllegalArgumentException::class.java) {
+            Client.withToken("https://api.example.com", "")
+        }
+        val client = Client.withToken("https://api.example.com", "tok")
+        assertNotNull(client)
+        client.close()
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle040 leaving the use block closes the client, which then refuses requests")
+    fun bhvLifecycle040LeavingTheUseBlockClosesTheClient() {
+        val client = Client.withToken("https://api.example.com", "tok")
+        client.use { }
+        val ex =
+            assertThrowsExactly(IllegalStateException::class.java) {
+                runBlocking { client.pet.getPetById(1L) }
+            }
+        assertEquals("ApiClient has been closed and can no longer send requests", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth025 a credential that fetches tokens sends its token request through the client's transport")
+    fun bhvAuth025ACredentialFetchesTokensThroughTheClientTransport() {
+        val requested = mutableListOf<String>()
+        val engine =
+            MockEngine { request ->
+                requested.add(request.url.toString())
+                respond("""{"access_token":"tok","expires_in":3600}""", HttpStatusCode.OK)
+            }
+        val credential =
+            com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator(
+                "https://api.example.com",
+                "client-id",
+                "client-secret",
+            )
+        val client =
+            Client(
+                "https://api.example.com",
+                machineAuth = credential,
+                transportOptions = TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+            )
+        assertEquals("Bearer tok", runBlocking { credential.getAuthHeaders()["Authorization"] })
+        assertEquals(listOf("https://auth.example.com/oauth/token"), requested)
+        client.close()
+    }
+
+    @Test
     @DisplayName("bhvLifecycle001 API groups are accessible")
     fun apiGroupsAreAccessible() {
         val client = Client(authenticator)

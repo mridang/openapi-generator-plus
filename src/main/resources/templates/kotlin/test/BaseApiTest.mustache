@@ -464,6 +464,35 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvErrors079 an error keeps the first complete request context and fills in one that is missing")
+        fun bhvErrors079AFirstCompleteRequestContextIsKept() {
+            val complete = ApiException("boom", RuntimeException("reset"), "PATCH", "/first")
+            val kept = assertThrows(ApiException::class.java) {
+                runBlocking { PerCallApi(ThrowingApiClient(complete)).call(method = "GET", path = "/items/3") }
+            }
+            assertEquals("PATCH", kept.requestMethod)
+            assertEquals("/first", kept.requestPath)
+
+            val incomplete = ApiException("boom")
+            val filled = assertThrows(ApiException::class.java) {
+                runBlocking { PerCallApi(ThrowingApiClient(incomplete)).call(method = "GET", path = "/items/3") }
+            }
+            assertEquals("GET", filled.requestMethod)
+            assertEquals("/items/3", filled.requestPath)
+        }
+
+        /* A transport that fails every request with the error it was built with. */
+        inner class ThrowingApiClient(private val error: ApiException) : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean,
+            ): ApiHttpResponse = throw error
+        }
+
+        @Test
         @DisplayName("bhvErrors027 an absolute URL in the path bypasses the client base URL")
         fun absoluteUrlInPathBypassesBaseUrl() {
             val (client, seen) = statusClient(200)
@@ -761,6 +790,16 @@ class BaseApiTest {
     @Nested
     @DisplayName("auth injection")
     inner class AuthInjection {
+
+        @Test
+        @DisplayName("bhvAuth021 a request with no credential at any level is sent with no Authorization header and is not refused")
+        fun bhvAuth021ANoCredentialRequestIsSentWithoutAuthorization() {
+            val client = CapturingApiClient()
+            val api = TestableApiWithClient(client, "http://localhost")
+            val response = runBlocking { api.call("GET", "/items") }
+            assertEquals(200, response.statusCode)
+            assertFalse(client.capturedHeaders.containsKey("Authorization"), client.capturedHeaders.toString())
+        }
 
         @Test
         @DisplayName("bhvAuthintegration010 forwards auth headers")

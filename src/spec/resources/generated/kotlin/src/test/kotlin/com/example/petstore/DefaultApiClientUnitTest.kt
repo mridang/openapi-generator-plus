@@ -291,6 +291,28 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvHeaders031 a header value containing CR or LF is refused before the request is sent")
+        fun bhvHeaders031AHeaderValueWithCrOrLfIsRefusedBeforeSending() {
+            var sent = false
+            val engine =
+                MockEngine { _ ->
+                    sent = true
+                    respond(
+                        content = "{}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            for (bad in listOf("a\rb", "a\nb", "a\r\nX-Injected: yes")) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking { apiClient.sendRequest("GET", "http://localhost/test", mapOf("X-Test" to bad), null) }
+                }
+            }
+            assertFalse(sent, "a request with a bad header value reached the transport")
+        }
+
+        @Test
         @DisplayName("bhvSerializationwire043 CRLF in filename throws IllegalArgumentException")
         fun multipartFilenameCRLFRejected() {
             for (bad in listOf("a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf")) {
@@ -2465,6 +2487,43 @@ class DefaultApiClientUnitTest {
                     pending.await().body
                 }
             assertEquals("{\"ok\":true}", body)
+        }
+
+        @Test
+        @DisplayName("bhvLifecycle037 closing with requests in flight releases the transport once, after the last of them")
+        fun bhvLifecycle037ClosingReleasesTheTransportOnceAfterTheLastRequest() {
+            val engine =
+                MockEngine { _ ->
+                    kotlinx.coroutines.delay(300)
+                    respond(
+                        content = "{}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val transport = io.ktor.client.HttpClient(engine)
+            val apiClient = DefaultApiClient(transport)
+            runBlocking {
+                val first =
+                    kotlinx.coroutines.async(kotlinx.coroutines.Dispatchers.Default) {
+                        apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                    }
+                val second =
+                    kotlinx.coroutines.async(kotlinx.coroutines.Dispatchers.Default) {
+                        apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                    }
+                kotlinx.coroutines.delay(100)
+                apiClient.close()
+                assertTrue(transport.coroutineContext[kotlinx.coroutines.Job]!!.isActive, "released while requests are in flight")
+                first.await()
+                second.await()
+            }
+            assertFalse(
+                transport.coroutineContext[kotlinx.coroutines.Job]!!.isActive,
+                "the transport was not released after the last request",
+            )
+            apiClient.close()
+            assertFalse(transport.coroutineContext[kotlinx.coroutines.Job]!!.isActive, "a second close reopened the transport")
         }
 
         @Test

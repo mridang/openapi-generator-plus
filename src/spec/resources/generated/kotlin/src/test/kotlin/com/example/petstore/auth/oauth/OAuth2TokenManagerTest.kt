@@ -17,6 +17,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
@@ -56,6 +57,92 @@ class OAuth2TokenManagerTest {
             lastHeaders = headers
             return responses.poll() ?: throw IllegalStateException("No responses queued")
         }
+    }
+
+    private class HangingApiClient : ApiClient {
+        var cancelled = false
+            private set
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean,
+        ): ApiHttpResponse =
+            try {
+                kotlinx.coroutines.awaitCancellation()
+            } finally {
+                cancelled = true
+            }
+    }
+
+    @Test
+    @DisplayName("bhvAuth010 the token request carries only its own headers, never the transport's defaults")
+    fun bhvAuth010TheTokenRequestCarriesOnlyItsOwnHeaders() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        runBlocking {
+            manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+        }
+        assertEquals(setOf("Content-Type", "Accept"), client.lastHeaders.keys)
+    }
+
+    @Test
+    @DisplayName("bhvAuth013 cancelling a call stops its token request and reports the cancellation without waiting for the endpoint")
+    fun bhvAuth013CancellingStopsTheTokenRequest() {
+        val client = HangingApiClient()
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+            runBlocking {
+                withTimeout(100) {
+                    manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+                }
+            }
+        }
+        assertTrue(client.cancelled, "the token request was not cancelled")
+    }
+
+    @Test
+    @DisplayName("bhvAuth026 when the refresh and the fallback grant both fail, the caller gets the fallback's error and its status")
+    fun bhvAuth026TheFallbackErrorReachesTheCaller() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok","refresh_token":"ref","expires_in":0}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        client.enqueue("""{"error":"invalid_client"}""", statusCode = 401)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params = mapOf("grant_type" to "client_credentials", "client_id" to "id", "client_secret" to "secret")
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+        val ex =
+            assertThrowsExactly(OAuth2ServerException::class.java) {
+                runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+            }
+        assertEquals(401, ex.statusCode)
+        assertEquals(3, client.bodies.size)
+    }
+
+    @Test
+    @DisplayName("bhvAuth030 concurrent sets and reads of the token state never observe a value that was not set")
+    fun bhvAuth030ConcurrentTokenStateIsNeverTorn() {
+        val manager = OAuth2TokenManager()
+        val allowed = (0 until 50).map { "tok-$it" }.toSet()
+        val seen =
+            runBlocking {
+                kotlinx.coroutines.coroutineScope {
+                    (0 until 50)
+                        .map { i ->
+                            async(kotlinx.coroutines.Dispatchers.Default) {
+                                manager.setAccessToken("tok-$i")
+                                manager.getAccessToken("https://auth.example.com/token", emptyMap())
+                            }
+                        }.awaitAll()
+                }
+            }
+        assertTrue(seen.all { it in allowed }, seen.toString())
     }
 
     @Test
