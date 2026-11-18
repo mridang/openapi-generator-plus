@@ -424,7 +424,7 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
     /// <c>[JsonConstructor]</c>.
     /// </summary>
     [System.Text.Json.Serialization.JsonConstructor]
-    public {{classname}}()
+    {{#vendorExtensions.x-allof-base}}protected {{/vendorExtensions.x-allof-base}}{{^vendorExtensions.x-allof-base}}public {{/vendorExtensions.x-allof-base}}{{classname}}()
     {
 {{#vendorExtensions.x-allof-child}}{{#vars}}{{#vendorExtensions.x-inherited}}{{#defaultValue}}
         this.{{name}} = {{{.}}};
@@ -439,7 +439,7 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
     /// serializer, so they are safe to trim.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
-    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}})
+    {{#vendorExtensions.x-allof-base}}protected {{/vendorExtensions.x-allof-base}}{{^vendorExtensions.x-allof-base}}public {{/vendorExtensions.x-allof-base}}{{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}})
     {
         {{#requiredVars}}
         this.{{name}} = {{nameInCamelCase}};
@@ -739,8 +739,10 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
 public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-base}}record {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 {
 {{#vendorExtensions.x-allof-base}}
-{{>allof_base_converter}}{{/vendorExtensions.x-allof-base}}{{#vendorExtensions.x-allof-child}}
-    public {{classname}}()
+{{>allof_base_converter}}{{/vendorExtensions.x-allof-base}}{{#vendorExtensions.x-allof-base}}{{^vendorExtensions.x-allof-child}}
+    protected {{classname}}() { }
+{{/vendorExtensions.x-allof-child}}{{/vendorExtensions.x-allof-base}}{{#vendorExtensions.x-allof-child}}
+    {{#vendorExtensions.x-allof-base}}protected {{/vendorExtensions.x-allof-base}}{{^vendorExtensions.x-allof-base}}public {{/vendorExtensions.x-allof-base}}{{classname}}()
     {
 {{#vendorExtensions.x-allof-child}}{{#vars}}{{#vendorExtensions.x-inherited}}{{#defaultValue}}
         this.{{name}} = {{{.}}};

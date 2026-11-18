@@ -78,7 +78,7 @@ public abstract record Vehicle : global::System.Text.Json.Serialization.IJsonOnD
     /// <c>[JsonConstructor]</c>.
     /// </summary>
     [System.Text.Json.Serialization.JsonConstructor]
-    public Vehicle() { }
+    protected Vehicle() { }
 
     /// <summary>
     /// Convenience constructor accepting every required property.
@@ -88,7 +88,7 @@ public abstract record Vehicle : global::System.Text.Json.Serialization.IJsonOnD
     /// serializer, so they are safe to trim.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
-    public Vehicle(string vehicleType, string plate)
+    protected Vehicle(string vehicleType, string plate)
     {
         this.VehicleType = vehicleType;
         this.Plate = plate;

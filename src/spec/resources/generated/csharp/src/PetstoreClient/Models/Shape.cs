@@ -74,7 +74,7 @@ public abstract record Shape : global::System.Text.Json.Serialization.IJsonOnDes
     /// <c>[JsonConstructor]</c>.
     /// </summary>
     [System.Text.Json.Serialization.JsonConstructor]
-    public Shape() { }
+    protected Shape() { }
 
     /// <summary>
     /// Convenience constructor accepting every required property.
@@ -84,7 +84,7 @@ public abstract record Shape : global::System.Text.Json.Serialization.IJsonOnDes
     /// serializer, so they are safe to trim.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
-    public Shape(string shapeType)
+    protected Shape(string shapeType)
     {
         this.ShapeType = shapeType;
     }

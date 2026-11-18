@@ -24,8 +24,12 @@ open class ApiException : OpenAPIException {
     /** The raw HTTP response body, if available. */
     val responseBody: String?
 
+    /** The deserialized error body as stored by the constructor, or null if not available. */
+    private val decodedErrorBody: Any?
+
     /** The deserialized error body, or null if not available. */
     open val errorBody: Any?
+        get() = decodedErrorBody
 
     /** The HTTP method of the request that failed (for example `GET`), or null when it is not known. */
     var requestMethod: String?
@@ -44,7 +48,7 @@ open class ApiException : OpenAPIException {
         this.statusCode = 0
         this.responseHeaders = null
         this.responseBody = null
-        this.errorBody = null
+        this.decodedErrorBody = null
         this.requestMethod = null
         this.requestPath = null
     }
@@ -71,7 +75,7 @@ open class ApiException : OpenAPIException {
         this.statusCode = 0
         this.responseHeaders = null
         this.responseBody = null
-        this.errorBody = null
+        this.decodedErrorBody = null
         this.requestMethod = requestMethod
         this.requestPath = requestPath
     }
@@ -91,7 +95,7 @@ open class ApiException : OpenAPIException {
         this.statusCode = statusCode
         this.responseHeaders = null
         this.responseBody = null
-        this.errorBody = null
+        this.decodedErrorBody = null
         this.requestMethod = null
         this.requestPath = null
     }
@@ -114,7 +118,7 @@ open class ApiException : OpenAPIException {
         this.statusCode = statusCode
         this.responseHeaders = responseHeaders?.toMap()
         this.responseBody = null
-        this.errorBody = null
+        this.decodedErrorBody = null
         this.requestMethod = null
         this.requestPath = null
     }
@@ -146,7 +150,7 @@ open class ApiException : OpenAPIException {
         // the caller after construction.
         this.responseHeaders = responseHeaders?.toMap()
         this.responseBody = responseBody
-        this.errorBody = errorBody
+        this.decodedErrorBody = errorBody
         this.requestMethod = requestMethod
         this.requestPath = requestPath
     }
