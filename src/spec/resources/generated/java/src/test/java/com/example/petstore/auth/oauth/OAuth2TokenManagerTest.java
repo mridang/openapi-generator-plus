@@ -9,6 +9,7 @@
 package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -17,16 +18,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
+import com.example.petstore.DefaultApiClient;
 import com.example.petstore.errors.OAuth2ServerException;
 import com.example.petstore.errors.OAuth2TokenException;
 import com.example.petstore.errors.OpenAPIException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 class OAuth2TokenManagerTest {
+
+  private static final String TOKEN_URL = "https://auth.example.com/token";
 
   private ApiClient fakeClient(String responseBody) {
     return fakeClient(200, responseBody);
@@ -1299,5 +1307,179 @@ class OAuth2TokenManagerTest {
     for (String token : tokens) {
       assertEquals("tok2", token, "all callers must observe the same refreshed token");
     }
+  }
+
+  @Test
+  void bhvAuth002InvalidatingBeforeAnyExchangeRaisesNothingAndSendsNoRequest() {
+    AtomicInteger calls = new AtomicInteger(0);
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(
+        (method, url, headers, body) -> {
+          calls.incrementAndGet();
+          return new ApiHttpResponse(200, "{}", Map.of());
+        });
+
+    manager.invalidateAccessToken();
+
+    assertEquals(0, calls.get());
+    assertNull(manager.getRefreshToken());
+  }
+
+  @Test
+  void bhvAuth013CancellingTheCallStopsTheTokenRequestWithoutWaitingForTheEndpoint()
+      throws Exception {
+    // A token endpoint that accepts the connection and never answers. The interrupted
+    // call reports the cancellation at once instead of waiting for the endpoint.
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      OAuth2TokenManager manager = new OAuth2TokenManager();
+      manager.setApiClient(new DefaultApiClient());
+      Map<String, String> params = new HashMap<>();
+      params.put("grant_type", "client_credentials");
+      String tokenUrl = "http://127.0.0.1:" + silent.getLocalPort() + "/token";
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThrowsExactly(
+            CancellationException.class, () -> manager.getAccessToken(tokenUrl, params));
+        assertFalse(manager.isExchanged());
+      } finally {
+        Thread.interrupted();
+      }
+    }
+  }
+
+  @Test
+  void bhvAuth017TokenBodyWritesASpaceAsPlusAndEncodesOtherReservedPunctuation() {
+    AtomicReference<String> sent = new AtomicReference<>();
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(
+        (method, url, headers, body) -> {
+          sent.set(String.valueOf(body));
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        });
+
+    manager.getAccessToken(TOKEN_URL, Map.of("q", "a b~-._*!/"));
+
+    assertEquals("q=a+b~-._%2A%21%2F", sent.get());
+  }
+
+  @Test
+  void bhvAuth026FailedRefreshAndFailedFallbackRaiseTheFallbackErrorWithItsStatus() {
+    // The first grant issues a refresh token and an access token that is already
+    // stale. The refresh is rejected, and so is the fallback grant: the caller must see
+    // the fallback grant's error with its own status code.
+    var responses =
+        new Object() {
+          int call = 0;
+        };
+    ApiClient client =
+        (method, url, headers, body) -> {
+          responses.call++;
+          if (responses.call == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":0}",
+                Map.of());
+          }
+          if (responses.call == 2) {
+            return new ApiHttpResponse(401, "{\"error\":\"invalid_grant\"}", Map.of());
+          }
+          return new ApiHttpResponse(
+              400,
+              "{\"error\":\"invalid_client\",\"error_description\":\"fallback rejected\"}",
+              Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+    manager.getAccessToken(TOKEN_URL, params);
+
+    OAuth2ServerException ex =
+        assertThrowsExactly(
+            OAuth2ServerException.class, () -> manager.getAccessToken(TOKEN_URL, params));
+
+    assertEquals(400, ex.getStatusCode());
+    assertEquals("invalid_client", ex.getCode());
+    assertEquals(3, responses.call);
+  }
+
+  @Test
+  void aFailedFirstExchangeLeavesNoSessionAndIsNotExchanged() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(fakeClient(400, "{\"error\":\"invalid_grant\"}"));
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "authorization_code");
+
+    assertThrowsExactly(
+        OAuth2ServerException.class, () -> manager.exchange(TOKEN_URL, params, Map.of()));
+
+    assertFalse(manager.isExchanged());
+    assertNull(manager.getRefreshToken());
+  }
+
+  @Test
+  void bhvErrors082MalformedOptionalFieldsAreDroppedAndAValidCodeIsKept() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(
+        fakeClient(
+            400, "{\"error\":\"invalid_grant\",\"error_description\":42,\"error_uri\":{\"x\":1}}"));
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    OAuth2ServerException ex =
+        assertThrowsExactly(
+            OAuth2ServerException.class, () -> manager.getAccessToken(TOKEN_URL, params));
+
+    assertEquals("invalid_grant", ex.getCode());
+    assertNull(ex.getDescription());
+    assertNull(ex.getUri());
+
+    OAuth2TokenManager numeric = new OAuth2TokenManager();
+    numeric.setApiClient(fakeClient(400, "{\"error\":7,\"error_description\":\"bad\"}"));
+
+    OAuth2ServerException nonString =
+        assertThrowsExactly(
+            OAuth2ServerException.class, () -> numeric.getAccessToken(TOKEN_URL, params));
+
+    assertNull(nonString.getCode());
+  }
+
+  @Test
+  void bhvMisc001ReplacingTheTokenWhileOthersReadIsRaceFree() throws InterruptedException {
+    // Every read gets one complete token that was set; the last one set is the one used.
+    String[] tokens = {"token-a", "token-b"};
+    Set<String> allowed = Set.of(tokens);
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setAccessToken(tokens[0]);
+    Map<String, String> params = Map.of("grant_type", "client_credentials");
+    ConcurrentLinkedQueue<String> unexpected = new ConcurrentLinkedQueue<>();
+
+    Thread writer =
+        new Thread(
+            () -> {
+              for (int i = 0; i < 2000; i++) {
+                manager.setAccessToken(tokens[i % 2]);
+              }
+            });
+    Thread reader =
+        new Thread(
+            () -> {
+              for (int i = 0; i < 2000; i++) {
+                String seen = manager.getAccessToken(TOKEN_URL, params);
+                if (!allowed.contains(seen)) {
+                  unexpected.add(seen);
+                }
+              }
+            });
+    writer.start();
+    reader.start();
+    writer.join();
+    reader.join();
+
+    assertTrue(unexpected.isEmpty(), unexpected.toString());
+    manager.setAccessToken("final-token");
+    assertEquals("final-token", manager.getAccessToken(TOKEN_URL, params));
   }
 }

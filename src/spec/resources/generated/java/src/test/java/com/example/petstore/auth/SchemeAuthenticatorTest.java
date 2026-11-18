@@ -300,6 +300,17 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
+    void bhvConfig025AnEmptyTokenVariableFailsConstructionNamingIt() {
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "")));
+      assertTrue(
+          java.util.Objects.requireNonNull(ex.getMessage()).contains(TOKEN_VARIABLE),
+          ex.getMessage());
+    }
+
+    @Test
     void missingCredentialNamesItsVariable() {
       IllegalArgumentException ex =
           assertThrows(

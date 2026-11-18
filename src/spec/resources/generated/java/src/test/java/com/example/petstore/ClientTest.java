@@ -17,9 +17,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.BearerAuthenticator;
+import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator;
 import com.example.petstore.errors.ApiException;
 import com.sun.net.httpserver.HttpServer;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ClientTest {
@@ -323,6 +327,38 @@ class ClientTest {
   void bhvLifecycle006BearerRejectsCrLfAndNonAscii() {
     for (String token : new String[] {"abc\r\ndef", "töken"}) {
       assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator("/api/v3", token));
+    }
+  }
+
+  @Test
+  void bhvAuth025ACredentialThatSendsRequestsIsGivenTheClientsTransport() throws Exception {
+    // The credential has no transport of its own: the token request it sends must go
+    // through the transport the client was built with, which reaches this server.
+    HttpServer tokenServer = HttpServer.create(new InetSocketAddress(0), 0);
+    tokenServer.createContext(
+        "/token",
+        exchange -> {
+          byte[] body =
+              "{\"access_token\":\"from-transport\",\"expires_in\":3600}"
+                  .getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    tokenServer.start();
+    try {
+      String tokenUrl = "http://127.0.0.1:" + tokenServer.getAddress().getPort() + "/token";
+      OAuth2ClientCredentialsAuthenticator credential =
+          new OAuth2ClientCredentialsAuthenticator(
+              "/api/v3", "client-id", "client-secret", tokenUrl, List.of());
+      try (Client client = new Client(credential, TransportOptions.builder().build())) {
+        assertNotNull(client);
+        assertEquals("Bearer from-transport", credential.getAuthHeaders().get("Authorization"));
+      }
+    } finally {
+      tokenServer.stop(0);
     }
   }
 }

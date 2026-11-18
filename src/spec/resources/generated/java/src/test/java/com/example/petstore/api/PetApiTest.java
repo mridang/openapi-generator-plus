@@ -1849,4 +1849,91 @@ class PetApiTest {
       assertThatThrownBy(() -> routed.getPetById(1L)).isExactlyInstanceOf(expected);
     }
   }
+
+  /** Records what an operation hands the transport: the per-call overrides and headers. */
+  private static final class PerCallRecording implements ApiClient {
+    final List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+    final List<Integer> sentTimeouts = new java.util.ArrayList<>();
+    final List<Integer> sentRetries = new java.util.ArrayList<>();
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @javax.annotation.Nullable Object body) {
+      return record(headers, null, null);
+    }
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @javax.annotation.Nullable Object body,
+        @javax.annotation.Nullable Integer timeoutMillis,
+        @javax.annotation.Nullable Integer maxRetries) {
+      return record(headers, timeoutMillis, maxRetries);
+    }
+
+    private ApiHttpResponse record(
+        Map<String, String> headers,
+        @javax.annotation.Nullable Integer timeoutMillis,
+        @javax.annotation.Nullable Integer maxRetries) {
+      sentHeaders.add(new HashMap<>(headers));
+      sentTimeouts.add(timeoutMillis);
+      sentRetries.add(maxRetries);
+      return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+    }
+  }
+
+  @Test
+  void bhvOptions054OperationAcceptsPerCallOptionsAlongsideItsArguments() throws Exception {
+    PerCallRecording recording = new PerCallRecording();
+    PetApi perCall =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    perCall.findPetsByStatus(
+        new FindPetsByStatusOptions()
+            .status("available")
+            .timeout(5000)
+            .maxRetries(1)
+            .headers(Map.of("X-Trace", "trace-1")));
+
+    assertThat(recording.sentTimeouts.get(0)).isEqualTo(5000);
+    assertThat(recording.sentRetries.get(0)).isEqualTo(1);
+    assertThat(recording.sentHeaders.get(0).get("X-Trace")).isEqualTo("trace-1");
+  }
+
+  @Test
+  void bhvOptions053PerCallOptionsTakeEffectOnThatCallOnly() throws Exception {
+    PerCallRecording recording = new PerCallRecording();
+    PetApi perCall =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    perCall.findPetsByStatus(
+        new FindPetsByStatusOptions()
+            .status("available")
+            .timeout(5000)
+            .maxRetries(1)
+            .headers(Map.of("X-Trace", "trace-1")));
+    perCall.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+
+    assertThat(recording.sentTimeouts.get(1)).isNull();
+    assertThat(recording.sentRetries.get(1)).isNull();
+    assertThat(recording.sentHeaders.get(1).get("X-Trace")).isNull();
+  }
+
+  @Test
+  void bhvOptions055CallWithoutPerCallOptionsLeavesTheClientSettingsInForce() throws Exception {
+    PerCallRecording recording = new PerCallRecording();
+    PetApi plain =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    plain.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+
+    assertThat(recording.sentTimeouts.get(0)).isNull();
+    assertThat(recording.sentRetries.get(0)).isNull();
+    assertThat(recording.sentHeaders.get(0).get("X-Trace")).isNull();
+  }
 }
