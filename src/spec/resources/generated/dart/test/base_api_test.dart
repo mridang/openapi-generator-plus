@@ -1008,6 +1008,31 @@ void main() {
     );
 
     test(
+      'bhv headers 030 a default header in another case replaces the negotiated one instead of being sent beside it',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final api = BaseApi(
+          apiClient: client,
+          config: ConfigurationBuilder()
+              .baseUrl('https://api.example.com')
+              .defaultHeader('accept', 'application/vnd.x+json')
+              .build(),
+        );
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          accepts: const ['application/json'],
+        );
+
+        final accepts = client.sentHeaders.single.keys
+            .where((k) => k.toLowerCase() == 'accept')
+            .toList();
+        expect(accepts, equals(['accept']));
+      },
+    );
+
+    test(
       'bhv operations 004 an explicit Accept header parameter beats the config default and the negotiated Accept',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3035,6 +3060,21 @@ void main() {
   });
 
   group('BaseApi 401 replay', () {
+    test('bhv retries 042 a timeout is not retried', () async {
+      final client = _ScriptedApiClient([
+        NetworkTimeoutException(message: 'Request timed out'),
+        _reply(200),
+      ], maxRetries: 2);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/test/echo'),
+        throwsA(isA<NetworkTimeoutException>()),
+      );
+      expect(api.waits, isEmpty);
+      expect(client.sentHeaders, hasLength(1));
+    });
+
     test(
       'bhv retries 001 a 401 drops the token and replays the request once with fresh headers',
       () async {

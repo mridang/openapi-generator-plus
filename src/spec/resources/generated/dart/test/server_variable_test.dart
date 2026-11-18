@@ -62,5 +62,18 @@ void main() {
         expect(variable.enumValues, isNot(contains('dev')));
       },
     );
+
+    test(
+      'bhv servers 024 a server variable freezes its enum values so they cannot be mutated',
+      () {
+        // The list is passed growable on purpose: the SDK must freeze it itself.
+        final variable = ServerVariable(
+          defaultValue: 'prod',
+          enumValues: ['prod', 'staging'],
+        );
+
+        expect(() => variable.enumValues.add('dev'), throwsUnsupportedError);
+      },
+    );
   });
 }

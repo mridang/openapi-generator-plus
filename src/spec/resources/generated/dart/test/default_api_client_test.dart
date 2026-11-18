@@ -42,6 +42,49 @@ void main() {
       },
     );
 
+    test(
+      'bhv transport 062 with verifySsl false a certificate that fails validation is accepted',
+      () async {
+        final transport = TransportOptionsBuilder().verifySsl(false).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpsUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+      },
+    );
+
+    test(
+      'bhv transport 066 a CA bundle file trusts every certificate it contains',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('ca_bundle_test');
+        try {
+          final bundle = File('${dir.path}/bundle.pem');
+          await bundle.writeAsBytes([
+            ...await File('test/fixtures/certs/server.pem').readAsBytes(),
+            ...await File(caCertPath).readAsBytes(),
+          ]);
+          final transport = TransportOptionsBuilder()
+              .verifySsl(true)
+              .caCertPath(bundle.path)
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+          final resp = await client.sendRequest(
+            'GET',
+            '$chasmHttpsUrl/test/echo',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(200));
+        } finally {
+          await dir.delete(recursive: true);
+        }
+      },
+    );
+
     test('bhv transport 017 makes HTTPS request with custom CA cert', () async {
       final transport = TransportOptionsBuilder()
           .verifySsl(true)
@@ -97,6 +140,23 @@ void main() {
 
     test(
       'bhv transport 059 authenticating proxy refuses a request without credentials',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .proxy('http://$proxyAuthHostPort')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmInternalHttpUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(407));
+      },
+    );
+
+    test(
+      'bhv transport 063 a proxy that requires credentials answers 407 when none are sent',
       () async {
         final transport = TransportOptionsBuilder()
             .proxy('http://$proxyAuthHostPort')

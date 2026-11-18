@@ -132,3 +132,5 @@ php | serializationparam104 | php has no content-cookie encoder: a cookie value 
 php | retries028 | PHP has no per-call cancellation (S7), so there is no caller to cancel during a retry wait; the budget that ends a wait is bhv retries 025
 swift | serializationparam106 | serializeStyled takes a non-optional style String, so a null style cannot be passed; the empty style that the SDK treats as unset is covered by bhv serializationparam 035
 swift | transport059 | the proxy setter raises on Linux (testSettingProxyRaisesOnLinux), so a request through the authenticating proxy runs only in the Apple-platform stub suite, the same reason as options034
+dart | transport060 | Dart has no cancellation handle: a Future cannot be cancelled and the SDK exposes no cancel token or abort trigger (the readme documents this), so a call is bounded only by its timeout, covered by bhv transport 024
+dart | transport061 | Dart uploads take a binary part as an in-memory Uint8List (abstract_api_client multipart), never a caller-owned stream or file handle, so the SDK holds no handle it could leave open
