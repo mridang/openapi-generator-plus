@@ -99,6 +99,12 @@ class GeneratedFileLayoutTest {
         "kotlin",
         "tracecontextutil",
         "Kotlin multiplatform: an expect declaration in src/main and its actual in src/jvmMain");
+    allow(
+        ALLOWED_DUPLICATE,
+        "csharp",
+        "client",
+        "the mock seam: IClient is the interface a fake implements, declared in its own file beside"
+            + " the Client class that implements it");
 
     for (String language : Arrays.asList("csharp", "dart", "elixir", "java", "php", "ruby", "swift")) {
       allow(
@@ -190,6 +196,32 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "python", "types", "python shared type aliases");
     allow(ALLOWED_EXTRA, "ruby", "types", "ruby shared type aliases for the RBS signatures");
     allow(ALLOWED_EXTRA, "ruby", "version", "ruby gem version constant");
+    for (String language : Arrays.asList("java", "kotlin", "php")) {
+      allow(
+          ALLOWED_EXTRA,
+          language,
+          "clientinterface",
+          "the mock seam: ClientInterface is the top-level client a test fakes, beside Client");
+      for (String group : Arrays.asList("pet", "problems", "store")) {
+        allow(
+            ALLOWED_EXTRA,
+            language,
+            group + "apiinterface",
+            "the mock seam: the interface of the " + group + " API group a test fakes");
+      }
+    }
+    allow(
+        ALLOWED_EXTRA,
+        "swift",
+        "clientprotocol",
+        "the mock seam: ClientProtocol is the top-level client a test fakes, beside Client");
+    for (String group : Arrays.asList("pet", "problems", "store")) {
+      allow(
+          ALLOWED_EXTRA,
+          "swift",
+          group + "apiprotocol",
+          "the mock seam: the protocol of the " + group + " API group a test fakes");
+    }
 
     allow(ALLOWED_FILE, "elixir", "lib/petstore_client/models/models_module.ex", "namespace module of the models");
     allow(ALLOWED_FILE, "go", "pkg/models/date_time.go", "go date-time model helper");
