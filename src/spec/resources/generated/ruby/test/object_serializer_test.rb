@@ -1596,12 +1596,6 @@ describe Petstore::Client::ObjectSerializer do
         Petstore::Client::ObjectSerializer.convert_to_type('PT1H', 'ISO8601::Duration')
       end
     end
-
-    it 'convert_to_type raises on malformed duration string' do
-      assert_raises(Petstore::Client::Errors::SerializationError) do
-        Petstore::Client::ObjectSerializer.convert_to_type('PT1H', 'ISO8601::Duration')
-      end
-    end
   end
 
   # ── Gap K — discriminator auto-injection on subtype serialize ──
@@ -1812,11 +1806,6 @@ describe Petstore::Client::ObjectSerializer do
     it 'decodes to the default when the wire leaves the field out' do
       item = Petstore::Client::ObjectSerializer.deserialize('{"priority":1}', 'StockItem')
       _(item.availability).must_equal(Petstore::Client::Models::Availability::ON_HOLD)
-    end
-
-    it 'keeps a value that is given' do
-      item = Petstore::Client::ObjectSerializer.deserialize('{"priority":1,"availability":"Sold"}', 'StockItem')
-      _(item.availability).must_equal(Petstore::Client::Models::Availability::SOLD)
     end
   end
 

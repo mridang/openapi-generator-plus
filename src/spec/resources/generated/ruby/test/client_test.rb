@@ -241,23 +241,6 @@ describe 'Client' do
     _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth]
   end
 
-  it 'is built from a scheme credential alone and takes its base URL from it' do
-    credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
-
-    client = Petstore::Client::Petstore.new(nil, nil, pet_store_basic: credential)
-
-    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
-  end
-
-  it 'takes its base URL from the authenticator before any scheme credential' do
-    default = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')
-    credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
-
-    client = Petstore::Client::Petstore.new(default, nil, pet_store_basic: credential)
-
-    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
-  end
-
   it 'bhv_lifecycle_030 the base URL comes from the authenticator first, then from the first scheme credential' do
     credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
     default = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')

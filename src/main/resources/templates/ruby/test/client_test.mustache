@@ -256,23 +256,6 @@ describe 'Client' do
     _(keywords).must_equal %i[{{#clientSchemes}}{{argName}}{{^-last}} {{/-last}}{{/clientSchemes}}]
   end
 
-  it 'is built from a scheme credential alone and takes its base URL from it' do
-    credential = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
-
-    client = {{moduleName}}::{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{argName}}{{/-first}}{{/clientSchemes}}: credential)
-
-    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
-  end
-
-  it 'takes its base URL from the authenticator before any scheme credential' do
-    default = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')
-    credential = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
-
-    client = {{moduleName}}::{{clientClassName}}.new(default, nil, {{#clientSchemes}}{{#-first}}{{argName}}{{/-first}}{{/clientSchemes}}: credential)
-
-    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
-  end
-
   it 'bhv_lifecycle_030 the base URL comes from the authenticator first, then from the first scheme credential' do
     credential = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
     default = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')

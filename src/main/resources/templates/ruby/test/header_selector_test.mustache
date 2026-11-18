@@ -195,18 +195,10 @@ describe {{moduleName}}::HeaderSelector do
       _(@header_selector.send(:select_accept_header, ['application/json'])).must_equal('application/json')
     end
 
-    it 'returns single non-JSON accept as-is' do
-      _(@header_selector.send(:select_accept_header, ['text/html'])).must_equal('text/html')
-    end
-
     it 'bhv_headers_011 joins media types in declaration order with ", "' do
       result = @header_selector.send(:select_accept_header, %w[image/jpeg image/png application/json])
       _(result).must_equal('image/jpeg, image/png, application/json')
     end
 
-    it 'does not reorder or apply quality weights' do
-      result = @header_selector.send(:select_accept_header, %w[text/html text/plain])
-      _(result).must_equal('text/html, text/plain')
-    end
   end
 end

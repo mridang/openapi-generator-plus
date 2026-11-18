@@ -613,20 +613,6 @@ describe Petstore::Client::DefaultApiClient do
       _(response).wont_be_nil
     end
 
-    it 'rejects multipart field name with CRLF (Gap W2)' do
-      chasm_url = ENV.fetch('CHASM_HTTP_URL')
-
-      client = Petstore::Client::DefaultApiClient.new
-      assert_raises(ArgumentError) do
-        client.send_request(
-          :POST,
-          "#{chasm_url}/test/echo",
-          {},
-          { "name\r\nInjected: yes" => 'value' }
-        )
-      end
-    end
-
     # W-new-2: multipart field-name validation must run on every branch (not
     # just binary). Confirm that even for a plain String value, a CR/LF in
     # the field name is rejected, preventing Content-Disposition smuggling.
