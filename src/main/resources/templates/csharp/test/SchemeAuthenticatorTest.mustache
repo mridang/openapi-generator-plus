@@ -295,6 +295,19 @@ public sealed class SchemeAuthenticatorTest
 {{/isApiKey}}
 
     [Fact]
+    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    {
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, null), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+    }
+
+    [Fact]
     public void BhvLangcsharp063{{className}}FailsWhenACredentialIsMissing()
     {
         foreach (string variable in {{className}}Variables)

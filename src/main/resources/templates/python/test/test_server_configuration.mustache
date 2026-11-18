@@ -315,6 +315,18 @@ class TestServerVariableOrderAndResolution:
 
         assert config.get_url() == 'https://prod.example.com/v2'
 
+    def test_bhv_misc_297_every_variable_in_a_multi_variable_url_is_replaced_when_the_url_is_built(self) -> None:
+        config = ServerConfiguration(
+            url_template='https://{env}.{region}.example.com/v{version}',
+            variables={
+                'env': ServerVariable(default_value='prod'),
+                'region': ServerVariable(default_value='eu'),
+                'version': ServerVariable(default_value='3'),
+            },
+        )
+
+        assert config.get_url({'region': 'us'}) == 'https://prod.us.example.com/v3'
+
 
 class TestFixedServerUrl:
     def test_bhv_misc_158_a_server_with_a_fixed_url_reports_that_url_unchanged(self) -> None:
