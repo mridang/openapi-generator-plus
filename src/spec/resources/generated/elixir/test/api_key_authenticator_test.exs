@@ -70,7 +70,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
-    test "a zero-argument function supplies the key for every request in every location" do
+    test "bhv auth 005 a zero-argument function supplies the key for every request in every location" do
       {:ok, counter} = Agent.start_link(fn -> 0 end)
 
       provider = fn ->
@@ -88,7 +88,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.cookie_params(cookie)["session"] == "k4"
     end
 
-    test "a key the function returns is checked like a passed one" do
+    test "bhv auth 009 a key the function returns is checked like a passed one" do
       auth =
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", fn -> "" end, :header)
 
@@ -160,7 +160,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert ApiKeyAuthenticator.query_params(query_auth) == %{"api_key" => "kéy"}
     end
 
-    test "rejects each invalid key with its own message" do
+    test "bhv auth 012 rejects each invalid key with its own message" do
       assert_raise ArgumentError,
                    "API key value for 'X-Api-Key' must not be empty",
                    fn ->

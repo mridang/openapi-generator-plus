@@ -672,4 +672,20 @@ defmodule PetstoreClient.ApiErrorTest do
     assert skills =~ "`OAuth2ServerError` (token endpoint answered 4xx or 5xx)"
     assert skills =~ "`OAuth2TokenError` (token endpoint answered unusably)"
   end
+
+  describe "errors without a response" do
+    test "bhv errors 074 an error that never received a response renders its text as the message alone" do
+      message =
+        PetstoreClient.Errors.ApiError.message(
+          PetstoreClient.Errors.ApiError.exception(status_code: 0, message: "connection reset")
+        )
+
+      assert message =~ "connection reset"
+      refute message =~ "HTTP status code"
+    end
+
+    test "bhv errors 084 an error built without an HTTP response reports a status code of zero" do
+      assert PetstoreClient.Errors.ApiError.exception(message: "boom").status_code == 0
+    end
+  end
 end

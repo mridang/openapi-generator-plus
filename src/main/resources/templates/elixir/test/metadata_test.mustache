@@ -84,7 +84,7 @@ defmodule {{moduleName}}.Models.MetadataTest do
       assert text =~ ~s(additional_properties: %{"customField" => "hello"})
     end
 
-    test "defines additional_properties function" do
+    test "bhv models 022 defines additional_properties function" do
       assert {{moduleName}}.Models.Metadata.additional_properties() == true
     end
   end
@@ -143,5 +143,79 @@ defmodule {{moduleName}}.Models.MetadataTest do
       assert String.trim(description) != ""
     end
   end
+
+  describe "model construction and copies" do
+    test "bhv models 013 a newly built model starts with an empty additional_properties map, never nil" do
+      metadata = %{{moduleName}}.Models.Metadata{}
+
+      assert metadata.additional_properties == %{}
+    end
+
+    test "bhv models 014 a built model cannot be reassigned, and an update leaves the original unchanged" do
+      metadata = %{{moduleName}}.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+
+      _updated = %{metadata | created_at: "2025-01-01T00:00:00+00:00"}
+
+      assert metadata.created_at == "2024-01-01T00:00:00+00:00"
+    end
+
+    test "bhv models 015 a changed copy keeps the additional properties of the original" do
+      metadata = %{{moduleName}}.Models.Metadata{additional_properties: %{"customField" => "hello"}}
+
+      copy = %{metadata | created_at: "2024-01-01T00:00:00+00:00"}
+
+      assert copy.additional_properties == %{"customField" => "hello"}
+    end
+
+    test "bhv models 016 a copy clears an optional field only when nil is set and keeps it when omitted" do
+      metadata = %{{moduleName}}.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+
+      cleared = %{metadata | created_at: nil}
+      kept = %{metadata | additional_properties: %{"x" => "1"}}
+
+      assert cleared.created_at == nil
+      assert kept.created_at == "2024-01-01T00:00:00+00:00"
+    end
+
+    test "bhv models 017 a copy can set an optional field and the original keeps its value" do
+      metadata = %{{moduleName}}.Models.Metadata{}
+
+      copy = %{metadata | created_at: "2024-01-01T00:00:00+00:00"}
+
+      assert copy.created_at == "2024-01-01T00:00:00+00:00"
+      assert metadata.created_at == nil
+    end
+
+    test "bhv models 019 models with a different value in any field compare unequal" do
+      first = %{{moduleName}}.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+      second = %{{moduleName}}.Models.Metadata{created_at: "2025-01-01T00:00:00+00:00"}
+      third = %{first | additional_properties: %{"x" => "1"}}
+
+      refute first == second
+      refute first == third
+    end
+
+    test "bhv models 020 models with the same field values compare equal and hash alike" do
+      first = %{{moduleName}}.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+      second = %{{moduleName}}.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+
+      assert first == second
+      assert :erlang.phash2(first) == :erlang.phash2(second)
+      assert MapSet.size(MapSet.new([first, second])) == 1
+    end
+
+    test "bhv models 023 undeclared keys named like SDK internals stay additional properties" do
+      metadata = {{moduleName}}.ObjectSerializer.deserialize(~s({"serialize":"hello"}), "Metadata")
+
+      assert metadata.additional_properties == %{"serialize" => "hello"}
+    end
+
+    test "bhv models 024 a newly built model leaves its optional properties unset" do
+      metadata = %{{moduleName}}.Models.Metadata{}
+
+      assert metadata.created_at == nil
+    end
+  end
+
 end
 {{/generateTests}}

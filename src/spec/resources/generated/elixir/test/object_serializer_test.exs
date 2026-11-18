@@ -294,7 +294,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert err.message == "Failed to convert to DateTime: " <> Exception.message(err.cause)
     end
 
-    test "a string where an object model is expected raises, naming the model" do
+    test "bhv serialization 028 a string where an object model is expected raises, naming the model" do
       err =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(~s("oops"), "Category")
@@ -650,7 +650,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
                ~s(Unknown enum value "bogus"; allowed values: ["available", "pending", "sold"])
     end
 
-    test "a standalone enum atom outside the declared values raises a SerializationError" do
+    test "bhv errors 076 a standalone enum atom outside the declared values raises a SerializationError" do
       item = %PetstoreClient.Models.StockItem{priority: :bogus}
 
       err =
@@ -1040,7 +1040,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "keeps a null element in an array of primitives" do
+    test "bhv serialization 065 keeps a null element in an array of primitives" do
       assert PetstoreClient.ObjectSerializer.deserialize(~s(["a",null]), "[String.t()]") == [
                "a",
                nil
@@ -1797,7 +1797,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "malformed temporal values" do
+    test "bhv serialization 045 malformed temporal values" do
       for {value, type} <- [
             {"not-a-date", "Date"},
             {"2024-13-45", "Date.t()"},
@@ -2259,9 +2259,37 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded.name == "a"
     end
 
-    test "the model exposes no public from_map_strict" do
+    test "bhv serialization 051 the model exposes no public from_map_strict" do
       refute function_exported?(PetstoreClient.Models.StrictTag, :from_map_strict, 1)
       assert PetstoreClient.Models.StrictTag.strict_properties?()
+    end
+  end
+
+  describe "numbers" do
+    test "bhv serialization 036 a whole-number float is written with a decimal point" do
+      assert PetstoreClient.ObjectSerializer.serialize(1.0) == "1.0"
+    end
+  end
+
+  describe "serialized text" do
+    test "bhv serialization 021 values with equal content compare equal and hash alike" do
+      first = %PetstoreClient.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+      second = %PetstoreClient.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
+      other = %PetstoreClient.Models.Metadata{created_at: "2025-01-01T00:00:00+00:00"}
+
+      assert first == second
+      assert :erlang.phash2(first) == :erlang.phash2(second)
+      refute first == other
+    end
+
+    test "bhv serialization 023 a payload that is not well-formed JSON fails with the SerializationError" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize("{\"id\": 1} trailing", "Category")
+      end
+    end
+
+    test "bhv serialization 061 slash, angle brackets and ampersand are written literally" do
+      assert PetstoreClient.ObjectSerializer.serialize("a/b<c>&d") == ~s("a/b<c>&d")
     end
   end
 end

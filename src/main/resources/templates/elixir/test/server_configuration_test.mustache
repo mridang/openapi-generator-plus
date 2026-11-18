@@ -234,5 +234,33 @@ defmodule {{moduleName}}.ServerConfigurationTest do
                "returning a `ServerConfiguration`, plus a `{{moduleName}}.Servers.all/0` list."
     end
   end
+
+  describe "copies and the generated server list" do
+    test "bhv servers 025 changing the variables map after building leaves the configuration unchanged" do
+      variables = %{"env" => %ServerVariable{default_value: "prod"}}
+      config = %ServerConfiguration{url_template: "https://{env}.api.example.com", variables: variables}
+
+      _changed = Map.put(variables, "env", %ServerVariable{default_value: "dev"})
+
+      assert ServerConfiguration.url(config) == "https://prod.api.example.com"
+    end
+
+    test "bhv servers 026 changing the allowed values list after building leaves them unchanged" do
+      enum_values = ["prod", "staging"]
+      variable = %ServerVariable{default_value: "prod", enum_values: enum_values}
+
+      _changed = List.delete(enum_values, "staging")
+
+      assert variable.enum_values == ["prod", "staging"]
+    end
+
+    test "bhv servers 028 the generated server list cannot be changed after creation" do
+      servers = {{moduleName}}.Servers.all()
+
+      assert Enum.all?(servers, &match?(%ServerConfiguration{}, &1))
+      assert {{moduleName}}.Servers.all() == servers
+    end
+  end
+
 end
 {{/generateTests}}

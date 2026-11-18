@@ -1032,7 +1032,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
-  test "a 307 over plain HTTP replays the body to the target" do
+  test "bhv redirects 038 a 307 over plain HTTP replays the body to the target" do
     # Sanity check: the guard is strictly HTTPS->HTTP. Pure-HTTP 307 chains
     # must continue to round-trip the body untouched.
     {target_url, _} = start_header_capture_server()
@@ -1249,7 +1249,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute err.message =~ "SECRET"
   end
 
-  test "redact_url drops the query, userinfo and fragment" do
+  test "bhv errors 077 redact_url drops the query, userinfo and fragment" do
     assert PetstoreClient.DefaultApiClient.redact_url(
              "https://u:p@h.example/pet?api_key=SECRET#frag"
            ) ==
@@ -1530,7 +1530,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   # `:timeout` option: the idle timer and the connect handshake. Leaving one of
   # them at the library's own default is what makes the same expired budget
   # surface under two different types.
-  test "the timeout option arms every deadline the stack has" do
+  test "bhv transport 071 the timeout option arms every deadline the stack has" do
     transport = PetstoreClient.TransportOptions.new(timeout: 3_000)
     opts = PetstoreClient.DefaultApiClient.request_options(transport)
 
@@ -1792,7 +1792,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
   # A body that carries the gzip magic bytes but is truncated is also a
   # response that arrived but cannot be used.
-  test "corrupt gzip body with the magic bytes raises ApiError with the real status" do
+  test "bhv transport 073 corrupt gzip body with the magic bytes raises ApiError with the real status" do
     base_url =
       start_server(
         503,
@@ -2131,7 +2131,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   end
 
   describe "the ApiClient behaviour" do
-    test "close/1 is optional, so a minimal custom transport need not implement it" do
+    test "bhv lifecycle 038 close/1 is optional, so a minimal custom transport need not implement it" do
       optional = PetstoreClient.ApiClient.behaviour_info(:optional_callbacks)
 
       assert {:close, 1} in optional

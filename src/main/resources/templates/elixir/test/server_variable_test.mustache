@@ -57,5 +57,15 @@ defmodule {{moduleName}}.ServerVariableTest do
       end
     end
   end
+
+  describe "equality" do
+    test "bhv servers 027 two variables with the same default, description and values are equal" do
+      first = %ServerVariable{default_value: "prod", description: "env", enum_values: ["prod"]}
+      second = %ServerVariable{default_value: "prod", description: "env", enum_values: ["prod"]}
+
+      assert first == second
+    end
+  end
+
 end
 {{/generateTests}}

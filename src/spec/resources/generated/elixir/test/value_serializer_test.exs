@@ -681,7 +681,7 @@ defmodule PetstoreClient.ValueSerializerTest do
              ) == "blue,red"
     end
 
-    test "a set expands like an array for the unstyled and header paths" do
+    test "bhv serialization 013 a set expands like an array for the unstyled and header paths" do
       set = MapSet.new(["red", "blue"])
 
       assert PetstoreClient.ValueSerializer.serialize(set, :query, "array",
@@ -693,7 +693,7 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "object-valued parameters (D47)" do
-    test "a model is written by its wire names in declaration order, in every style" do
+    test "bhv serialization 017 a model is written by its wire names in declaration order, in every style" do
       criteria = %PetstoreClient.Models.PetCriteria{breed: "lab", min_age: 3}
 
       assert PetstoreClient.ValueSerializer.serialize_styled(
@@ -733,7 +733,7 @@ defmodule PetstoreClient.ValueSerializerTest do
                %{"criteria[breed]" => "lab", "criteria[min_age]" => "3"}
     end
 
-    test "an unset property is left out and a map is written in key order" do
+    test "bhv serialization 019 an unset property is left out and a map is written in key order" do
       assert PetstoreClient.ValueSerializer.object_pairs(%PetstoreClient.Models.PetCriteria{
                breed: "lab"
              }) == [{"breed", "lab"}]

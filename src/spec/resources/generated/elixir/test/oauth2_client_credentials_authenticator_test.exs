@@ -45,7 +45,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
   end
 
   describe "OAuth2ClientCredentialsAuthenticator" do
-    test "nil client credentials are read from the environment and a missing one fails at construction" do
+    test "bhv auth 004 nil client credentials are read from the environment and a missing one fails at construction" do
       id = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID"
       secret = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_SECRET"
 
