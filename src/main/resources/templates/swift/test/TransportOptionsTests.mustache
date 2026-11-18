@@ -518,4 +518,29 @@ import FoundationNetworking
         #expect(proxied.proxy?.absoluteString == "http://proxy.example.com:8080")
         #expect(try TransportOptionsBuilder().build().proxy == nil)
     }
+
+    /* A caller HTTP session cannot be combined with a transport setting the session cannot take; the build refuses it. */
+    @Test func testBhvMisc034ACallerSessionAndATransportSettingAreRefusedTogether() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try TransportOptionsBuilder()
+                .session(URLSession(configuration: .ephemeral))
+                .proxy("http://127.0.0.1:8080")
+                .build()
+        }
+    }
+
+    /* Disabled TLS verification with a caller session is refused at build, and the error names the setting. */
+    @Test func testBhvMisc042DisabledVerificationWithASessionIsRefusedNamingTheSetting() {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try TransportOptionsBuilder()
+                .session(URLSession(configuration: .ephemeral))
+                .verifySsl(false)
+                .build()
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected an invalidArgument error, got \(String(describing: error))")
+            return
+        }
+        #expect(message.contains("verifySsl(false)"))
+    }
 }
