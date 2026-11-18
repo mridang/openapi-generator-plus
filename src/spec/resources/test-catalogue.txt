@@ -2100,6 +2100,78 @@ langphp011 | A model container leaf given as an object deserializes into the mod
 langphp012 | A byte field rejects base64 that is not strict RFC 4648 text.
 langphp013 | A byte list element rejects base64 that is not strict RFC 4648 text.
 ||||||| cef6fbad1
+langcsharp001 | Constructing a model with an unknown enum value keeps that value without throwing
+langcsharp002 | Malformed JSON raises the library serialization error and no native parser error escapes
+langcsharp003 | A null in a free-form field stays null after decoding
+langcsharp004 | An optional field on a model body accepts an explicit null value
+langcsharp005 | Several unknown properties in a body are skipped without error
+langcsharp006 | An unknown nested object inside a body is skipped without error
+langcsharp007 | A duration round trip keeps both its day and its time components
+langcsharp008 | A duration with a nanosecond fraction parses to the exact amount
+langcsharp009 | A duration survives a full round trip through the object serializer
+langcsharp010 | A duration beyond the protobuf bound is refused as a serialization error
+langcsharp011 | A malformed uuid inside a model fails decoding with the serialization error
+langcsharp012 | A string enum with non-lowercase wire values deserializes from its exact wire casing
+langcsharp013 | A hyphenated string enum wire value deserializes to its member
+langcsharp014 | An array of integer arrays round trips to the same values
+langcsharp015 | The string form of a model shows collection and byte contents rather than identities
+langcsharp016 | An inline enum member keeps its exact wire value through a round trip
+langcsharp017 | A bare number read in exponent notation is written back in plain notation
+langcsharp018 | A duplicate key inside a nested object keeps the last value
+langcsharp019 | A copy with changed fields keeps every other field of the source model
+langcsharp020 | A copy of a model keeps its concrete type when held through its base type
+langjava014 | An empty service token is rejected when the authenticator is built, before any request is made.
+langjava015 | An empty explicit argument counts as not passed, so the value from the environment is used. | multi
+langjava016 | A control character in a credential read from the environment is rejected when the authenticator is built. | multi
+langjava017 | Each wrapper authenticator emits its key at the location its security scheme declares.
+langjava018 | Each wrapper kind reads only its own environment variable, so one kind never sees another kind's value.
+langjava019 | JSON request content is written literally, with its characters such as angle brackets and ampersands left as they are.
+langjava020 | A JSON number of the wrong kind for its field, such as a float for an integer field, is refused naming the value it saw. | multi
+langjava021 | A whole number beyond the exact range of a double still decodes exactly into an integer field.
+langjava022 | An unset optional array field is left out of the serialized JSON rather than sent as null.
+langjava023 | An empty optional array in the JSON decodes to an unset field.
+langjava024 | A duration keeps all nine fractional digits when its nanoseconds need them.
+langjava025 | A duration drops the trailing zeros of its fractional seconds.
+langjava026 | A duration given a JSON array is refused with a serialization error.
+langjava027 | A structural dump of a container shows its elements by content, not by identity.
+langjava028 | Additional properties are written through the builder, and the built object has no setter for them.
+langjava029 | A builder adds, bulk-adds, removes and replaces additional properties.
+langjava030 | A builder seeded from an existing object copies it with one property changed and every other kept.
+langjava031 | Changing a builder after build leaves the object it built unchanged.
+langjava032 | A collection property is copied on construction and exposed as an unmodifiable view.
+langjava033 | A builder refuses to build without a required property and names it in the error.
+langjava034 | Rebuilding from an existing object changes one property and keeps every other property.
+langjava035 | A property with a default keeps that default until it is set.
+langjava036 | The license name and URL in the project manifest come from the same license choice.
+langjava037 | Every dependency a generated test imports is declared in the project manifest.
+langjava038 | The README carries the shared sections in the shared order.
+langjava039 | The README's schema constraints section says what the server validates and that unique items are not sorted.
+langjava040 | The README's retries section documents the retry option and does not say requests are never retried.
+langjava041 | The README says every operation takes an options object.
+langjava042 | The README names the environment variable of every credential.
+langjava043 | Without per-call settings a call uses the plain send path with no overrides applied.
+langjava044 | A response body with no charset is decoded as UTF-8.
+langjava045 | An unknown response charset falls back to UTF-8 decoding.
+langjava046 | An optional array query parameter is serialized in the style its specification declares.
+langjava047 | The error handling example in the skill ends with the API exception arm.
+langjava048 | The configuration section of the skill has the shared subsections in the shared order.
+langjava049 | The skill documents the environment variable of every credential.
+langjava050 | Each scheme authenticator prints its own name with its secret redacted.
+langjava051 | The client routes each scheme's credential only to the operations that require that scheme.
+langjava052 | A tilde in a path parameter is left unencoded in the request path.
+langjava053 | A credential made only of control characters, such as a newline, reports as empty, not as a control-character failure. | multi
+langjava054 | A token provider's result that already carries the bearer prefix keeps it exactly once.
+langjava055 | An equals sign in a path value is written unencoded.
+langjava056 | A tilde in each element of a styled array value is left unencoded.
+langjava057 | The project manifest declares a description.
+langjava058 | A composed schema with no matching branch throws a deserialization error.
+langjava059 | The configuration's string form omits the call hook.
+langjava060 | A generated PKCE verifier is 43 unreserved characters and differs on each call.
+langjava061 | A failed first token exchange leaves no session behind and is not repeated.
+langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
+langjava063 | A 3xx response with an unusable or missing Location is returned to the caller untouched.
+langjava064 | A null path parameter beside a null required options object is the first violation reported.
+||||||| d4a0dc587
 langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
 langnode002 | An error constructor accepts an optional cause
 langnode003 | Reading an error's message property returns the rendered text
@@ -2240,6 +2312,19 @@ langnode046 | The generated README lists the features that are not generated
 langnode047 | The generated docs cancel through the per-call signal only
 langnode048 | The generated docs show how to stub the transport with a canned fetch
 langnode049 | An empty API key is rejected at construction
+langphp014 | A GET request is sent through the PSR-18 client and its response is returned to the caller.
+langphp015 | A JSON body is sent with a POST request through the PSR-18 client with its content type set.
+langphp016 | Response header names are returned lowercased whatever case the server sent them in.
+langphp017 | No request-id header is sent when request ids are disabled.
+langphp018 | A relative redirect Location is resolved against the request URL per RFC 3986.
+langphp019 | A 302 redirect that downgrades https to http with a body is followed as a GET.
+langphp020 | A PUT with a body that a 301 downgrades from https to http is refused rather than replayed.
+langphp021 | A transport failure raises the SDK network error type.
+langphp022 | A stream part is sent as a file part carrying the bytes of the stream.
+langphp023 | A raw bytes multipart part reuses its field name as filename with an octet-stream type.
+langphp024 | Primitive multipart parts are plain text and only model parts are sent as JSON.
+langphp025 | An allowReserved query value is sent exactly as supplied with no re-encoding.
+||||||| a8a8650bb
 langnode050 | A discriminated oneOf variant with a wrong-typed field is rejected
 langnode051 | An anyOf composite is a constructable class
 langnode052 | An anyOf variant with a wrong-typed field is rejected
@@ -2281,3 +2366,4 @@ langnode087 | A constructed instance exposes its undeclared keys
 langnode088 | The undeclared-keys map is typed like an index signature
 langnode089 | The undeclared-keys map is not serialised as a data key
 langnode090 | The synchronous header getter throws rather than returning unauthenticated headers
+langnode091 | setAccessToken rejects a token containing a forbidden character

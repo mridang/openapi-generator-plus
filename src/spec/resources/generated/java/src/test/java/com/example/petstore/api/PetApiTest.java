@@ -77,7 +77,7 @@ class PetApiTest {
   }
 
   @Test
-  void testSchemeAuthenticatorsPrintTheirOwnNameWithTheSecretRedacted() {
+  void bhvLangjava050TestSchemeAuthenticatorsPrintTheirOwnNameWithTheSecretRedacted() {
     String baseUrl = ChasmContainer.getBaseUrl();
     assertThat(bearerAuth.toString())
         .isEqualTo("PetStoreBearerAuthenticator(host=" + baseUrl + ", token=***)");
@@ -551,7 +551,8 @@ class PetApiTest {
   }
 
   @Test
-  void testTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt() throws Exception {
+  void bhvLangjava051TestTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt()
+      throws Exception {
     List<Map<String, String>> sent = new java.util.ArrayList<>();
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -707,7 +708,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetByNameTildeInPathIsNotOverEncoded() throws Exception {
+  void bhvLangjava052GetPetByNameTildeInPathIsNotOverEncoded() throws Exception {
     // RFC 3986 unreserved '~' must survive in a path segment as a literal
     // tilde, never percent-encoded to %7E.
     CapturingApiClient capturing = new CapturingApiClient();
@@ -944,7 +945,7 @@ class PetApiTest {
   /* A null path parameter beside a null required Options object is the
    * violation under test; NullAway forbids it by design. */
   @SuppressWarnings("NullAway")
-  void nullPathParameterIsReportedBeforeANullRequiredOptions() {
+  void bhvLangjava064NullPathParameterIsReportedBeforeANullRequiredOptions() {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
