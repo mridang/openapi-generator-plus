@@ -62,6 +62,10 @@ class TestSchemeAuthenticatorEnvironment:
 
         assert _scheme_class(module, name)(HOST) is not None
 
+    def test_bhv_misc_073_a_wrapper_class_exists_for_every_declared_scheme(self) -> None:
+        for module, name, _variables, _bearer, _basic, _api_key in SCHEMES:
+            assert _scheme_class(module, name) is not None
+
     def test_bhv_authscheme_002_explicit_arguments_need_no_environment(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str,
         variables: List[Tuple[str, str]], bearer: bool, basic: bool, api_key: bool,

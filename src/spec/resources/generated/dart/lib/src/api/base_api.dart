@@ -54,7 +54,9 @@ class BaseApi {
        config = config ?? Configuration.defaultConfiguration(),
        _headerSelector = HeaderSelector(),
        _authenticator = authenticator,
-       _schemes = schemeAuthenticators ?? const {} {
+       _schemes = Map<String, Authenticator>.of(
+         schemeAuthenticators ?? const {},
+       ) {
     /* A scheme credential that sends HTTP requests of its own (token exchange,
        discovery) is given this API's transport as soon as the client is built,
        so it never reaches a request without one. */

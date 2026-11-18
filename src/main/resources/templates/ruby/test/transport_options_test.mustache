@@ -6,6 +6,10 @@ require '{{gemName}}'
 describe {{moduleName}}::TransportOptions do
   parallelize_me!
 
+  it 'bhv_misc_051 an unknown option is refused by the builder rather than ignored' do
+    _ { {{moduleName}}::TransportOptions.builder.no_such_option(1) }.must_raise NoMethodError
+  end
+
   it 'bhv_options_043 verify_ssl defaults to true' do
     opts = {{moduleName}}::TransportOptions.builder.build
     _(opts.verify_ssl).must_equal true
@@ -505,4 +509,11 @@ describe {{moduleName}}::TransportOptions, 'builder entry point and printable fo
     _({{moduleName}}::TransportOptions.builder.proxy('http://proxy.example.com:8080').build.proxy).must_equal 'http://proxy.example.com:8080'
     _({{moduleName}}::TransportOptions.builder.build.proxy).must_be_nil
   end
+
+  it 'bhv_misc_134 a zero timeout is refused with an argument error when the configuration is built' do
+    _(proc {
+      {{moduleName}}::TransportOptions.builder.timeout(0).build
+    }).must_raise ArgumentError
+  end
+
 end

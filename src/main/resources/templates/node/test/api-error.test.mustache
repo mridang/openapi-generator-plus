@@ -850,3 +850,34 @@ describe('ApiError typed errors', () => {
 {{/errorSchemas}}
 {{/hasErrorSchemas}}
 });
+
+describe('ApiError misc behaviours', () => {
+  test('bhv misc 015 a typed view of an error body that is valid JSON but not an object is refused with a SerializationError', () => {
+    const err = ApiError.fromResponse(400, {}, '[1,2]');
+    expect(() => err.getTypedErrorBody(Category)).toThrow(SerializationError);
+  });
+
+  test('bhv misc 016 the rendered error body is capped and states how many bytes were omitted', () => {
+    const rendered = new ApiError(500, 'boom', null, 'x'.repeat(5000), null).toString();
+    expect(rendered).toContain('more bytes');
+    expect(rendered.length).toBeLessThan(2000);
+  });
+
+  test('bhv misc 018 a token error with a non-JSON body exposes the status, no code and the raw text', () => {
+    const err = new OAuth2ServerError(500, null, null, null, 'upstream exploded');
+    expect(err.statusCode).toBe(500);
+    expect(err.code).toBeNull();
+    expect(err.rawBody).toBe('upstream exploded');
+  });
+
+  test('bhv misc 022 a server error is an instance of the SDK root error type and the server class', () => {
+    const err = ApiError.fromResponse(503, {}, '{}');
+    expect(err).toBeInstanceOf({{errorPrefix}}Error);
+    expect(err).toBeInstanceOf(ServerError);
+  });
+
+  test('bhv misc 023 an unmapped 5xx is the generic server error and an unmapped other status the base error', () => {
+    expect(ApiError.fromResponse(599, {}, null)).toBeInstanceOf(ServerError);
+    expect(ApiError.fromResponse(399, {}, null).constructor).toBe(ApiError);
+  });
+});

@@ -288,6 +288,17 @@ describe('StoreApi response shapes', () => {
     }
   });
 
+  test('bhv misc 048 an undeclared success status decodes as the union return type', async () => {
+    const { api: mockApi, close } = await createMockServer(202, 'application/json', '{"reservationId":7,"quantity":2}');
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(7);
+    } finally {
+      close();
+    }
+  });
+
   test('bhv operations 154 a 201 body that only fits the 200 schema is refused', async () => {
     const { api: mockApi, close } = await createMockServer(201, 'application/json', '{"reservationId":31,"quantity":4}');
     try {
@@ -299,6 +310,49 @@ describe('StoreApi response shapes', () => {
 
   test('bhv unions 036 the status code selects the declared variant, so a 200 body of the 201 shape is refused', async () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}');
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv misc 079 a 200 response decodes as the Reservation the 200 status declares', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      'application/json',
+      '{"reservationId":31,"quantity":4}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(31);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv misc 079 a 201 response decodes as the ReservationReceipt the 201 status declares', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      201,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+      expect((result as ReservationReceipt).receiptCode).toBe('R-1');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv misc 080 a 200 body that only fits the 201 schema is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
     try {
       await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
     } finally {
@@ -682,5 +736,17 @@ describe('StoreApi operation without parameters or security', () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe('StoreApi misc behaviours', () => {
+  test('bhv misc 011 an operation with no parameters accepts the call settings', async () => {
+    const result = await api.getInventory({ timeout: 5000, maxRetries: 0, headers: { 'X-A': '1' } });
+    expect(result).toBeDefined();
+  });
+
+  test('bhv misc 013 an operation with no parameters can be called with no argument and returns its result', async () => {
+    const result = await api.getInventory();
+    expect(result).toBeDefined();
   });
 });

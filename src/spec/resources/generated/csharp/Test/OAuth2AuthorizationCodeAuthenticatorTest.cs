@@ -46,6 +46,19 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         }
     }
 
+    private sealed class FailingApiClient(Exception failure) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            throw failure;
+        }
+    }
+
     private static readonly string[] Scopes = new[] { "read", "write" };
 
     private static OAuth2AuthorizationCodeAuthenticator CreateAuthenticator()
@@ -394,6 +407,19 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
         );
         Assert.Equal("Must call ExchangeCodeAsync() before making API requests", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvMisc028ATransportFailureDuringTheCodeExchangeReachesTheCallerUnchanged()
+    {
+        var failure = new NetworkException("connection reset");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(new FailingApiClient(failure));
+
+        var ex = await Assert.ThrowsAsync<NetworkException>(() =>
+            auth.ExchangeCodeAsync("auth-code-xyz")
+        );
+        Assert.Same(failure, ex);
     }
 
     [Fact]
@@ -790,5 +816,37 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             client.LastBody!,
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public void BhvMisc062TheDeclaredScopesReachTheAuthorizationUrl()
+    {
+        string url = CreateAuthenticator().BuildAuthorizationUrl().OriginalString;
+
+        Assert.Contains("scope=read%20write", url, StringComparison.Ordinal);
+    }
+
+    private static async Task<string> ExchangedVerifierAsync()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        _ = auth.BuildAuthorizationUrl("s");
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        return System.Web.HttpUtility.ParseQueryString(client.LastBody!)["code_verifier"]!;
+    }
+
+    [Fact]
+    public async Task BhvMisc077AGeneratedPkceVerifierIs43UnreservedCharactersAndDiffersPerCall()
+    {
+        string first = await ExchangedVerifierAsync();
+        string second = await ExchangedVerifierAsync();
+
+        Assert.Equal(43, first.Length);
+        Assert.Matches("^[A-Za-z0-9._~-]{43}$", first);
+        Assert.NotEqual(first, second);
     }
 }

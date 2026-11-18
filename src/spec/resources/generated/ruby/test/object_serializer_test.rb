@@ -431,6 +431,38 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.stringify(9_007_199_254_740_993)).must_equal('9007199254740993')
     end
 
+    it 'bhv_misc_086 a container element that holds JSON text is taken as its own value and never decoded a second time' do
+      body = JSON.generate(['"2024-01-15T10:00:00Z"'])
+      _(proc {
+        Petstore::Client::ObjectSerializer.deserialize(body, 'Array<Time>')
+      }).must_raise(Petstore::Client::Errors::SerializationError)
+    end
+
+    it 'bhv_misc_087 a decimal in a loosely built body is written as a bare JSON number' do
+      _(Petstore::Client::ObjectSerializer.serialize({ 'amount' => BigDecimal('1.5') })).must_equal('{"amount":1.5}')
+    end
+
+    it 'bhv_misc_094 a free-form JSON object is written with its members and their values unchanged' do
+      payload = { 'ownerId' => 198_772, 'at' => '2024-01-15T10:30:00Z' }
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(payload))).must_equal(payload)
+    end
+
+    it 'bhv_misc_102 a binary field keeps exactly the bytes it was given through construction and copying' do
+      bytes = "\x00\xFF\x10".b
+      model = Petstore::Client::Models::TestNullableModel.new(kept: bytes)
+      copy = Petstore::Client::Models::TestNullableModel.new(**model.to_h)
+      _(copy.kept).must_equal(bytes)
+    end
+
+    it 'bhv_misc_103 rejecting undeclared keys on one strict model leaves a plain model accepting them' do
+      model = Petstore::Client::ObjectSerializer.deserialize('{"rogue":"x"}', 'Metadata')
+      _(model).must_be_instance_of(Petstore::Client::Models::Metadata)
+    end
+
+    it 'bhv_misc_104 a string declared with the email format decodes to the plain string without validation' do
+      _(Petstore::Client::ObjectSerializer.send(:apply_format_on_deserialize, 'not an email', 'email')).must_equal('not an email')
+    end
+
     it 'bhv_misc_089 a date-time is written in its canonical form in a field, optional, list, set or map' do
       t = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
@@ -2639,5 +2671,113 @@ describe Petstore::Client::ObjectSerializer, 'schema defaults, nullable values, 
               Petstore::Client::Models::TestStrictModel.singleton_methods(false)
 
     _(members.grep(/unknown|undeclared|strict/i)).must_be_empty
+  end
+
+  it 'bhv_misc_106 keeps a null element in its position when the body is serialized' do
+    _(Petstore::Client::ObjectSerializer.serialize(['a', nil, 'b'])).must_equal('["a",null,"b"]')
+  end
+
+  it 'bhv_misc_109 validates a nested object with the same rules that apply to the outer object' do
+    _(proc {
+      Petstore::Client::ObjectSerializer.deserialize('{"name":"x","photoUrls":[],"category":{"id":"bad"}}', 'Pet')
+    }).must_raise Petstore::Client::Errors::SerializationError
+  end
+
+  it 'bhv_misc_110 refuses a list of dates with a type error when an element is not a calendar date' do
+    _(proc {
+      Petstore::Client::ObjectSerializer.convert_to_type(['2020-01-01', 'nope'], 'Array<Date>')
+    }).must_raise Petstore::Client::Errors::SerializationError
+  end
+
+  it 'bhv_misc_111 writes a unique set of strings in code point order and numbers in numeric order' do
+    _(Petstore::Client::ObjectSerializer.serialize(Set['b', 'B', 'a'])).must_equal('["B","a","b"]')
+    _(Petstore::Client::ObjectSerializer.serialize(Set[10, 9, 2])).must_equal('[2,9,10]')
+  end
+
+  it 'bhv_misc_112 decodes a unique array keeping one copy of each repeated element' do
+    result = Petstore::Client::ObjectSerializer.convert_to_type(%w[a b a], 'Set<String>')
+
+    _(result.to_a.sort).must_equal(%w[a b])
+  end
+
+  it 'bhv_misc_113 shows the contents of a byte field in the string form rather than its type name' do
+    model = Petstore::Client::Models::TestFormatModel.new(blob: 'raw', note: 'y')
+
+    _(model.to_s).must_include 'raw'
+    _(model.to_s).wont_include 'String'
+  end
+
+  it 'bhv_misc_115 serializes a bare string value as a quoted JSON string' do
+    _(Petstore::Client::ObjectSerializer.serialize('abc')).must_equal('"abc"')
+  end
+
+  it 'bhv_misc_117 serializes an absent value as the JSON literal null' do
+    _(Petstore::Client::ObjectSerializer.serialize(nil)).must_equal('null')
+  end
+
+  it 'bhv_misc_118 decodes the exact-case value when a payload carries a differently cased duplicate' do
+    model = Petstore::Client::ObjectSerializer.deserialize('{"Retries":1,"retries":2}', 'TestDefaultsModel')
+
+    _(model.retries).must_equal 2
+  end
+
+  it 'bhv_misc_119 treats two keys that differ only by an escape sequence as one key, last value wins' do
+    model = Petstore::Client::ObjectSerializer.deserialize('{"retries":1,"\\u0072etries":2}', 'TestDefaultsModel')
+
+    _(model.retries).must_equal 2
+  end
+
+  it 'bhv_misc_121 writes an object with no declared schema as a JSON object of its properties' do
+    _(Petstore::Client::ObjectSerializer.serialize({ 'name' => 'x', 'n' => 2 })).must_equal('{"name":"x","n":2}')
+  end
+
+  it 'bhv_misc_123 writes a cookie value the caller has already percent-encoded unchanged' do
+    _(Petstore::Client::ObjectSerializer.to_cookie_value('a%20b')).must_equal 'a%20b'
+  end
+
+  it 'bhv_misc_137 an enum lists its declared values and refuses a value that is not one of them' do
+    _(Petstore::Client::Models::TestStatusEnumValidate::VALUES).must_equal %w[placed approved delivered]
+    _(proc {
+      Petstore::Client::Models::TestStatusEnumValidate.validate!('banana')
+    }).must_raise ArgumentError
+  end
+
+  it 'bhv_misc_138 an enum member converted to text yields its wire value' do
+    _(Petstore::Client::Models::TestStatusEnumValidate::PLACED.to_s).must_equal 'placed'
+  end
+
+  it 'bhv_misc_140 deserializing a model without a required property fails with an error that names it' do
+    error = nil
+    begin
+      Petstore::Client::ObjectSerializer.deserialize('{"owner":"ann"}', 'Metadata')
+    rescue Petstore::Client::Errors::SerializationError => e
+      error = e
+    end
+    _(error).wont_be_nil
+    _(error.message).must_include 'createdAt'
+  end
+
+  it 'bhv_misc_141 a model built without a value for a property with a schema default holds that default' do
+    model = Petstore::Client::Models::TestDefaultsModel.new({})
+    _(model.retries).must_equal 3
+    _(model.mode).must_equal 'medium'
+  end
+
+  it 'bhv_misc_142 additional properties are returned unchanged by key and hold exactly the stored entries' do
+    meta = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","note":"x","owner":"ann"}', 'Metadata')
+    _(meta.additional_properties['note']).must_equal 'x'
+    _(meta.additional_properties.keys).must_equal %w[note owner]
+  end
+
+  it 'bhv_misc_144 validating a model refuses a string given for a numeric field' do
+    _ { Petstore::Client::ObjectSerializer.deserialize('{"retries":"3"}', 'TestDefaultsModel') }
+      .must_raise Petstore::Client::Errors::SerializationError
+  end
+
+  it 'bhv_misc_145 reading the undeclared keys returns a copy, so changing it leaves the instance unchanged' do
+    meta = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","note":"x"}', 'Metadata')
+    copy = meta.additional_properties.dup
+    copy['note'] = 'changed'
+    _(meta.additional_properties['note']).must_equal 'x'
   end
 end

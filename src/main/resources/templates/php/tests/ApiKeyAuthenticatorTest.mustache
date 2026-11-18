@@ -562,3 +562,11 @@ test('bhv auth 035 an api key with a nul, a carriage return, a line feed or a no
     'line feed' => ["abc\ndef"],
     'non ascii' => ['kéy'],
 ]);
+
+test('bhv misc 057 an api key configured for one location is never sent at another location', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    expect($auth->getAuthHeaders())->toBe(['X-Api-Key' => 'abc123']);
+    expect($auth->getQueryParams())->toBe([]);
+    expect($auth->getCookieParams())->toBe([]);
+});
