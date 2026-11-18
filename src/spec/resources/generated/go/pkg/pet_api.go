@@ -283,7 +283,11 @@ func (a *PetApi) AddPet(ctx context.Context, pet Pet, options *opts.AddPetOption
 }
 
 // AddPetWithHTTPInfo performs the AddPet operation and returns the full API result.
-func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.AddPetOptions, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.AddPetOptions, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -300,6 +304,9 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "addPet",
+		urlTemplate:  "/pet",
+		call:         call,
 		order:        []string{},
 		method:       "POST",
 		path:         path,
@@ -405,7 +412,11 @@ func (a *PetApi) AddPetPhotos(ctx context.Context, petId int64, options *opts.Ad
 }
 
 // AddPetPhotosWithHTTPInfo performs the AddPetPhotos operation and returns the full API result.
-func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, options *opts.AddPetPhotosOptions, callOptions ...RequestOption) (*ApiResult[[]Photo], error) {
+func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, options *opts.AddPetPhotosOptions, callOptions ...RequestOption) (_ *ApiResult[[]Photo], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -441,6 +452,9 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "addPetPhotos",
+		urlTemplate:  "/pet/{petId}/photos",
+		call:         call,
 		order:        []string{"files", "metadata"},
 		method:       "POST",
 		path:         path,
@@ -541,7 +555,11 @@ func (a *PetApi) AddPetTreatment(ctx context.Context, petId int64, petTreatment 
 }
 
 // AddPetTreatmentWithHTTPInfo performs the AddPetTreatment operation and returns the full API result.
-func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions, callOptions ...RequestOption) (*ApiResult[PetTreatment], error) {
+func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions, callOptions ...RequestOption) (_ *ApiResult[PetTreatment], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -566,6 +584,9 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "addPetTreatment",
+		urlTemplate:  "/pet/{petId}/treatment",
+		call:         call,
 		order:        []string{},
 		method:       "POST",
 		path:         path,
@@ -665,7 +686,11 @@ func (a *PetApi) DeletePet(ctx context.Context, petId int64, options *opts.Delet
 }
 
 // DeletePetWithHTTPInfo performs the DeletePet operation and returns the full API result.
-func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options *opts.DeletePetOptions, callOptions ...RequestOption) (*ApiResult[any], error) {
+func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options *opts.DeletePetOptions, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -705,6 +730,9 @@ func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "deletePet",
+		urlTemplate:  "/pet/{petId}",
+		call:         call,
 		order:        []string{},
 		method:       "DELETE",
 		path:         path,
@@ -755,7 +783,11 @@ func (a *PetApi) DownloadPetDocument(ctx context.Context, petId int64, documentI
 }
 
 // DownloadPetDocumentWithHTTPInfo performs the DownloadPetDocument operation and returns the full API result.
-func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (*ApiResult[[]byte], error) {
+func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (_ *ApiResult[[]byte], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -788,6 +820,9 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "downloadPetDocument",
+		urlTemplate:  "/pet/{petId}/documents/{documentId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -889,7 +924,11 @@ func (a *PetApi) FindPetsBornOn(ctx context.Context, bornOn string, callOptions 
 }
 
 // FindPetsBornOnWithHTTPInfo performs the FindPetsBornOn operation and returns the full API result.
-func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, callOptions ...RequestOption) (*ApiResult[[]Pet], error) {
+func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, callOptions ...RequestOption) (_ *ApiResult[[]Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -912,6 +951,9 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "findPetsBornOn",
+		urlTemplate:  "/pet/born-on/{bornOn}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1023,7 +1065,11 @@ func (a *PetApi) FindPetsByStatus(ctx context.Context, options *opts.FindPetsByS
 // FindPetsByStatusWithHTTPInfo performs the FindPetsByStatus operation and returns the full API result.
 //
 // Deprecated: This operation is deprecated.
-func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts.FindPetsByStatusOptions, callOptions ...RequestOption) (*ApiResult[[]Pet], error) {
+func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts.FindPetsByStatusOptions, callOptions ...RequestOption) (_ *ApiResult[[]Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1062,6 +1108,9 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "findPetsByStatus",
+		urlTemplate:  "/pet/findByStatus",
+		call:         call,
 		order:        []string{"status", "filter", "bornAfter", "2ndPage"},
 		method:       "GET",
 		path:         path,
@@ -1161,7 +1210,11 @@ func (a *PetApi) GetExternalPetInfo(ctx context.Context, petId int64, server Get
 }
 
 // GetExternalPetInfoWithHTTPInfo performs the GetExternalPetInfo operation and returns the full API result.
-func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetExternalPetInfoServer, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetExternalPetInfoServer, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1192,6 +1245,9 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getExternalPetInfo",
+		urlTemplate:  "/pet/{petId}/external",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1291,7 +1347,11 @@ func (a *PetApi) GetMultiServerPetInfo(ctx context.Context, petId int64, server 
 }
 
 // GetMultiServerPetInfoWithHTTPInfo performs the GetMultiServerPetInfo operation and returns the full API result.
-func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetMultiServerPetInfoServer, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetMultiServerPetInfoServer, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1322,6 +1382,9 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getMultiServerPetInfo",
+		urlTemplate:  "/pet/{petId}/multi",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1426,7 +1489,11 @@ func (a *PetApi) GetPetAvatar(ctx context.Context, petId int64, callOptions ...R
 }
 
 // GetPetAvatarWithHTTPInfo performs the GetPetAvatar operation and returns the full API result.
-func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[[]byte], error) {
+func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (_ *ApiResult[[]byte], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1451,6 +1518,9 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetAvatar",
+		urlTemplate:  "/pet/{petId}/avatar",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1555,7 +1625,11 @@ func (a *PetApi) GetPetAvatarThumbnail(ctx context.Context, petId int64, callOpt
 }
 
 // GetPetAvatarThumbnailWithHTTPInfo performs the GetPetAvatarThumbnail operation and returns the full API result.
-func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[[]byte], error) {
+func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (_ *ApiResult[[]byte], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1580,6 +1654,9 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetAvatarThumbnail",
+		urlTemplate:  "/pet/{petId}/avatar/thumbnail",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1691,7 +1768,11 @@ func (a *PetApi) GetPetById(ctx context.Context, petId int64, server GetPetByIdS
 // GetPetByIdWithHTTPInfo performs the GetPetById operation and returns the full API result.
 //
 // Deprecated: This operation is deprecated.
-func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server GetPetByIdServer, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server GetPetByIdServer, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1722,6 +1803,9 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetById",
+		urlTemplate:  "/pet/{petId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1822,7 +1906,11 @@ func (a *PetApi) GetPetByName(ctx context.Context, name string, options *opts.Ge
 }
 
 // GetPetByNameWithHTTPInfo performs the GetPetByName operation and returns the full API result.
-func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, options *opts.GetPetByNameOptions, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, options *opts.GetPetByNameOptions, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1861,6 +1949,9 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetByName",
+		urlTemplate:  "/pet/byName/{name}",
+		call:         call,
 		order:        []string{"category"},
 		method:       "GET",
 		path:         path,
@@ -1964,7 +2055,11 @@ func (a *PetApi) GetPetPassport(ctx context.Context, petId int64, callOptions ..
 }
 
 // GetPetPassportWithHTTPInfo performs the GetPetPassport operation and returns the full API result.
-func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[PetPassport], error) {
+func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (_ *ApiResult[PetPassport], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1989,6 +2084,9 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetPassport",
+		urlTemplate:  "/pet/{petId}/passport",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -2093,7 +2191,11 @@ func (a *PetApi) GetPetPhoto(ctx context.Context, petId int64, photoId int64, ca
 }
 
 // GetPetPhotoWithHTTPInfo performs the GetPetPhoto operation and returns the full API result.
-func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (*ApiResult[[]byte], error) {
+func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (_ *ApiResult[[]byte], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2126,6 +2228,9 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetPhoto",
+		urlTemplate:  "/pet/{petId}/photos/{photoId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -2232,7 +2337,11 @@ func (a *PetApi) GetPetSummary(ctx context.Context, petId int64, asOf string, op
 }
 
 // GetPetSummaryWithHTTPInfo performs the GetPetSummary operation and returns the full API result.
-func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (*ApiResult[string], error) {
+func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (_ *ApiResult[string], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2291,6 +2400,9 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetSummary",
+		urlTemplate:  "/pet/{petId}/summary/{asOf}",
+		call:         call,
 		order:        []string{"days"},
 		method:       "GET",
 		path:         path,
@@ -2391,7 +2503,11 @@ func (a *PetApi) GetPetTag(ctx context.Context, petId int64, tagName string, opt
 }
 
 // GetPetTagWithHTTPInfo performs the GetPetTag operation and returns the full API result.
-func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName string, options *opts.GetPetTagOptions, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName string, options *opts.GetPetTagOptions, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2461,6 +2577,9 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetTag",
+		urlTemplate:  "/pet/{petId}/tag/{tagName}",
+		call:         call,
 		order:        []string{"colors", "sizes", "filter", "revision", "criteria", "criteriaCsv", "criteriaDeep", "fingerprint"},
 		method:       "GET",
 		path:         path,
@@ -2560,7 +2679,11 @@ func (a *PetApi) GetStagingPetInfo(ctx context.Context, petId int64, server GetS
 }
 
 // GetStagingPetInfoWithHTTPInfo performs the GetStagingPetInfo operation and returns the full API result.
-func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetStagingPetInfoServer, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetStagingPetInfoServer, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2591,6 +2714,9 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getStagingPetInfo",
+		urlTemplate:  "/pet/{petId}/staging",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -2689,7 +2815,11 @@ func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body io.Reader, 
 }
 
 // SetPetAvatarWithHTTPInfo performs the SetPetAvatar operation and returns the full API result.
-func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body io.Reader, callOptions ...RequestOption) (*ApiResult[any], error) {
+func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body io.Reader, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2747,6 +2877,9 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "setPetAvatar",
+		urlTemplate:  "/pet/{petId}/avatar",
+		call:         call,
 		order:        []string{},
 		method:       "PUT",
 		path:         path,
@@ -2792,7 +2925,11 @@ func (a *PetApi) SetPetAvatarThumbnail(ctx context.Context, petId int64, setPetA
 }
 
 // SetPetAvatarThumbnailWithHTTPInfo performs the SetPetAvatarThumbnail operation and returns the full API result.
-func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest, callOptions ...RequestOption) (*ApiResult[any], error) {
+func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2817,6 +2954,9 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "setPetAvatarThumbnail",
+		urlTemplate:  "/pet/{petId}/avatar/thumbnail",
+		call:         call,
 		order:        []string{},
 		method:       "PUT",
 		path:         path,
@@ -2867,7 +3007,11 @@ func (a *PetApi) SetPetPreferences(ctx context.Context, petId int64, options *op
 }
 
 // SetPetPreferencesWithHTTPInfo performs the SetPetPreferences operation and returns the full API result.
-func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64, options *opts.SetPetPreferencesOptions, callOptions ...RequestOption) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64, options *opts.SetPetPreferencesOptions, callOptions ...RequestOption) (_ *ApiResult[ApiResponse], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2914,6 +3058,9 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "setPetPreferences",
+		urlTemplate:  "/pet/{petId}/preferences",
+		call:         call,
 		order:        []string{"nickname", "tags", "note", "renewalDate", "reminder"},
 		method:       "POST",
 		path:         path,
@@ -3019,7 +3166,11 @@ func (a *PetApi) UpdatePet(ctx context.Context, petId int64, pet Pet, callOption
 }
 
 // UpdatePetWithHTTPInfo performs the UpdatePet operation and returns the full API result.
-func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -3044,6 +3195,9 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "updatePet",
+		urlTemplate:  "/pet/{petId}",
+		call:         call,
 		order:        []string{},
 		method:       "PUT",
 		path:         path,
@@ -3148,7 +3302,11 @@ func (a *PetApi) UploadPetCertificate(ctx context.Context, petId int64, options 
 }
 
 // UploadPetCertificateWithHTTPInfo performs the UploadPetCertificate operation and returns the full API result.
-func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int64, options *opts.UploadPetCertificateOptions, callOptions ...RequestOption) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int64, options *opts.UploadPetCertificateOptions, callOptions ...RequestOption) (_ *ApiResult[ApiResponse], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -3183,6 +3341,9 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "uploadPetCertificate",
+		urlTemplate:  "/pet/{petId}/certificate",
+		call:         call,
 		order:        []string{"file"},
 		method:       "POST",
 		path:         path,
@@ -3287,7 +3448,11 @@ func (a *PetApi) UploadPetDocument(ctx context.Context, petId int64, options *op
 }
 
 // UploadPetDocumentWithHTTPInfo performs the UploadPetDocument operation and returns the full API result.
-func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, options *opts.UploadPetDocumentOptions, callOptions ...RequestOption) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, options *opts.UploadPetDocumentOptions, callOptions ...RequestOption) (_ *ApiResult[ApiResponse], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -3382,6 +3547,9 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "uploadPetDocument",
+		urlTemplate:  "/pet/{petId}/documents",
+		call:         call,
 		order:        []string{"file", "documentType", "notes", "isPrimary", "pageCount", "takenAt", "swatch"},
 		method:       "POST",
 		path:         path,

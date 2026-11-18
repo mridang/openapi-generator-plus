@@ -78,7 +78,11 @@ func (a *ProblemsApi) GetFallback(ctx context.Context, fallbackId string, callOp
 }
 
 // GetFallbackWithHTTPInfo performs the GetFallback operation and returns the full API result.
-func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId string, callOptions ...RequestOption) (*ApiResult[Result], error) {
+func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId string, callOptions ...RequestOption) (_ *ApiResult[Result], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -103,6 +107,9 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getFallback",
+		urlTemplate:  "/fallbacks/{fallbackId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -208,7 +215,11 @@ func (a *ProblemsApi) GetMember(ctx context.Context, memberId string, callOption
 }
 
 // GetMemberWithHTTPInfo performs the GetMember operation and returns the full API result.
-func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string, callOptions ...RequestOption) (*ApiResult[Result], error) {
+func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string, callOptions ...RequestOption) (_ *ApiResult[Result], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -233,6 +244,9 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getMember",
+		urlTemplate:  "/members/{memberId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -338,7 +352,11 @@ func (a *ProblemsApi) GetProject(ctx context.Context, projectId string, callOpti
 }
 
 // GetProjectWithHTTPInfo performs the GetProject operation and returns the full API result.
-func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId string, callOptions ...RequestOption) (*ApiResult[Result], error) {
+func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId string, callOptions ...RequestOption) (_ *ApiResult[Result], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -363,6 +381,9 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getProject",
+		urlTemplate:  "/projects/{projectId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -468,7 +489,11 @@ func (a *ProblemsApi) GetRange(ctx context.Context, rangeId string, callOptions 
 }
 
 // GetRangeWithHTTPInfo performs the GetRange operation and returns the full API result.
-func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, callOptions ...RequestOption) (*ApiResult[Result], error) {
+func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, callOptions ...RequestOption) (_ *ApiResult[Result], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -493,6 +518,9 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getRange",
+		urlTemplate:  "/ranges/{rangeId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -598,7 +626,11 @@ func (a *ProblemsApi) GetUpstream(ctx context.Context, upstreamId string, callOp
 }
 
 // GetUpstreamWithHTTPInfo performs the GetUpstream operation and returns the full API result.
-func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId string, callOptions ...RequestOption) (*ApiResult[Result], error) {
+func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId string, callOptions ...RequestOption) (_ *ApiResult[Result], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -623,6 +655,9 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getUpstream",
+		urlTemplate:  "/upstreams/{upstreamId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -729,7 +764,11 @@ func (a *ProblemsApi) TakeLock(ctx context.Context, lockId string, callOptions .
 }
 
 // TakeLockWithHTTPInfo performs the TakeLock operation and returns the full API result.
-func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, callOptions ...RequestOption) (*ApiResult[Result], error) {
+func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, callOptions ...RequestOption) (_ *ApiResult[Result], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -754,6 +793,9 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "takeLock",
+		urlTemplate:  "/locks/{lockId}",
+		call:         call,
 		order:        []string{},
 		method:       "PUT",
 		path:         path,

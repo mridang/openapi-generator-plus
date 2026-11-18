@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -347,5 +348,23 @@ func TestBhvConfig015_Configuration_StringMasksSecretHeaders(t *testing.T) {
 		if !strings.Contains(got, `"Accept": "application/json"`) {
 			t.Errorf("expected a non-secret header to print as is, got %s", got)
 		}
+	}
+}
+
+func TestConfiguration_CallHookIsHeldByTheConfigurationAndNeverPrinted(t *testing.T) {
+	t.Parallel()
+	hook := petstore.CallHookFunc(func(ctx context.Context, info petstore.CallInfo, headers map[string]string) (petstore.CallObserver, error) {
+		return nil, nil
+	})
+	config := petstore.NewConfigurationBuilder().CallHook(hook).Build()
+
+	if config.CallHook() == nil {
+		t.Fatal("expected the hook to be held by the configuration")
+	}
+	if strings.Contains(fmt.Sprintf("%v %#v", config, config), "CallHook") {
+		t.Errorf("expected the printed form not to name the hook, got %v", config)
+	}
+	if petstore.NewConfigurationBuilder().Build().CallHook() != nil {
+		t.Error("expected no hook unless one is set")
 	}
 }

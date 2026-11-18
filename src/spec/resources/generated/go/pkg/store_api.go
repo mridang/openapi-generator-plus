@@ -102,7 +102,11 @@ func (a *StoreApi) CreateAccount(ctx context.Context, account Account, callOptio
 }
 
 // CreateAccountWithHTTPInfo performs the CreateAccount operation and returns the full API result.
-func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Account, callOptions ...RequestOption) (*ApiResult[Account], error) {
+func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Account, callOptions ...RequestOption) (_ *ApiResult[Account], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -119,6 +123,9 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "createAccount",
+		urlTemplate:  "/store/account",
+		call:         call,
 		order:        []string{},
 		method:       "POST",
 		path:         path,
@@ -218,7 +225,11 @@ func (a *StoreApi) DeleteOrder(ctx context.Context, orderId int64, callOptions .
 }
 
 // DeleteOrderWithHTTPInfo performs the DeleteOrder operation and returns the full API result.
-func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, callOptions ...RequestOption) (*ApiResult[any], error) {
+func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -243,6 +254,9 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, c
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "deleteOrder",
+		urlTemplate:  "/store/order/{orderId}",
+		call:         call,
 		order:        []string{},
 		method:       "DELETE",
 		path:         path,
@@ -289,7 +303,11 @@ func (a *StoreApi) GetBySwatch(ctx context.Context, pathSwatch Swatch, options *
 }
 
 // GetBySwatchWithHTTPInfo performs the GetBySwatch operation and returns the full API result.
-func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatch, options *opts.GetBySwatchOptions, callOptions ...RequestOption) (*ApiResult[Category], error) {
+func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatch, options *opts.GetBySwatchOptions, callOptions ...RequestOption) (_ *ApiResult[Category], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -320,6 +338,9 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getBySwatch",
+		urlTemplate:  "/store/by-swatch/{pathSwatch}",
+		call:         call,
 		order:        []string{"querySwatch"},
 		method:       "GET",
 		path:         path,
@@ -419,7 +440,11 @@ func (a *StoreApi) GetDefaults(ctx context.Context, callOptions ...RequestOption
 }
 
 // GetDefaultsWithHTTPInfo performs the GetDefaults operation and returns the full API result.
-func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[Defaults], error) {
+func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[Defaults], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -436,6 +461,9 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...R
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getDefaults",
+		urlTemplate:  "/store/defaults",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -535,7 +563,11 @@ func (a *StoreApi) GetDepartment(ctx context.Context, callOptions ...RequestOpti
 }
 
 // GetDepartmentWithHTTPInfo performs the GetDepartment operation and returns the full API result.
-func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[Department], error) {
+func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[Department], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -552,6 +584,9 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ..
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getDepartment",
+		urlTemplate:  "/store/department",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -652,7 +687,11 @@ func (a *StoreApi) GetGroupedCategories(ctx context.Context, callOptions ...Requ
 }
 
 // GetGroupedCategoriesWithHTTPInfo performs the GetGroupedCategories operation and returns the full API result.
-func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[]map[string]Category], error) {
+func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[[]map[string]Category], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -669,6 +708,9 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOpt
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getGroupedCategories",
+		urlTemplate:  "/store/grouped-categories",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -769,7 +811,11 @@ func (a *StoreApi) GetInventory(ctx context.Context, callOptions ...RequestOptio
 }
 
 // GetInventoryWithHTTPInfo performs the GetInventory operation and returns the full API result.
-func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[map[string]int32], error) {
+func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[map[string]int32], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -786,6 +832,9 @@ func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getInventory",
+		urlTemplate:  "/store/inventory",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -886,7 +935,11 @@ func (a *StoreApi) GetMatrix(ctx context.Context, callOptions ...RequestOption) 
 }
 
 // GetMatrixWithHTTPInfo performs the GetMatrix operation and returns the full API result.
-func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[][]int32], error) {
+func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[[][]int32], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -903,6 +956,9 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getMatrix",
+		urlTemplate:  "/store/matrix",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1007,7 +1063,11 @@ func (a *StoreApi) GetOrderById(ctx context.Context, orderId int64, callOptions 
 }
 
 // GetOrderByIdWithHTTPInfo performs the GetOrderById operation and returns the full API result.
-func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, callOptions ...RequestOption) (*ApiResult[Order], error) {
+func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, callOptions ...RequestOption) (_ *ApiResult[Order], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1032,6 +1092,9 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getOrderById",
+		urlTemplate:  "/store/order/{orderId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1131,7 +1194,11 @@ func (a *StoreApi) GetOrderByTrackingId(ctx context.Context, trackingId uuid.UUI
 }
 
 // GetOrderByTrackingIdWithHTTPInfo performs the GetOrderByTrackingId operation and returns the full API result.
-func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackingId uuid.UUID, callOptions ...RequestOption) (*ApiResult[Order], error) {
+func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackingId uuid.UUID, callOptions ...RequestOption) (_ *ApiResult[Order], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1156,6 +1223,9 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getOrderByTrackingId",
+		urlTemplate:  "/store/order/by-tracking/{trackingId}",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1256,7 +1326,11 @@ func (a *StoreApi) GetStockItem(ctx context.Context, options *opts.GetStockItemO
 }
 
 // GetStockItemWithHTTPInfo performs the GetStockItem operation and returns the full API result.
-func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.GetStockItemOptions, callOptions ...RequestOption) (*ApiResult[StockItem], error) {
+func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.GetStockItemOptions, callOptions ...RequestOption) (_ *ApiResult[StockItem], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1276,6 +1350,9 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getStockItem",
+		urlTemplate:  "/store/stock-item",
+		call:         call,
 		order:        []string{"asOf"},
 		method:       "GET",
 		path:         path,
@@ -1375,7 +1452,11 @@ func (a *StoreApi) GetSwatch(ctx context.Context, callOptions ...RequestOption) 
 }
 
 // GetSwatchWithHTTPInfo performs the GetSwatch operation and returns the full API result.
-func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[Swatch], error) {
+func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[Swatch], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1392,6 +1473,9 @@ func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...Req
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getSwatch",
+		urlTemplate:  "/store/swatch",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1492,7 +1576,11 @@ func (a *StoreApi) GetSwatchGroups(ctx context.Context, callOptions ...RequestOp
 }
 
 // GetSwatchGroupsWithHTTPInfo performs the GetSwatchGroups operation and returns the full API result.
-func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[]map[string]Swatch], error) {
+func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[[]map[string]Swatch], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1509,6 +1597,9 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions 
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getSwatchGroups",
+		urlTemplate:  "/store/swatch-groups",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1609,7 +1700,11 @@ func (a *StoreApi) GetTimestampGroups(ctx context.Context, callOptions ...Reques
 }
 
 // GetTimestampGroupsWithHTTPInfo performs the GetTimestampGroups operation and returns the full API result.
-func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[]map[string]DateTime], error) {
+func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[[]map[string]DateTime], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1626,6 +1721,9 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptio
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getTimestampGroups",
+		urlTemplate:  "/store/timestamp-groups",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1725,7 +1823,11 @@ func (a *StoreApi) GetTree(ctx context.Context, callOptions ...RequestOption) (*
 }
 
 // GetTreeWithHTTPInfo performs the GetTree operation and returns the full API result.
-func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[TreeNode], error) {
+func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[TreeNode], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1742,6 +1844,9 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getTree",
+		urlTemplate:  "/store/tree",
+		call:         call,
 		order:        []string{},
 		method:       "GET",
 		path:         path,
@@ -1844,7 +1949,11 @@ func (a *StoreApi) PlaceOrder(ctx context.Context, order *Order, callOptions ...
 }
 
 // PlaceOrderWithHTTPInfo performs the PlaceOrder operation and returns the full API result.
-func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, callOptions ...RequestOption) (*ApiResult[Order], error) {
+func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, callOptions ...RequestOption) (_ *ApiResult[Order], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1861,6 +1970,9 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "placeOrder",
+		urlTemplate:  "/store/order",
+		call:         call,
 		order:        []string{},
 		method:       "POST",
 		path:         path,
@@ -1964,7 +2076,11 @@ func (a *StoreApi) ReserveStock(ctx context.Context, callOptions ...RequestOptio
 }
 
 // ReserveStockWithHTTPInfo performs the ReserveStock operation and returns the full API result.
-func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[ReserveStockResponse], error) {
+func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[ReserveStockResponse], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1981,6 +2097,9 @@ func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "reserveStock",
+		urlTemplate:  "/store/reservation",
+		call:         call,
 		order:        []string{},
 		method:       "POST",
 		path:         path,
@@ -2105,7 +2224,11 @@ func (a *StoreApi) SearchStore(ctx context.Context, options *opts.SearchStoreOpt
 }
 
 // SearchStoreWithHTTPInfo performs the SearchStore operation and returns the full API result.
-func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.SearchStoreOptions, callOptions ...RequestOption) (*ApiResult[[]Order], error) {
+func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.SearchStoreOptions, callOptions ...RequestOption) (_ *ApiResult[[]Order], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2145,6 +2268,9 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "searchStore",
+		urlTemplate:  "/store/search",
+		call:         call,
 		order:        []string{"q", "labels", "at"},
 		method:       "GET",
 		path:         path,

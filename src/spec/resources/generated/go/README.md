@@ -141,6 +141,37 @@ callOptions := []petstore.RequestOption{
 
 Pass them with `callOptions...` after the other arguments of any operation. A client built around your own `ApiClient` never retries, and that client owns its timeout, so for it a per-call timeout only bounds the call's context.
 
+### Hooks and telemetry
+
+One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHTTPInfo` variant alike, and also when you supply your own transport.
+
+```go
+type timing struct {
+    operation string
+    started   time.Time
+}
+
+func (t timing) Finish(outcome petstore.CallOutcome) {
+    fmt.Println(t.operation, outcome.StatusCode, time.Since(t.started))
+}
+
+hook := petstore.CallHookFunc(func(ctx context.Context, info petstore.CallInfo, headers map[string]string) (petstore.CallObserver, error) {
+    headers["X-Caller"] = "billing"
+    return timing{operation: info.OperationID, started: time.Now()}, nil
+})
+client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil, petstore.WithCallHook(hook))
+```
+
+`Start(ctx, info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `OperationID` (as written in the spec), `Method`, `URLTemplate`, `URL` (without query string and fragment) and `ServerAddress`. It returns the observer to call when the call ends, or `nil`. `Finish(outcome)` runs exactly once on every way the call can end, with `StatusCode` (`0` when no response arrived), the lower-cased response `Headers` (`nil` when no response arrived) and the `Error` the caller receives (`nil` on success). An error returned by `Start` reaches the caller unchanged, nothing is sent and `Finish` is not called; a panic in `Finish` is recovered. The hook never changes the result or the error of the call. Combine several hooks with `ChainCallHooks(first, second)`: they start in the order given and finish in the reverse order. The hook is also set with `NewConfigurationBuilder().CallHook(hook)`.
+
+`otelhook.New()` in the package `pkg/otelhook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `go.opentelemetry.io/otel` to your module (the SDK core does not import it), then pass `otelhook.New()` for the global providers or `otelhook.New(otelhook.WithTracerProvider(tp), otelhook.WithMeterProvider(mp))` for your own.
+
+```go
+client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil, petstore.WithCallHook(otelhook.New()))
+```
+
+The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.
+
 ### Errors
 
 An API error (`ApiError` and every subclass) carries `StatusCode()`, `ResponseHeaders()`, `ResponseBody()`, `ErrorBody()`, and the request it answers: `RequestMethod()` and `RequestPath()` (the path without its query string). `Error()` shows them on a `Request: METHOD /path` line before the status code. `NetworkError` and `NetworkTimeoutError` carry them too.

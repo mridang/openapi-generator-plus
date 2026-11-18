@@ -1,0 +1,488 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
+	"go.opentelemetry.io/otel/trace/noop"
+
+	"{{packageName}}/pkg"
+	"{{packageName}}/pkg/options"
+	"{{packageName}}/pkg/otelhook"
+	apierrors "{{packageName}}/pkg/errors"
+)
+
+const otelPetBody = `{"id":1,"name":"Test","photoUrls":[]}`
+
+// otelStubClient is the transport of these tests: it records the headers of each
+// send and answers from a script (the last reply repeats).
+type otelStubClient struct {
+	mu      sync.Mutex
+	sent    []map[string]string
+	replies []otelStubReply
+}
+
+type otelStubReply struct {
+	status int
+	body   string
+	err    error
+}
+
+func (c *otelStubClient) SendRequest(method, url string, headers map[string]string, body any) (*{{packageName}}.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *otelStubClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *{{packageName}}.RequestOptions) (*{{packageName}}.ApiHttpResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	copied := make(map[string]string, len(headers))
+	for k, v := range headers {
+		copied[k] = v
+	}
+	c.sent = append(c.sent, copied)
+	reply := c.replies[min(len(c.sent)-1, len(c.replies)-1)]
+	if reply.err != nil {
+		return nil, reply.err
+	}
+	return &{{packageName}}.ApiHttpResponse{
+		StatusCode: reply.status,
+		Body:       reply.body,
+		Headers:    map[string]string{"content-type": "application/json"},
+	}, nil
+}
+
+func (c *otelStubClient) Close() error { return nil }
+
+// otelHarness is a hook on in-memory providers and an API that uses it.
+type otelHarness struct {
+	spans  *tracetest.SpanRecorder
+	reader *sdkmetric.ManualReader
+	tracer *sdktrace.TracerProvider
+	hook   {{packageName}}.CallHook
+	stub   *otelStubClient
+	api    *{{packageName}}.PetApi
+}
+
+func newOtelHarness(t *testing.T, replies ...otelStubReply) *otelHarness {
+	t.Helper()
+	h := &otelHarness{
+		spans:  tracetest.NewSpanRecorder(),
+		reader: sdkmetric.NewManualReader(),
+		stub:   &otelStubClient{replies: replies},
+	}
+	h.tracer = sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(h.spans))
+	meters := sdkmetric.NewMeterProvider(sdkmetric.WithReader(h.reader))
+	h.hook = otelhook.New(
+		otelhook.WithTracerProvider(h.tracer),
+		otelhook.WithMeterProvider(meters),
+		otelhook.WithPropagator(propagation.TraceContext{}),
+	)
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://127.0.0.1:8080").CallHook(h.hook).Build()
+	h.api = {{packageName}}.NewPetApi(h.stub, config, nil, {{packageName}}.Credentials{})
+	return h
+}
+
+func (h *otelHarness) get(t *testing.T) error {
+	t.Helper()
+	_, err := h.api.GetPetById(context.Background(), int64(1), nil)
+	return err
+}
+
+func (h *otelHarness) span(t *testing.T) sdktrace.ReadOnlySpan {
+	t.Helper()
+	ended := h.spans.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("expected one span, got %d", len(ended))
+	}
+	return ended[0]
+}
+
+func attributeMap(kvs []attribute.KeyValue) map[string]string {
+	out := map[string]string{}
+	for _, kv := range kvs {
+		out[string(kv.Key)] = kv.Value.String()
+	}
+	return out
+}
+
+func (h *otelHarness) metrics(t *testing.T) (metricdata.ResourceMetrics, map[string]metricdata.Metrics) {
+	t.Helper()
+	var rm metricdata.ResourceMetrics
+	if err := h.reader.Collect(context.Background(), &rm); err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]metricdata.Metrics{}
+	for _, scope := range rm.ScopeMetrics {
+		for _, m := range scope.Metrics {
+			byName[m.Name] = m
+		}
+	}
+	return rm, byName
+}
+
+func otelOkReply() otelStubReply { return otelStubReply{status: 200, body: otelPetBody} }
+
+func TestBhvTelemetry001_OtelHook_TheSpanIsNamedWithTheSpecOperationIdAndHasKindClient(t *testing.T) {
+	t.Parallel()
+	h := newOtelHarness(t, otelOkReply())
+	if err := h.get(t); err != nil {
+		t.Fatal(err)
+	}
+	span := h.span(t)
+	if span.Name() != "getPetById" || span.SpanKind() != trace.SpanKindClient {
+		t.Errorf("expected a client span named getPetById, got %q %v", span.Name(), span.SpanKind())
+	}
+}
+
+func TestBhvTelemetry002_OtelHook_A2xxSetsTheRequestAttributesAndLeavesTheSpanStatusUnset(t *testing.T) {
+	t.Parallel()
+	h := newOtelHarness(t, otelOkReply())
+	if err := h.get(t); err != nil {
+		t.Fatal(err)
+	}
+	span := h.span(t)
+	got := attributeMap(span.Attributes())
+	want := map[string]string{
+		"http.request.method":       "GET",
+		"url.template":              "/pet/{petId}",
+		"server.address":            "127.0.0.1",
+		"http.response.status_code": "200",
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("expected %v, got %v", want, got)
+	}
+	if span.Status().Code != codes.Unset {
+		t.Errorf("expected an unset status, got %v", span.Status().Code)
+	}
+}
+
+func TestBhvTelemetry003_OtelHook_A4xxOr5xxSetsErrorTypeToTheStatusAndMarksTheSpanAsAnError(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{404, 503} {
+		h := newOtelHarness(t, otelStubReply{status: status, body: `{"message":"x"}`})
+		if err := h.get(t); err == nil {
+			t.Fatalf("expected an error for %d", status)
+		}
+		span := h.span(t)
+		if got := attributeMap(span.Attributes())["error.type"]; got != fmt.Sprint(status) {
+			t.Errorf("expected error.type %d, got %q", status, got)
+		}
+		if span.Status().Code != codes.Error {
+			t.Errorf("expected an error status for %d, got %v", status, span.Status().Code)
+		}
+	}
+}
+
+func TestBhvTelemetry004_OtelHook_ErrorTypeIsATokenForTheTimeoutNetworkDecodeCancelAndAnyOtherError(t *testing.T) {
+	t.Parallel()
+	cases := map[string]otelStubReply{
+		"timeout":             {err: apierrors.NewNetworkTimeoutError("timed out", nil)},
+		"network_error":       {err: apierrors.NewNetworkError("refused", nil)},
+		"serialization_error": {status: 200, body: `{"id": [1`},
+		"cancelled":           {err: fmt.Errorf("request cancelled: %w", context.Canceled)},
+		"_OTHER":              {err: errors.New("boom")},
+	}
+	for want, reply := range cases {
+		h := newOtelHarness(t, reply)
+		if err := h.get(t); err == nil {
+			t.Fatalf("expected an error for %s", want)
+		}
+		span := h.span(t)
+		if got := attributeMap(span.Attributes())["error.type"]; got != want {
+			t.Errorf("expected error.type %q, got %q", want, got)
+		}
+		if span.Status().Code != codes.Error {
+			t.Errorf("expected an error status for %s, got %v", want, span.Status().Code)
+		}
+	}
+}
+
+func TestBhvTelemetry005_OtelHook_ACallWithNoResponseSetsNoStatusCode(t *testing.T) {
+	t.Parallel()
+	h := newOtelHarness(t, otelStubReply{err: apierrors.NewNetworkError("refused", nil)})
+	_ = h.get(t)
+	if _, ok := attributeMap(h.span(t).Attributes())["http.response.status_code"]; ok {
+		t.Error("expected no status code attribute when no response arrived")
+	}
+}
+
+// The core trace context is registered here as well, so the test also proves
+// that the header ends up naming the client span; the registration is global,
+// hence the test does not run in parallel.
+func TestBhvTelemetry006_OtelHook_TheSpanIsAChildOfTheCallersSpanAndTheTraceparentSentNamesTheClientSpan(t *testing.T) {
+	{{packageName}}.SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
+		propagation.TraceContext{}.Inject(ctx, propagation.MapCarrier(headers))
+	})
+	t.Cleanup(func() { {{packageName}}.SetTraceContextPropagator(nil) })
+	h := newOtelHarness(t, otelOkReply())
+	parentContext, parent := h.tracer.Tracer("caller").Start(context.Background(), "parent")
+
+	if _, err := h.api.GetPetById(parentContext, int64(1), nil); err != nil {
+		t.Fatal(err)
+	}
+	parent.End()
+
+	var client sdktrace.ReadOnlySpan
+	for _, span := range h.spans.Ended() {
+		if span.Name() == "getPetById" {
+			client = span
+		}
+	}
+	if client == nil || client.Parent().SpanID() != parent.SpanContext().SpanID() {
+		t.Fatalf("expected the client span to be a child of the caller's span")
+	}
+	count := 0
+	for name, value := range h.stub.sent[0] {
+		if strings.EqualFold(name, "traceparent") {
+			count++
+			if !strings.Contains(value, client.SpanContext().SpanID().String()) {
+				t.Errorf("expected the traceparent to name the client span, got %q", value)
+			}
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected one traceparent, got %d", count)
+	}
+}
+
+func TestBhvTelemetry007_OtelHook_ACallRetriedByTheTransportRecordsOneSpanAndOneCount(t *testing.T) {
+	t.Parallel()
+	h := newOtelHarness(t, otelOkReply())
+	// The hook sits above the transport: however many sends happen below it, the
+	// call is one. A replay after a 401 is the retry the stub can show.
+	h.api = {{packageName}}.NewPetApi(&otelReplayClient{otelStubClient: h.stub}, {{packageName}}.NewConfigurationBuilder().BaseURL("http://127.0.0.1:8080").CallHook(h.hook).Build(), nil, {{packageName}}.Credentials{})
+	if err := h.get(t); err != nil {
+		t.Fatal(err)
+	}
+	h.span(t)
+	_, byName := h.metrics(t)
+	sum := byName["http.client.request.count"].Data.(metricdata.Sum[int64])
+	if len(sum.DataPoints) != 1 || sum.DataPoints[0].Value != 1 {
+		t.Errorf("expected one count, got %+v", sum.DataPoints)
+	}
+	if got := len(h.stub.sent); got != 2 {
+		t.Errorf("expected the transport to send twice, got %d", got)
+	}
+}
+
+// otelReplayClient sends every request twice and returns the second answer, the way a
+// transport that retries does.
+type otelReplayClient struct{ *otelStubClient }
+
+func (c *otelReplayClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *{{packageName}}.RequestOptions) (*{{packageName}}.ApiHttpResponse, error) {
+	_, _ = c.otelStubClient.SendRequestWithOptions(method, url, headers, body, opts)
+	return c.otelStubClient.SendRequestWithOptions(method, url, headers, body, opts)
+}
+
+func TestBhvTelemetry008_OtelHook_TheRequestCountIsIncrementedOncePerCallWithTheAttributesOfTheSpan(t *testing.T) {
+	t.Parallel()
+	h := newOtelHarness(t, otelStubReply{status: 404, body: `{}`})
+	_ = h.get(t)
+	span := h.span(t)
+	_, byName := h.metrics(t)
+	count := byName["http.client.request.count"]
+	sum := count.Data.(metricdata.Sum[int64])
+	if count.Unit != "{request}" || len(sum.DataPoints) != 1 || sum.DataPoints[0].Value != 1 {
+		t.Fatalf("expected one count in {request}, got %+v", count)
+	}
+	if got, want := attributeMap(sum.DataPoints[0].Attributes.ToSlice()), attributeMap(span.Attributes()); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("expected the span's attributeMap %v, got %v", want, got)
+	}
+}
+
+func TestBhvTelemetry009_OtelHook_TheDurationHistogramRecordsOneValueInSecondsWithTheAttributesOfTheSpan(t *testing.T) {
+	t.Parallel()
+	h := newOtelHarness(t, otelOkReply())
+	if err := h.get(t); err != nil {
+		t.Fatal(err)
+	}
+	span := h.span(t)
+	_, byName := h.metrics(t)
+	duration := byName["http.client.request.duration"]
+	histogram := duration.Data.(metricdata.Histogram[float64])
+	if duration.Unit != "s" || len(histogram.DataPoints) != 1 || histogram.DataPoints[0].Count != 1 {
+		t.Fatalf("expected one value in s, got %+v", duration)
+	}
+	if sum := histogram.DataPoints[0].Sum; sum < 0 || sum > 5 {
+		t.Errorf("expected a duration in seconds, got %v", sum)
+	}
+	if got, want := attributeMap(histogram.DataPoints[0].Attributes.ToSlice()), attributeMap(span.Attributes()); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("expected the span's attributeMap %v, got %v", want, got)
+	}
+}
+
+func TestBhvTelemetry010_OtelHook_TheInstrumentationScopeIsNamedAfterThePackageAndCarriesTheSdkVersion(t *testing.T) {
+	t.Parallel()
+	h := newOtelHarness(t, otelOkReply())
+	if err := h.get(t); err != nil {
+		t.Fatal(err)
+	}
+	scope := h.span(t).InstrumentationScope()
+	if scope.Name != "{{packageName}}" || scope.Version != "{{packageVersion}}" {
+		t.Errorf("unexpected span scope %+v", scope)
+	}
+	rm, _ := h.metrics(t)
+	if len(rm.ScopeMetrics) != 1 || rm.ScopeMetrics[0].Scope.Name != "{{packageName}}" || rm.ScopeMetrics[0].Scope.Version != "{{packageVersion}}" {
+		t.Errorf("unexpected metric scope %+v", rm.ScopeMetrics)
+	}
+}
+
+// The global providers are replaced here, so the tests that do it run one after
+// the other.
+func TestBhvTelemetry011_OtelHook_AProviderHandedToTheAdapterIsUsedInsteadOfTheGlobalOne(t *testing.T) {
+	global := tracetest.NewSpanRecorder()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(global)))
+	t.Cleanup(func() { otel.SetTracerProvider(noop.NewTracerProvider()) })
+	h := newOtelHarness(t, otelOkReply())
+
+	if err := h.get(t); err != nil {
+		t.Fatal(err)
+	}
+	h.span(t)
+	if got := len(global.Ended()); got != 0 {
+		t.Errorf("expected the global provider unused, got %d spans", got)
+	}
+
+	stub := &otelStubClient{replies: []otelStubReply{otelOkReply()}}
+	fromGlobal := otelhook.New(otelhook.WithPropagator(propagation.TraceContext{}))
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://127.0.0.1:8080").CallHook(fromGlobal).Build()
+	if _, err := {{packageName}}.NewPetApi(stub, config, nil, {{packageName}}.Credentials{}).GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(global.Ended()); got != 1 {
+		t.Errorf("expected the global provider used when none is handed over, got %d spans", got)
+	}
+}
+
+func TestBhvTelemetry012_OtelHook_WithNoProviderConfiguredTheAdapterDoesNothingAndTheCallIsUnchanged(t *testing.T) {
+	otel.SetTracerProvider(noop.NewTracerProvider())
+	stub := &otelStubClient{replies: []otelStubReply{otelOkReply()}}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://127.0.0.1:8080").CallHook(otelhook.New()).Build()
+	api := {{packageName}}.NewPetApi(stub, config, nil, {{packageName}}.Credentials{})
+
+	pet, err := api.GetPetById(context.Background(), int64(1), nil)
+
+	if err != nil || pet == nil || pet.Name != "Test" {
+		t.Fatalf("expected the unchanged result, got %v, %v", pet, err)
+	}
+	for name := range stub.sent[0] {
+		if strings.EqualFold(name, "traceparent") {
+			t.Errorf("expected no traceparent without a provider, got %v", stub.sent[0])
+		}
+	}
+}
+
+// countingTracerProvider counts the End calls of the spans it starts.
+type countingTracerProvider struct {
+	embedded.TracerProvider
+	inner trace.TracerProvider
+	ends  *atomic.Int32
+}
+
+func (p countingTracerProvider) Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
+	return countingTracer{inner: p.inner.Tracer(name, opts...), ends: p.ends}
+}
+
+type countingTracer struct {
+	embedded.Tracer
+	inner trace.Tracer
+	ends  *atomic.Int32
+}
+
+func (c countingTracer) Start(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	ctx, span := c.inner.Start(ctx, name, opts...)
+	return ctx, countingSpan{Span: span, ends: c.ends}
+}
+
+type countingSpan struct {
+	trace.Span
+	ends *atomic.Int32
+}
+
+func (s countingSpan) End(opts ...trace.SpanEndOption) {
+	s.ends.Add(1)
+	s.Span.End(opts...)
+}
+
+func TestBhvTelemetry013_OtelHook_TheSpanEndsExactlyOnceAlsoWhenTheCallFails(t *testing.T) {
+	t.Parallel()
+	for _, reply := range []otelStubReply{otelOkReply(), {err: apierrors.NewNetworkError("refused", nil)}, {status: 500, body: `{}`}} {
+		var ends atomic.Int32
+		tracer := countingTracerProvider{inner: sdktrace.NewTracerProvider(), ends: &ends}
+		hook := otelhook.New(otelhook.WithTracerProvider(tracer), otelhook.WithMeterProvider(sdkmetric.NewMeterProvider()))
+		config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://127.0.0.1:8080").CallHook(hook).Build()
+		api := {{packageName}}.NewPetApi(&otelStubClient{replies: []otelStubReply{reply}}, config, nil, {{packageName}}.Credentials{})
+
+		_, _ = api.GetPetById(context.Background(), int64(1), nil)
+
+		if got := ends.Load(); got != 1 {
+			t.Errorf("expected the span to end once for %+v, got %d", reply, got)
+		}
+	}
+}
+
+func TestBhvTelemetry014_OtelHook_NoAttributeCarriesAQueryStringAHeaderValueOrACredential(t *testing.T) {
+	t.Parallel()
+	h := newOtelHarness(t, otelStubReply{status: 200, body: `[]`})
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://127.0.0.1:8080/base").DefaultHeader("X-Custom", "header-value-1").CallHook(h.hook).Build()
+	api := {{packageName}}.NewPetApi(h.stub, config, otelBearer{}, {{packageName}}.Credentials{})
+	status := options.FindPetsByStatusStatusSold
+
+	if _, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status}); err != nil {
+		t.Fatal(err)
+	}
+
+	span := h.span(t)
+	_, byName := h.metrics(t)
+	var all []string
+	for k, v := range attributeMap(span.Attributes()) {
+		all = append(all, k+"="+v)
+	}
+	for _, m := range byName {
+		switch data := m.Data.(type) {
+		case metricdata.Sum[int64]:
+			for _, point := range data.DataPoints {
+				for k, v := range attributeMap(point.Attributes.ToSlice()) {
+					all = append(all, k+"="+v)
+				}
+			}
+		case metricdata.Histogram[float64]:
+			for _, point := range data.DataPoints {
+				for k, v := range attributeMap(point.Attributes.ToSlice()) {
+					all = append(all, k+"="+v)
+				}
+			}
+		}
+	}
+	for _, text := range all {
+		for _, forbidden := range []string{"?", "sold", "header-value-1", "secret-credential"} {
+			if strings.Contains(text, forbidden) {
+				t.Errorf("attribute %q carries %q", text, forbidden)
+			}
+		}
+	}
+}
+
+// otelBearer is an authenticator whose credential must never reach an attribute.
+type otelBearer struct{}
+
+func (otelBearer) Host() string                    { return "" }
+func (otelBearer) AuthHeaders() map[string]string  { return map[string]string{"Authorization": "Bearer secret-credential"} }
+func (otelBearer) QueryParams() map[string]string  { return nil }
+func (otelBearer) CookieParams() map[string]string { return nil }
