@@ -17,6 +17,16 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class TransportOptionsTest {
+    @Test
+    @DisplayName("bhvErrors098 a missing CA certificate names the path and wraps the not-found cause")
+    fun bhvErrors098MissingCaCertificateNamesThePathAndWrapsTheCause() {
+        val path = "/nonexistent/ca-certificate.pem"
+        val ex = assertThrows(IllegalArgumentException::class.java) { loadCaCertTrustManager(path) }
+
+        assertTrue(ex.message.orEmpty().contains(path))
+        assertTrue(ex.cause is java.io.IOException)
+    }
+
     @Nested
     @DisplayName("defaults")
     inner class Defaults {
