@@ -87,6 +87,24 @@ internal data class DayHolder(
     val day: LocalDate,
 )
 
+@Serializable
+internal data class NeedsNameHolder(
+    @SerialName("name")
+    val name: String,
+)
+
+@Serializable
+internal data class DefaultsHolder(
+    @SerialName("status")
+    val status: String = "ready",
+)
+
+@Serializable
+internal data class TextMapHolder(
+    @SerialName("entries")
+    val entries: Map<String, String>,
+)
+
 class ObjectSerializerTest {
 
     private val serializer = ObjectSerializer()
@@ -3473,6 +3491,95 @@ class ObjectSerializerTest {
         @DisplayName("bhvMisc121 an object with no declared schema is written as a JSON object of its properties")
         fun bhvMisc121UndeclaredObjectIsWrittenAsJsonObject() {
             assertEquals("{\"k\":\"v\"}", serializer.serialize(mapOf("k" to "v")))
+        }
+    }
+    @Nested
+    @DisplayName("model defaults, required fields and equality")
+    inner class ModelDefaultsAndEqualityTests {
+
+        @Test
+        @DisplayName("bhvMisc140 a missing required property fails the decode with an error that names it")
+        fun bhvMisc140MissingRequiredPropertyIsNamed() {
+            val ex = assertThrows(SerializationException::class.java) {
+                serializer.deserialize<NeedsNameHolder>("{}")
+            }
+            assertTrue(ex.message!!.contains("name"), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvMisc141 a model built without a value for a defaulted property holds the schema default")
+        fun bhvMisc141DefaultedPropertyHoldsItsDefault() {
+            assertEquals("ready", DefaultsHolder().status)
+        }
+
+        @Test
+        @DisplayName("bhvMisc142 additional-property values are returned unchanged by key and the map holds exactly them")
+        fun bhvMisc142AdditionalPropertiesHoldExactlyTheStoredEntries() {
+            val meta = serializer.deserialize<{{modelPackage}}.Metadata>("{\"region\":\"emea\",\"tier\":\"gold\"}")
+            assertEquals(mapOf("region" to "emea", "tier" to "gold"), meta!!.additionalProperties)
+        }
+
+        @Test
+        @DisplayName("bhvMisc143 a model with additional properties copies them and compares equal to the original")
+        fun bhvMisc143CopyKeepsAdditionalPropertiesAndEquality() {
+            val original = serializer.deserialize<{{modelPackage}}.Metadata>("{\"region\":\"emea\"}")!!
+            val copy = original.copy()
+            assertEquals(original, copy)
+            assertEquals("emea", copy.additionalProperties["region"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc144 validating a model refuses a string given for a numeric field")
+        fun bhvMisc144StringForNumericFieldIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>("{\"quantity\":\"3\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc145 reading the undeclared keys returns a copy, so changing it leaves the instance unchanged")
+        fun bhvMisc145UndeclaredKeysReadAsCopy() {
+            val meta = serializer.deserialize<{{modelPackage}}.Metadata>("{\"region\":\"emea\"}")!!
+            runCatching { (meta.additionalProperties as MutableMap<String, Any?>)["extra"] = "x" }
+            assertFalse(meta.additionalProperties.containsKey("extra"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc146 copying a model with no changes yields a new instance equal to the original")
+        fun bhvMisc146CopyWithNoChangesIsEqualAndNew() {
+            val meta = serializer.deserialize<{{modelPackage}}.Metadata>("{\"region\":\"emea\"}")!!
+            val copy = meta.copy()
+            assertNotSame(meta, copy)
+            assertEquals(meta, copy)
+        }
+
+        @Test
+        @DisplayName("bhvMisc147 a copy of a model holds the same nested object as the original")
+        fun bhvMisc147CopySharesNestedObject() {
+            val holder = MetadataHolder(meta = serializer.deserialize<{{modelPackage}}.Metadata>("{\"region\":\"emea\"}"))
+            assertSame(holder.meta, holder.copy().meta)
+        }
+
+        @Test
+        @DisplayName("bhvMisc148 a copy serializes to the wire form of the original with its changes applied")
+        fun bhvMisc148CopySerializesWithItsChanges() {
+            val changed = MetadataHolder(label = "old").copy(label = "new")
+            val json = serializer.serialize(changed)
+            assertTrue(json.contains("\"label\":\"new\""), "got: $json")
+        }
+
+        @Test
+        @DisplayName("bhvMisc150 models whose fields hold equal values compare equal and differing values compare unequal")
+        fun bhvMisc150ModelEqualityFollowsFieldValues() {
+            assertEquals(MetadataHolder(label = "a"), MetadataHolder(label = "a"))
+            assertNotEquals(MetadataHolder(label = "a"), MetadataHolder(label = "b"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc151 a model holding a map compares equal only when the maps hold the same entries")
+        fun bhvMisc151MapFieldEqualityFollowsEntries() {
+            assertEquals(TextMapHolder(mapOf("k" to "v")), TextMapHolder(mapOf("k" to "v")))
+            assertNotEquals(TextMapHolder(mapOf("k" to "v")), TextMapHolder(mapOf("k" to "w")))
         }
     }
 }
