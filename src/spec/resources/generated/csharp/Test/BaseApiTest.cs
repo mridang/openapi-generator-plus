@@ -1675,6 +1675,18 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvMisc159A401IsReplayedOnceEvenWithRetriesOffWhenTheAuthenticatorCanRefresh()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        _ = await CallWithAuth(client, auth, "{}");
+
+        Assert.Equal(1, auth.Invalidations);
+        Assert.Equal(2, client.Authorizations.Count);
+    }
+
+    [Fact]
     public async Task BhvRetries002AnAuthenticatorWithoutATokenCacheNeverReplaysA401()
     {
         var client = new StatusSequenceApiClient(401, 200);
