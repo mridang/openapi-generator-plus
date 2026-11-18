@@ -898,6 +898,20 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_headers['Accept']).must_equal 'application/xml'
   end
 
+  it 'bhv_headers_030 a default header in another case replaces the negotiated one instead of sitting beside it' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder
+      .base_url('http://localhost')
+      .default_header('accept', 'application/vnd.x+json')
+      .build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    accepts = client.captured_headers.keys.select { |name| name.casecmp?('accept') }
+    _(accepts).must_equal ['accept']
+    _(client.captured_headers['accept']).must_equal 'application/vnd.x+json'
+  end
+
   it 'bhv_options_001 config.default_headers custom headers propagate to request' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder

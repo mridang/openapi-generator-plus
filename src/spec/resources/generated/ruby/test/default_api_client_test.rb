@@ -23,6 +23,19 @@ describe Petstore::Client::DefaultApiClient do
       json = JSON.parse(response.body)
       _(json['method']).must_equal('GET')
     end
+
+    it 'bhv_transport_062 with verify_ssl false accepts a certificate that fails validation' do
+      chasm_url = ENV.fetch('CHASM_HTTPS_URL')
+
+      transport = Petstore::Client::TransportOptions.builder
+        .verify_ssl(false)
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+    end
   end
 
   describe 'custom CA bundle' do
@@ -146,6 +159,18 @@ describe Petstore::Client::DefaultApiClient do
       _(response.status_code).must_equal(407)
     end
 
+    it 'bhv_transport_063 authenticating proxy answers 407 when no credentials are sent' do
+      chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
+      transport = Petstore::Client::TransportOptions.builder
+        .proxy("http://#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(407)
+    end
+
     # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
     # and surfaced as Proxy-Authorization so the proxy can authenticate
     # the tunnel — otherwise the proxy 407s. Faraday reads userinfo
@@ -230,6 +255,20 @@ describe Petstore::Client::DefaultApiClient do
       error = _ { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }.must_raise Petstore::Client::Errors::NetworkTimeoutError
       _(error.status_code).must_equal 0
       _(error.cause).wont_be_nil
+    end
+
+    it 'bhv_transport_060 cancelling an in-flight call aborts the request without reporting a timeout' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.timeout(30_000).build)
+      cancelled = Class.new(StandardError)
+
+      worker = Thread.new { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }
+      worker.report_on_exception = false
+      sleep 0.3
+      worker.raise(cancelled, 'cancelled by the caller')
+
+      _(assert_raises(cancelled) { worker.join(10) }.message).must_equal 'cancelled by the caller'
+      _(worker.alive?).must_equal false
     end
 
     it 'bhv_redirects_009 spends one budget across every redirect hop' do

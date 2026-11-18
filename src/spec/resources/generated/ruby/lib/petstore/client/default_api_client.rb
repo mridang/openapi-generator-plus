@@ -498,8 +498,11 @@ module Petstore::Client
 
     # Whether a failed attempt may be tried again. A TLS failure is a setup
     # problem (an untrusted or mismatched certificate) that another try cannot
-    # fix.
+    # fix. A timeout has already spent the caller's time budget on the attempt,
+    # so it is reported at once, as in the other SDKs.
     def retryable_network_error?(error)
+      return false if error.is_a?(Errors::NetworkTimeoutError)
+
       !error.cause.is_a?(Faraday::SSLError)
     end
 
