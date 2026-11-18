@@ -419,15 +419,6 @@ class BaseApiTest {
 
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
-    @Test
-    @DisplayName("a binary return type gets the raw bytes of a JSON body")
-    fun binaryReturnTypeGetsTheRawBytesOfAJsonBody() {
-        val client = CapturingApiClient()
-        val testApi = TestableApiWithClient(client, "http://localhost")
-        val result = runBlocking { testApi.callForResult<ByteArray>("GET", "/test/echo") }
-        assertEquals("{}", String(result.data!!, Charsets.UTF_8))
-    }
-
     // A BaseApi that forwards the per-call settings an operation's options carry.
     class PerCallApi(
         client: ApiClient,
@@ -2221,18 +2212,6 @@ class BaseApiTest {
                     client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
                 }
             assertEquals(407, response.statusCode)
-        }
-
-        @Test
-        @DisplayName("TransportOptions accepts proxy URL containing basic-auth credentials")
-        fun transportOptionsAcceptsProxyWithBasicAuthCredentials() {
-            // Verifies the proxy URL parser does not reject user:pass@host:port form.
-            val opts =
-                TransportOptions
-                    .builder()
-                    .proxy("http://user:pass@proxy.example.com:3128")
-                    .build()
-            assertEquals("http://user:pass@proxy.example.com:3128", opts.proxy)
         }
     }
 

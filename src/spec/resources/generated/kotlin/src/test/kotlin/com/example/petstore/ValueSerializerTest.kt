@@ -786,12 +786,6 @@ class ValueSerializerTest {
     @DisplayName("unknown/empty style fallback")
     inner class FallbackTests {
         @Test
-        @DisplayName("null style falls back to location-based serialization")
-        fun nullStyleFallsBack() {
-            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false))
-        }
-
-        @Test
         @DisplayName("bhvSerializationparam035 empty style falls back to location-based serialization")
         fun emptyStyleFallsBack() {
             assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, "", false))

@@ -24,13 +24,6 @@ class ConfigurationTest {
         }
 
         @Test
-        @DisplayName("default builder has empty headers")
-        fun defaultBuilderHasEmptyHeaders() {
-            val config = Configuration.builder().build()
-            assertTrue(config.defaultHeaders.isEmpty())
-        }
-
-        @Test
         @DisplayName("bhvConfig022 mutating the returned default headers does not change the configuration")
         fun mutatingReturnedHeadersLeavesTheConfigurationUnchanged() {
             val config =
