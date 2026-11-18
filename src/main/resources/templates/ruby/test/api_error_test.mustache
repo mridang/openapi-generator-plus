@@ -227,6 +227,13 @@ describe {{moduleName}}::Errors::ApiError do
     end
   end
 
+  it 'bhv_errors_071 a 401 response surfaces as an UnauthorizedError' do
+    err = {{moduleName}}::Errors::ApiError.from_response(401, { 'x-request-id' => 'abc' }, '{"code":7}')
+
+    _(err).must_be_instance_of({{moduleName}}::Errors::UnauthorizedError)
+    _(err.status_code).must_equal(401)
+  end
+
   it 'from_response treats a status at or above 600 as the base ApiError' do
     # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
     # base ApiError, never ServerError.

@@ -313,7 +313,7 @@ describe Petstore::Client::TransportOptions do
     _(opts.proxy).must_equal 'HTTPS://proxy.example.com:8443'
   end
 
-  it 'accepts proxy credentials in the URL' do
+  it 'bhv_options_052 accepts proxy credentials in the URL' do
     opts = Petstore::Client::TransportOptions.builder.proxy('http://user:pass@proxy.example.com:8080').build
     _(opts.proxy).must_equal 'http://user:pass@proxy.example.com:8080'
   end

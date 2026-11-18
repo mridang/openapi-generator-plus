@@ -1185,6 +1185,19 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
+  it 'bhv_redirects_031 returns a 3xx without a Location unchanged when max_redirects is zero' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/moved') { [302, { 'content-type' => 'text/plain' }, 'moved body'] }
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).max_redirects(0).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
+      _(resp.status_code).must_equal 302
+      _(resp.body).must_equal 'moved body'
+    end
+  end
+
   it 'returns a 3xx without a Location header as the terminal response' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/moved') { [301, { 'content-type' => 'text/plain' }, 'moved body'] }
@@ -1859,6 +1872,28 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
+  it 'bhv_redirects_030 treats an explicit default port as the same origin' do
+    followed = headers_followed_to('http://origin.test/start', 'http://origin.test:80/landing')
+    _(followed).wont_be_nil
+    _(followed['authorization']).must_equal 'Bearer secret'
+    _(followed['cookie']).must_equal 'session=abc'
+  end
+
+  it 'bhv_redirects_033 drops the credentials on a redirect to a different port' do
+    followed = headers_followed_to('http://origin.test/start', 'http://origin.test:8080/landing')
+    _(followed).wont_be_nil
+    _(followed.key?('authorization')).must_equal false
+    _(followed.key?('cookie')).must_equal false
+  end
+
+  it 'bhv_redirects_034 separates a different scheme, host or port when comparing origins' do
+    ['https://origin.test/landing', 'http://other.test/landing', 'http://origin.test:8080/landing'].each do |location|
+      followed = headers_followed_to('http://origin.test/start', location)
+      _(followed).wont_be_nil
+      _(followed.key?('authorization')).must_equal false
+    end
+  end
+
   it 'bhv_redirects_025 strips default headers and credential-named headers on a cross-origin redirect' do
     captured = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -2050,7 +2085,7 @@ describe 'DefaultApiClientUnit' do
   # The stub answers every attempt through +respond+ (called with the attempt
   # number), the recorded pauses replace real sleeping, and +envs+ keeps each
   # attempt's request.
-  def run_retry_probe(options: nil, verb: :get, headers: {}, body: nil, retry_headers: nil, &respond)
+  def run_retry_probe(options: nil, verb: :get, headers: {}, body: nil, retry_headers: nil, random: nil, &respond)
     envs = []
     delays = []
     # The request body as sent: the stub rewrites env.body with the response.
@@ -2067,6 +2102,7 @@ describe 'DefaultApiClientUnit' do
     end
     client = {{moduleName}}::DefaultApiClient.new(options || {{moduleName}}::TransportOptions.builder.build)
     client.define_singleton_method(:pause) { |seconds| delays << seconds }
+    client.define_singleton_method(:rand) { |*_args| random } unless random.nil?
     outcome = nil
     client.stub(:build_connection, stub_connection(stubs)) do
       outcome = begin
@@ -2086,7 +2122,7 @@ describe 'DefaultApiClientUnit' do
     ->(attempt) { attempt > attempts ? [200, { 'content-type' => 'text/plain' }, 'ok'] : failure }
   end
 
-  it 'sends the request again after a 503 and returns the later success' do
+  it 'bhv_retries_038 sends the request again after a 503 and returns the later success' do
     outcome, envs, delays = run_retry_probe(&ok_after(2, [503, {}, 'busy']))
 
     _(outcome.status_code).must_equal 200
@@ -2095,7 +2131,7 @@ describe 'DefaultApiClientUnit' do
     _(delays.length).must_equal 2
   end
 
-  it 'backs off from 0.5 s, doubling, with up to 25% jitter' do
+  it 'bhv_retries_041 backs off from 0.5 s, doubling, with up to 25% jitter' do
     _outcome, _envs, delays = run_retry_probe(options: {{moduleName}}::TransportOptions.builder.max_retries(5).build) do
       [503, {}, 'busy']
     end
@@ -2179,7 +2215,7 @@ describe 'DefaultApiClientUnit' do
     _(envs.length).must_equal 3
   end
 
-  it 'raises the last network error once the retries are spent' do
+  it 'bhv_retries_033 raises the last network error once the retries are spent' do
     outcome, envs, delays = run_retry_probe { raise Faraday::ConnectionFailed, 'down' }
 
     _(outcome).must_be_instance_of {{moduleName}}::Errors::NetworkError
@@ -2203,10 +2239,32 @@ describe 'DefaultApiClientUnit' do
     _(delays).must_be_empty
   end
 
-  it 'sends a string body again on a retry' do
+  it 'bhv_retries_034 sends a string body again on a retry' do
     run_retry_probe(verb: :post, body: 'payload', &ok_after(1, [503, {}, 'busy']))
 
     _(@sent_bodies).must_equal %w[payload payload]
+  end
+
+  it 'bhv_retries_030 takes at most a quarter off a backoff wait' do
+    _outcome, _envs, delays = run_retry_probe(random: 1.0) { [503, {}, 'busy'] }
+
+    _(delays.first).must_equal 0.375
+  end
+
+  it 'bhv_retries_032 never retries a stream body' do
+    outcome, envs, delays = run_retry_probe(verb: :post, body: StringIO.new('payload')) { [503, {}, 'busy'] }
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
+  end
+
+  it 'bhv_retries_039 sends every retry as a fresh request with the same authentication headers' do
+    _outcome, envs, = run_retry_probe(headers: { 'Authorization' => 'Bearer token' }, &ok_after(2, [503, {}, 'busy']))
+
+    _(envs.length).must_equal 3
+    _(envs.map { |env| env.request_headers['Authorization'] }).must_equal(['Bearer token'] * 3)
+    _(envs.map(&:object_id).uniq.length).must_equal 3
   end
 
   it 'bhv_retries_019 never lets a retry start after the timeout budget is spent' do

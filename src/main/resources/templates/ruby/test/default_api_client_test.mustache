@@ -799,6 +799,38 @@ describe {{moduleName}}::DefaultApiClient do
         end
       end
     end
+
+    it 'bhv_redirects_029 rewrites the method only as RFC 9110 section 15.4 allows' do
+      run = lambda do |status, verb|
+        seen = [] # : Array[Array[String]]
+        transport = {{moduleName}}::TransportOptions.builder
+                                                    .connection(redirect_connection(status, seen))
+                                                    .follow_redirects(true).build
+        {{moduleName}}::DefaultApiClient.new(transport).send_request(verb, 'http://localhost/start', {}, 'payload')
+        seen
+      end
+
+      _(run.call(301, :post)).must_equal([['GET', '']])
+      _(run.call(302, :post)).must_equal([['GET', '']])
+      _(run.call(307, :post)).must_equal([['POST', 'payload']])
+      _(run.call(308, :post)).must_equal([['POST', 'payload']])
+    end
+
+    it 'bhv_redirects_036 turns every method except HEAD into GET on a 303' do
+      run = lambda do |verb, body|
+        seen = [] # : Array[Array[String]]
+        transport = {{moduleName}}::TransportOptions.builder
+                                                    .connection(redirect_connection(303, seen))
+                                                    .follow_redirects(true).build
+        {{moduleName}}::DefaultApiClient.new(transport).send_request(verb, 'http://localhost/start', {}, body)
+        seen
+      end
+
+      %i[post put patch delete].each do |verb|
+        _(run.call(verb, 'payload')).must_equal([['GET', '']])
+      end
+      _(run.call(:head, nil)).must_equal([['HEAD', '']])
+    end
   end
 
   describe 'injected Faraday connection' do

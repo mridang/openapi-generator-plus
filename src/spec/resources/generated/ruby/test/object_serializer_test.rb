@@ -323,6 +323,10 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.stringify(42)).must_equal('42')
     end
 
+    it 'bhv_serializationobject_190 stringifies a long to its exact decimal digits' do
+      _(Petstore::Client::ObjectSerializer.stringify(9_007_199_254_740_993)).must_equal('9007199254740993')
+    end
+
     it 'bhv_serializationobject_157 returns ISO 8601 string for Time' do
       t = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
@@ -836,6 +840,12 @@ describe Petstore::Client::ObjectSerializer do
       # this path leaking a raw stdlib ArgumentError.
       assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('"shipped"', 'TestStatusEnumDeserialize')
+      end
+    end
+
+    it 'bhv_serializationobject_192 fails loudly at decode for an unknown enum string' do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('"banana"', 'TestStatusEnumDeserialize')
       end
     end
 
@@ -1863,7 +1873,7 @@ describe Petstore::Client::ObjectSerializer do
       _(err.message).must_equal('Failed to deserialize JSON: Expected Integer, got String: "7"')
     end
 
-    it 'keeps an int64 above 2**53 exact through decode and encode' do
+    it 'bhv_serializationobject_191 keeps an int64 above 2**53 exact through decode and encode' do
       order = Petstore::Client::ObjectSerializer.deserialize('{"id":9007199254740993}', 'Petstore::Client::Models::Order')
 
       _(order.id).must_equal(9_007_199_254_740_993)
