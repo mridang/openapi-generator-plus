@@ -1984,3 +1984,11 @@ langcsharp025 | Each operation receives only the credential of the scheme it req
 langcsharp026 | A JSON null body from an operation that returns a collection raises the API error
 langcsharp027 | A date-time form field is written in its canonical string form
 langcsharp028 | An operation that is not deprecated carries no deprecation marker
+langcsharp029 | A new model starts with an empty additional properties collection and never a null one
+langcsharp030 | An additional property entry is written flat at the top level of the body
+langcsharp031 | Every dev dependency the test suite uses is declared in the project manifest
+langcsharp032 | The project file writes the documentation file and packs the readme and symbols
+langcsharp033 | The readme documents the behaviour that most surprises callers
+langcsharp034 | The readme names the versioning policy the package follows
+langcsharp035 | The skills model sample supplies every required field
+langcsharp036 | The makefile carries a dependency audit target
