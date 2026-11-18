@@ -1982,6 +1982,15 @@ class ObjectSerializer
             );
         }
 
+        /* D88: the protobuf range is +-315576000000 s. The bound itself is
+         * accepted only with a zero fraction; anything past it is rejected. */
+        if ((int) $digits > 315576000000
+            || ((int) $digits === 315576000000 && isset($m[3]) && (int) $m[3] !== 0)) {
+            throw new SerializationException(
+                "Invalid protobuf-JSON duration '$value': outside the protobuf range of +-315576000000 seconds"
+            );
+        }
+
         $interval = new PreciseDuration();
         $interval->s = (int) $digits;
 
