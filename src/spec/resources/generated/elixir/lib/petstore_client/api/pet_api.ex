@@ -549,6 +549,27 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 
+  @callback get_pet_by_note(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.GetPetByNoteOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+
+  @callback get_pet_by_note!(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.GetPetByNoteOptions.t(),
+              keyword()
+            ) ::
+              PetstoreClient.Models.Pet.t()
+
+  @callback get_pet_by_note_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.GetPetByNoteOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
   @callback get_pet_passport(
               PetstoreClient.Api.PetApi.t(),
               integer(),
@@ -3082,6 +3103,7 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @spec get_pet_by_note(t(), PetstoreClient.Api.Options.GetPetByNoteOptions.t(), keyword()) ::
           {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_by_note(%__MODULE__{} = api, options, opts \\ []) do
     case get_pet_by_note_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -3110,6 +3132,7 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @spec get_pet_by_note!(t(), PetstoreClient.Api.Options.GetPetByNoteOptions.t(), keyword()) ::
           PetstoreClient.Models.Pet.t()
+  @impl true
   def get_pet_by_note!(%__MODULE__{} = api, options, opts \\ []) do
     case get_pet_by_note(api, options, opts) do
       {:ok, data} -> data
@@ -3126,6 +3149,7 @@ defmodule PetstoreClient.Api.PetApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_pet_by_note_with_http_info(%__MODULE__{} = api, options, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -3224,7 +3248,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetByNote", "/pet/byNote"}),
       %{}
     )
   end

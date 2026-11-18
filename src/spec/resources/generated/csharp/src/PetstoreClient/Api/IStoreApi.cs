@@ -120,6 +120,18 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>GetNativeValues</c> operation.</summary>
+    Task<NativeValues> GetNativeValuesAsync(
+        GetNativeValuesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>GetNativeValues</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<NativeValues>> GetNativeValuesWithHttpInfoAsync(
+        GetNativeValuesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>GetOrderById</c> operation.</summary>
     Task<Order> GetOrderByIdAsync(
         long orderId,

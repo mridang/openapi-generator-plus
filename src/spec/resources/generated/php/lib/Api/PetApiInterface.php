@@ -27,6 +27,7 @@ use PetstoreClient\Api\Options\GetPetAvatarOptions;
 use PetstoreClient\Api\Options\GetPetAvatarThumbnailOptions;
 use PetstoreClient\Api\Options\GetPetByIdOptions;
 use PetstoreClient\Api\Options\GetPetByNameOptions;
+use PetstoreClient\Api\Options\GetPetByNoteOptions;
 use PetstoreClient\Api\Options\GetPetPassportOptions;
 use PetstoreClient\Api\Options\GetPetPhotoOptions;
 use PetstoreClient\Api\Options\GetPetSummaryOptions;
@@ -268,6 +269,20 @@ interface PetApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetByNameWithHttpInfo(string $name, GetPetByNameOptions $options): ApiResult;
+
+    /**
+     * Look up a pet by note (required query parameters whose value may be null)
+     * @param GetPetByNoteOptions $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getPetByNote(GetPetByNoteOptions $options): \PetstoreClient\Models\Pet;
+
+    /**
+     * @param GetPetByNoteOptions $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getPetByNoteWithHttpInfo(GetPetByNoteOptions $options): ApiResult;
 
     /**
      * Get the pet's passport

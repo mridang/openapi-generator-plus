@@ -24,6 +24,7 @@ import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetByNameOptions;
+import com.example.petstore.api.options.GetPetByNoteOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
@@ -771,6 +772,42 @@ class PetApiTest {
     petApi.getPetByName("rex", new GetPetByNameOptions("cats", "corr-1"));
 
     assertThat(capturing.capturedUrl).contains("category=cats");
+  }
+
+  @Test
+  void bhvOperations157GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetByNote(new GetPetByNoteOptions(null, 3));
+
+    assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
+  }
+
+  @Test
+  void bhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetByNote(new GetPetByNoteOptions(null, null));
+
+    assertThat(capturing.capturedUrl).endsWith("?note=&rank=");
+  }
+
+  @Test
+  void bhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetByNote(new GetPetByNoteOptions("a b", 3));
+
+    assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
   }
 
   @Test
@@ -1935,5 +1972,91 @@ class PetApiTest {
     assertThat(recording.sentTimeouts.get(0)).isNull();
     assertThat(recording.sentRetries.get(0)).isNull();
     assertThat(recording.sentHeaders.get(0).get("X-Trace")).isNull();
+  }
+
+  /** A recording fake of the group: default methods run their body and land on the full form. */
+  private static PetApiInterface fakeApi(
+      java.util.List<Object[]> calls, @javax.annotation.Nullable RuntimeException failWith) {
+    return (PetApiInterface)
+        java.lang.reflect.Proxy.newProxyInstance(
+            PetApiInterface.class.getClassLoader(),
+            new Class<?>[] {PetApiInterface.class},
+            (proxy, method, args) -> {
+              if (method.isDefault()) {
+                return java.lang.reflect.InvocationHandler.invokeDefault(proxy, method, args);
+              }
+              calls.add(args == null ? new Object[0] : args);
+              if (failWith != null) {
+                throw failWith;
+              }
+              return Pet.builder().id(1L).name("fake").photoUrls(Set.of()).build();
+            });
+  }
+
+  /** Code under test: it takes the group interface, never the generated class. */
+  private static Pet lookUp(PetApiInterface group, long id) {
+    return group.getPetById(id);
+  }
+
+  private static String classify(Runnable call) {
+    try {
+      call.run();
+      return "none";
+    } catch (com.example.petstore.errors.NotFoundException e) {
+      return "not found";
+    } catch (com.example.petstore.errors.ApiException e) {
+      return "api error";
+    }
+  }
+
+  @Test
+  void bhvMocking003FakeIsAcceptedWhereTheInterfaceIsAcceptedAndReceivesTheArguments() {
+    java.util.List<Object[]> calls = new java.util.ArrayList<>();
+
+    Pet pet = lookUp(fakeApi(calls, null), 42L);
+
+    assertThat(pet.name).isEqualTo("fake");
+    assertThat(calls).hasSize(1);
+    assertThat(calls.get(0)[0]).isEqualTo(42L);
+  }
+
+  @Test
+  void bhvMocking004FakeRaisesTheTypedErrorAndTheCallerHandlesItLikeTheRealClients()
+      throws Exception {
+    PetApiInterface fake =
+        fakeApi(
+            new java.util.ArrayList<>(),
+            new com.example.petstore.errors.NotFoundException("missing"));
+    PetApi real = newPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
+
+    assertThat(classify(() -> lookUp(fake, 1L))).isEqualTo("not found");
+    assertThat(classify(() -> lookUp(real, 1L))).isEqualTo(classify(() -> lookUp(fake, 1L)));
+    assertThatThrownBy(() -> lookUp(fake, 1L))
+        .isInstanceOf(com.example.petstore.errors.ApiException.class);
+  }
+
+  @Test
+  void bhvMocking005InterfaceCallSendsTheSameRequestAndReturnsTheSameResultAsTheClassCall() {
+    PetApiInterface viaInterface = api;
+
+    var direct = api.getPetByIdWithHttpInfo(1L);
+    var through = viaInterface.getPetByIdWithHttpInfo(1L);
+
+    assertThat(through.statusCode()).isEqualTo(direct.statusCode());
+    assertThat(through.data()).isEqualTo(direct.data());
+    assertThat(through.headers().keySet()).isEqualTo(direct.headers().keySet());
+  }
+
+  @Test
+  void bhvMocking006CallWithoutOptionsReachesTheFullSignatureWithNoneSet() {
+    java.util.List<Object[]> calls = new java.util.ArrayList<>();
+
+    lookUp(fakeApi(calls, null), 7L);
+
+    assertThat(calls).hasSize(1);
+    assertThat(calls.get(0)).hasSize(3);
+    assertThat(calls.get(0)[0]).isEqualTo(7L);
+    assertThat(calls.get(0)[1]).isNull();
+    assertThat(calls.get(0)[2]).isNull();
   }
 }

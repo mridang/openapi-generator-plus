@@ -235,11 +235,11 @@ describe 'Client' do
     client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi)
   end
 
-  it 'bhv_lifecycle_015 takes one optional keyword credential per security scheme, named after it' do
+  it 'bhv_lifecycle_015 takes one optional keyword credential per security scheme, named after it, then the call hook' do
     keywords = Petstore::Client::Petstore.instance_method(:initialize).parameters
                                                   .filter_map { |kind, name| name if kind == :key }
 
-    _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth]
+    _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth call_hook]
   end
 
   it 'bhv_lifecycle_030 the base URL comes from the authenticator first, then from the first scheme credential' do
@@ -309,6 +309,33 @@ describe 'Client' do
     end
   end
 
+  def call_hook_groups_of(client)
+    client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi)
+  end
+
+  it 'hands the call hook to every API group' do
+    hook = RecordingCallHook.new
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+
+    client = Petstore::Client::Petstore.new(authenticator, nil, call_hook: hook)
+    from_token = Petstore::Client::Petstore.with_token('/api/v3', 'test-token', call_hook: hook)
+    from_authenticator = Petstore::Client::Petstore.with_authenticator(authenticator, call_hook: hook)
+
+    [client, from_token, from_authenticator].each do |built|
+      groups = call_hook_groups_of(built)
+      _(groups).wont_be_empty
+      _(groups.map { |api| api.config.call_hook }.uniq).must_equal [hook]
+    end
+  end
+
+  it 'has no call hook unless one is given' do
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+
+    groups = call_hook_groups_of(Petstore::Client::Petstore.new(authenticator))
+
+    _(groups.map { |api| api.config.call_hook }.uniq).must_equal [nil]
+  end
+
   it 'bhv_lifecycle_008 close makes the client reject further requests' do
     authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
     client = Petstore::Client::Petstore.new(authenticator)
@@ -371,5 +398,272 @@ describe 'Client' do
     _(-> { Petstore::Client::Petstore.with_token('', 'test-token') }).must_raise ArgumentError
     _(-> { Petstore::Client::Petstore.with_token('/api/v3', '') }).must_raise ArgumentError
     _(Petstore::Client::Petstore.with_token('/api/v3', 'test-token')).wont_be_nil
+  end
+
+  # The group interfaces are RBS (Ruby has no interface keyword), so the tests read the
+  # signature files the gem ships and check them against the classes.
+  def signature_dir
+    File.expand_path('../sig', File.dirname(__FILE__))
+  end
+
+  def interface_methods(source, name)
+    body = source[/interface #{Regexp.escape(name)}\n(.*?)\n\s*end\n/m, 1]
+    _(body).wont_be_nil
+    body.to_s.scan(/^\s*def (\w+[?!]?):/).flatten.sort
+  end
+
+  it 'bhv_mocking_001 every group has an interface the class implements' do
+    source = File.read(Dir.glob(File.join(signature_dir, '**', 'pet_api.rbs')).fetch(0))
+    listed = interface_methods(source, '_PetApiInterface')
+    group = Petstore::Client::Api::PetApi.new(nil, TEST_CONFIGURATION)
+    _(listed).must_include 'add_pet'
+    _(listed).must_include 'add_pet_with_http_info'
+    _(group).must_respond_to :add_pet
+    _(group).must_respond_to :add_pet_with_http_info
+    _(listed).must_include 'add_pet_photos'
+    _(listed).must_include 'add_pet_photos_with_http_info'
+    _(group).must_respond_to :add_pet_photos
+    _(group).must_respond_to :add_pet_photos_with_http_info
+    _(listed).must_include 'add_pet_treatment'
+    _(listed).must_include 'add_pet_treatment_with_http_info'
+    _(group).must_respond_to :add_pet_treatment
+    _(group).must_respond_to :add_pet_treatment_with_http_info
+    _(listed).must_include 'delete_pet'
+    _(listed).must_include 'delete_pet_with_http_info'
+    _(group).must_respond_to :delete_pet
+    _(group).must_respond_to :delete_pet_with_http_info
+    _(listed).must_include 'download_pet_document'
+    _(listed).must_include 'download_pet_document_with_http_info'
+    _(group).must_respond_to :download_pet_document
+    _(group).must_respond_to :download_pet_document_with_http_info
+    _(listed).must_include 'find_pets_born_on'
+    _(listed).must_include 'find_pets_born_on_with_http_info'
+    _(group).must_respond_to :find_pets_born_on
+    _(group).must_respond_to :find_pets_born_on_with_http_info
+    _(listed).must_include 'find_pets_by_status'
+    _(listed).must_include 'find_pets_by_status_with_http_info'
+    _(group).must_respond_to :find_pets_by_status
+    _(group).must_respond_to :find_pets_by_status_with_http_info
+    _(listed).must_include 'get_external_pet_info'
+    _(listed).must_include 'get_external_pet_info_with_http_info'
+    _(group).must_respond_to :get_external_pet_info
+    _(group).must_respond_to :get_external_pet_info_with_http_info
+    _(listed).must_include 'get_multi_server_pet_info'
+    _(listed).must_include 'get_multi_server_pet_info_with_http_info'
+    _(group).must_respond_to :get_multi_server_pet_info
+    _(group).must_respond_to :get_multi_server_pet_info_with_http_info
+    _(listed).must_include 'get_pet_avatar'
+    _(listed).must_include 'get_pet_avatar_with_http_info'
+    _(group).must_respond_to :get_pet_avatar
+    _(group).must_respond_to :get_pet_avatar_with_http_info
+    _(listed).must_include 'get_pet_avatar_thumbnail'
+    _(listed).must_include 'get_pet_avatar_thumbnail_with_http_info'
+    _(group).must_respond_to :get_pet_avatar_thumbnail
+    _(group).must_respond_to :get_pet_avatar_thumbnail_with_http_info
+    _(listed).must_include 'get_pet_by_id'
+    _(listed).must_include 'get_pet_by_id_with_http_info'
+    _(group).must_respond_to :get_pet_by_id
+    _(group).must_respond_to :get_pet_by_id_with_http_info
+    _(listed).must_include 'get_pet_by_name'
+    _(listed).must_include 'get_pet_by_name_with_http_info'
+    _(group).must_respond_to :get_pet_by_name
+    _(group).must_respond_to :get_pet_by_name_with_http_info
+    _(listed).must_include 'get_pet_by_note'
+    _(listed).must_include 'get_pet_by_note_with_http_info'
+    _(group).must_respond_to :get_pet_by_note
+    _(group).must_respond_to :get_pet_by_note_with_http_info
+    _(listed).must_include 'get_pet_passport'
+    _(listed).must_include 'get_pet_passport_with_http_info'
+    _(group).must_respond_to :get_pet_passport
+    _(group).must_respond_to :get_pet_passport_with_http_info
+    _(listed).must_include 'get_pet_photo'
+    _(listed).must_include 'get_pet_photo_with_http_info'
+    _(group).must_respond_to :get_pet_photo
+    _(group).must_respond_to :get_pet_photo_with_http_info
+    _(listed).must_include 'get_pet_summary'
+    _(listed).must_include 'get_pet_summary_with_http_info'
+    _(group).must_respond_to :get_pet_summary
+    _(group).must_respond_to :get_pet_summary_with_http_info
+    _(listed).must_include 'get_pet_tag'
+    _(listed).must_include 'get_pet_tag_with_http_info'
+    _(group).must_respond_to :get_pet_tag
+    _(group).must_respond_to :get_pet_tag_with_http_info
+    _(listed).must_include 'get_staging_pet_info'
+    _(listed).must_include 'get_staging_pet_info_with_http_info'
+    _(group).must_respond_to :get_staging_pet_info
+    _(group).must_respond_to :get_staging_pet_info_with_http_info
+    _(listed).must_include 'set_pet_avatar'
+    _(listed).must_include 'set_pet_avatar_with_http_info'
+    _(group).must_respond_to :set_pet_avatar
+    _(group).must_respond_to :set_pet_avatar_with_http_info
+    _(listed).must_include 'set_pet_avatar_thumbnail'
+    _(listed).must_include 'set_pet_avatar_thumbnail_with_http_info'
+    _(group).must_respond_to :set_pet_avatar_thumbnail
+    _(group).must_respond_to :set_pet_avatar_thumbnail_with_http_info
+    _(listed).must_include 'set_pet_preferences'
+    _(listed).must_include 'set_pet_preferences_with_http_info'
+    _(group).must_respond_to :set_pet_preferences
+    _(group).must_respond_to :set_pet_preferences_with_http_info
+    _(listed).must_include 'update_pet'
+    _(listed).must_include 'update_pet_with_http_info'
+    _(group).must_respond_to :update_pet
+    _(group).must_respond_to :update_pet_with_http_info
+    _(listed).must_include 'upload_pet_certificate'
+    _(listed).must_include 'upload_pet_certificate_with_http_info'
+    _(group).must_respond_to :upload_pet_certificate
+    _(group).must_respond_to :upload_pet_certificate_with_http_info
+    _(listed).must_include 'upload_pet_document'
+    _(listed).must_include 'upload_pet_document_with_http_info'
+    _(group).must_respond_to :upload_pet_document
+    _(group).must_respond_to :upload_pet_document_with_http_info
+    source = File.read(Dir.glob(File.join(signature_dir, '**', 'problems_api.rbs')).fetch(0))
+    listed = interface_methods(source, '_ProblemsApiInterface')
+    group = Petstore::Client::Api::ProblemsApi.new(nil, TEST_CONFIGURATION)
+    _(listed).must_include 'get_fallback'
+    _(listed).must_include 'get_fallback_with_http_info'
+    _(group).must_respond_to :get_fallback
+    _(group).must_respond_to :get_fallback_with_http_info
+    _(listed).must_include 'get_member'
+    _(listed).must_include 'get_member_with_http_info'
+    _(group).must_respond_to :get_member
+    _(group).must_respond_to :get_member_with_http_info
+    _(listed).must_include 'get_project'
+    _(listed).must_include 'get_project_with_http_info'
+    _(group).must_respond_to :get_project
+    _(group).must_respond_to :get_project_with_http_info
+    _(listed).must_include 'get_range'
+    _(listed).must_include 'get_range_with_http_info'
+    _(group).must_respond_to :get_range
+    _(group).must_respond_to :get_range_with_http_info
+    _(listed).must_include 'get_upstream'
+    _(listed).must_include 'get_upstream_with_http_info'
+    _(group).must_respond_to :get_upstream
+    _(group).must_respond_to :get_upstream_with_http_info
+    _(listed).must_include 'take_lock'
+    _(listed).must_include 'take_lock_with_http_info'
+    _(group).must_respond_to :take_lock
+    _(group).must_respond_to :take_lock_with_http_info
+    source = File.read(Dir.glob(File.join(signature_dir, '**', 'store_api.rbs')).fetch(0))
+    listed = interface_methods(source, '_StoreApiInterface')
+    group = Petstore::Client::Api::StoreApi.new(nil, TEST_CONFIGURATION)
+    _(listed).must_include 'create_account'
+    _(listed).must_include 'create_account_with_http_info'
+    _(group).must_respond_to :create_account
+    _(group).must_respond_to :create_account_with_http_info
+    _(listed).must_include 'delete_order'
+    _(listed).must_include 'delete_order_with_http_info'
+    _(group).must_respond_to :delete_order
+    _(group).must_respond_to :delete_order_with_http_info
+    _(listed).must_include 'get_by_swatch'
+    _(listed).must_include 'get_by_swatch_with_http_info'
+    _(group).must_respond_to :get_by_swatch
+    _(group).must_respond_to :get_by_swatch_with_http_info
+    _(listed).must_include 'get_defaults'
+    _(listed).must_include 'get_defaults_with_http_info'
+    _(group).must_respond_to :get_defaults
+    _(group).must_respond_to :get_defaults_with_http_info
+    _(listed).must_include 'get_department'
+    _(listed).must_include 'get_department_with_http_info'
+    _(group).must_respond_to :get_department
+    _(group).must_respond_to :get_department_with_http_info
+    _(listed).must_include 'get_grouped_categories'
+    _(listed).must_include 'get_grouped_categories_with_http_info'
+    _(group).must_respond_to :get_grouped_categories
+    _(group).must_respond_to :get_grouped_categories_with_http_info
+    _(listed).must_include 'get_inventory'
+    _(listed).must_include 'get_inventory_with_http_info'
+    _(group).must_respond_to :get_inventory
+    _(group).must_respond_to :get_inventory_with_http_info
+    _(listed).must_include 'get_matrix'
+    _(listed).must_include 'get_matrix_with_http_info'
+    _(group).must_respond_to :get_matrix
+    _(group).must_respond_to :get_matrix_with_http_info
+    _(listed).must_include 'get_native_values'
+    _(listed).must_include 'get_native_values_with_http_info'
+    _(group).must_respond_to :get_native_values
+    _(group).must_respond_to :get_native_values_with_http_info
+    _(listed).must_include 'get_order_by_id'
+    _(listed).must_include 'get_order_by_id_with_http_info'
+    _(group).must_respond_to :get_order_by_id
+    _(group).must_respond_to :get_order_by_id_with_http_info
+    _(listed).must_include 'get_order_by_tracking_id'
+    _(listed).must_include 'get_order_by_tracking_id_with_http_info'
+    _(group).must_respond_to :get_order_by_tracking_id
+    _(group).must_respond_to :get_order_by_tracking_id_with_http_info
+    _(listed).must_include 'get_stock_item'
+    _(listed).must_include 'get_stock_item_with_http_info'
+    _(group).must_respond_to :get_stock_item
+    _(group).must_respond_to :get_stock_item_with_http_info
+    _(listed).must_include 'get_swatch'
+    _(listed).must_include 'get_swatch_with_http_info'
+    _(group).must_respond_to :get_swatch
+    _(group).must_respond_to :get_swatch_with_http_info
+    _(listed).must_include 'get_swatch_groups'
+    _(listed).must_include 'get_swatch_groups_with_http_info'
+    _(group).must_respond_to :get_swatch_groups
+    _(group).must_respond_to :get_swatch_groups_with_http_info
+    _(listed).must_include 'get_timestamp_groups'
+    _(listed).must_include 'get_timestamp_groups_with_http_info'
+    _(group).must_respond_to :get_timestamp_groups
+    _(group).must_respond_to :get_timestamp_groups_with_http_info
+    _(listed).must_include 'get_tree'
+    _(listed).must_include 'get_tree_with_http_info'
+    _(group).must_respond_to :get_tree
+    _(group).must_respond_to :get_tree_with_http_info
+    _(listed).must_include 'place_order'
+    _(listed).must_include 'place_order_with_http_info'
+    _(group).must_respond_to :place_order
+    _(group).must_respond_to :place_order_with_http_info
+    _(listed).must_include 'reserve_stock'
+    _(listed).must_include 'reserve_stock_with_http_info'
+    _(group).must_respond_to :reserve_stock
+    _(group).must_respond_to :reserve_stock_with_http_info
+    _(listed).must_include 'search_store'
+    _(listed).must_include 'search_store_with_http_info'
+    _(group).must_respond_to :search_store
+    _(group).must_respond_to :search_store_with_http_info
+  end
+
+  it 'bhv_mocking_002 the group interface lists exactly the public operations of the class' do
+    source = File.read(Dir.glob(File.join(signature_dir, '**', 'pet_api.rbs')).fetch(0))
+    _(interface_methods(source, '_PetApiInterface'))
+      .must_equal Petstore::Client::Api::PetApi.public_instance_methods(false).map(&:to_s).sort
+    source = File.read(Dir.glob(File.join(signature_dir, '**', 'problems_api.rbs')).fetch(0))
+    _(interface_methods(source, '_ProblemsApiInterface'))
+      .must_equal Petstore::Client::Api::ProblemsApi.public_instance_methods(false).map(&:to_s).sort
+    source = File.read(Dir.glob(File.join(signature_dir, '**', 'store_api.rbs')).fetch(0))
+    _(interface_methods(source, '_StoreApiInterface'))
+      .must_equal Petstore::Client::Api::StoreApi.public_instance_methods(false).map(&:to_s).sort
+  end
+
+  it 'bhv_mocking_007 the client interface exposes every group typed as its interface and close' do
+    source = File.read(File.join(signature_dir, 'infrastructure.rbs'))
+    listed = interface_methods(source, '_PetstoreInterface')
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    client = Petstore::Client::Petstore.new(authenticator)
+
+    _(listed).must_include 'pet'
+    _(source).must_include 'def pet: () -> Api::_PetApiInterface'
+    _(client).must_respond_to :pet
+    _(listed).must_include 'problems'
+    _(source).must_include 'def problems: () -> Api::_ProblemsApiInterface'
+    _(client).must_respond_to :problems
+    _(listed).must_include 'store'
+    _(source).must_include 'def store: () -> Api::_StoreApiInterface'
+    _(client).must_respond_to :store
+    _(listed).must_include 'close'
+    _(client).must_respond_to :close
+  end
+
+  it 'bhv_mocking_008 a client built from fakes never connects and closes without error' do
+    closed = 0
+    fake = Struct.new(:pet, :problems, :store, :closer) do
+      define_method(:close) { closer.call }
+    end.new(Object.new, Object.new, Object.new, -> { closed += 1 })
+
+    fake.close
+    fake.close
+
+    _(closed).must_equal 2
   end
 end

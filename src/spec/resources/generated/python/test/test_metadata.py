@@ -53,7 +53,7 @@ class TestMetadataTypedAdditionalProperties:
         assert isinstance(metadata.additional_properties, dict)
         assert isinstance(metadata.additional_properties["customField"], str)
 
-    def test_bhv_models_012_an_additional_property_of_the_wrong_json_type_fails_the_decode(
+    def test_bhv_models_025_an_additional_property_of_the_wrong_json_type_fails_the_decode(
         self,
     ) -> None:
         for body in ('{"a":2.5}', '{"a":"2"}'):
@@ -62,7 +62,7 @@ class TestMetadataTypedAdditionalProperties:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"a":3}', "Metadata")
 
-    def test_bhv_models_013_an_additional_property_whose_value_type_is_a_model_decodes_to_that_model(
+    def test_bhv_models_026_an_additional_property_whose_value_type_is_a_model_decodes_to_that_model(
         self,
     ) -> None:
         from petstore_client.models import Category
@@ -77,7 +77,7 @@ class TestMetadataTypedAdditionalProperties:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"a":{"id":"x"}}', "Roster")
 
-    def test_bhv_models_014_a_null_additional_property_is_rejected_unless_the_value_schema_is_nullable(
+    def test_bhv_models_027_a_null_additional_property_is_rejected_unless_the_value_schema_is_nullable(
         self,
     ) -> None:
         with pytest.raises(SerializationException):
@@ -86,7 +86,7 @@ class TestMetadataTypedAdditionalProperties:
         assert sparse is not None
         assert sparse.additional_properties == {"a": None}
 
-    def test_bhv_models_015_a_typed_additional_property_is_written_flat_in_its_wire_form(
+    def test_bhv_models_028_a_typed_additional_property_is_written_flat_in_its_wire_form(
         self,
     ) -> None:
         from petstore_client.models import Blobs
@@ -107,7 +107,7 @@ class TestMetadataTypedAdditionalProperties:
             ObjectSerializer().serialize(Blobs(additional_properties={"b": b"hi"}))
         ) == {"b": "aGk="}
 
-    def test_bhv_models_016_a_free_form_additional_properties_keeps_every_json_value_as_it_arrives(
+    def test_bhv_models_029_a_free_form_additional_properties_keeps_every_json_value_as_it_arrives(
         self,
     ) -> None:
         freeform = ObjectSerializer().deserialize(

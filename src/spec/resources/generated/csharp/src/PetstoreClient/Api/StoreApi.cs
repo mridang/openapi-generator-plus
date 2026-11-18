@@ -889,6 +889,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetNativeValues",
+                operationId: "getNativeValues",
+                urlTemplate: "/store/native-values",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

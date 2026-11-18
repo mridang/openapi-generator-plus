@@ -66,7 +66,9 @@ func (o Moments) WithAdditionalProperties(value map[string]DateTime) Moments {
 
 // NewMoments creates a new Moments instance.
 func NewMoments() *Moments {
-	return &Moments{}
+	return &Moments{
+		AdditionalProperties: make(map[string]any),
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

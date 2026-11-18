@@ -1043,6 +1043,8 @@ module Petstore::Client
           'Pet',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_by_note',
+          spec_operation_id: 'getPetByNote',
+          url_template: '/pet/byNote',
           request_options: options
         )
       end

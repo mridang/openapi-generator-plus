@@ -1593,6 +1593,23 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet {
+    var parts: [String] = []
+    var call = "getPetByNote(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
+  {
+    var parts: [String] = []
+    var call = "getPetByNoteWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func getPetPassport(petId: Int64, options: GetPetPassportOptions?) async throws
     -> PetPassport
   {
@@ -2155,6 +2172,24 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func getNativeValues(options: GetNativeValuesOptions?) async throws -> NativeValues {
+    var parts: [String] = []
+    var call = "getNativeValues(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getNativeValuesWithHTTPInfo(options: GetNativeValuesOptions?) async throws
+    -> ApiResult<NativeValues>
+  {
+    var parts: [String] = []
+    var call = "getNativeValuesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func getOrderById(orderId: Int64, options: GetOrderByIdOptions?) async throws -> Order {
     var parts: [String] = []
     parts.append(String(describing: orderId))
@@ -2429,6 +2464,8 @@ private func operationNames(file: String, from start: String, to end: String?, p
     #expect(petListed.contains("getPetByIdWithHTTPInfo"))
     #expect(petListed.contains("getPetByName"))
     #expect(petListed.contains("getPetByNameWithHTTPInfo"))
+    #expect(petListed.contains("getPetByNote"))
+    #expect(petListed.contains("getPetByNoteWithHTTPInfo"))
     #expect(petListed.contains("getPetPassport"))
     #expect(petListed.contains("getPetPassportWithHTTPInfo"))
     #expect(petListed.contains("getPetPhoto"))
@@ -2489,6 +2526,8 @@ private func operationNames(file: String, from start: String, to end: String?, p
     #expect(storeListed.contains("getInventoryWithHTTPInfo"))
     #expect(storeListed.contains("getMatrix"))
     #expect(storeListed.contains("getMatrixWithHTTPInfo"))
+    #expect(storeListed.contains("getNativeValues"))
+    #expect(storeListed.contains("getNativeValuesWithHTTPInfo"))
     #expect(storeListed.contains("getOrderById"))
     #expect(storeListed.contains("getOrderByIdWithHTTPInfo"))
     #expect(storeListed.contains("getOrderByTrackingId"))

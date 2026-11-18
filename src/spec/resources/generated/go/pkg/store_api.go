@@ -1061,7 +1061,11 @@ func (a *StoreApi) GetNativeValues(ctx context.Context, options *opts.GetNativeV
 }
 
 // GetNativeValuesWithHTTPInfo performs the GetNativeValues operation and returns the full API result.
-func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*ApiResult[NativeValues], error) {
+func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (_ *ApiResult[NativeValues], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -1090,6 +1094,9 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getNativeValues",
+		urlTemplate:  "/store/native-values",
+		call:         call,
 		order:        []string{"address4", "delay", "amount"},
 		method:       "GET",
 		path:         path,

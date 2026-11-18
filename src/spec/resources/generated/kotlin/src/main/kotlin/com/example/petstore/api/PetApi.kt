@@ -1088,7 +1088,7 @@ class PetApi :
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-    suspend fun getPetByNote(options: GetPetByNoteOptions): Pet =
+    override suspend fun getPetByNote(options: GetPetByNoteOptions): Pet =
         getPetByNoteWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -1099,7 +1099,7 @@ class PetApi :
         }
 
     /** Same as [getPetByNote] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetByNoteWithHttpInfo(options: GetPetByNoteOptions): ApiResult<Pet> {
+    override suspend fun getPetByNoteWithHttpInfo(options: GetPetByNoteOptions): ApiResult<Pet> {
         val callTimeout: Long? = options.timeout
         val callHeaders: Map<String, String>? = options.headers
         val callMaxRetries: Int? = options.maxRetries
@@ -1145,6 +1145,8 @@ class PetApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetByNote",
+            urlTemplate = "/pet/byNote",
         )
     }
 

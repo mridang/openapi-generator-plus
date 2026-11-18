@@ -34,11 +34,15 @@ class Moments {
       additionalPropertyEntries,
       (e) => parseDateTime(e as String),
     );
-    return Moments(
-      label: json['label'] as String?,
+    try {
+      return Moments(
+        label: json['label'] as String?,
 
-      additionalProperties: additionalProperties,
-    );
+        additionalProperties: additionalProperties,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Moments: $e', e);
+    }
   }
 
   /// Converts this [Moments] to a JSON map.

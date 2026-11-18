@@ -1126,7 +1126,7 @@ void main() {
     );
 
     test(
-      'bhv operations 125 getPetByNote sends a null required nullable query parameter as an empty value',
+      'bhv operations 157 getPetByNote sends a null required nullable query parameter as an empty value',
       () async {
         String? capturedQuery;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1157,7 +1157,7 @@ void main() {
     );
 
     test(
-      'bhv operations 126 getPetByNote sends every null required nullable query parameter in declaration order',
+      'bhv operations 158 getPetByNote sends every null required nullable query parameter in declaration order',
       () async {
         String? capturedQuery;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1188,7 +1188,7 @@ void main() {
     );
 
     test(
-      'bhv operations 127 getPetByNote sends a non-null required nullable query parameter with its value',
+      'bhv operations 159 getPetByNote sends a non-null required nullable query parameter with its value',
       () async {
         String? capturedQuery;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

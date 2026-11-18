@@ -191,6 +191,27 @@ defmodule PetstoreClient.Api.StoreApiBehaviour do
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 
+  @callback get_native_values(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetNativeValuesOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.NativeValues.t()} | {:error, Exception.t()}
+
+  @callback get_native_values!(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetNativeValuesOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.NativeValues.t()
+
+  @callback get_native_values_with_http_info(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetNativeValuesOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
   @callback get_order_by_id(
               PetstoreClient.Api.StoreApi.t(),
               integer(),
@@ -1465,6 +1486,7 @@ defmodule PetstoreClient.Api.StoreApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.Models.NativeValues.t()} | {:error, Exception.t()}
+  @impl true
   def get_native_values(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case get_native_values_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
@@ -1497,6 +1519,7 @@ defmodule PetstoreClient.Api.StoreApi do
           keyword()
         ) ::
           PetstoreClient.Models.NativeValues.t()
+  @impl true
   def get_native_values!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case get_native_values(api, options, opts) do
       {:ok, data} -> data
@@ -1513,6 +1536,7 @@ defmodule PetstoreClient.Api.StoreApi do
           keyword()
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
   def get_native_values_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -1636,7 +1660,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "NativeValues",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getNativeValues", "/store/native-values"}),
       %{}
     )
   end

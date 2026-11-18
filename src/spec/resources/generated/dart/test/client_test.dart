@@ -506,6 +506,8 @@ void main() {
         expect(petInterface, contains(' getPetByIdWithHttpInfo('));
         expect(petInterface, contains(' getPetByName('));
         expect(petInterface, contains(' getPetByNameWithHttpInfo('));
+        expect(petInterface, contains(' getPetByNote('));
+        expect(petInterface, contains(' getPetByNoteWithHttpInfo('));
         expect(petInterface, contains(' getPetPassport('));
         expect(petInterface, contains(' getPetPassportWithHttpInfo('));
         expect(petInterface, contains(' getPetPhoto('));
@@ -576,6 +578,8 @@ void main() {
         expect(storeInterface, contains(' getInventoryWithHttpInfo('));
         expect(storeInterface, contains(' getMatrix('));
         expect(storeInterface, contains(' getMatrixWithHttpInfo('));
+        expect(storeInterface, contains(' getNativeValues('));
+        expect(storeInterface, contains(' getNativeValuesWithHttpInfo('));
         expect(storeInterface, contains(' getOrderById('));
         expect(storeInterface, contains(' getOrderByIdWithHttpInfo('));
         expect(storeInterface, contains(' getOrderByTrackingId('));
@@ -684,5 +688,73 @@ void main() {
         expect(fake.closed, 2);
       },
     );
+
+    test(
+      'bhv hooks 010 a hook given to the client fires for an operation when the caller supplied the transport',
+      () async {
+        final hook = _CountingHook();
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'https://api.example.com',
+            token: 'test-token',
+          ),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(
+                MockClient(
+                  (_) async => http.Response(
+                    '{"name":"a","photoUrls":[]}',
+                    200,
+                    headers: {'content-type': 'application/json'},
+                  ),
+                ),
+              )
+              .build(),
+          callHook: hook,
+        );
+
+        await client.pet.getPetById(1, null, null);
+
+        expect(hook.starts, equals(1));
+        expect(hook.finishes, equals(1));
+      },
+    );
+
+    test('the client hands the call hook to every API group', () async {
+      final hook = _CountingHook();
+      final client = Client.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'test-token',
+        transportOptions: TransportOptionsBuilder()
+            .httpClient(MockClient((_) async => http.Response('{}', 404)))
+            .build(),
+        callHook: hook,
+      );
+
+      expect(client.pet.config.callHook, same(hook));
+      expect(client.problems.config.callHook, same(hook));
+      expect(client.store.config.callHook, same(hook));
+    });
   });
+}
+
+class _CountingHook implements CallHook {
+  int starts = 0;
+  int finishes = 0;
+
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    starts++;
+    return _CountingObserver(this);
+  }
+}
+
+class _CountingObserver implements CallObserver {
+  _CountingObserver(this._hook);
+
+  final _CountingHook _hook;
+
+  @override
+  void finish(CallOutcome outcome) {
+    _hook.finishes++;
+  }
 }

@@ -994,8 +994,11 @@ impl StoreApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "StoreApi.get_native_values",
             method: "GET",
             path: &path,
+            operation_id: "getNativeValues",
+            url_template: "/store/native-values",
             query_params,
             header_params,
             body: request_body,
@@ -2135,6 +2138,14 @@ pub trait StoreApiTrait {
         &self,
         options: Option<&GetMatrixOptions>,
     ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_native_values(
+        &self,
+        options: Option<&GetNativeValuesOptions>,
+    ) -> impl Future<Output = Result<NativeValues, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_native_values_with_http_info(
+        &self,
+        options: Option<&GetNativeValuesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<NativeValues>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_order_by_id(
         &self,
         order_id: i64,
@@ -2380,6 +2391,20 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>>>
     {
         StoreApi::get_matrix_with_http_info(self, options)
+    }
+    fn get_native_values(
+        &self,
+        options: Option<&GetNativeValuesOptions>,
+    ) -> impl Future<Output = Result<NativeValues, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_native_values(self, options)
+    }
+
+    fn get_native_values_with_http_info(
+        &self,
+        options: Option<&GetNativeValuesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<NativeValues>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_native_values_with_http_info(self, options)
     }
     fn get_order_by_id(
         &self,

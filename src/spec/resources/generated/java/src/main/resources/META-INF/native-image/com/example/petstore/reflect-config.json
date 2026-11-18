@@ -36,6 +36,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Blobs",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Car",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -64,6 +73,15 @@
   },
   {
     "name": "com.example.petstore.models.Color",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Counters",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
@@ -131,6 +149,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Freeform",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Medication",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -159,6 +186,15 @@
   },
   {
     "name": "com.example.petstore.models.ModelError",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Moments",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
@@ -368,6 +404,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Roster",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Separator",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -396,6 +441,15 @@
   },
   {
     "name": "com.example.petstore.models.Shape",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Sparse",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,

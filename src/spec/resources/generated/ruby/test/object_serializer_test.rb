@@ -2129,6 +2129,74 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.stringify(BigDecimal('1E+3'))).must_equal('1000')
     end
   end
+
+  describe 'enum member names and descriptions' do
+    source = lambda do |name|
+      File.read(Dir.glob(File.expand_path("../lib/**/models/#{name}.rb", File.dirname(__FILE__))).fetch(0))
+    end
+    deserialize = lambda do |json|
+      Petstore::Client::ObjectSerializer.deserialize(json, 'Subscription')
+    end
+
+    it 'bhv_enums_001 a string member named by an array exposes the given name and its wire value' do
+      _(Petstore::Client::Models::Tier::SMALL).must_equal('s')
+      _(Petstore::Client::Models::Tier::MEDIUM).must_equal('m')
+      _(Petstore::Client::Models::Tier::LARGE).must_equal('l')
+      _(deserialize.call('{"rank":1,"tier":"m"}').tier).must_equal(Petstore::Client::Models::Tier::MEDIUM)
+    end
+
+    it 'bhv_enums_002 an integer member named by an array exposes the given name and its number' do
+      _([Petstore::Client::Models::Rank::LOW, Petstore::Client::Models::Rank::MEDIUM, Petstore::Client::Models::Rank::HIGH]).must_equal([1, 2, 3])
+      item = deserialize.call('{"rank":3}')
+      _(item.rank).must_equal(Petstore::Client::Models::Rank::HIGH)
+      _(Petstore::Client::ObjectSerializer.serialize(item)).must_include('"rank":3')
+    end
+
+    it 'bhv_enums_003 an object keyed by wire value names the members it lists' do
+      _(deserialize.call('{"rank":1,"stage":"paused"}').stage).must_equal(Petstore::Client::Models::Stage::ON_HOLD)
+      _(deserialize.call('{"rank":1,"stage":"active"}').stage).must_equal(Petstore::Client::Models::Stage::ACTIVE)
+    end
+
+    it 'bhv_enums_004 a supplied name that is not a legal identifier is cleaned and cased' do
+      _(Petstore::Client::Models::Stage::ON_HOLD).must_equal('paused')
+    end
+
+    it 'bhv_enums_005 two supplied names that collide after casing keep distinct names and wires' do
+      _(Petstore::Client::Models::Stage::ACTIVE).must_equal('active')
+      _(Petstore::Client::Models::Stage::ACTIVE2).must_equal('live')
+      _(deserialize.call('{"rank":1,"stage":"live"}').stage).must_equal(Petstore::Client::Models::Stage::ACTIVE2)
+    end
+
+    it 'bhv_enums_006 an inline property enum takes its member names from its own keys' do
+      _(Petstore::Client::Models::Subscription::IntervalEnum::MONTHLY).must_equal('month')
+      _(Petstore::Client::Models::Subscription::IntervalEnum::YEARLY).must_equal('year')
+    end
+
+    it 'bhv_enums_007 a default on a referenced enum property starts at the supplied member' do
+      _(Petstore::Client::Models::Subscription.new(rank: 1).tier).must_equal(Petstore::Client::Models::Tier::MEDIUM)
+      _(deserialize.call('{"rank":1}').tier).must_equal(Petstore::Client::Models::Tier::MEDIUM)
+    end
+
+    it 'bhv_enums_008 encoding writes the wire value and decoding rejects a supplied name' do
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(Petstore::Client::Models::Tier::MEDIUM))).must_equal('m')
+      error = _ { deserialize.call('{"rank":1,"tier":"Medium"}') }
+              .must_raise(Petstore::Client::Errors::SerializationError)
+      _(error.message).must_include('Medium')
+    end
+
+    it 'bhv_enums_009 a description is the one-line comment directly above the member' do
+      _(source.call('tier')).must_include("      # The smallest tier.\n      SMALL = ")
+      _(source.call('tier')).must_include("      # The medium tier.\n      MEDIUM = ")
+    end
+
+    it 'bhv_enums_010 a member without a description has no comment' do
+      _(source.call('rank')).must_include("      LOW = 1\n      MEDIUM = 2\n")
+    end
+
+    it 'bhv_enums_011 a description with terminators and sigils still yields a comment' do
+      _(source.call('tier')).must_include('# The largest tier. Ends with */ and <tt>#{x}</tt> and $x.')
+    end
+  end
 end
 
 describe Petstore::Client::ObjectSerializer, 'wire contract for scalars, containers and models' do

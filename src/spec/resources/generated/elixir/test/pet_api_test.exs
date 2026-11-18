@@ -1944,7 +1944,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "bhv operations 125 get_pet_by_note sends a null required nullable query parameter as an empty value" do
+  test "bhv operations 157 get_pet_by_note sends a null required nullable query parameter as an empty value" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1960,7 +1960,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "bhv operations 126 get_pet_by_note sends every null required nullable query parameter in declaration order" do
+  test "bhv operations 158 get_pet_by_note sends every null required nullable query parameter in declaration order" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1976,7 +1976,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "bhv operations 127 get_pet_by_note sends a non-null required nullable query parameter with its value" do
+  test "bhv operations 159 get_pet_by_note sends a non-null required nullable query parameter with its value" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1992,7 +1992,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "bhv operations 128 get_pet_by_name refuses a nil required query parameter that is not nullable" do
+  test "bhv operations 125 get_pet_by_name refuses a nil required query parameter that is not nullable" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -2326,6 +2326,24 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
 
     @impl true
+    def get_pet_by_note(_api, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_note, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_by_note!(_api, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_note!, []})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_by_note_with_http_info(_api, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_note_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
     def get_pet_passport(_api, pet_id, _options \\ nil, _opts \\ []) do
       send(self(), {:called, :get_pet_passport, [pet_id]})
       {:error, failure()}
@@ -2582,5 +2600,52 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert {:error, _} = look_up(FakePetApi, :api, 7)
 
     assert_received {:called, :get_pet_by_id, [7]}
+  end
+
+  defmodule HookSpy do
+    @behaviour PetstoreClient.CallHook
+
+    @impl true
+    def start(_info, headers), do: {headers, nil}
+
+    @impl true
+    def start(info, headers, pid) do
+      send(pid, {:call_info, info})
+      {headers, pid}
+    end
+
+    @impl true
+    def finish(pid, outcome), do: send(pid, {:call_outcome, outcome})
+  end
+
+  test "both variants of a generated operation call the hook once, with the spec operation id and path" do
+    {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
+
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: "http://localhost:4010",
+        call_hook: {HookSpy, self()}
+      )
+
+    api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
+    options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: "available"}
+
+    assert {:ok, []} = PetstoreClient.Api.PetApi.find_pets_by_status(api, options)
+    assert_received {:call_info, info}
+    assert info.operation_id == "findPetsByStatus"
+    assert info.url_template == "/pet/findByStatus"
+    assert info.method == "GET"
+    assert info.url == "http://localhost:4010/pet/findByStatus"
+    assert_received {:call_outcome, %{status_code: 200}}
+    refute_received {:call_info, _}
+    refute_received {:call_outcome, _}
+
+    assert {:ok, %PetstoreClient.ApiResult{}} =
+             PetstoreClient.Api.PetApi.find_pets_by_status_with_http_info(api, options)
+
+    assert_received {:call_info, %{operation_id: "findPetsByStatus"}}
+    assert_received {:call_outcome, %{status_code: 200}}
+    refute_received {:call_info, _}
+    Agent.stop(name)
   end
 end

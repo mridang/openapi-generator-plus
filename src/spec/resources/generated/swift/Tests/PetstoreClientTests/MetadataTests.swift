@@ -87,7 +87,7 @@ import Testing
   }
 
   /* A value of the wrong JSON type fails the decode with the SDK's serialization error. */
-  @Test func testBhvModels012AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode() {
+  @Test func testBhvModels025AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode() {
     for body in ["{\"a\":2.5}", "{\"a\":\"2\"}"] {
       #expect(throws: SerializationError.self) {
         try ObjectSerializer.deserialize(Data(body.utf8), as: Counters.self)
@@ -99,7 +99,7 @@ import Testing
   }
 
   /* A value whose type is a model decodes to that model. */
-  @Test func testBhvModels013ModelValuedAdditionalPropertyDecodesToTheModel() throws {
+  @Test func testBhvModels026ModelValuedAdditionalPropertyDecodesToTheModel() throws {
     let jsonData = Data("{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}".utf8)
     let roster = try #require(try ObjectSerializer.deserialize(jsonData, as: Roster.self))
     let category: Category? = roster.additionalProperties["a"]
@@ -111,7 +111,7 @@ import Testing
   }
 
   /* A null extra is rejected unless the value schema is nullable. */
-  @Test func testBhvModels014NullAdditionalPropertyIsRejectedUnlessNullable() throws {
+  @Test func testBhvModels027NullAdditionalPropertyIsRejectedUnlessNullable() throws {
     #expect(throws: SerializationError.self) {
       try ObjectSerializer.deserialize(Data("{\"a\":null}".utf8), as: Counters.self)
     }
@@ -121,7 +121,7 @@ import Testing
   }
 
   /* A typed extra is written flat in its wire form, after the declared properties. */
-  @Test func testBhvModels015TypedAdditionalPropertyIsWrittenFlatInWireForm() throws {
+  @Test func testBhvModels028TypedAdditionalPropertyIsWrittenFlatInWireForm() throws {
     let when = Date(timeIntervalSince1970: 1_704_067_200)
     let moments = Moments(label: "l", additionalProperties: ["at": when])
     let json = try ObjectSerializer.serialize(moments)
@@ -137,7 +137,7 @@ import Testing
   }
 
   /* A free-form additionalProperties keeps every JSON value as it arrives. */
-  @Test func testBhvModels016FreeFormAdditionalPropertiesKeepAnyValue() throws {
+  @Test func testBhvModels029FreeFormAdditionalPropertiesKeepAnyValue() throws {
     let jsonData = Data("{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}".utf8)
     let freeform = try #require(try ObjectSerializer.deserialize(jsonData, as: Freeform.self))
     #expect(freeform.additionalProperties["a"]?.value as? Int == 1)

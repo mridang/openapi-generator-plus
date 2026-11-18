@@ -11,6 +11,7 @@ use PetstoreClient\Models\Defaults;
 use PetstoreClient\Models\DefaultsModeEnum;
 use PetstoreClient\Models\EdgeCases;
 use PetstoreClient\Models\Metadata;
+use PetstoreClient\Models\NativeValues;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
 use PetstoreClient\Models\Pet;
@@ -22,6 +23,7 @@ use PetstoreClient\Models\SetPetAvatarRequest;
 use PetstoreClient\Models\StrictTag;
 use PetstoreClient\Models\StockItem;
 use PetstoreClient\Models\Swatch;
+use PetstoreClient\Models\Tag;
 use PetstoreClient\Models\TreeNode;
 
 // -- content cookie bytes --
@@ -1755,7 +1757,7 @@ test('bhv equality 001 two models built from the same values are equal and a cha
         name: 'Rex',
         photoUrls: new \Ds\Set(['a.png']),
         category: new Category(id: 1, name: $label),
-        tags: new \Ds\Vector([$when]),
+        tags: new \Ds\Vector([new Tag(id: 1, name: $when)]),
     );
 
     $left = $build('Dogs', 'morning');
@@ -2502,4 +2504,141 @@ test('bhv serialization 065 a null element of a list is kept in its own position
     \assert(is_array($dates));
     expect($dates[0])->toBeNull();
     expect($dates[1])->toBeInstanceOf(\DateTimeInterface::class);
+});
+
+// -- native value formats --
+
+test('bhv serializationobject 403 a duration field is the native DateInterval', function (): void {
+    $values = ObjectSerializer::deserialize('{"wait":"3600s"}', NativeValues::class);
+    assert($values instanceof NativeValues);
+    assert($values->wait instanceof \DateInterval);
+
+    expect($values->wait)->toBeInstanceOf(\DateInterval::class);
+    expect(ObjectSerializer::formatProtobufDuration($values->wait))->toBe('3600s');
+});
+
+test('bhv serializationobject 404 a duration keeps every nanosecond and is written in the shortest form', function (): void {
+    $values = ObjectSerializer::deserialize('{"wait":"-1.123456789s"}', NativeValues::class);
+
+    expect(ObjectSerializer::serialize($values))->toBe('{"wait":"-1.123456789s"}');
+});
+
+test('bhv serializationobject 405 an ipv4 field is the address text and is kept unchanged', function (): void {
+    $values = ObjectSerializer::deserialize('{"address4":"192.0.2.1"}', NativeValues::class);
+
+    expect(ObjectSerializer::serialize($values))->toBe('{"address4":"192.0.2.1"}');
+});
+
+test('bhv serializationobject 406 an ipv6 field keeps the address text unchanged', function (): void {
+    foreach (['2001:0DB8:0:0:0:0:0:1', '2001:db8::1', '::1'] as $text) {
+        $values = ObjectSerializer::deserialize('{"address6":"' . $text . '"}', NativeValues::class);
+
+        expect(ObjectSerializer::serialize($values))->toBe('{"address6":"' . $text . '"}');
+    }
+});
+
+test('bhv serializationobject 408 every absolute URI of the corpus round-trips byte for byte', function (): void {
+    $corpus = [
+        'https://example.com',
+        'HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag',
+        'mailto:a@b.c',
+        'urn:isbn:0451450523',
+        "https://example.com/[x]?q='a'",
+        'https://example.com?',
+        'https://example.com/%7euser',
+        'https://[2001:db8::1]:8443/',
+    ];
+    foreach ($corpus as $text) {
+        $json = json_encode(['homepage' => $text], JSON_UNESCAPED_SLASHES);
+        $values = ObjectSerializer::deserialize($json, NativeValues::class);
+
+        expect(ObjectSerializer::serialize($values))->toBe($json);
+    }
+});
+
+test('bhv serializationobject 409 a hostname and an email are kept as given', function (): void {
+    $json = '{"host":"not a host!","contact":"x@"}';
+    $values = ObjectSerializer::deserialize($json, NativeValues::class);
+
+    expect(ObjectSerializer::serialize($values))->toBe($json);
+});
+
+test('bhv serializationparam 104 a duration parameter is written in the protobuf form', function (): void {
+    expect(ObjectSerializer::stringify(new \DateInterval('PT1H')))->toBe('3600s');
+});
+
+test('bhv serializationparam 105 an address parameter is its text unchanged', function (): void {
+    expect(ObjectSerializer::stringify('2001:db8::1'))->toBe('2001:db8::1');
+});
+
+// -- enum member names and descriptions --
+
+function enumModelSource(string $name): string
+{
+    return (string) file_get_contents(__DIR__ . '/../lib/Models/' . $name . '.php');
+}
+
+test('bhv enums 001 a string enum member named by an array exposes the given name and its wire value', function (): void {
+    expect(\PetstoreClient\Models\Tier::SMALL->value)->toBe('s');
+    expect(\PetstoreClient\Models\Tier::MEDIUM->value)->toBe('m');
+    expect(\PetstoreClient\Models\Tier::LARGE->value)->toBe('l');
+    $item = ObjectSerializer::deserialize('{"rank":1,"tier":"m"}', \PetstoreClient\Models\Subscription::class);
+    expect($item->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
+});
+
+test('bhv enums 002 an integer enum member named by an array exposes the given name and its number', function (): void {
+    expect(\PetstoreClient\Models\Rank::LOW->value)->toBe(1);
+    expect(\PetstoreClient\Models\Rank::MEDIUM->value)->toBe(2);
+    expect(\PetstoreClient\Models\Rank::HIGH->value)->toBe(3);
+    $item = ObjectSerializer::deserialize('{"rank":3}', \PetstoreClient\Models\Subscription::class);
+    expect($item->rank)->toBe(\PetstoreClient\Models\Rank::HIGH);
+    expect(ObjectSerializer::serialize($item))->toContain('"rank":3');
+});
+
+test('bhv enums 003 an enum named by an object keyed by wire value names the members it lists', function (): void {
+    $paused = ObjectSerializer::deserialize('{"rank":1,"stage":"paused"}', \PetstoreClient\Models\Subscription::class);
+    $active = ObjectSerializer::deserialize('{"rank":1,"stage":"active"}', \PetstoreClient\Models\Subscription::class);
+    expect($paused->stage)->toBe(\PetstoreClient\Models\Stage::ON_HOLD);
+    expect($active->stage)->toBe(\PetstoreClient\Models\Stage::ACTIVE);
+});
+
+test('bhv enums 004 a supplied name that is not a legal identifier is cleaned and cased', function (): void {
+    expect(\PetstoreClient\Models\Stage::ON_HOLD->value)->toBe('paused');
+});
+
+test('bhv enums 005 two supplied names that collide after casing keep distinct names and wires', function (): void {
+    expect(\PetstoreClient\Models\Stage::ACTIVE->value)->toBe('active');
+    expect(\PetstoreClient\Models\Stage::ACTIVE2->value)->toBe('live');
+    $item = ObjectSerializer::deserialize('{"rank":1,"stage":"live"}', \PetstoreClient\Models\Subscription::class);
+    expect($item->stage)->toBe(\PetstoreClient\Models\Stage::ACTIVE2);
+});
+
+test('bhv enums 006 an inline property enum takes its member names from its own keys', function (): void {
+    expect(\PetstoreClient\Models\SubscriptionIntervalEnum::MONTHLY->value)->toBe('month');
+    expect(\PetstoreClient\Models\SubscriptionIntervalEnum::YEARLY->value)->toBe('year');
+});
+
+test('bhv enums 007 a default on a referenced enum property starts at the member with the supplied name', function (): void {
+    expect((new \PetstoreClient\Models\Subscription(\PetstoreClient\Models\Rank::LOW))->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
+    $item = ObjectSerializer::deserialize('{"rank":1}', \PetstoreClient\Models\Subscription::class);
+    expect($item->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
+});
+
+test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', function (): void {
+    expect(ObjectSerializer::serialize(\PetstoreClient\Models\Tier::MEDIUM))->toBe('"m"');
+    expect(fn () => ObjectSerializer::deserialize('{"rank":1,"tier":"Medium"}', \PetstoreClient\Models\Subscription::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'Medium');
+});
+
+test('bhv enums 009 a member with a description carries it as the one-line comment directly above it', function (): void {
+    expect(enumModelSource('Tier'))->toContain("/** The smallest tier. */\n    case SMALL");
+    expect(enumModelSource('Tier'))->toContain("/** The medium tier. */\n    case MEDIUM");
+});
+
+test('bhv enums 010 a member without a description keeps the comment it has today', function (): void {
+    expect(enumModelSource('Rank'))->toContain("case LOW = 1;\n    case MEDIUM = 2;");
+});
+
+test('bhv enums 011 a description with comment terminators still yields a compiling comment', function (): void {
+    expect(enumModelSource('Tier'))->toContain("/** The largest tier. Ends with *_/ and #{x} and \$x. */\n    case LARGE");
 });

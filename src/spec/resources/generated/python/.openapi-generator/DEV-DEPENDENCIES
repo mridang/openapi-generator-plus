@@ -10,5 +10,5 @@ pytest-asyncio >=0.21.0  # asyncio_mode = "auto"; the async transport tests
 pytest-cov >=4.0.0  # the --cov flags in [tool.pytest.ini_options] addopts
 testcontainers >=4.0.0  # conftest.py starts the mock server and the proxy
 docker >=7.0.0  # conftest.py joins both containers to a Docker network
-opentelemetry-sdk >=1.20.0  # test/test_trace_context_util.py, test/test_base_api.py
+opentelemetry-sdk >=1.20.0  # test/test_trace_context_util.py, test/test_base_api.py, test/test_opentelemetry_call_hook.py (spans and metrics)
 tomli >=2.0  # test/test_metadata.py and test/test_transport_options.py read the manifest through the backport on Python 3.10

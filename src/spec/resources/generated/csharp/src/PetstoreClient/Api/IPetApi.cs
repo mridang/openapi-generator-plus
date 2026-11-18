@@ -212,6 +212,18 @@ public interface IPetApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>GetPetByNote</c> operation.</summary>
+    Task<Pet> GetPetByNoteAsync(
+        GetPetByNoteOptions options,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>GetPetByNote</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<Pet>> GetPetByNoteWithHttpInfoAsync(
+        GetPetByNoteOptions options,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>GetPetPassport</c> operation.</summary>
     Task<PetPassport> GetPetPassportAsync(
         long petId,

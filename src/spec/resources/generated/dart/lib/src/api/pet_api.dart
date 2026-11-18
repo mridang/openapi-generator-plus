@@ -339,6 +339,9 @@ abstract interface class PetApiInterface {
     String name,
     GetPetByNameOptions options,
   );
+  Future<Pet> getPetByNote(GetPetByNoteOptions options);
+
+  Future<ApiResult<Pet>> getPetByNoteWithHttpInfo(GetPetByNoteOptions options);
   Future<PetPassport> getPetPassport(int petId, GetPetPassportOptions? options);
 
   Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(
@@ -1716,6 +1719,7 @@ class PetApi extends BaseApi implements PetApiInterface {
 
   /// Look up a pet by note (required query parameters whose value may be null)
   /// `options` options for query, header, form, and cookie parameters
+  @override
   Future<Pet> getPetByNote(GetPetByNoteOptions options) async {
     final result = await getPetByNoteWithHttpInfo(options);
     final data = result.data;
@@ -1736,6 +1740,7 @@ class PetApi extends BaseApi implements PetApiInterface {
   }
 
   /// Performs the getPetByNote operation and returns the full API result.
+  @override
   Future<ApiResult<Pet>> getPetByNoteWithHttpInfo(
     GetPetByNoteOptions options,
   ) async {
@@ -1780,6 +1785,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'GET',
       operation: 'PetApi.getPetByNote',
+      operationId: 'getPetByNote',
+      urlTemplate: '/pet/byNote',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,

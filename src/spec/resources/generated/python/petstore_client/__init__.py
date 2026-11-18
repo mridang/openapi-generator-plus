@@ -60,19 +60,23 @@ __all__ = [
     "ApiResponse",
     "Availability",
     "BinaryVault",
+    "Blobs",
     "Car",
     "Category",
     "Circle",
     "Color",
+    "Counters",
     "Defaults",
     "Department",
     "DryFood",
     "EdgeCases",
     "Employee",
     "Error",
+    "Freeform",
     "Medication",
     "MemberNotFound",
     "Metadata",
+    "Moments",
     "NativeValues",
     "Order",
     "Pet",
@@ -93,10 +97,12 @@ __all__ = [
     "ReservationReceipt",
     "ReserveStockResponse",
     "Result",
+    "Roster",
     "Separator",
     "SetPetAvatarRequest",
     "SetPetAvatarThumbnailRequest",
     "Shape",
+    "Sparse",
     "Square",
     "Stage",
     "StateConflict",
@@ -192,6 +198,9 @@ from petstore_client.models.availability import (
 from petstore_client.models.binary_vault import (
     BinaryVault as BinaryVault,
 )
+from petstore_client.models.blobs import (
+    Blobs as Blobs,
+)
 from petstore_client.models.car import (
     Car as Car,
 )
@@ -203,6 +212,9 @@ from petstore_client.models.circle import (
 )
 from petstore_client.models.color import (
     Color as Color,
+)
+from petstore_client.models.counters import (
+    Counters as Counters,
 )
 from petstore_client.models.defaults import (
     Defaults as Defaults,
@@ -222,6 +234,9 @@ from petstore_client.models.employee import (
 from petstore_client.models.error import (
     Error as Error,
 )
+from petstore_client.models.freeform import (
+    Freeform as Freeform,
+)
 from petstore_client.models.medication import (
     Medication as Medication,
 )
@@ -230,6 +245,9 @@ from petstore_client.models.member_not_found import (
 )
 from petstore_client.models.metadata import (
     Metadata as Metadata,
+)
+from petstore_client.models.moments import (
+    Moments as Moments,
 )
 from petstore_client.models.native_values import (
     NativeValues as NativeValues,
@@ -291,6 +309,9 @@ from petstore_client.models.reserve_stock_response import (
 from petstore_client.models.result import (
     Result as Result,
 )
+from petstore_client.models.roster import (
+    Roster as Roster,
+)
 from petstore_client.models.separator import (
     Separator as Separator,
 )
@@ -302,6 +323,9 @@ from petstore_client.models.set_pet_avatar_thumbnail_request import (
 )
 from petstore_client.models.shape import (
     Shape as Shape,
+)
+from petstore_client.models.sparse import (
+    Sparse as Sparse,
 )
 from petstore_client.models.square import (
     Square as Square,

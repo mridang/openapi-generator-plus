@@ -486,7 +486,7 @@ class StoreApi :
      * @return NativeValues
      * @throws ApiException if fails to make API call
      */
-    suspend fun getNativeValues(options: GetNativeValuesOptions? = null): NativeValues =
+    override suspend fun getNativeValues(options: GetNativeValuesOptions?): NativeValues =
         getNativeValuesWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -497,7 +497,7 @@ class StoreApi :
         }
 
     /** Same as [getNativeValues] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getNativeValuesWithHttpInfo(options: GetNativeValuesOptions? = null): ApiResult<NativeValues> {
+    override suspend fun getNativeValuesWithHttpInfo(options: GetNativeValuesOptions?): ApiResult<NativeValues> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -546,6 +546,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getNativeValues",
+            urlTemplate = "/store/native-values",
         )
     }
 

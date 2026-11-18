@@ -864,6 +864,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * @return {@code NativeValues}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public NativeValues getNativeValues() {
     return getNativeValues(null);
   }
@@ -878,6 +879,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * @return the API result wrapping {@code NativeValues}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<NativeValues> getNativeValuesWithHttpInfo() {
     return getNativeValuesWithHttpInfo(null);
   }
@@ -889,6 +891,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * @return {@code NativeValues}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public NativeValues getNativeValues(@Nullable GetNativeValuesOptions options) {
     return requireBody(getNativeValuesWithHttpInfo(options), "getNativeValues");
   }
@@ -900,6 +903,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * @return the API result wrapping {@code NativeValues}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<NativeValues> getNativeValuesWithHttpInfo(
       @Nullable GetNativeValuesOptions options) {
     String path = "/store/native-values";
@@ -956,7 +960,9 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getNativeValues",
+        "/store/native-values");
   }
 
   /**

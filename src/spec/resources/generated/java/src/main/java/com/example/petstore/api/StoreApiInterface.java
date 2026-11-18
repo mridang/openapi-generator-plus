@@ -17,6 +17,7 @@ import com.example.petstore.api.options.GetDepartmentOptions;
 import com.example.petstore.api.options.GetGroupedCategoriesOptions;
 import com.example.petstore.api.options.GetInventoryOptions;
 import com.example.petstore.api.options.GetMatrixOptions;
+import com.example.petstore.api.options.GetNativeValuesOptions;
 import com.example.petstore.api.options.GetOrderByIdOptions;
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions;
 import com.example.petstore.api.options.GetStockItemOptions;
@@ -32,6 +33,7 @@ import com.example.petstore.models.Account;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
+import com.example.petstore.models.NativeValues;
 import com.example.petstore.models.Order;
 import com.example.petstore.models.ReserveStockResponse;
 import com.example.petstore.models.StockItem;
@@ -439,6 +441,52 @@ public interface StoreApiInterface {
    * @throws ApiException if fails to make API call
    */
   ApiResult<List<List<Integer>>> getMatrixWithHttpInfo(@Nullable GetMatrixOptions options);
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code NativeValues}
+   * @throws ApiException if fails to make API call
+   */
+  default NativeValues getNativeValues() {
+    return getNativeValues(null);
+  }
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code NativeValues}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<NativeValues> getNativeValuesWithHttpInfo() {
+    return getNativeValuesWithHttpInfo(null);
+  }
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code NativeValues}
+   * @throws ApiException if fails to make API call
+   */
+  NativeValues getNativeValues(@Nullable GetNativeValuesOptions options);
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code NativeValues}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<NativeValues> getNativeValuesWithHttpInfo(@Nullable GetNativeValuesOptions options);
 
   /**
    * Find purchase order by ID

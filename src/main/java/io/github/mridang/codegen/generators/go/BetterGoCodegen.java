@@ -930,18 +930,18 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected Map<String, String> getModelContextFlags() {
-        return Map.of(
-                "type:uuid.UUID", "hasUuidImport",
-                "type:netip.Addr", "hasNetipImport",
-                "type:[]byte", "hasByteFields",
-                "oneOfAnyOf", "hasFmtImport",
-                "isEnum", "hasFmtImport",
-                "hasInlineEnum", "hasFmtImport",
-                "hasRequired", "hasFmtImport",
-                "hasTypedAdditionalProperties", "hasFmtImport",
-                "isUnevaluatedPropertiesFalse", "hasFmtImport",
-                "hasOptionalDefault", "hasOptionalDefault",
-                "hasPasswordProperty", "hasPasswordProperty");
+        return Map.ofEntries(
+                Map.entry("type:uuid.UUID", "hasUuidImport"),
+                Map.entry("type:netip.Addr", "hasNetipImport"),
+                Map.entry("type:[]byte", "hasByteFields"),
+                Map.entry("oneOfAnyOf", "hasFmtImport"),
+                Map.entry("isEnum", "hasFmtImport"),
+                Map.entry("hasInlineEnum", "hasFmtImport"),
+                Map.entry("hasRequired", "hasFmtImport"),
+                Map.entry("hasTypedAdditionalProperties", "hasFmtImport"),
+                Map.entry("isUnevaluatedPropertiesFalse", "hasFmtImport"),
+                Map.entry("hasOptionalDefault", "hasOptionalDefault"),
+                Map.entry("hasPasswordProperty", "hasPasswordProperty"));
     }
 
     /** {@inheritDoc} */

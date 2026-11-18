@@ -158,7 +158,7 @@ func TestBhvModels009_Metadata_AdditionalPropertiesAreAMapOfTheValueType(t *test
 }
 
 // A value of the wrong JSON type fails the decode.
-func TestBhvModels012_Counters_AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode(t *testing.T) {
+func TestBhvModels025_Counters_AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode(t *testing.T) {
 	t.Parallel()
 	for _, body := range []string{`{"a":2.5}`, `{"a":"2"}`, `{"a":3000000000}`} {
 		var counters models.Counters
@@ -173,7 +173,7 @@ func TestBhvModels012_Counters_AdditionalPropertyOfTheWrongJsonTypeFailsTheDecod
 }
 
 // A value whose type is a model decodes to that model.
-func TestBhvModels013_Roster_ModelValuedAdditionalPropertyDecodesToTheModel(t *testing.T) {
+func TestBhvModels026_Roster_ModelValuedAdditionalPropertyDecodesToTheModel(t *testing.T) {
 	t.Parallel()
 	var roster models.Roster
 	if err := json.Unmarshal([]byte(`{"label":"l","a":{"id":1,"name":"x"}}`), &roster); err != nil {
@@ -189,7 +189,7 @@ func TestBhvModels013_Roster_ModelValuedAdditionalPropertyDecodesToTheModel(t *t
 }
 
 // A null extra is rejected unless the value schema is nullable.
-func TestBhvModels014_Counters_NullAdditionalPropertyIsRejectedUnlessNullable(t *testing.T) {
+func TestBhvModels027_Counters_NullAdditionalPropertyIsRejectedUnlessNullable(t *testing.T) {
 	t.Parallel()
 	var counters models.Counters
 	if err := json.Unmarshal([]byte(`{"a":null}`), &counters); err == nil {
@@ -205,7 +205,7 @@ func TestBhvModels014_Counters_NullAdditionalPropertyIsRejectedUnlessNullable(t 
 }
 
 // A typed extra is written flat in its wire form, after the declared properties.
-func TestBhvModels015_Moments_TypedAdditionalPropertyIsWrittenFlatInWireForm(t *testing.T) {
+func TestBhvModels028_Moments_TypedAdditionalPropertyIsWrittenFlatInWireForm(t *testing.T) {
 	t.Parallel()
 	var moments models.Moments
 	if err := json.Unmarshal([]byte(`{"label":"l","at":"2024-01-01T00:00:00Z"}`), &moments); err != nil {
@@ -232,7 +232,7 @@ func TestBhvModels015_Moments_TypedAdditionalPropertyIsWrittenFlatInWireForm(t *
 }
 
 // A free-form additionalProperties keeps every JSON value as it arrives.
-func TestBhvModels016_Freeform_FreeFormAdditionalPropertiesKeepAnyValue(t *testing.T) {
+func TestBhvModels029_Freeform_FreeFormAdditionalPropertiesKeepAnyValue(t *testing.T) {
 	t.Parallel()
 	var freeform models.Freeform
 	if err := json.Unmarshal([]byte(`{"a":1,"b":"x","c":[true],"d":null}`), &freeform); err != nil {

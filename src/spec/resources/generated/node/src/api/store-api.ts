@@ -88,6 +88,14 @@ export interface StoreApiInterface {
   getMatrixWithHttpInfo(
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Array<Array<number>>>>;
+  getNativeValues(
+    options?: GetNativeValuesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<NativeValues>;
+  getNativeValuesWithHttpInfo(
+    options?: GetNativeValuesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<NativeValues>>;
   getOrderById(
     orderId: number,
     requestOptions?: RequestOptions,
@@ -819,6 +827,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getNativeValues",
       requestOptions,
+      undefined,
+      "getNativeValues",
+      "/store/native-values",
     );
   }
 

@@ -2516,4 +2516,146 @@ import Testing
       try ObjectSerializer.deserialize("{\"s\":\"text\"}", as: [String: AnyCodable].self))
     #expect(decoded["s"]?.value as? String == "text")
   }
+
+  private func decodeNativeValues(_ json: String) throws -> NativeValues {
+    return try #require(try ObjectSerializer.deserialize(json, as: NativeValues.self))
+  }
+
+  @Test func testBhvSerializationobject403DurationFieldIsTheTimeIntervalFallback() throws {
+    let wait: TimeInterval? = try decodeNativeValues("{\"wait\":\"3600s\"}").wait
+    #expect(wait == 3600)
+  }
+
+  @Test func testBhvSerializationobject405Ipv4FieldIsTheAddressTextKeptUnchanged() throws {
+    let values = try decodeNativeValues("{\"address4\":\"192.0.2.1\"}")
+    #expect(try ObjectSerializer.serialize(values) == "{\"address4\":\"192.0.2.1\"}")
+  }
+
+  @Test func testBhvSerializationobject406Ipv6FieldKeepsTheAddressTextUnchanged() throws {
+    for text in ["2001:0DB8:0:0:0:0:0:1", "2001:db8::1", "::1"] {
+      let values = try decodeNativeValues("{\"address6\":\"\(text)\"}")
+      #expect(try ObjectSerializer.serialize(values) == "{\"address6\":\"\(text)\"}")
+    }
+  }
+
+  @Test func testBhvSerializationobject408EveryAbsoluteUriOfTheCorpusRoundTripsByteForByte() throws
+  {
+    let corpus = [
+      "https://example.com",
+      "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+      "mailto:a@b.c",
+      "urn:isbn:0451450523",
+      "https://example.com/[x]?q='a'",
+      "https://example.com?",
+      "https://example.com/%7euser",
+      "https://[2001:db8::1]:8443/",
+    ]
+    for text in corpus {
+      let json = "{\"homepage\":\"\(text)\"}"
+      #expect(try ObjectSerializer.serialize(try decodeNativeValues(json)) == json)
+    }
+  }
+
+  @Test func testBhvSerializationobject409HostnameAndEmailAreKeptAsGiven() throws {
+    let json = "{\"contact\":\"x@\",\"host\":\"not a host!\"}"
+    let text = try ObjectSerializer.serialize(try decodeNativeValues(json))
+    #expect(text.contains("\"host\":\"not a host!\""))
+    #expect(text.contains("\"contact\":\"x@\""))
+  }
+
+  @Test func testBhvSerializationparam104DurationParameterIsTheProtobufForm() throws {
+    #expect(try ObjectSerializer.encodeDuration(3600) == "3600s")
+  }
+
+  @Test func testBhvSerializationparam105AddressParameterIsTheTextUnchanged() {
+    #expect(ObjectSerializer.stringify("2001:db8::1") == "2001:db8::1")
+  }
+
+  // MARK: - enum member names and descriptions
+
+  private func enumModelSource(_ name: String) throws -> String {
+    let root = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    return try String(
+      contentsOf: root.appendingPathComponent("Sources/PetstoreClient/Models/\(name).swift"),
+      encoding: .utf8)
+  }
+
+  @Test func testBhvEnums001AnArrayNamesAStringMember() throws {
+    #expect(Tier.small.rawValue == "s")
+    #expect(Tier.medium.rawValue == "m")
+    #expect(Tier.large.rawValue == "l")
+    let item = try ObjectSerializer.deserialize(
+      "{\"rank\":1,\"tier\":\"m\"}", as: Subscription.self)
+    #expect(item?.tier == .medium)
+  }
+
+  @Test func testBhvEnums002AnArrayNamesAnIntegerMember() throws {
+    #expect(Rank.low.rawValue == 1)
+    #expect(Rank.medium.rawValue == 2)
+    #expect(Rank.high.rawValue == 3)
+    let item = try ObjectSerializer.deserialize("{\"rank\":3}", as: Subscription.self)
+    #expect(item?.rank == .high)
+    #expect(try ObjectSerializer.serialize(item!).contains("\"rank\":3"))
+  }
+
+  @Test func testBhvEnums003AnObjectNamesTheListedMembers() throws {
+    let paused = try ObjectSerializer.deserialize(
+      "{\"rank\":1,\"stage\":\"paused\"}", as: Subscription.self)
+    let active = try ObjectSerializer.deserialize(
+      "{\"rank\":1,\"stage\":\"active\"}", as: Subscription.self)
+    #expect(paused?.stage == .onHold)
+    #expect(active?.stage == .active)
+  }
+
+  @Test func testBhvEnums004ASuppliedNameIsCleanedAndCased() {
+    #expect(Stage.onHold.rawValue == "paused")
+  }
+
+  @Test func testBhvEnums005CollidingNamesStayDistinct() throws {
+    #expect(Stage.active.rawValue == "active")
+    #expect(Stage.active2.rawValue == "live")
+    let item = try ObjectSerializer.deserialize(
+      "{\"rank\":1,\"stage\":\"live\"}", as: Subscription.self)
+    #expect(item?.stage == .active2)
+  }
+
+  @Test func testBhvEnums006AnInlineEnumTakesItsOwnNames() {
+    #expect(SubscriptionIntervalEnum.monthly.rawValue == "month")
+    #expect(SubscriptionIntervalEnum.yearly.rawValue == "year")
+  }
+
+  @Test func testBhvEnums007ADefaultStartsAtTheSuppliedMember() throws {
+    #expect(Subscription(rank: .low).tier == .medium)
+    let item = try ObjectSerializer.deserialize("{\"rank\":1}", as: Subscription.self)
+    #expect(item?.tier == .medium)
+  }
+
+  @Test func testBhvEnums008OnlyTheWireValueIsOnTheWire() throws {
+    let json = try ObjectSerializer.serialize(Subscription(rank: .low, tier: .medium))
+    #expect(json.contains("\"tier\":\"m\""))
+    do {
+      _ = try ObjectSerializer.deserialize(
+        "{\"rank\":1,\"tier\":\"Medium\"}", as: Subscription.self)
+      Issue.record("a supplied name must not decode")
+    } catch let error as SerializationError {
+      #expect(String(describing: error).contains("Medium"))
+    }
+  }
+
+  @Test func testBhvEnums009ADescriptionIsTheCommentAboveTheMember() throws {
+    let source = try enumModelSource("Tier")
+    #expect(source.contains("  /// The smallest tier.\n  case small"))
+    #expect(source.contains("  /// The medium tier.\n  case medium"))
+  }
+
+  @Test func testBhvEnums010AMemberWithoutADescriptionHasNoComment() throws {
+    #expect(try enumModelSource("Rank").contains("  case low = 1\n  case medium = 2\n"))
+  }
+
+  @Test func testBhvEnums011AHostileDescriptionStaysAComment() throws {
+    #expect(
+      try enumModelSource("Tier").contains(
+        "  /// The largest tier. Ends with */ and #{x} and $x.\n  case large"))
+  }
 }

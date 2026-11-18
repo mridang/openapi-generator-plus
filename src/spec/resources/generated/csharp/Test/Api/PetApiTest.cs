@@ -1377,6 +1377,52 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOperations157GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = 3 });
+
+        Assert.EndsWith("?note=&rank=3", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = null });
+
+        Assert.EndsWith("?note=&rank=", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = "a b", Rank = 3 });
+
+        Assert.EndsWith(
+            "?note=a%20b&rank=3",
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task BhvOperations066AllowReservedQueryParamEncodesAFragmentDelimiter()
     {
         var client = new DateWireCapturingApiClient

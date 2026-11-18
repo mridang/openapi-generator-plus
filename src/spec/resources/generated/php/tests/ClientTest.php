@@ -10,6 +10,7 @@ use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
+use PetstoreClient\Test\RecordingCallHook;
 use PetstoreClient\Test\StubPsr18Client;
 use Nyholm\Psr7\Factory\Psr17Factory;
 
@@ -504,4 +505,169 @@ test('bhv config 025 an empty token environment value counts as unset and constr
     } finally {
         putenv($previous === false ? $name : $name . '=' . $previous);
     }
+});
+
+test('bhv mocking 001 every group has an interface the class implements', function (): void {
+    expect((new \ReflectionClass(\PetstoreClient\Api\PetApi::class))->implementsInterface(\PetstoreClient\Api\PetApiInterface::class))->toBeTrue();
+    $petListed = get_class_methods(\PetstoreClient\Api\PetApiInterface::class);
+    expect($petListed)->toContain('addPet')->toContain('addPetWithHttpInfo');
+    expect($petListed)->toContain('addPetPhotos')->toContain('addPetPhotosWithHttpInfo');
+    expect($petListed)->toContain('addPetTreatment')->toContain('addPetTreatmentWithHttpInfo');
+    expect($petListed)->toContain('deletePet')->toContain('deletePetWithHttpInfo');
+    expect($petListed)->toContain('downloadPetDocument')->toContain('downloadPetDocumentWithHttpInfo');
+    expect($petListed)->toContain('findPetsBornOn')->toContain('findPetsBornOnWithHttpInfo');
+    expect($petListed)->toContain('findPetsByStatus')->toContain('findPetsByStatusWithHttpInfo');
+    expect($petListed)->toContain('getExternalPetInfo')->toContain('getExternalPetInfoWithHttpInfo');
+    expect($petListed)->toContain('getMultiServerPetInfo')->toContain('getMultiServerPetInfoWithHttpInfo');
+    expect($petListed)->toContain('getPetAvatar')->toContain('getPetAvatarWithHttpInfo');
+    expect($petListed)->toContain('getPetAvatarThumbnail')->toContain('getPetAvatarThumbnailWithHttpInfo');
+    expect($petListed)->toContain('getPetById')->toContain('getPetByIdWithHttpInfo');
+    expect($petListed)->toContain('getPetByName')->toContain('getPetByNameWithHttpInfo');
+    expect($petListed)->toContain('getPetByNote')->toContain('getPetByNoteWithHttpInfo');
+    expect($petListed)->toContain('getPetPassport')->toContain('getPetPassportWithHttpInfo');
+    expect($petListed)->toContain('getPetPhoto')->toContain('getPetPhotoWithHttpInfo');
+    expect($petListed)->toContain('getPetSummary')->toContain('getPetSummaryWithHttpInfo');
+    expect($petListed)->toContain('getPetTag')->toContain('getPetTagWithHttpInfo');
+    expect($petListed)->toContain('getStagingPetInfo')->toContain('getStagingPetInfoWithHttpInfo');
+    expect($petListed)->toContain('setPetAvatar')->toContain('setPetAvatarWithHttpInfo');
+    expect($petListed)->toContain('setPetAvatarThumbnail')->toContain('setPetAvatarThumbnailWithHttpInfo');
+    expect($petListed)->toContain('setPetPreferences')->toContain('setPetPreferencesWithHttpInfo');
+    expect($petListed)->toContain('updatePet')->toContain('updatePetWithHttpInfo');
+    expect($petListed)->toContain('uploadPetCertificate')->toContain('uploadPetCertificateWithHttpInfo');
+    expect($petListed)->toContain('uploadPetDocument')->toContain('uploadPetDocumentWithHttpInfo');
+    expect((new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))->implementsInterface(\PetstoreClient\Api\ProblemsApiInterface::class))->toBeTrue();
+    $problemsListed = get_class_methods(\PetstoreClient\Api\ProblemsApiInterface::class);
+    expect($problemsListed)->toContain('getFallback')->toContain('getFallbackWithHttpInfo');
+    expect($problemsListed)->toContain('getMember')->toContain('getMemberWithHttpInfo');
+    expect($problemsListed)->toContain('getProject')->toContain('getProjectWithHttpInfo');
+    expect($problemsListed)->toContain('getRange')->toContain('getRangeWithHttpInfo');
+    expect($problemsListed)->toContain('getUpstream')->toContain('getUpstreamWithHttpInfo');
+    expect($problemsListed)->toContain('takeLock')->toContain('takeLockWithHttpInfo');
+    expect((new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))->implementsInterface(\PetstoreClient\Api\StoreApiInterface::class))->toBeTrue();
+    $storeListed = get_class_methods(\PetstoreClient\Api\StoreApiInterface::class);
+    expect($storeListed)->toContain('createAccount')->toContain('createAccountWithHttpInfo');
+    expect($storeListed)->toContain('deleteOrder')->toContain('deleteOrderWithHttpInfo');
+    expect($storeListed)->toContain('getBySwatch')->toContain('getBySwatchWithHttpInfo');
+    expect($storeListed)->toContain('getDefaults')->toContain('getDefaultsWithHttpInfo');
+    expect($storeListed)->toContain('getDepartment')->toContain('getDepartmentWithHttpInfo');
+    expect($storeListed)->toContain('getGroupedCategories')->toContain('getGroupedCategoriesWithHttpInfo');
+    expect($storeListed)->toContain('getInventory')->toContain('getInventoryWithHttpInfo');
+    expect($storeListed)->toContain('getMatrix')->toContain('getMatrixWithHttpInfo');
+    expect($storeListed)->toContain('getNativeValues')->toContain('getNativeValuesWithHttpInfo');
+    expect($storeListed)->toContain('getOrderById')->toContain('getOrderByIdWithHttpInfo');
+    expect($storeListed)->toContain('getOrderByTrackingId')->toContain('getOrderByTrackingIdWithHttpInfo');
+    expect($storeListed)->toContain('getStockItem')->toContain('getStockItemWithHttpInfo');
+    expect($storeListed)->toContain('getSwatch')->toContain('getSwatchWithHttpInfo');
+    expect($storeListed)->toContain('getSwatchGroups')->toContain('getSwatchGroupsWithHttpInfo');
+    expect($storeListed)->toContain('getTimestampGroups')->toContain('getTimestampGroupsWithHttpInfo');
+    expect($storeListed)->toContain('getTree')->toContain('getTreeWithHttpInfo');
+    expect($storeListed)->toContain('placeOrder')->toContain('placeOrderWithHttpInfo');
+    expect($storeListed)->toContain('reserveStock')->toContain('reserveStockWithHttpInfo');
+    expect($storeListed)->toContain('searchStore')->toContain('searchStoreWithHttpInfo');
+});
+
+/**
+ * @param class-string $class
+ * @return list<string>
+ */
+function declaredPublicMethodNames(string $class): array
+{
+    $names = [];
+    foreach ((new \ReflectionClass($class))->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+        if ($method->class === $class && !$method->isConstructor()) {
+            $names[] = $method->getName();
+        }
+    }
+    sort($names);
+
+    return $names;
+}
+
+test('bhv mocking 002 the group interface lists exactly the public operations of the class', function (): void {
+    expect(declaredPublicMethodNames(\PetstoreClient\Api\PetApiInterface::class))
+        ->toBe(declaredPublicMethodNames(\PetstoreClient\Api\PetApi::class));
+    expect(declaredPublicMethodNames(\PetstoreClient\Api\ProblemsApiInterface::class))
+        ->toBe(declaredPublicMethodNames(\PetstoreClient\Api\ProblemsApi::class));
+    expect(declaredPublicMethodNames(\PetstoreClient\Api\StoreApiInterface::class))
+        ->toBe(declaredPublicMethodNames(\PetstoreClient\Api\StoreApi::class));
+});
+
+test('bhv mocking 007 the client interface exposes every group typed as its interface and close', function (): void {
+    $client = new Client($this->authenticator);
+
+    expect($client)->toBeInstanceOf(\PetstoreClient\ClientInterface::class);
+    $returnType = (new \ReflectionMethod(\PetstoreClient\ClientInterface::class, 'getPet'))->getReturnType();
+    assert($returnType instanceof \ReflectionNamedType);
+    expect($returnType->getName())->toBe(\PetstoreClient\Api\PetApiInterface::class);
+    expect($client->getPet())->toBe($client->pet);
+    $returnType = (new \ReflectionMethod(\PetstoreClient\ClientInterface::class, 'getProblems'))->getReturnType();
+    assert($returnType instanceof \ReflectionNamedType);
+    expect($returnType->getName())->toBe(\PetstoreClient\Api\ProblemsApiInterface::class);
+    expect($client->getProblems())->toBe($client->problems);
+    $returnType = (new \ReflectionMethod(\PetstoreClient\ClientInterface::class, 'getStore'))->getReturnType();
+    assert($returnType instanceof \ReflectionNamedType);
+    expect($returnType->getName())->toBe(\PetstoreClient\Api\StoreApiInterface::class);
+    expect($client->getStore())->toBe($client->store);
+
+    $client->close();
+
+    expect(fn () => $client->pet->getPetById(1))->toThrow(\LogicException::class, 'closed');
+});
+
+test('bhv mocking 008 a client built from fakes never connects and closes without error', function (): void {
+    $fake = new class implements \PetstoreClient\ClientInterface {
+        public int $closed = 0;
+
+        public function getPet(): \PetstoreClient\Api\PetApiInterface
+        {
+            return fakeGroup(\PetstoreClient\Api\PetApiInterface::class);
+        }
+
+        public function getProblems(): \PetstoreClient\Api\ProblemsApiInterface
+        {
+            return fakeGroup(\PetstoreClient\Api\ProblemsApiInterface::class);
+        }
+
+        public function getStore(): \PetstoreClient\Api\StoreApiInterface
+        {
+            return fakeGroup(\PetstoreClient\Api\StoreApiInterface::class);
+        }
+
+        public function close(): void
+        {
+            $this->closed++;
+        }
+    };
+
+    expect($fake->getPet())->toBeInstanceOf(\PetstoreClient\Api\PetApiInterface::class);
+    expect($fake->getProblems())->toBeInstanceOf(\PetstoreClient\Api\ProblemsApiInterface::class);
+    expect($fake->getStore())->toBeInstanceOf(\PetstoreClient\Api\StoreApiInterface::class);
+    $fake->close();
+    $fake->close();
+
+    expect($fake->closed)->toBe(2);
+});
+
+test('a call hook given to the client is handed to every api group', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new Client($this->authenticator, null, null, callHook: $hook);
+
+    $configs = [];
+    $configs[] = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))
+        ->getProperty('config')
+        ->getValue($client->pet);
+    $configs[] = (new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))
+        ->getProperty('config')
+        ->getValue($client->problems);
+    $configs[] = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))
+        ->getProperty('config')
+        ->getValue($client->store);
+
+    foreach ($configs as $config) {
+        expect($config)->toBeInstanceOf(\PetstoreClient\Configuration::class);
+        if ($config instanceof \PetstoreClient\Configuration) {
+            expect($config->getCallHook())->toBe($hook);
+        }
+    }
+    expect($configs)->not->toBe([]);
 });

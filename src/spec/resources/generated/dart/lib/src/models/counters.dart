@@ -34,11 +34,15 @@ class Counters {
       additionalPropertyEntries,
       (e) => readInt32(e),
     );
-    return Counters(
-      label: json['label'] as String?,
+    try {
+      return Counters(
+        label: json['label'] as String?,
 
-      additionalProperties: additionalProperties,
-    );
+        additionalProperties: additionalProperties,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Counters: $e', e);
+    }
   }
 
   /// Converts this [Counters] to a JSON map.

@@ -515,6 +515,8 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       returnType: "NativeValues",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.getNativeValues",
+      operationId: "getNativeValues",
+      urlTemplate: "/store/native-values",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries

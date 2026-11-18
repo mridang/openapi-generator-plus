@@ -55,35 +55,39 @@ class NativeValues {
 
   /// Creates a [NativeValues] from a JSON map.
   factory NativeValues.fromJson(Map<String, dynamic> json) {
-    return NativeValues(
-      address4: json['address4'] as String?,
+    try {
+      return NativeValues(
+        address4: json['address4'] as String?,
 
-      address6: json['address6'] as String?,
+        address6: json['address6'] as String?,
 
-      addresses: json['addresses'] != null
-          ? deserializeArray(json['addresses'] as List, (e) => e as String)
-          : null,
+        addresses: json['addresses'] != null
+            ? deserializeArray(json['addresses'] as List, (e) => e as String)
+            : null,
 
-      homepage: json['homepage'] != null
-          ? parseUri(json['homepage'] as String)
-          : null,
+        homepage: json['homepage'] != null
+            ? parseUri(json['homepage'] as String)
+            : null,
 
-      amount: readDoubleOrNull(json['amount']),
+        amount: readDoubleOrNull(json['amount']),
 
-      ledger: json['ledger'] as double?,
+        ledger: json['ledger'] as double?,
 
-      wait: json['wait'] != null
-          ? parseProtobufDuration(json['wait'] as String)
-          : null,
+        wait: json['wait'] != null
+            ? parseProtobufDuration(json['wait'] as String)
+            : null,
 
-      since: json['since'] != null
-          ? DateTime.parse(json['since'] as String)
-          : null,
+        since: json['since'] != null
+            ? DateTime.parse(json['since'] as String)
+            : null,
 
-      host: json['host'] as String?,
+        host: json['host'] as String?,
 
-      contact: json['contact'] as String?,
-    );
+        contact: json['contact'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for NativeValues: $e', e);
+    }
   }
 
   /// Converts this [NativeValues] to a JSON map.

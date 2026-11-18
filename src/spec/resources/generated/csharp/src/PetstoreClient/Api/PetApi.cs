@@ -1989,6 +1989,8 @@ public class PetApi : BaseApi, IPetApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetByNote",
+                operationId: "getPetByNote",
+                urlTemplate: "/pet/byNote",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

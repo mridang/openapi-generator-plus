@@ -141,6 +141,14 @@ public abstract class BaseApi
     /// The operation's error factories by declared status (<c>404</c>, <c>4XX</c>,
     /// <c>default</c>), or null when it declares none.
     /// </param>
+    /// <param name="operationId">
+    /// The operation id exactly as the spec writes it, handed to the call hook; null
+    /// falls back to <paramref name="operationName"/>.
+    /// </param>
+    /// <param name="urlTemplate">
+    /// The spec path template of the operation, handed to the call hook; null falls
+    /// back to <paramref name="path"/>.
+    /// </param>
     /// <param name="cancellationToken">Token that cancels the request.</param>
     protected async Task<ApiResult<T>> InvokeApiForResultAsync<T>(
         string method,
@@ -159,6 +167,8 @@ public abstract class BaseApi
         IReadOnlyDictionary<string, string>? extraHeaders = null,
         int? maxRetries = null,
         IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -233,8 +243,13 @@ public abstract class BaseApi
         bool isMultipart = contentType == "multipart/form-data";
         /* The request headers, rebuilt from scratch on every call so a retry
            or a replay after a 401 carries current authentication headers. */
-        async Task<Dictionary<string, string>> BuildHeadersAsync()
+        /* The edits the call hook made to the headers, kept as a delta and
+           reapplied on every rebuild so a header it set is on every send of the
+           call. A null value is a header it removed. */
+        Dictionary<string, string?>? hookDelta = null;
+        async Task<Dictionary<string, string>> BuildHeadersAsync(bool freshAuthWins)
         {
+            HashSet<string> authKeys = new(StringComparer.OrdinalIgnoreCase);
             Dictionary<string, string> built = HeaderSelector.SelectHeaders(
                 accepts,
                 contentType,
@@ -259,6 +274,7 @@ public abstract class BaseApi
                 foreach (KeyValuePair<string, string> header in authHeaders)
                 {
                     SetHeaderIgnoringCase(built, header.Key, header.Value);
+                    _ = authKeys.Add(header.Key);
                 }
 
                 Dictionary<string, string> cookies = effectiveAuth.GetCookieParams();
@@ -287,6 +303,7 @@ public abstract class BaseApi
                             return c.Key + "=" + c.Value;
                         })
                     );
+                    _ = authKeys.Add("Cookie");
                     built["Cookie"] =
                         built.TryGetValue("Cookie", out string? existing)
                         && !string.IsNullOrEmpty(existing)
@@ -319,272 +336,456 @@ public abstract class BaseApi
                 _ = built.Remove("Content-Type");
             }
 
+            if (hookDelta is not null)
+            {
+                ApplyHookDelta(built, hookDelta, freshAuthWins ? authKeys : null);
+            }
+
             return built;
         }
 
-        Dictionary<string, string> headers = await BuildHeadersAsync().ConfigureAwait(false);
+        Dictionary<string, string> headers = await BuildHeadersAsync(false).ConfigureAwait(false);
 
-        object? requestBody = null;
-        if (body != null)
+        /* The call hook starts once per call, on the final header set and before
+           anything is encoded or sent. An error it throws propagates unchanged and
+           nothing is sent; the observer it returns is finished exactly once below. */
+        ICallObserver? observer = null;
+        ICallHook? callHook = Config.CallHook;
+        if (callHook is not null)
         {
-            bool isBinary =
-                contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(
-                    contentType,
-                    "application/octet-stream",
-                    StringComparison.OrdinalIgnoreCase
-                );
+            string callUrl = url;
+            int cut = callUrl.IndexOfAny(['?', '#']);
+            if (cut >= 0)
+            {
+                callUrl = callUrl[..cut];
+            }
+            Dictionary<string, string> before = new(headers, headers.Comparer);
+            observer = callHook.Start(
+                new CallInfo(
+                    operationId ?? operationName ?? string.Empty,
+                    method.ToUpperInvariant(),
+                    urlTemplate ?? path,
+                    callUrl,
+                    ServerAddressOf(callUrl)
+                ),
+                headers
+            );
+            hookDelta = DiffHeaders(before, headers);
+        }
+        int callStatus = 0;
+        IReadOnlyDictionary<string, string>? callHeaders = null;
+        Exception? callError = null;
+        try
+        {
+            object? requestBody = null;
+            if (body != null)
+            {
+                bool isBinary =
+                    contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(
+                        contentType,
+                        "application/octet-stream",
+                        StringComparison.OrdinalIgnoreCase
+                    );
 
-            if (isBinary && body is Dictionary<string, object> binaryForm)
-            {
-                /* The operation declares a binary content-type
-                 * (application/octet-stream or image/*) alongside
-                 * multipart/form-data, and the API layer always hands us a
-                 * form-style Dictionary keyed by the declared parts. When the
-                 * caller selects the raw-binary content-type we must NOT wrap
-                 * the payload in a multipart envelope: extract the single
-                 * binary part (Stream / byte[]) and send its raw bytes so the
-                 * wire Content-Type stays the selected binary type. Falling
-                 * through to the plain pass-through below would hand a
-                 * Dictionary to DefaultApiClient, which emits multipart/form-data
-                 * instead. Mirrors the single-binary-body path (an operation
-                 * whose body is a bare type:string format:binary schema) that
-                 * already streams raw bytes. */
-                requestBody = ExtractBinaryPart(binaryForm);
-            }
-            else if (rawBody || isBinary || isMultipart)
-            {
-                /* A format:binary body (rawBody) is the caller's bytes: the
-                 * selected Content-Type only changes the header, so even an
-                 * application/json selection sends them verbatim rather than
-                 * reflecting the Stream through the JSON serializer. */
-                requestBody = body;
-            }
-            else if (string.Equals(contentType, "text/plain", StringComparison.OrdinalIgnoreCase))
-            {
-                requestBody = body.ToString();
-            }
-            else if (
-                string.Equals(
-                    contentType,
-                    "application/x-www-form-urlencoded",
-                    StringComparison.OrdinalIgnoreCase
-                ) && body is Dictionary<string, object> formParams
-            )
-            {
-                /* Canonical form serialization (identical across every SDK):
-                 *   - array fields emit one repeated key per element
-                 *     (exploded, e.g. tags=a&tags=b — never tags=a,b or
-                 *     tags[]=);
-                 *   - null/absent fields are omitted entirely;
-                 *   - scalars go through ObjectSerializer.Stringify so a
-                 *     format:date value (DateOnly) is YYYY-MM-DD — never a
-                 *     culture-dependent ToString() or a date-time;
-                 *   - FormUrlEncode uses application/x-www-form-urlencoded
-                 *     rules, so a space becomes '+'. */
-                List<string> parts = [];
-                foreach (KeyValuePair<string, object> kv in formParams)
+                if (isBinary && body is Dictionary<string, object> binaryForm)
                 {
-                    if (kv.Value == null)
+                    /* The operation declares a binary content-type
+                     * (application/octet-stream or image/*) alongside
+                     * multipart/form-data, and the API layer always hands us a
+                     * form-style Dictionary keyed by the declared parts. When the
+                     * caller selects the raw-binary content-type we must NOT wrap
+                     * the payload in a multipart envelope: extract the single
+                     * binary part (Stream / byte[]) and send its raw bytes so the
+                     * wire Content-Type stays the selected binary type. Falling
+                     * through to the plain pass-through below would hand a
+                     * Dictionary to DefaultApiClient, which emits multipart/form-data
+                     * instead. Mirrors the single-binary-body path (an operation
+                     * whose body is a bare type:string format:binary schema) that
+                     * already streams raw bytes. */
+                    requestBody = ExtractBinaryPart(binaryForm);
+                }
+                else if (rawBody || isBinary || isMultipart)
+                {
+                    /* A format:binary body (rawBody) is the caller's bytes: the
+                     * selected Content-Type only changes the header, so even an
+                     * application/json selection sends them verbatim rather than
+                     * reflecting the Stream through the JSON serializer. */
+                    requestBody = body;
+                }
+                else if (
+                    string.Equals(contentType, "text/plain", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    requestBody = body.ToString();
+                }
+                else if (
+                    string.Equals(
+                        contentType,
+                        "application/x-www-form-urlencoded",
+                        StringComparison.OrdinalIgnoreCase
+                    ) && body is Dictionary<string, object> formParams
+                )
+                {
+                    /* Canonical form serialization (identical across every SDK):
+                     *   - array fields emit one repeated key per element
+                     *     (exploded, e.g. tags=a&tags=b — never tags=a,b or
+                     *     tags[]=);
+                     *   - null/absent fields are omitted entirely;
+                     *   - scalars go through ObjectSerializer.Stringify so a
+                     *     format:date value (DateOnly) is YYYY-MM-DD — never a
+                     *     culture-dependent ToString() or a date-time;
+                     *   - FormUrlEncode uses application/x-www-form-urlencoded
+                     *     rules, so a space becomes '+'. */
+                    List<string> parts = [];
+                    foreach (KeyValuePair<string, object> kv in formParams)
                     {
-                        continue;
-                    }
-                    string key = FormUrlEncode(kv.Key);
-                    if (
-                        kv.Value is System.Collections.IEnumerable enumerable
-                        && !ObjectSerializer.IsScalar(kv.Value)
-                    )
-                    {
-                        foreach (object? element in enumerable)
+                        if (kv.Value == null)
                         {
-                            if (element == null)
+                            continue;
+                        }
+                        string key = FormUrlEncode(kv.Key);
+                        if (
+                            kv.Value is System.Collections.IEnumerable enumerable
+                            && !ObjectSerializer.IsScalar(kv.Value)
+                        )
+                        {
+                            foreach (object? element in enumerable)
                             {
-                                continue;
+                                if (element == null)
+                                {
+                                    continue;
+                                }
+                                if (!ObjectSerializer.IsScalar(element))
+                                {
+                                    throw NonScalarFormField(kv.Key);
+                                }
+                                parts.Add(
+                                    key + "=" + FormUrlEncode(ObjectSerializer.Stringify(element))
+                                );
                             }
-                            if (!ObjectSerializer.IsScalar(element))
-                            {
-                                throw NonScalarFormField(kv.Key);
-                            }
+                        }
+                        else if (!ObjectSerializer.IsScalar(kv.Value))
+                        {
+                            throw NonScalarFormField(kv.Key);
+                        }
+                        else
+                        {
                             parts.Add(
-                                key + "=" + FormUrlEncode(ObjectSerializer.Stringify(element))
+                                key + "=" + FormUrlEncode(ObjectSerializer.Stringify(kv.Value))
                             );
                         }
                     }
-                    else if (!ObjectSerializer.IsScalar(kv.Value))
-                    {
-                        throw NonScalarFormField(kv.Key);
-                    }
-                    else
-                    {
-                        parts.Add(key + "=" + FormUrlEncode(ObjectSerializer.Stringify(kv.Value)));
-                    }
-                }
 
-                requestBody = string.Join("&", parts);
-            }
-            else
-            {
-                requestBody = Serializer.Serialize(body);
-            }
-        }
-
-        Uri requestUri = new(url);
-        ApiHttpResponse response = await SendRecordingRequestAsync(
-                ApiClient,
-                method,
-                requestUri,
-                headers,
-                requestBody,
-                BuildHeadersAsync,
-                timeout,
-                maxRetries,
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        /* A 401 on an OAuth2 or OpenID Connect call means the cached access
-           token is no longer accepted: drop it (the refresh token is kept),
-           rebuild the headers and replay the request once. A second 401 is
-           reported below as the usual error. A stream or multipart body was
-           consumed by the first send and is never replayed, and the API key,
-           basic and bearer authenticators never replay. */
-        if (
-            response.StatusCode == 401
-            && effectiveAuth is IInvalidatableAuthenticator invalidatable
-            && requestBody is null or string or byte[]
-        )
-        {
-            invalidatable.InvalidateAccessToken();
-            Dictionary<string, string>? replayHeaders = null;
-            try
-            {
-                replayHeaders = await BuildHeadersAsync().ConfigureAwait(false);
-            }
-            catch (OpenAPIException)
-            {
-                /* A failed re-authentication leaves the 401 as it is: the
-                   replay is not sent and the first response is reported below. */
-            }
-            if (replayHeaders is not null)
-            {
-                headers = replayHeaders;
-                response = await SendRecordingRequestAsync(
-                        ApiClient,
-                        method,
-                        requestUri,
-                        headers,
-                        requestBody,
-                        BuildHeadersAsync,
-                        timeout,
-                        maxRetries,
-                        cancellationToken
-                    )
-                    .ConfigureAwait(false);
-            }
-        }
-
-        if (response.StatusCode is < 200 or >= 300)
-        {
-            throw ApiException.FromResponse(
-                response.StatusCode,
-                response.Headers,
-                response.Body,
-                method,
-                requestUri.AbsolutePath,
-                errorSchemas
-            );
-        }
-
-        T? data = default;
-        if (returnType != null && !string.IsNullOrEmpty(response.Body))
-        {
-            try
-            {
-                string? responseContentType = response
-                    .Headers.Where(h =>
-                        string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
-                    )
-                    .Select(h => h.Value)
-                    .FirstOrDefault();
-
-                bool binaryTarget =
-                    typeof(T) == typeof(System.IO.Stream) || typeof(T) == typeof(byte[]);
-
-                if (
-                    typeof(T) == typeof(byte[])
-                    && responseContentType != null
-                    && HeaderSelector.IsJsonMime(responseContentType)
-                    && response.Body.TrimStart().StartsWith('"')
-                )
-                {
-                    /* A top-level `format: byte` response carried as application/json
-                       arrives as a JSON string literal (e.g. "dGVzdC1pbWFnZQ==").
-                       JSON-parse it to the inner string, then base64-decode to the
-                       raw bytes — never the UTF-8 bytes of the quoted literal, and
-                       never the un-decoded base64 string. Matches python/go/java/rust. */
-                    data = (T)(object)(Serializer.Deserialize<byte[]>(response.Body) ?? []);
-                }
-                else if (binaryTarget)
-                {
-                    /* The caller expects raw bytes (Stream/byte[]). DefaultApiClient
-                       base64-encodes the body for non-text content types and leaves
-                       text bodies decoded, so recover the original bytes instead of
-                       JSON-deserializing. A non-text content type signals a base64
-                       payload; fall back to the literal UTF-8 bytes when the body is
-                       not valid base64 (e.g. a custom IApiClient that returns raw
-                       text). */
-                    byte[] bytes = DecodeBinaryBody(
-                        response.Body,
-                        !IsTextResponseContentType(responseContentType)
-                    );
-                    data =
-                        typeof(T) == typeof(System.IO.Stream)
-                            ? (T)(object)new System.IO.MemoryStream(bytes)
-                            : (T)(object)bytes;
-                }
-                else if (
-                    responseContentType != null
-                    && !HeaderSelector.IsJsonMime(responseContentType)
-                )
-                {
-                    /* A non-JSON success body is only usable as text for a string
-                       return; any other return type is a serialization error that
-                       names the Content-Type, never a cast failure. */
-                    if (typeof(T) == typeof(string))
-                    {
-                        data = (T)(object)response.Body;
-                    }
-                    else
-                    {
-                        throw new SerializationException(
-                            $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {operationName ?? "the request"}: expected a JSON body"
-                        );
-                    }
-                }
-                else if (decodeByStatus is not null)
-                {
-                    data = decodeByStatus(response.StatusCode, response.Body);
+                    requestBody = string.Join("&", parts);
                 }
                 else
                 {
-                    data = Serializer.Deserialize<T>(response.Body);
+                    requestBody = Serializer.Serialize(body);
                 }
             }
-            catch (SerializationException e)
+
+            Uri requestUri = new(url);
+            ApiHttpResponse response = await SendRecordingRequestAsync(
+                    ApiClient,
+                    method,
+                    requestUri,
+                    headers,
+                    requestBody,
+                    () => BuildHeadersAsync(false),
+                    timeout,
+                    maxRetries,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+            if (observer is not null)
             {
-                /* A body that cannot be decoded still says which response it was. */
-                e.AttachResponse(
+                callStatus = response.StatusCode;
+                callHeaders = LowerCaseHeaders(response.Headers);
+            }
+
+            /* A 401 on an OAuth2 or OpenID Connect call means the cached access
+               token is no longer accepted: drop it (the refresh token is kept),
+               rebuild the headers and replay the request once. A second 401 is
+               reported below as the usual error. A stream or multipart body was
+               consumed by the first send and is never replayed, and the API key,
+               basic and bearer authenticators never replay. */
+            if (
+                response.StatusCode == 401
+                && effectiveAuth is IInvalidatableAuthenticator invalidatable
+                && requestBody is null or string or byte[]
+            )
+            {
+                invalidatable.InvalidateAccessToken();
+                Dictionary<string, string>? replayHeaders = null;
+                try
+                {
+                    replayHeaders = await BuildHeadersAsync(true).ConfigureAwait(false);
+                }
+                catch (OpenAPIException)
+                {
+                    /* A failed re-authentication leaves the 401 as it is: the
+                       replay is not sent and the first response is reported below. */
+                }
+                if (replayHeaders is not null)
+                {
+                    headers = replayHeaders;
+                    response = await SendRecordingRequestAsync(
+                            ApiClient,
+                            method,
+                            requestUri,
+                            headers,
+                            requestBody,
+                            () => BuildHeadersAsync(false),
+                            timeout,
+                            maxRetries,
+                            cancellationToken
+                        )
+                        .ConfigureAwait(false);
+                    if (observer is not null)
+                    {
+                        callStatus = response.StatusCode;
+                        callHeaders = LowerCaseHeaders(response.Headers);
+                    }
+                }
+            }
+
+            if (response.StatusCode is < 200 or >= 300)
+            {
+                throw ApiException.FromResponse(
                     response.StatusCode,
                     response.Headers,
                     response.Body,
                     method,
-                    requestUri.AbsolutePath
+                    requestUri.AbsolutePath,
+                    errorSchemas
                 );
-                throw;
+            }
+
+            T? data = default;
+            if (returnType != null && !string.IsNullOrEmpty(response.Body))
+            {
+                try
+                {
+                    string? responseContentType = response
+                        .Headers.Where(h =>
+                            string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
+                        )
+                        .Select(h => h.Value)
+                        .FirstOrDefault();
+
+                    bool binaryTarget =
+                        typeof(T) == typeof(System.IO.Stream) || typeof(T) == typeof(byte[]);
+
+                    if (
+                        typeof(T) == typeof(byte[])
+                        && responseContentType != null
+                        && HeaderSelector.IsJsonMime(responseContentType)
+                        && response.Body.TrimStart().StartsWith('"')
+                    )
+                    {
+                        /* A top-level `format: byte` response carried as application/json
+                           arrives as a JSON string literal (e.g. "dGVzdC1pbWFnZQ==").
+                           JSON-parse it to the inner string, then base64-decode to the
+                           raw bytes — never the UTF-8 bytes of the quoted literal, and
+                           never the un-decoded base64 string. Matches python/go/java/rust. */
+                        data = (T)(object)(Serializer.Deserialize<byte[]>(response.Body) ?? []);
+                    }
+                    else if (binaryTarget)
+                    {
+                        /* The caller expects raw bytes (Stream/byte[]). DefaultApiClient
+                           base64-encodes the body for non-text content types and leaves
+                           text bodies decoded, so recover the original bytes instead of
+                           JSON-deserializing. A non-text content type signals a base64
+                           payload; fall back to the literal UTF-8 bytes when the body is
+                           not valid base64 (e.g. a custom IApiClient that returns raw
+                           text). */
+                        byte[] bytes = DecodeBinaryBody(
+                            response.Body,
+                            !IsTextResponseContentType(responseContentType)
+                        );
+                        data =
+                            typeof(T) == typeof(System.IO.Stream)
+                                ? (T)(object)new System.IO.MemoryStream(bytes)
+                                : (T)(object)bytes;
+                    }
+                    else if (
+                        responseContentType != null
+                        && !HeaderSelector.IsJsonMime(responseContentType)
+                    )
+                    {
+                        /* A non-JSON success body is only usable as text for a string
+                           return; any other return type is a serialization error that
+                           names the Content-Type, never a cast failure. */
+                        if (typeof(T) == typeof(string))
+                        {
+                            data = (T)(object)response.Body;
+                        }
+                        else
+                        {
+                            throw new SerializationException(
+                                $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {operationName ?? "the request"}: expected a JSON body"
+                            );
+                        }
+                    }
+                    else if (decodeByStatus is not null)
+                    {
+                        data = decodeByStatus(response.StatusCode, response.Body);
+                    }
+                    else
+                    {
+                        data = Serializer.Deserialize<T>(response.Body);
+                    }
+                }
+                catch (SerializationException e)
+                {
+                    /* A body that cannot be decoded still says which response it was. */
+                    e.AttachResponse(
+                        response.StatusCode,
+                        response.Headers,
+                        response.Body,
+                        method,
+                        requestUri.AbsolutePath
+                    );
+                    throw;
+                }
+            }
+
+            return new ApiResult<T>(response.StatusCode, data, response.Body, response.Headers);
+        }
+        catch (Exception e)
+        {
+            callError = e;
+            throw;
+        }
+        finally
+        {
+            FinishCall(observer, callStatus, callHeaders, callError);
+        }
+    }
+
+    /// <summary>
+    /// Finishes a call observer exactly once. An error the observer throws is
+    /// swallowed, so the call still returns its own result or its own error.
+    /// </summary>
+    private static void FinishCall(
+        ICallObserver? observer,
+        int status,
+        IReadOnlyDictionary<string, string>? headers,
+        Exception? error
+    )
+    {
+        if (observer is null)
+        {
+            return;
+        }
+        try
+        {
+            observer.Finish(new CallOutcome(status, headers, error));
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+        {
+            /* An observer must never replace the outcome of the call. */
+        }
+    }
+
+    /// <summary>
+    /// The host of a request URL: lower-case, without port and without the
+    /// brackets of an IPv6 literal.
+    /// </summary>
+    private static string ServerAddressOf(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed))
+        {
+            return string.Empty;
+        }
+        return AsciiLower(parsed.DnsSafeHost);
+    }
+
+    /// <summary>Lowercases the ASCII letters of a header name or host.</summary>
+    private static string AsciiLower(string value)
+    {
+        char[] chars = value.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            if (chars[i] is >= 'A' and <= 'Z')
+            {
+                chars[i] = (char)(chars[i] + 32);
             }
         }
+        return new string(chars);
+    }
 
-        return new ApiResult<T>(response.StatusCode, data, response.Body, response.Headers);
+    /// <summary>A read-only copy of the response headers with lower-cased names.</summary>
+    private static System.Collections.ObjectModel.ReadOnlyDictionary<
+        string,
+        string
+    > LowerCaseHeaders(IReadOnlyDictionary<string, string> headers)
+    {
+        Dictionary<string, string> lowered = new(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            lowered[AsciiLower(header.Key)] = header.Value;
+        }
+        return new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(lowered);
+    }
+
+    /// <summary>
+    /// What a call hook changed in the headers: the headers it added or changed,
+    /// and, as a null value, the ones it removed.
+    /// </summary>
+    private static Dictionary<string, string?> DiffHeaders(
+        Dictionary<string, string> before,
+        Dictionary<string, string> after
+    )
+    {
+        Dictionary<string, string?> delta = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string name in before.Keys)
+        {
+            if (!after.ContainsKey(name))
+            {
+                delta[name] = null;
+            }
+        }
+        foreach (KeyValuePair<string, string> header in after)
+        {
+            if (!before.TryGetValue(header.Key, out string? old) || old != header.Value)
+            {
+                delta[header.Key] = header.Value;
+            }
+        }
+        return delta;
+    }
+
+    /// <summary>
+    /// Reapplies the edits a call hook made. A header named in
+    /// <paramref name="skip"/> was just set again by authentication, and that
+    /// fresh value wins.
+    /// </summary>
+    private static void ApplyHookDelta(
+        Dictionary<string, string> built,
+        Dictionary<string, string?> delta,
+        HashSet<string>? skip
+    )
+    {
+        foreach (KeyValuePair<string, string?> edit in delta)
+        {
+            if (skip is not null && skip.Contains(edit.Key))
+            {
+                continue;
+            }
+            foreach (string existing in built.Keys.ToList())
+            {
+                if (string.Equals(existing, edit.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = built.Remove(existing);
+                }
+            }
+            if (edit.Value is not null)
+            {
+                built[edit.Key] = edit.Value;
+            }
+        }
     }
 
     /// <summary>

@@ -2058,7 +2058,11 @@ func (a *PetApi) GetPetByNote(ctx context.Context, options *opts.GetPetByNoteOpt
 }
 
 // GetPetByNoteWithHTTPInfo performs the GetPetByNote operation and returns the full API result.
-func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.GetPetByNoteOptions, callOptions ...RequestOption) (*ApiResult[Pet], error) {
+func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.GetPetByNoteOptions, callOptions ...RequestOption) (_ *ApiResult[Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -2097,6 +2101,9 @@ func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.Get
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "getPetByNote",
+		urlTemplate:  "/pet/byNote",
+		call:         call,
 		order:        []string{"note", "rank"},
 		method:       "GET",
 		path:         path,

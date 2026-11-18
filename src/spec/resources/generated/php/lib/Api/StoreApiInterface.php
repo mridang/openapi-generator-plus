@@ -22,6 +22,7 @@ use PetstoreClient\Api\Options\GetDepartmentOptions;
 use PetstoreClient\Api\Options\GetGroupedCategoriesOptions;
 use PetstoreClient\Api\Options\GetInventoryOptions;
 use PetstoreClient\Api\Options\GetMatrixOptions;
+use PetstoreClient\Api\Options\GetNativeValuesOptions;
 use PetstoreClient\Api\Options\GetOrderByIdOptions;
 use PetstoreClient\Api\Options\GetOrderByTrackingIdOptions;
 use PetstoreClient\Api\Options\GetStockItemOptions;
@@ -161,6 +162,20 @@ interface StoreApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getMatrixWithHttpInfo(?GetMatrixOptions $options = null): ApiResult;
+
+    /**
+     * Reads values of the formats the SDKs type natively.
+     * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getNativeValues(?GetNativeValuesOptions $options = null): \PetstoreClient\Models\NativeValues;
+
+    /**
+     * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\NativeValues>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getNativeValuesWithHttpInfo(?GetNativeValuesOptions $options = null): ApiResult;
 
     /**
      * Find purchase order by ID

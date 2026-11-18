@@ -1952,6 +1952,8 @@ impl PetApi {
             operation: "PetApi.get_pet_by_name",
             method: "GET",
             path: &path,
+            operation_id: "getPetByName",
+            url_template: "/pet/byName/{name}",
             query_params,
             header_params,
             body: request_body,
@@ -2114,10 +2116,11 @@ impl PetApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "PetApi.get_pet_by_note",
             method: "GET",
             path: &path,
-            operation_id: "getPetByName",
-            url_template: "/pet/byName/{name}",
+            operation_id: "getPetByNote",
+            url_template: "/pet/byNote",
             query_params,
             header_params,
             body: request_body,
@@ -4058,6 +4061,14 @@ pub trait PetApiTrait {
         name: String,
         options: Option<&GetPetByNameOptions>,
     ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_by_note(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_pet_by_note_with_http_info(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_passport(
         &self,
         pet_id: i64,
@@ -4411,6 +4422,20 @@ impl PetApiTrait for PetApi {
     ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::get_pet_by_name_with_http_info(self, name, options)
+    }
+    fn get_pet_by_note(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::get_pet_by_note(self, options)
+    }
+
+    fn get_pet_by_note_with_http_info(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::get_pet_by_note_with_http_info(self, options)
     }
     fn get_pet_passport(
         &self,

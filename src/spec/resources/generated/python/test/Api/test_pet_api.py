@@ -1077,7 +1077,7 @@ class TestPetApi:
         )
         assert "category=c" in captured["path"]
 
-    async def test_bhv_operations_125_get_pet_by_note_sends_a_null_required_nullable_query_parameter_as_an_empty_value(
+    async def test_bhv_operations_157_get_pet_by_note_sends_a_null_required_nullable_query_parameter_as_an_empty_value(
         self,
     ) -> None:
         captured = await _capture_get(
@@ -1085,7 +1085,7 @@ class TestPetApi:
         )
         assert captured["path"].endswith("?note=&rank=3")
 
-    async def test_bhv_operations_126_get_pet_by_note_sends_every_null_required_nullable_query_parameter_in_declaration_order(
+    async def test_bhv_operations_158_get_pet_by_note_sends_every_null_required_nullable_query_parameter_in_declaration_order(
         self,
     ) -> None:
         captured = await _capture_get(
@@ -1093,7 +1093,7 @@ class TestPetApi:
         )
         assert captured["path"].endswith("?note=&rank=")
 
-    async def test_bhv_operations_127_get_pet_by_note_sends_a_non_null_required_nullable_query_parameter_with_its_value(
+    async def test_bhv_operations_159_get_pet_by_note_sends_a_non_null_required_nullable_query_parameter_with_its_value(
         self,
     ) -> None:
         captured = await _capture_get(
@@ -1101,7 +1101,7 @@ class TestPetApi:
         )
         assert captured["path"].endswith("?note=a%20b&rank=3")
 
-    async def test_bhv_operations_128_get_pet_by_name_refuses_a_null_required_query_parameter_that_is_not_nullable(
+    async def test_bhv_operations_125_get_pet_by_name_refuses_a_null_required_query_parameter_that_is_not_nullable(
         self,
     ) -> None:
         api = PetApi(

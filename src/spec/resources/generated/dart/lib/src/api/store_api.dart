@@ -93,6 +93,11 @@ abstract interface class StoreApiInterface {
   Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(
     GetMatrixOptions? options,
   );
+  Future<NativeValues> getNativeValues(GetNativeValuesOptions? options);
+
+  Future<ApiResult<NativeValues>> getNativeValuesWithHttpInfo(
+    GetNativeValuesOptions? options,
+  );
   Future<Order> getOrderById(int orderId, GetOrderByIdOptions? options);
 
   Future<ApiResult<Order>> getOrderByIdWithHttpInfo(
@@ -683,6 +688,7 @@ class StoreApi extends BaseApi implements StoreApiInterface {
 
   /// Reads values of the formats the SDKs type natively.
   /// `options` options for query, header, form, and cookie parameters
+  @override
   Future<NativeValues> getNativeValues(GetNativeValuesOptions? options) async {
     final result = await getNativeValuesWithHttpInfo(options);
     final data = result.data;
@@ -704,6 +710,7 @@ class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /// Performs the getNativeValues operation and returns the full API result.
+  @override
   Future<ApiResult<NativeValues>> getNativeValuesWithHttpInfo(
     GetNativeValuesOptions? options,
   ) async {
@@ -764,6 +771,8 @@ class StoreApi extends BaseApi implements StoreApiInterface {
     return invokeApiForResult<NativeValues>(
       method: 'GET',
       operation: 'StoreApi.getNativeValues',
+      operationId: 'getNativeValues',
+      urlTemplate: '/store/native-values',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,

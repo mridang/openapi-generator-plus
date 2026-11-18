@@ -34,11 +34,15 @@ class Sparse {
       additionalPropertyEntries,
       (Object? e) => deserializeNullable(e, (e) => e as String),
     );
-    return Sparse(
-      label: json['label'] as String?,
+    try {
+      return Sparse(
+        label: json['label'] as String?,
 
-      additionalProperties: additionalProperties,
-    );
+        additionalProperties: additionalProperties,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Sparse: $e', e);
+    }
   }
 
   /// Converts this [Sparse] to a JSON map.

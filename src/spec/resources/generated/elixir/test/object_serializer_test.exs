@@ -2538,4 +2538,195 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.serialize("a/b<c>&d") == ~s("a/b<c>&d")
     end
   end
+
+  describe "native value formats" do
+    defp native_values(json),
+      do: PetstoreClient.ObjectSerializer.deserialize(json, "NativeValues")
+
+    test "bhv serializationobject 403 a duration field is the native Duration" do
+      assert %Duration{} = native_values(~s({"wait":"3600s"})).wait
+      assert native_values(~s({"wait":"3600s"})).wait.second == 3600
+    end
+
+    test "bhv serializationobject 404 a duration keeps every microsecond and truncates the rest toward zero" do
+      assert native_values(~s({"wait":"1.123456789s"})).wait.microsecond == {123_456, 6}
+      assert native_values(~s({"wait":"-1.123456789s"})).wait.microsecond == {-123_456, 6}
+    end
+
+    test "bhv serializationobject 405 an ipv4 field is the native address tuple and round-trips" do
+      values = native_values(~s({"address4":"192.0.2.1"}))
+
+      assert values.address4 == {192, 0, 2, 1}
+      assert PetstoreClient.ObjectSerializer.serialize(values) == ~s({"address4":"192.0.2.1"})
+    end
+
+    test "bhv serializationobject 406 an ipv6 field is written in the canonical form" do
+      for {given, expected} <- [
+            {"2001:0DB8:0:0:0:0:0:1", "2001:db8::1"},
+            {"2001:db8::1", "2001:db8::1"},
+            {"::1", "::1"},
+            {"2001:db8:0:1:1:1:1:1", "2001:db8:0:1:1:1:1:1"}
+          ] do
+        values = native_values(~s({"address6":"#{given}"}))
+
+        assert tuple_size(values.address6) == 8
+        assert PetstoreClient.ObjectSerializer.serialize(values) == ~s({"address6":"#{expected}"})
+      end
+    end
+
+    test "bhv serializationobject 407 a malformed address fails with the serialization error" do
+      for {field, text} <- [
+            {"address4", "01.2.3.4"},
+            {"address4", "192.0.2.1/24"},
+            {"address4", " 192.0.2.1"},
+            {"address4", "[::1]"},
+            {"address4", "2001:db8::1"},
+            {"address6", "fe80::1%eth0"},
+            {"address6", "[::1]"},
+            {"address6", "2001:db8::/64"},
+            {"address6", " ::1"},
+            {"address6", "192.0.2.1"}
+          ] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          native_values(~s({"#{field}":"#{text}"}))
+        end
+      end
+    end
+
+    test "bhv serializationobject 408 every absolute URI of the corpus round-trips byte for byte" do
+      for text <- [
+            "https://example.com",
+            "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+            "mailto:a@b.c",
+            "urn:isbn:0451450523",
+            "https://example.com/[x]?q='a'",
+            "https://example.com?",
+            "https://example.com/%7euser",
+            "https://[2001:db8::1]:8443/"
+          ] do
+        json = Jason.encode!(%{"homepage" => text})
+
+        assert PetstoreClient.ObjectSerializer.serialize(native_values(json)) == json
+      end
+    end
+
+    test "bhv serializationobject 409 a hostname and an email are kept as given" do
+      json = ~s({"host":"not a host!","contact":"x@"})
+
+      assert PetstoreClient.ObjectSerializer.serialize(native_values(json)) == json
+    end
+
+    test "bhv serializationparam 104 a duration parameter is written in the protobuf form" do
+      assert PetstoreClient.ObjectSerializer.stringify(
+               Duration.new!(second: 3600, microsecond: {0, 6})
+             ) == "3600s"
+    end
+
+    test "bhv serializationparam 105 an address parameter is its canonical text" do
+      assert PetstoreClient.ObjectSerializer.stringify({192, 0, 2, 1}) == "192.0.2.1"
+
+      assert PetstoreClient.ObjectSerializer.stringify({0x2001, 0xDB8, 0, 0, 0, 0, 0, 1}) ==
+               "2001:db8::1"
+    end
+  end
+
+  describe "enum member names and descriptions" do
+    defp member_doc(module, function) do
+      {:docs_v1, _, _, _, _, _, docs} = Code.fetch_docs(module)
+
+      Enum.find_value(docs, fn
+        {{:function, ^function, 0}, _, _, %{"en" => text}, _} -> String.trim(text)
+        _ -> nil
+      end)
+    end
+
+    test "bhv enums 001 a string member named by an array exposes the given name and its wire value" do
+      assert PetstoreClient.Models.Tier.value(:small) == "s"
+      assert PetstoreClient.Models.Tier.value(:medium) == "m"
+      assert PetstoreClient.Models.Tier.value(:large) == "l"
+
+      item =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"rank":1,"tier":"m"}), "Subscription")
+
+      assert item.tier == :medium
+    end
+
+    test "bhv enums 002 an integer member named by an array exposes the given name and its number" do
+      assert Enum.map([:low, :medium, :high], &PetstoreClient.Models.Rank.value/1) == [1, 2, 3]
+      item = PetstoreClient.ObjectSerializer.deserialize(~s({"rank":3}), "Subscription")
+      assert item.rank == :high
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))["rank"] == 3
+    end
+
+    test "bhv enums 003 an object keyed by wire value names the members it lists" do
+      paused =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"rank":1,"stage":"paused"}),
+          "Subscription"
+        )
+
+      active =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"rank":1,"stage":"active"}),
+          "Subscription"
+        )
+
+      assert paused.stage == :on_hold
+      assert active.stage == :active
+    end
+
+    test "bhv enums 004 a supplied name that is not a legal identifier is cleaned and cased" do
+      assert PetstoreClient.Models.Stage.value(:on_hold) == "paused"
+    end
+
+    test "bhv enums 005 two supplied names that collide after casing keep distinct names and wires" do
+      assert PetstoreClient.Models.Stage.value(:active) == "active"
+      assert PetstoreClient.Models.Stage.value(:active2) == "live"
+
+      item =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"rank":1,"stage":"live"}), "Subscription")
+
+      assert item.stage == :active2
+    end
+
+    test "bhv enums 006 an inline property enum takes its member names from its own keys" do
+      assert PetstoreClient.Models.Subscription.IntervalEnum.value(:monthly) == "month"
+      assert PetstoreClient.Models.Subscription.IntervalEnum.value(:yearly) == "year"
+    end
+
+    test "bhv enums 007 a default on a referenced enum property starts at the supplied member" do
+      assert %PetstoreClient.Models.Subscription{rank: :low}.tier == :medium
+      item = PetstoreClient.ObjectSerializer.deserialize(~s({"rank":1}), "Subscription")
+      assert item.tier == :medium
+    end
+
+    test "bhv enums 008 encoding writes the wire value and decoding rejects a supplied name" do
+      item = %PetstoreClient.Models.Subscription{rank: :low, tier: :medium}
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))["tier"] == "m"
+
+      error =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(
+            ~s({"rank":1,"tier":"Medium"}),
+            "Subscription"
+          )
+        end
+
+      assert Exception.message(error) =~ "Medium"
+    end
+
+    test "bhv enums 009 a description is the doc directly above the member" do
+      assert member_doc(PetstoreClient.Models.Tier, :small) == "The smallest tier."
+      assert member_doc(PetstoreClient.Models.Tier, :medium) == "The medium tier."
+    end
+
+    test "bhv enums 010 a member without a description keeps the doc it has today" do
+      assert member_doc(PetstoreClient.Models.Rank, :medium) == "Enum value `medium`"
+    end
+
+    test "bhv enums 011 a description with terminators and sigils still yields a doc" do
+      assert member_doc(PetstoreClient.Models.Tier, :large) ==
+               "The largest tier. Ends with */ and \#{x} and $x."
+    end
+  end
 end

@@ -339,6 +339,14 @@ export interface PetApiInterface {
     options: GetPetByNameOptions,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Pet>>;
+  getPetByNote(
+    options: GetPetByNoteOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet>;
+  getPetByNoteWithHttpInfo(
+    options: GetPetByNoteOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>>;
   getPetPassport(
     petId: number,
     requestOptions?: RequestOptions,
@@ -1795,6 +1803,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getPetByNote",
       requestOptions,
+      undefined,
+      "getPetByNote",
+      "/pet/byNote",
     );
   }
 

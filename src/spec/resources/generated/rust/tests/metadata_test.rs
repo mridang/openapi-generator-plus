@@ -165,7 +165,7 @@ fn test_bhv_models_009_metadata_additional_properties_are_a_string_keyed_map_of_
 }
 
 #[test]
-fn test_bhv_models_012_additional_property_of_the_wrong_json_type_fails_the_decode() {
+fn test_bhv_models_025_additional_property_of_the_wrong_json_type_fails_the_decode() {
     for body in [r#"{"a":2.5}"#, r#"{"a":"2"}"#, r#"{"a":3000000000}"#] {
         assert!(
             serde_json::from_str::<Counters>(body).is_err(),
@@ -176,7 +176,7 @@ fn test_bhv_models_012_additional_property_of_the_wrong_json_type_fails_the_deco
 }
 
 #[test]
-fn test_bhv_models_013_additional_property_whose_value_type_is_a_model_decodes_to_that_model() {
+fn test_bhv_models_026_additional_property_whose_value_type_is_a_model_decodes_to_that_model() {
     let roster: Roster = serde_json::from_str(r#"{"label":"l","a":{"id":1,"name":"x"}}"#)
         .expect("failed to deserialize");
 
@@ -187,7 +187,7 @@ fn test_bhv_models_013_additional_property_whose_value_type_is_a_model_decodes_t
 }
 
 #[test]
-fn test_bhv_models_014_null_additional_property_is_rejected_unless_the_value_schema_is_nullable() {
+fn test_bhv_models_027_null_additional_property_is_rejected_unless_the_value_schema_is_nullable() {
     assert!(serde_json::from_str::<Counters>(r#"{"a":null}"#).is_err());
     let sparse: Sparse = serde_json::from_str(r#"{"a":null}"#).expect("failed to deserialize");
 
@@ -195,7 +195,7 @@ fn test_bhv_models_014_null_additional_property_is_rejected_unless_the_value_sch
 }
 
 #[test]
-fn test_bhv_models_015_typed_additional_property_is_written_flat_in_its_wire_form() {
+fn test_bhv_models_028_typed_additional_property_is_written_flat_in_its_wire_form() {
     let moments: Moments = serde_json::from_str(r#"{"label":"l","at":"2024-01-01T00:00:00Z"}"#)
         .expect("failed to deserialize");
     let written = serde_json::to_string(&moments).expect("failed to serialize");
@@ -220,7 +220,7 @@ fn test_bhv_models_015_typed_additional_property_is_written_flat_in_its_wire_for
 }
 
 #[test]
-fn test_bhv_models_016_free_form_additional_properties_keep_every_json_value() {
+fn test_bhv_models_029_free_form_additional_properties_keep_every_json_value() {
     let freeform: Freeform = serde_json::from_str(r#"{"a":1,"b":"x","c":[true],"d":null}"#)
         .expect("failed to deserialize");
 

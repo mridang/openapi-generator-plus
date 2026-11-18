@@ -28,10 +28,14 @@ package com.example.petstore
  * @property defaultHeaders Default headers included in every API request. These headers are merged
  *   after transport-level headers from [TransportOptions] but before operation-specific headers
  *   and authentication headers.
+ * @property callHook The [CallHook] that runs around every operation call, or `null` for none. It runs
+ *   above the transport, so it also fires when you supply your own Ktor client. It is not part of the
+ *   string form.
  */
 class Configuration private constructor(
     val baseUrl: String,
     val defaultHeaders: Map<String, String>,
+    val callHook: CallHook? = null,
 ) {
     companion object {
         /**
@@ -58,6 +62,7 @@ class Configuration private constructor(
     class Builder {
         private var baseUrl: String = "/api/v3"
         private val defaultHeaders: MutableMap<String, String> = mutableMapOf()
+        private var callHook: CallHook? = null
 
         /**
          * Set the base URL for all API requests.
@@ -114,11 +119,19 @@ class Configuration private constructor(
             }
 
         /**
+         * Set the hook that runs around every operation call.
+         *
+         * @param callHook the hook, or `null` for none
+         * @return this builder
+         */
+        fun callHook(callHook: CallHook?): Builder = apply { this.callHook = callHook }
+
+        /**
          * Build and return an immutable [Configuration] instance.
          *
          * @return the configured instance
          */
-        fun build(): Configuration = Configuration(baseUrl, java.util.Collections.unmodifiableMap(defaultHeaders.toMap()))
+        fun build(): Configuration = Configuration(baseUrl, java.util.Collections.unmodifiableMap(defaultHeaders.toMap()), callHook)
     }
 
     /**

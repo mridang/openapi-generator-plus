@@ -175,6 +175,20 @@ class StoreApiProtocol(Protocol):
         """The ``get_matrix`` operation with its status code, headers and body."""
         ...
 
+    async def get_native_values(
+        self,
+        options: Optional[GetNativeValuesOptions] = None,
+    ) -> NativeValues:
+        """The ``get_native_values`` operation."""
+        ...
+
+    async def get_native_values_with_http_info(
+        self,
+        options: Optional[GetNativeValuesOptions] = None,
+    ) -> "ApiResult[NativeValues]":
+        """The ``get_native_values`` operation with its status code, headers and body."""
+        ...
+
     async def get_order_by_id(
         self,
         order_id: StrictInt,
@@ -969,6 +983,8 @@ class StoreApi(BaseApi):
             "NativeValues",
             NO_AUTH,
             operation_name="get_native_values",
+            operation_id="getNativeValues",
+            url_template="/store/native-values",
             request_options=options,
         )
 

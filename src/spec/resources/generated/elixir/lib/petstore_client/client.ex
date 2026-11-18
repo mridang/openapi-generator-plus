@@ -96,11 +96,15 @@ defmodule PetstoreClient.Client do
       uses the credential of the first scheme its spec lists that is given
       here. A key that is not a scheme of this API raises `ArgumentError`. The
       base URL comes from the first credential given, `authenticator` first.
+    * `opts` - Client options. `:call_hook` is a `#{inspect(PetstoreClient.CallHook)}`
+      module, or `{module, opts}`, that runs around every operation call of this
+      client. Any other key raises `ArgumentError`.
 
   """
-  @spec new(term() | nil, PetstoreClient.TransportOptions.t() | nil, keyword()) :: t()
-  def new(authenticator, transport_options \\ nil, schemes \\ []) do
+  @spec new(term() | nil, PetstoreClient.TransportOptions.t() | nil, keyword(), keyword()) :: t()
+  def new(authenticator, transport_options \\ nil, schemes \\ [], opts \\ []) do
     schemes = Keyword.validate!(schemes, Keyword.keys(@schemes))
+    opts = Keyword.validate!(opts, [:call_hook])
 
     credentials =
       Enum.flat_map(@schemes, fn {key, scheme_id} ->
@@ -135,7 +139,11 @@ defmodule PetstoreClient.Client do
             "A base URL is required: the authenticator or the first scheme credential must carry a host"
     end
 
-    config = PetstoreClient.Configuration.new(base_url: base_url)
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: base_url,
+        call_hook: Keyword.get(opts, :call_hook)
+      )
 
     %__MODULE__{
       api_client: api_client,
@@ -166,14 +174,21 @@ defmodule PetstoreClient.Client do
     * `access_token` - Bearer token.
     * `transport_options` - Optional HTTP transport configuration (proxy, TLS,
       timeouts, etc.).
+    * `opts` - Client options, as for `new/4` (`:call_hook`).
 
   ## Returns
 
     A configured client instance.
   """
-  @spec with_token(String.t(), String.t(), PetstoreClient.TransportOptions.t() | nil) :: t()
-  def with_token(host, access_token, transport_options \\ nil) do
-    new(PetstoreClient.Auth.BearerAuthenticator.new(host, access_token), transport_options)
+  @spec with_token(String.t(), String.t(), PetstoreClient.TransportOptions.t() | nil, keyword()) ::
+          t()
+  def with_token(host, access_token, transport_options \\ nil, opts \\ []) do
+    new(
+      PetstoreClient.Auth.BearerAuthenticator.new(host, access_token),
+      transport_options,
+      [],
+      opts
+    )
   end
 
   @doc """
@@ -192,14 +207,15 @@ defmodule PetstoreClient.Client do
     * `authenticator` - Provides host URL and auth headers.
     * `transport_options` - Optional HTTP transport configuration (proxy, TLS,
       timeouts, etc.).
+    * `opts` - Client options, as for `new/4` (`:call_hook`).
 
   ## Returns
 
     A configured client instance.
   """
-  @spec with_authenticator(term(), PetstoreClient.TransportOptions.t() | nil) :: t()
-  def with_authenticator(authenticator, transport_options \\ nil) do
-    new(authenticator, transport_options)
+  @spec with_authenticator(term(), PetstoreClient.TransportOptions.t() | nil, keyword()) :: t()
+  def with_authenticator(authenticator, transport_options \\ nil, opts \\ []) do
+    new(authenticator, transport_options, [], opts)
   end
 
   @doc """

@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"sync/atomic"
 	"testing"
 
 	petstore "petstore/pkg"
@@ -372,5 +374,111 @@ func TestBhvLifecycle006_Client_BearerRejectsCarriageReturnLineFeedAndNonAscii(t
 		if _, err := auth.NewBearerAuthenticator("/api/v3", bad); !errors.Is(err, auth.ErrInvalidBearerToken) {
 			t.Errorf("token %q: expected ErrInvalidBearerToken, got %v", bad, err)
 		}
+	}
+}
+
+func TestBhvMocking001_Client_EveryGroupHasAnInterfaceTheClassImplements(t *testing.T) {
+	t.Parallel()
+	var _ petstore.PetApiInterface = (*petstore.PetApi)(nil)
+	groupPetApi := reflect.TypeOf((*petstore.PetApiInterface)(nil)).Elem()
+	for _, name := range []string{"AddPet", "AddPetWithHTTPInfo", "AddPetPhotos", "AddPetPhotosWithHTTPInfo", "AddPetTreatment", "AddPetTreatmentWithHTTPInfo", "DeletePet", "DeletePetWithHTTPInfo", "DownloadPetDocument", "DownloadPetDocumentWithHTTPInfo", "FindPetsBornOn", "FindPetsBornOnWithHTTPInfo", "FindPetsByStatus", "FindPetsByStatusWithHTTPInfo", "GetExternalPetInfo", "GetExternalPetInfoWithHTTPInfo", "GetMultiServerPetInfo", "GetMultiServerPetInfoWithHTTPInfo", "GetPetAvatar", "GetPetAvatarWithHTTPInfo", "GetPetAvatarThumbnail", "GetPetAvatarThumbnailWithHTTPInfo", "GetPetById", "GetPetByIdWithHTTPInfo", "GetPetByName", "GetPetByNameWithHTTPInfo", "GetPetByNote", "GetPetByNoteWithHTTPInfo", "GetPetPassport", "GetPetPassportWithHTTPInfo", "GetPetPhoto", "GetPetPhotoWithHTTPInfo", "GetPetSummary", "GetPetSummaryWithHTTPInfo", "GetPetTag", "GetPetTagWithHTTPInfo", "GetStagingPetInfo", "GetStagingPetInfoWithHTTPInfo", "SetPetAvatar", "SetPetAvatarWithHTTPInfo", "SetPetAvatarThumbnail", "SetPetAvatarThumbnailWithHTTPInfo", "SetPetPreferences", "SetPetPreferencesWithHTTPInfo", "UpdatePet", "UpdatePetWithHTTPInfo", "UploadPetCertificate", "UploadPetCertificateWithHTTPInfo", "UploadPetDocument", "UploadPetDocumentWithHTTPInfo"} {
+		if _, ok := groupPetApi.MethodByName(name); !ok {
+			t.Errorf("expected PetApiInterface to list %s", name)
+		}
+	}
+	var _ petstore.ProblemsApiInterface = (*petstore.ProblemsApi)(nil)
+	groupProblemsApi := reflect.TypeOf((*petstore.ProblemsApiInterface)(nil)).Elem()
+	for _, name := range []string{"GetFallback", "GetFallbackWithHTTPInfo", "GetMember", "GetMemberWithHTTPInfo", "GetProject", "GetProjectWithHTTPInfo", "GetRange", "GetRangeWithHTTPInfo", "GetUpstream", "GetUpstreamWithHTTPInfo", "TakeLock", "TakeLockWithHTTPInfo"} {
+		if _, ok := groupProblemsApi.MethodByName(name); !ok {
+			t.Errorf("expected ProblemsApiInterface to list %s", name)
+		}
+	}
+	var _ petstore.StoreApiInterface = (*petstore.StoreApi)(nil)
+	groupStoreApi := reflect.TypeOf((*petstore.StoreApiInterface)(nil)).Elem()
+	for _, name := range []string{"CreateAccount", "CreateAccountWithHTTPInfo", "DeleteOrder", "DeleteOrderWithHTTPInfo", "GetBySwatch", "GetBySwatchWithHTTPInfo", "GetDefaults", "GetDefaultsWithHTTPInfo", "GetDepartment", "GetDepartmentWithHTTPInfo", "GetGroupedCategories", "GetGroupedCategoriesWithHTTPInfo", "GetInventory", "GetInventoryWithHTTPInfo", "GetMatrix", "GetMatrixWithHTTPInfo", "GetNativeValues", "GetNativeValuesWithHTTPInfo", "GetOrderById", "GetOrderByIdWithHTTPInfo", "GetOrderByTrackingId", "GetOrderByTrackingIdWithHTTPInfo", "GetStockItem", "GetStockItemWithHTTPInfo", "GetSwatch", "GetSwatchWithHTTPInfo", "GetSwatchGroups", "GetSwatchGroupsWithHTTPInfo", "GetTimestampGroups", "GetTimestampGroupsWithHTTPInfo", "GetTree", "GetTreeWithHTTPInfo", "PlaceOrder", "PlaceOrderWithHTTPInfo", "ReserveStock", "ReserveStockWithHTTPInfo", "SearchStore", "SearchStoreWithHTTPInfo"} {
+		if _, ok := groupStoreApi.MethodByName(name); !ok {
+			t.Errorf("expected StoreApiInterface to list %s", name)
+		}
+	}
+}
+
+func TestBhvMocking002_Client_GroupInterfaceListsExactlyThePublicOperationsOfTheClass(t *testing.T) {
+	t.Parallel()
+	assertSameMethodNames(t, "PetApi", reflect.TypeOf((*petstore.PetApiInterface)(nil)).Elem(), reflect.TypeOf(&petstore.PetApi{}))
+	assertSameMethodNames(t, "ProblemsApi", reflect.TypeOf((*petstore.ProblemsApiInterface)(nil)).Elem(), reflect.TypeOf(&petstore.ProblemsApi{}))
+	assertSameMethodNames(t, "StoreApi", reflect.TypeOf((*petstore.StoreApiInterface)(nil)).Elem(), reflect.TypeOf(&petstore.StoreApi{}))
+}
+
+func assertSameMethodNames(t *testing.T, group string, iface reflect.Type, class reflect.Type) {
+	t.Helper()
+	listed := map[string]bool{}
+	for i := 0; i < iface.NumMethod(); i++ {
+		listed[iface.Method(i).Name] = true
+	}
+	for i := 0; i < class.NumMethod(); i++ {
+		name := class.Method(i).Name
+		if !listed[name] {
+			t.Errorf("expected %sInterface to list the public method %s", group, name)
+		}
+		delete(listed, name)
+	}
+	for name := range listed {
+		t.Errorf("expected %s to have the method %s that %sInterface lists", group, name, group)
+	}
+}
+
+type fakePetApi struct {
+	petstore.PetApiInterface
+}
+
+type fakeProblemsApi struct {
+	petstore.ProblemsApiInterface
+}
+
+type fakeStoreApi struct {
+	petstore.StoreApiInterface
+}
+
+func TestBhvMocking008_Client_ClientBuiltFromFakesClosesWithoutError(t *testing.T) {
+	t.Parallel()
+	client := &petstore.Client{
+		Pet:      fakePetApi{},
+		Problems: fakeProblemsApi{},
+		Store:    fakeStoreApi{},
+	}
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("expected closing a client of fakes to succeed, got %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected closing a second time to succeed, got %v", err)
+	}
+}
+
+func TestBhvHooks010_Client_AHookSetOnTheClientStillFiresWhenTheCallerSuppliedTheTransport(t *testing.T) {
+	t.Parallel()
+	var seen atomic.Value
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen.Store(r.Header.Get("X-Hook"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	transport, err := petstore.NewTransportOptionsBuilder().HttpClient(server.Client()).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hook := &hookRecorder{edit: func(headers map[string]string) { headers["X-Hook"] = "supplied" }}
+	client := petstore.NewClient(mustBearer(t, server.URL, "test-token"), transport, petstore.WithCallHook(hook))
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if starts, finishes := hook.counts(); starts != 1 || finishes != 1 {
+		t.Errorf("expected one start and one finish, got %d and %d", starts, finishes)
+	}
+	if got := seen.Load(); got != "supplied" {
+		t.Errorf("expected the hook header on the request, got %v", got)
 	}
 }

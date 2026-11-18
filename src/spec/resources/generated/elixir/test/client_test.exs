@@ -498,4 +498,251 @@ defmodule PetstoreClient.ClientTest do
 
     assert Agent.get(authenticator.token_manager, & &1.api_client) == client.api_client
   end
+
+  test "bhv mocking 001 every group has a behaviour the module implements" do
+    pet_behaviours =
+      PetstoreClient.Api.PetApi.module_info(:attributes)
+      |> Keyword.get_values(:behaviour)
+      |> List.flatten()
+
+    assert PetstoreClient.Api.PetApiBehaviour in pet_behaviours
+
+    pet_listed =
+      PetstoreClient.Api.PetApiBehaviour.behaviour_info(:callbacks) |> Enum.map(&elem(&1, 0))
+
+    assert :add_pet in pet_listed
+    assert :add_pet! in pet_listed
+    assert :add_pet_with_http_info in pet_listed
+    assert :add_pet_photos in pet_listed
+    assert :add_pet_photos! in pet_listed
+    assert :add_pet_photos_with_http_info in pet_listed
+    assert :add_pet_treatment in pet_listed
+    assert :add_pet_treatment! in pet_listed
+    assert :add_pet_treatment_with_http_info in pet_listed
+    assert :delete_pet in pet_listed
+    assert :delete_pet! in pet_listed
+    assert :delete_pet_with_http_info in pet_listed
+    assert :download_pet_document in pet_listed
+    assert :download_pet_document! in pet_listed
+    assert :download_pet_document_with_http_info in pet_listed
+    assert :find_pets_born_on in pet_listed
+    assert :find_pets_born_on! in pet_listed
+    assert :find_pets_born_on_with_http_info in pet_listed
+    assert :find_pets_by_status in pet_listed
+    assert :find_pets_by_status! in pet_listed
+    assert :find_pets_by_status_with_http_info in pet_listed
+    assert :get_external_pet_info in pet_listed
+    assert :get_external_pet_info! in pet_listed
+    assert :get_external_pet_info_with_http_info in pet_listed
+    assert :get_multi_server_pet_info in pet_listed
+    assert :get_multi_server_pet_info! in pet_listed
+    assert :get_multi_server_pet_info_with_http_info in pet_listed
+    assert :get_pet_avatar in pet_listed
+    assert :get_pet_avatar! in pet_listed
+    assert :get_pet_avatar_with_http_info in pet_listed
+    assert :get_pet_avatar_thumbnail in pet_listed
+    assert :get_pet_avatar_thumbnail! in pet_listed
+    assert :get_pet_avatar_thumbnail_with_http_info in pet_listed
+    assert :get_pet_by_id in pet_listed
+    assert :get_pet_by_id! in pet_listed
+    assert :get_pet_by_id_with_http_info in pet_listed
+    assert :get_pet_by_name in pet_listed
+    assert :get_pet_by_name! in pet_listed
+    assert :get_pet_by_name_with_http_info in pet_listed
+    assert :get_pet_by_note in pet_listed
+    assert :get_pet_by_note! in pet_listed
+    assert :get_pet_by_note_with_http_info in pet_listed
+    assert :get_pet_passport in pet_listed
+    assert :get_pet_passport! in pet_listed
+    assert :get_pet_passport_with_http_info in pet_listed
+    assert :get_pet_photo in pet_listed
+    assert :get_pet_photo! in pet_listed
+    assert :get_pet_photo_with_http_info in pet_listed
+    assert :get_pet_summary in pet_listed
+    assert :get_pet_summary! in pet_listed
+    assert :get_pet_summary_with_http_info in pet_listed
+    assert :get_pet_tag in pet_listed
+    assert :get_pet_tag! in pet_listed
+    assert :get_pet_tag_with_http_info in pet_listed
+    assert :get_staging_pet_info in pet_listed
+    assert :get_staging_pet_info! in pet_listed
+    assert :get_staging_pet_info_with_http_info in pet_listed
+    assert :set_pet_avatar in pet_listed
+    assert :set_pet_avatar! in pet_listed
+    assert :set_pet_avatar_with_http_info in pet_listed
+    assert :set_pet_avatar_thumbnail in pet_listed
+    assert :set_pet_avatar_thumbnail! in pet_listed
+    assert :set_pet_avatar_thumbnail_with_http_info in pet_listed
+    assert :set_pet_preferences in pet_listed
+    assert :set_pet_preferences! in pet_listed
+    assert :set_pet_preferences_with_http_info in pet_listed
+    assert :update_pet in pet_listed
+    assert :update_pet! in pet_listed
+    assert :update_pet_with_http_info in pet_listed
+    assert :upload_pet_certificate in pet_listed
+    assert :upload_pet_certificate! in pet_listed
+    assert :upload_pet_certificate_with_http_info in pet_listed
+    assert :upload_pet_document in pet_listed
+    assert :upload_pet_document! in pet_listed
+    assert :upload_pet_document_with_http_info in pet_listed
+
+    problems_behaviours =
+      PetstoreClient.Api.ProblemsApi.module_info(:attributes)
+      |> Keyword.get_values(:behaviour)
+      |> List.flatten()
+
+    assert PetstoreClient.Api.ProblemsApiBehaviour in problems_behaviours
+
+    problems_listed =
+      PetstoreClient.Api.ProblemsApiBehaviour.behaviour_info(:callbacks) |> Enum.map(&elem(&1, 0))
+
+    assert :get_fallback in problems_listed
+    assert :get_fallback! in problems_listed
+    assert :get_fallback_with_http_info in problems_listed
+    assert :get_member in problems_listed
+    assert :get_member! in problems_listed
+    assert :get_member_with_http_info in problems_listed
+    assert :get_project in problems_listed
+    assert :get_project! in problems_listed
+    assert :get_project_with_http_info in problems_listed
+    assert :get_range in problems_listed
+    assert :get_range! in problems_listed
+    assert :get_range_with_http_info in problems_listed
+    assert :get_upstream in problems_listed
+    assert :get_upstream! in problems_listed
+    assert :get_upstream_with_http_info in problems_listed
+    assert :take_lock in problems_listed
+    assert :take_lock! in problems_listed
+    assert :take_lock_with_http_info in problems_listed
+
+    store_behaviours =
+      PetstoreClient.Api.StoreApi.module_info(:attributes)
+      |> Keyword.get_values(:behaviour)
+      |> List.flatten()
+
+    assert PetstoreClient.Api.StoreApiBehaviour in store_behaviours
+
+    store_listed =
+      PetstoreClient.Api.StoreApiBehaviour.behaviour_info(:callbacks) |> Enum.map(&elem(&1, 0))
+
+    assert :create_account in store_listed
+    assert :create_account! in store_listed
+    assert :create_account_with_http_info in store_listed
+    assert :delete_order in store_listed
+    assert :delete_order! in store_listed
+    assert :delete_order_with_http_info in store_listed
+    assert :get_by_swatch in store_listed
+    assert :get_by_swatch! in store_listed
+    assert :get_by_swatch_with_http_info in store_listed
+    assert :get_defaults in store_listed
+    assert :get_defaults! in store_listed
+    assert :get_defaults_with_http_info in store_listed
+    assert :get_department in store_listed
+    assert :get_department! in store_listed
+    assert :get_department_with_http_info in store_listed
+    assert :get_grouped_categories in store_listed
+    assert :get_grouped_categories! in store_listed
+    assert :get_grouped_categories_with_http_info in store_listed
+    assert :get_inventory in store_listed
+    assert :get_inventory! in store_listed
+    assert :get_inventory_with_http_info in store_listed
+    assert :get_matrix in store_listed
+    assert :get_matrix! in store_listed
+    assert :get_matrix_with_http_info in store_listed
+    assert :get_native_values in store_listed
+    assert :get_native_values! in store_listed
+    assert :get_native_values_with_http_info in store_listed
+    assert :get_order_by_id in store_listed
+    assert :get_order_by_id! in store_listed
+    assert :get_order_by_id_with_http_info in store_listed
+    assert :get_order_by_tracking_id in store_listed
+    assert :get_order_by_tracking_id! in store_listed
+    assert :get_order_by_tracking_id_with_http_info in store_listed
+    assert :get_stock_item in store_listed
+    assert :get_stock_item! in store_listed
+    assert :get_stock_item_with_http_info in store_listed
+    assert :get_swatch in store_listed
+    assert :get_swatch! in store_listed
+    assert :get_swatch_with_http_info in store_listed
+    assert :get_swatch_groups in store_listed
+    assert :get_swatch_groups! in store_listed
+    assert :get_swatch_groups_with_http_info in store_listed
+    assert :get_timestamp_groups in store_listed
+    assert :get_timestamp_groups! in store_listed
+    assert :get_timestamp_groups_with_http_info in store_listed
+    assert :get_tree in store_listed
+    assert :get_tree! in store_listed
+    assert :get_tree_with_http_info in store_listed
+    assert :place_order in store_listed
+    assert :place_order! in store_listed
+    assert :place_order_with_http_info in store_listed
+    assert :reserve_stock in store_listed
+    assert :reserve_stock! in store_listed
+    assert :reserve_stock_with_http_info in store_listed
+    assert :search_store in store_listed
+    assert :search_store! in store_listed
+    assert :search_store_with_http_info in store_listed
+  end
+
+  test "bhv mocking 002 the group behaviour lists exactly the public operations of the module" do
+    listed =
+      PetstoreClient.Api.PetApiBehaviour.behaviour_info(:callbacks)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    declared =
+      PetstoreClient.Api.PetApi.__info__(:functions)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.reject(&(&1 == :new or String.starts_with?(Atom.to_string(&1), "__")))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    assert listed == declared
+
+    listed =
+      PetstoreClient.Api.ProblemsApiBehaviour.behaviour_info(:callbacks)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    declared =
+      PetstoreClient.Api.ProblemsApi.__info__(:functions)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.reject(&(&1 == :new or String.starts_with?(Atom.to_string(&1), "__")))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    assert listed == declared
+
+    listed =
+      PetstoreClient.Api.StoreApiBehaviour.behaviour_info(:callbacks)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    declared =
+      PetstoreClient.Api.StoreApi.__info__(:functions)
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.reject(&(&1 == :new or String.starts_with?(Atom.to_string(&1), "__")))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    assert listed == declared
+  end
+
+  test "a call hook given to the client reaches the configuration of every API" do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
+    hook = PetstoreClient.CallHook.chain([])
+
+    client = PetstoreClient.Client.new(authenticator, nil, [], call_hook: hook)
+
+    assert client.pet.config.call_hook == hook
+    assert client.problems.config.call_hook == hook
+    assert client.store.config.call_hook == hook
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.Client.new(authenticator, nil, [], unknown: 1)
+    end
+  end
 end

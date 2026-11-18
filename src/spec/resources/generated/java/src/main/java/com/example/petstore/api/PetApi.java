@@ -1869,6 +1869,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getPetByNote(GetPetByNoteOptions options) {
     return requireBody(getPetByNoteWithHttpInfo(options), "getPetByNote");
   }
@@ -1880,6 +1881,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getPetByNoteWithHttpInfo(GetPetByNoteOptions options) {
     if (java.util.Objects.isNull(options) || (options.note() != null && options.note().isEmpty())) {
       throw new IllegalArgumentException(
@@ -1932,7 +1934,9 @@ public class PetApi extends BaseApi implements PetApiInterface {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetByNote",
+        "/pet/byNote");
   }
 
   /**

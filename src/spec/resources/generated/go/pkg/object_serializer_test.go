@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"net/netip"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -4004,5 +4006,276 @@ func TestBhvSerialization025_ObjectSerializer_Deserialize_TypedLeavesDecodeToThe
 	}
 	if entry.RetryAfter == nil || time.Duration(*entry.RetryAfter) != time.Hour {
 		t.Errorf("expected the nested model's typed duration, got %v", entry.RetryAfter)
+	}
+}
+
+func decodeNativeValues(t *testing.T, text string) (models.NativeValues, error) {
+	t.Helper()
+	var values models.NativeValues
+	err := deserialize([]byte(text), &values)
+	return values, err
+}
+
+func encodeNativeValues(t *testing.T, values models.NativeValues) string {
+	t.Helper()
+	out, err := serialize(values)
+	if err != nil {
+		t.Fatalf("serialize failed: %v", err)
+	}
+	return string(out)
+}
+
+func TestBhvSerializationobject403_ObjectSerializer_Deserialize_DurationFieldConvertsToTheNativeTimeDuration(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"wait":"3600s"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if got := time.Duration(*values.Wait); got != time.Hour {
+		t.Errorf("expected one hour, got %v", got)
+	}
+}
+
+func TestBhvSerializationobject404_ObjectSerializer_Deserialize_DurationKeepsEveryNanosecondAndWritesTheShortestForm(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"wait":"-1.123456789s"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if got, want := time.Duration(*values.Wait), -(time.Second + 123456789*time.Nanosecond); got != want {
+		t.Errorf("expected %v, got %v", want, got)
+	}
+	if got := encodeNativeValues(t, values); got != `{"wait":"-1.123456789s"}` {
+		t.Errorf("expected the shortest form, got %s", got)
+	}
+}
+
+func TestBhvSerializationobject405_ObjectSerializer_Deserialize_Ipv4FieldIsTheNativeAddressAndRoundTrips(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"address4":"192.0.2.1"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	var address netip.Addr = *values.Address4
+	if address != netip.MustParseAddr("192.0.2.1") {
+		t.Errorf("unexpected address %v", address)
+	}
+	if got := encodeNativeValues(t, values); got != `{"address4":"192.0.2.1"}` {
+		t.Errorf("unexpected body %s", got)
+	}
+}
+
+func TestBhvSerializationobject406_ObjectSerializer_Serialize_Ipv6IsWrittenInTheCanonicalForm(t *testing.T) {
+	t.Parallel()
+	for given, want := range map[string]string{
+		"2001:0DB8:0:0:0:0:0:1": "2001:db8::1",
+		"2001:db8::1":           "2001:db8::1",
+		"::1":                   "::1",
+		"2001:db8:0:1:1:1:1:1":  "2001:db8:0:1:1:1:1:1",
+	} {
+		values, err := decodeNativeValues(t, `{"address6":"`+given+`"}`)
+		if err != nil {
+			t.Fatalf("deserialize %s failed: %v", given, err)
+		}
+		if got := encodeNativeValues(t, values); got != `{"address6":"`+want+`"}` {
+			t.Errorf("%s: expected %s, got %s", given, want, got)
+		}
+	}
+}
+
+func TestBhvSerializationobject407_ObjectSerializer_Deserialize_MalformedAddressFailsWithTheSerializationError(t *testing.T) {
+	t.Parallel()
+	for _, row := range [][2]string{
+		{"address4", "01.2.3.4"},
+		{"address4", "192.0.2.1/24"},
+		{"address4", " 192.0.2.1"},
+		{"address4", "[::1]"},
+		{"address4", "2001:db8::1"},
+		{"address6", "fe80::1%eth0"},
+		{"address6", "[::1]"},
+		{"address6", "2001:db8::/64"},
+		{"address6", " ::1"},
+		{"address6", "192.0.2.1"},
+	} {
+		_, err := decodeNativeValues(t, `{"`+row[0]+`":"`+row[1]+`"}`)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%s %q: expected a *SerializationError, got %T: %v", row[0], row[1], err, err)
+		}
+	}
+}
+
+func TestBhvSerializationobject408_ObjectSerializer_Serialize_EveryAbsoluteUriRoundTripsByteForByte(t *testing.T) {
+	t.Parallel()
+	for _, text := range []string{
+		"https://example.com",
+		"HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+		"mailto:a@b.c",
+		"urn:isbn:0451450523",
+		"https://example.com/[x]?q='a'",
+		"https://example.com?",
+		"https://example.com/%7euser",
+		"https://[2001:db8::1]:8443/",
+	} {
+		body := `{"homepage":"` + text + `"}`
+		values, err := decodeNativeValues(t, body)
+		if err != nil {
+			t.Fatalf("deserialize %s failed: %v", text, err)
+		}
+		if got := encodeNativeValues(t, values); got != body {
+			t.Errorf("expected %s, got %s", body, got)
+		}
+	}
+}
+
+func TestBhvSerializationobject409_ObjectSerializer_Serialize_HostnameAndEmailAreKeptAsGiven(t *testing.T) {
+	t.Parallel()
+	body := `{"host":"not a host!","contact":"x@"}`
+	values, err := decodeNativeValues(t, body)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if got := encodeNativeValues(t, values); got != body {
+		t.Errorf("expected %s, got %s", body, got)
+	}
+}
+
+func TestBhvSerializationparam104_ObjectSerializer_Stringify_DurationParameterIsTheProtobufForm(t *testing.T) {
+	t.Parallel()
+	if got := stringify(models.Duration(time.Hour)); got != "3600s" {
+		t.Errorf("expected 3600s, got %s", got)
+	}
+}
+
+func TestBhvSerializationparam105_ObjectSerializer_Stringify_AddressParameterIsTheCanonicalText(t *testing.T) {
+	t.Parallel()
+	if got := stringify(netip.MustParseAddr("192.0.2.1")); got != "192.0.2.1" {
+		t.Errorf("expected 192.0.2.1, got %s", got)
+	}
+	if got := stringify(netip.MustParseAddr("2001:0DB8::1")); got != "2001:db8::1" {
+		t.Errorf("expected 2001:db8::1, got %s", got)
+	}
+}
+
+func enumModelSource(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile("models/" + name + ".go")
+	if err != nil {
+		t.Fatalf("cannot read the model source: %v", err)
+	}
+	return string(data)
+}
+
+func decodeSubscription(t *testing.T, payload string) models.Subscription {
+	t.Helper()
+	var item models.Subscription
+	if err := deserialize([]byte(payload), &item); err != nil {
+		t.Fatalf("unexpected error decoding %s: %v", payload, err)
+	}
+	return item
+}
+
+func TestBhvEnums001_ObjectSerializer_AnArrayNamesAStringMember(t *testing.T) {
+	t.Parallel()
+	if models.TierSmall != "s" || models.TierMedium != "m" || models.TierLarge != "l" {
+		t.Errorf("expected the supplied names to carry s, m, l, got %q %q %q", models.TierSmall, models.TierMedium, models.TierLarge)
+	}
+	if item := decodeSubscription(t, `{"rank":1,"tier":"m"}`); item.Tier == nil || *item.Tier != models.TierMedium {
+		t.Errorf("expected Medium, got %v", item.Tier)
+	}
+}
+
+func TestBhvEnums002_ObjectSerializer_AnArrayNamesAnIntegerMember(t *testing.T) {
+	t.Parallel()
+	if models.RankLOW != 1 || models.RankMEDIUM != 2 || models.RankHIGH != 3 {
+		t.Errorf("expected the supplied names to carry 1, 2, 3, got %d %d %d", models.RankLOW, models.RankMEDIUM, models.RankHIGH)
+	}
+	item := decodeSubscription(t, `{"rank":3}`)
+	if item.Rank != models.RankHIGH {
+		t.Errorf("expected HIGH, got %v", item.Rank)
+	}
+	data, err := serialize(item)
+	if err != nil || !strings.Contains(string(data), `"rank":3`) {
+		t.Errorf("expected a bare 3 on the wire, got %s (%v)", data, err)
+	}
+}
+
+func TestBhvEnums003_ObjectSerializer_AnObjectNamesTheListedMembers(t *testing.T) {
+	t.Parallel()
+	if item := decodeSubscription(t, `{"rank":1,"stage":"paused"}`); item.Stage == nil || *item.Stage != models.StageOnHold {
+		t.Errorf("expected OnHold, got %v", item.Stage)
+	}
+	if item := decodeSubscription(t, `{"rank":1,"stage":"active"}`); item.Stage == nil || *item.Stage != models.StageActive {
+		t.Errorf("expected Active, got %v", item.Stage)
+	}
+}
+
+func TestBhvEnums004_ObjectSerializer_ASuppliedNameIsCleanedAndCased(t *testing.T) {
+	t.Parallel()
+	if models.StageOnHold != "paused" {
+		t.Errorf("expected OnHold to carry paused, got %q", models.StageOnHold)
+	}
+}
+
+func TestBhvEnums005_ObjectSerializer_CollidingNamesStayDistinct(t *testing.T) {
+	t.Parallel()
+	if models.StageActive != "active" || models.StageActive2 != "live" {
+		t.Errorf("expected Active and Active2 to keep their wires, got %q %q", models.StageActive, models.StageActive2)
+	}
+	if item := decodeSubscription(t, `{"rank":1,"stage":"live"}`); item.Stage == nil || *item.Stage != models.StageActive2 {
+		t.Errorf("expected Active2, got %v", item.Stage)
+	}
+}
+
+func TestBhvEnums006_ObjectSerializer_AnInlineEnumTakesItsOwnNames(t *testing.T) {
+	t.Parallel()
+	if models.SubscriptionIntervalEnumMONTHLY != "month" || models.SubscriptionIntervalEnumYEARLY != "year" {
+		t.Errorf("expected MONTHLY and YEARLY to carry month and year")
+	}
+}
+
+func TestBhvEnums007_ObjectSerializer_ADefaultStartsAtTheSuppliedMember(t *testing.T) {
+	t.Parallel()
+	if built := models.NewSubscription(models.RankLOW); built.Tier == nil || *built.Tier != models.TierMedium {
+		t.Errorf("expected the constructed model to start at Medium, got %v", built.Tier)
+	}
+	if item := decodeSubscription(t, `{"rank":1}`); item.Tier == nil || *item.Tier != models.TierMedium {
+		t.Errorf("expected the decoded model to start at Medium, got %v", item.Tier)
+	}
+}
+
+func TestBhvEnums008_ObjectSerializer_OnlyTheWireValueIsOnTheWire(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(models.TierMedium)
+	if err != nil || string(data) != `"m"` {
+		t.Errorf("expected the wire value, got %s (%v)", data, err)
+	}
+	var item models.Subscription
+	err = deserialize([]byte(`{"rank":1,"tier":"Medium"}`), &item)
+	var serializationError *SerializationError
+	if !errors.As(err, &serializationError) || !strings.Contains(err.Error(), "Medium") {
+		t.Errorf("expected a SerializationError naming Medium, got %v", err)
+	}
+}
+
+func TestBhvEnums009_ObjectSerializer_ADescriptionIsTheCommentAboveTheMember(t *testing.T) {
+	t.Parallel()
+	source := enumModelSource(t, "tier")
+	if !strings.Contains(source, "\t// The smallest tier.\n\tTierSmall ") || !strings.Contains(source, "\t// The medium tier.\n\tTierMedium ") {
+		t.Errorf("expected each description directly above its constant, got:\n%s", source)
+	}
+}
+
+func TestBhvEnums010_ObjectSerializer_AMemberWithoutADescriptionKeepsItsComment(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(enumModelSource(t, "rank"), "\t/* RankMEDIUM represents the value 2. */\n\tRankMEDIUM ") {
+		t.Errorf("expected the generic comment to stay on the undescribed member")
+	}
+}
+
+func TestBhvEnums011_ObjectSerializer_AHostileDescriptionStaysAComment(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(enumModelSource(t, "tier"), "\t// The largest tier. Ends with */ and #{x} and $x.\n\tTierLarge ") {
+		t.Errorf("expected the hostile description as one line comment")
 	}
 }

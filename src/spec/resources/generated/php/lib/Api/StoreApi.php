@@ -771,6 +771,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getNativeValues',
+            urlTemplate: '/store/native-values',
         );
         return $result;
     }

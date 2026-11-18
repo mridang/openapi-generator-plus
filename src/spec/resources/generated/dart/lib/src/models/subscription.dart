@@ -66,23 +66,27 @@ class Subscription {
         "Missing required field 'rank' for Subscription",
       );
     }
-    return Subscription(
-      /* Cross-cutting `default-applies-only-when-absent`: apply the default
+    try {
+      return Subscription(
+        /* Cross-cutting `default-applies-only-when-absent`: apply the default
          solely when the key is OMITTED; an explicit `null` is preserved as
          null per the JSON-Schema contract. */
-      tier: json.containsKey('tier')
-          ? (json['tier'] != null
-                ? Tier.fromJson(json['tier'] as String)
-                : null)
-          : Tier.medium,
-      rank: Rank.fromJson(json['rank'] as int),
-      stage: json['stage'] != null
-          ? Stage.fromJson(json['stage'] as String)
-          : null,
-      interval: json['interval'] != null
-          ? SubscriptionIntervalEnum.fromJson(json['interval'] as String)
-          : null,
-    );
+        tier: json.containsKey('tier')
+            ? (json['tier'] != null
+                  ? Tier.fromJson(json['tier'] as String)
+                  : null)
+            : Tier.medium,
+        rank: Rank.fromJson(json['rank'] as int),
+        stage: json['stage'] != null
+            ? Stage.fromJson(json['stage'] as String)
+            : null,
+        interval: json['interval'] != null
+            ? SubscriptionIntervalEnum.fromJson(json['interval'] as String)
+            : null,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Subscription: $e', e);
+    }
   }
 
   /// Converts this [Subscription] to a JSON map.

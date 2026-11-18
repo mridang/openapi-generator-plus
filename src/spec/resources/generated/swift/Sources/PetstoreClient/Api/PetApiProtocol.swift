@@ -69,6 +69,8 @@ public protocol PetApiProtocol: Sendable {
   func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet
   func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws
     -> ApiResult<Pet>
+  func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet
+  func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
   func getPetPassport(petId: Int64, options: GetPetPassportOptions?) async throws -> PetPassport
   func getPetPassportWithHTTPInfo(petId: Int64, options: GetPetPassportOptions?) async throws
     -> ApiResult<PetPassport>
@@ -263,6 +265,17 @@ extension PetApiProtocol {
     -> ApiResult<Pet>
   {
     try await getPetByNameWithHTTPInfo(name: name, options: options)
+  }
+
+  /// The `getPetByNote` operation with every optional parameter left out.
+  public func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet {
+    try await getPetByNote(options: options)
+  }
+
+  /// The `getPetByNoteWithHTTPInfo` operation with every optional parameter left out.
+  public func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
+  {
+    try await getPetByNoteWithHTTPInfo(options: options)
   }
 
   /// The `getPetPassport` operation with every optional parameter left out.

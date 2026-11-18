@@ -79,7 +79,7 @@ test('bhv models 009 additional properties are a string-keyed map of the value t
     expect($source)->toContain('\Ds\Map<string, string>');
 });
 
-test('bhv models 012 an additional property of the wrong JSON type fails the decode', function (): void {
+test('bhv models 025 an additional property of the wrong JSON type fails the decode', function (): void {
     foreach (['{"a":2.5}', '{"a":"2"}', '{"a":3000000000}'] as $body) {
         expect(fn () => ObjectSerializer::deserialize($body, \PetstoreClient\Models\Counters::class))
             ->toThrow(\PetstoreClient\Errors\SerializationException::class);
@@ -88,7 +88,7 @@ test('bhv models 012 an additional property of the wrong JSON type fails the dec
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
-test('bhv models 013 an additional property whose value type is a model decodes to that model', function (): void {
+test('bhv models 026 an additional property whose value type is a model decodes to that model', function (): void {
     /** @var \PetstoreClient\Models\Roster $roster */
     $roster = ObjectSerializer::deserialize('{"label":"l","a":{"id":1,"name":"x"}}', \PetstoreClient\Models\Roster::class);
     $category = $roster->additionalProperties->get('a');
@@ -100,7 +100,7 @@ test('bhv models 013 an additional property whose value type is a model decodes 
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
-test('bhv models 014 a null additional property is rejected unless the value schema is nullable', function (): void {
+test('bhv models 027 a null additional property is rejected unless the value schema is nullable', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{"a":null}', \PetstoreClient\Models\Counters::class))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
     /** @var \PetstoreClient\Models\Sparse $sparse */
@@ -110,7 +110,7 @@ test('bhv models 014 a null additional property is rejected unless the value sch
     expect($sparse->additionalProperties->get('a'))->toBeNull();
 });
 
-test('bhv models 015 a typed additional property is written flat in its wire form', function (): void {
+test('bhv models 028 a typed additional property is written flat in its wire form', function (): void {
     /** @var \PetstoreClient\Models\Moments $moments */
     $moments = ObjectSerializer::deserialize('{"label":"l","at":"2024-01-01T00:00:00+00:00"}', \PetstoreClient\Models\Moments::class);
 
@@ -125,7 +125,7 @@ test('bhv models 015 a typed additional property is written flat in its wire for
     expect(ObjectSerializer::serialize($blobs))->toBe('{"b":"aGk="}');
 });
 
-test('bhv models 016 a free-form additionalProperties keeps every JSON value as it arrives', function (): void {
+test('bhv models 029 a free-form additionalProperties keeps every JSON value as it arrives', function (): void {
     /** @var \PetstoreClient\Models\Freeform $freeform */
     $freeform = ObjectSerializer::deserialize('{"a":1,"b":"x","c":[true],"d":null}', \PetstoreClient\Models\Freeform::class);
 

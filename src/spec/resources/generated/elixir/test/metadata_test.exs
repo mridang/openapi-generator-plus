@@ -32,7 +32,7 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert PetstoreClient.Models.Metadata.additional_properties_type() == "String.t()"
     end
 
-    test "bhv models 012 an additional property of the wrong JSON type fails the decode" do
+    test "bhv models 025 an additional property of the wrong JSON type fails the decode" do
       for body <- [~s({"a":2.5}), ~s({"a":"2"})] do
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(body, "Counters")
@@ -44,7 +44,7 @@ defmodule PetstoreClient.Models.MetadataTest do
       end
     end
 
-    test "bhv models 013 an additional property whose value type is a model decodes to that model" do
+    test "bhv models 026 an additional property whose value type is a model decodes to that model" do
       roster =
         PetstoreClient.ObjectSerializer.deserialize(
           ~s({"label":"l","a":{"id":1,"name":"x"}}),
@@ -58,7 +58,7 @@ defmodule PetstoreClient.Models.MetadataTest do
       end
     end
 
-    test "bhv models 014 a null additional property is rejected unless the value schema is nullable" do
+    test "bhv models 027 a null additional property is rejected unless the value schema is nullable" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(~s({"a":null}), "Counters")
       end
@@ -68,7 +68,7 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert sparse.additional_properties == %{"a" => nil}
     end
 
-    test "bhv models 015 a typed additional property is written flat in its wire form" do
+    test "bhv models 028 a typed additional property is written flat in its wire form" do
       {:ok, at, _} = DateTime.from_iso8601("2024-01-01T00:00:00Z")
       moments = %PetstoreClient.Models.Moments{label: "l", additional_properties: %{"at" => at}}
       data = moments |> PetstoreClient.ObjectSerializer.serialize() |> Jason.decode!()
@@ -92,7 +92,7 @@ defmodule PetstoreClient.Models.MetadataTest do
              ] == "hi"
     end
 
-    test "bhv models 016 a free-form additionalProperties keeps every JSON value as it arrives" do
+    test "bhv models 029 a free-form additionalProperties keeps every JSON value as it arrives" do
       freeform =
         PetstoreClient.ObjectSerializer.deserialize(
           ~s({"a":1,"b":"x","c":[true],"d":null}),
@@ -150,6 +150,20 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert with_extra == same_extra
       refute plain == with_extra
       refute with_extra == other_extra
+    end
+
+    test "bhv equality 001 equal values are equal and a change in a nested value makes them unequal" do
+      build = fn value ->
+        %PetstoreClient.Models.Metadata{
+          created_at: "2024-01-01T00:00:00+00:00",
+          additional_properties: %{"customField" => value}
+        }
+      end
+
+      assert build.("hello") == build.("hello")
+      refute build.("hello") == build.("other")
+      refute build.("hello") == Map.from_struct(build.("hello"))
+      refute build.("hello") == nil
     end
 
     test "bhv models 012 inspect dumps the fields and the additional_properties map" do

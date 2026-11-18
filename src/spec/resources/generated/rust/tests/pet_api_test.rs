@@ -1287,7 +1287,7 @@ async fn test_bhv_operations_065_pet_api_get_pet_by_name_required_query_on_wire(
 }
 
 #[tokio::test]
-async fn test_bhv_operations_125_pet_api_get_pet_by_note_sends_a_null_required_nullable_query_parameter_as_an_empty_value(
+async fn test_bhv_operations_157_pet_api_get_pet_by_note_sends_a_null_required_nullable_query_parameter_as_an_empty_value(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(None, Some(3));
@@ -1303,7 +1303,7 @@ async fn test_bhv_operations_125_pet_api_get_pet_by_note_sends_a_null_required_n
 }
 
 #[tokio::test]
-async fn test_bhv_operations_126_pet_api_get_pet_by_note_sends_every_null_required_nullable_query_parameter_in_declaration_order(
+async fn test_bhv_operations_158_pet_api_get_pet_by_note_sends_every_null_required_nullable_query_parameter_in_declaration_order(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(None, None);
@@ -1319,7 +1319,7 @@ async fn test_bhv_operations_126_pet_api_get_pet_by_note_sends_every_null_requir
 }
 
 #[tokio::test]
-async fn test_bhv_operations_127_pet_api_get_pet_by_note_sends_a_non_null_required_nullable_query_parameter_with_its_value(
+async fn test_bhv_operations_159_pet_api_get_pet_by_note_sends_a_non_null_required_nullable_query_parameter_with_its_value(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(Some("a b".to_string()), Some(3));
@@ -2729,6 +2729,30 @@ impl PetApiTrait for FakePetApi {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_by_name_with_http_info({:?}, options={})",
             name,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_pet_by_note(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("get_pet_by_note( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_pet_by_note_with_http_info(
+        &self,
+        options: Option<&GetPetByNoteOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_by_note_with_http_info( options={})",
             options.is_some()
         ));
         let failure = self.failure();

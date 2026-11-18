@@ -95,6 +95,8 @@ module Petstore::Client
       def get_pet_by_id_with_http_info: (Integer pet_id, ?Options::GetPetByIdOptions? options, ?server: GetPetByIdServer?) -> ::Petstore::Client::ApiResult[Models::Pet]
       def get_pet_by_name: (String name, Options::GetPetByNameOptions options) -> Models::Pet
       def get_pet_by_name_with_http_info: (String name, Options::GetPetByNameOptions options) -> ::Petstore::Client::ApiResult[Models::Pet]
+      def get_pet_by_note: (Options::GetPetByNoteOptions options) -> Models::Pet
+      def get_pet_by_note_with_http_info: (Options::GetPetByNoteOptions options) -> ::Petstore::Client::ApiResult[Models::Pet]
       def get_pet_passport: (Integer pet_id, ?Options::GetPetPassportOptions? options) -> Models::PetPassport
       def get_pet_passport_with_http_info: (Integer pet_id, ?Options::GetPetPassportOptions? options) -> ::Petstore::Client::ApiResult[Models::PetPassport]
       def get_pet_photo: (Integer pet_id, Integer photo_id, ?Options::GetPetPhotoOptions? options) -> ::StringIO

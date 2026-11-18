@@ -8,6 +8,7 @@
 import type { ApiClient, RequestOptions } from "../api-client.js";
 import type { ApiResult } from "../api-result.js";
 import type { Authenticator } from "../auth/authenticator.js";
+import type { CallHook, CallObserver } from "../call-hook.js";
 import { isNoAuth } from "../auth/authenticator.js";
 import { isHttpAwareAuthenticator } from "../auth/http-aware-authenticator.js";
 /* Imported through the errors barrel, which loads every status-specific
@@ -124,6 +125,11 @@ export abstract class BaseApi {
    *   merged with the client-level signal of the {@link Configuration}; its
    *   `timeout` and `maxRetries` replace the transport's for this call; its
    *   `headers` are sent in addition to the operation's own headers
+   * @param errorSchemas the typed error schemas of the operation, by status
+   * @param operationId the operation id exactly as written in the spec, given
+   *   to the call hook
+   * @param urlTemplate the spec path template of the operation, given to the
+   *   call hook
    * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
   protected async invokeApiForResult<T>(
@@ -141,6 +147,8 @@ export abstract class BaseApi {
     operationName = "",
     requestOptions?: RequestOptions,
     errorSchemas?: ErrorSchemas,
+    operationId = operationName,
+    urlTemplate = "",
   ): Promise<ApiResult<T>> {
     BaseApi.checkCallLimits(requestOptions);
     const callTimeout = requestOptions?.timeout;
@@ -292,117 +300,150 @@ export abstract class BaseApi {
     }
     injectTraceContext(headers);
 
-    const serializedBody = this.serializeBody(body, contentType, rawBody);
-    if (serializedBody === null) {
-      for (const key of Object.keys(headers)) {
-        if (key.toLowerCase() === "content-type") delete headers[key];
+    const callHook = this.config.callHook;
+    const observer =
+      callHook === undefined
+        ? undefined
+        : BaseApi.startCall(
+            callHook,
+            operationId,
+            method,
+            urlTemplate,
+            url,
+            headers,
+          );
+    /* What the observer is told: no response yet, no error yet. */
+    let statusCode = 0;
+    let responseHeaders: Record<string, string> | null = null;
+    let failure: unknown = null;
+    try {
+      const serializedBody = this.serializeBody(body, contentType, rawBody);
+      if (serializedBody === null) {
+        for (const key of Object.keys(headers)) {
+          if (key.toLowerCase() === "content-type") delete headers[key];
+        }
       }
-    }
 
-    const sendOptions = {
-      ...(signal ? { signal } : {}),
-      ...(callTimeout !== undefined ? { timeout: callTimeout } : {}),
-      ...(callMaxRetries !== undefined ? { maxRetries: callMaxRetries } : {}),
-      credentialHeaderNames,
-      ...(effectiveAuth
-        ? { refreshAuthHeaders: () => effectiveAuth.getAuthHeadersAsync() }
-        : {}),
-    };
-    let response = await this.apiClient.sendRequest(
-      method,
-      url,
-      headers,
-      serializedBody,
-      sendOptions,
-    );
+      /* The client-level signal and the per-call signal are merged: either one
+       * cancels the request. */
+      const signals = [this.config.signal, requestOptions?.signal].filter(
+        (s): s is AbortSignal => s != null,
+      );
+      const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
+      const sendOptions = {
+        ...(signal ? { signal } : {}),
+        ...(callTimeout !== undefined ? { timeout: callTimeout } : {}),
+        ...(callMaxRetries !== undefined ? { maxRetries: callMaxRetries } : {}),
+        credentialHeaderNames,
+        ...(effectiveAuth
+          ? { refreshAuthHeaders: () => effectiveAuth.getAuthHeadersAsync() }
+          : {}),
+      };
+      let response = await this.apiClient.sendRequest(
+        method,
+        url,
+        headers,
+        serializedBody,
+        sendOptions,
+      );
+      statusCode = response.statusCode;
+      responseHeaders = response.headers;
 
-    /* A revoked or rotated token keeps failing while it is cached. An OAuth2
-     * or OpenID Connect authenticator drops it on a 401, obtains a new one (a
-     * refresh grant first) and the request is replayed once with fresh
-     * headers. A multipart body is not replayed, and a failed
-     * re-authentication leaves the 401 as it is. API key, basic and bearer
-     * authenticators have no token to drop and never replay. */
-    const renewable = effectiveAuth as
-      (Authenticator & { invalidateAccessToken?: () => void }) | null;
-    if (
-      response.statusCode === 401 &&
-      effectiveAuth != null &&
-      typeof renewable?.invalidateAccessToken === "function" &&
-      (serializedBody === null ||
-        typeof serializedBody === "string" ||
-        Buffer.isBuffer(serializedBody))
-    ) {
-      renewable.invalidateAccessToken();
-      let freshAuthHeaders: Record<string, string> | null;
-      try {
-        freshAuthHeaders = await BaseApi.untilAborted(
-          effectiveAuth.getAuthHeadersAsync(),
-          signal,
-        );
-      } catch (error) {
-        if (!(error instanceof OpenAPIError)) {
+      /* A revoked or rotated token keeps failing while it is cached. An OAuth2
+       * or OpenID Connect authenticator drops it on a 401, obtains a new one (a
+       * refresh grant first) and the request is replayed once with fresh
+       * headers. A multipart body is not replayed, and a failed
+       * re-authentication leaves the 401 as it is. API key, basic and bearer
+       * authenticators have no token to drop and never replay. */
+      const renewable = effectiveAuth as
+        (Authenticator & { invalidateAccessToken?: () => void }) | null;
+      if (
+        response.statusCode === 401 &&
+        effectiveAuth != null &&
+        typeof renewable?.invalidateAccessToken === "function" &&
+        (serializedBody === null ||
+          typeof serializedBody === "string" ||
+          Buffer.isBuffer(serializedBody))
+      ) {
+        renewable.invalidateAccessToken();
+        let freshAuthHeaders: Record<string, string> | null;
+        try {
+          freshAuthHeaders = await BaseApi.untilAborted(
+            effectiveAuth.getAuthHeadersAsync(),
+            signal,
+          );
+        } catch (error) {
+          if (!(error instanceof OpenAPIError)) {
+            throw error;
+          }
+          freshAuthHeaders = null;
+        }
+        if (freshAuthHeaders !== null) {
+          const names = new Set(
+            Object.keys(freshAuthHeaders).map((key) => key.toLowerCase()),
+          );
+          const replayHeaders: Record<string, string> = {};
+          for (const [key, value] of Object.entries(headers)) {
+            if (!names.has(key.toLowerCase())) replayHeaders[key] = value;
+          }
+          Object.assign(replayHeaders, freshAuthHeaders);
+          response = await this.apiClient.sendRequest(
+            method,
+            url,
+            replayHeaders,
+            serializedBody,
+            sendOptions,
+          );
+          statusCode = response.statusCode;
+          responseHeaders = response.headers;
+        }
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        this.throwApiError(response, method, url, errorSchemas);
+      }
+
+      let data: T | undefined;
+      if (returnType != null && response.body) {
+        try {
+          data = this.decodeResponseBody(
+            response.statusCode,
+            response.headers,
+            response.body,
+            returnType,
+            returnKind,
+            operationName,
+          );
+        } catch (error) {
+          /* A body that cannot be decoded is raised with the response it came
+           * from: its status, headers and raw body, and the request. */
+          if (error instanceof SerializationError) {
+            throw error.withResponse({
+              statusCode: response.statusCode,
+              responseHeaders: response.headers,
+              responseBody: response.body,
+              requestMethod: method,
+              requestPath: BaseApi.pathOf(url),
+            });
+          }
           throw error;
         }
-        freshAuthHeaders = null;
       }
-      if (freshAuthHeaders !== null) {
-        const names = new Set(
-          Object.keys(freshAuthHeaders).map((key) => key.toLowerCase()),
-        );
-        const replayHeaders: Record<string, string> = {};
-        for (const [key, value] of Object.entries(headers)) {
-          if (!names.has(key.toLowerCase())) replayHeaders[key] = value;
-        }
-        Object.assign(replayHeaders, freshAuthHeaders);
-        response = await this.apiClient.sendRequest(
-          method,
-          url,
-          replayHeaders,
-          serializedBody,
-          sendOptions,
-        );
-      }
-    }
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      this.throwApiError(response, method, url, errorSchemas);
+      return {
+        statusCode: response.statusCode,
+        data,
+        rawBody: response.body,
+        /* A frozen copy: a caller that edits the transport's map afterwards
+         * cannot change a result it already holds (D27). */
+        headers: Object.freeze({ ...response.headers }),
+      };
+    } catch (error) {
+      failure = error;
+      throw error;
+    } finally {
+      BaseApi.finishCall(observer, statusCode, responseHeaders, failure);
     }
-
-    let data: T | undefined;
-    if (returnType != null && response.body) {
-      try {
-        data = this.decodeResponseBody(
-          response.statusCode,
-          response.headers,
-          response.body,
-          returnType,
-          returnKind,
-          operationName,
-        );
-      } catch (error) {
-        /* A body that cannot be decoded is raised with the response it came
-         * from: its status, headers and raw body, and the request. */
-        if (error instanceof SerializationError) {
-          throw error.withResponse({
-            statusCode: response.statusCode,
-            responseHeaders: response.headers,
-            responseBody: response.body,
-            requestMethod: method,
-            requestPath: BaseApi.pathOf(url),
-          });
-        }
-        throw error;
-      }
-    }
-
-    return {
-      statusCode: response.statusCode,
-      data,
-      rawBody: response.body,
-      /* A frozen copy: a caller that edits the transport's map afterwards
-       * cannot change a result it already holds (D27). */
-      headers: Object.freeze({ ...response.headers }),
-    };
   }
 
   /**
@@ -427,6 +468,11 @@ export abstract class BaseApi {
    *   merged with the client-level signal of the {@link Configuration}; its
    *   `timeout` and `maxRetries` replace the transport's for this call; its
    *   `headers` are sent in addition to the operation's own headers
+   * @param errorSchemas the typed error schemas of the operation, by status
+   * @param operationId the operation id exactly as written in the spec, given
+   *   to the call hook
+   * @param urlTemplate the spec path template of the operation, given to the
+   *   call hook
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -444,6 +490,8 @@ export abstract class BaseApi {
     operationName = "",
     requestOptions?: RequestOptions,
     errorSchemas?: ErrorSchemas,
+    operationId = operationName,
+    urlTemplate = "",
   ): Promise<T | void> {
     const result = await this.invokeApiForResult(
       method,
@@ -460,8 +508,89 @@ export abstract class BaseApi {
       operationName,
       requestOptions,
       errorSchemas,
+      operationId,
+      urlTemplate,
     );
     return result.data;
+  }
+
+  /**
+   * Start the call hook for one call. An error the hook throws propagates
+   * unchanged: nothing has been sent yet.
+   *
+   * @param hook the call hook of the configuration
+   * @param operationId the operation id exactly as written in the spec
+   * @param method the upper-case HTTP method
+   * @param urlTemplate the spec path template of the operation
+   * @param url the request URL, query string included
+   * @param headers the final request headers, which the hook may edit
+   * @returns the observer the hook returned, if any
+   */
+  private static startCall(
+    hook: CallHook,
+    operationId: string,
+    method: string,
+    urlTemplate: string,
+    url: string,
+    headers: Record<string, string>,
+  ): CallObserver | undefined {
+    const bare = url.split(/[?#]/)[0]!;
+    let serverAddress = "";
+    try {
+      /* The hostname of an IPv6 literal keeps its brackets. */
+      serverAddress = new URL(bare).hostname
+        .toLowerCase()
+        .replace(/^\[(.*)\]$/, "$1");
+    } catch {
+      /* A relative base URL has no host. */
+    }
+    const observer = hook.start(
+      {
+        operationId,
+        method: method.toUpperCase(),
+        urlTemplate,
+        url: bare,
+        serverAddress,
+      },
+      headers,
+    );
+    return observer ?? undefined;
+  }
+
+  /**
+   * Tell the observer how the call ended. An error the observer throws is
+   * swallowed: it never changes the result or the error of the call.
+   *
+   * @param observer the observer the hook returned, if any
+   * @param statusCode the status of the response, or 0 when none arrived
+   * @param responseHeaders the response headers, or null when none arrived
+   * @param error the error the caller receives, or null
+   */
+  private static finishCall(
+    observer: CallObserver | undefined,
+    statusCode: number,
+    responseHeaders: Record<string, string> | null,
+    error: unknown,
+  ): void {
+    if (observer === undefined) {
+      return;
+    }
+    const headers =
+      responseHeaders === null
+        ? null
+        : Object.freeze(
+            Object.fromEntries(
+              Object.entries(responseHeaders).map(([k, v]) => [
+                k.toLowerCase(),
+                v,
+              ]),
+            ),
+          );
+    try {
+      observer.finish({ statusCode, headers, error });
+    } catch {
+      /* A failing observer never changes the outcome of the call. */
+    }
   }
 
   /**

@@ -37,11 +37,15 @@ class Blobs {
       additionalPropertyEntries,
       (e) => decodeBase64(e as String),
     );
-    return Blobs(
-      label: json['label'] as String?,
+    try {
+      return Blobs(
+        label: json['label'] as String?,
 
-      additionalProperties: additionalProperties,
-    );
+        additionalProperties: additionalProperties,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Blobs: $e', e);
+    }
   }
 
   /// Converts this [Blobs] to a JSON map.

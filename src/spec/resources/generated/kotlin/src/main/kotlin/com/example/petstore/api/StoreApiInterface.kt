@@ -18,6 +18,7 @@ import com.example.petstore.api.options.GetDepartmentOptions
 import com.example.petstore.api.options.GetGroupedCategoriesOptions
 import com.example.petstore.api.options.GetInventoryOptions
 import com.example.petstore.api.options.GetMatrixOptions
+import com.example.petstore.api.options.GetNativeValuesOptions
 import com.example.petstore.api.options.GetOrderByIdOptions
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions
 import com.example.petstore.api.options.GetStockItemOptions
@@ -32,6 +33,7 @@ import com.example.petstore.models.Account
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
+import com.example.petstore.models.NativeValues
 import com.example.petstore.models.Order
 import com.example.petstore.models.ReserveStockResponse
 import com.example.petstore.models.StockItem
@@ -114,6 +116,12 @@ interface StoreApiInterface {
 
     /** The `getMatrix` operation with its status code, headers and body. */
     suspend fun getMatrixWithHttpInfo(options: GetMatrixOptions? = null): ApiResult<List<List<Int>>>
+
+    /** The `getNativeValues` operation. */
+    suspend fun getNativeValues(options: GetNativeValuesOptions? = null): NativeValues
+
+    /** The `getNativeValues` operation with its status code, headers and body. */
+    suspend fun getNativeValuesWithHttpInfo(options: GetNativeValuesOptions? = null): ApiResult<NativeValues>
 
     /** The `getOrderById` operation. */
     suspend fun getOrderById(

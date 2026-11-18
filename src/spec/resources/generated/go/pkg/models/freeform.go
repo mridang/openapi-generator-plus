@@ -65,7 +65,9 @@ func (o Freeform) WithAdditionalProperties(value map[string]any) Freeform {
 
 // NewFreeform creates a new Freeform instance.
 func NewFreeform() *Freeform {
-	return &Freeform{}
+	return &Freeform{
+		AdditionalProperties: make(map[string]any),
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

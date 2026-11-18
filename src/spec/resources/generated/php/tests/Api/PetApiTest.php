@@ -1555,7 +1555,7 @@ test('bhv operations 065 get pet by name sends the required query param when sup
     expect($captured->headers)->not->toBeEmpty();
 });
 
-test('bhv operations 125 get pet by note sends a null required nullable query parameter as an empty value', function (): void {
+test('bhv operations 157 get pet by note sends a null required nullable query parameter as an empty value', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {
@@ -1567,7 +1567,7 @@ test('bhv operations 125 get pet by note sends a null required nullable query pa
     expect($captured->url)->toEndWith('?note=&rank=3');
 });
 
-test('bhv operations 126 get pet by note sends every null required nullable query parameter in declaration order', function (): void {
+test('bhv operations 158 get pet by note sends every null required nullable query parameter in declaration order', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {
@@ -1579,7 +1579,7 @@ test('bhv operations 126 get pet by note sends every null required nullable quer
     expect($captured->url)->toEndWith('?note=&rank=');
 });
 
-test('bhv operations 127 get pet by note sends a non null required nullable query parameter with its value', function (): void {
+test('bhv operations 159 get pet by note sends a non null required nullable query parameter with its value', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {

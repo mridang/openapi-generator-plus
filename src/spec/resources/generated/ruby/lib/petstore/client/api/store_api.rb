@@ -458,6 +458,8 @@ module Petstore::Client
           'NativeValues',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_native_values',
+          spec_operation_id: 'getNativeValues',
+          url_template: '/store/native-values',
           request_options: options
         )
       end

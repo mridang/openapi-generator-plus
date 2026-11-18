@@ -66,7 +66,9 @@ func (o Roster) WithAdditionalProperties(value map[string]Category) Roster {
 
 // NewRoster creates a new Roster instance.
 func NewRoster() *Roster {
-	return &Roster{}
+	return &Roster{
+		AdditionalProperties: make(map[string]any),
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

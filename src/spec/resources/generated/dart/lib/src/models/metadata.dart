@@ -14,19 +14,26 @@ class Metadata {
   final DateTime? createdAt;
 
   /// Additional properties not defined in the schema.
-  final Map<String, dynamic> additionalProperties;
+  final Map<String, String> additionalProperties;
 
   const Metadata({this.createdAt, this.additionalProperties = const {}});
 
   /// Creates a [Metadata] from a JSON map.
   factory Metadata.fromJson(Map<String, dynamic> json) {
     final knownKeys = <String>{'createdAt'};
-    final additionalProperties = <String, dynamic>{};
+    final additionalPropertyEntries = <String, dynamic>{};
     for (final entry in json.entries) {
       if (!knownKeys.contains(entry.key)) {
-        additionalProperties[entry.key] = entry.value;
+        additionalPropertyEntries[entry.key] = entry.value;
       }
     }
+    /* A typed extra is decoded like an element of a map of the same type, so a
+     * wrong JSON type fails with a SerializationException and a null is
+     * rejected unless the value schema is nullable. */
+    final additionalProperties = deserializeMap(
+      additionalPropertyEntries,
+      (e) => e as String,
+    );
     try {
       return Metadata(
         createdAt: json['createdAt'] != null
@@ -62,7 +69,7 @@ class Metadata {
   /// passing `null` explicitly.
   Metadata copyWith({
     Object? createdAt = copyUnset,
-    Map<String, dynamic>? additionalProperties,
+    Map<String, String>? additionalProperties,
   }) {
     return Metadata(
       createdAt: copyField<DateTime>(createdAt, this.createdAt),

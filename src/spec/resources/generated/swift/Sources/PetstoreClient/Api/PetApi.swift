@@ -1149,6 +1149,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetByNote",
+      operationId: "getPetByNote",
+      urlTemplate: "/pet/byNote",
       timeout: options.timeout,
       requestHeaders: options.headers,
       maxRetries: options.maxRetries

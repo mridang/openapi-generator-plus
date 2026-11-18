@@ -3258,6 +3258,249 @@ class ObjectSerializerTest {
             assertArrayEquals(byteArrayOf(1, 2, 3), serializer.deserialize<ByteArray>("\"AQID\""))
         }
     }
+
+    @Nested
+    @DisplayName("NativeValueFormatTests")
+    inner class NativeValueFormatTests {
+        private fun decode(json: String) = serializer.deserialize<com.example.petstore.models.NativeValues>(json)!!
+
+        @Test
+        @DisplayName("bhvSerializationobject403 a duration field is the native java.time.Duration")
+        fun durationIsTheNativeType() {
+            val wait: java.time.Duration? = decode("{\"wait\":\"3600s\"}").wait
+            assertEquals(java.time.Duration.ofHours(1), wait)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject404 a duration keeps every nanosecond the type holds and writes the shortest form")
+        fun durationKeepsEveryNanosecond() {
+            val decoded = decode("{\"wait\":\"-1.123456789s\"}")
+            assertEquals(java.time.Duration.ofSeconds(-1, -123456789), decoded.wait)
+            assertEquals("{\"wait\":\"-1.123456789s\"}", serializer.serialize(decoded))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject405 an ipv4 field keeps the address text unchanged")
+        fun ipv4TextRoundTrips() {
+            assertEquals("{\"address4\":\"192.0.2.1\"}", serializer.serialize(decode("{\"address4\":\"192.0.2.1\"}")))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject406 an ipv6 field keeps the address text unchanged")
+        fun ipv6TextRoundTrips() {
+            for (text in listOf("2001:0DB8:0:0:0:0:0:1", "2001:db8::1", "::1")) {
+                assertEquals("{\"address6\":\"$text\"}", serializer.serialize(decode("{\"address6\":\"$text\"}")))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject408 every absolute URI of the corpus round-trips byte for byte")
+        fun uriCorpusRoundTrips() {
+            val corpus =
+                listOf(
+                    "https://example.com",
+                    "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+                    "mailto:a@b.c",
+                    "urn:isbn:0451450523",
+                    "https://example.com?",
+                    "https://example.com/%7euser",
+                    "https://[2001:db8::1]:8443/",
+                )
+            for (text in corpus) {
+                val json = "{\"homepage\":\"$text\"}"
+                assertEquals(json, serializer.serialize(decode(json)), text)
+            }
+            val homepage: java.net.URI? = decode("{\"homepage\":\"https://example.com\"}").homepage
+            assertEquals("https://example.com", homepage.toString())
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject409 hostname and email values are kept as given")
+        fun hostnameAndEmailAreKept() {
+            val json = "{\"host\":\"not a host!\",\"contact\":\"x@\"}"
+            assertEquals(json, serializer.serialize(decode(json)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject410 a number keeps every digit and is written in plain notation")
+        fun numberKeepsEveryDigit() {
+            val json = "{\"amount\":12.345678901234567890123}"
+            val decoded = decode(json)
+            assertEquals(java.math.BigDecimal("12.345678901234567890123"), decoded.amount)
+            assertEquals(json, serializer.serialize(decoded))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject411 a string decimal is a BigDecimal written as a JSON string and rejects a number")
+        fun stringDecimalIsAJsonString() {
+            val decoded = decode("{\"ledger\":\"12.50\"}")
+            assertEquals(java.math.BigDecimal("12.50"), decoded.ledger)
+            assertEquals("{\"ledger\":\"12.50\"}", serializer.serialize(decoded))
+            assertThrowsExactly(SerializationException::class.java) { decode("{\"ledger\":12.50}") }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject412 a forty digit number is exact and never rounded")
+        fun fortyDigitNumberIsExact() {
+            val digits = "1234567890123456789012345678901234567890"
+            val decoded = decode("{\"amount\":$digits}")
+            assertEquals(java.math.BigDecimal(digits), decoded.amount)
+            assertEquals("{\"amount\":$digits}", serializer.serialize(decoded))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam104 a duration parameter is written in the protobuf form")
+        fun durationParameter() {
+            assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam105 an address parameter is its text unchanged")
+        fun addressParameterIsUnchanged() {
+            assertEquals("2001:db8::1", serializer.stringify("2001:db8::1"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam106 a decimal parameter is written in plain notation")
+        fun decimalParameterIsPlain() {
+            assertEquals("12.345678901234567890123", serializer.stringify(java.math.BigDecimal("12.345678901234567890123")))
+            assertEquals("1000", serializer.stringify(java.math.BigDecimal("1E+3")))
+        }
+    }
+
+    @Nested
+    @DisplayName("EnumMemberNameTests")
+    inner class EnumMemberNameTests {
+        private fun modelSource(name: String): String =
+            java.io
+                .File(
+                    "src/main/kotlin/" + "com.example.petstore.models".replace('.', '/') + "/" + name + ".kt",
+                ).readText()
+
+        @Test
+        @DisplayName("bhvEnums001 a string enum member named by an array exposes the given name and its wire value")
+        fun arrayNamesAStringMember() {
+            assertEquals("s", com.example.petstore.models.Tier.SMALL.value)
+            assertEquals("m", com.example.petstore.models.Tier.MEDIUM.value)
+            assertEquals("l", com.example.petstore.models.Tier.LARGE.value)
+            assertEquals(
+                com.example.petstore.models.Tier.MEDIUM,
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"tier\":\"m\"}")!!.tier,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums002 an integer enum member named by an array exposes the given name and its number")
+        fun arrayNamesAnIntegerMember() {
+            assertEquals(1, com.example.petstore.models.Rank.LOW.value)
+            assertEquals(2, com.example.petstore.models.Rank.MEDIUM.value)
+            assertEquals(3, com.example.petstore.models.Rank.HIGH.value)
+            val decoded = serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":3}")!!
+            assertEquals(com.example.petstore.models.Rank.HIGH, decoded.rank)
+            assertTrue(serializer.serialize(decoded).contains("\"rank\":3"))
+        }
+
+        @Test
+        @DisplayName("bhvEnums003 an enum named by an object keyed by wire value names the members it lists")
+        fun objectNamesTheListedMembers() {
+            assertEquals("paused", com.example.petstore.models.Stage.ON_HOLD.value)
+            assertEquals(
+                com.example.petstore.models.Stage.ON_HOLD,
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"stage\":\"paused\"}")!!.stage,
+            )
+            assertEquals(
+                com.example.petstore.models.Stage.ACTIVE,
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"stage\":\"active\"}")!!.stage,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums004 a supplied name that is not a legal identifier is cleaned and cased")
+        fun suppliedNameIsCleanedAndCased() {
+            assertEquals(
+                "paused",
+                com.example.petstore.models.Stage
+                    .valueOf("ON_HOLD")
+                    .value,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums005 two supplied names that collide after casing keep distinct names and wires")
+        fun collidingNamesStayDistinct() {
+            assertEquals(
+                "active",
+                com.example.petstore.models.Stage
+                    .valueOf("ACTIVE")
+                    .value,
+            )
+            assertEquals(
+                "live",
+                com.example.petstore.models.Stage
+                    .valueOf("ACTIVE2")
+                    .value,
+            )
+            assertEquals(
+                com.example.petstore.models.Stage
+                    .valueOf("ACTIVE2"),
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"stage\":\"live\"}")!!.stage,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums006 an inline property enum takes its member names from its own keys")
+        fun inlineEnumTakesItsOwnNames() {
+            assertEquals("month", com.example.petstore.models.Subscription.IntervalEnum.MONTHLY.value)
+            assertEquals("year", com.example.petstore.models.Subscription.IntervalEnum.YEARLY.value)
+        }
+
+        @Test
+        @DisplayName("bhvEnums007 a default on a referenced enum property starts at the member with the supplied name")
+        fun defaultStartsAtTheSuppliedMember() {
+            assertEquals(
+                com.example.petstore.models.Tier.MEDIUM,
+                com.example.petstore.models
+                    .Subscription(rank = com.example.petstore.models.Rank.LOW)
+                    .tier,
+            )
+            assertEquals(
+                com.example.petstore.models.Tier.MEDIUM,
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1}")!!.tier,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums008 encoding writes the wire value and decoding rejects a supplied name")
+        fun wireValueOnlyOnTheWire() {
+            assertEquals("\"m\"", serializer.serialize(com.example.petstore.models.Tier.MEDIUM))
+            val error =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"tier\":\"Medium\"}")
+                }
+            assertTrue(error.message!!.contains("Medium"), error.message)
+        }
+
+        @Test
+        @DisplayName("bhvEnums009 a member with a description carries it as the one-line comment directly above it")
+        fun descriptionIsTheCommentAboveTheMember() {
+            assertTrue(modelSource("Tier").contains("/** The smallest tier. */\n  @SerialName(\"s\")\n  SMALL("))
+            assertTrue(modelSource("Tier").contains("/** The medium tier. */\n  @SerialName(\"m\")\n  MEDIUM("))
+        }
+
+        @Test
+        @DisplayName("bhvEnums010 a member without a description keeps the comment it has today")
+        fun undescribedMemberKeepsItsComment() {
+            assertFalse(modelSource("Rank").contains("/** The"))
+            assertTrue(modelSource("Rank").contains("  MEDIUM(2)"))
+        }
+
+        @Test
+        @DisplayName("bhvEnums011 a description with comment terminators still yields a compiling comment")
+        fun hostileDescriptionStaysAComment() {
+            val source = modelSource("Tier")
+            assertTrue(source.contains("/** The largest tier. Ends with * / and #{x} and \$x. */\n  @SerialName(\"l\")"))
+        }
+    }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.

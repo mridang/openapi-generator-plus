@@ -36,11 +36,15 @@ class Roster {
       additionalPropertyEntries,
       (e) => Category.fromJson(e as Map<String, dynamic>),
     );
-    return Roster(
-      label: json['label'] as String?,
+    try {
+      return Roster(
+        label: json['label'] as String?,
 
-      additionalProperties: additionalProperties,
-    );
+        additionalProperties: additionalProperties,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Roster: $e', e);
+    }
   }
 
   /// Converts this [Roster] to a JSON map.

@@ -14,10 +14,13 @@ class TestableApi < Petstore::Client::Api::BaseApi
   end
 
   def call_for_result(method, path, query_params, header_params, body,
-                      accepts, content_type, return_type, auth = nil, operation_id: nil, request_options: nil)
+                      accepts, content_type, return_type, auth = nil, operation_id: nil, request_options: nil,
+                      spec_operation_id: nil, url_template: nil)
     invoke_api_for_result(method, path, query_params, header_params, body,
                           accepts, content_type, return_type, auth, operation_id: operation_id,
-                                                                    request_options: request_options)
+                                                                    request_options: request_options,
+                                                                    spec_operation_id: spec_operation_id,
+                                                                    url_template: url_template)
   end
 end
 
@@ -58,6 +61,20 @@ class FixedResponseApiClient
 
   def send_request(_method, _url, _headers, _body, **_kwargs)
     @response
+  end
+end
+
+# Raises what a cancelled call raises in Ruby: an interruption in the thread.
+class InterruptingApiClient
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    raise Interrupt
+  end
+end
+
+# An observer whose finish always fails.
+class FailingCallObserver
+  def finish(_outcome)
+    raise 'finish failed'
   end
 end
 
@@ -1531,5 +1548,311 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_headers).must_include 'traceparent'
     test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
     _(client.captured_headers).wont_include 'traceparent'
+  end
+
+  # ── Call hook ──
+
+  def hook_config(hook, base_url = 'https://api.example.com')
+    Petstore::Client::Configuration.builder.base_url(base_url).call_hook(hook).build
+  end
+
+  def hooked_api(hook, client = CapturingApiClient.new, auth = nil, base_url: 'https://api.example.com')
+    TestableApi.new(client, hook_config(hook, base_url), auth)
+  end
+
+  def hooked_call(api, method: :get, path: '/items/7', query: {}, body: nil, return_type: nil, auth: nil)
+    api.call_for_result(method, path, query, {}, body, ['application/json'], 'application/json', return_type, auth,
+                        spec_operation_id: 'getItem-v2', url_template: '/items/{id}')
+  end
+
+  def json_response(status, headers = {}, body = '{}')
+    Petstore::Client::ApiHttpResponse.new(
+      status_code: status, body: body, headers: { 'Content-Type' => 'application/json' }.merge(headers)
+    )
+  end
+
+  # A DefaultApiClient whose connection answers from +responses+ in turn (the
+  # last one repeats) and notes the headers of every request it gets. It does
+  # not wait between retries.
+  def retrying_client(responses, seen)
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.get('/items/7') do |env|
+          seen << env.request_headers.to_h
+          responses[[seen.length, responses.length].min - 1]
+        end
+      end
+    end
+    connection = Faraday.new('https://api.example.com') { |f| f.adapter :test, stubs }
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(connection).build)
+    client.define_singleton_method(:pause) { |_seconds| nil }
+    client
+  end
+
+  it 'bhv_hooks_001 sends the same headers and returns the same result without a hook' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('https://api.example.com').build
+    _(config.call_hook).must_be_nil
+
+    result = Petstore::Client::CallInfo.stub(:new, ->(*_args, **_kwargs) { raise 'a CallInfo was built' }) do
+      TestableApi.new(client, config).call_for_result(:get, '/items/7', {}, {}, nil, ['application/json'],
+                                                      'application/json', nil)
+    end
+
+    _(result.status_code).must_equal 200
+    _(client.captured_headers).must_equal({ 'Accept' => 'application/json' })
+  end
+
+  it 'bhv_hooks_002 starts the hook once with the spec operation id, the method, the template and the url' do
+    hook = RecordingCallHook.new
+
+    hooked_call(hooked_api(hook), method: :get, query: { 'a' => '1' })
+
+    _(hook.infos.length).must_equal 1
+    info = hook.infos.first
+    _(info.operation_id).must_equal 'getItem-v2'
+    _(info.http_method).must_equal 'GET'
+    _(info.url_template).must_equal '/items/{id}'
+    _(info.url).must_equal 'https://api.example.com/items/7'
+  end
+
+  {
+    'https://API.Example.COM:8443/x' => 'api.example.com',
+    'http://[::1]:8080/x' => '::1',
+    'http://user@example.org/x' => 'example.org'
+  }.each do |base_url, host|
+    it "bhv_hooks_003 gives the host without port and brackets for #{base_url}" do
+      hook = RecordingCallHook.new
+
+      hooked_call(hooked_api(hook, base_url: base_url), path: '/x')
+
+      _(hook.infos.first.server_address).must_equal host
+    end
+  end
+
+  it 'bhv_hooks_004 sends a header the hook sets' do
+    client = CapturingApiClient.new
+    hook = RecordingCallHook.new { |headers| headers['X-Hook'] = 'set' }
+
+    hooked_call(hooked_api(hook, client))
+
+    _(client.captured_headers['X-Hook']).must_equal 'set'
+  end
+
+  it 'bhv_hooks_005 shows the hook the final headers and lets it replace one' do
+    client = CapturingApiClient.new
+    hook = RecordingCallHook.new { |headers| headers['Authorization'] = 'Bearer replaced' }
+    config = Petstore::Client::Configuration.builder.base_url('https://api.example.com')
+                                          .default_header('X-Default', 'd').call_hook(hook).build
+    auth = TestAuthenticator.new(headers: { 'Authorization' => 'Bearer original' })
+
+    hooked_call(TestableApi.new(client, config, auth))
+
+    seen = hook.seen_headers.first
+    _(seen['Authorization']).must_equal 'Bearer original'
+    _(seen['X-Default']).must_equal 'd'
+    _(seen['Accept']).must_equal 'application/json'
+    _(client.captured_headers['Authorization']).must_equal 'Bearer replaced'
+  end
+
+  it 'bhv_hooks_006 sends a header the hook sets on every send of a transport retry' do
+    seen = []
+    hook = RecordingCallHook.new { |headers| headers['X-Hook'] = 'set' }
+    client = retrying_client([[503, { 'Retry-After' => '0' }, 'busy'], [200, { 'content-type' => 'application/json' }, '{}']], seen)
+
+    hooked_call(hooked_api(hook, client))
+
+    _(seen.length).must_equal 2
+    _(seen.map { |headers| headers['X-Hook'] }).must_equal %w[set set]
+  end
+
+  it 'bhv_hooks_006 sends a header the hook sets on the replay after a 401' do
+    client = ReplayApiClient.new([401, 200])
+    auth = client_credentials_auth
+    auth.api_client = client
+    hook = RecordingCallHook.new { |headers| headers['X-Hook'] = 'set' }
+
+    hooked_call(hooked_api(hook, client, auth), method: :post, path: '/items')
+
+    _(client.api_requests.map { |request| request[:headers]['X-Hook'] }).must_equal %w[set set]
+  end
+
+  it 'bhv_hooks_007 lets the fresh credentials of a replay replace a hook header of the same name' do
+    client = ReplayApiClient.new([401, 200])
+    auth = client_credentials_auth
+    auth.api_client = client
+    hook = RecordingCallHook.new { |headers| headers['Authorization'] = 'Bearer hook' }
+
+    hooked_call(hooked_api(hook, client, auth), method: :post, path: '/items')
+
+    _(client.api_requests.map { |request| request[:headers]['Authorization'] }).must_equal ['Bearer hook', 'Bearer tok2']
+  end
+
+  it 'bhv_hooks_008 starts and finishes once for a call the transport retries' do
+    seen = []
+    hook = RecordingCallHook.new
+    client = retrying_client([[503, { 'Retry-After' => '0' }, 'busy'], [200, { 'content-type' => 'application/json' }, '{}']], seen)
+
+    hooked_call(hooked_api(hook, client))
+
+    _(seen.length).must_equal 2
+    _(hook.infos.length).must_equal 1
+    _(hook.outcomes.length).must_equal 1
+    _(hook.outcomes.first.status_code).must_equal 200
+  end
+
+  it 'bhv_hooks_010 runs the hook when the caller supplied the transport' do
+    seen = []
+    hook = RecordingCallHook.new { |headers| headers['X-Hook'] = 'set' }
+    client = retrying_client([[200, { 'content-type' => 'application/json' }, '{}']], seen)
+
+    hooked_call(hooked_api(hook, client))
+
+    _(hook.infos.length).must_equal 1
+    _(seen.first['X-Hook']).must_equal 'set'
+  end
+
+  it 'bhv_hooks_011 gives finish the status, the lower-cased headers and no error on a 2xx' do
+    hook = RecordingCallHook.new
+    client = FixedResponseApiClient.new(json_response(200, { 'X-Trace' => 'abc' }))
+
+    hooked_call(hooked_api(hook, client))
+
+    outcome = hook.outcomes.first
+    _(outcome.status_code).must_equal 200
+    _(outcome.headers).must_equal({ 'content-type' => 'application/json', 'x-trace' => 'abc' })
+    _(outcome.headers).must_be :frozen?
+    _(outcome.error).must_be_nil
+  end
+
+  it 'bhv_hooks_012 gives finish the status, the headers and the typed error the caller gets on a non-2xx' do
+    hook = RecordingCallHook.new
+    client = FixedResponseApiClient.new(json_response(404, { 'X-Trace' => 'abc' }))
+
+    err = assert_raises(Petstore::Client::Errors::NotFoundError) { hooked_call(hooked_api(hook, client)) }
+
+    outcome = hook.outcomes.first
+    _(outcome.status_code).must_equal 404
+    _(outcome.headers['x-trace']).must_equal 'abc'
+    _(outcome.error).must_be_same_as err
+  end
+
+  it 'bhv_hooks_013 gives finish status 0, no headers and the network error when no response arrived' do
+    hook = RecordingCallHook.new
+
+    err = assert_raises(Petstore::Client::Errors::NetworkError) { hooked_call(hooked_api(hook, RaisingApiClient.new)) }
+
+    outcome = hook.outcomes.first
+    _(outcome.status_code).must_equal 0
+    _(outcome.headers).must_be_nil
+    _(outcome.error).must_be_same_as err
+  end
+
+  it 'bhv_hooks_014 gives finish the timeout error when the budget is exhausted' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/items/7') { raise Faraday::TimeoutError }
+    end
+    connection = Faraday.new('https://api.example.com') { |f| f.adapter :test, stubs }
+    transport = Petstore::Client::TransportOptions.builder.connection(connection).max_retries(0).build
+    hook = RecordingCallHook.new
+
+    err = assert_raises(Petstore::Client::Errors::NetworkTimeoutError) do
+      hooked_call(hooked_api(hook, Petstore::Client::DefaultApiClient.new(transport)))
+    end
+
+    _(hook.outcomes.first.error).must_be_same_as err
+    _(hook.outcomes.first.status_code).must_equal 0
+  end
+
+  it 'bhv_hooks_015 gives finish the cancellation and rethrows it, never as the timeout error' do
+    hook = RecordingCallHook.new
+
+    err = assert_raises(Interrupt) { hooked_call(hooked_api(hook, InterruptingApiClient.new)) }
+
+    _(hook.outcomes.length).must_equal 1
+    _(hook.outcomes.first.error).must_be_same_as err
+    _(hook.outcomes.first.error).wont_be_kind_of Petstore::Client::Errors::NetworkTimeoutError
+  end
+
+  it 'bhv_hooks_016 gives finish the serialization error with the status that arrived' do
+    hook = RecordingCallHook.new
+    response = Petstore::Client::ApiHttpResponse.new(
+      status_code: 200, body: 'not json', headers: { 'Content-Type' => 'text/plain', 'X-Trace' => 'abc' }
+    )
+
+    err = assert_raises(Petstore::Client::Errors::SerializationError) do
+      hooked_call(hooked_api(hook, FixedResponseApiClient.new(response)), return_type: 'Object')
+    end
+
+    outcome = hook.outcomes.first
+    _(outcome.status_code).must_equal 200
+    _(outcome.headers['x-trace']).must_equal 'abc'
+    _(outcome.error).must_be_same_as err
+  end
+
+  it 'bhv_hooks_017 finishes when the request body cannot be encoded and sends nothing' do
+    client = CapturingApiClient.new
+    hook = RecordingCallHook.new
+
+    err = assert_raises(Petstore::Client::Errors::SerializationError) do
+      hooked_call(hooked_api(hook, client), method: :post, body: { 'n' => Float::NAN })
+    end
+
+    _(client.captured_url).must_be_nil
+    _(hook.outcomes.length).must_equal 1
+    _(hook.outcomes.first.error).must_be_same_as err
+    _(hook.outcomes.first.status_code).must_equal 0
+  end
+
+  it 'bhv_hooks_018 lets an error from start reach the caller, sends nothing and never finishes' do
+    client = CapturingApiClient.new
+    refusal = RuntimeError.new('refused by the hook')
+    hook = RecordingCallHook.new { |_headers| raise refusal }
+
+    err = assert_raises(RuntimeError) { hooked_call(hooked_api(hook, client)) }
+
+    _(err).must_be_same_as refusal
+    _(client.captured_url).must_be_nil
+    _(hook.outcomes).must_be_empty
+  end
+
+  it 'bhv_hooks_019 swallows an error from finish and returns the result or the error of the call' do
+    hook = Object.new
+    hook.define_singleton_method(:start) { |_info, _headers| FailingCallObserver.new }
+
+    result = hooked_call(hooked_api(hook))
+    _(result.status_code).must_equal 200
+
+    client = FixedResponseApiClient.new(json_response(404))
+    assert_raises(Petstore::Client::Errors::NotFoundError) { hooked_call(hooked_api(hook, client)) }
+  end
+
+  it 'bhv_hooks_021 gives the hook a url without the query string or the fragment' do
+    hook = RecordingCallHook.new
+
+    hooked_call(hooked_api(hook), path: '/items/7#section', query: { 'token' => 'secret', 'a' => '1' })
+
+    _(hook.infos.first.url).must_equal 'https://api.example.com/items/7'
+  end
+
+  it 'lets a hook delete a header, keeping it deleted on a transport retry' do
+    seen = []
+    hook = RecordingCallHook.new { |headers| headers.delete('Accept') }
+    client = retrying_client([[503, { 'Retry-After' => '0' }, 'busy'], [200, { 'content-type' => 'application/json' }, '{}']], seen)
+
+    hooked_call(hooked_api(hook, client))
+
+    _(seen.length).must_equal 2
+    _(seen.map { |headers| headers.key?('Accept') }).must_equal [false, false]
+  end
+
+  it 'falls back to the operation name and the request path when the call names no spec operation' do
+    hook = RecordingCallHook.new
+
+    hooked_api(hook).call_for_result(:get, '/items/7', {}, {}, nil, ['application/json'], 'application/json', nil,
+                                     operation_id: 'ItemApi.get_item')
+
+    _(hook.infos.first.operation_id).must_equal 'ItemApi.get_item'
+    _(hook.infos.first.url_template).must_equal '/items/7'
   end
 end

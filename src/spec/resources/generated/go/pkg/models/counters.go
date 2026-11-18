@@ -66,7 +66,9 @@ func (o Counters) WithAdditionalProperties(value map[string]int32) Counters {
 
 // NewCounters creates a new Counters instance.
 func NewCounters() *Counters {
-	return &Counters{}
+	return &Counters{
+		AdditionalProperties: make(map[string]any),
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

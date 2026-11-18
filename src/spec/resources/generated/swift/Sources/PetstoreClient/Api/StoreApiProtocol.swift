@@ -37,6 +37,10 @@ public protocol StoreApiProtocol: Sendable {
   >
   func getMatrix(options: GetMatrixOptions?) async throws -> [[Int]]
   func getMatrixWithHTTPInfo(options: GetMatrixOptions?) async throws -> ApiResult<[[Int]]>
+  func getNativeValues(options: GetNativeValuesOptions?) async throws -> NativeValues
+  func getNativeValuesWithHTTPInfo(options: GetNativeValuesOptions?) async throws -> ApiResult<
+    NativeValues
+  >
   func getOrderById(orderId: Int64, options: GetOrderByIdOptions?) async throws -> Order
   func getOrderByIdWithHTTPInfo(orderId: Int64, options: GetOrderByIdOptions?) async throws
     -> ApiResult<Order>
@@ -149,6 +153,16 @@ extension StoreApiProtocol {
   /// The `getMatrixWithHTTPInfo` operation with every optional parameter left out.
   public func getMatrixWithHTTPInfo() async throws -> ApiResult<[[Int]]> {
     try await getMatrixWithHTTPInfo(options: nil)
+  }
+
+  /// The `getNativeValues` operation with every optional parameter left out.
+  public func getNativeValues() async throws -> NativeValues {
+    try await getNativeValues(options: nil)
+  }
+
+  /// The `getNativeValuesWithHTTPInfo` operation with every optional parameter left out.
+  public func getNativeValuesWithHTTPInfo() async throws -> ApiResult<NativeValues> {
+    try await getNativeValuesWithHTTPInfo(options: nil)
   }
 
   /// The `getOrderById` operation with every optional parameter left out.

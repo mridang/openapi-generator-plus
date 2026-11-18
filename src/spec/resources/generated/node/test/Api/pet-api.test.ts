@@ -1536,25 +1536,25 @@ describe("PetApi against a recording client", () => {
     );
   });
 
-  test("bhv operations 125 getPetByNote sends a null required nullable query parameter as an empty value", async () => {
+  test("bhv operations 157 getPetByNote sends a null required nullable query parameter as an empty value", async () => {
     await recordingApi.getPetByNote({ note: null, rank: 3 });
 
     expect(new URL(recorded[0]!.url).search).toBe("?note=&rank=3");
   });
 
-  test("bhv operations 126 getPetByNote sends every null required nullable query parameter in declaration order", async () => {
+  test("bhv operations 158 getPetByNote sends every null required nullable query parameter in declaration order", async () => {
     await recordingApi.getPetByNote({ note: null, rank: null });
 
     expect(new URL(recorded[0]!.url).search).toBe("?note=&rank=");
   });
 
-  test("bhv operations 127 getPetByNote sends a non-null required nullable query parameter with its value", async () => {
+  test("bhv operations 159 getPetByNote sends a non-null required nullable query parameter with its value", async () => {
     await recordingApi.getPetByNote({ note: "a b", rank: 3 });
 
     expect(new URL(recorded[0]!.url).search).toBe("?note=a%20b&rank=3");
   });
 
-  test("bhv operations 128 getPetByName refuses a null required query parameter that is not nullable", async () => {
+  test("bhv operations 125 getPetByName refuses a null required query parameter that is not nullable", async () => {
     const error = await recordingApi
       .getPetByName("x", {
         category: null,

@@ -1390,6 +1390,8 @@ class PetApi extends BaseApi implements PetApiInterface
             headers: $options->headers,
             maxRetries: $options->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetByNote',
+            urlTemplate: '/pet/byNote',
         );
         return $result;
     }

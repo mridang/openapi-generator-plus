@@ -1182,7 +1182,7 @@ final class PetApiTests {
   }
 
   @Test
-  func testBhvOperations125GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue()
+  func testBhvOperations157GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue()
     async throws
   {
     let mockClient = MockApiClient()
@@ -1198,7 +1198,7 @@ final class PetApiTests {
 
   @Test
   func
-    testBhvOperations126GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
+    testBhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
     async throws
   {
     let mockClient = MockApiClient()
@@ -1213,7 +1213,7 @@ final class PetApiTests {
   }
 
   @Test
-  func testBhvOperations127GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
+  func testBhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
     async throws
   {
     let mockClient = MockApiClient()
@@ -2074,6 +2074,23 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     var parts: [String] = []
     parts.append(String(describing: name))
     var call = "getPetByNameWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet {
+    var parts: [String] = []
+    var call = "getPetByNote(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
+  {
+    var parts: [String] = []
+    var call = "getPetByNoteWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
     throw NotFoundError(message: "missing")

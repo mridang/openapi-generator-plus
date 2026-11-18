@@ -550,6 +550,8 @@ class ClientTest {
         assertTrue("getPetByIdWithHttpInfo" in petListed)
         assertTrue("getPetByName" in petListed)
         assertTrue("getPetByNameWithHttpInfo" in petListed)
+        assertTrue("getPetByNote" in petListed)
+        assertTrue("getPetByNoteWithHttpInfo" in petListed)
         assertTrue("getPetPassport" in petListed)
         assertTrue("getPetPassportWithHttpInfo" in petListed)
         assertTrue("getPetPhoto" in petListed)
@@ -612,6 +614,8 @@ class ClientTest {
         assertTrue("getInventoryWithHttpInfo" in storeListed)
         assertTrue("getMatrix" in storeListed)
         assertTrue("getMatrixWithHttpInfo" in storeListed)
+        assertTrue("getNativeValues" in storeListed)
+        assertTrue("getNativeValuesWithHttpInfo" in storeListed)
         assertTrue("getOrderById" in storeListed)
         assertTrue("getOrderByIdWithHttpInfo" in storeListed)
         assertTrue("getOrderByTrackingId" in storeListed)
@@ -721,5 +725,52 @@ class ClientTest {
         fake.close()
         fake.close()
         assertEquals(2, closed)
+    }
+
+    @Test
+    @DisplayName("bhvHooks010 a hook set on the client still fires when the caller supplied the transport")
+    fun aHookFiresWithASuppliedTransport() {
+        val custom =
+            HttpClient(
+                MockEngine {
+                    respond(
+                        "{\"name\":\"n\",\"photoUrls\":[]}",
+                        HttpStatusCode.OK,
+                        io.ktor.http.headersOf("Content-Type", "application/json"),
+                    )
+                },
+            )
+        val starts = mutableListOf<CallInfo>()
+        val finishes = mutableListOf<CallOutcome>()
+        val hook =
+            CallHook { info, _ ->
+                starts.add(info)
+                CallObserver { finishes.add(it) }
+            }
+        val client = Client(authenticator, TransportOptions.builder().httpClient(custom).build(), hook)
+
+        runBlocking { client.pet.getPetById(1L) }
+
+        assertEquals(listOf("getPetById"), starts.map { it.operationId })
+        assertEquals(listOf(200), finishes.map { it.statusCode })
+        client.close()
+        custom.close()
+    }
+
+    @Test
+    @DisplayName("the factories hand the hook to every API group")
+    fun theFactoriesHandOverTheHook() {
+        val starts = mutableListOf<CallInfo>()
+        val hook =
+            CallHook { info, _ ->
+                starts.add(info)
+                null
+            }
+        val custom = HttpClient(MockEngine { respond("{}", HttpStatusCode.OK, io.ktor.http.headersOf("Content-Type", "application/json")) })
+        val transport = TransportOptions.builder().httpClient(custom).build()
+        runCatching { runBlocking { Client.withToken("/api/v3", "t", transport, hook).pet.getPetById(1L) } }
+        runCatching { runBlocking { Client.withAuthenticator(authenticator, transport, hook).pet.getPetById(1L) } }
+        assertEquals(2, starts.size)
+        custom.close()
     }
 }

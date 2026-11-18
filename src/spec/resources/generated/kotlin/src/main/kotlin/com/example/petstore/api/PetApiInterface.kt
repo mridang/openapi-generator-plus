@@ -23,6 +23,7 @@ import com.example.petstore.api.options.GetPetAvatarOptions
 import com.example.petstore.api.options.GetPetAvatarThumbnailOptions
 import com.example.petstore.api.options.GetPetByIdOptions
 import com.example.petstore.api.options.GetPetByNameOptions
+import com.example.petstore.api.options.GetPetByNoteOptions
 import com.example.petstore.api.options.GetPetPassportOptions
 import com.example.petstore.api.options.GetPetPhotoOptions
 import com.example.petstore.api.options.GetPetSummaryOptions
@@ -251,6 +252,12 @@ interface PetApiInterface {
         name: String,
         options: GetPetByNameOptions,
     ): ApiResult<Pet>
+
+    /** The `getPetByNote` operation. */
+    suspend fun getPetByNote(options: GetPetByNoteOptions): Pet
+
+    /** The `getPetByNote` operation with its status code, headers and body. */
+    suspend fun getPetByNoteWithHttpInfo(options: GetPetByNoteOptions): ApiResult<Pet>
 
     /** The `getPetPassport` operation. */
     suspend fun getPetPassport(

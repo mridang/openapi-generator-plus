@@ -22,6 +22,7 @@ import com.example.petstore.api.options.GetPetAvatarOptions;
 import com.example.petstore.api.options.GetPetAvatarThumbnailOptions;
 import com.example.petstore.api.options.GetPetByIdOptions;
 import com.example.petstore.api.options.GetPetByNameOptions;
+import com.example.petstore.api.options.GetPetByNoteOptions;
 import com.example.petstore.api.options.GetPetPassportOptions;
 import com.example.petstore.api.options.GetPetPhotoOptions;
 import com.example.petstore.api.options.GetPetSummaryOptions;
@@ -814,6 +815,24 @@ public interface PetApiInterface {
    * @throws ApiException if fails to make API call
    */
   ApiResult<Pet> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options);
+
+  /**
+   * Look up a pet by note (required query parameters whose value may be null)
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  Pet getPetByNote(GetPetByNoteOptions options);
+
+  /**
+   * Look up a pet by note (required query parameters whose value may be null)
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Pet> getPetByNoteWithHttpInfo(GetPetByNoteOptions options);
 
   /**
    * Get the pet's passport

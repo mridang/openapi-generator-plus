@@ -16,6 +16,8 @@ public class MetadataTest
 {
     private readonly ObjectSerializer _serializer = new();
 
+    private static object? NoObject() => null;
+
     [Fact]
     public void BhvModels008SerializesEmptyMetadata()
     {
@@ -77,7 +79,7 @@ public class MetadataTest
     {
         var metadata = new Metadata
         {
-            AdditionalProperties = new Dictionary<string, object>
+            AdditionalProperties = new Dictionary<string, string>
             {
                 ["customField"] = "hello",
                 ["anotherField"] = "world",
@@ -91,13 +93,84 @@ public class MetadataTest
     }
 
     [Fact]
-    public void BhvModels009AdditionalPropertiesContainStringValues()
+    public void BhvModels009AdditionalPropertiesAreAStringKeyedMapOfTheValueType()
     {
-        var metadata = new Metadata
-        {
-            AdditionalProperties = new Dictionary<string, object> { ["key"] = "value" },
-        };
-        Assert.Equal("value", metadata.AdditionalProperties["key"]);
+        var metadata = _serializer.Deserialize<Metadata>("{\"key\":\"value\"}");
+
+        Dictionary<string, string> extras = metadata!.AdditionalProperties;
+        Assert.Equal("value", extras["key"]);
+    }
+
+    [Theory]
+    [InlineData("{\"a\":2.5}")]
+    [InlineData("{\"a\":\"2\"}")]
+    [InlineData("{\"a\":3000000000}")]
+    public void BhvModels025AnAdditionalPropertyOfTheWrongJsonTypeFailsTheDecode(string body)
+    {
+        Assert.Throws<PetstoreClient.Errors.SerializationException>(() =>
+            _serializer.Deserialize<Counters>(body)
+        );
+        Assert.Throws<PetstoreClient.Errors.SerializationException>(() =>
+            _serializer.Deserialize<Metadata>("{\"a\":3}")
+        );
+    }
+
+    [Fact]
+    public void BhvModels026AnAdditionalPropertyWhoseValueTypeIsAModelDecodesToThatModel()
+    {
+        var roster = _serializer.Deserialize<Roster>(
+            "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}"
+        );
+
+        Category category = roster!.AdditionalProperties["a"];
+        Assert.Equal(1L, category.Id);
+        Assert.Equal("x", category.Name);
+        Assert.Throws<PetstoreClient.Errors.SerializationException>(() =>
+            _serializer.Deserialize<Roster>("{\"a\":{\"id\":\"x\"}}")
+        );
+    }
+
+    [Fact]
+    public void BhvModels027ANullAdditionalPropertyIsRejectedUnlessTheValueSchemaIsNullable()
+    {
+        Assert.Throws<PetstoreClient.Errors.SerializationException>(() =>
+            _serializer.Deserialize<Counters>("{\"a\":null}")
+        );
+        var sparse = _serializer.Deserialize<Sparse>("{\"a\":null}");
+
+        Assert.True(sparse!.AdditionalProperties.ContainsKey("a"));
+        Assert.Null(sparse.AdditionalProperties["a"]);
+    }
+
+    [Fact]
+    public void BhvModels028ATypedAdditionalPropertyIsWrittenFlatInItsWireForm()
+    {
+        var moments = _serializer.Deserialize<Moments>(
+            "{\"label\":\"l\",\"at\":\"2024-01-01T00:00:00Z\"}"
+        );
+        var json = _serializer.Serialize(moments);
+
+        Assert.StartsWith(
+            "{\"label\":\"l\",\"at\":\"2024-01-01T00:00:00",
+            json,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(moments, _serializer.Deserialize<Moments>(json));
+
+        var blobs = _serializer.Deserialize<Blobs>("{\"b\":\"aGk=\"}");
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes("hi"), blobs!.AdditionalProperties["b"]);
+        Assert.Equal("{\"b\":\"aGk=\"}", _serializer.Serialize(blobs));
+    }
+
+    [Fact]
+    public void BhvModels029AFreeFormAdditionalPropertiesKeepsEveryJsonValueAsItArrives()
+    {
+        var freeform = _serializer.Deserialize<Freeform>(
+            "{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}"
+        );
+
+        Assert.Equal(4, freeform!.AdditionalProperties.Count);
+        Assert.True(freeform.AdditionalProperties.ContainsKey("d"));
     }
 
     [Fact]
@@ -361,15 +434,15 @@ public class MetadataTest
         var plain = new Metadata();
         var withExtra = new Metadata
         {
-            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "hello" },
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
         };
         var sameExtra = new Metadata
         {
-            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "hello" },
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
         };
         var otherValue = new Metadata
         {
-            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "world" },
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "world" },
         };
 
         Assert.NotEqual(plain, withExtra);
@@ -378,12 +451,41 @@ public class MetadataTest
         Assert.Equal(withExtra.GetHashCode(), sameExtra.GetHashCode());
     }
 
+    private static object? NoObject() => null;
+
+    [Fact]
+    public void BhvEquality001SameValuesAreEqualAndANestedChangeIsNot()
+    {
+        var created = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
+        var left = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
+        };
+        var right = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
+        };
+        var nestedChange = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "world" },
+        };
+
+        Assert.Equal(left, right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        Assert.NotEqual(left, nestedChange);
+        Assert.False(left.Equals(new Tag()));
+        Assert.False(left.Equals((new object?[1])[0]));
+    }
+
     [Fact]
     public void BhvModels012ToStringRendersAdditionalPropertiesEntries()
     {
         var metadata = new Metadata
         {
-            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "hello" },
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
         };
 
         var text = metadata.ToString();
@@ -397,7 +499,7 @@ public class MetadataTest
         var metadata = new Metadata
         {
             CreatedAt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero),
-            AdditionalProperties = new Dictionary<string, object>
+            AdditionalProperties = new Dictionary<string, string>
             {
                 ["createdAt"] = "x",
                 ["extra"] = "y",

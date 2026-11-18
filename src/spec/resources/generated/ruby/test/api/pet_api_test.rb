@@ -186,7 +186,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_by_note required nullable query on the wire' do
-    it 'bhv_operations_125 sends a null required nullable query parameter as an empty value' do
+    it 'bhv_operations_157 sends a null required nullable query parameter as an empty value' do
       api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
       begin
         api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: nil, rank: 3))
@@ -197,7 +197,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'bhv_operations_126 sends every null required nullable query parameter in declaration order' do
+    it 'bhv_operations_158 sends every null required nullable query parameter in declaration order' do
       api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
       begin
         api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: nil, rank: nil))
@@ -208,7 +208,7 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'bhv_operations_127 sends a non-null required nullable query parameter with its value' do
+    it 'bhv_operations_159 sends a non-null required nullable query parameter with its value' do
       api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
       begin
         api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: 'a b', rank: 3))
@@ -221,7 +221,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_by_name required query that is not nullable' do
-    it 'bhv_operations_128 refuses a null required query parameter before sending' do
+    it 'bhv_operations_125 refuses a null required query parameter before sending' do
       client = RecordingPetClient.new
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1955,5 +1955,40 @@ describe Petstore::Client::Api::PetApi do
     look_up(fake, 7)
 
     _(fake.calls).must_equal [[7, nil, nil]]
+  end
+
+  # The call hook is told the operation as the spec writes it, whichever of the
+  # two variants of an operation the caller uses.
+  describe 'call hook' do
+    def hooked_pet_api(hook)
+      config = Petstore::Client::Configuration.builder.base_url('http://127.0.0.1:1').call_hook(hook).build
+      Petstore::Client::Api::PetApi.new(RecordingPetClient.new(body: '[]'), config)
+    end
+
+    it 'bhv_hooks_009 starts and finishes the hook once for each of the plain and the WithHttpInfo variant' do
+      hook = RecordingCallHook.new
+      api = hooked_pet_api(hook)
+
+      api.find_pets_by_status
+      _(hook.infos.length).must_equal 1
+      _(hook.outcomes.length).must_equal 1
+
+      api.find_pets_by_status_with_http_info
+      _(hook.infos.length).must_equal 2
+      _(hook.outcomes.length).must_equal 2
+    end
+
+    it 'bhv_hooks_002 names the operation as the spec writes it and gives its path template' do
+      hook = RecordingCallHook.new
+
+      hooked_pet_api(hook).find_pets_by_status
+
+      info = hook.infos.first
+      _(info.operation_id).must_equal 'findPetsByStatus'
+      _(info.http_method).must_equal 'GET'
+      _(info.url_template).must_equal '/pet/findByStatus'
+      _(info.url).must_equal 'http://127.0.0.1:1/pet/findByStatus'
+      _(hook.outcomes.first.status_code).must_equal 200
+    end
   end
 end

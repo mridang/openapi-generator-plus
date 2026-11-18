@@ -419,6 +419,20 @@ class PetApiProtocol(Protocol):
         """The ``get_pet_by_name`` operation with its status code, headers and body."""
         ...
 
+    async def get_pet_by_note(
+        self,
+        options: GetPetByNoteOptions,
+    ) -> Pet:
+        """The ``get_pet_by_note`` operation."""
+        ...
+
+    async def get_pet_by_note_with_http_info(
+        self,
+        options: GetPetByNoteOptions,
+    ) -> "ApiResult[Pet]":
+        """The ``get_pet_by_note`` operation with its status code, headers and body."""
+        ...
+
     async def get_pet_passport(
         self,
         pet_id: StrictInt,
@@ -1915,6 +1929,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_by_note",
+            operation_id="getPetByNote",
+            url_template="/pet/byNote",
             request_options=options,
         )
 
