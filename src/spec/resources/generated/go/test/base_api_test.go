@@ -1671,7 +1671,7 @@ func TestBhvOperations136_BaseApi_NullResponseBody_ConvenienceReturnsEmptyBodyEr
 	}
 }
 
-func TestBaseApi_NullResponseBody_WithHTTPInfoReportsNilData(t *testing.T) {
+func TestBhvMisc006_BaseApi_NullResponseBody_WithHTTPInfoReportsNilData(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        " null\n",

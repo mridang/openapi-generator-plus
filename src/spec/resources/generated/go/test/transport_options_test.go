@@ -1010,3 +1010,22 @@ func TestBhvLifecycle041_TransportOptions_ASuppliedTransportRejectsSdkProxyAndTl
 		}
 	}
 }
+
+// Configuring a proxy with a SOCKS scheme fails at construction with the documented error.
+func TestBhvOptions068_TransportOptions_ASocksProxyIsRefusedAtConstruction(t *testing.T) {
+	t.Parallel()
+	_, err := petstore.NewTransportOptionsBuilder().Proxy("socks5://proxy.example.com:1080").Build()
+	if !errors.Is(err, petstore.ErrInvalidProxyURL) {
+		t.Errorf("expected ErrInvalidProxyURL for a SOCKS proxy, got %v", err)
+	}
+}
+
+// A CA certificate path that does not exist fails with an error that names the certificate and wraps the not-found cause.
+func TestBhvErrors098_TransportOptions_AMissingCaCertificateNamesThePathAndWrapsTheCause(t *testing.T) {
+	t.Parallel()
+	path := "/nonexistent/ca-certificate.pem"
+	_, err := petstore.NewTransportOptionsBuilder().CACertPath(path).Build()
+	if err == nil || !strings.Contains(err.Error(), path) || !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected an error naming the path and wrapping not-found, got %v", err)
+	}
+}

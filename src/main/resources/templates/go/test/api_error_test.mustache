@@ -1483,3 +1483,37 @@ func TestBhvErrors096_FromResponse_AStatusOutsideItsClassFallsBackToTheBase(t *t
 		}
 	}
 }
+
+// An unrecognised 4xx status raises the generic client error.
+func TestBhvErrors097_FromResponse_AnUnrecognisedClientStatusIsTheGenericClientError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(499, map[string]string{}, "{}")
+	var client *apierrors.ClientError
+	if !errors.As(err, &client) {
+		t.Errorf("expected the generic ClientError for an unrecognised 4xx, got %T: %v", err, err)
+	}
+}
+
+// A typed view of an error body that is valid JSON but not an object is refused with a serialization error.
+func TestBhvMisc015_ApiError_ANonObjectErrorBodyIsRefusedWithASerializationError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(400, "bad", `[1,2]`, nil, nil, nil)
+	var target struct {
+		Code string `json:"code"`
+	}
+	typed := err.GetTypedErrorBody(&target)
+	var serErr *apierrors.SerializationError
+	if !errors.As(typed, &serErr) {
+		t.Errorf("expected a SerializationError for a non-object body, got %T: %v", typed, typed)
+	}
+}
+
+// The rendered form of an error body shows at most a fixed number of characters and states how many bytes were omitted.
+func TestBhvMisc016_ApiError_ALongBodyIsTruncatedWithTheOmittedCount(t *testing.T) {
+	t.Parallel()
+	body := strings.Repeat("x", 5000)
+	rendered := apierrors.NewApiError(500, "boom", body, nil, nil, nil).Error()
+	if len(rendered) >= 2000 || !strings.Contains(rendered, "more bytes") {
+		t.Errorf("expected a bounded rendering that states the omitted bytes, got %d characters", len(rendered))
+	}
+}

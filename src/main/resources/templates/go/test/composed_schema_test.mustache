@@ -820,7 +820,7 @@ func TestComposedSchema_PetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing
 	}
 }
 
-func TestComposedSchema_PetTreatment_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
+func TestBhvUnions044_ComposedSchema_PetTreatment_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
 	t.Parallel()
 	drug := "Amoxicillin"
 	treatment := models.NewMedicationPetTreatment(models.Medication{DrugName: drug})
@@ -957,6 +957,37 @@ func TestBhvUnions042_ComposedSchema_PetFood_EmptyWrapperHoldsNoInstance(t *test
 		}
 		if union.ActualInstance() != nil {
 			t.Errorf("%s: expected a nil instance, got %v", name, union.ActualInstance())
+		}
+	}
+}
+
+// Two union values built from the same data compare equal, whether built by a factory or a constructor.
+func TestBhvUnions045_ComposedSchema_EqualBuildsCompareEqual(t *testing.T) {
+	t.Parallel()
+	a := models.NewMedicationPetTreatment(models.Medication{})
+	b := models.NewPetTreatment(models.Medication{})
+	if !a.Equal(b) {
+		t.Errorf("expected the same data to compare equal, got %+v and %+v", a, b)
+	}
+}
+
+// When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched.
+func TestBhvUnions046_ComposedSchema_EveryMatchingVariantReportsItself(t *testing.T) {
+	t.Parallel()
+	treatment := models.NewPetTreatment(models.Medication{}, models.Surgery{})
+	if !treatment.IsMedication() || !treatment.IsSurgery() || len(treatment.MatchedInstances()) != 2 {
+		t.Errorf("expected both matching variants to report themselves, got %v", treatment.MatchedInstances())
+	}
+}
+
+// A discriminator value that is not one of the listed mapping names, including an empty value, raises an error.
+func TestBhvUnions047_ComposedSchema_AnUnlistedDiscriminatorValueIsAnError(t *testing.T) {
+	t.Parallel()
+	for _, payload := range []string{`{"shapeType":"triangle"}`, `{"shapeType":""}`} {
+		var shape models.Shape
+		err := json.Unmarshal([]byte(payload), &shape)
+		if err == nil || !strings.Contains(err.Error(), "discriminator") {
+			t.Errorf("%s: expected a discriminator error, got %v", payload, err)
 		}
 	}
 }
