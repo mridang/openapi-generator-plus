@@ -48,7 +48,7 @@ describe("ApiKeyAuthenticator", () => {
     expect(auth.getQueryParams()).toEqual({});
   });
 
-  it("a scheme-specific subclass prints its own class name", () => {
+  it("bhv auth 016 a scheme-specific subclass prints its own class name", () => {
     class PetStoreApiKeyAuthenticator extends ApiKeyAuthenticator {}
     const auth = new PetStoreApiKeyAuthenticator(
       "https://api.example.com",

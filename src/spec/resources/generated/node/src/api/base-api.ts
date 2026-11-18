@@ -538,9 +538,9 @@ export abstract class BaseApi {
     requestOptions: RequestOptions | undefined,
   ): void {
     const timeout = requestOptions?.timeout;
-    if (timeout !== undefined && timeout !== null && !(timeout > 0)) {
+    if (timeout !== undefined && timeout !== null && !(timeout >= 1)) {
       throw new TypeError(
-        `Invalid timeout: must be a positive number of milliseconds (got ${timeout})`,
+        `Invalid timeout: must be at least one millisecond (got ${timeout})`,
       );
     }
     const maxRetries = requestOptions?.maxRetries;

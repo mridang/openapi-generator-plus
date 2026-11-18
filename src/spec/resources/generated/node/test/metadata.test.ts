@@ -255,7 +255,7 @@ describe("Metadata", () => {
       expect(metadata.additionalProperties).toEqual({ foo: 1 });
     });
 
-    test("is an empty record, never undefined, when there are no extras", () => {
+    test("bhv models 013 is an empty record, never undefined, when there are no extras", () => {
       const metadata = new Metadata({
         createdAt: new Date("2024-01-01T00:00:00Z"),
       });

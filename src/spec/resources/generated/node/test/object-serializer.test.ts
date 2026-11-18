@@ -1747,7 +1747,7 @@ describe("ObjectSerializer", () => {
       expect(parsed.volumeMl).toBe(350);
     });
 
-    test("caller-supplied discriminator overrides the default", () => {
+    test("bhv unions 043 caller-supplied discriminator overrides the default", () => {
       const dry = new DryFood({ foodType: "custom", weightKg: 1 });
       const json = ObjectSerializer.serialize(dry);
       const parsed = JSON.parse(json);
@@ -2779,7 +2779,7 @@ describe("model with (copy)", () => {
     expect(copy.equals(original)).toBe(true);
   });
 
-  test("a field can be cleared with undefined", () => {
+  test("bhv models 017 a field can be cleared with undefined", () => {
     expect(
       new Category({ id: 1, name: "Dogs" }).with({ name: undefined }).name,
     ).toBeUndefined();
@@ -2806,7 +2806,7 @@ describe("model with (copy)", () => {
     expect(pet.with({ name: "Rex" }).category).toBe(category);
   });
 
-  test("free-form keys of a model declaring additionalProperties survive the copy", () => {
+  test("bhv models 015 free-form keys of a model declaring additionalProperties survive the copy", () => {
     const metadata = new Metadata({ region: "eu" } as Partial<Metadata>);
     const copy = metadata.with({});
 
@@ -2953,7 +2953,7 @@ describe("format: double decode", () => {
 describe("model value-equality", () => {
   // node-model-equality: generated models expose a value-based equals(),
   // matching the value-equality the other SDKs provide.
-  test("structurally identical scalar models are equal", () => {
+  test("bhv models 020 structurally identical scalar models are equal", () => {
     const a = new Category({ id: 1, name: "Dogs" });
     const b = new Category({ id: 1, name: "Dogs" });
     expect(a.equals(b)).toBe(true);
@@ -2965,14 +2965,14 @@ describe("model value-equality", () => {
     expect(a.equals(a)).toBe(true);
   });
 
-  test("models differing in a single field are not equal", () => {
+  test("bhv models 019 models differing in a single field are not equal", () => {
     const a = new Category({ id: 1, name: "Dogs" });
     const b = new Category({ id: 1, name: "Cats" });
     expect(a.equals(b)).toBe(false);
     expect(b.equals(a)).toBe(false);
   });
 
-  test("Decimal fields compare by numeric value, not by scale", () => {
+  test("bhv models 018 Decimal fields compare by numeric value, not by scale", () => {
     const photoUrls = new Set(["u"]);
     const a = new Pet({
       name: "x",
