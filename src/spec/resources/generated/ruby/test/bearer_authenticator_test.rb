@@ -13,6 +13,14 @@ require 'petstore_client'
 describe Petstore::Client::Auth::BearerAuthenticator do
   parallelize_me!
 
+  it 'bhv_misc_017 a rejected credential is refused without echoing the value' do
+    secret = 'bad-token-value-42'
+    err = assert_raises(ArgumentError) do
+      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "bad\n#{secret}")
+    end
+    _(err.message).wont_include secret
+  end
+
   it 'bhv_authbearer_009 raw token is prefixed with Bearer' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'xyz')
     headers = auth.auth_headers

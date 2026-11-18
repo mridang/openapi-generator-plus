@@ -1133,3 +1133,54 @@ async fn test_bhv_unions_036_the_status_selects_the_variant_and_a_body_that_does
         err
     );
 }
+
+#[tokio::test]
+async fn test_bhv_misc_009_an_operation_called_without_options_sends_no_per_call_headers() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    let _ = api.place_order(Some(Order::new()), None).await;
+
+    assert_eq!(
+        client.headers.lock().unwrap().get("X-Trace-Id"),
+        None,
+        "no per-call header may be sent without an options object"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_011_an_options_object_for_an_operation_without_parameters_is_accepted() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = GetInventoryOptions::new()
+        .header("X-Trace-Id", "per-call")
+        .timeout(std::time::Duration::from_secs(5))
+        .max_retries(0);
+
+    let _ = api.get_inventory(Some(&opts)).await;
+
+    assert_eq!(
+        client
+            .headers
+            .lock()
+            .unwrap()
+            .get("X-Trace-Id")
+            .map(|s| s.as_str()),
+        Some("per-call"),
+        "the options header must reach an operation with no parameters"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_013_an_operation_without_parameters_is_called_with_no_argument_and_returns_its_result(
+) {
+    let api = new_store_api_for_mock(200, "application/json", "{}");
+    let result = api.get_inventory(None).await;
+    assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
+}

@@ -386,3 +386,16 @@ async fn test_bhv_auth_037_a_token_provider_is_asked_again_for_each_request() {
         Some("Bearer second")
     );
 }
+
+#[test]
+fn test_bhv_misc_017_a_rejected_bearer_token_never_echoes_its_value() {
+    let secret = "bad-token-value-42";
+    match BearerAuthenticator::new("https://api.example.com", &format!("bad\n{}", secret)) {
+        Err(err) => assert!(
+            !err.to_string().contains(secret),
+            "the value must not be echoed: {}",
+            err
+        ),
+        Ok(_) => panic!("a token with a line break must be refused"),
+    }
+}

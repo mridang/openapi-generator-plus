@@ -212,6 +212,59 @@ describe Petstore::Client::Api::StoreApi do
     end
   end
 
+  describe 'no-parameter operations and null bodies' do
+    it 'bhv_misc_009 a call without options sends none of the per-call headers' do
+      api, server, thread, captured = capture_wire_headers(1)
+      begin
+        api.get_inventory
+        _(captured.pop).wont_include('x-tenant')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_misc_011 an options object with no parameters defaults the settings it omits' do
+      options = Petstore::Client::Api::Options::GetInventoryOptions.new(timeout: 2500)
+
+      _(options.timeout).must_equal 2500
+      _(options.headers).must_be_nil
+      _(options.max_retries).must_be_nil
+    end
+
+    it 'bhv_misc_013 an operation with no parameters returns its result' do
+      api, server, thread, captured = capture_wire_request('{"available":3}')
+      begin
+        _(api.get_inventory['available']).must_equal 3
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_misc_014 a literal null success body raises an API error' do
+      api, server, thread, captured = capture_wire_request('null')
+      begin
+        _(-> { api.get_inventory }).must_raise Petstore::Client::Errors::ApiError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_misc_006 a bare null body through the with-http-info variant has no data and keeps the raw body' do
+      api, server, thread, captured = capture_wire_request('null')
+      begin
+        result = api.get_order_by_id_with_http_info(1)
+        _(result.data).must_be_nil
+        _(result.raw_body).must_equal 'null'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe 'per-call options on an operation with no parameter and no security' do
     it 'bhv_langruby_012 has an Options object that carries only the per-call settings' do
       options = Petstore::Client::Api::Options::GetInventoryOptions.new(timeout: 2500, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
