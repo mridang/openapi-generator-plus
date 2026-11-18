@@ -81,6 +81,28 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("bhvEquality001 two models built from the same values are equal, and a change in any nested value makes them unequal")
+    fun testStructuralEqualityOverNestedValues() {
+        val createdAt = OffsetDateTime.parse("2024-01-01T00:00:00Z")
+        val first = Metadata(createdAt = createdAt)
+        first.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "b"))
+        val second = Metadata(createdAt = createdAt)
+        second.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "b"))
+        assertEquals(first, second)
+        assertEquals(first.hashCode(), second.hashCode())
+
+        second.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "c"))
+        assertNotEquals(first, second)
+
+        val otherDate = Metadata(createdAt = OffsetDateTime.parse("2024-01-02T00:00:00Z"))
+        otherDate.additionalProperties["nested"] = mutableMapOf<String, Any?>("inner" to listOf("a", "b"))
+        assertNotEquals(first, otherDate)
+
+        assertNotEquals<Any?>(first, "metadata")
+        assertNotEquals<Any?>(first, null)
+    }
+
+    @Test
     @DisplayName("toString includes the additionalProperties bucket and its entries")
     fun testToStringIncludesAdditionalProperties() {
         val metadata = Metadata()
