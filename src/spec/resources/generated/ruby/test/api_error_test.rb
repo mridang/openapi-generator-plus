@@ -67,7 +67,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).must_equal("boom\nHTTP status code: 500\nResponse headers: {\"x-id\":\"1\"}\nResponse body: oops")
   end
 
-  it 'cuts a long response body at 1 KiB and counts the bytes left out' do
+  it 'bhv_errors_065 cuts a long response body at 1 KiB and counts the bytes left out' do
     err = Petstore::Client::Errors::ApiError.new(
       status_code: 502, message: 'bad gateway', response_headers: nil, response_body: 'a' * 3000
     )
@@ -104,7 +104,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.response_headers['WWW-Authenticate']).must_equal 'Bearer realm="x"'
   end
 
-  it 'substitutes the default text for an empty detail message' do
+  it 'bhv_errors_064 substitutes the default text for an empty detail message' do
     _(Petstore::Client::Errors::ApiError.new('').message).must_equal('Error message: the server returns an error')
     _(Petstore::Client::Errors::ApiError.new(message: '').message).must_equal('Error message: the server returns an error')
     _(Petstore::Client::Errors::ApiError.new.message).must_equal('Error message: the server returns an error')
@@ -344,7 +344,7 @@ describe Petstore::Client::Errors::ApiError do
     _(body.name).must_equal('Cat')
   end
 
-  it 'OAuth2ServerError names the status and the raw body when the body carries no error code' do
+  it 'bhv_authoauthtwotokenmgr_047 OAuth2ServerError names the status and the raw body when the body carries no error code' do
     err = Petstore::Client::Errors::OAuth2ServerError.new(502, nil, nil, nil, '<html>bad gateway</html>')
 
     _(err.message).must_equal('Token request failed with status 502: <html>bad gateway</html>')

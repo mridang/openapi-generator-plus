@@ -258,7 +258,18 @@ describe 'Client' do
     _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
   end
 
-  it 'is refused when it gets no credential at all' do
+  it 'bhv_lifecycle_030 the base URL comes from the authenticator first, then from the first scheme credential' do
+    credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+    default = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')
+
+    with_default = Petstore::Client::Petstore.new(default, nil, pet_store_basic: credential)
+    without_default = Petstore::Client::Petstore.new(nil, nil, pet_store_basic: credential)
+
+    _(api_groups_of(with_default).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
+    _(api_groups_of(without_default).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
+  end
+
+  it 'bhv_lifecycle_026 is refused when it gets no credential at all' do
     error = _ { Petstore::Client::Petstore.new }.must_raise ArgumentError
 
     _(error.message).must_equal 'At least one credential is required'
@@ -275,6 +286,45 @@ describe 'Client' do
     _(credential.injected).must_be_same_as api_client
   end
 
+  it 'bhv_lifecycle_028 an explicit host and token win over the environment' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = 'env-token'
+      client = Petstore::Client::Petstore.with_token('https://arg.example.com', 'arg-token')
+      api = client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi).first
+
+      _(api.config.base_url).must_equal 'https://arg.example.com'
+      _(api.instance_variable_get(:@authenticator).auth_headers['Authorization']).must_equal 'Bearer arg-token'
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
+  end
+
+  it 'bhv_lifecycle_032 a token passed to the client is preferred to the one in the environment' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = 'env-token'
+      client = Petstore::Client::Petstore.with_token('/api/v3', 'arg-token')
+      api = client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi).first
+
+      _(api.instance_variable_get(:@authenticator).auth_headers['Authorization']).must_equal 'Bearer arg-token'
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
+  end
+
   it 'bhv_lifecycle_008 close makes the client reject further requests' do
     authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
     client = Petstore::Client::Petstore.new(authenticator)
@@ -285,6 +335,22 @@ describe 'Client' do
 
     error = _ { api_client.send_request(:get, 'http://localhost/ping', {}, nil) }.must_raise RuntimeError
     _(error.message).must_include('closed')
+  end
+
+  it 'bhv_lifecycle_035 a request after close fails with the closed error and never reaches the transport' do
+    reached = []
+    conn = Faraday.new
+    conn.define_singleton_method(:run_request) { |*_args, **_kwargs, &_block| reached << true }
+    transport = Petstore::Client::TransportOptions.builder.connection(conn).build
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    client = Petstore::Client::Petstore.new(authenticator, transport)
+    api_client = client.instance_variable_get(:@api_client)
+
+    client.close
+
+    error = _ { api_client.send_request(:get, 'http://localhost/ping', {}, nil) }.must_raise RuntimeError
+    _(error.message).must_equal 'ApiClient has been closed and can no longer send requests'
+    _(reached).must_be_empty
   end
 
   it 'bhv_lifecycle_007 close leaves a supplied connection open' do

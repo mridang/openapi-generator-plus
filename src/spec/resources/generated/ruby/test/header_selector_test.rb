@@ -183,7 +183,7 @@ describe Petstore::Client::HeaderSelector do
       _(@header_selector.send(:select_accept_header, nil)).must_be_nil
     end
 
-    it 'returns empty string when all entries are filtered out' do
+    it 'bhv_headers_029 returns empty string when all entries are filtered out' do
       _(@header_selector.send(:select_accept_header, ['', nil])).must_equal('')
     end
 

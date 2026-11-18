@@ -273,7 +273,18 @@ describe 'Client' do
     _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
   end
 
-  it 'is refused when it gets no credential at all' do
+  it 'bhv_lifecycle_030 the base URL comes from the authenticator first, then from the first scheme credential' do
+    credential = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+    default = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')
+
+    with_default = {{moduleName}}::{{clientClassName}}.new(default, nil, {{#clientSchemes}}{{#-first}}{{argName}}{{/-first}}{{/clientSchemes}}: credential)
+    without_default = {{moduleName}}::{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{argName}}{{/-first}}{{/clientSchemes}}: credential)
+
+    _(api_groups_of(with_default).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
+    _(api_groups_of(without_default).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
+  end
+
+  it 'bhv_lifecycle_026 is refused when it gets no credential at all' do
     error = _ { {{moduleName}}::{{clientClassName}}.new }.must_raise ArgumentError
 
     _(error.message).must_equal 'At least one credential is required'
@@ -291,6 +302,45 @@ describe 'Client' do
   end
 
 {{/hasClientSchemes}}
+  it 'bhv_lifecycle_028 an explicit host and token win over the environment' do
+    prefix = {{moduleName}}::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = 'env-token'
+      client = {{moduleName}}::{{clientClassName}}.with_token('https://arg.example.com', 'arg-token')
+      api = client.instance_variables.map { |name| client.instance_variable_get(name) }.grep({{moduleName}}::Api::BaseApi).first
+
+      _(api.config.base_url).must_equal 'https://arg.example.com'
+      _(api.instance_variable_get(:@authenticator).auth_headers['Authorization']).must_equal 'Bearer arg-token'
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
+  end
+
+  it 'bhv_lifecycle_032 a token passed to the client is preferred to the one in the environment' do
+    prefix = {{moduleName}}::Auth::BaseAuthenticator::ENV_PREFIX
+    variable = "#{prefix}_TOKEN"
+    saved = ENV.fetch(variable, nil)
+    begin
+      ENV[variable] = 'env-token'
+      client = {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'arg-token')
+      api = client.instance_variables.map { |name| client.instance_variable_get(name) }.grep({{moduleName}}::Api::BaseApi).first
+
+      _(api.instance_variable_get(:@authenticator).auth_headers['Authorization']).must_equal 'Bearer arg-token'
+    ensure
+      if saved.nil?
+        ENV.delete(variable)
+      else
+        ENV[variable] = saved
+      end
+    end
+  end
+
   it 'bhv_lifecycle_008 close makes the client reject further requests' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
     client = {{moduleName}}::{{clientClassName}}.new(authenticator)
@@ -301,6 +351,22 @@ describe 'Client' do
 
     error = _ { api_client.send_request(:get, 'http://localhost/ping', {}, nil) }.must_raise RuntimeError
     _(error.message).must_include('closed')
+  end
+
+  it 'bhv_lifecycle_035 a request after close fails with the closed error and never reaches the transport' do
+    reached = []
+    conn = Faraday.new
+    conn.define_singleton_method(:run_request) { |*_args, **_kwargs, &_block| reached << true }
+    transport = {{moduleName}}::TransportOptions.builder.connection(conn).build
+    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
+    client = {{moduleName}}::{{clientClassName}}.new(authenticator, transport)
+    api_client = client.instance_variable_get(:@api_client)
+
+    client.close
+
+    error = _ { api_client.send_request(:get, 'http://localhost/ping', {}, nil) }.must_raise RuntimeError
+    _(error.message).must_equal 'ApiClient has been closed and can no longer send requests'
+    _(reached).must_be_empty
   end
 
   it 'bhv_lifecycle_007 close leaves a supplied connection open' do
