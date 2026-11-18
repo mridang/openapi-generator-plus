@@ -792,6 +792,26 @@ describe Petstore::Client::ValueSerializer do
     _(Petstore::Client::ValueSerializer.serialize(nil, :path, 'integer')).must_equal('')
   end
 
+  it 'bhv_misc_238 a number query value is sent as a plain number' do
+    _(Petstore::Client::ValueSerializer.serialize(2.5, :query, 'number')).must_equal('2.5')
+  end
+
+  it 'bhv_misc_241 a time-of-day query value is sent as HH:MM:SS' do
+    _(Petstore::Client::ValueSerializer.serialize(Tod::TimeOfDay.new(10, 20, 30), :query, 'string')).must_equal('10:20:30')
+  end
+
+  it 'bhv_misc_250 an array item containing a comma keeps its comma encoded on a path' do
+    _(Petstore::Client::ValueSerializer.serialize_styled('list', ['a,b', 'c'], :path, 'array', nil, 'simple', false)).must_equal('a%2Cb,c')
+  end
+
+  it 'bhv_misc_253 an allowReserved value still percent-encodes hash and bracket characters' do
+    _(Petstore::Client::ValueSerializer.encode_query_allowing_reserved('a/b#c[d]')).must_equal('a/b%23c%5Bd%5D')
+  end
+
+  it 'bhv_misc_254 an unmarked query value percent-encodes reserved characters such as slash and colon' do
+    _(Petstore::Client::ValueSerializer.serialize('a/b:c', :query, 'string')).must_equal('a%2Fb%3Ac')
+  end
+
   it 'bhv_misc_120 writes an object parameter as name and value pairs sorted by name, leaving out absent values' do
     result = Petstore::Client::ValueSerializer.serialize_deep_object('filter', { 'b' => '2', 'a' => '1', 'gone' => nil })
 

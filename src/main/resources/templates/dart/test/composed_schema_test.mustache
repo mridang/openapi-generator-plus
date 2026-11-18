@@ -678,6 +678,68 @@ void main() {
       expect(first.hashCode, equals(second.hashCode));
       expect(first, isNot(equals(PetFood(Uint8List.fromList([1, 2, 4])))));
     });
+    test('bhv misc 291 A payload matching several variants of a union decodes to the first declared variant', () {
+      final treatment = PetTreatment.fromJson(<String, dynamic>{
+        'drugName': 'Amoxicillin',
+        'dosage': '500mg',
+        'procedureName': 'Spay',
+        'durationMinutes': 45,
+      });
+
+      expect(treatment.actualInstance, isA<Medication>());
+    });
+
+    test('bhv misc 292 A union wrapper serializes its bare payload with no envelope and reads it back', () {
+      final req = SetPetAvatarThumbnailRequest(Uint8List.fromList(<int>[0x68, 0x69]));
+
+      final encoded = req.toJson();
+
+      expect(encoded, equals('aGk='));
+      expect(jsonEncode(encoded), equals('"aGk="'));
+      final restored = SetPetAvatarThumbnailRequest.fromJson(encoded);
+      expect(restored.actualInstance, equals(Uint8List.fromList(<int>[0x68, 0x69])));
+    });
+
+    test('bhv misc 293 An anyOf value skips candidates that do not match and keeps the ones that do', () {
+      final treatment = PetTreatment.fromJson(<String, dynamic>{
+        'procedureName': 'Spay',
+        'durationMinutes': 45,
+      });
+
+      expect(treatment.matchedInstances, hasLength(1));
+      expect(treatment.actualInstance, isA<Surgery>());
+    });
+
+    test('bhv misc 294 A subtype payload without its discriminator decodes as the variant the mapping names', () {
+      final food = DryFood.fromJson(<String, dynamic>{'weightKg': 2.5});
+
+      expect(food, isA<DryFood>());
+      expect(food.toJson(), containsPair('foodType', 'dry'));
+    });
+
+    test('bhv misc 295 A non-list value is rejected for the array variant of a oneOf', () {
+      expect(
+        () => SetPetAvatarThumbnailRequest.fromJson(<String, dynamic>{'a': 1}),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+    test('bhv serialization 076 a union value that matches no candidate raises a serialization error', () {
+      expect(
+        () => PetTreatment.fromJson(<String, dynamic>{'unrelatedKey': 'value'}),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serialization 082 a missing discriminator fails with an error that names the missing key', () {
+      expect(
+        () => PetFood.fromJson(<String, dynamic>{'weightKg': 2.5}),
+        throwsA(isA<SerializationException>().having(
+          (e) => e.message,
+          'message',
+          contains('foodType'),
+        )),
+      );
+    });
   });
 }
 {{/generateTests}}

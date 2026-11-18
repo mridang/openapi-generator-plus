@@ -1013,6 +1013,147 @@ import Testing
       #expect(seenHeader == "1")
     }
 
+    /* A per-call header is sent and takes precedence over a configured header of the same name. */
+    @Test func testBhvMisc218APerCallHeaderTakesPrecedenceOverTheConfiguredHeader() async throws {
+      let transport = try TransportOptionsBuilder()
+        .defaultHeader(name: "X-Trace", value: "configured").build()
+      var seenTrace: String?
+      let client = makeClient(transport: transport) { req in
+        seenTrace = req.value(forHTTPHeaderField: "X-Trace")
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/trace", headers: ["X-Trace": "per-call"],
+        body: nil)
+      #expect(seenTrace == "per-call")
+    }
+
+    /* A 303 that turns the follow-up into a GET drops the request body. */
+    @Test func testBhvMisc223ASeeOtherDropsTheBodyWhenTheFollowUpBecomesAGet() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
+      let hopCount = HopCounter()
+      var followUpMethod: String?
+      var followUpBody: Data?
+      let client = makeClient(transport: transport) { req in
+        if hopCount.increment() == 1 {
+          return (Data(), 303, ["Location": "https://example.com/api/echo-method-body"])
+        }
+        followUpMethod = req.httpMethod
+        followUpBody = req.httpBody
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      _ = try await client.sendRequest(
+        method: "POST", url: "https://example.com/api/redirect-303",
+        headers: ["Content-Type": "application/json"],
+        body: "non-empty-body".data(using: .utf8)!)
+      #expect(followUpMethod == "GET")
+      #expect(followUpBody == nil)
+    }
+
+    /* Transport default headers are not sent on a request that goes to another origin after a redirect. */
+    @Test func testBhvMisc224TransportDefaultHeadersAreNotSentAfterACrossOriginRedirect()
+      async throws
+    {
+      let transport = try TransportOptionsBuilder()
+        .followRedirects(true)
+        .defaultHeader(name: "X-Team", value: "sdk").build()
+      let hopCount = HopCounter()
+      var crossOriginTeam: String? = "unset"
+      let client = makeClient(transport: transport) { req in
+        if hopCount.increment() == 1 {
+          return (Data(), 302, ["Location": "https://other.example.org/landing"])
+        }
+        crossOriginTeam = req.value(forHTTPHeaderField: "X-Team")
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/start", headers: [:], body: nil)
+      #expect(crossOriginTeam == nil)
+    }
+
+    /* A 3xx response that has no Location header is returned to the caller as the final response. */
+    @Test func testBhvMisc225AnUnlocatedRedirectIsReturnedAsTheFinalResponse() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
+      let client = makeClient(transport: transport) { _ in (Data(), 302, [:]) }
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/redirect-302", headers: [:], body: nil)
+      #expect(response.statusCode == 302)
+    }
+
+    /* With redirect following enabled, a 302 response is followed to its target and the final 200 is returned. */
+    @Test func testBhvMisc226AFoundRedirectIsFollowedToItsFinalResponse() async throws {
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
+      let hopCount = HopCounter()
+      let client = makeClient(transport: transport) { _ in
+        if hopCount.increment() == 1 {
+          return (Data(), 302, ["Location": "https://example.com/api/target"])
+        }
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/redirect-302", headers: [:], body: nil)
+      #expect(response.statusCode == 200)
+    }
+
+    /* A network error before any response is received is retried, so a dropped connection produces a second request. */
+    @Test func testBhvMisc227AConnectionDroppedBeforeAnyResponseIsRetried() async throws {
+      let attempts = HopCounter()
+      RedirectStubURLProtocol.configure { _ in
+        if attempts.increment() == 1 {
+          return .dropped
+        }
+        return .ok(Data("{}".utf8))
+      }
+      let client = DefaultApiClient(
+        transportOptions: nil, protocolClasses: [RedirectStubURLProtocol.self])
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/dropped", headers: [:], body: nil)
+      #expect(response.statusCode == 200)
+      #expect(attempts.increment() == 3)
+    }
+
+    /* A Retry-After header that cannot be parsed is ignored and the retry uses the normal backoff delay. */
+    @Test func testBhvMisc228AnUnparseableRetryAfterFallsBackToTheNormalBackoff() async throws {
+      let hopCount = HopCounter()
+      let client = makeClient(transport: nil) { _ in
+        if hopCount.increment() == 1 {
+          return (Data(), 503, ["Retry-After": "soon"])
+        }
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/unavailable", headers: [:], body: nil)
+      #expect(response.statusCode == 200)
+    }
+
+    /* A per-call max retries value overrides the client's setting, so a call can retry when the client has none. */
+    @Test func testBhvMisc229APerCallMaxRetriesOverridesAClientWithNoRetries() async throws {
+      let transport = try TransportOptionsBuilder().maxRetries(0).build()
+      let hopCount = HopCounter()
+      let client = makeClient(transport: transport) { _ in
+        if hopCount.increment() < 3 {
+          return (Data(), 500, [:])
+        }
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/flaky", headers: [:], body: nil,
+        noRedirect: false, refreshHeaders: nil, maxRetries: 2)
+      #expect(response.statusCode == 200)
+    }
+
+    /* An ISO-8859-1 error response body decodes to UTF-8 text in the error. */
+    @Test func testBhvMisc237AnIso88591ErrorBodyDecodesToUtf8Text() async throws {
+      let client = makeClient(transport: nil) { _ in
+        (
+          Data("caf\u{e9}".data(using: .isoLatin1)!), 404,
+          ["Content-Type": "text/plain; charset=ISO-8859-1"]
+        )
+      }
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/api/missing", headers: [:], body: nil)
+      #expect(response.body == "caf\u{e9}")
+    }
   }
 
   /// A URLProtocol that accepts a request and never answers it, so a test can
@@ -1180,6 +1321,7 @@ import Testing
     enum Outcome {
       case redirect(status: Int, location: String)
       case ok(Data)
+      case dropped
     }
 
     nonisolated(unsafe) static var responder: ((URLRequest) -> Outcome)?
@@ -1216,6 +1358,8 @@ import Testing
         // Also finish so the task does not hang if the redirect is followed.
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocolDidFinishLoading(self)
+      case .dropped:
+        client?.urlProtocol(self, didFailWithError: URLError(.networkConnectionLost))
       case .ok(let data):
         guard let requestURL = request.url,
           let response = HTTPURLResponse(

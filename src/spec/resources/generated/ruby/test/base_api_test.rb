@@ -426,6 +426,69 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_headers['Cookie']).must_equal 'session=abc123'
   end
 
+  it 'bhv_misc_236 a date-only value is written as yyyy-mm-dd with no time in query and header' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'bornAfter' => Date.new(2024, 1, 1) }, { 'Report-Date' => Date.new(2024, 1, 1) },
+                  nil, ['application/json'], 'application/json', nil)
+
+    _(client.captured_url).must_include 'bornAfter=2024-01-01'
+    _(client.captured_url).wont_include '2024-01-01T'
+    _(client.captured_headers['Report-Date']).must_equal '2024-01-01'
+  end
+
+  it 'bhv_misc_239 an operation query parameter is serialized when no authenticator is configured' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'q' => 'a b' }, {}, nil, ['application/json'], 'application/json', nil)
+
+    _(client.captured_url).must_equal 'http://localhost/test/echo?q=a%20b'
+  end
+
+  it 'bhv_misc_262 cancelling the call surfaces the cancellation to the caller without wrapping it' do
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(InterruptingApiClient.new, config)
+    _(proc {
+      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+    }).must_raise Interrupt
+  end
+
+  it 'bhv_misc_263 a per-call timeout longer than the client timeout lets a response complete' do
+    response = Petstore::Client::ApiHttpResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+    result = test_api.call_for_result('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil,
+                                      request_options: CallOptions.new(5000, nil, nil))
+
+    _(result.status_code).must_equal 200
+  end
+
+  it 'bhv_misc_264 each listed error status raises the API error carrying that status code' do
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    [400, 404, 500].each do |status|
+      response = Petstore::Client::ApiHttpResponse.new(status_code: status, body: '{}', headers: { 'content-type' => 'application/json' })
+      test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
+        test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+      end
+      _(err.status_code).must_equal status
+    end
+  end
+
+  it 'bhv_misc_265 a redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status' do
+    response = Petstore::Client::ApiHttpResponse.new(status_code: 302, body: '',
+                                                     headers: { 'location' => 'ftp://example.com/x' })
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+    err = assert_raises(Petstore::Client::Errors::ApiError) do
+      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err).wont_be_kind_of Petstore::Client::Errors::NetworkError
+    _(err.status_code).must_equal 302
+  end
+
   it 'bhv_authintegration_017 sets Cookie header from auth cookies' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build

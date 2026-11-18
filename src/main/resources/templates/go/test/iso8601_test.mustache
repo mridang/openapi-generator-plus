@@ -252,3 +252,59 @@ func TestBhvLanggo051_Iso8601_TimeOfDay_RoundTrip(t *testing.T) {
 		t.Errorf("round-trip mismatch: original=%q got=%q", original, got)
 	}
 }
+
+// A time of day is written as HH:MM:SS with its milliseconds truncated.
+func TestBhvMisc241_Iso8601_FormatTimeOfDay_TruncatesMilliseconds(t *testing.T) {
+	t.Parallel()
+	at := time.Date(2024, 1, 2, 3, 4, 5, 678000000, time.UTC)
+	if got := {{packageName}}.FormatTimeOfDay(at); got != "03:04:05" {
+		t.Errorf("expected 03:04:05, got %q", got)
+	}
+}
+
+// A duration field with fractional seconds keeps its fraction when serialized.
+func TestBhvMisc235_Iso8601_MarshalDuration_KeepsFractionalSeconds(t *testing.T) {
+	t.Parallel()
+	if got := {{packageName}}.MarshalDurationProtoJSON(1500 * time.Millisecond); got != "1.5s" {
+		t.Errorf("expected 1.5s, got %q", got)
+	}
+}
+
+// A negative whole-second protobuf duration string parses to a negative duration.
+func TestBhvMisc246_Iso8601_UnmarshalDuration_NegativeWholeSecondsParse(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.UnmarshalDurationProtoJSON("-5s")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != -5*time.Second {
+		t.Errorf("expected -5s, got %v", got)
+	}
+}
+
+// A duration with days is formatted as a duration string in seconds.
+func TestBhvMisc248_Iso8601_MarshalDuration_DaysBecomeASecondsString(t *testing.T) {
+	t.Parallel()
+	if got := {{packageName}}.MarshalDurationProtoJSON(24 * time.Hour); got != "86400s" {
+		t.Errorf("expected 86400s, got %q", got)
+	}
+}
+
+// A duration string with a day designator is rejected.
+func TestBhvMisc251_Iso8601_UnmarshalDuration_DayDesignatorIsRejected(t *testing.T) {
+	t.Parallel()
+	if _, err := {{packageName}}.UnmarshalDurationProtoJSON("P1D"); err == nil {
+		t.Error("expected an error for a day designator, got nil")
+	}
+}
+
+// A fractional second is written with trailing zeros trimmed, keeping only the digits present.
+func TestBhvMisc256_Iso8601_MarshalDuration_TrailingZerosAreTrimmed(t *testing.T) {
+	t.Parallel()
+	if got := {{packageName}}.MarshalDurationProtoJSON(1100 * time.Millisecond); got != "1.1s" {
+		t.Errorf("expected 1.1s, got %q", got)
+	}
+	if got := {{packageName}}.MarshalDurationProtoJSON(1*time.Second + 1*time.Nanosecond); got != "1.000000001s" {
+		t.Errorf("expected 1.000000001s, got %q", got)
+	}
+}

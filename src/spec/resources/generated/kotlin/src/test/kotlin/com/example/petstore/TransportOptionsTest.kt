@@ -800,6 +800,12 @@ class TransportOptionsTest {
     }
 
     @Test
+    @DisplayName("bhvMisc134 a zero timeout is refused when the options are built, with an argument error")
+    fun bhvMisc134ZeroTimeoutIsRefusedAtBuild() {
+        assertThrowsExactly(IllegalArgumentException::class.java) { TransportOptions.builder().timeout(0L).build() }
+    }
+
+    @Test
     @DisplayName("bhvMisc186 combining a ready-made connection with a CA bundle setting is rejected when the options are built")
     fun bhvMisc186ReadyMadeConnectionWithCaBundleIsRejectedAtBuild() {
         assertThrows(IllegalArgumentException::class.java) {

@@ -257,6 +257,29 @@ class DefaultApiClientUnitTest {
             assertEquals(2, ids.size)
             assertNotEquals(ids[0], ids[1])
         }
+
+        @Test
+        fun bhvMisc273RequestIdIsAVersion4Uuid() =
+            runBlocking<Unit> {
+                var capturedRequestId: String? = null
+                val client = mockClient(requestCapture = { req -> capturedRequestId = req.headers["X-Request-ID"] })
+                val apiClient = DefaultApiClient(client, TransportOptions.builder().injectRequestId(true).build())
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                assertTrue(
+                    Regex("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$").matches(capturedRequestId.orEmpty()),
+                    capturedRequestId,
+                )
+            }
+
+        @Test
+        fun bhvMisc273RequestIdIsOmittedWhenDisabled() =
+            runBlocking<Unit> {
+                var capturedRequestId: String? = null
+                val client = mockClient(requestCapture = { req -> capturedRequestId = req.headers["X-Request-ID"] })
+                val apiClient = DefaultApiClient(client, TransportOptions.builder().injectRequestId(false).build())
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                assertNull(capturedRequestId)
+            }
     }
 
     @Nested
@@ -1426,6 +1449,33 @@ class DefaultApiClientUnitTest {
             assertNull(hopHeaders?.get("Api-Key"))
             assertNull(hopHeaders?.get("X-Tenant-Secret"))
             assertEquals("keep", hopHeaders?.get("X-Trace"))
+        }
+
+        @Test
+        @DisplayName(
+            "bhvMisc128 a cross-origin redirect never removes the proxy credential that the shared transport applies to every request",
+        )
+        fun bhvMisc128ACrossOriginRedirectKeepsTheProxyCredential() {
+            val hops = mutableListOf<io.ktor.http.Headers>()
+            val engine =
+                MockEngine { req ->
+                    hops.add(req.headers)
+                    if (hops.size == 1) {
+                        respond(content = "", status = HttpStatusCode.Found, headers = headersOf("Location", "https://other.test/hop"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .proxy("http://user:pass@proxy.test:3128")
+                    .build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking { apiClient.sendRequest("GET", "https://api.test/start", emptyMap(), null) }
+            assertEquals(2, hops.size)
+            assertEquals("Basic dXNlcjpwYXNz", hops[1]["Proxy-Authorization"])
         }
 
         @Test
@@ -2951,6 +3001,22 @@ class DefaultApiClientUnitTest {
                 ex.message,
             )
         }
+
+        @Test
+        fun bhvMisc270MissingCaFileIsRejectedWhenVerificationIsOff() =
+            runBlocking<Unit> {
+                val transport =
+                    TransportOptions
+                        .builder()
+                        .verifySsl(false)
+                        .caCertPath("/nonexistent/ca.pem")
+                        .build()
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        DefaultApiClient(transport)
+                    }
+                assertTrue(ex.message!!.contains("/nonexistent/ca.pem"), ex.message)
+            }
     }
 
     @Nested
@@ -3741,6 +3807,20 @@ class DefaultApiClientUnitTest {
             }
 
         @Test
+        @DisplayName("bhvMisc131 a session the caller supplies still has the SDK's redirect rules applied to requests made through it")
+        fun bhvMisc131ASuppliedSessionFollowsRedirectsUnderTheSdkRules() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient =
+                DefaultApiClient(
+                    HttpClient(redirectThenOk(HttpStatusCode.Found, seen)),
+                    TransportOptions.builder().followRedirects(true).build(),
+                )
+            val response = runBlocking { apiClient.sendRequest("GET", "http://localhost/a", emptyMap(), null) }
+            assertEquals(2, seen.size)
+            assertEquals(200, response.statusCode)
+        }
+
+        @Test
         @DisplayName("bhvRedirects038 a 307 redirect that keeps the method resends the original body and its content type")
         fun temporaryRedirectResendsBodyAndType() {
             val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
@@ -3966,6 +4046,480 @@ class DefaultApiClientUnitTest {
             assertTrue(contentType!!.startsWith("multipart/mixed; boundary="), contentType)
         }
     }
+
+    @Nested
+    @DisplayName("redirect and header rules for chunk four")
+    inner class RedirectStatusAndHeaderRules {
+        @Test
+        @DisplayName("bhvMisc124 a request body is not replayed across a 301 redirect from https to http")
+        fun bhvMisc124BodyIsNotReplayedAcross301Downgrade() {
+            val engine =
+                MockEngine { request ->
+                    if (request.url.protocol.name == "https") {
+                        respond("", HttpStatusCode.MovedPermanently, headersOf("Location", "http://localhost/next"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("POST", "https://localhost/start", emptyMap(), "payload")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc125 a 307 redirect that keeps the same scheme is followed with its body")
+        fun bhvMisc125SameSchemeTemporaryRedirectIsFollowed() {
+            val engine =
+                MockEngine { request ->
+                    if (request.url.encodedPath == "/start") {
+                        respond("", HttpStatusCode.TemporaryRedirect, headersOf("Location", "https://localhost/next"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response =
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                        .sendRequest("POST", "https://localhost/start", emptyMap(), "payload")
+            }
+            assertEquals(200, response!!.statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvMisc126 a HEAD request that receives a 303 redirect is followed as HEAD")
+        fun bhvMisc126HeadStaysHeadAcross303() {
+            val methods = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    methods.add(request.method.value)
+                    if (request.url.encodedPath == "/start") {
+                        respond("", HttpStatusCode.SeeOther, headersOf("Location", "http://localhost/next"))
+                    } else {
+                        respond("", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("HEAD", "http://localhost/start", emptyMap(), null)
+            }
+            assertEquals(listOf("HEAD", "HEAD"), methods)
+        }
+
+        @Test
+        @DisplayName("bhvMisc127 a query-only Location keeps the redirected path and replaces the query")
+        fun bhvMisc127QueryOnlyLocationKeepsPath() {
+            var lastUrl: io.ktor.http.Url? = null
+            val engine =
+                MockEngine { request ->
+                    if (request.url.encodedPath == "/items") {
+                        respond("", HttpStatusCode.Found, headersOf("Location", "?page=2"))
+                    } else {
+                        lastUrl = request.url
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("GET", "http://localhost/items?page=1", emptyMap(), null)
+            }
+            assertEquals("/items", lastUrl!!.encodedPath)
+            assertEquals("page=2", lastUrl!!.encodedQuery)
+        }
+
+        @Test
+        @DisplayName("bhvMisc130 credentials removed by a cross-origin hop are not restored when the chain returns to the origin")
+        fun bhvMisc130RemovedCredentialsStayRemoved() {
+            val authorizations = mutableListOf<String?>()
+            val engine =
+                MockEngine { request ->
+                    authorizations.add(request.headers["Authorization"])
+                    when (request.url.encodedPath) {
+                        "/a" -> respond("", HttpStatusCode.Found, headersOf("Location", "http://127.0.0.1/b"))
+                        "/b" -> respond("", HttpStatusCode.Found, headersOf("Location", "http://localhost/c"))
+                        else -> respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("GET", "http://localhost/a", mapOf("Authorization" to "Bearer t"), null)
+            }
+            assertNull(authorizations.last())
+        }
+
+        @Test
+        @DisplayName(
+            "bhvMisc132 a header the caller sets for one call is stripped on a cross-origin redirect when it looks like a credential",
+        )
+        fun bhvMisc132CallerCredentialHeaderIsStrippedAcrossOrigins() {
+            val sessionTokens = mutableListOf<String?>()
+            val engine =
+                MockEngine { request ->
+                    sessionTokens.add(request.headers["X-Session-Token"])
+                    if (request.url.encodedPath == "/start") {
+                        respond("", HttpStatusCode.Found, headersOf("Location", "http://127.0.0.1/next"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("GET", "http://localhost/start", mapOf("X-Session-Token" to "s3cret"), null)
+            }
+            assertNull(sessionTokens.last())
+        }
+
+        @Test
+        @DisplayName("bhvMisc133 a 300 or 305 response is returned as it is, even with a Location header")
+        fun bhvMisc133MultipleChoicesAndUseProxyAreNotFollowed() {
+            for (status in listOf(HttpStatusCode.MultipleChoices, HttpStatusCode.UseProxy)) {
+                val engine =
+                    MockEngine { _ ->
+                        respond("", status, headersOf("Location", "http://localhost/next"))
+                    }
+                var response: ApiHttpResponse? = null
+                runBlocking {
+                    response =
+                        DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                            .sendRequest("GET", "http://localhost/start", emptyMap(), null)
+                }
+                assertEquals(status.value, response!!.statusCode)
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("cancellation before and during a call")
+    inner class CancelledBeforeSendTests {
+        @Test
+        @DisplayName("bhvMisc152 a call whose coroutine is already cancelled fails without sending the request")
+        fun bhvMisc152CancelledCallIsNeverSent() {
+            var sent = false
+            val engine =
+                MockEngine { _ ->
+                    sent = true
+                    respond("ok", HttpStatusCode.OK)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val cancelled = kotlinx.coroutines.Job().apply { cancel() }
+            assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+                runBlocking {
+                    kotlinx.coroutines.withContext(cancelled) {
+                        apiClient.sendRequest("GET", "http://localhost/never", emptyMap(), null)
+                    }
+                }
+            }
+            assertFalse(sent)
+        }
+
+        @Test
+        @DisplayName("bhvMisc153 cancelling the call's coroutine cancels the same in-flight request")
+        fun bhvMisc153CancellingTheCallCancelsTheInFlightRequest() {
+            val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val outcome = kotlinx.coroutines.CompletableDeferred<String>()
+            val engine =
+                MockEngine { _ ->
+                    started.complete(Unit)
+                    try {
+                        kotlinx.coroutines.awaitCancellation()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        outcome.complete("cancelled")
+                        throw e
+                    }
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine))
+            runBlocking {
+                val call =
+                    launch {
+                        apiClient.sendRequest("GET", "http://localhost/never", emptyMap(), null)
+                    }
+                started.await()
+                call.cancel()
+                call.join()
+                assertEquals("cancelled", outcome.await())
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("retry rules and replay")
+    inner class RetryRulesAndReplay {
+        @Test
+        @DisplayName("bhvMisc160 an error that is not a network failure is never retried")
+        fun bhvMisc160HttpErrorIsNeverRetried() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    respond("", HttpStatusCode.BadRequest)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/bad", emptyMap(), null)
+            }
+            assertEquals(1, attempts)
+        }
+
+        @Test
+        @DisplayName("bhvMisc161 a dropped connection sends a non-idempotent request once, and QUERY is retried as idempotent")
+        fun bhvMisc161DroppedConnectionRetriesOnlyIdempotentRequests() {
+            for (method in listOf("POST", "PATCH")) {
+                var attempts = 0
+                val engine =
+                    MockEngine { _ ->
+                        attempts++
+                        throw java.io.IOException("connection reset")
+                    }
+                val apiClient =
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    )
+                assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest(method, "http://localhost/write", emptyMap(), "{}")
+                    }
+                }
+                assertEquals(1, attempts, method)
+            }
+            var queryAttempts = 0
+            val queryEngine =
+                MockEngine { _ ->
+                    queryAttempts++
+                    throw java.io.IOException("connection reset")
+                }
+            assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                runBlocking {
+                    DefaultApiClient(
+                        HttpClient(queryEngine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("QUERY", "http://localhost/search", emptyMap(), "{}")
+                }
+            }
+            assertTrue(queryAttempts > 1, "QUERY attempts: $queryAttempts")
+        }
+
+        @Test
+        @DisplayName("bhvMisc162 a dropped connection sends an idempotent request again exactly once")
+        fun bhvMisc162IdempotentRequestIsSentAgainOnce() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    if (attempts == 1) throw java.io.IOException("connection reset")
+                    respond("ok", HttpStatusCode.OK)
+                }
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response =
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("GET", "http://localhost/read", emptyMap(), null)
+            }
+            assertEquals(2, attempts)
+            assertEquals(200, response!!.statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvMisc163 a text body is replayed unchanged on retry")
+        fun bhvMisc163TextBodyIsReplayedOnRetry() {
+            val bodies = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    bodies.add(String(request.body.toByteArray()))
+                    if (bodies.size == 1) respond("", HttpStatusCode.ServiceUnavailable) else respond("ok", HttpStatusCode.OK)
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("POST", "http://localhost/write", emptyMap(), "payload")
+            }
+            assertEquals(listOf("payload", "payload"), bodies)
+        }
+
+        @Test
+        @DisplayName("bhvMisc165 a request body is replayed across a redirect that keeps the same plain-text scheme")
+        fun bhvMisc165BodyReplayedAcrossSameSchemeRedirect() {
+            val bodies = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    bodies.add(String(request.body.toByteArray()))
+                    if (request.url.encodedPath == "/start") {
+                        respond("", HttpStatusCode.TemporaryRedirect, headersOf("Location", "http://localhost/next"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("POST", "http://localhost/start", emptyMap(), "payload")
+            }
+            assertEquals(listOf("payload", "payload"), bodies)
+        }
+
+        @Test
+        @DisplayName("bhvMisc167 a retryable status is attempted up to the retry limit")
+        fun bhvMisc167RetryableStatusStopsAtTheLimit() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    respond("", HttpStatusCode.ServiceUnavailable)
+                }
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                        .sendRequest("GET", "http://localhost/busy", emptyMap(), null)
+                }
+            }
+            assertEquals(3, attempts)
+        }
+
+        @Test
+        @DisplayName("bhvMisc168 a failing request with no retry setting is sent three times, with pauses between attempts")
+        fun bhvMisc168DefaultRetriesPauseBetweenAttempts() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    respond("", HttpStatusCode.ServiceUnavailable)
+                }
+            val started = System.nanoTime()
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                        .sendRequest("GET", "http://localhost/busy", emptyMap(), null)
+                }
+            }
+            val elapsedMillis = (System.nanoTime() - started) / 1_000_000L
+            assertEquals(3, attempts)
+            assertTrue(elapsedMillis >= 1000L, "elapsed: $elapsedMillis")
+        }
+
+        @Test
+        @DisplayName("bhvMisc169 the retry pause starts at half a second, doubles and never exceeds eight seconds")
+        fun bhvMisc169BackoffDoublesToACeiling() {
+            assertEquals(500L, RetryPolicy.delayMillis(0, null, 0.0))
+            assertEquals(1000L, RetryPolicy.delayMillis(1, null, 0.0))
+            assertEquals(8000L, RetryPolicy.delayMillis(10, null, 0.0))
+        }
+
+        @Test
+        @DisplayName("bhvMisc170 a TLS or certificate failure is reported as a network error on the first attempt and never retried")
+        fun bhvMisc170TlsFailureIsNotRetried() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    throw javax.net.ssl.SSLHandshakeException("certificate unknown")
+                }
+            assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                runBlocking {
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("GET", "https://localhost/secure", emptyMap(), null)
+                }
+            }
+            assertEquals(1, attempts)
+        }
+
+        @Test
+        @DisplayName("bhvMisc174 a header value refused for a line break is never repeated in the error")
+        fun bhvMisc174RefusedHeaderValueIsNotEchoed() {
+            val ex =
+                assertThrows(Exception::class.java) {
+                    runBlocking {
+                        DefaultApiClient(mockClient())
+                            .sendRequest("GET", "http://localhost/x", mapOf("X-Bad" to "line\r\nsecret-value"), null)
+                    }
+                }
+            assertFalse(ex.message.orEmpty().contains("secret-value"), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvMisc175 credential-bearing header names are recognised regardless of case")
+        fun bhvMisc175CredentialHeaderNamesIgnoreCase() {
+            assertTrue(DefaultApiClient.isSensitiveHeader("AUTHORIZATION"))
+            assertTrue(DefaultApiClient.isSensitiveHeader("x-api-KEY"))
+            assertFalse(DefaultApiClient.isSensitiveHeader("Accept"))
+        }
+    }
+
+    @Test
+    fun bhvMisc274NonSuccessResponseIsReturnedWithItsStatus() =
+        runBlocking<Unit> {
+            val client = mockClient(statusCode = HttpStatusCode.NotFound, body = "missing")
+            val response = DefaultApiClient(client).sendRequest("GET", "http://localhost/items/1", emptyMap(), null)
+            assertEquals(404, response.statusCode)
+            assertEquals("missing", response.body)
+        }
+
+    @Test
+    fun bhvMisc275RequestUsesTheIntendedMethodAndReturnsTheResponse() =
+        runBlocking<Unit> {
+            var method: io.ktor.http.HttpMethod? = null
+            val client = mockClient(requestCapture = { req -> method = req.method })
+            val response = DefaultApiClient(client).sendRequest("PUT", "http://localhost/items/1", emptyMap(), "{}")
+            assertEquals(io.ktor.http.HttpMethod.Put, method)
+            assertEquals(200, response.statusCode)
+        }
+
+    @Test
+    fun bhvMisc282NetworkFailureKeepsTheTransportErrorAsItsCause() =
+        runBlocking<Unit> {
+            val failure = java.net.SocketException("connection dropped")
+            val client = HttpClient(MockEngine { _ -> throw failure }) { followRedirects = false }
+            val ex =
+                assertThrows(ApiException::class.java) {
+                    runBlocking { DefaultApiClient(client).sendRequest("GET", "http://localhost/drop", emptyMap(), null) }
+                }
+            assertTrue(
+                generateSequence(ex as Throwable) { it.cause }.any { it === failure },
+                "the transport error must be in the cause chain",
+            )
+        }
+
+    @Test
+    fun bhvMisc285UnsupportedContentEncodingIsRefusedWithTheExactMessage() =
+        runBlocking<Unit> {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "payload".toByteArray(Charsets.UTF_8),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Encoding", "made-up-codec"),
+                    )
+                }
+            val ex =
+                assertThrows(ApiException::class.java) {
+                    runBlocking {
+                        DefaultApiClient(
+                            HttpClient(engine) { followRedirects = false },
+                        ).sendRequest("GET", "http://localhost/enc", emptyMap(), null)
+                    }
+                }
+            assertEquals("Unsupported Content-Encoding 'made-up-codec'", ex.cause?.message)
+        }
 
     @Test
     @DisplayName("bhvMisc182 removing a header matches its name without regard to letter case so every spelling is removed")

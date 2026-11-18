@@ -252,6 +252,134 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 230 a model with no extra properties writes exactly its declared keys',
+      () {
+        final order = Order.fromJson({'id': 1, 'quantity': 2});
+        expect(jsonDecode(serialize(order)), equals({'id': 1, 'quantity': 2}));
+      },
+    );
+
+    test(
+      'bhv misc 234 a model with additional properties keeps them through serialize and deserialize',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"rogue":{"inner":"x"}}',
+          Metadata.fromJson,
+        )!;
+        expect(
+          jsonDecode(serialize(metadata)),
+          equals({
+            'rogue': {'inner': 'x'},
+          }),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 235 a duration with fractional seconds keeps its fraction when serialized',
+      () {
+        expect(
+          formatProtobufDuration(const Duration(milliseconds: 1500)),
+          equals('1.5s'),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 243 an absent optional array field decodes to null, not to an empty list',
+      () {
+        final pet = deserialize<Pet>(
+          '{"name":"x","photoUrls":[]}',
+          Pet.fromJson,
+        )!;
+        expect(pet.tags, isNull);
+      },
+    );
+
+    test(
+      'bhv misc 244 a body with a leading byte-order mark decodes into the model',
+      () {
+        final order = deserialize<Order>(
+          '﻿{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}',
+          Order.fromJson,
+        )!;
+        expect(order.trackingId, isNotNull);
+      },
+    );
+
+    test(
+      'bhv misc 245 a time of day in a plain object is serialized as a JSON string',
+      () {
+        expect(
+          jsonDecode(serialize({'openAt': '08:00:00'})),
+          equals({'openAt': '08:00:00'}),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 246 a negative whole-second protobuf duration string parses to a negative duration',
+      () {
+        expect(
+          parseProtobufDuration('-90s'),
+          equals(const Duration(seconds: -90)),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 247 a UUID string with the wrong segment lengths is rejected',
+      () {
+        expect(
+          () => UuidValue.fromString('550e8400-e29b-41d4-a716-44665544000'),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 248 a duration with days is formatted as a duration string',
+      () {
+        expect(
+          formatProtobufDuration(const Duration(days: 3)),
+          equals('259200s'),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 249 a free-form object field keeps its object and integer entries through a JSON round trip',
+      () {
+        final json = serialize({
+          'props': {'count': 3, 'tag': 'x'},
+        });
+        expect(
+          jsonDecode(json),
+          equals({
+            'props': {'count': 3, 'tag': 'x'},
+          }),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 251 a duration string with a day designator is rejected',
+      () {
+        expect(
+          () => parseProtobufDuration('1d'),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 252 an enum wire value containing separators round-trips unchanged',
+      () {
+        expect(parseJson(serialize('a,b;c d/e:f')), equals('a,b;c d/e:f'));
+      },
+    );
+
     test('bhv serializationobject 147 serialize map to JSON', () {
       final input = {'name': 'Fido', 'age': 3};
 
@@ -4186,6 +4314,501 @@ void main() {
             r'  /// The largest tier. Ends with */ and #{x} and $x.'
             '\n  large(',
           ),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 090 malformed base64 is rejected, not repaired, including inside arrays and maps',
+      () {
+        expect(
+          () => decodeBase64('aGk'),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => deserialize<BinaryVault>(
+            '{"shards":["aGk"]}',
+            BinaryVault.fromJson,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => deserialize<BinaryVault>(
+            '{"labels":{"a":"@@@="}}',
+            BinaryVault.fromJson,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 091 byte values with the high bit set survive an encode and decode round trip',
+      () {
+        final data = Uint8List.fromList([0xff, 0x80, 0x00]);
+        expect(decodeBase64(stringify(data)), equals(data));
+      },
+    );
+
+    test(
+      'bhv serialization 092 a time of day round-trips through its string form and back to the same time',
+      () {
+        expect(validatePartialTime('23:59:59'), equals('23:59:59'));
+      },
+    );
+
+    test(
+      'bhv serialization 093 a date-time is written as ISO-8601 with a numeric UTC offset and keeps sub-seconds',
+      () {
+        final moment = DateTime.utc(2024, 1, 2, 3, 4, 5, 5);
+        final out = stringify(moment);
+        expect(out, equals('2024-01-02T03:04:05.005+00:00'));
+        expect(out.endsWith('Z'), isFalse);
+      },
+    );
+
+    test(
+      'bhv serialization 094 strings in model fields are written verbatim with HTML, ampersands and slashes',
+      () {
+        final text = serialize(Freeform(label: '<a>&/b'));
+        expect(jsonDecode(text), containsPair('label', '<a>&/b'));
+        expect(text, isNot(contains(r'<')));
+        expect(text, isNot(contains(r'&')));
+      },
+    );
+
+    test(
+      'bhv serialization 095 an explicit null on the wire replaces the schema default when decoding',
+      () {
+        expect(
+          deserialize<Defaults>('{"retries":null}', Defaults.fromJson)?.retries,
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 096 an absent field decodes to its declared schema default',
+      () {
+        expect(
+          deserialize<Defaults>('{}', Defaults.fromJson)?.retries,
+          equals(3),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 097 an enum field with a schema default is written with that default value',
+      () {
+        expect(
+          jsonDecode(serialize(const Defaults())),
+          containsPair('mode', 'medium'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 098 an unset optional field is left out of the serialized output at any depth',
+      () {
+        final wire =
+            jsonDecode(serialize({'current': const StrictTag(name: 'Dogs')}))
+                as Map<String, dynamic>;
+        expect(wire['current'], equals({'name': 'Dogs'}));
+      },
+    );
+
+    test(
+      'bhv serialization 099 a strict model rejects an undeclared key with an error',
+      () {
+        expect(
+          () => deserialize<StrictTag>(
+            '{"id":1,"name":"x","unexpected":true}',
+            StrictTag.fromJson,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 100 a valid payload with several declared fields decodes every field',
+      () {
+        final order = deserialize<Order>(
+          '{"id":1,"petId":2,"quantity":3,"status":"approved"}',
+          Order.fromJson,
+        );
+        expect(order?.id, equals(1));
+        expect(order?.petId, equals(2));
+        expect(order?.quantity, equals(3));
+        expect(order?.status, equals(OrderStatusEnum.approved));
+      },
+    );
+
+    test(
+      'bhv serialization 101 an integer-backed enum is written as a JSON number and decodes back to its member',
+      () {
+        expect(serialize(Priority.number2), equals('2'));
+        expect(Priority.fromJson(2), equals(Priority.number2));
+      },
+    );
+
+    test(
+      'bhv serialization 102 a Zulu timestamp decodes to the same instant as its offset form',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"createdAt":"2024-01-01T00:00:00Z"}',
+          Metadata.fromJson,
+        );
+        expect(metadata?.createdAt, equals(DateTime.utc(2024, 1, 1)));
+        expect(metadata?.createdAt?.isUtc, isTrue);
+      },
+    );
+
+    test(
+      'bhv serialization 103 a malformed JSON body is rejected with an error message describing it',
+      () {
+        expect(
+          () => parseJson('{"a":'),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              isNotEmpty,
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 104 an uppercase UUID is written in lowercase canonical form',
+      () {
+        final order = deserialize<Order>(
+          '{"trackingId":"0F8FAD5B-D9CB-469F-A165-70867728950E"}',
+          Order.fromJson,
+        );
+        expect(
+          order?.trackingId.toString(),
+          equals('0f8fad5b-d9cb-469f-a165-70867728950e'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 105 an enum value with the wrong case raises a serialization error',
+      () {
+        expect(
+          () => deserialize<Order>('{"status":"PLACED"}', Order.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 112 a password is masked in the string form and written verbatim on the wire',
+      () {
+        const account = Account(username: 'u', password: 'p-secret-value');
+        expect(account.toString(), isNot(contains('p-secret-value')));
+        expect(serialize(account), contains('"password":"p-secret-value"'));
+      },
+    );
+
+    test(
+      'bhv serialization 113 a string value passes through unchanged without normalising its form',
+      () {
+        expect(stringify('é'), equals('é'));
+      },
+    );
+
+    test(
+      'bhv serialization 114 a decoded number keeps its full magnitude and fractional part',
+      () {
+        final food = deserialize<DryFood>(
+          '{"foodType":"dry","weightKg":12345678901234567890.5}',
+          DryFood.fromJson,
+        );
+        expect(food?.weightKg, equals(12345678901234567890.5));
+      },
+    );
+
+    test(
+      'bhv serialization 115 an integral JSON number decoded into a floating-point field becomes a float',
+      () {
+        final food = deserialize<DryFood>(
+          '{"foodType":"dry","weightKg":5}',
+          DryFood.fromJson,
+        );
+        expect(food?.weightKg, equals(5.0));
+        expect(food?.weightKg, isA<double>());
+      },
+    );
+
+    test(
+      'bhv serialization 116 a property named as a language keyword keeps its exact wire key',
+      () {
+        expect(
+          deserialize<EdgeCases>('{"class":"x"}', EdgeCases.fromJson)?.class_,
+          equals('x'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 117 a protobuf duration string decodes to a duration both standalone and as a property',
+      () {
+        expect(
+          parseProtobufDuration('3600s'),
+          equals(const Duration(hours: 1)),
+        );
+        expect(
+          deserialize<EdgeCases>(
+            '{"retryAfter":"3600s"}',
+            EdgeCases.fromJson,
+          )?.retryAfter,
+          equals(const Duration(hours: 1)),
+        );
+      },
+    );
+    test(
+      'bhv misc 287 A wire key literally named additional_properties is kept as an undeclared extra',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"additional_properties":"bar","region":"eu"}',
+          Metadata.fromJson,
+        )!;
+
+        expect(
+          metadata.additionalProperties,
+          containsPair('additional_properties', 'bar'),
+        );
+        expect(metadata.additionalProperties, containsPair('region', 'eu'));
+      },
+    );
+
+    test(
+      'bhv misc 288 A snake_case key at the top level of an object is captured as an undeclared extra',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"snake_case_key":1}',
+          Metadata.fromJson,
+        )!;
+
+        expect(metadata.additionalProperties, equals({'snake_case_key': 1}));
+      },
+    );
+
+    test(
+      'bhv misc 289 A snake_case key inside a list element is captured as an undeclared extra',
+      () {
+        final items = (jsonDecode('[{"snake_case_key":1}]') as List<dynamic>)
+            .map((item) => Metadata.fromJson(item as Map<String, dynamic>))
+            .toList();
+
+        expect(items.first.additionalProperties, equals({'snake_case_key': 1}));
+      },
+    );
+
+    test(
+      'bhv misc 290 An undeclared key whose value is a dictionary survives a full serialize and deserialize round trip',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"nested":{"a":1}}',
+          Metadata.fromJson,
+        )!;
+
+        final restored = deserialize<Metadata>(
+          serialize(metadata),
+          Metadata.fromJson,
+        )!;
+
+        expect(restored.additionalProperties['nested'], equals({'a': 1}));
+      },
+    );
+    test(
+      'bhv serialization 067 extra properties are written as top-level keys beside the declared fields',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}',
+          Metadata.fromJson,
+        )!;
+
+        final wire = jsonDecode(serialize(metadata)) as Map<String, dynamic>;
+
+        expect(wire['region'], equals('eu'));
+        expect(wire.containsKey('createdAt'), isTrue);
+      },
+    );
+
+    test(
+      'bhv serialization 071 JSON nested deeper than the allowed depth is refused before parsing',
+      () {
+        final deep = '[' * 1001 + ']' * 1001;
+
+        expect(
+          () => parseJson(deep),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              contains('exceeds limit 1000'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 074 nested arrays serialize back to the same nested shape they were decoded from',
+      () {
+        expect(
+          jsonDecode(
+            serialize([
+              [1, 2],
+              [3],
+            ]),
+          ),
+          equals([
+            [1, 2],
+            [3],
+          ]),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 075 an enum value decodes from its wire string to the matching member',
+      () {
+        final order = deserialize<Order>(
+          '{"id":10,"status":"placed"}',
+          Order.fromJson,
+        );
+
+        expect(order!.status, equals(OrderStatusEnum.placed));
+      },
+    );
+
+    test(
+      'bhv serialization 077 a duration written to its wire string and decoded back is unchanged',
+      () {
+        final values = <Duration>[
+          Duration.zero,
+          const Duration(seconds: -90, microseconds: -250000),
+          const Duration(microseconds: 1500),
+          const Duration(days: 3, seconds: 5),
+          const Duration(seconds: 315576000000),
+        ];
+
+        for (final value in values) {
+          expect(
+            parseProtobufDuration(formatProtobufDuration(value)),
+            equals(value),
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv serialization 079 copying a model with named changes changes only those fields',
+      () {
+        final original = Order();
+
+        final copy = original.copyWith(quantity: 500);
+
+        expect(identical(copy, original), isFalse);
+        expect(copy.quantity, equals(500));
+        expect(original.quantity, isNot(equals(500)));
+      },
+    );
+
+    test(
+      'bhv serialization 081 a value of the wrong JSON type is rejected and never coerced',
+      () {
+        expect(
+          () => deserialize<Metadata>('{"createdAt":123}', Metadata.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 083 a serialization error is the library error type and carries a non-empty message',
+      () {
+        expect(
+          () => deserialize<Metadata>('{', Metadata.fromJson),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              isNotEmpty,
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 084 protobuf duration fractions parse to their exact value, including short padded ones',
+      () {
+        expect(
+          parseProtobufDuration('1.5s'),
+          equals(const Duration(seconds: 1, microseconds: 500000)),
+        );
+        expect(
+          parseProtobufDuration('0.1s'),
+          equals(const Duration(microseconds: 100000)),
+        );
+        expect(
+          parseProtobufDuration('1.000001s'),
+          equals(const Duration(seconds: 1, microseconds: 1)),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 085 a date-time field decodes from its ISO-8601 string into a date-time value',
+      () {
+        final metadata = deserialize<Metadata>(
+          '{"createdAt":"2024-01-01T00:00:00Z"}',
+          Metadata.fromJson,
+        )!;
+
+        expect(metadata.createdAt, isA<DateTime>());
+        expect(metadata.createdAt, equals(DateTime.utc(2024, 1, 1)));
+      },
+    );
+
+    test(
+      'bhv serialization 086 a duration is written as protobuf seconds with days folded in',
+      () {
+        expect(
+          formatProtobufDuration(const Duration(days: 1, seconds: 5)),
+          equals('86405s'),
+        );
+        expect(
+          formatProtobufDuration(const Duration(seconds: 2)),
+          equals('2s'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 087 a very small duration is written as fixed-point decimal digits, never scientific',
+      () {
+        final out = formatProtobufDuration(const Duration(microseconds: 1));
+
+        expect(out, equals('0.000001s'));
+        expect(out.toLowerCase(), isNot(contains('e')));
+      },
+    );
+
+    test(
+      'bhv serialization 089 a base64 wire string decodes into a byte value',
+      () {
+        final request = SetPetAvatarThumbnailRequest.fromJson('aGk=');
+
+        expect(
+          request.actualInstance,
+          equals(Uint8List.fromList(<int>[0x68, 0x69])),
         );
       },
     );

@@ -406,6 +406,44 @@ class ConfigurationTest {
     }
 
     @Test
+    @DisplayName("bhvMisc136 the debug text shows the base URL and the non-sensitive default headers")
+    fun bhvMisc136DebugTextShowsBaseUrlAndPlainHeaders() {
+        val text =
+            Configuration
+                .builder()
+                .baseUrl("http://localhost/api")
+                .defaultHeader("X-Trace", "on")
+                .defaultHeader("Authorization", "secret")
+                .build()
+                .toString()
+        assertTrue(text.contains("http://localhost/api") && text.contains("X-Trace=on"), text)
+        assertFalse(text.contains("secret"), text)
+    }
+
+    @Test
+    fun bhvMisc276DefaultConfigurationUsesTheSpecBaseUrl() =
+        runBlocking<Unit> {
+            assertEquals("/api/v3", Configuration.defaultConfiguration().baseUrl)
+            assertEquals("/api/v3", Configuration.builder().build().baseUrl)
+        }
+
+    @Test
+    fun bhvMisc277EachDefaultConfigurationIsADistinctObject() =
+        runBlocking<Unit> {
+            assertNotSame(Configuration.defaultConfiguration(), Configuration.defaultConfiguration())
+        }
+
+    @Test
+    fun bhvMisc279ChangingReturnedHeadersLeavesTheConfigurationUnchanged() =
+        runBlocking<Unit> {
+            val config = Configuration.builder().defaultHeader("X-Team", "alpha").build()
+            assertThrowsExactly(UnsupportedOperationException::class.java) {
+                (config.defaultHeaders as MutableMap<String, String>)["X-Team"] = "beta"
+            }
+            assertEquals("alpha", config.defaultHeaders["X-Team"])
+        }
+
+    @Test
     @DisplayName("bhvMisc180 the inspect form shows the values of default headers whose names are not sensitive")
     fun bhvMisc180ToStringShowsNonSensitiveDefaultHeaderValues() {
         val config =

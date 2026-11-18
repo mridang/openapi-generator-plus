@@ -85,6 +85,37 @@ class TestValueSerializerPath:
             ValueSerializer.serialize(["a,b", "c"], "path", "array", "csv") == "a%2Cb,c"
         )
 
+    def test_bhv_misc_232_a_string_path_parameter_in_simple_style_percent_encodes_slashes(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize("a/b", "path", "string") == "a%2Fb"
+
+    def test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded(
+        self,
+    ) -> None:
+        rendered = ValueSerializer.serialize('{"a":1.5}', "cookie", "string")
+
+        assert "%7B" in rendered
+        assert "%3A" in rendered
+        assert ":" not in rendered
+
+    def test_bhv_misc_211_a_date_time_inside_a_json_query_parameter_keeps_its_wire_form(
+        self,
+    ) -> None:
+        json_text = '{"takenAt":"2024-01-02T03:04:05+00:00"}'
+
+        assert ValueSerializer.encode_content("filter", json_text, "query") == json_text
+
+    def test_bhv_misc_213_an_optional_array_query_parameter_is_joined_in_its_declared_style(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize_styled(
+                "colors", ["blue", "black"], "query", "array", style="pipeDelimited"
+            )
+            == "blue|black"
+        )
+
 
 class TestValueSerializerQuery:
     def test_bhv_serializationparam_067_null_returns_none(self) -> None:
