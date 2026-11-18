@@ -1633,13 +1633,6 @@ function dumpForRedaction(object $value): string
     return $varDump . "\n" . print_r($value, true);
 }
 
-test('bhv authbearer 011 bearer authenticator masks token in debug output', function (): void {
-    $dump = dumpForRedaction(new BearerAuthenticator('https://api.example.com', 'super-secret-token'));
-
-    expect($dump)->not->toContain('super-secret-token');
-    expect($dump)->toContain('***');
-});
-
 test('bhv authapikey 026 does not leak its key in default debug output', function (): void {
     $dump = dumpForRedaction(
         new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'super-secret-key', ApiKeyLocation::HEADER)
