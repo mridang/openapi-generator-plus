@@ -23,7 +23,7 @@ void main() {
     });
 
     test(
-      'bhv lifecycle 025 the environment variable is read once, at construction',
+      'bhv authbearer 025 the environment variable is read once, at construction',
       () {
         final environment = {
           BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
@@ -49,7 +49,7 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals('Bearer other'));
     });
 
-    test('an empty environment value counts as unset', () {
+    test('bhv authbearer 019 an empty environment value counts as unset', () {
       expect(
         () => BearerAuthenticator(
           host: '/api/v3',
@@ -72,7 +72,7 @@ void main() {
       );
     });
 
-    test('a token and a provider together are refused', () {
+    test('bhv authbearer 026 a token and a provider together are refused', () {
       expect(
         () => BearerAuthenticator(
           host: '/api/v3',
@@ -143,6 +143,26 @@ void main() {
         );
         expect(
           () => BearerAuthenticator(host: '/api/v3', token: 'ñoño'),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'bhv authbearer 022 a bearer authenticator rejects a non-ASCII token at construction',
+      () {
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', token: 'ñoño'),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'bhv authbearer 027 a bearer authenticator rejects a whitespace-only token',
+      () {
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', token: '   '),
           throwsArgumentError,
         );
       },
@@ -296,6 +316,19 @@ void main() {
         },
       );
     });
+
+    test(
+      'bhv authbearer 023 generated bearer scheme wrappers emit a Bearer header and keep their own name',
+      () {
+        builders.forEach((name, build) {
+          expect(
+            build('xyz').authHeaders(),
+            equals({'Authorization': 'Bearer xyz'}),
+          );
+          expect(build('xyz').toString(), startsWith('$name('));
+        });
+      },
+    );
   });
 
   group('per-scheme authenticators', () {

@@ -27,21 +27,36 @@ void main() {
       },
     );
 
-    test('the key falls back to the environment variable, read once', () {
-      final environment = {
-        ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv',
-      };
-      final auth = ApiKeyAuthenticator(
-        host: '/api/v3',
-        keyParamName: 'api_key',
-        location: ApiKeyLocation.query,
-        environment: environment,
-      );
+    test(
+      'bhv authapikey 021 an API key is read from the environment when none is passed, and a passed key wins',
+      () {
+        final environment = {
+          ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv',
+        };
+        final auth = ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'api_key',
+          location: ApiKeyLocation.query,
+          environment: environment,
+        );
 
-      environment[ApiKeyAuthenticator.defaultEnvironmentVariable] = 'changed';
+        environment[ApiKeyAuthenticator.defaultEnvironmentVariable] = 'changed';
 
-      expect(auth.queryParams(), equals({'api_key': 'fromenv'}));
-    });
+        expect(auth.queryParams(), equals({'api_key': 'fromenv'}));
+
+        final explicit = ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'api_key',
+          apiKey: 'explicit',
+          location: ApiKeyLocation.query,
+          environment: {
+            ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv',
+          },
+        );
+
+        expect(explicit.queryParams(), equals({'api_key': 'explicit'}));
+      },
+    );
 
     test('no key anywhere, or an empty variable, fails at construction', () {
       for (final environment in <Map<String, String>>[
@@ -249,13 +264,32 @@ void main() {
       },
     );
 
-    test('a cookie key accepts non-ASCII and is emitted only as a cookie', () {
-      final auth = build('kéy', ApiKeyLocation.cookie);
+    test(
+      'bhv authapikey 023 a cookie key accepts non-ASCII and is emitted only as a cookie',
+      () {
+        final auth = build('kéy', ApiKeyLocation.cookie);
 
-      expect(auth.cookieParams(), equals({'k': 'kéy'}));
-      expect(auth.authHeaders(), isEmpty);
-      expect(auth.queryParams(), isEmpty);
-    });
+        expect(auth.cookieParams(), equals({'k': 'kéy'}));
+        expect(auth.authHeaders(), isEmpty);
+        expect(auth.queryParams(), isEmpty);
+      },
+    );
+
+    test(
+      'bhv authapikey 022 an API key is emitted only at its own location and not at the other two',
+      () {
+        for (final location in ApiKeyLocation.values) {
+          final auth = build('k1', location);
+          final placed = [
+            auth.authHeaders(),
+            auth.queryParams(),
+            auth.cookieParams(),
+          ].where((m) => m.isNotEmpty).length;
+
+          expect(placed, equals(1), reason: location.name);
+        }
+      },
+    );
 
     test(
       'bhv authapikey 003 a CR, LF or NUL in a query key throws at construction',
@@ -434,5 +468,31 @@ void main() {
         expect(repr, isNot(contains('abc123')));
       });
     });
+
+    test(
+      'bhv authapikey 025 generated API key scheme wrappers mask the key in their debug output',
+      () {
+        builders.forEach((name, build) {
+          final repr = build('abc123').toString();
+          expect(repr, startsWith('$name('));
+          expect(repr, isNot(contains('abc123')));
+        });
+      },
+    );
+
+    test(
+      'bhv authapikey 026 an API key authenticator does not leak its key in its default debug output',
+      () {
+        final auth = ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc123',
+          location: ApiKeyLocation.header,
+        );
+
+        expect(auth.toString(), isNot(contains('abc123')));
+        expect('$auth', isNot(contains('abc123')));
+      },
+    );
   });
 }
