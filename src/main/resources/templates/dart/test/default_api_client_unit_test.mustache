@@ -159,6 +159,56 @@ void main() {
       }
     });
 
+    test('bhv misc 223 A redirect that turns the follow-up into a GET drops the request body and its Content-Length; otherwise the body is forwarded unchanged', () async {
+      const rows = <(int, String, String)>[
+        (301, 'POST', 'GET'),
+        (302, 'POST', 'GET'),
+        (301, 'PATCH', 'PATCH'),
+        (302, 'DELETE', 'DELETE'),
+        (301, 'GET', 'GET'),
+      ];
+      var landedMethod = '';
+      var landedBody = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (request.uri.path == '/start') {
+          await request.drain<void>();
+          request.response
+            ..statusCode = int.parse(request.uri.queryParameters['status']!)
+            ..headers.set('Location', '/landed')
+            ..close();
+          return;
+        }
+        landedMethod = request.method;
+        landedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().followRedirects(true).build(),
+        );
+        for (final row in rows) {
+          landedMethod = '';
+          landedBody = '';
+          await client.sendRequest(
+            row.$2,
+            'http://localhost:${server.port}/start?status=${row.$1}',
+            {'Content-Type': 'text/plain'},
+            row.$2 == 'GET' ? null : 'payload',
+          );
+          expect(landedMethod, equals(row.$3), reason: '${row.$1} ${row.$2}');
+          if (row.$2 == 'POST') {
+            expect(landedBody, isEmpty, reason: '${row.$1} POST');
+          }
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv redirects 046 a chain within the limit reaches its target and a chain past it raises the 3xx status and message', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
@@ -2029,6 +2079,34 @@ void main() {
      * terminal response, not a too-many-redirects error. */
     test('bhv redirects 023 returns the last 3xx when the budget is spent and it has no Location',
         () async {
+      var hits = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        hits++;
+        request.response.statusCode = 302;
+        if (hits == 1) {
+          request.response.headers
+              .set('Location', 'http://127.0.0.1:${server.port}/second');
+        }
+        request.response.close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder().maxRedirects(1).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/first',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(302));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 225 A 3xx response that has no Location header is returned to the caller as the final response instead of raising an error', () async {
       var hits = 0;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

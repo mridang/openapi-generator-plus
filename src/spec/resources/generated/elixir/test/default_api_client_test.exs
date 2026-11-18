@@ -381,6 +381,27 @@ defmodule PetstoreClient.DefaultApiClientTest do
              200
   end
 
+  test "bhv transport 086 a request that exceeds its timeout fails with the network timeout error within the time budget" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 200))
+
+    started = System.monotonic_time(:millisecond)
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/redirect/chain/1",
+        %{},
+        nil
+      )
+    end
+
+    assert System.monotonic_time(:millisecond) - started < 1_000
+  end
+
   test "bhv misc 263 a per-call timeout longer than the client's timeout lets a slow response complete" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     chain = "#{chasm_url}/test/redirect/chain/1"

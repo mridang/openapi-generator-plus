@@ -3661,4 +3661,26 @@ class DefaultApiClientUnitTest {
             )
         }
     }
+    @Nested
+    @DisplayName("declared multipart subtype")
+    inner class DeclaredMultipartSubtype {
+
+        @Test
+        @DisplayName("bhvMisc100 a declared multipart subtype is kept and gets a boundary")
+        fun bhvMisc100DeclaredMultipartSubtypeIsKept() {
+            var contentType: String? = null
+            val client = mockClient(requestCapture = { request ->
+                contentType = request.body.contentType.toString()
+            })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/mixed"),
+                    linkedMapOf<String, Any?>("note" to "x"),
+                )
+            }
+            assertTrue(contentType!!.startsWith("multipart/mixed; boundary="), contentType)
+        }
+    }
 }
