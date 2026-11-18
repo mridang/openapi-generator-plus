@@ -862,3 +862,27 @@ class TestMocking:
         via_protocol.close()
 
         assert fake.closed == 2
+
+
+class TestClientCloseState:
+    def test_bhv_misc_183_closing_a_client_with_nothing_to_release_succeeds(
+        self,
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+
+        client.close()
+
+    def test_bhv_misc_188_a_client_reports_closed_only_after_close(self) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        before = client._closed
+
+        client.close()
+
+        assert before is False
+        assert client._closed is True
+
+    def test_bhv_misc_203_closing_an_already_closed_client_does_nothing(self) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        client.close()
+
+        client.close()

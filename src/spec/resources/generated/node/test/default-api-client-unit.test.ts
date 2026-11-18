@@ -3153,6 +3153,21 @@ describe("request header and byte body handling", () => {
     expect(seen[1]!["Authorization"]).toBe("Bearer api-only");
   });
 
+  it("bhv misc 202 a text body sent without a declared content type goes out as bare JSON", async () => {
+    let seenHeaders: Record<string, string> = {};
+    global.fetch = (async (
+      _url: unknown,
+      init: { headers: Record<string, string> },
+    ) => {
+      seenHeaders = init.headers;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient();
+
+    await client.sendRequest("POST", "http://api.example/x", {}, "hello");
+
+    expect(seenHeaders["Content-Type"]).toBe("application/json");
+  });
   it("bhv misc 217 sends a plain Uint8Array body as raw bytes, not multipart", async () => {
     let seenBody: unknown;
     let seenHeaders: Record<string, string> = {};

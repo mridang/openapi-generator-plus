@@ -286,6 +286,188 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     end
   end
 
+  test "bhv misc 182 a per-call header replaces the default header of the same name in any letter case, leaving no other spelling", %{state: state} do
+    config = {{moduleName}}.Configuration.new(base_url: state.config.base_url, default_headers: %{"X-Trace" => "configured"})
+
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(%{state | config: config}, :get, "/test/echo", %{}, %{"x-trace" => "per-call"}, nil, ["application/json"], "application/json", "Object")
+
+    assert result["headers"]["x-trace"] == "per-call"
+  end
+
+  test "bhv misc 218 a per-call header is sent and takes precedence over a configured header of the same name", %{state: state} do
+    config = {{moduleName}}.Configuration.new(base_url: state.config.base_url, default_headers: %{"X-Trace" => "configured"})
+
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(%{state | config: config}, :get, "/test/echo", %{}, %{"X-Trace" => "per-call"}, nil, ["application/json"], "application/json", "Object")
+
+    assert result["headers"]["x-trace"] == "per-call"
+  end
+
+  test "bhv misc 210 a date-time form field is encoded in canonical form with its colons percent-escaped on the wire", %{state: state} do
+    body = %{"when" => ~U[2024-01-02 03:04:05Z]}
+
+    assert {:ok, returned} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/echo", %{}, %{}, body, ["application/json"], "application/x-www-form-urlencoded", "String")
+
+    assert Jason.decode!(returned)["body"] =~ "03%3A04%3A05"
+  end
+
+  test "bhv misc 211 a date-time inside a JSON query parameter keeps its wire date-time form" do
+    {:ok, name} = CapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingApiClient, authenticator: nil}
+
+    _result =
+      {{moduleName}}.Api.BaseApi.invoke_api(
+        state, :get, "/test/echo", [{"filter", ~s({"at":"2024-01-02T03:04:05Z"})}], %{}, nil,
+        ["application/json"], "application/json", nil
+      )
+
+    assert CapturingApiClient.captured_url(name) =~ "2024-01-02T03%3A04%3A05Z"
+  end
+
+  test "bhv misc 212 a 404 or 500 response from a call raises the corresponding error through the API layer" do
+    for {status, error} <- [{404, {{moduleName}}.Errors.NotFoundError}, {500, {{moduleName}}.Errors.InternalServerError}] do
+      client = ScriptedApiClient.new(fn _url, _headers, _requests ->
+        %{{moduleName}}.ApiHttpResponse{status_code: status, body: "{}", headers: %{"Content-Type" => "application/json"}}
+      end)
+      state = %{config: {{moduleName}}.Configuration.new(base_url: "http://localhost"), api_client: client}
+
+      assert {:error, %{__struct__: ^error}} =
+               {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/error", %{}, %{}, nil, ["application/json"], "application/json", "Object")
+    end
+  end
+
+  test "bhv misc 213 an optional array query parameter is serialized in its declared style with no bracket or comma-joined rendering" do
+    {:ok, name} = CapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingApiClient, authenticator: nil}
+
+    _result =
+      {{moduleName}}.Api.BaseApi.invoke_api(
+        state, :get, "/test/echo", [{"tags", ["a", "b"]}], %{}, nil,
+        ["application/json"], "application/json", nil
+      )
+
+    url = CapturingApiClient.captured_url(name)
+    assert url =~ "tags=a&tags=b"
+    refute url =~ "%5B"
+    refute url =~ "a%2Cb"
+  end
+
+  test "bhv misc 214 an unserializable query content value raises a serialization error before any request is sent" do
+    {:ok, name} = CapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingApiClient, authenticator: nil}
+
+    assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+      {{moduleName}}.Api.BaseApi.invoke_api(
+        state, :get, "/test/echo", [{"filter", fn -> :no end}], %{}, nil,
+        ["application/json"], "application/json", nil
+      )
+    end
+
+    assert CapturingApiClient.captured_url(name) == ""
+  end
+
+  test "bhv misc 217 a binary upload sends in-memory bytes as the exact raw body", %{state: state} do
+    assert {:ok, returned} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/echo", %{}, %{}, <<0, 255, 1>>, ["application/json"], "application/octet-stream", "String")
+
+    assert Jason.decode!(returned)["headers"]["content-type"] == "application/octet-stream"
+  end
+
+  test "bhv misc 221 a credential is sent in the API-key header the operation declares and no bearer header is added", %{state: state} do
+    auth = %TestAuthenticator{host_url: "", headers: %{"X-Api-Key" => "k-123"}, query: %{}, cookies: %{}}
+
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{}, nil, ["application/json"], "application/json", "Object", auth)
+
+    assert result["headers"]["x-api-key"] == "k-123"
+    refute Map.has_key?(result["headers"], "authorization")
+  end
+
+  test "bhv misc 222 a success response with a 201 status and an empty body returns no data without an error" do
+    client = ScriptedApiClient.new(fn _url, _headers, _requests ->
+      %{{moduleName}}.ApiHttpResponse{status_code: 201, body: "", headers: %{"Content-Type" => "application/json"}}
+    end)
+    state = %{config: {{moduleName}}.Configuration.new(base_url: "http://localhost"), api_client: client}
+
+    assert {:ok, nil} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/created", %{}, %{}, nil, ["application/json"], "application/json", "Object")
+  end
+
+  test "bhv misc 227 a network error before any response is received is retried, so a dropped connection produces a second request" do
+    state = retry_state([{:transport_error, :econnrefused}, 200])
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+  end
+
+  test "bhv misc 229 a per-call max retries value overrides the client setting so a call can retry when the client allows none" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200], max_retries: 0)
+
+    assert {:error, _} = get_thing(state)
+    assert {:ok, _} = get_thing_with(state, max_retries: 1)
+    assert length(attempts()) == 3
+  end
+
+  test "bhv misc 228 an unparseable Retry-After header is ignored and the retry uses the normal backoff" do
+    state = retry_state([{429, [{"retry-after", "soon"}]}, 200])
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+  end
+
+  test "bhv misc 238 a number query parameter is serialized as a plain number in the request" do
+    {:ok, name} = CapturingApiClient.start()
+    state = %{config: {{moduleName}}.Configuration.new(base_url: "http://localhost"), api_client: CapturingApiClient, authenticator: nil}
+
+    _result =
+      {{moduleName}}.Api.BaseApi.invoke_api(
+        state, :get, "/test/echo", [{"limit", 5}], %{}, nil,
+        ["application/json"], "application/json", nil
+      )
+
+    assert CapturingApiClient.captured_url(name) =~ "limit=5"
+  end
+
+  test "bhv misc 239 an operation's query parameter is serialized when no authenticator is configured" do
+    {:ok, name} = CapturingApiClient.start()
+    state = %{config: {{moduleName}}.Configuration.new(base_url: "http://localhost"), api_client: CapturingApiClient, authenticator: nil}
+
+    _result =
+      {{moduleName}}.Api.BaseApi.invoke_api(
+        state, :get, "/test/echo", [{"status", "available"}], %{}, nil,
+        ["application/json"], "application/json", nil
+      )
+
+    assert CapturingApiClient.captured_url(name) =~ "status=available"
+  end
+
+  test "bhv misc 240 a multipart form upload sends its file part with the file content echoed back in the request", %{state: state} do
+    assert {:ok, returned} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/echo", %{}, %{}, %{"file" => {:file, "a.txt", "hello"}}, ["application/json"], "multipart/form-data", "String")
+
+    assert Jason.decode!(returned)["body"] =~ "hello"
+  end
+
+  test "bhv misc 241 a time-of-day query value is sent as HH:mm:ss with the milliseconds truncated" do
+    {:ok, name} = CapturingApiClient.start()
+    state = %{config: {{moduleName}}.Configuration.new(base_url: "http://localhost"), api_client: CapturingApiClient, authenticator: nil}
+
+    _result =
+      {{moduleName}}.Api.BaseApi.invoke_api(
+        state, :get, "/test/echo", [{"at", ~T[10:11:12.345]}], %{}, nil,
+        ["application/json"], "application/json", nil
+      )
+
+    url = CapturingApiClient.captured_url(name)
+    assert url =~ "at=10%3A11%3A12"
+    refute url =~ "345"
+  end
+
   test "bhv serializationwire 025 nil content-type skips JSON deserialization and returns raw body" do
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: NilContentTypeApiClient}
@@ -693,6 +875,52 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert result["headers"]["x-custom"] == "auth-value"
   end
 
+  test "bhv misc 176 a required cookie parameter is sent in the Cookie header with its value", %{state: state} do
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{"Cookie" => "api_key=abc123"}, nil, ["application/json"], "application/json", "Object")
+
+    assert result["headers"]["cookie"] == "api_key=abc123"
+  end
+
+  test "bhv misc 177 a default Content-Type header given in any letter case is not sent when the request has no body", %{state: state} do
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{"content-TYPE" => "application/json"}, nil, ["application/json"], "application/json", "Object")
+
+    refute Map.has_key?(result["headers"], "content-type")
+  end
+
+  test "bhv misc 178 a declared multipart content type other than form-data reaches the transport unchanged", %{state: state} do
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/echo", %{}, %{}, "payload", ["application/json"], "multipart/related; boundary=abc", "Object")
+
+    assert result["headers"]["content-type"] == "multipart/related; boundary=abc"
+  end
+
+  test "bhv misc 179 an operation whose body is form-urlencoded sends the application/x-www-form-urlencoded Content-Type", %{state: state} do
+    assert {:ok, returned} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/echo", %{}, %{}, %{"name" => "alice"}, ["application/json"], "application/x-www-form-urlencoded", "String")
+
+    assert Jason.decode!(returned)["headers"]["content-type"] =~ "application/x-www-form-urlencoded"
+  end
+
+  test "bhv misc 181 a header value is sent exactly as serialised with no percent-encoding", %{state: state} do
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{"X-Raw" => "a b/c?d=%41"}, nil, ["application/json"], "application/json", "Object")
+
+    assert result["headers"]["x-raw"] == "a b/c?d=%41"
+  end
+
+  test "bhv misc 191 an auth cookie holding a character RFC 6265 forbids raises an ArgumentError that is not an OpenAPI error", %{state: state} do
+    auth = %TestAuthenticator{host_url: "", headers: %{}, query: %{}, cookies: %{"session" => ~S(a"b)}}
+
+    error =
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{}, nil, ["application/json"], "application/json", nil, auth)
+      end
+
+    refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(error)
+  end
+
   # Cookie injection via authenticator
 
   test "bhv authintegration 017 sets cookie header from auth cookies", %{state: state} do
@@ -717,6 +945,45 @@ defmodule {{moduleName}}.Api.BaseApiTest do
              {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{"Cookie" => "theme=dark"}, nil, ["application/json"], "application/json", "Object", auth)
 
     assert result["headers"]["cookie"] == "theme=dark; session=abc123"
+  end
+
+  test "bhv misc 192 an auth cookie made only of legal cookie-octets is sent exactly as given", %{state: state} do
+    for good <- ["a=b==", "%41%2F", "x/y+z", "A.B-C_D"] do
+      auth = %TestAuthenticator{host_url: "", headers: %{}, query: %{}, cookies: %{"session" => good}}
+
+      assert {:ok, result} =
+               {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{}, nil, ["application/json"], "application/json", "Object", auth)
+
+      assert result["headers"]["cookie"] == "session=" <> good
+    end
+  end
+
+  test "bhv misc 197 an operation whose named schemes the client does not hold is served by the default authenticator", %{state: state} do
+    auth = %TestAuthenticator{host_url: "", headers: %{"Authorization" => "Bearer default-token"}, query: %{}, cookies: %{}}
+
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{}, nil, ["application/json"], "application/json", "Object", auth)
+
+    assert result["headers"]["authorization"] == "Bearer default-token"
+  end
+
+  test "bhv misc 202 a text body sent without a declared content type goes out as application/json with no parameters", %{state: state} do
+    assert {:ok, returned} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/echo", %{}, %{}, "hello", ["application/json"], nil, "String")
+
+    assert Jason.decode!(returned)["headers"]["content-type"] == "application/json"
+  end
+
+  test "bhv misc 209 a void operation ignores a success body that is text or a non-object JSON value and returns no data" do
+    for {body, content_type} <- [{"plain text", "text/plain"}, {"true", "application/json"}] do
+      client = ScriptedApiClient.new(fn _url, _headers, _requests ->
+        %{{moduleName}}.ApiHttpResponse{status_code: 200, body: body, headers: %{"Content-Type" => content_type}}
+      end)
+      state = %{config: {{moduleName}}.Configuration.new(base_url: "http://localhost"), api_client: client}
+
+      assert {:ok, nil} =
+               {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/void", %{}, %{}, nil, ["application/json"], "application/json", nil)
+    end
   end
 
   # An authenticator cookie holding characters RFC 6265 forbids is a caller
