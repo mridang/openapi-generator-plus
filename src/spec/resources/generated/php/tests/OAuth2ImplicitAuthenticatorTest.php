@@ -184,7 +184,13 @@ test('bhv authscheme 016 an empty environment variable for the implicit scheme c
             continue;
         }
         $wrappers++;
-        $variables = array_values((new \ReflectionClass($class))->getConstant('ENV_VARS'));
+        $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+        \assert(is_array($constants));
+        $variables = array_values(array_map(static function (mixed $name): string {
+            \assert(is_string($name));
+
+            return $name;
+        }, $constants));
         foreach ($variables as $empty) {
             $saved = [];
             foreach ($variables as $variable) {
@@ -192,7 +198,7 @@ test('bhv authscheme 016 an empty environment variable for the implicit scheme c
                 putenv($variable === $empty ? $variable . '=' : $variable . '=set-value');
             }
             try {
-                expect(fn () => new $class('https://api.example.com'))
+                expect(fn () => (new \ReflectionClass($class))->newInstance('https://api.example.com'))
                     ->toThrow(\InvalidArgumentException::class, $empty);
             } finally {
                 foreach ($saved as $variable => $value) {
