@@ -2045,3 +2045,7 @@ langpython102 | Instances differing only in additional properties are not equal.
 langpython103 | Omitting the token url raises.
 langpython104 | Credentials cannot be reassigned.
 langpython105 | A client-credentials OAuth2 authenticator compares by identity, so equal settings never compare equal.
+langpython106 | Omitting the token url username and password raises.
+langpython107 | Omitting only the password raises.
+langpython108 | Credentials cannot be reassigned.
+langpython109 | A password OAuth2 authenticator compares by identity, so equal settings never compare equal.
