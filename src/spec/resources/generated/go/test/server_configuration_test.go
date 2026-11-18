@@ -483,3 +483,14 @@ func TestBhvServers027_ServerVariable_EqualDefaultDescriptionAndValuesAreEqual(t
 		t.Errorf("expected equal server variables, got %+v and %+v", first, second)
 	}
 }
+
+func TestBhvMisc297_ServerConfiguration_EveryTemplateVariableIsReplacedWhenTheURLIsBuilt(t *testing.T) {
+	t.Parallel()
+	got, err := petstore.Server1.URL(map[string]string{"environment": "staging", "version": "v2"})
+	if err != nil {
+		t.Fatalf("failed to build the server URL: %v", err)
+	}
+	if want := "https://staging.example.com/api/v2"; got != want {
+		t.Errorf("URL = %q, want %q", got, want)
+	}
+}

@@ -986,3 +986,16 @@ func TestBhvTransport080_TransportOptions_AProxyTheClientCannotApplyFailsConstru
 		t.Error("expected no TransportOptions when the proxy cannot be applied")
 	}
 }
+
+func TestBhvMisc298_TransportOptions_MalformedProxyUrlFailsTheClientWithInvalidProxyURL(t *testing.T) {
+	t.Parallel()
+	opts, err := petstore.NewTransportOptionsBuilder().
+		Proxy("http://[::1").
+		Build()
+	if !errors.Is(err, petstore.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions when the proxy URL is malformed")
+	}
+}

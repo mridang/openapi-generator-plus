@@ -2293,7 +2293,7 @@ func addPetCall(api *petstore.PetApi) error {
 	return err
 }
 
-func TestBaseApi_RetriesTwiceByDefaultWithBackoff(t *testing.T) {
+func TestBhvMisc296_BaseApi_RetriesTwiceByDefaultWithBackoff(t *testing.T) {
 	t.Parallel()
 	srv := newScriptedServer(t, scriptedReply{status: 500}, scriptedReply{status: 503}, scriptedReply{status: 200})
 	api := retryApi(t, srv, nil, nil)

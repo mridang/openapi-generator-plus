@@ -528,9 +528,9 @@ func TestBhvErrors006_ApiError_FromResponse_MapsEveryStatusToItsType(t *testing.
 	}
 }
 
-// TestApiError_PackageRoot_ReexportsTheErrorTree confirms every error type can be named
+// TestBhvMisc283_ApiError_PackageRoot_ReexportsTheErrorTree confirms every error type can be named
 // from the package root as well as from the errors package.
-func TestApiError_PackageRoot_ReexportsTheErrorTree(t *testing.T) {
+func TestBhvMisc283_ApiError_PackageRoot_ReexportsTheErrorTree(t *testing.T) {
 	t.Parallel()
 	var (
 		_ petstore.OpenAPIError = (*petstore.ApiError)(nil)
