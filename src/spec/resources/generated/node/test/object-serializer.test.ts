@@ -2312,6 +2312,11 @@ describe("ObjectSerializer", () => {
       );
     });
 
+    test("bhv serialization 001 the text form of an enum member is exactly its declared wire value", () => {
+      expect(`${Availability.OnHold}`).toBe("on-hold");
+      expect(String(Availability.Available)).toBe("Available");
+    });
+
     test("serialize preserves the exact wire casing of each member", () => {
       const available = new StockItem({
         priority: Priority.Number1,

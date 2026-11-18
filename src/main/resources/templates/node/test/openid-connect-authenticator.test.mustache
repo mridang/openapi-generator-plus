@@ -557,6 +557,37 @@ describe('OpenIdConnectAuthenticator', () => {
       expect(urls.every((url) => url.startsWith('https://auth.example.com/authorize-1?'))).toBe(true);
     });
 
+    test.each(['public', 'max-age=abc'])(
+      'bhv auth 011 a Cache-Control of %p without a usable max-age caches the document for a day',
+      async (cacheControl) => {
+        await urlsAfter(86399, cacheControl);
+
+        expect(mockClient.callCount).toBe(1);
+      }
+    );
+
+    test('bhv auth 029 after the cached document expires, the exchange uses the endpoints of the new document', async () => {
+      const document = (n: number): ApiHttpResponse => ({
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: `https://auth.example.com/authorize-${n}`,
+          token_endpoint: `https://auth.example.com/token-${n}`
+        }),
+        headers: { 'content-type': 'application/json', 'Cache-Control': 'max-age=60' }
+      });
+      mockClient.responses = [document(1), document(2), tokenResponse('after-rediscovery')];
+      await authenticator.buildAuthorizationUrl();
+      const originalNow = Date.now;
+      try {
+        Date.now = () => originalNow() + 61_000;
+        await authenticator.exchangeCode('my-auth-code');
+      } finally {
+        Date.now = originalNow;
+      }
+
+      expect(mockClient.lastUrl).toBe('https://auth.example.com/token-2');
+    });
+
     test.each([
       [86399, 1],
       [86401, 2]

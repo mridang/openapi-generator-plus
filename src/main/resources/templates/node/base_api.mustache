@@ -219,8 +219,14 @@ export abstract class BaseApi {
       ...Object.keys(this.config.defaultHeaders),
       ...Object.keys(callHeaders)
     ];
+    /* The client-level signal and the per-call signal are merged: either one
+     * cancels the request. */
+    const signals = [this.config.signal, requestOptions?.signal].filter(
+      (s): s is AbortSignal => s != null
+    );
+    const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
     if (effectiveAuth) {
-      const authHeaders = await effectiveAuth.getAuthHeadersAsync();
+      const authHeaders = await BaseApi.untilAborted(effectiveAuth.getAuthHeadersAsync(), signal);
       credentialHeaderNames.push(...Object.keys(authHeaders));
       overlay(authHeaders);
       const cookies = effectiveAuth.getCookieParams();
@@ -258,12 +264,6 @@ export abstract class BaseApi {
       }
     }
 
-    /* The client-level signal and the per-call signal are merged: either one
-     * cancels the request. */
-    const signals = [this.config.signal, requestOptions?.signal].filter(
-      (s): s is AbortSignal => s != null
-    );
-    const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
     const sendOptions = {
       ...(signal ? { signal } : {}),
       ...(callTimeout !== undefined ? { timeout: callTimeout } : {}),
@@ -289,7 +289,7 @@ export abstract class BaseApi {
       renewable.invalidateAccessToken();
       let freshAuthHeaders: Record<string, string> | null;
       try {
-        freshAuthHeaders = await effectiveAuth.getAuthHeadersAsync();
+        freshAuthHeaders = await BaseApi.untilAborted(effectiveAuth.getAuthHeadersAsync(), signal);
       } catch (error) {
         if (!(error instanceof {{errorPrefix}}Error)) {
           throw error;
@@ -463,6 +463,39 @@ export abstract class BaseApi {
     } catch {
       return url.split(/[?#]/)[0]!;
     }
+  }
+
+  /**
+   * Settle with the work unless the call is cancelled first. A cancelled call
+   * rejects with the signal's own reason at once, without waiting for the
+   * token endpoint.
+   *
+   * @param work the pending credential lookup
+   * @param signal the call's cancellation signal, if any
+   * @returns the work's result
+   */
+  private static untilAborted<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+    if (signal === undefined) {
+      return work;
+    }
+    if (signal.aborted) {
+      work.catch(() => undefined);
+      return Promise.reject(signal.reason);
+    }
+    return new Promise<T>((resolve, reject) => {
+      const onAbort = (): void => reject(signal.reason);
+      signal.addEventListener('abort', onAbort, { once: true });
+      work.then(
+        (value) => {
+          signal.removeEventListener('abort', onAbort);
+          resolve(value);
+        },
+        (error: unknown) => {
+          signal.removeEventListener('abort', onAbort);
+          reject(error);
+        }
+      );
+    });
   }
 
   /**

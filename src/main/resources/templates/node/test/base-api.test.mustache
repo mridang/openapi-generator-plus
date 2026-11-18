@@ -1580,6 +1580,24 @@ describe('request cancellation against the slow endpoint', () => {
     expect(error).not.toBeInstanceOf(NetworkTimeoutError);
   }, 15000);
 
+  test('bhv auth 013 cancelling a call reports the cancellation without waiting for the token endpoint', async () => {
+    class StalledBearer extends BearerAuthenticator {
+      override getAuthHeadersAsync(): Promise<Record<string, string>> {
+        return new Promise<Record<string, string>>(() => undefined);
+      }
+    }
+    const controller = new AbortController();
+    const testApi = new TestableApi(
+      new DefaultApiClient(),
+      Configuration.defaultConfiguration(),
+      new StalledBearer('http://localhost', 'token-013')
+    );
+    const pending = slow(testApi, { signal: controller.signal });
+    setTimeout(() => controller.abort(), 100);
+    const error = await pending;
+    expect((error as Error).name).toBe('AbortError');
+  }, 15000);
+
   test('an already aborted per-call signal rejects without waiting', async () => {
     const testApi = new TestableApi(new DefaultApiClient(), Configuration.defaultConfiguration());
     const error = await slow(testApi, { signal: AbortSignal.abort() });

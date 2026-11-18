@@ -1865,6 +1865,11 @@ describe('ObjectSerializer', () => {
       expect(JSON.parse(ObjectSerializer.serialize(item)).availability).toBe('on-hold');
     });
 
+    test('bhv serialization 001 the text form of an enum member is exactly its declared wire value', () => {
+      expect(`${Availability.OnHold}`).toBe('on-hold');
+      expect(String(Availability.Available)).toBe('Available');
+    });
+
     test('serialize preserves the exact wire casing of each member', () => {
       const available = new StockItem({ priority: Priority.Number1, availability: Availability.Available });
       expect(JSON.parse(ObjectSerializer.serialize(available)).availability).toBe('Available');

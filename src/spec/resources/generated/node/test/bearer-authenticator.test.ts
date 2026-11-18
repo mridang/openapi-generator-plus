@@ -325,5 +325,99 @@ describe("BearerAuthenticator", () => {
       );
       expect(JSON.stringify(auth)).not.toContain("provider-secret");
     });
+
+    it("bhv auth 004 an authenticator with no token, no variable, or a null token is refused at construction", () => {
+      delete process.env[variable];
+      expect(() => new BearerAuthenticator("https://api.example.com")).toThrow(
+        TypeError,
+      );
+      expect(
+        () =>
+          new BearerAuthenticator(
+            "https://api.example.com",
+            null as unknown as string,
+          ),
+      ).toThrow(TypeError);
+    });
+
+    it("bhv auth 005 a token provider is asked again for every request", async () => {
+      let asked = 0;
+      const auth = new BearerAuthenticator(
+        "https://api.example.com",
+        () => `rotating-${++asked}`,
+      );
+      expect(await auth.getAuthHeadersAsync()).toEqual({
+        Authorization: "Bearer rotating-1",
+      });
+      expect(await auth.getAuthHeadersAsync()).toEqual({
+        Authorization: "Bearer rotating-2",
+      });
+      expect(asked).toBe(2);
+    });
+
+    it("bhv auth 009 a token that is blank or holds a line break is refused when passed, read from the environment, or returned by a provider", async () => {
+      for (const token of ["", "  ", "tok\rx", "tok\nx", "tok\0x"]) {
+        expect(
+          () => new BearerAuthenticator("https://api.example.com", token),
+        ).toThrow(TypeError);
+        await expect(
+          new BearerAuthenticator(
+            "https://api.example.com",
+            () => token,
+          ).getAuthHeadersAsync(),
+        ).rejects.toThrow(TypeError);
+      }
+      for (const token of ["  ", "tok\rx", "tok\nx"]) {
+        process.env[variable] = token;
+        expect(
+          () => new BearerAuthenticator("https://api.example.com"),
+        ).toThrow(TypeError);
+      }
+    });
+
+    it("bhv auth 022 an explicit token is used first, then the environment variable", () => {
+      process.env[variable] = "from-env";
+      expect(
+        new BearerAuthenticator(
+          "https://api.example.com",
+          "explicit",
+        ).getAuthHeaders(),
+      ).toEqual({
+        Authorization: "Bearer explicit",
+      });
+      expect(
+        new BearerAuthenticator("https://api.example.com").getAuthHeaders(),
+      ).toEqual({
+        Authorization: "Bearer from-env",
+      });
+    });
+  });
+
+  it("bhv auth 012 each refused bearer token states why it was refused", () => {
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "   "),
+    ).toThrow("Bearer token must not be empty");
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "a\rb"),
+    ).toThrow(
+      "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    );
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "kéy"),
+    ).toThrow(
+      "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    );
+  });
+
+  it("bhv auth 018 a rejected secret never appears in the error message or the stack trace", () => {
+    let error: unknown;
+    try {
+      new BearerAuthenticator("https://api.example.com", "secret-value-018\n");
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).not.toContain("secret-value-018");
+    expect((error as Error).stack ?? "").not.toContain("secret-value-018");
   });
 });

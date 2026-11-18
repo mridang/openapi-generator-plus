@@ -233,6 +233,14 @@ describe("ApiKeyAuthenticator", () => {
     }
   });
 
+  it("bhv auth 006 an API key sent in a header is keyed by the declared header name", () => {
+    const auth = new ApiKeyHeaderAuthenticator(
+      "https://api.example.com",
+      "abc123",
+    );
+    expect(Object.keys(auth.getAuthHeaders())).toEqual(["X-API-Key"]);
+  });
+
   it("bhv authapikey 016 a valid query key passes and is emitted nowhere else", () => {
     const auth = new ApiKeyAuthenticator(
       "https://api.example.com",
