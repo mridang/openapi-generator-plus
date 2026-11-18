@@ -1,0 +1,10 @@
+module Petstore::Client::Models
+  class Stage
+    ON_HOLD: String
+    ACTIVE: String
+    ACTIVE2: String
+    VALUES: Array[String]
+    def self.all_vars: () -> Array[String]
+    def self.validate!: (String?) -> String?
+  end
+end

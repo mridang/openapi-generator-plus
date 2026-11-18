@@ -911,7 +911,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (value != null && String.valueOf(value).equals(wanted)) {
                     final String datatype = property.isInteger || property.isLong ? "int" : "String";
                     property.defaultValue =
-                            property.dataType + "." + toEnumVarName(String.valueOf(value), datatype);
+                            property.dataType
+                                    + "."
+                                    + enumMemberName(referenced, String.valueOf(value), datatype);
                     return;
                 }
             }
@@ -1678,5 +1680,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         }
         return sb.toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getReservedEnumMemberNames() {
+        return Set.of("value");
     }
 }

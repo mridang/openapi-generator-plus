@@ -2639,4 +2639,138 @@ class ObjectSerializerTest {
             assertTrue(parsed.message!!.startsWith("Failed to deserialize JSON: "), parsed.message)
         }
     }
+
+    @Nested
+    @DisplayName("EnumMemberNameTests")
+    inner class EnumMemberNameTests {
+        private fun modelSource(name: String): String =
+            java.io
+                .File(
+                    "src/main/kotlin/" + "com.example.petstore.models".replace('.', '/') + "/" + name + ".kt",
+                ).readText()
+
+        @Test
+        @DisplayName("bhvEnums001 a string enum member named by an array exposes the given name and its wire value")
+        fun arrayNamesAStringMember() {
+            assertEquals("s", com.example.petstore.models.Tier.SMALL.value)
+            assertEquals("m", com.example.petstore.models.Tier.MEDIUM.value)
+            assertEquals("l", com.example.petstore.models.Tier.LARGE.value)
+            assertEquals(
+                com.example.petstore.models.Tier.MEDIUM,
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"tier\":\"m\"}")!!.tier,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums002 an integer enum member named by an array exposes the given name and its number")
+        fun arrayNamesAnIntegerMember() {
+            assertEquals(1, com.example.petstore.models.Rank.LOW.value)
+            assertEquals(2, com.example.petstore.models.Rank.MEDIUM.value)
+            assertEquals(3, com.example.petstore.models.Rank.HIGH.value)
+            val decoded = serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":3}")!!
+            assertEquals(com.example.petstore.models.Rank.HIGH, decoded.rank)
+            assertTrue(serializer.serialize(decoded).contains("\"rank\":3"))
+        }
+
+        @Test
+        @DisplayName("bhvEnums003 an enum named by an object keyed by wire value names the members it lists")
+        fun objectNamesTheListedMembers() {
+            assertEquals("paused", com.example.petstore.models.Stage.ON_HOLD.value)
+            assertEquals(
+                com.example.petstore.models.Stage.ON_HOLD,
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"stage\":\"paused\"}")!!.stage,
+            )
+            assertEquals(
+                com.example.petstore.models.Stage.ACTIVE,
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"stage\":\"active\"}")!!.stage,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums004 a supplied name that is not a legal identifier is cleaned and cased")
+        fun suppliedNameIsCleanedAndCased() {
+            assertEquals(
+                "paused",
+                com.example.petstore.models.Stage
+                    .valueOf("ON_HOLD")
+                    .value,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums005 two supplied names that collide after casing keep distinct names and wires")
+        fun collidingNamesStayDistinct() {
+            assertEquals(
+                "active",
+                com.example.petstore.models.Stage
+                    .valueOf("ACTIVE")
+                    .value,
+            )
+            assertEquals(
+                "live",
+                com.example.petstore.models.Stage
+                    .valueOf("ACTIVE2")
+                    .value,
+            )
+            assertEquals(
+                com.example.petstore.models.Stage
+                    .valueOf("ACTIVE2"),
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"stage\":\"live\"}")!!.stage,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums006 an inline property enum takes its member names from its own keys")
+        fun inlineEnumTakesItsOwnNames() {
+            assertEquals("month", com.example.petstore.models.Subscription.IntervalEnum.MONTHLY.value)
+            assertEquals("year", com.example.petstore.models.Subscription.IntervalEnum.YEARLY.value)
+        }
+
+        @Test
+        @DisplayName("bhvEnums007 a default on a referenced enum property starts at the member with the supplied name")
+        fun defaultStartsAtTheSuppliedMember() {
+            assertEquals(
+                com.example.petstore.models.Tier.MEDIUM,
+                com.example.petstore.models
+                    .Subscription(rank = com.example.petstore.models.Rank.LOW)
+                    .tier,
+            )
+            assertEquals(
+                com.example.petstore.models.Tier.MEDIUM,
+                serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1}")!!.tier,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvEnums008 encoding writes the wire value and decoding rejects a supplied name")
+        fun wireValueOnlyOnTheWire() {
+            assertEquals("\"m\"", serializer.serialize(com.example.petstore.models.Tier.MEDIUM))
+            val error =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"tier\":\"Medium\"}")
+                }
+            assertTrue(error.message!!.contains("Medium"), error.message)
+        }
+
+        @Test
+        @DisplayName("bhvEnums009 a member with a description carries it as the one-line comment directly above it")
+        fun descriptionIsTheCommentAboveTheMember() {
+            assertTrue(modelSource("Tier").contains("/** The smallest tier. */\n  @SerialName(\"s\")\n  SMALL("))
+            assertTrue(modelSource("Tier").contains("/** The medium tier. */\n  @SerialName(\"m\")\n  MEDIUM("))
+        }
+
+        @Test
+        @DisplayName("bhvEnums010 a member without a description keeps the comment it has today")
+        fun undescribedMemberKeepsItsComment() {
+            assertFalse(modelSource("Rank").contains("/** The"))
+            assertTrue(modelSource("Rank").contains("  MEDIUM(2)"))
+        }
+
+        @Test
+        @DisplayName("bhvEnums011 a description with comment terminators still yields a compiling comment")
+        fun hostileDescriptionStaysAComment() {
+            val source = modelSource("Tier")
+            assertTrue(source.contains("/** The largest tier. Ends with * / and #{x} and \$x. */\n  @SerialName(\"l\")"))
+        }
+    }
 }

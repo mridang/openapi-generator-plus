@@ -406,6 +406,9 @@ export class {{classname}} extends BaseApi {
 export const {{operationIdCamelCase}}{{enumName}} = {
 {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.tsComment}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.tsComment}} */
+  {{/enumDescription}}
   {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
   {{/enumVars}}
 {{/allowableValues}}

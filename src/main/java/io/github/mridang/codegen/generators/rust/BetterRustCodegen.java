@@ -699,7 +699,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 // (seedSiblingDefault), not through here.
                 return toModelName(ModelUtils.getSimpleRef(schema.get$ref()))
                         + "::"
-                        + toEnumVarName(String.valueOf(effectiveDefault), "String");
+                        + enumMemberName(resolved, String.valueOf(effectiveDefault), "String");
             }
             if (ModelUtils.isNumberSchema(resolved)) {
                 // A floating-point literal needs a decimal point: `Some(2)` is
@@ -940,7 +940,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             // (PascalCase, no lowercasing), so lowercasing here would reference a
             // non-existent variant (e.g. `AVAILABLE` declared but `Available`
             // referenced -> rustc E0599) for any all-caps/mixed-case default.
-            final String variant = toEnumVarName(rawValue, prop.dataType);
+            final String variant = enumMemberNameForWire(prop, rawValue, prop.dataType);
             prop.defaultValue = model.classname + prop.enumName + "::" + variant;
         }
     }

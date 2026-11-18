@@ -37,6 +37,7 @@ from petstore_client.models.photo_metadata_location import (
 )
 from petstore_client.models.priority import Priority as Priority
 from petstore_client.models.project_not_found import ProjectNotFound as ProjectNotFound
+from petstore_client.models.rank import Rank as Rank
 from petstore_client.models.rejected_request import RejectedRequest as RejectedRequest
 from petstore_client.models.required_nullable import (
     RequiredNullable as RequiredNullable,
@@ -58,12 +59,15 @@ from petstore_client.models.set_pet_avatar_thumbnail_request import (
 )
 from petstore_client.models.shape import Shape as Shape
 from petstore_client.models.square import Square as Square
+from petstore_client.models.stage import Stage as Stage
 from petstore_client.models.state_conflict import StateConflict as StateConflict
 from petstore_client.models.stock_item import StockItem as StockItem
 from petstore_client.models.strict_tag import StrictTag as StrictTag
+from petstore_client.models.subscription import Subscription as Subscription
 from petstore_client.models.surgery import Surgery as Surgery
 from petstore_client.models.swatch import Swatch as Swatch
 from petstore_client.models.tag import Tag as Tag
+from petstore_client.models.tier import Tier as Tier
 from petstore_client.models.treatment_record import TreatmentRecord as TreatmentRecord
 from petstore_client.models.tree_node import TreeNode as TreeNode
 from petstore_client.models.truck import Truck as Truck

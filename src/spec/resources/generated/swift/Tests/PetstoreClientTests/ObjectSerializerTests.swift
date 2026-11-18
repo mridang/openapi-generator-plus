@@ -2172,4 +2172,92 @@ import Testing
       ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes") as? String
         == "a|b|c")
   }
+
+  // MARK: - enum member names and descriptions
+
+  private func enumModelSource(_ name: String) throws -> String {
+    let root = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    return try String(
+      contentsOf: root.appendingPathComponent("Sources/PetstoreClient/Models/\(name).swift"),
+      encoding: .utf8)
+  }
+
+  @Test func testBhvEnums001AnArrayNamesAStringMember() throws {
+    #expect(Tier.small.rawValue == "s")
+    #expect(Tier.medium.rawValue == "m")
+    #expect(Tier.large.rawValue == "l")
+    let item = try ObjectSerializer.deserialize(
+      "{\"rank\":1,\"tier\":\"m\"}", as: Subscription.self)
+    #expect(item?.tier == .medium)
+  }
+
+  @Test func testBhvEnums002AnArrayNamesAnIntegerMember() throws {
+    #expect(Rank.low.rawValue == 1)
+    #expect(Rank.medium.rawValue == 2)
+    #expect(Rank.high.rawValue == 3)
+    let item = try ObjectSerializer.deserialize("{\"rank\":3}", as: Subscription.self)
+    #expect(item?.rank == .high)
+    #expect(try ObjectSerializer.serialize(item!).contains("\"rank\":3"))
+  }
+
+  @Test func testBhvEnums003AnObjectNamesTheListedMembers() throws {
+    let paused = try ObjectSerializer.deserialize(
+      "{\"rank\":1,\"stage\":\"paused\"}", as: Subscription.self)
+    let active = try ObjectSerializer.deserialize(
+      "{\"rank\":1,\"stage\":\"active\"}", as: Subscription.self)
+    #expect(paused?.stage == .onHold)
+    #expect(active?.stage == .active)
+  }
+
+  @Test func testBhvEnums004ASuppliedNameIsCleanedAndCased() {
+    #expect(Stage.onHold.rawValue == "paused")
+  }
+
+  @Test func testBhvEnums005CollidingNamesStayDistinct() throws {
+    #expect(Stage.active.rawValue == "active")
+    #expect(Stage.active2.rawValue == "live")
+    let item = try ObjectSerializer.deserialize(
+      "{\"rank\":1,\"stage\":\"live\"}", as: Subscription.self)
+    #expect(item?.stage == .active2)
+  }
+
+  @Test func testBhvEnums006AnInlineEnumTakesItsOwnNames() {
+    #expect(SubscriptionIntervalEnum.monthly.rawValue == "month")
+    #expect(SubscriptionIntervalEnum.yearly.rawValue == "year")
+  }
+
+  @Test func testBhvEnums007ADefaultStartsAtTheSuppliedMember() throws {
+    #expect(Subscription(rank: .low).tier == .medium)
+    let item = try ObjectSerializer.deserialize("{\"rank\":1}", as: Subscription.self)
+    #expect(item?.tier == .medium)
+  }
+
+  @Test func testBhvEnums008OnlyTheWireValueIsOnTheWire() throws {
+    let json = try ObjectSerializer.serialize(Subscription(rank: .low, tier: .medium))
+    #expect(json.contains("\"tier\":\"m\""))
+    do {
+      _ = try ObjectSerializer.deserialize(
+        "{\"rank\":1,\"tier\":\"Medium\"}", as: Subscription.self)
+      Issue.record("a supplied name must not decode")
+    } catch let error as SerializationError {
+      #expect(String(describing: error).contains("Medium"))
+    }
+  }
+
+  @Test func testBhvEnums009ADescriptionIsTheCommentAboveTheMember() throws {
+    let source = try enumModelSource("Tier")
+    #expect(source.contains("  /// The smallest tier.\n  case small"))
+    #expect(source.contains("  /// The medium tier.\n  case medium"))
+  }
+
+  @Test func testBhvEnums010AMemberWithoutADescriptionHasNoComment() throws {
+    #expect(try enumModelSource("Rank").contains("  case low = 1\n  case medium = 2\n"))
+  }
+
+  @Test func testBhvEnums011AHostileDescriptionStaysAComment() throws {
+    #expect(
+      try enumModelSource("Tier").contains(
+        "  /// The largest tier. Ends with */ and #{x} and $x.\n  case large"))
+  }
 }

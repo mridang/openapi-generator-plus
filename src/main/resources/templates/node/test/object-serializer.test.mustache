@@ -1,5 +1,7 @@
 {{>api_info}}
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as util from 'node:util';
 import { Expose, Transform, Type } from 'class-transformer';
 import type { ClassConstructor } from 'class-transformer';
@@ -12,7 +14,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { Account, BinaryVault, Category, EdgeCases, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable } from '../src/models/index{{importFileExtension}}';
+import { Account, BinaryVault, Category, EdgeCases, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -2623,6 +2625,67 @@ describe('toBinary', () => {
       const decoded = ObjectSerializer.deserialize(JSON.parse(json), EdgeCases)!;
 
       expect(durationToProtoJson(decoded.retryAfter!)).toBe('5400s');
+    });
+  });
+
+  describe('enum member names and descriptions', () => {
+    const source = (name: string): string =>
+      fs.readFileSync(path.join(process.cwd(), 'src', 'models', `${name}.ts`), 'utf8');
+
+    test('bhv enums 001 a string member named by an array exposes the given name and its wire value', () => {
+      expect([Tier.Small, Tier.Medium, Tier.Large]).toEqual(['s', 'm', 'l']);
+      expect(ObjectSerializer.deserialize({ rank: 1, tier: 'm' }, Subscription)!.tier).toBe(Tier.Medium);
+    });
+
+    test('bhv enums 002 an integer member named by an array exposes the given name and its number', () => {
+      expect([Rank.LOW, Rank.MEDIUM, Rank.HIGH]).toEqual([1, 2, 3]);
+      const item = ObjectSerializer.deserialize({ rank: 3 }, Subscription)!;
+      expect(item.rank).toBe(Rank.HIGH);
+      expect(ObjectSerializer.serialize(item)).toContain('"rank":3');
+    });
+
+    test('bhv enums 003 an object keyed by wire value names the members it lists', () => {
+      expect(ObjectSerializer.deserialize({ rank: 1, stage: 'paused' }, Subscription)!.stage).toBe(Stage.OnHold);
+      expect(ObjectSerializer.deserialize({ rank: 1, stage: 'active' }, Subscription)!.stage).toBe(Stage.Active);
+    });
+
+    test('bhv enums 004 a supplied name that is not a legal identifier is cleaned and cased', () => {
+      expect(Stage.OnHold).toBe('paused');
+    });
+
+    test('bhv enums 005 two supplied names that collide after casing keep distinct names and wires', () => {
+      expect(Stage.Active).toBe('active');
+      expect(Stage.Active2).toBe('live');
+      expect(ObjectSerializer.deserialize({ rank: 1, stage: 'live' }, Subscription)!.stage).toBe(Stage.Active2);
+    });
+
+    test('bhv enums 006 an inline property enum takes its member names from its own keys', () => {
+      expect(SubscriptionIntervalEnum.MONTHLY).toBe('month');
+      expect(SubscriptionIntervalEnum.YEARLY).toBe('year');
+    });
+
+    test('bhv enums 007 a default on a referenced enum property starts at the supplied member', () => {
+      expect(new Subscription({ rank: Rank.LOW }).tier).toBe(Tier.Medium);
+      expect(ObjectSerializer.deserialize({ rank: 1 }, Subscription)!.tier).toBe(Tier.Medium);
+    });
+
+    test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', () => {
+      expect(JSON.parse(ObjectSerializer.serialize(new Subscription({ rank: Rank.LOW, tier: Tier.Medium }))).tier).toBe('m');
+      expect(() => ObjectSerializer.deserialize({ rank: 1, tier: 'Medium' }, Subscription)).toThrow(SerializationError);
+      expect(() => ObjectSerializer.deserialize({ rank: 1, tier: 'Medium' }, Subscription)).toThrow(/Medium/);
+    });
+
+    test('bhv enums 009 a description is the one-line comment directly above the member', () => {
+      expect(source('tier')).toContain('  /** The smallest tier. */\n  Small:');
+      expect(source('tier')).toContain('  /** The medium tier. */\n  Medium:');
+    });
+
+    test('bhv enums 010 a member without a description has no comment', () => {
+      expect(source('rank')).toContain("  LOW: 1,\n  MEDIUM: 2,\n");
+    });
+
+    test('bhv enums 011 a description with terminators and sigils still yields a comment', () => {
+      expect(source('tier')).toContain('  /** The largest tier. Ends with *\\/ and #{x} and $x. */\n  Large:');
     });
   });
 });

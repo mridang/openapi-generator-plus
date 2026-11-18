@@ -2553,3 +2553,107 @@ class TestModelDocProseIsRaw:
             '`Account <docs> & "notes" it\'s here <https://example.com/docs/account>`_'
             in Account.__doc__
         )
+
+
+class TestEnumMemberNames:
+    @staticmethod
+    def _source(name: str) -> str:
+        import pathlib
+
+        return (
+            pathlib.Path(__file__).resolve().parent.parent
+            / "petstore_client"
+            / "models"
+            / f"{name}.py"
+        ).read_text(encoding="utf-8")
+
+    def test_bhv_enums_001_an_array_names_a_string_member(self) -> None:
+        from petstore_client.models.tier import Tier
+
+        assert Tier.SMALL.value == "s"
+        assert Tier.MEDIUM.value == "m"
+        assert Tier.LARGE.value == "l"
+        item = ObjectSerializer().deserialize('{"rank":1,"tier":"m"}', "Subscription")
+        assert item.tier is Tier.MEDIUM
+
+    def test_bhv_enums_002_an_array_names_an_integer_member(self) -> None:
+        from petstore_client.models.rank import Rank
+
+        assert [Rank.LOW.value, Rank.MEDIUM.value, Rank.HIGH.value] == [1, 2, 3]
+        item = ObjectSerializer().deserialize('{"rank":3}', "Subscription")
+        assert item.rank is Rank.HIGH
+        assert '"rank":3' in ObjectSerializer().serialize(item).replace(" ", "")
+
+    def test_bhv_enums_003_an_object_names_the_listed_members(self) -> None:
+        from petstore_client.models.stage import Stage
+
+        assert (
+            ObjectSerializer()
+            .deserialize('{"rank":1,"stage":"paused"}', "Subscription")
+            .stage
+            is Stage.ON_HOLD
+        )
+        assert (
+            ObjectSerializer()
+            .deserialize('{"rank":1,"stage":"active"}', "Subscription")
+            .stage
+            is Stage.ACTIVE
+        )
+
+    def test_bhv_enums_004_a_supplied_name_is_cleaned_and_cased(self) -> None:
+        from petstore_client.models.stage import Stage
+
+        assert Stage["ON_HOLD"].value == "paused"
+
+    def test_bhv_enums_005_colliding_names_stay_distinct(self) -> None:
+        from petstore_client.models.stage import Stage
+
+        assert Stage["ACTIVE"].value == "active"
+        assert Stage["ACTIVE2"].value == "live"
+        assert (
+            ObjectSerializer()
+            .deserialize('{"rank":1,"stage":"live"}', "Subscription")
+            .stage
+            is Stage["ACTIVE2"]
+        )
+
+    def test_bhv_enums_006_an_inline_enum_takes_its_own_names(self) -> None:
+        from petstore_client.models.subscription import SubscriptionIntervalEnum
+
+        assert SubscriptionIntervalEnum.MONTHLY.value == "month"
+        assert SubscriptionIntervalEnum.YEARLY.value == "year"
+
+    def test_bhv_enums_007_a_default_starts_at_the_supplied_member(self) -> None:
+        from petstore_client.models.rank import Rank
+        from petstore_client.models.subscription import Subscription
+        from petstore_client.models.tier import Tier
+
+        assert Subscription(rank=Rank.LOW).tier is Tier.MEDIUM
+        assert (
+            ObjectSerializer().deserialize('{"rank":1}', "Subscription").tier
+            is Tier.MEDIUM
+        )
+
+    def test_bhv_enums_008_only_the_wire_value_is_on_the_wire(self) -> None:
+        from petstore_client.models.tier import Tier
+
+        assert ObjectSerializer().serialize(Tier.MEDIUM) == '"m"'
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().deserialize('{"rank":1,"tier":"Medium"}', "Subscription")
+        assert "Medium" in str(exc_info.value)
+
+    def test_bhv_enums_009_a_description_is_the_comment_above_the_member(self) -> None:
+        source = self._source("tier")
+        assert "    #: The smallest tier.\n    SMALL = " in source
+        assert "    #: The medium tier.\n    MEDIUM = " in source
+
+    def test_bhv_enums_010_a_member_without_a_description_has_no_comment(self) -> None:
+        assert "#: The lowest rank.\n    LOW = 1\n    MEDIUM = 2\n" in self._source(
+            "rank"
+        )
+
+    def test_bhv_enums_011_a_hostile_description_stays_a_comment(self) -> None:
+        assert (
+            "    #: The largest tier. Ends with */ and #{x} and $x.\n    LARGE = "
+            in self._source("tier")
+        )

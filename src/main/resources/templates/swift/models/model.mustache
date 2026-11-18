@@ -13,6 +13,9 @@ import Foundation
 public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable, CustomStringConvertible {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+    /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
     case {{name}} = {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}
@@ -45,6 +48,9 @@ public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLon
 public enum {{classname}}{{enumName}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable, CustomStringConvertible {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+    /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
     case {{name}} = {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}

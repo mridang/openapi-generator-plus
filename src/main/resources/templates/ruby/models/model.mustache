@@ -24,6 +24,9 @@ module {{moduleName}}
 {{#isEnum}}
     # {{#description}}{{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
     class {{classname}}{{#allowableValues}}{{#enumVars}}
+{{#enumDescription}}
+      # {{#lambda.singleLine}}{{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
       {{{name}}} = {{{value}}}{{/enumVars}}
 
       # Frozen set of all allowed values, used for validation.
@@ -455,6 +458,9 @@ module {{moduleName}}
 {{#allowableValues}}
       # Allowed values of the {{name}} property.
       class {{enumName}}{{#enumVars}}
+{{#enumDescription}}
+        # {{#lambda.singleLine}}{{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
         {{{name}}} = {{{value}}}{{/enumVars}}
 
         # Frozen set of all allowed values, used for validation.

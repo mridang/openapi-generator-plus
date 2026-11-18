@@ -1962,5 +1962,85 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.Models.StrictTag.strict_properties?()
     end
   end
+
+  describe "enum member names and descriptions" do
+    defp member_doc(module, function) do
+      {:docs_v1, _, _, _, _, _, docs} = Code.fetch_docs(module)
+
+      Enum.find_value(docs, fn
+        {{:function, ^function, 0}, _, _, %{"en" => text}, _} -> String.trim(text)
+        _ -> nil
+      end)
+    end
+
+    test "bhv enums 001 a string member named by an array exposes the given name and its wire value" do
+      assert {{moduleName}}.Models.Tier.value(:small) == "s"
+      assert {{moduleName}}.Models.Tier.value(:medium) == "m"
+      assert {{moduleName}}.Models.Tier.value(:large) == "l"
+      item = {{moduleName}}.ObjectSerializer.deserialize(~s({"rank":1,"tier":"m"}), "Subscription")
+      assert item.tier == :medium
+    end
+
+    test "bhv enums 002 an integer member named by an array exposes the given name and its number" do
+      assert Enum.map([:low, :medium, :high], &{{moduleName}}.Models.Rank.value/1) == [1, 2, 3]
+      item = {{moduleName}}.ObjectSerializer.deserialize(~s({"rank":3}), "Subscription")
+      assert item.rank == :high
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))["rank"] == 3
+    end
+
+    test "bhv enums 003 an object keyed by wire value names the members it lists" do
+      paused = {{moduleName}}.ObjectSerializer.deserialize(~s({"rank":1,"stage":"paused"}), "Subscription")
+      active = {{moduleName}}.ObjectSerializer.deserialize(~s({"rank":1,"stage":"active"}), "Subscription")
+      assert paused.stage == :on_hold
+      assert active.stage == :active
+    end
+
+    test "bhv enums 004 a supplied name that is not a legal identifier is cleaned and cased" do
+      assert {{moduleName}}.Models.Stage.value(:on_hold) == "paused"
+    end
+
+    test "bhv enums 005 two supplied names that collide after casing keep distinct names and wires" do
+      assert {{moduleName}}.Models.Stage.value(:active) == "active"
+      assert {{moduleName}}.Models.Stage.value(:active2) == "live"
+      item = {{moduleName}}.ObjectSerializer.deserialize(~s({"rank":1,"stage":"live"}), "Subscription")
+      assert item.stage == :active2
+    end
+
+    test "bhv enums 006 an inline property enum takes its member names from its own keys" do
+      assert {{moduleName}}.Models.Subscription.IntervalEnum.value(:monthly) == "month"
+      assert {{moduleName}}.Models.Subscription.IntervalEnum.value(:yearly) == "year"
+    end
+
+    test "bhv enums 007 a default on a referenced enum property starts at the supplied member" do
+      assert %{{moduleName}}.Models.Subscription{rank: :low}.tier == :medium
+      item = {{moduleName}}.ObjectSerializer.deserialize(~s({"rank":1}), "Subscription")
+      assert item.tier == :medium
+    end
+
+    test "bhv enums 008 encoding writes the wire value and decoding rejects a supplied name" do
+      item = %{{moduleName}}.Models.Subscription{rank: :low, tier: :medium}
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))["tier"] == "m"
+
+      error =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.deserialize(~s({"rank":1,"tier":"Medium"}), "Subscription")
+        end
+
+      assert Exception.message(error) =~ "Medium"
+    end
+
+    test "bhv enums 009 a description is the doc directly above the member" do
+      assert member_doc({{moduleName}}.Models.Tier, :small) == "The smallest tier."
+      assert member_doc({{moduleName}}.Models.Tier, :medium) == "The medium tier."
+    end
+
+    test "bhv enums 010 a member without a description keeps the doc it has today" do
+      assert member_doc({{moduleName}}.Models.Rank, :medium) == "Enum value `medium`"
+    end
+
+    test "bhv enums 011 a description with terminators and sigils still yields a doc" do
+      assert member_doc({{moduleName}}.Models.Tier, :large) == "The largest tier. Ends with */ and \#{x} and $x."
+    end
+  end
 end
 {{/generateTests}}

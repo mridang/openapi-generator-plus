@@ -790,3 +790,121 @@ fn test_bhv_serializationobject_179_whole_second_datetime_serializes_with_a_fixe
         "\"2024-01-01T12:30:45.000+02:00\""
     );
 }
+
+fn enum_model_source(name: &str) -> String {
+    std::fs::read_to_string(format!(
+        "{}/src/models/{}.rs",
+        env!("CARGO_MANIFEST_DIR"),
+        name
+    ))
+    .expect("the model source is readable")
+}
+
+#[test]
+fn test_bhv_enums_001_an_array_names_a_string_member() {
+    use petstore::models::{Subscription, Tier};
+
+    assert_eq!(Tier::Small.to_string(), "s");
+    assert_eq!(Tier::Medium.to_string(), "m");
+    assert_eq!(Tier::Large.to_string(), "l");
+    let item: Subscription = serde_json::from_str(r#"{"rank":1,"tier":"m"}"#).expect("decode");
+    assert_eq!(item.tier, Some(Tier::Medium));
+}
+
+#[test]
+fn test_bhv_enums_002_an_array_names_an_integer_member() {
+    use petstore::models::{Rank, Subscription};
+
+    assert_eq!(Rank::LOW as i64, 1);
+    assert_eq!(Rank::MEDIUM as i64, 2);
+    assert_eq!(Rank::HIGH as i64, 3);
+    let item: Subscription = serde_json::from_str(r#"{"rank":3}"#).expect("decode");
+    assert_eq!(item.rank, Rank::HIGH);
+    assert!(serde_json::to_string(&item)
+        .expect("encode")
+        .contains(r#""rank":3"#));
+}
+
+#[test]
+fn test_bhv_enums_003_an_object_names_the_listed_members() {
+    use petstore::models::{Stage, Subscription};
+
+    let paused: Subscription =
+        serde_json::from_str(r#"{"rank":1,"stage":"paused"}"#).expect("decode");
+    let active: Subscription =
+        serde_json::from_str(r#"{"rank":1,"stage":"active"}"#).expect("decode");
+    assert_eq!(paused.stage, Some(Stage::OnHold));
+    assert_eq!(active.stage, Some(Stage::Active));
+}
+
+#[test]
+fn test_bhv_enums_004_a_supplied_name_is_cleaned_and_cased() {
+    use petstore::models::Stage;
+
+    assert_eq!(Stage::OnHold.to_string(), "paused");
+}
+
+#[test]
+fn test_bhv_enums_005_colliding_names_stay_distinct() {
+    use petstore::models::{Stage, Subscription};
+
+    assert_eq!(Stage::Active.to_string(), "active");
+    assert_eq!(Stage::Active2.to_string(), "live");
+    let item: Subscription = serde_json::from_str(r#"{"rank":1,"stage":"live"}"#).expect("decode");
+    assert_eq!(item.stage, Some(Stage::Active2));
+}
+
+#[test]
+fn test_bhv_enums_006_an_inline_enum_takes_its_own_names() {
+    use petstore::models::SubscriptionIntervalEnum;
+
+    assert_eq!(SubscriptionIntervalEnum::MONTHLY.to_string(), "month");
+    assert_eq!(SubscriptionIntervalEnum::YEARLY.to_string(), "year");
+}
+
+#[test]
+fn test_bhv_enums_007_a_default_starts_at_the_supplied_member() {
+    use petstore::models::{Rank, Subscription, Tier};
+
+    assert_eq!(Subscription::new(Rank::LOW).tier, Some(Tier::Medium));
+    let item: Subscription = serde_json::from_str(r#"{"rank":1}"#).expect("decode");
+    assert_eq!(item.tier, Some(Tier::Medium));
+}
+
+#[test]
+fn test_bhv_enums_008_only_the_wire_value_is_on_the_wire() {
+    use petstore::models::{Rank, Subscription, Tier};
+
+    let item = Subscription::new(Rank::LOW).with_tier(Tier::Medium);
+    assert!(serde_json::to_string(&item)
+        .expect("encode")
+        .contains(r#""tier":"m""#));
+    let error = serde_json::from_str::<Subscription>(r#"{"rank":1,"tier":"Medium"}"#)
+        .expect_err("a name is not a wire value");
+    assert!(error.to_string().contains("Medium"), "{error}");
+}
+
+#[test]
+fn test_bhv_enums_009_a_description_is_the_comment_above_the_member() {
+    let source = enum_model_source("tier");
+    assert!(
+        source.contains("    /// The smallest tier.\n    #[default]"),
+        "{source}"
+    );
+    assert!(
+        source.contains("    /// The medium tier.\n    #[serde(rename = \"m\")]"),
+        "{source}"
+    );
+}
+
+#[test]
+fn test_bhv_enums_010_a_member_without_a_description_keeps_its_comment() {
+    assert!(enum_model_source("rank").contains("    /// Represents the value 2.\n    MEDIUM = 2,"));
+}
+
+#[test]
+fn test_bhv_enums_011_a_hostile_description_stays_a_comment() {
+    assert!(enum_model_source("tier").contains(
+        "    /// The largest tier. Ends with */ and #{x} and $x.\n    #[serde(rename = \"l\")]"
+    ));
+}

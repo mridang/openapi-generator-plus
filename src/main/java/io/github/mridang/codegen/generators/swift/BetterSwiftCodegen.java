@@ -1313,4 +1313,10 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                         optionsClassName + ".swift")
                 .toString();
     }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getReservedEnumMemberNames() {
+        return Set.of("description");
+    }
 }

@@ -1843,4 +1843,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     protected String formatDiscriminatorDefaultValue(String mappingName) {
         return "'" + mappingName + "'";
     }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getReservedEnumMemberNames() {
+        return Set.of("VALUES");
+    }
 }

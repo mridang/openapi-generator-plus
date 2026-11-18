@@ -2178,3 +2178,75 @@ test('bhv serializationobject 165 to form value of null is an empty string', fun
 test('bhv serializationobject 147 serialize writes a map as a JSON object', function (): void {
     expect(ObjectSerializer::serialize(['a' => 1]))->toBe('{"a":1}');
 });
+
+// -- enum member names and descriptions --
+
+function enumModelSource(string $name): string
+{
+    return (string) file_get_contents(__DIR__ . '/../lib/Models/' . $name . '.php');
+}
+
+test('bhv enums 001 a string enum member named by an array exposes the given name and its wire value', function (): void {
+    expect(\PetstoreClient\Models\Tier::SMALL->value)->toBe('s');
+    expect(\PetstoreClient\Models\Tier::MEDIUM->value)->toBe('m');
+    expect(\PetstoreClient\Models\Tier::LARGE->value)->toBe('l');
+    $item = ObjectSerializer::deserialize('{"rank":1,"tier":"m"}', \PetstoreClient\Models\Subscription::class);
+    expect($item->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
+});
+
+test('bhv enums 002 an integer enum member named by an array exposes the given name and its number', function (): void {
+    expect(\PetstoreClient\Models\Rank::LOW->value)->toBe(1);
+    expect(\PetstoreClient\Models\Rank::MEDIUM->value)->toBe(2);
+    expect(\PetstoreClient\Models\Rank::HIGH->value)->toBe(3);
+    $item = ObjectSerializer::deserialize('{"rank":3}', \PetstoreClient\Models\Subscription::class);
+    expect($item->rank)->toBe(\PetstoreClient\Models\Rank::HIGH);
+    expect(ObjectSerializer::serialize($item))->toContain('"rank":3');
+});
+
+test('bhv enums 003 an enum named by an object keyed by wire value names the members it lists', function (): void {
+    $paused = ObjectSerializer::deserialize('{"rank":1,"stage":"paused"}', \PetstoreClient\Models\Subscription::class);
+    $active = ObjectSerializer::deserialize('{"rank":1,"stage":"active"}', \PetstoreClient\Models\Subscription::class);
+    expect($paused->stage)->toBe(\PetstoreClient\Models\Stage::ON_HOLD);
+    expect($active->stage)->toBe(\PetstoreClient\Models\Stage::ACTIVE);
+});
+
+test('bhv enums 004 a supplied name that is not a legal identifier is cleaned and cased', function (): void {
+    expect(\PetstoreClient\Models\Stage::ON_HOLD->value)->toBe('paused');
+});
+
+test('bhv enums 005 two supplied names that collide after casing keep distinct names and wires', function (): void {
+    expect(\PetstoreClient\Models\Stage::ACTIVE->value)->toBe('active');
+    expect(\PetstoreClient\Models\Stage::ACTIVE2->value)->toBe('live');
+    $item = ObjectSerializer::deserialize('{"rank":1,"stage":"live"}', \PetstoreClient\Models\Subscription::class);
+    expect($item->stage)->toBe(\PetstoreClient\Models\Stage::ACTIVE2);
+});
+
+test('bhv enums 006 an inline property enum takes its member names from its own keys', function (): void {
+    expect(\PetstoreClient\Models\SubscriptionIntervalEnum::MONTHLY->value)->toBe('month');
+    expect(\PetstoreClient\Models\SubscriptionIntervalEnum::YEARLY->value)->toBe('year');
+});
+
+test('bhv enums 007 a default on a referenced enum property starts at the member with the supplied name', function (): void {
+    expect((new \PetstoreClient\Models\Subscription(\PetstoreClient\Models\Rank::LOW))->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
+    $item = ObjectSerializer::deserialize('{"rank":1}', \PetstoreClient\Models\Subscription::class);
+    expect($item->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
+});
+
+test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', function (): void {
+    expect(ObjectSerializer::serialize(\PetstoreClient\Models\Tier::MEDIUM))->toBe('"m"');
+    expect(fn () => ObjectSerializer::deserialize('{"rank":1,"tier":"Medium"}', \PetstoreClient\Models\Subscription::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'Medium');
+});
+
+test('bhv enums 009 a member with a description carries it as the one-line comment directly above it', function (): void {
+    expect(enumModelSource('Tier'))->toContain("/** The smallest tier. */\n    case SMALL");
+    expect(enumModelSource('Tier'))->toContain("/** The medium tier. */\n    case MEDIUM");
+});
+
+test('bhv enums 010 a member without a description keeps the comment it has today', function (): void {
+    expect(enumModelSource('Rank'))->toContain("case LOW = 1;\n    case MEDIUM = 2;");
+});
+
+test('bhv enums 011 a description with comment terminators still yields a compiling comment', function (): void {
+    expect(enumModelSource('Tier'))->toContain("/** The largest tier. Ends with *_/ and #{x} and \$x. */\n    case LARGE");
+});

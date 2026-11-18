@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -3158,4 +3159,127 @@ func TestBhvSerializationobject123_ObjectSerializer_Deserialize_NullValueInAMapO
 	t.Parallel()
 	var pets map[string]models.Pet
 	requireNullElementError(t, deserialize([]byte(`{"a":null,"b":{"name":"a","photoUrls":[]}}`), &pets))
+}
+
+func enumModelSource(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile("pkg/models/" + name + ".go")
+	if err != nil {
+		t.Fatalf("cannot read the model source: %v", err)
+	}
+	return string(data)
+}
+
+func decodeSubscription(t *testing.T, payload string) models.Subscription {
+	t.Helper()
+	var item models.Subscription
+	if err := deserialize([]byte(payload), &item); err != nil {
+		t.Fatalf("unexpected error decoding %s: %v", payload, err)
+	}
+	return item
+}
+
+func TestBhvEnums001_ObjectSerializer_AnArrayNamesAStringMember(t *testing.T) {
+	t.Parallel()
+	if models.TierSmall != "s" || models.TierMedium != "m" || models.TierLarge != "l" {
+		t.Errorf("expected the supplied names to carry s, m, l, got %q %q %q", models.TierSmall, models.TierMedium, models.TierLarge)
+	}
+	if item := decodeSubscription(t, `{"rank":1,"tier":"m"}`); item.Tier == nil || *item.Tier != models.TierMedium {
+		t.Errorf("expected Medium, got %v", item.Tier)
+	}
+}
+
+func TestBhvEnums002_ObjectSerializer_AnArrayNamesAnIntegerMember(t *testing.T) {
+	t.Parallel()
+	if models.RankLOW != 1 || models.RankMEDIUM != 2 || models.RankHIGH != 3 {
+		t.Errorf("expected the supplied names to carry 1, 2, 3, got %d %d %d", models.RankLOW, models.RankMEDIUM, models.RankHIGH)
+	}
+	item := decodeSubscription(t, `{"rank":3}`)
+	if item.Rank != models.RankHIGH {
+		t.Errorf("expected HIGH, got %v", item.Rank)
+	}
+	data, err := serialize(item)
+	if err != nil || !strings.Contains(string(data), `"rank":3`) {
+		t.Errorf("expected a bare 3 on the wire, got %s (%v)", data, err)
+	}
+}
+
+func TestBhvEnums003_ObjectSerializer_AnObjectNamesTheListedMembers(t *testing.T) {
+	t.Parallel()
+	if item := decodeSubscription(t, `{"rank":1,"stage":"paused"}`); item.Stage == nil || *item.Stage != models.StageOnHold {
+		t.Errorf("expected OnHold, got %v", item.Stage)
+	}
+	if item := decodeSubscription(t, `{"rank":1,"stage":"active"}`); item.Stage == nil || *item.Stage != models.StageActive {
+		t.Errorf("expected Active, got %v", item.Stage)
+	}
+}
+
+func TestBhvEnums004_ObjectSerializer_ASuppliedNameIsCleanedAndCased(t *testing.T) {
+	t.Parallel()
+	if models.StageOnHold != "paused" {
+		t.Errorf("expected OnHold to carry paused, got %q", models.StageOnHold)
+	}
+}
+
+func TestBhvEnums005_ObjectSerializer_CollidingNamesStayDistinct(t *testing.T) {
+	t.Parallel()
+	if models.StageActive != "active" || models.StageActive2 != "live" {
+		t.Errorf("expected Active and Active2 to keep their wires, got %q %q", models.StageActive, models.StageActive2)
+	}
+	if item := decodeSubscription(t, `{"rank":1,"stage":"live"}`); item.Stage == nil || *item.Stage != models.StageActive2 {
+		t.Errorf("expected Active2, got %v", item.Stage)
+	}
+}
+
+func TestBhvEnums006_ObjectSerializer_AnInlineEnumTakesItsOwnNames(t *testing.T) {
+	t.Parallel()
+	if models.SubscriptionIntervalEnumMONTHLY != "month" || models.SubscriptionIntervalEnumYEARLY != "year" {
+		t.Errorf("expected MONTHLY and YEARLY to carry month and year")
+	}
+}
+
+func TestBhvEnums007_ObjectSerializer_ADefaultStartsAtTheSuppliedMember(t *testing.T) {
+	t.Parallel()
+	if built := models.NewSubscription(models.RankLOW); built.Tier == nil || *built.Tier != models.TierMedium {
+		t.Errorf("expected the constructed model to start at Medium, got %v", built.Tier)
+	}
+	if item := decodeSubscription(t, `{"rank":1}`); item.Tier == nil || *item.Tier != models.TierMedium {
+		t.Errorf("expected the decoded model to start at Medium, got %v", item.Tier)
+	}
+}
+
+func TestBhvEnums008_ObjectSerializer_OnlyTheWireValueIsOnTheWire(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(models.TierMedium)
+	if err != nil || string(data) != `"m"` {
+		t.Errorf("expected the wire value, got %s (%v)", data, err)
+	}
+	var item models.Subscription
+	err = deserialize([]byte(`{"rank":1,"tier":"Medium"}`), &item)
+	var serializationError *SerializationError
+	if !errors.As(err, &serializationError) || !strings.Contains(err.Error(), "Medium") {
+		t.Errorf("expected a SerializationError naming Medium, got %v", err)
+	}
+}
+
+func TestBhvEnums009_ObjectSerializer_ADescriptionIsTheCommentAboveTheMember(t *testing.T) {
+	t.Parallel()
+	source := enumModelSource(t, "tier")
+	if !strings.Contains(source, "\t// The smallest tier.\n\tTierSmall ") || !strings.Contains(source, "\t// The medium tier.\n\tTierMedium ") {
+		t.Errorf("expected each description directly above its constant, got:\n%s", source)
+	}
+}
+
+func TestBhvEnums010_ObjectSerializer_AMemberWithoutADescriptionKeepsItsComment(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(enumModelSource(t, "rank"), "\t/* RankMEDIUM represents the value 2. */\n\tRankMEDIUM ") {
+		t.Errorf("expected the generic comment to stay on the undescribed member")
+	}
+}
+
+func TestBhvEnums011_ObjectSerializer_AHostileDescriptionStaysAComment(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(enumModelSource(t, "tier"), "\t// The largest tier. Ends with */ and #{x} and $x.\n\tTierLarge ") {
+		t.Errorf("expected the hostile description as one line comment")
+	}
 }

@@ -10,6 +10,11 @@ public enum {{classname}}
 {
     {{#allowableValues}}
     {{#enumVars}}
+    {{#enumDescription}}
+    /// <summary>
+    /// {{#lambda.singleLine}}{{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}{{/lambda.singleLine}}
+    /// </summary>
+    {{/enumDescription}}
     {{name}} = {{{value}}},
 {{^-last}}
 

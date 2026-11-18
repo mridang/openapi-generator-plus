@@ -19,6 +19,11 @@ public enum {{classname}}
 {
     {{#allowableValues}}
     {{#enumVars}}
+    {{#enumDescription}}
+    /// <summary>
+    /// {{#lambda.singleLine}}{{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}{{/lambda.singleLine}}
+    /// </summary>
+    {{/enumDescription}}
     {{name}},
 {{^-last}}
 
@@ -456,6 +461,11 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
     {
         {{#allowableValues}}
         {{#enumVars}}
+        {{#enumDescription}}
+        /// <summary>
+        /// {{#lambda.singleLine}}{{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}{{/lambda.singleLine}}
+        /// </summary>
+        {{/enumDescription}}
         {{name}},
 {{^-last}}
 
@@ -756,6 +766,11 @@ public {{#vendorExtensions.x-allof-base}}abstract {{/vendorExtensions.x-allof-ba
     {
         {{#allowableValues}}
         {{#enumVars}}
+        {{#enumDescription}}
+        /// <summary>
+        /// {{#lambda.singleLine}}{{#lambda.escapeXml}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXml}}{{/lambda.singleLine}}
+        /// </summary>
+        {{/enumDescription}}
         {{name}},
 {{^-last}}
 

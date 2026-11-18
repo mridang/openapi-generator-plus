@@ -296,6 +296,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Rank",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.RejectedRequest",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -395,6 +404,15 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Stage",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.StateConflict",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -422,6 +440,22 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.Subscription",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Subscription$IntervalEnum",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Surgery",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -441,6 +475,15 @@
   },
   {
     "name": "com.example.petstore.models.Tag",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Tier",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,

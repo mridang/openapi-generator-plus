@@ -2471,4 +2471,109 @@ public static class ObjectSerializerTest
             Assert.Equal(ids, decoded);
         }
     }
+
+    public class EnumMemberNameTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        private static string ModelSource(string name)
+        {
+            var dir = AppContext.BaseDirectory;
+            while (dir != null && !File.Exists(Path.Combine(dir, "src", "{{packageName}}", "Models", name + ".cs")))
+            {
+                dir = Path.GetDirectoryName(dir);
+            }
+            Assert.NotNull(dir);
+            return File.ReadAllText(Path.Combine(dir!, "src", "{{packageName}}", "Models", name + ".cs"));
+        }
+
+        [Fact]
+        public void BhvEnums001AnArrayNamesAStringMember()
+        {
+            Assert.Equal(Tier.Small, _serializer.Deserialize<Subscription>("{\"rank\":1,\"tier\":\"s\"}")!.Tier);
+            Assert.Equal(Tier.Medium, _serializer.Deserialize<Subscription>("{\"rank\":1,\"tier\":\"m\"}")!.Tier);
+            Assert.Equal(Tier.Large, _serializer.Deserialize<Subscription>("{\"rank\":1,\"tier\":\"l\"}")!.Tier);
+            Assert.Contains("\"tier\":\"l\"", _serializer.Serialize(new Subscription(Rank.LOW) { Tier = Tier.Large }), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvEnums002AnArrayNamesAnIntegerMember()
+        {
+            Assert.Equal(1, (int)Rank.LOW);
+            Assert.Equal(2, (int)Rank.MEDIUM);
+            Assert.Equal(3, (int)Rank.HIGH);
+            var decoded = _serializer.Deserialize<Subscription>("{\"rank\":3}");
+            Assert.Equal(Rank.HIGH, decoded!.Rank);
+            Assert.Contains("\"rank\":3", _serializer.Serialize(decoded), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvEnums003AnObjectNamesTheListedMembers()
+        {
+            Assert.Equal(Stage.OnHold, _serializer.Deserialize<Subscription>("{\"rank\":1,\"stage\":\"paused\"}")!.Stage);
+            Assert.Equal(Stage.Active, _serializer.Deserialize<Subscription>("{\"rank\":1,\"stage\":\"active\"}")!.Stage);
+        }
+
+        [Fact]
+        public void BhvEnums004ASuppliedNameIsCleanedAndCased()
+        {
+            Assert.Contains("\"stage\":\"paused\"", _serializer.Serialize(new Subscription(Rank.LOW) { Stage = Stage.OnHold }), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvEnums005CollidingNamesStayDistinct()
+        {
+            Assert.Equal(Stage.Active2, _serializer.Deserialize<Subscription>("{\"rank\":1,\"stage\":\"live\"}")!.Stage);
+            Assert.Contains("\"stage\":\"live\"", _serializer.Serialize(new Subscription(Rank.LOW) { Stage = Stage.Active2 }), StringComparison.Ordinal);
+            Assert.NotEqual(Stage.Active, Stage.Active2);
+        }
+
+        [Fact]
+        public void BhvEnums006AnInlineEnumTakesItsOwnNames()
+        {
+            var decoded = _serializer.Deserialize<Subscription>("{\"rank\":1,\"interval\":\"year\"}");
+            Assert.Equal(Subscription.IntervalEnum.YEARLY, decoded!.Interval);
+            Assert.Contains("\"interval\":\"month\"", _serializer.Serialize(new Subscription(Rank.LOW) { Interval = Subscription.IntervalEnum.MONTHLY }), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvEnums007ADefaultStartsAtTheSuppliedMember()
+        {
+            Assert.Equal(Tier.Medium, new Subscription(Rank.LOW).Tier);
+            Assert.Equal(Tier.Medium, _serializer.Deserialize<Subscription>("{\"rank\":1}")!.Tier);
+        }
+
+        [Fact]
+        public void BhvEnums008OnlyTheWireValueIsOnTheWire()
+        {
+            Assert.Contains("\"tier\":\"m\"", _serializer.Serialize(new Subscription(Rank.LOW) { Tier = Tier.Medium }), StringComparison.Ordinal);
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Subscription>("{\"rank\":1,\"tier\":\"Medium\"}"));
+            Assert.Contains("Medium", ex.Message, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvEnums009ADescriptionIsTheCommentAboveTheMember()
+        {
+            var source = ModelSource("Tier").Replace("\r\n", "\n");
+            Assert.Contains("/// The smallest tier.\n    /// </summary>\n    Small", source, StringComparison.Ordinal);
+            Assert.Contains("/// The medium tier.\n    /// </summary>\n    Medium", source, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvEnums010AMemberWithoutADescriptionHasNoComment()
+        {
+            var source = ModelSource("Rank").Replace("\r\n", "\n");
+            var between = source.Substring(source.IndexOf("LOW = 1,", StringComparison.Ordinal), source.IndexOf("MEDIUM = 2,", StringComparison.Ordinal) - source.IndexOf("LOW = 1,", StringComparison.Ordinal));
+            Assert.DoesNotContain("<summary>", between, StringComparison.Ordinal);
+            var after = source.Substring(source.IndexOf("MEDIUM = 2,", StringComparison.Ordinal));
+            Assert.DoesNotContain("<summary>", after.Substring(0, after.IndexOf("HIGH", StringComparison.Ordinal)), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvEnums011AHostileDescriptionStaysAComment()
+        {
+            var source = ModelSource("Tier").Replace("\r\n", "\n");
+            Assert.Contains("/// The largest tier. Ends with */ and #{x} and $x.\n    /// </summary>\n    Large", source, StringComparison.Ordinal);
+        }
+    }
 }

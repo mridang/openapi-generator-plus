@@ -76,6 +76,7 @@ __all__ = [
     "PhotoMetadataLocation",
     "Priority",
     "ProjectNotFound",
+    "Rank",
     "RejectedRequest",
     "RequiredNullable",
     "Reservation",
@@ -87,12 +88,15 @@ __all__ = [
     "SetPetAvatarThumbnailRequest",
     "Shape",
     "Square",
+    "Stage",
     "StateConflict",
     "StockItem",
     "StrictTag",
+    "Subscription",
     "Surgery",
     "Swatch",
     "Tag",
+    "Tier",
     "TreatmentRecord",
     "TreeNode",
     "Truck",
@@ -244,6 +248,9 @@ from petstore_client.models.priority import (
 from petstore_client.models.project_not_found import (
     ProjectNotFound as ProjectNotFound,
 )
+from petstore_client.models.rank import (
+    Rank as Rank,
+)
 from petstore_client.models.rejected_request import (
     RejectedRequest as RejectedRequest,
 )
@@ -277,6 +284,9 @@ from petstore_client.models.shape import (
 from petstore_client.models.square import (
     Square as Square,
 )
+from petstore_client.models.stage import (
+    Stage as Stage,
+)
 from petstore_client.models.state_conflict import (
     StateConflict as StateConflict,
 )
@@ -286,6 +296,9 @@ from petstore_client.models.stock_item import (
 from petstore_client.models.strict_tag import (
     StrictTag as StrictTag,
 )
+from petstore_client.models.subscription import (
+    Subscription as Subscription,
+)
 from petstore_client.models.surgery import (
     Surgery as Surgery,
 )
@@ -294,6 +307,9 @@ from petstore_client.models.swatch import (
 )
 from petstore_client.models.tag import (
     Tag as Tag,
+)
+from petstore_client.models.tier import (
+    Tier as Tier,
 )
 from petstore_client.models.treatment_record import (
     TreatmentRecord as TreatmentRecord,
