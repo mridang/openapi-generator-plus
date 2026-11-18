@@ -8,6 +8,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from petstore_client._duration import ProtobufDuration
+from petstore_client._types import Ipv4Address
+from petstore_client._types import Ipv6Address
+from petstore_client._types import JsonNumber
 from typing import Optional, Mapping
 from petstore_client.transport_options import _validated_call_headers
 

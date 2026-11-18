@@ -40,7 +40,7 @@ module Petstore::Client
     # document is generated. The marker holds a random token, so no string a
     # caller supplies can collide with it.
     EXACT_NUMBER_TOKEN = SecureRandom.hex(8)
-    EXACT_NUMBER_PREFIX = "\u0001exact-number-#{EXACT_NUMBER_TOKEN}:"
+    EXACT_NUMBER_PREFIX = "\u0001exact-number-#{EXACT_NUMBER_TOKEN}:".freeze
     private_constant :EXACT_NUMBER_TOKEN, :EXACT_NUMBER_PREFIX
 
     # RFC 3339 date-time: full date, 'T', full time with an optional fraction
@@ -78,6 +78,7 @@ module Petstore::Client
 
       # decimal: read a number with a fraction or exponent as a BigDecimal, so no
       # digit passes through a binary float. Only typed decoding asks for it.
+      # @type var options: Hash[Symbol, untyped]
       options = { symbolize_names: symbolize_names, allow_nan: false, max_nesting: MAX_JSON_DEPTH }
       options[:decimal_class] = BigDecimal if decimal
       JSON.parse(json_string, **options)
@@ -144,7 +145,7 @@ module Petstore::Client
       raise Errors::SerializationError, "#{value} is not a finite JSON number" unless value.finite?
 
       text = value.to_s('F')
-      text.end_with?('.0') ? text[0..-3] : text
+      text.delete_suffix('.0')
     end
 
     # The text of an IP address: dotted decimal for IPv4, the RFC 5952 form for
@@ -156,7 +157,7 @@ module Petstore::Client
       return address.to_s if address.ipv4?
 
       groups = (0..7).map { |i| (address.to_i >> (16 * (7 - i))) & 0xffff }
-      best_start = nil
+      best_start = 0
       best_length = 0
       index = 0
       while index < 8
@@ -172,10 +173,10 @@ module Petstore::Client
           index += 1
         end
       end
-      return groups.map { |g| g.to_s(16) }.join(':') if best_length < 2 || best_start.nil?
+      return groups.map { |g| g.to_s(16) }.join(':') if best_length < 2
 
-      left = groups[0, best_start].map { |g| g.to_s(16) }.join(':')
-      right = groups[best_start + best_length, 8].to_a.map { |g| g.to_s(16) }.join(':')
+      left = groups.take(best_start).map { |g| g.to_s(16) }.join(':')
+      right = groups.drop(best_start + best_length).map { |g| g.to_s(16) }.join(':')
       "#{left}::#{right}"
     end
 

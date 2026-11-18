@@ -23,6 +23,7 @@ use PetstoreClient\Models\SetPetAvatarRequest;
 use PetstoreClient\Models\StrictTag;
 use PetstoreClient\Models\StockItem;
 use PetstoreClient\Models\Swatch;
+use PetstoreClient\Models\Tag;
 use PetstoreClient\Models\TreeNode;
 
 // -- content cookie bytes --
@@ -1611,7 +1612,7 @@ test('bhv equality 001 two models built from the same values are equal and a cha
         name: 'Rex',
         photoUrls: new \Ds\Set(['a.png']),
         category: new Category(id: 1, name: $label),
-        tags: new \Ds\Vector([$when]),
+        tags: new \Ds\Vector([new Tag(id: 1, name: $when)]),
     );
 
     $left = $build('Dogs', 'morning');
@@ -2184,6 +2185,7 @@ test('bhv serializationobject 147 serialize writes a map as a JSON object', func
 
 test('bhv serializationobject 403 a duration field is the native DateInterval', function (): void {
     $values = ObjectSerializer::deserialize('{"wait":"3600s"}', NativeValues::class);
+    assert($values instanceof NativeValues);
 
     expect($values->wait)->toBeInstanceOf(\DateInterval::class);
     expect(ObjectSerializer::formatProtobufDuration($values->wait))->toBe('3600s');
