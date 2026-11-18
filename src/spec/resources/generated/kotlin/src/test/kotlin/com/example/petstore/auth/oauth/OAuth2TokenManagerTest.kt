@@ -1166,6 +1166,14 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    @DisplayName("bhvAuthoauthtwotokenmgr047 an OAuth2 server error without an error code names the status and the raw body")
+    fun bhvAuthoauthtwotokenmgr047WithoutAnErrorCodeNamesTheStatusAndTheRawBody() {
+        val raw = oauth2ErrorFor("upstream exploded")
+
+        assertEquals("Token request failed with status 400: upstream exploded", raw.message)
+    }
+
+    @Test
     fun bhvErrors046ServerErrorMessageHasThreeForms() {
         // Three message forms: raw body when the answer is not an OAuth2 error
         // object, the code alone, and the code with its description.

@@ -169,6 +169,33 @@ class ApiExceptionTest {
     }
 
     @Test
+    @DisplayName("bhvErrors061 a bad request error is a client error, an API error and an OpenAPI error")
+    fun bhvErrors061BadRequestIsAClientErrorAnApiErrorAndAnOpenApiError() {
+        val ex = BadRequestException(message = "bad request", responseHeaders = null, responseBody = null)
+
+        assertTrue(ex is ClientException)
+        assertTrue(ex is ApiException)
+        assertTrue(ex is OpenAPIException)
+    }
+
+    @Test
+    @DisplayName("bhvErrors064 an empty error message renders the default text, like a missing one")
+    fun bhvErrors064AnEmptyErrorMessageRendersTheDefaultText() {
+        assertEquals("Error message: the server returns an error", ApiException(message = "").toString())
+    }
+
+    @Test
+    @DisplayName("bhvErrors065 the error text cuts a long response body at 1 KiB and counts the bytes left out")
+    fun bhvErrors065TheErrorTextCutsALongBodyAtOneKibAndCountsTheBytesLeftOut() {
+        val ex = ApiException(502, "bad gateway", emptyMap(), "a".repeat(3000))
+
+        assertEquals(
+            "bad gateway\nHTTP status code: 502\nResponse body: " + "a".repeat(1024) + "... (1976 more bytes)",
+            ex.toString(),
+        )
+    }
+
+    @Test
     fun statusErrorConstructorsDefaultTheResponseContextToNull() {
         val bad = BadRequestException()
         assertEquals(400, bad.statusCode)

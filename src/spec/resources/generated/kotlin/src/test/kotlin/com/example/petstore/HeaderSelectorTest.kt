@@ -95,6 +95,12 @@ class HeaderSelectorTest {
         fun returnsEmptyStringForEmptyAccepts() {
             assertEquals("", selector.selectAcceptHeader(arrayOf()))
         }
+
+        @Test
+        @DisplayName("bhvHeaders029 the Accept header is empty when every entry is blank")
+        fun bhvHeaders029AcceptIsEmptyWhenEveryEntryIsBlank() {
+            assertEquals("", selector.selectAcceptHeader(arrayOf("", "   ")))
+        }
     }
 
     @Nested

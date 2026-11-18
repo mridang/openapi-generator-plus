@@ -10,6 +10,14 @@ import org.junit.jupiter.api.Test
 class BearerAuthenticatorTest {
 
     @Test
+    @DisplayName("bhvAuthbearer028 a bearer token containing CRLF is rejected at construction")
+    fun bhvAuthbearer028ABearerTokenContainingCrlfIsRejectedAtConstruction() = runBlocking {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        }
+    }
+
+    @Test
     @DisplayName("bhvAuthbearer009 raw token is prefixed with Bearer")
     fun rawTokenIsPrefixedWithBearer() = runBlocking {
         val auth = BearerAuthenticator("https://api.example.com", "xyz")
