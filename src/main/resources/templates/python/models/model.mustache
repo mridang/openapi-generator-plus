@@ -94,7 +94,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}})
     _discriminator_property_name: ClassVar[str] = '{{discriminator.propertyBaseName}}'
 
     @classmethod
-    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
         """Returns the discriminator value (object type) of the data.
 
         Gap AU: raises ValueError when the discriminator field is missing,
@@ -597,7 +597,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}})
     }
 
     @classmethod
-    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
         """Returns the discriminator value (object type) of the data.
 
         Gap AU: raises ValueError when the discriminator field is missing

@@ -46,7 +46,7 @@ class Shape(ApiModel):
     }
 
     @classmethod
-    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
         """Returns the discriminator value (object type) of the data.
 
         Gap AU: raises ValueError when the discriminator field is missing

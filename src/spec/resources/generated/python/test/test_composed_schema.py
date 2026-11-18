@@ -108,7 +108,7 @@ class TestAllOfVehicle:
         assert "Missing discriminator" in str(exc_info.value)
 
     def test_bhv_serializationobject_301_subtype_writes_its_discriminator(self) -> None:
-        car = Car(plate="AB-12", door_count=4)
+        car = Car(plate="AB-12", doorCount=4)
         assert '"vehicleType":"car"' in ObjectSerializer().serialize(car).replace(
             " ", ""
         )
