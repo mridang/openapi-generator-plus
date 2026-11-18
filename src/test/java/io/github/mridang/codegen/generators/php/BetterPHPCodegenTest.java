@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,22 +144,35 @@ class BetterPHPCodegenTest {
     }
 
     @Test
-    void readsOnlyTheCredentialsOfBasicBearerAndApiKeySchemesFromTheEnvironment() {
+    void readsTheCredentialsOfBearerAndOAuth2SchemesFromTheEnvironmentButNotOpenIdConnect() {
         final Map<String, Object> ctx = new HashMap<>();
         ctx.put(
                 "envVars",
                 List.of(
                         envVar("host", "ACME_HOST"),
                         envVar("token", "ACME_TOKEN"),
-                        envVar("clientId", "ACME_CLIENT_ID")));
+                        envVar("clientId", "ACME_CLIENT_ID"),
+                        envVar("redirectUri", "ACME_REDIRECT_URI")));
 
         assertEquals(
                 List.of(envVar("token", "ACME_TOKEN")),
-                BetterPHPCodegen.schemeCredentialEnvVars(scheme("BearerAuthenticator"), ctx));
+                BetterPHPCodegen.schemeCredentialEnvVars(
+                        scheme("BearerAuthenticator", "token"), ctx));
+        assertEquals(
+                List.of(envVar("clientId", "ACME_CLIENT_ID")),
+                BetterPHPCodegen.schemeCredentialEnvVars(
+                        scheme("OAuth2ImplicitAuthenticator", "clientId"), ctx));
+        assertEquals(
+                List.of(
+                        envVar("clientId", "ACME_CLIENT_ID"),
+                        envVar("redirectUri", "ACME_REDIRECT_URI")),
+                BetterPHPCodegen.schemeCredentialEnvVars(
+                        scheme("OAuth2AuthorizationCodeAuthenticator", "clientId", "redirectUri"),
+                        ctx));
         assertEquals(
                 List.of(),
                 BetterPHPCodegen.schemeCredentialEnvVars(
-                        scheme("OAuth2ClientCredentialsAuthenticator"), ctx));
+                        scheme("OpenIdConnectAuthenticator", "clientId", "redirectUri"), ctx));
     }
 
     @Test
@@ -170,7 +184,7 @@ class BetterPHPCodegenTest {
 
         assertEquals(
                 List.of(envVar("username", "ACME_USERNAME"), envVar("password", "ACME_PASSWORD")),
-                BetterPHPCodegen.schemeCredentialEnvVars(scheme("BasicAuthenticator"), ctx));
+                BetterPHPCodegen.schemeCredentialEnvVars(scheme("BasicAuthenticator", "username", "password"), ctx));
     }
 
     @Test
@@ -254,9 +268,11 @@ class BetterPHPCodegenTest {
         return entry;
     }
 
-    private static AbstractBetterCodegen.SchemeAuthSpec scheme(String baseClass) {
+    private static AbstractBetterCodegen.SchemeAuthSpec scheme(String baseClass, String... params) {
+        final List<String> paramNames = new ArrayList<>(List.of("host"));
+        paramNames.addAll(List.of(params));
         return new AbstractBetterCodegen.SchemeAuthSpec(
-                "scheme", "Scheme", "", baseClass, false, List.of("host"),
+                "scheme", "Scheme", "", baseClass, false, paramNames,
                 null, null, null, null, null, null, null);
     }
 
