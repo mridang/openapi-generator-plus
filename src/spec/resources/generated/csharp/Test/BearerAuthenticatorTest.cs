@@ -215,7 +215,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void ATokenProviderAlsoServesTheSynchronousHeaders()
+    public void BhvLangcsharp072ATokenProviderAlsoServesTheSynchronousHeaders()
     {
         var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("sync"));
 
