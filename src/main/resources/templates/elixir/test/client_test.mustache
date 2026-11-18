@@ -36,7 +36,8 @@ defmodule {{moduleName}}.ClientTest do
     end
 
     transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter])
-    client = {{moduleName}}.{{clientClassName}}.new(%ClosingAuthenticator{notify: self()}, transport)
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
 
     assert {:ok, _result} = call_through(client).()
     assert_received :through_adapter

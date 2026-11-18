@@ -35,7 +35,8 @@ defmodule PetstoreClient.ClientTest do
     end
 
     transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
-    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
+    client = PetstoreClient.Client.new(authenticator, transport)
 
     assert {:ok, _result} = call_through(client).()
     assert_received :through_adapter

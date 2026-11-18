@@ -1438,5 +1438,9 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert PetstoreClient.ValueSerializer.serialize(9_223_372_036_854_775_807, :path, "integer") ==
                "9223372036854775807"
     end
+
+    test "bhv serialization 109 a string path parameter is percent-encoded exactly once in the path" do
+      assert PetstoreClient.ValueSerializer.encode_path_segment("a b/c") == "a%20b%2Fc"
+    end
   end
 end

@@ -2596,5 +2596,20 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.ObjectSerializer.convert_to_type(2, "TestPriority") == :high
       assert {{moduleName}}.ObjectSerializer.convert_to_type(1, "TestPriority") == :low
     end
+
+    test "bhv serialization 115 an integral JSON number decoded into a floating-point field becomes a float" do
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(3, "Float") === 3.0
+    end
+
+    test "bhv serialization 117 a protobuf duration string decodes into a duration value as a standalone value" do
+      assert %Duration{second: 90} = {{moduleName}}.ObjectSerializer.convert_to_type("90s", "Duration")
+    end
+
+    test "bhv serialization 118 a date-time keeps its full time and offset rather than being cut to the date" do
+      dt = {{moduleName}}.ObjectSerializer.convert_to_type("2024-01-02T03:04:05+02:00", "DateTime")
+
+      assert {{moduleName}}.ObjectSerializer.stringify(dt) =~ "T03:04:05"
+      assert {{moduleName}}.ObjectSerializer.stringify(dt) =~ "+02:00"
+    end
 end
 {{/generateTests}}

@@ -19,6 +19,18 @@ defmodule PetstoreClient.Models.TestEnumStatus do
   def from_value(value), do: {:error, value}
 end
 
+# Fixture for bhv serialization 097: a field whose schema default is an enum value.
+defmodule PetstoreClient.Models.TestDefaultedStatus do
+  defstruct status: "available"
+end
+
+# Fixture for bhv serialization 101: an integer-backed enum mapping its numbers to members.
+defmodule PetstoreClient.Models.TestPriority do
+  def from_value(1), do: :low
+  def from_value(2), do: :high
+  def from_value(value), do: {:error, value}
+end
+
 defmodule PetstoreClient.ObjectSerializerTest do
   use ExUnit.Case, async: true
 
@@ -2804,5 +2816,46 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
   test "bhv serialization 106 a non-exploded array query parameter joins its values with commas" do
     assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b"]) == "a,b"
+  end
+
+  test "bhv serialization 082 a missing or null discriminator property fails decoding with an error naming that key" do
+    for json <- [~s({"weightKg":2.5}), ~s({"foodType":null,"weightKg":2.5})] do
+      error =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+        end
+
+      assert error.message =~ "foodType"
+    end
+  end
+
+  test "bhv serialization 097 an enum field with a schema default is written with that default when serialized" do
+    decoded =
+      Jason.decode!(
+        PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.TestDefaultedStatus{})
+      )
+
+    assert decoded == %{"status" => "available"}
+  end
+
+  test "bhv serialization 101 an integer-backed enum decodes from its JSON number back to its member" do
+    assert PetstoreClient.ObjectSerializer.convert_to_type(2, "TestPriority") == :high
+    assert PetstoreClient.ObjectSerializer.convert_to_type(1, "TestPriority") == :low
+  end
+
+  test "bhv serialization 115 an integral JSON number decoded into a floating-point field becomes a float" do
+    assert PetstoreClient.ObjectSerializer.convert_to_type(3, "Float") === 3.0
+  end
+
+  test "bhv serialization 117 a protobuf duration string decodes into a duration value as a standalone value" do
+    assert %Duration{second: 90} =
+             PetstoreClient.ObjectSerializer.convert_to_type("90s", "Duration")
+  end
+
+  test "bhv serialization 118 a date-time keeps its full time and offset rather than being cut to the date" do
+    dt = PetstoreClient.ObjectSerializer.convert_to_type("2024-01-02T03:04:05+02:00", "DateTime")
+
+    assert PetstoreClient.ObjectSerializer.stringify(dt) =~ "T03:04:05"
+    assert PetstoreClient.ObjectSerializer.stringify(dt) =~ "+02:00"
   end
 end
