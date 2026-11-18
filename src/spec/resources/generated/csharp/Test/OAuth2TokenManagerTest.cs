@@ -638,7 +638,7 @@ public class OAuth2TokenManagerTest
     [InlineData("\"NaN\"")]
     [InlineData("\"1e400\"")]
     [InlineData("1e400")]
-    public async Task ExpiresInNonFiniteSkipsCaching(string expiresIn)
+    public async Task BhvLangcsharp060ExpiresInNonFiniteSkipsCaching(string expiresIn)
     {
         // A non-finite lifetime, or one that overflows a double, carries no
         // expiry: the token is stale and the next call refetches. It never
