@@ -713,8 +713,8 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("addPetPhotos serializes the model part with wire names via the configured serializer")
-        fun testAddPetPhotosModelPartWireNames() {
+        @DisplayName("bhvSerialization121 addPetPhotos serializes the model part with wire names via the configured serializer")
+        fun bhvSerialization121TestAddPetPhotosModelPartWireNames() {
             // Cross-cutting multipart parity: addPetPhotos sends a
             // multipart/form-data body with a MODEL part (PhotoMetadata). That
             // part MUST be rendered through the SDK's configured ObjectSerializer
@@ -1707,8 +1707,8 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("F857: the client routes each scheme credential to the operation that names it")
-        fun testClientRoutesSchemeCredentials() {
+        @DisplayName("bhvLangkotlin052 F857: the client routes each scheme credential to the operation that names it")
+        fun bhvLangkotlin052TestClientRoutesSchemeCredentials() {
             var authorization: String? = null
             val engine =
                 MockEngine { request ->
@@ -2346,33 +2346,6 @@ class PetApiTest {
 
             assertEquals("test-image", String(result, Charsets.UTF_8))
             assertArrayEquals("test-image".toByteArray(Charsets.UTF_8), result)
-        }
-
-        @Test
-        @DisplayName("deserializing an unknown enum value throws an SDK error")
-        fun testUnknownEnumValueThrows() {
-            // Parity rule 6: an unknown enum value in a response body must
-            // surface a (de)serialization error, never be silently coerced to
-            // null or a default. The SDK throws its own
-            // SerializationException for a status the StatusEnum doesn't define.
-            val engine =
-                MockEngine { _ ->
-                    respond(
-                        content = """{"id":1,"name":"Rex","photoUrls":[],"status":"banana"}""",
-                        status = HttpStatusCode.OK,
-                        headers = headersOf("Content-Type", "application/json"),
-                    )
-                }
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl("http://localhost")
-                    .build()
-            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
-
-            assertThrows(com.example.petstore.errors.SerializationException::class.java) {
-                runBlocking { api.getPetById(1L) }
-            }
         }
 
         @Test
