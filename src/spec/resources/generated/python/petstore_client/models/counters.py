@@ -51,7 +51,7 @@ class Counters(ApiModel):
         wire_decode = bool(info.context and info.context.get("wire_decode"))
         known: Set[str] = set()
         # `aliases` holds only the WIRE aliases that differ from the Python
-        # field name (e.g. 'createdAt' for the field 'created_at'). Their
+        # field name (e.g. 'fieldName' for the field 'field_name'). Their
         # presence in the incoming mapping is the PATH signal that this dict is
         # a flat WIRE payload rather than field-name kwargs / re-validation.
         aliases: Set[str] = set()
@@ -116,9 +116,9 @@ class Counters(ApiModel):
 
         The mirror of `_capture_additional_properties`. Without this,
         pydantic emits the captured extras nested under a literal
-        `additional_properties` key (e.g. `{"createdAt": ...,
+        `additional_properties` key (e.g. `{"fieldName": ...,
         "additional_properties": {"foo": "bar"}}`) instead of the
-        round-trip-faithful flat form `{"createdAt": ..., "foo": "bar"}`.
+        round-trip-faithful flat form `{"fieldName": ..., "foo": "bar"}`.
         We run the default serializer, lift the captured extras out of the
         `additional_properties` key, and merge them back at the top level.
         Declared fields win on key collisions so an explicit field is never
