@@ -1401,7 +1401,7 @@ func TestPetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
 	}
 }
 
-func TestPetApi_BinaryBodyAcceptsAnIoReader(t *testing.T) {
+func TestBhvOperations157_PetApi_BinaryBodyAcceptsAnIoReader(t *testing.T) {
 	t.Parallel()
 	var gotBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2484,5 +2484,106 @@ func TestBhvAuth047_PetApi_AddPetUsesTheFirstHeldSchemeAndSendsNoneWhenItHoldsNo
 	_ = client.Close()
 	if gotKey != "" || gotAuth != "" {
 		t.Errorf("expected no scheme credential, got key %q and authorization %q", gotKey, gotAuth)
+	}
+}
+
+// A header supplied on an individual call is sent with that call.
+func TestBhvOperations158_PetApi_APerCallHeaderIsSentWithThatCall(t *testing.T) {
+	t.Parallel()
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("X-Per-Call")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil, petstore.WithHeaders(map[string]string{"X-Per-Call": "yes"})); err != nil {
+		t.Fatalf("GetPetById failed: %v", err)
+	}
+	if got != "yes" {
+		t.Errorf("expected the per-call header, got %q", got)
+	}
+}
+
+// A call that returns a value raises a typed API error when a success response arrives with an empty body.
+func TestBhvOperations159_PetApi_AnEmptyBodyOnAValueReturnIsATypedApiError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected a typed *ApiError for an empty success body, got %T: %v", err, err)
+	}
+}
+
+// A request with no body sends no Content-Type header, whatever the case of the default header name.
+func TestBhvOperations163_PetApi_ABodilessRequestSendsNoContentType(t *testing.T) {
+	t.Parallel()
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("Content-Type")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	opts, err := petstore.NewTransportOptionsBuilder().DefaultHeader("content-type", "application/json").Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("GetPetById failed: %v", err)
+	}
+	if got != "" {
+		t.Errorf("expected no Content-Type on a bodiless request, got %q", got)
+	}
+}
+
+// A call with a missing required parameter raises an argument error and sends no request.
+func TestBhvOperations164_PetApi_AMissingRequiredParameterSendsNoRequest(t *testing.T) {
+	t.Parallel()
+	hits := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case hits <- struct{}{}:
+		default:
+		}
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetByName(context.Background(), "", nil)
+	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
+		t.Errorf("expected ErrMissingRequiredParameter, got %v", err)
+	}
+	select {
+	case <-hits:
+		t.Error("expected no request to reach the server")
+	default:
 	}
 }

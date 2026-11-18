@@ -5,8 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"{{packageName}}/pkg"
@@ -419,4 +422,146 @@ func TestBhvAuth041_Client_ExplicitTokenWinsOverTheEnvironmentVariable(t *testin
 	if seen != "Bearer explicit-token" {
 		t.Errorf("expected the explicit token, got %q", seen)
 	}
+}
+
+// lifecycleRoundTripper answers every request itself and counts them.
+type lifecycleRoundTripper struct {
+	hits atomic.Int32
+}
+
+func (rt *lifecycleRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.hits.Add(1)
+	return &http.Response{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":1,"name":"Test","photoUrls":[]}`)),
+		Request:    req,
+	}, nil
+}
+
+// A client built with a caller-supplied transport sends its requests through that transport.
+func TestBhvLifecycle042_Client_ACallerSuppliedTransportCarriesEveryRequest(t *testing.T) {
+	t.Parallel()
+	rt := &lifecycleRoundTripper{}
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(rt).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client, err := {{packageName}}.New{{clientClassName}}WithToken("https://api.example.com", "test-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := rt.hits.Load(); got != 1 {
+		t.Errorf("expected the supplied transport to carry 1 request, got %d", got)
+	}
+}
+
+// After Close, a new request fails with the closed-client error and never reaches the network.
+func TestBhvLifecycle043_Client_ARequestAfterCloseFailsWithoutSendingAnything(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1) }))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	if !errors.Is(err, {{packageName}}.ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed, got %v", err)
+	}
+	if got := hits.Load(); got != 0 {
+		t.Errorf("expected no request to reach the server, got %d", got)
+	}
+}
+
+// A request in flight when the client is closed, retries included, still completes.
+func TestBhvLifecycle044_Client_AnInFlightRequestCompletesAfterClose(t *testing.T) {
+	t.Parallel()
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		<-release
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.Pet.GetPetById(context.Background(), int64(1), nil)
+		done <- err
+	}()
+	<-started
+	_ = client.Close()
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("expected the in-flight request to complete, got %v", err)
+	}
+}
+
+// closableDoer is a caller-supplied HTTP client that records whether anyone closed it.
+type closableDoer struct {
+	inner  *http.Client
+	closed atomic.Bool
+}
+
+func (d *closableDoer) Do(req *http.Request) (*http.Response, error) {
+	return d.inner.Do(req)
+}
+
+func (d *closableDoer) Close() error {
+	d.closed.Store(true)
+	return nil
+}
+
+// Closing the SDK client does not close an HTTP client the caller supplied, which keeps sending requests.
+func TestBhvLifecycle045_Client_ClosingTheSdkLeavesACallerSuppliedClientOpen(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	doer := &closableDoer{inner: server.Client()}
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(doer).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+
+	if doer.closed.Load() {
+		t.Fatal("the SDK closed the caller-supplied client")
+	}
+	req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	resp, err := doer.Do(req)
+	if err != nil {
+		t.Fatalf("expected the caller-supplied client to keep working, got %v", err)
+	}
+	_ = resp.Body.Close()
 }

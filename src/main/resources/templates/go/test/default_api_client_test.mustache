@@ -1246,7 +1246,7 @@ func TestBhvRedirects003_DefaultApiClient_ConcurrentRedirectCountIsPerRequest(t 
 // the limit must compare len(via) against maxRedirects with a strict greater
 // than, otherwise only maxRedirects-1 redirects are followed (MaxRedirects(1)
 // would follow none).
-func TestDefaultApiClient_RedirectLimitFollowsExactlyMaxRedirects(t *testing.T) {
+func TestBhvRedirects046_DefaultApiClient_RedirectLimitFollowsExactlyMaxRedirects(t *testing.T) {
 	t.Parallel()
 
 	var server *httptest.Server
@@ -2500,5 +2500,111 @@ func TestBhvLifecycle040_DefaultApiClient_StandardCloserReleasesTheClient(t *tes
 	var closer io.Closer = NewDefaultApiClient(nil)
 	if err := closer.Close(); err != nil {
 		t.Errorf("expected the io.Closer hook to close the client, got %v", err)
+	}
+}
+
+// redirectSeenByTarget sends one request to a URL that answers with the given redirect status and
+// returns the method and body the redirect target received.
+func redirectSeenByTarget(t *testing.T, status int, method, body string) (string, string) {
+	t.Helper()
+	var gotMethod, gotBody string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/start", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "/target")
+		w.WriteHeader(status)
+	})
+	mux.HandleFunc("/target", func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.WriteHeader(200)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	headers := map[string]string{}
+	var payload any
+	if body != "" {
+		payload = []byte(body)
+		headers["Content-Type"] = "text/plain"
+	}
+	if _, err := client.SendRequest(method, server.URL+"/start", headers, payload); err != nil {
+		t.Fatalf("%s %d: unexpected error: %v", method, status, err)
+	}
+	return gotMethod, gotBody
+}
+
+// A 301 or 302 turns a POST follow-up into a GET with no body; other methods keep theirs.
+func TestBhvRedirects048_DefaultApiClient_A301Or302TurnsAPostIntoAGetWithNoBody(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{301, 302} {
+		method, body := redirectSeenByTarget(t, status, "POST", "payload")
+		if method != "GET" || body != "" {
+			t.Errorf("status %d: expected GET with no body, got %s %q", status, method, body)
+		}
+		for _, kept := range []string{"PUT", "PATCH", "DELETE", "HEAD", "GET"} {
+			got, _ := redirectSeenByTarget(t, status, kept, "")
+			if got != kept {
+				t.Errorf("status %d: expected %s kept, got %s", status, kept, got)
+			}
+		}
+	}
+}
+
+// A 307 or 308 repeats the request with the same method and body, and redirects are followed by default.
+func TestBhvRedirects049_DefaultApiClient_A307Or308RepeatsTheMethodAndBody(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{307, 308} {
+		for _, method := range []string{"POST", "PUT", "PATCH", "DELETE"} {
+			gotMethod, gotBody := redirectSeenByTarget(t, status, method, "payload")
+			if gotMethod != method || gotBody != "payload" {
+				t.Errorf("status %d %s: expected the same method and body, got %s %q", status, method, gotMethod, gotBody)
+			}
+		}
+	}
+}
+
+// For redirect statuses 301, 302, 303, 307 and 308 the follow-up method and body match RFC 9110.
+func TestBhvRedirects050_DefaultApiClient_FollowUpMethodAndBodyFollowTheRfc9110Table(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{301, 302, 303, 307, 308} {
+		for _, method := range []string{"POST", "PUT", "PATCH", "DELETE", "HEAD", "GET"} {
+			body := ""
+			if method != "HEAD" && method != "GET" {
+				body = "payload"
+			}
+			wantMethod := method
+			switch {
+			case (status == 301 || status == 302) && method == "POST":
+				wantMethod = "GET"
+			case status == 303 && method != "HEAD":
+				wantMethod = "GET"
+			}
+			wantBody := body
+			if wantMethod == "GET" || wantMethod == "HEAD" {
+				wantBody = ""
+			}
+			gotMethod, gotBody := redirectSeenByTarget(t, status, method, body)
+			if gotMethod != wantMethod || gotBody != wantBody {
+				t.Errorf("status %d %s: expected %s %q, got %s %q", status, method, wantMethod, wantBody, gotMethod, gotBody)
+			}
+		}
+	}
+}
+
+// A 303 turns a follow-up into a GET, except that a HEAD request stays HEAD.
+func TestBhvRedirects051_DefaultApiClient_A303TurnsAFollowUpIntoAGetExceptHead(t *testing.T) {
+	t.Parallel()
+	if got, _ := redirectSeenByTarget(t, 303, "POST", "payload"); got != "GET" {
+		t.Errorf("expected POST to become GET, got %s", got)
+	}
+	if got, _ := redirectSeenByTarget(t, 303, "HEAD", ""); got != "HEAD" {
+		t.Errorf("expected HEAD to stay HEAD, got %s", got)
 	}
 }

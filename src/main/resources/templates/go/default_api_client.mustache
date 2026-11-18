@@ -256,6 +256,11 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		// no body -- remove Content-Type to avoid sending it without a body
 		removeHeader(merged, "Content-Type")
 	case []byte:
+		/* A generated operation without a body passes a typed nil slice, not an
+		 * untyped nil, so it takes the same path as no body at all. */
+		if b == nil {
+			removeHeader(merged, "Content-Type")
+		}
 		bodyReader = bytes.NewReader(b)
 	case map[string]any:
 		buf, contentType, err := buildTransportMultipartBody(b)

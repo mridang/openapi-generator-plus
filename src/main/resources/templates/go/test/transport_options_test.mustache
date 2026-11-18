@@ -978,3 +978,27 @@ func TestBhvTransport080_TransportOptions_AProxyTheClientCannotApplyFailsConstru
 		t.Error("expected no TransportOptions when the proxy cannot be applied")
 	}
 }
+
+// A caller-supplied transport refuses every SDK proxy and TLS setting, and a second transport, at construction.
+func TestBhvLifecycle041_TransportOptions_ASuppliedTransportRejectsSdkProxyAndTlsSettings(t *testing.T) {
+	t.Parallel()
+	builds := map[string]func() error{
+		"proxy": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(http.DefaultTransport).Proxy("http://proxy.example.com:8080").Build()
+			return err
+		},
+		"verify off": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(http.DefaultTransport).VerifySsl(false).Build()
+			return err
+		},
+		"client and transport": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(&http.Client{}).RoundTripper(http.DefaultTransport).Build()
+			return err
+		},
+	}
+	for name, build := range builds {
+		if err := build(); !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+			t.Errorf("%s: expected ErrTransportConflict, got %v", name, err)
+		}
+	}
+}

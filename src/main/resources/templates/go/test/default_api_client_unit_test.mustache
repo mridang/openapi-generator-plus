@@ -1248,7 +1248,7 @@ func TestBhvRedirects037_DefaultApiClientUnit_ARedirectToTheExplicitDefaultPortK
 // F1093: a credential carried under a name the spec does not declare (a
 // custom authenticator's X-Auth-Token, a default header named like a secret)
 // is stripped from a cross-origin redirect too; an ordinary header survives.
-func TestDefaultApiClientUnit_StripsSecretNamedHeadersAcrossCrossOriginRedirect(t *testing.T) {
+func TestBhvRedirects052_DefaultApiClientUnit_StripsSecretNamedHeadersAcrossCrossOriginRedirect(t *testing.T) {
 	t.Parallel()
 	var received http.Header
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
