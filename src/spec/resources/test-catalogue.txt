@@ -2624,3 +2624,14 @@ langnode015 | A cookie value that cannot be sent is refused before the request g
 langnode016 | A set parameter is expanded like an array in a query
 langnode017 | A matrix parameter element of the wrong type is rejected
 langnode018 | An inventory parameter element of the wrong type is rejected
+langnode019 | Binary request content is sent as raw bytes under the octet-stream media type
+langnode020 | An operation that requires security still sends the configured credential
+langnode021 | A request body missing a required field does not compile
+langnode022 | A quoted number in an integer map is rejected
+langnode023 | A fractional number in an integer map is rejected
+langnode024 | Integer map values still decode as integers
+langnode025 | Either the client-level or the per-call signal cancels the merged request
+langnode026 | Without per-call options the transport defaults apply
+langnode027 | A request is never replayed for a scheme that has no replay support
+langnode028 | A form-urlencoded body rejects a lone surrogate with a URI error
+langnode029 | A scheme name never resolves to an Object.prototype member
