@@ -221,6 +221,21 @@ import Testing
     }
   }
 
+  @Test func testBhvAuthoauthtwoauthcode030AuthHeadersBeforeTheExchangeNameTheExchangeCall() async {
+    let auth = createAuthenticator()
+
+    var message = ""
+    do {
+      _ = try await auth.authHeadersOrThrow()
+      Issue.record("expected authHeadersOrThrow to throw before exchangeCode")
+    } catch {
+      message = error.localizedDescription
+    }
+    #expect(
+      message.contains("exchangeCode()"),
+      "the error must name the exchange call to make first, got: \(message)")
+  }
+
   @Test func testBhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError() async
   {
     let auth = createAuthenticator()
@@ -439,7 +454,7 @@ import Testing
   }
 
   /* The code exchange body is emitted in the fixed cross-SDK order. */
-  @Test func testCodeExchangeBodyUsesFixedParameterOrder() async throws {
+  @Test func testBhvAuthoauthtwoauthcode032CodeExchangeBodyUsesFixedParameterOrder() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 

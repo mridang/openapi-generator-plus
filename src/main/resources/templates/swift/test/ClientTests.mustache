@@ -260,6 +260,13 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     // MARK: - Credentials of the scheme authenticators
 
+    @Test func testBhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsEnvironmentVariable() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "explicit-value")
+    }
+
     @Test func testBhvAuthbasic013AnExplicitCredentialWinsOverTheEnvironment() throws {
         let value = try BaseAuthenticator.credential(
             "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
@@ -330,6 +337,18 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
 
     @Test func test{{emptyVariableBhv}}{{className}}TreatsAnEmptyVariableAsUnset() {
+{{#envVars}}
+{{#-first}}
+        let missing = ConfigurationError.invalidArgument(
+            "Missing the credential '{{field}}': pass it, or set the {{envName}} environment variable")
+{{/-first}}
+{{/envVars}}
+        #expect(throws: missing) {
+            _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
+        }
+    }
+
+    @Test func {{#isFirstBearerScheme}}testBhvAuthscheme010{{/isFirstBearerScheme}}{{^isFirstBearerScheme}}test{{/isFirstBearerScheme}}{{className}}TreatsAnEmptyVariableAsUnset() {
 {{#envVars}}
 {{#-first}}
         let missing = ConfigurationError.invalidArgument(

@@ -995,6 +995,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         entry.put("className", className);
         entry.put("baseClass", spec.baseClass());
         entry.put("isBearerScheme", "BearerAuthenticator".equals(spec.baseClass()));
+        /* Only the first bearer-kind scheme carries the bearer catalogue id, so the id stays unique. */
+        entry.put("isFirstBearerScheme", "BearerAuthenticator".equals(spec.baseClass())
+                && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBearerScheme"))));
         entry.put("isBasicScheme", "BasicAuthenticator".equals(spec.baseClass()));
         final boolean apiKey = "ApiKeyAuthenticator".equals(spec.baseClass());
         entry.put("isApiKeyScheme", apiKey);
