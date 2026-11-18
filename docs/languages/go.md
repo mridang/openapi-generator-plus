@@ -45,7 +45,7 @@ Runtime modules, from the generated `go.mod`:
 | `github.com/andybalholm/brotli` | v1.2.1 | Decoding `br` responses |
 | `github.com/klauspost/compress` | v1.18.6 | Decoding `zstd` responses |
 | `github.com/google/uuid` | v1.6.0 | The `uuid` type |
-| `go.opentelemetry.io/otel` and `otel/trace` | v1.47.0 | Trace-context propagation |
+| `go.opentelemetry.io/otel`, `otel/metric` and `otel/trace` | v1.47.0 | Trace-context propagation, and the `pkg/otelhook` adapter (the core package imports none of them) |
 
 HTTP is the standard library. Other requirements in the manifest are for the generated tests and tooling (`testcontainers-go`, the OpenTelemetry SDK, and a `tool` block with `gotestsum`, `staticcheck`, `gofumpt` and `gocover-cobertura`). Dependencies that need cgo are not accepted.
 
@@ -73,6 +73,8 @@ HTTP is the standard library. Other requirements in the manifest are for the gen
 - Building a model never validates: `New<Model>` and the `With` methods accept any value, including an unknown enum member. Validation, and the loud failure on an unknown enum value, happen only when a payload is decoded.
 - Configuration is built with `NewConfigurationBuilder()` and `NewTransportOptionsBuilder()`.
 - You can supply your own HTTP stack with `TransportOptionsBuilder.HttpClient` (anything with `Do(*http.Request)`) or `RoundTripper`. Combining that with the SDK's own proxy, TLS or pool settings fails `Build()` with `ErrTransportConflict`, and the SDK never closes a client you supplied.
+- **Call hook.** `CallHook` is one small hook around every operation call: `Start(ctx, CallInfo, headers map[string]string) (CallObserver, error)` runs once per call after the headers are final and may edit them, and returns a `CallObserver` (or `nil`) whose `Finish(CallOutcome)` runs exactly once on every way the call can end. Go returns the error `Start` would throw: it reaches the caller unchanged, nothing is sent and `Finish` is not called; a panic in `Finish` is recovered. Set it with `NewConfigurationBuilder().CallHook(hook)` or, on a client, the trailing `WithCallHook(hook)` option of the `New<Client>` constructors; `CallHookFunc` adapts a function and `ChainCallHooks(a, b)` combines hooks. `CallInfo` has `OperationID` (as written in the spec), `Method`, `URLTemplate`, `URL` (no query string or fragment) and `ServerAddress`; `CallOutcome` has `StatusCode` (`0` when no response arrived), the lower-cased `Headers` (`nil` when none arrived) and the `Error` the caller receives. The hook runs above the transport, so it also fires with your own `HttpClient`.
+- **OpenTelemetry adapter.** `otelhook.New(opts...)` in `pkg/otelhook` (options `WithTracerProvider`, `WithMeterProvider`, `WithPropagator`) is a `CallHook` that records one span (named with the operation id, kind client), the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type`. It uses the OpenTelemetry API only and writes `traceparent` itself.
 - Initialisms are upper case (`URL`, `ID`, `HTTP`).
 - A model struct can be created without its required properties. Decoding enforces them.
 

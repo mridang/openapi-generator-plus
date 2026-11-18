@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	petstore "petstore/pkg"
@@ -354,5 +355,33 @@ func TestBhvLifecycle006_Client_BearerRejectsCarriageReturnLineFeedAndNonAscii(t
 		if _, err := auth.NewBearerAuthenticator("/api/v3", bad); !errors.Is(err, auth.ErrInvalidBearerToken) {
 			t.Errorf("token %q: expected ErrInvalidBearerToken, got %v", bad, err)
 		}
+	}
+}
+
+func TestBhvHooks010_Client_AHookSetOnTheClientStillFiresWhenTheCallerSuppliedTheTransport(t *testing.T) {
+	t.Parallel()
+	var seen atomic.Value
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen.Store(r.Header.Get("X-Hook"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	transport, err := petstore.NewTransportOptionsBuilder().HttpClient(server.Client()).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hook := &hookRecorder{edit: func(headers map[string]string) { headers["X-Hook"] = "supplied" }}
+	client := petstore.NewClient(mustBearer(t, server.URL, "test-token"), transport, petstore.WithCallHook(hook))
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if starts, finishes := hook.counts(); starts != 1 || finishes != 1 {
+		t.Errorf("expected one start and one finish, got %d and %d", starts, finishes)
+	}
+	if got := seen.Load(); got != "supplied" {
+		t.Errorf("expected the hook header on the request, got %v", got)
 	}
 }
