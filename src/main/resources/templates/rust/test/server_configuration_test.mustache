@@ -195,7 +195,7 @@ fn test_bhv_servers_011_template_without_variables_is_returned_unchanged() {
 /// F1118: a placeholder that a substituted value introduces is not expanded
 /// again, whatever order the variables are held in.
 #[test]
-fn test_url_never_re_expands_a_placeholder_a_value_introduces() {
+fn test_bhv_servers_029_url_never_re_expands_a_placeholder_a_value_introduces() {
     for _ in 0..32 {
         let mut variables = HashMap::new();
         variables.insert(
@@ -290,7 +290,7 @@ fn test_bhv_servers_023_a_value_with_replacement_patterns_is_substituted_literal
 /// SKILLS.md documents the `all_servers()` list next to the `server_N()`
 /// functions, like the other SDKs' Servers section.
 #[test]
-fn test_skills_servers_section_documents_all_servers() {
+fn test_bhv_langrust_047_skills_servers_section_documents_all_servers() {
     let skills = include_str!("../SKILLS.md");
     assert!(
         skills.contains("returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them."),

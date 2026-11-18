@@ -176,7 +176,7 @@ mod tests {
     /* The later layer replaces an earlier spelling of the same header and
      * keeps its own spelling, so only one line reaches the wire. */
     #[test]
-    fn test_insert_header_replaces_a_case_variant_with_the_later_spelling() {
+    fn test_bhv_langrust_002_insert_header_replaces_a_case_variant_with_the_later_spelling() {
         let mut headers = HashMap::new();
         headers.insert("accept".to_string(), "text/plain".to_string());
         headers.insert("X-Other".to_string(), "kept".to_string());
@@ -190,7 +190,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_header_ignores_case() {
+    fn test_bhv_misc_182_remove_header_ignores_case() {
         let mut headers = HashMap::new();
         headers.insert("content-type".to_string(), "application/json".to_string());
         headers.insert("Content-Type".to_string(), "text/plain".to_string());

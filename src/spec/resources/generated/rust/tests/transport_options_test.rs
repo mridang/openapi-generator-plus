@@ -90,7 +90,7 @@ fn test_bhv_options_041_transport_options_user_agent_defaults_to_non_empty_strin
 }
 
 #[test]
-fn test_transport_options_user_agent_set_value_is_applied() {
+fn test_bhv_langrust_055_transport_options_user_agent_set_value_is_applied() {
     let opts = TransportOptionsBuilder::new()
         .user_agent("CustomAgent/2.0")
         .build()
@@ -353,7 +353,7 @@ fn test_bhv_options_014_transport_options_upper_case_proxy_scheme_is_accepted() 
 }
 
 #[test]
-fn test_transport_options_missing_ca_cert_file_is_rejected() {
+fn test_bhv_misc_270_transport_options_missing_ca_cert_file_is_rejected() {
     let result = TransportOptionsBuilder::new()
         .ca_cert_path("/nonexistent/ca.pem")
         .build();
@@ -394,7 +394,7 @@ fn test_bhv_errors_039_a_garbage_pem_ca_cert_path_is_rejected_when_the_options_a
 }
 
 #[test]
-fn test_transport_options_ca_cert_block_with_invalid_base64_is_rejected() {
+fn test_bhv_langrust_056_transport_options_ca_cert_block_with_invalid_base64_is_rejected() {
     let reason = ca_file_rejection(
         "bad-base64",
         "-----BEGIN CERTIFICATE-----\n!!!!\n-----END CERTIFICATE-----\n",
@@ -407,7 +407,7 @@ fn test_transport_options_ca_cert_block_with_invalid_base64_is_rejected() {
 }
 
 #[test]
-fn test_transport_options_ca_cert_block_with_invalid_der_is_rejected() {
+fn test_bhv_langrust_057_transport_options_ca_cert_block_with_invalid_der_is_rejected() {
     let reason = ca_file_rejection(
         "bad-der",
         "-----BEGIN CERTIFICATE-----\naGVsbG8=\n-----END CERTIFICATE-----\n",
@@ -420,7 +420,7 @@ fn test_transport_options_ca_cert_block_with_invalid_der_is_rejected() {
 }
 
 #[test]
-fn test_transport_options_ca_cert_block_that_is_not_x509_is_rejected() {
+fn test_bhv_langrust_058_transport_options_ca_cert_block_that_is_not_x509_is_rejected() {
     let reason = ca_file_rejection(
         "not-x509",
         "-----BEGIN CERTIFICATE-----\nMAA=\n-----END CERTIFICATE-----\n",
@@ -433,7 +433,7 @@ fn test_transport_options_ca_cert_block_that_is_not_x509_is_rejected() {
 }
 
 #[test]
-fn test_transport_options_ca_cert_block_without_end_line_is_rejected() {
+fn test_bhv_langrust_059_transport_options_ca_cert_block_without_end_line_is_rejected() {
     let reason = ca_file_rejection("no-end", "-----BEGIN CERTIFICATE-----\nMIIB\n");
     assert!(
         reason.contains("a CERTIFICATE block has no END line"),
@@ -746,7 +746,7 @@ fn test_bhv_options_027_transport_options_max_retries_can_be_set_and_disabled() 
 }
 
 #[test]
-fn test_default_api_client_reports_the_retry_budget_to_the_call() {
+fn test_bhv_langrust_060_default_api_client_reports_the_retry_budget_to_the_call() {
     use petstore::api_client::ApiClient;
     let opts = TransportOptions::builder()
         .max_retries(4)
