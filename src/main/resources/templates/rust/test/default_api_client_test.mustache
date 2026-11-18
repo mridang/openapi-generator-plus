@@ -946,14 +946,29 @@ async fn test_default_api_client_with_client_sends_through_supplied_client() {
 }
 
 /* F405: closing the SDK client never shuts down a caller-supplied client; the
- * caller's handle keeps working afterwards. */
+ * caller's handle keeps sending requests afterwards. */
 #[tokio::test]
-async fn test_default_api_client_close_leaves_supplied_client_usable() {
+async fn test_bhv_lifecycle_045_default_api_client_close_leaves_supplied_client_usable() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let url = format!("http://{}/", listener.local_addr().unwrap());
+    std::thread::spawn(move || {
+        for stream in listener.incoming().take(2) {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = std::io::Read::read(&mut stream, &mut buf);
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            );
+        }
+    });
     let supplied = reqwest::Client::new();
     let client = DefaultApiClient::with_client(supplied.clone(), None).expect("no conflict");
+    assert!(supplied.get(&url).send().await.is_ok());
     client.close();
     assert!(client.is_closed());
-    assert!(supplied.get("http://127.0.0.1:1/").build().is_ok());
+    let response = supplied.get(&url).send().await.expect("the supplied client must still send");
+    assert_eq!(200, response.status().as_u16());
 }
 
 /* lifecycle 024: a supplied client conflicts with the SDK proxy and TLS settings, each refused. */
@@ -976,3 +991,87 @@ fn test_bhv_lifecycle_024_a_supplied_client_conflicts_with_proxy_and_tls_setting
         }
     }
 }
+
+/// Starts a local server that counts the connections it accepts and answers each one after `delay_ms`.
+fn start_counting_server(delay_ms: u64) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let url = format!("http://{}/", listener.local_addr().unwrap());
+    let accepted = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter = accepted.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { break };
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            std::thread::spawn(move || {
+                let mut buf = [0u8; 4096];
+                let _ = std::io::Read::read(&mut stream, &mut buf);
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                let _ = std::io::Write::write_all(
+                    &mut stream,
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                );
+            });
+        }
+    });
+    (url, accepted)
+}
+
+/// A supplied client combined with SDK redirect settings is a conflict, refused at construction.
+#[test]
+fn test_bhv_lifecycle_041_a_supplied_client_with_redirect_settings_is_a_conflict() {
+    let transport = TransportOptionsBuilder::new().max_redirects(Some(3)).build().expect("valid transport options");
+    match DefaultApiClient::with_client(reqwest::Client::new(), Some(transport)) {
+        Err(ConfigurationError::InvalidArgument(message)) => {
+            assert!(message.contains("custom reqwest::Client"), "unexpected message: {}", message);
+        }
+        Err(other) => panic!("expected InvalidArgument, got {:?}", other),
+        Ok(_) => panic!("expected a conflict error, got a client"),
+    }
+}
+
+/// A caller-supplied HTTP client carries the requests: the server receives them through it.
+#[tokio::test]
+async fn test_bhv_lifecycle_042_a_supplied_http_client_sends_the_requests() {
+    let (url, accepted) = start_counting_server(0);
+    let client = DefaultApiClient::with_client(reqwest::Client::new(), None).expect("no conflict");
+    let response = client
+        .send_request("GET", &url, &HashMap::new(), None)
+        .await
+        .expect("the request must go through the supplied client");
+    assert_eq!(200, response.status_code());
+    assert_eq!(1, accepted.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/// After close, a new request fails with a closed-client error and never reaches the network.
+#[tokio::test]
+async fn test_bhv_lifecycle_043_a_request_after_close_fails_without_reaching_the_network() {
+    let (url, accepted) = start_counting_server(0);
+    let client = DefaultApiClient::new(None);
+    client.close();
+    let err = client
+        .send_request("GET", &url, &HashMap::new(), None)
+        .await
+        .expect_err("a closed client must refuse the request");
+    assert!(err.to_string().contains("closed"), "{}", err);
+    assert_eq!(0, accepted.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/// A request already in flight when the client is closed still completes successfully.
+#[tokio::test]
+async fn test_bhv_lifecycle_044_a_request_in_flight_when_the_client_closes_still_completes() {
+    let (url, _accepted) = start_counting_server(300);
+    let client = std::sync::Arc::new(DefaultApiClient::new(None));
+    let in_flight = {
+        let client = client.clone();
+        let url = url.clone();
+        tokio::spawn(async move { client.send_request("GET", &url, &HashMap::new(), None).await })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    client.close();
+    let response = in_flight
+        .await
+        .expect("the task must not panic")
+        .expect("the in-flight request must complete after close");
+    assert_eq!(200, response.status_code());
+}
+

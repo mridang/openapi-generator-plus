@@ -3138,3 +3138,147 @@ async fn test_bhv_lifecycle_037_closing_while_a_request_is_in_flight_lets_it_fin
         "a closed client refuses new requests"
     );
 }
+
+/// redirects046: a chain within the redirect limit is followed to its target; a chain one past it fails with the canonical message.
+#[tokio::test]
+async fn test_bhv_redirects_046_a_chain_within_the_limit_is_followed_and_one_past_it_fails() {
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(3))
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let ok = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+    let within = start_redirect_chain_server(2, ok);
+    let response = client
+        .send_request("GET", &format!("{}/start", within), &HashMap::new(), None)
+        .await
+        .expect("two hops are within the limit of three");
+    assert_eq!(200, response.status_code());
+
+    let past = start_redirect_chain_server(4, ok);
+    let err = client
+        .send_request("GET", &format!("{}/start", past), &HashMap::new(), None)
+        .await
+        .expect_err("four hops exceed the limit of three")
+        .to_string();
+    assert!(err.contains("Too many redirects (exceeded 3)"), "{}", err);
+}
+
+/// redirects047: a refused redirect in one request does not change the outcome of a successful request running at the same time.
+#[tokio::test]
+async fn test_bhv_redirects_047_a_refusal_does_not_change_a_concurrent_request() {
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(1))
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let refused = start_infinite_redirect_server(10);
+    let ok = start_redirect_chain_server(1, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+
+    let (refused_result, ok_result) = tokio::join!(
+        client.send_request("GET", &format!("{}/start", refused), &HashMap::new(), None),
+        client.send_request("GET", &format!("{}/start", ok), &HashMap::new(), None),
+    );
+    assert!(refused_result.is_err(), "the endless chain must be refused");
+    assert_eq!(200, ok_result.expect("the concurrent request must succeed").status_code());
+}
+
+/// redirects048: a 301 or 302 turns a POST into a bodyless GET, while PUT, PATCH, DELETE, HEAD and GET keep their method.
+#[tokio::test]
+async fn test_bhv_redirects_048_301_and_302_turn_a_post_into_a_bodyless_get() {
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    for status in [301u16, 302] {
+        let (base_url, head) = start_redirect_server(status);
+        let body = RequestBody::Bytes(b"payload-to-drop".to_vec());
+        client
+            .send_request("POST", &format!("{}/start", base_url), &HashMap::new(), Some(&body))
+            .await
+            .expect("unexpected error");
+        let follow_up = head.recv().expect("no follow-up request captured");
+        assert!(follow_up.starts_with("GET /next "), "status {}: {}", status, follow_up);
+        assert!(!follow_up.contains("payload-to-drop"), "status {}: {}", status, follow_up);
+    }
+    for method in ["PUT", "PATCH", "DELETE", "HEAD", "GET"] {
+        let (base_url, head) = start_redirect_server(302);
+        client
+            .send_request(method, &format!("{}/start", base_url), &HashMap::new(), None)
+            .await
+            .expect("unexpected error");
+        let follow_up = head.recv().expect("no follow-up request captured");
+        assert!(follow_up.starts_with(&format!("{} /next ", method)), "method {}: {}", method, follow_up);
+    }
+}
+
+/// redirects049: a 307 or 308 repeats the request with the same method and body, and redirects are followed by default.
+#[tokio::test]
+async fn test_bhv_redirects_049_307_and_308_repeat_the_method_and_body_by_default() {
+    let client = DefaultApiClient::new(None);
+    for status in [307u16, 308] {
+        let (base_url, rx) = start_recording_redirect_server(status, "/next");
+        let body = RequestBody::Bytes(b"payload-kept".to_vec());
+        let response = client
+            .send_request("POST", &format!("{}/start", base_url), &HashMap::new(), Some(&body))
+            .await
+            .expect("the redirect is followed by default");
+        assert_eq!(200, response.status_code());
+        let follow_up = rx.recv().expect("no follow-up request captured");
+        assert!(follow_up.starts_with("POST /next "), "status {}: {}", status, follow_up);
+        assert!(follow_up.contains("payload-kept"), "status {}: {}", status, follow_up);
+    }
+}
+
+/// redirects051: a 303 turns a follow-up POST into a bodyless GET, and a HEAD request stays HEAD.
+#[tokio::test]
+async fn test_bhv_redirects_051_a_303_makes_the_follow_up_a_get_except_for_head() {
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    for (method, expected) in [("POST", "GET"), ("HEAD", "HEAD")] {
+        let (base_url, head) = start_redirect_server(303);
+        let body = RequestBody::Bytes(b"payload-to-drop".to_vec());
+        let body_for_method = if method == "POST" { Some(&body) } else { None };
+        client
+            .send_request(method, &format!("{}/start", base_url), &HashMap::new(), body_for_method)
+            .await
+            .expect("unexpected error");
+        let follow_up = head.recv().expect("no follow-up request captured");
+        assert!(follow_up.starts_with(&format!("{} /next ", expected)), "method {}: {}", method, follow_up);
+        assert!(!follow_up.contains("payload-to-drop"), "method {}: {}", method, follow_up);
+    }
+}
+
+/// redirects052: a redirect to a different origin removes Authorization, Cookie, Proxy-Authorization and every custom secret-named header.
+#[tokio::test]
+async fn test_bhv_redirects_052_a_cross_origin_redirect_removes_every_credential_header() {
+    let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut headers = HashMap::new();
+    headers.insert("Authorization".to_string(), "Bearer secret".to_string());
+    headers.insert("Cookie".to_string(), "session=abc".to_string());
+    headers.insert("Proxy-Authorization".to_string(), "Basic c2VjcmV0".to_string());
+    headers.insert("X-Access-Token".to_string(), "token-value".to_string());
+    headers.insert("X-Trace".to_string(), "keep".to_string());
+
+    let _ = client
+        .send_request("GET", &format!("{}/start", origin_url), &headers, None)
+        .await;
+
+    let calls = dest_captured.lock().unwrap();
+    assert_eq!(1, calls.len(), "the cross-origin destination must have received the follow-up");
+    let followup = calls[0].to_lowercase();
+    for stripped in ["authorization:", "cookie:", "proxy-authorization:", "x-access-token:"] {
+        assert!(!followup.contains(stripped), "{} must be stripped on a cross-origin redirect: {}", stripped, calls[0]);
+    }
+    assert!(followup.contains("x-trace:"), "non-sensitive X-Trace must survive: {}", calls[0]);
+}
+

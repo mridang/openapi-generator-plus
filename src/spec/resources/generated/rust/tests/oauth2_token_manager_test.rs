@@ -1291,7 +1291,7 @@ async fn test_bhv_authoauthtwotokenmgr_016_failed_refresh_falls_back_to_the_orig
 /// A refresh that fails at the transport level also falls back to the
 /// original grant.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_transport_failure_falls_back_to_the_original_grant() {
+async fn test_bhv_auth_057_refresh_transport_failure_falls_back_to_the_original_grant() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#,
@@ -1594,7 +1594,7 @@ async fn test_bhv_authoauthtwotokenmgr_035_token_request_is_a_form_post_acceptin
 /* F855: invalidating drops the cached token and keeps the refresh token, so
  * the next call refreshes first. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_invalidate_then_get_uses_the_refresh_grant_first() {
+async fn test_bhv_auth_058_invalidate_then_get_uses_the_refresh_grant_first() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
@@ -1998,4 +1998,41 @@ async fn test_bhv_errors_082_a_malformed_optional_field_is_dropped_and_the_code_
         .downcast_ref::<OAuth2ServerError>()
         .expect("an OAuth2ServerError");
     assert_eq!(None, server_error.code());
+}
+
+/// auth056: expires_in is honoured only as a plain decimal, with ASCII padding allowed; any other value marks the token stale.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_056_expires_in_is_honoured_only_as_a_plain_decimal() {
+    for (value, expected_requests) in [
+        (r#""  120  ""#, 1usize),
+        (r#""1e3""#, 2),
+        (r#""0x10""#, 2),
+        (r#""NaN""#, 2),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(
+            &format!(r#"{{"access_token":"first","expires_in":{}}}"#, value),
+            200,
+        );
+        client.enqueue(r#"{"access_token":"second","expires_in":3600}"#, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client.clone());
+        let params = authorization_code_params();
+
+        manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .unwrap();
+        manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            expected_requests,
+            client.requests().len(),
+            "expires_in {}",
+            value
+        );
+    }
 }

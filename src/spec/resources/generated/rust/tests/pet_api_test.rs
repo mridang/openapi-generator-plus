@@ -2370,3 +2370,159 @@ async fn test_bhv_auth_047_an_operation_sends_no_scheme_credential_when_none_is_
     assert!(!request.contains("authorization:"), "request: {}", request);
     assert!(!request.contains("key-one"), "request: {}", request);
 }
+
+/// operations157: a binary request body reaches the wire as its exact bytes, with no multipart encoding.
+#[tokio::test]
+async fn test_bhv_operations_157_a_binary_body_is_sent_as_its_exact_bytes_without_multipart() {
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let image_bytes: Vec<u8> = vec![0x00, 0xFF, 0xD8, 0x0D, 0x0A, 0x2D, 0x2D];
+    let _ = api
+        .set_pet_avatar(1, image_bytes.clone(), None, Some("image/jpeg"))
+        .await;
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    assert_eq!(
+        body,
+        image_bytes.as_slice(),
+        "the body must be the exact bytes"
+    );
+    assert!(
+        !String::from_utf8_lossy(headers)
+            .to_ascii_lowercase()
+            .contains("multipart"),
+        "a binary body must not be multipart: {}",
+        String::from_utf8_lossy(headers)
+    );
+}
+
+/// operations158: a header supplied on an individual call is sent with that call.
+#[tokio::test]
+async fn test_bhv_operations_158_a_per_call_header_is_sent_with_that_call() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = AddPetOptions::new().header("X-Call-Trace", "call-158");
+    let pet = Pet::new(
+        "TraceDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let _ = api.add_pet(pet, Some(&opts)).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("x-call-trace: call-158"),
+        "request: {}",
+        request
+    );
+}
+
+/// Starts a local server that answers every request with 200 and no body.
+fn start_empty_ok_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { break };
+            let mut buf = [0u8; 4096];
+            let _ = std::io::Read::read(&mut stream, &mut buf);
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            );
+        }
+    });
+    base_url
+}
+
+/// operations159: a value-returning call that gets a success with an empty body raises a typed error.
+#[tokio::test]
+async fn test_bhv_operations_159_a_value_call_with_an_empty_success_body_is_a_typed_error() {
+    let config = ConfigurationBuilder::new()
+        .base_url(&start_empty_ok_server())
+        .build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a value call must not accept an empty body")
+        .to_string();
+    assert!(
+        err.contains("Expected a response body for get_pet_by_id but received none"),
+        "{}",
+        err
+    );
+}
+
+/// operations160: an operation whose server is an external variant is sent to that variant's URL.
+#[tokio::test]
+async fn test_bhv_operations_160_an_external_variant_operation_is_sent_to_its_server_url() {
+    let (api, client) = new_pet_api_recording_urls();
+    let _ = api
+        .get_external_pet_info(7, Some(&GetExternalPetInfoServerServer0 {}), None)
+        .await;
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].starts_with("https://external-api.example.com/v1/pet/7/external"),
+        "{}",
+        urls[0]
+    );
+}
+
+/// operations162: a date-only parameter is written as a bare date in the path and the query, with no time component.
+#[tokio::test]
+async fn test_bhv_operations_162_date_only_parameters_carry_no_time_component() {
+    let (api, client) = new_pet_api_recording_urls();
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+    let days = vec![
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 1).expect("a valid date"),
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 2).expect("a valid date"),
+    ];
+    let opts = GetPetSummaryOptions::new("s".to_string()).days(days);
+    let _ = api.get_pet_summary(1, as_of, Some(&opts)).await;
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].contains("days=2024-02-01&days=2024-02-02"),
+        "{}",
+        urls[0]
+    );
+    assert!(
+        !urls[0].contains('T') && !urls[0].contains(":00"),
+        "a date must carry no time: {}",
+        urls[0]
+    );
+}
+
+/// operations165: a path parameter with a matrix style is written into the path as `;name=value`.
+#[tokio::test]
+async fn test_bhv_operations_165_a_path_parameter_is_written_in_its_declared_matrix_style() {
+    let (api, client) = new_pet_api_recording_urls();
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+    let opts = GetPetSummaryOptions::new("s".to_string());
+    let _ = api.get_pet_summary(1, as_of, Some(&opts)).await;
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].contains("/pet/1/summary/;asOf=2024-01-31"),
+        "{}",
+        urls[0]
+    );
+}
+
+/// operations163: a request with no body sends no Content-Type, even when the default header is supplied in lower case.
+#[tokio::test]
+async fn test_bhv_operations_163_a_request_without_a_body_sends_no_content_type() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new()
+        .base_url(&base_url)
+        .default_header("content-type", "application/json")
+        .build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let _ = api.get_pet_by_id(1, None, None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(!request.contains("content-type:"), "request: {}", request);
+}
