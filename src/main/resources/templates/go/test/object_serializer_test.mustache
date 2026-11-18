@@ -3,6 +3,7 @@ package {{packageName}}
 
 import (
 	"encoding/json"
+	"fmt"
 	"errors"
 	"math"
 	"reflect"
@@ -4382,5 +4383,97 @@ func TestBhvSerialization102_ObjectSerializer_ADateTimeKeepsItsOffset(t *testing
 	}
 	if edge.ExpiresAt == nil || !time.Time(*edge.ExpiresAt).Equal(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)) {
 		t.Errorf("expected the Z timestamp decoded to the same instant, got %v", edge.ExpiresAt)
+	}
+}
+
+// A password property is masked in the string and debug forms of a model, while the wire value is unaffected.
+func TestBhvSerialization112_ObjectSerializer_APasswordIsMaskedOnlyInPrintedForms(t *testing.T) {
+	t.Parallel()
+	password := "p@ss-word-value"
+	account := models.Account{Username: "user", Password: &password}
+	if rendered := fmt.Sprintf("%v %+v %#v", account, account, account); strings.Contains(rendered, password) {
+		t.Errorf("expected the password masked in printed forms, got %s", rendered)
+	}
+	data, err := serialize(account)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"password":"p@ss-word-value"`) {
+		t.Errorf("expected the wire value unaffected, got %s", data)
+	}
+}
+
+// Numeric values keep every digit when serialized, including long decimals and full 64-bit integers.
+func TestBhvSerialization114_ObjectSerializer_NumbersKeepEveryDigit(t *testing.T) {
+	t.Parallel()
+	id := int64(9223372036854775807)
+	ratio := 0.1234567890123
+	data, err := serialize(models.Order{Id: &id})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"id":9223372036854775807`) {
+		t.Errorf("expected the full 64-bit integer, got %s", data)
+	}
+	data, err = serialize(models.Defaults{Ratio: &ratio})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"ratio":0.1234567890123`) {
+		t.Errorf("expected every decimal digit kept, got %s", data)
+	}
+}
+
+// An integral JSON number decoded into a floating-point field becomes a float.
+func TestBhvSerialization115_ObjectSerializer_AnIntegralNumberBecomesAFloat(t *testing.T) {
+	t.Parallel()
+	var d models.Defaults
+	if err := deserialize([]byte(`{"ratio":2}`), &d); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if d.Ratio == nil || *d.Ratio != 2.0 {
+		t.Errorf("expected the float value 2, got %v", d.Ratio)
+	}
+}
+
+// A protobuf duration string decodes into a duration value as a standalone value.
+func TestBhvSerialization117_ObjectSerializer_AStandaloneDurationDecodes(t *testing.T) {
+	t.Parallel()
+	var d models.Duration
+	if err := deserialize([]byte(`"90s"`), &d); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if time.Duration(d) != 90*time.Second {
+		t.Errorf("expected 90s, got %v", d)
+	}
+}
+
+// A failed serialize reports its detail under the canonical serialize message prefix.
+func TestBhvSerialization130_ObjectSerializer_AFailedSerializeUsesTheCanonicalPrefix(t *testing.T) {
+	t.Parallel()
+	_, err := serialize(make(chan int))
+	if err == nil || !strings.HasPrefix(err.Error(), "failed to serialize object to JSON") {
+		t.Errorf("expected the canonical prefix, got %v", err)
+	}
+}
+
+// A property whose name is a language keyword keeps its exact wire key on serialize and deserialize.
+func TestBhvSerialization116_ObjectSerializer_AKeywordPropertyKeepsItsWireKey(t *testing.T) {
+	t.Parallel()
+	and := true
+	class := "economy"
+	data, err := serialize(models.EdgeCases{And: &and, Class: &class})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"and":true`) || !strings.Contains(string(data), `"class":"economy"`) {
+		t.Errorf("expected the exact wire keys, got %s", data)
+	}
+	var edge models.EdgeCases
+	if err := deserialize(data, &edge); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if edge.And == nil || !*edge.And || edge.Class == nil || *edge.Class != "economy" {
+		t.Errorf("expected the keyword properties decoded, got %+v", edge)
 	}
 }

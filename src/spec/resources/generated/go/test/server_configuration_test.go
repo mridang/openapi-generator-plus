@@ -200,7 +200,7 @@ func TestBhvServers012_ServerConfiguration_RejectionMessageNamesValueVariableAnd
 
 // A value that introduces a placeholder is substituted literally: the result
 // never depends on which variable is visited first.
-func TestServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
+func TestBhvServers029_ServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(
 		"https://{env}.api.example.com/{version}",

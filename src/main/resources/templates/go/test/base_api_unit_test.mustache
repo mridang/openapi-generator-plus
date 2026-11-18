@@ -2,6 +2,9 @@
 package {{packageName}}
 
 import (
+	"{{packageName}}/pkg/models"
+	"time"
+	"os"
 	"errors"
 	"strings"
 	"testing"
@@ -168,5 +171,120 @@ func TestBhvSerializationwire057_BaseApi_FormUrlencodedKeepsOnlyTheUnreservedSet
 	}
 	if got, want := string(wire), "nickname=a~b%2Ac%21d%27e%28f%29g"; got != want {
 		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// A multipart file part takes its Content-Type from its file extension, and uses application/octet-stream when the extension is missing or unknown.
+func TestBhvSerialization120_BaseApi_AFilePartTypeFollowsItsExtension(t *testing.T) {
+	t.Parallel()
+	if got := mimeTypeForFilename("picture.png"); got != "image/png" {
+		t.Errorf("expected image/png, got %q", got)
+	}
+	if got := mimeTypeForFilename("noextension"); got != "application/octet-stream" {
+		t.Errorf("expected application/octet-stream without an extension, got %q", got)
+	}
+	if got := mimeTypeForFilename("data.zzzunknownext"); got != "application/octet-stream" {
+		t.Errorf("expected application/octet-stream for an unknown extension, got %q", got)
+	}
+}
+
+// A model sent as a multipart part is serialized with its wire property names and the SDK's date-time format.
+func TestBhvSerialization121_BaseApi_AModelPartUsesWireNamesAndDateTimeFormat(t *testing.T) {
+	t.Parallel()
+	created := models.DateTime(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	body, err := buildMultipartBodyOrdered(map[string]any{"meta": models.EdgeCases{ExpiresAt: &created}}, "bnd", []string{"meta"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(body), `"expiresAt":"2026-01-02T03:04:05.000+00:00"`) || !strings.Contains(string(body), "Content-Type: application/json") {
+		t.Errorf("expected the wire name and date-time format in a JSON part, got %s", body)
+	}
+}
+
+// A form-urlencoded body repeats the key for each element of an array property and keeps the order of its pairs.
+func TestBhvSerialization122_BaseApi_AFormBodyRepeatsTheKeyPerElementInOrder(t *testing.T) {
+	t.Parallel()
+	body, err := serializeBodyOrdered(map[string]any{"tags": []string{"a", "b"}, "z": "last"}, "application/x-www-form-urlencoded", false, []string{"tags", "z"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(body) != "tags=a&tags=b&z=last" {
+		t.Errorf("expected repeated keys in declared order, got %q", body)
+	}
+}
+
+// Multipart field names and filenames containing carriage returns, line feeds, NUL or quote characters are rejected.
+func TestBhvSerialization123_BaseApi_UnsafeMultipartNamesAreRejected(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"a\r\nb", "a\x00b"} {
+		if err := validateMultipartFieldName(name); err == nil {
+			t.Errorf("field name %q: expected rejection", name)
+		}
+		if err := validateMultipartFilename(name); err == nil {
+			t.Errorf("filename %q: expected rejection", name)
+		}
+	}
+}
+
+// Form-urlencoded keys and values percent-encode reserved characters, and a literal plus sign is sent as %2B.
+func TestBhvSerialization125_BaseApi_FormValuesEncodeReservedCharacters(t *testing.T) {
+	t.Parallel()
+	body, err := serializeBodyOrdered(map[string]any{"q": "a+b&c"}, "application/x-www-form-urlencoded", false, []string{"q"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(body) != "q=a%2Bb%26c" {
+		t.Errorf("expected the reserved characters encoded, got %q", body)
+	}
+}
+
+// A non-ASCII multipart field name is preserved as UTF-8 in the part header.
+func TestBhvSerialization126_BaseApi_ANonAsciiFieldNameIsPreservedAsUtf8(t *testing.T) {
+	t.Parallel()
+	body, err := buildMultipartBodyOrdered(map[string]any{"nom-é": "x"}, "bnd", []string{"nom-é"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(body), `name="nom-é"`) {
+		t.Errorf("expected the UTF-8 field name in the header, got %s", body)
+	}
+}
+
+// Primitive multipart parts are sent as plain text in their canonical form, and only model parts are sent as JSON.
+func TestBhvSerialization127_BaseApi_PrimitivePartsAreTextAndModelPartsAreJson(t *testing.T) {
+	t.Parallel()
+	body, err := buildMultipartBodyOrdered(map[string]any{"n": 5, "meta": models.Metadata{}}, "bnd", []string{"n", "meta"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	text := string(body)
+	if !strings.Contains(text, "name=\"n\"\r\n\r\n5\r\n") {
+		t.Errorf("expected the primitive as a plain text part, got %s", text)
+	}
+	if strings.Count(text, "Content-Type: application/json") != 1 {
+		t.Errorf("expected only the model part typed as JSON, got %s", text)
+	}
+}
+
+// A non-ASCII multipart filename is sent with an ASCII fallback plus an RFC 5987 encoded form that keeps
+// only unreserved characters literal.
+func TestBhvSerialization124_BaseApi_ANonAsciiFilenameKeepsAnRfc5987Form(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := dir + "/naïve.txt"
+	if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+	body, _, err := buildTransportMultipartBody(map[string]any{"naïve.txt": f})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(body.String(), "filename*=UTF-8''na%C3%AFve.txt") {
+		t.Errorf("expected the RFC 5987 filename form, got %s", body.String())
 	}
 }
