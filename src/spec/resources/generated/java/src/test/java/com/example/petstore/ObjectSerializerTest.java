@@ -3560,4 +3560,12 @@ class ObjectSerializerTest {
     assertEquals(original.id, changed.id);
     assertEquals(original.photoUrls, changed.photoUrls);
   }
+
+  @Test
+  void bhvSerialization069OutOfBoundValuesForConstrainedKeywordsDecodeAndAreKept()
+      throws Exception {
+    com.example.petstore.models.Order order =
+        serializer.deserialize("{\"quantity\":500}", com.example.petstore.models.Order.class);
+    assertEquals(Integer.valueOf(500), order.quantity);
+  }
 }

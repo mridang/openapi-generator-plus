@@ -3828,4 +3828,64 @@ class DefaultApiClientUnitTest {
         () -> client.sendRequest("GET", "http://localhost/start", Map.of(), null));
     assertEquals(1, transport.requests.size(), "the non-http target must not be requested");
   }
+
+  @Test
+  void bhvRedirects056NoRedirectRequestSendsNoDefaultsAndTheNextNormalRequestSendsThemAgain()
+      throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse optedOut =
+        client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null, true);
+    assertFalse(optedOut.body().contains("x-custom"));
+    ApiHttpResponse normal = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertTrue(normal.body().contains("\"x-custom\":\"custom-value\""), normal.body());
+  }
+
+  @Test
+  void bhvRedirects054OneTimeoutBudgetCoversEveryHopOfTheChain() throws Exception {
+    HttpServer hops = HttpServer.create(new InetSocketAddress(0), 0);
+    String base = "http://localhost:" + hops.getAddress().getPort();
+    hops.createContext(
+        "/a",
+        exchange -> {
+          pause(150);
+          exchange.getResponseHeaders().add("Location", base + "/b");
+          exchange.sendResponseHeaders(302, -1);
+          exchange.close();
+        });
+    hops.createContext(
+        "/b",
+        exchange -> {
+          pause(150);
+          exchange.getResponseHeaders().add("Location", base + "/c");
+          exchange.sendResponseHeaders(302, -1);
+          exchange.close();
+        });
+    hops.createContext(
+        "/c",
+        exchange -> {
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    hops.start();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().followRedirects(true).timeout(250).build());
+      assertThrowsExactly(
+          com.example.petstore.errors.NetworkTimeoutException.class,
+          () -> client.sendRequest("GET", base + "/a", Map.of(), null));
+    } finally {
+      hops.stop(0);
+    }
+  }
+
+  private static void pause(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
 }
