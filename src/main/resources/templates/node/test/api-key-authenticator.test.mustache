@@ -262,4 +262,25 @@ describe('ApiKeyAuthenticator', () => {
       );
     });
   });
+
+  it('bhv auth 031 a header key is sent under its fixed name and value', () => {
+    const auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'abc123', ApiKeyLocation.HEADER);
+    expect(auth.getAuthHeaders()).toEqual({ 'X-Api-Key': 'abc123' });
+  });
+
+  it('bhv auth 032 the session-cookie authenticator sends its key as the SESSION_ID cookie', () => {
+    const auth = new SessionCookieAuthenticator('https://api.example.com', 'abc123');
+    expect(auth.getCookieParams()).toEqual({ SESSION_ID: 'abc123' });
+  });
+
+  it('bhv auth 034 an API-key authenticator rejects an empty or blank key when constructed', () => {
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '', ApiKeyLocation.HEADER)).toThrow(TypeError);
+    expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '   ', ApiKeyLocation.HEADER)).toThrow(TypeError);
+  });
+
+  it('bhv auth 035 a header key containing a control or NUL character is rejected with an error', () => {
+    for (const value of ['abc\u0000def', 'abc\u0007def']) {
+      expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', value, ApiKeyLocation.HEADER)).toThrow(TypeError);
+    }
+  });
 });

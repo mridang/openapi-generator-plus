@@ -20,6 +20,13 @@ describe("OAuth2ImplicitAuthenticator", () => {
     );
   });
 
+  test("bhv auth 049 the implicit authorize URL carries response_type token and percent-encodes scopes as %20", () => {
+    const url = authenticator.buildAuthorizationUrl();
+    expect(url).toContain("response_type=token");
+    expect(url).toContain("scope=read%20write");
+    expect(url).not.toContain("scope=read+write");
+  });
+
   test("bhv authoauthtwoimplicit 003 builds authorization URL with response type token", () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain("https://auth.example.com/authorize?");

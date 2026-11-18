@@ -257,12 +257,49 @@ describe("Client", () => {
     expect(calls).toBe(1);
   });
 
-  test("construct with a custom fetch in the transport options", () => {
+  test("bhv lifecycle 042 a client built with a caller-supplied fetch sends its requests through that fetch", async () => {
+    const calls: string[] = [];
     const transport = TransportOptions.builder()
-      .fetch((async () => new Response("{}")) as typeof fetch)
+      .fetch((async (input: string | URL | Request) => {
+        calls.push(String(input));
+        return new Response('{"available":1}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch)
       .build();
 
-    expect(new Client(authenticator, transport)).toBeDefined();
+    await new Client(
+      {
+        authenticator: new BearerAuthenticator(
+          "https://api.example.com",
+          "token",
+        ),
+      },
+      transport,
+    ).store.getInventory();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("/store/inventory");
+  });
+
+  test("bhv lifecycle 045 closing the client does not close a caller-supplied fetch, which keeps sending requests", async () => {
+    let called = 0;
+    const customFetch = (async () => {
+      called++;
+      return new Response("{}");
+    }) as typeof fetch;
+    const client = new Client(
+      authenticator,
+      TransportOptions.builder().fetch(customFetch).build(),
+    );
+
+    await client.close();
+
+    expect(await customFetch("http://example.invalid/")).toBeInstanceOf(
+      Response,
+    );
+    expect(called).toBe(1);
   });
 
   describe("credentials per security scheme", () => {
@@ -315,6 +352,50 @@ describe("Client", () => {
       expect(seen[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
     });
 
+    test("bhv auth 043 an operation sends only the credential of the scheme its spec names", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        {
+          petStoreBearer: new PetStoreBearerAuthenticator(host, "bearer-token"),
+          apiKeyHeader: new ApiKeyHeaderAuthenticator(host, "key-token"),
+        },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!.headers["X-API-Key"]).toBe("key-token");
+      expect(seen[0]!.headers["Authorization"]).toBeUndefined();
+    });
+
+    test("bhv auth 045 a credential for the scheme of the operation replaces a default Authorization header set on the client", async () => {
+      const seen: Array<Record<string, string>> = [];
+      const stub = (async (
+        _input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        seen.push({ ...(init?.headers as Record<string, string>) });
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch;
+      const transport = TransportOptions.builder()
+        .fetch(stub)
+        .defaultHeader("Authorization", "Basic ZGVmYXVsdA==")
+        .build();
+      const client = new Client(
+        {
+          petStoreBearer: new PetStoreBearerAuthenticator(host, "bearer-token"),
+        },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!["Authorization"]).toBe("Bearer bearer-token");
+    });
+
     test("bhv operations 148 an operation uses the first scheme of its own list that the client holds", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
@@ -331,7 +412,7 @@ describe("Client", () => {
       expect(seen[0]!.headers["Authorization"]).toBeUndefined();
     });
 
-    test("an operation no scheme credential matches uses the default authenticator", async () => {
+    test("bhv auth 046 an operation no scheme credential matches uses the default authenticator", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         {
@@ -344,6 +425,19 @@ describe("Client", () => {
       await client.pet.addPet(newPet());
 
       expect(seen[0]!.headers["Authorization"]).toBe("Bearer default-token");
+    });
+
+    test("bhv auth 047 an operation that lists several schemes sends no scheme credential when the client holds none", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        { adminBasic: new AdminBasicAuthenticator(host, "a", "b") },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!.headers["Authorization"]).toBeUndefined();
+      expect(seen[0]!.headers["X-API-Key"]).toBeUndefined();
     });
 
     test("bhv lifecycle 016 an operation no scheme credential matches is sent without a credential when there is no default", async () => {
@@ -359,7 +453,7 @@ describe("Client", () => {
       expect(seen[0]!.headers["X-API-Key"]).toBeUndefined();
     });
 
-    test("the default authenticator is never sent to an unauthenticated operation", async () => {
+    test("bhv auth 044 the default authenticator is never sent to an unauthenticated operation", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         { authenticator: new BearerAuthenticator(host, "default-token") },
@@ -793,7 +887,7 @@ describe("scheme authenticators the spec declares", () => {
       }
     }
 
-    test("the client-credentials wrapper posts to the declared token URL with the declared scopes", async () => {
+    test("bhv auth 050 the client-credentials wrapper posts to the declared token URL with the declared scopes", async () => {
       const auth = new MachineAuthClientCredentialsAuthenticator(
         host,
         "cid",
@@ -809,7 +903,7 @@ describe("scheme authenticators the spec declares", () => {
       expect(calls[0]!.params.get("scope")).toBe("pets:read pets:write");
     });
 
-    test("the password wrapper posts to the token URL, then refreshes at the declared refresh URL", async () => {
+    test("bhv auth 051 the password wrapper posts to the token URL, then refreshes at the declared refresh URL", async () => {
       const auth = new LegacyAuthPasswordAuthenticator(
         host,
         "cid",

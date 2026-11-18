@@ -252,7 +252,7 @@ describe("SchemeAuthenticators", () => {
       );
     });
 
-    it(`${name} prefers the explicit credential over the variables`, () => {
+    it(`bhv auth 041 ${name} prefers the explicit credential over the variables`, () => {
       const invalid = "bad\r\nvalue";
       withVariables(
         variables,
@@ -266,6 +266,19 @@ describe("SchemeAuthenticators", () => {
                 ...variables.map(() => "explicit"),
               ),
           ).not.toThrow();
+        },
+      );
+    });
+
+    it(`bhv auth 042 ${name} keeps an explicit empty credential and refuses it instead of reading the variables`, () => {
+      withVariables(
+        variables,
+        variables.map(() => "from-env"),
+        () => {
+          expect(
+            () =>
+              new cls("https://api.example.com", ...variables.map(() => "")),
+          ).toThrow(TypeError);
         },
       );
     });
