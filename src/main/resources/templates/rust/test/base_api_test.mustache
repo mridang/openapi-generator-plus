@@ -899,7 +899,7 @@ async fn test_bhv_authintegration_019_base_api_invalid_auth_cookie_is_invalid_ar
 /// A missing required parameter is a caller mistake:
 /// `ConfigurationError::InvalidArgument` before any request is sent.
 #[tokio::test]
-async fn test_base_api_missing_required_param_is_invalid_argument() {
+async fn test_bhv_operations_164_base_api_missing_required_param_is_invalid_argument() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);

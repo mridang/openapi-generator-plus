@@ -96,7 +96,7 @@ impl DefaultApiClient {
     /// # Errors
     ///
     /// Returns [`ConfigurationError::InvalidArgument`] when `transport_options`
-    /// sets a proxy, a CA certificate or `verify_ssl(false)`: those are
+    /// sets a proxy, a CA certificate, `verify_ssl(false)` or a redirect limit: those are
     /// properties of the HTTP client itself, which the SDK cannot change on a
     /// client it did not build, so the conflict is reported instead of ignored.
     pub fn with_client(
@@ -110,6 +110,8 @@ impl DefaultApiClient {
             Some("a CA certificate")
         } else if !opts.verify_ssl() {
             Some("verify_ssl(false)")
+        } else if opts.max_redirects().is_some() {
+            Some("a redirect limit")
         } else {
             None
         };
@@ -1435,7 +1437,7 @@ mod tests {
 
     /* RFC 9110 section 15.4: the method a redirect hop uses. */
     #[test]
-    fn test_redirect_next_method_follows_rfc_9110() {
+    fn test_bhv_redirects_050_redirect_next_method_follows_rfc_9110() {
         for status in [307u16, 308] {
             for m in ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] {
                 assert_eq!(redirect_next_method(status, m), m);
