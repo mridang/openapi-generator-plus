@@ -1694,6 +1694,58 @@ void main() {
       expect(client.capturedUrl, contains('status=available'));
     });
 
+    test('bhv misc 253 an allowReserved query value still percent-encodes hash and bracket characters', () async {
+      final client = _CapturingApiClient();
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(
+        method: 'GET',
+        path: '/test/echo',
+        queryParams: {'tag': const AllowReservedValue('a#b[c]')},
+      );
+
+      expect(client.capturedUrl, contains('tag=a%23b%5Bc%5D'));
+    });
+
+    test('bhv misc 254 an unmarked query value percent-encodes reserved characters such as slash and colon', () async {
+      final client = _CapturingApiClient();
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(
+        method: 'GET',
+        path: '/test/echo',
+        queryParams: {'path': 'a/b:c'},
+      );
+
+      expect(client.capturedUrl, contains('path=a%2Fb%3Ac'));
+    });
+
+    test('bhv misc 255 separate query parameters encode a space as %20', () async {
+      final client = _CapturingApiClient();
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(
+        method: 'GET',
+        path: '/test/echo',
+        queryParams: {'q': 'a b'},
+      );
+
+      expect(client.capturedUrl, contains('q=a%20b'));
+    });
+
+    test('bhv misc 264 each listed error HTTP status raises the SDK API error carrying that status code', () async {
+      for (final status in [400, 401, 403, 404, 409, 422, 429, 500, 502]) {
+        final client = _ScriptedApiClient([_reply(status), _reply(status), _reply(status)]);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', status)),
+          reason: 'status $status',
+        );
+      }
+    });
+
     test('bhv misc 238 serializes number query params', () async {
       final client = _CapturingApiClient();
       final api = _RecordingApi(client);

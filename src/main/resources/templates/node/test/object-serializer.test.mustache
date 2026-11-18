@@ -3238,3 +3238,103 @@ describe('ObjectSerializer misc behaviours', () => {
     expect((caught as Error).message).not.toBe('');
   });
 });
+
+describe('ObjectSerializer wire behaviours (chunk 11)', () => {
+  test('bhv serialization 084 the fractional seconds of a protobuf duration string parse to their exact nanosecond value', () => {
+    const cases: Array<[string, Temporal.Duration]> = [
+      ['1.5s', Temporal.Duration.from({ seconds: 1, milliseconds: 500 })],
+      ['0.1s', Temporal.Duration.from({ milliseconds: 100 })],
+      ['0.000000001s', Temporal.Duration.from({ nanoseconds: 1 })],
+    ];
+    for (const [wire, want] of cases) {
+      expect(Temporal.Duration.compare(durationFromProtoJson(wire), want)).toBe(0);
+    }
+  });
+
+  test('bhv serialization 087 a very small duration is written as fixed-point decimal digits, never in scientific notation', () => {
+    const wire = durationToProtoJson(Temporal.Duration.from({ nanoseconds: 1 }));
+    expect(wire).toBe('0.000000001s');
+    expect(wire).not.toContain('e-');
+  });
+
+  test('bhv serialization 088 byte values are written as base64 strings, including each element of a list of bytes', () => {
+    const wire = JSON.parse(
+      ObjectSerializer.serialize(new BinaryVault({ seal: Buffer.from([1, 2, 3]), shards: [Buffer.from([4]), Buffer.from([5, 6])] })),
+    ) as Record<string, unknown>;
+    expect(wire.seal).toBe('AQID');
+    expect(wire.shards).toEqual(['BA==', 'BQY=']);
+  });
+
+  test('bhv serialization 089 a base64 string on the wire decodes into a byte value', () => {
+    const vault = ObjectSerializer.deserialize({ seal: 'AQID' }, BinaryVault) as BinaryVault;
+    expect(vault.seal).toEqual(Buffer.from([1, 2, 3]));
+  });
+
+  test('bhv serialization 091 byte values, including bytes with the high bit set, survive an encode and decode round trip', () => {
+    const seal = Buffer.from([0xff, 0x80, 0x00]);
+    const back = ObjectSerializer.deserialize(
+      JSON.parse(ObjectSerializer.serialize(new BinaryVault({ seal }))),
+      BinaryVault,
+    ) as BinaryVault;
+    expect(back.seal).toEqual(seal);
+  });
+
+  test('bhv serialization 092 a time of day round-trips through its string form and back to the same time', () => {
+    const cutoff = ObjectSerializer.deserialize({ cutoff: '10:30:00.123' }, EdgeCases)!.cutoff!;
+    const back = ObjectSerializer.deserialize(
+      JSON.parse(ObjectSerializer.serialize(new EdgeCases({ cutoff }))),
+      EdgeCases,
+    )!.cutoff!;
+    expect(back.toString()).toBe('10:30:00.123');
+  });
+
+  test('bhv serialization 094 strings in model fields are written verbatim, with HTML characters and ampersands unescaped', () => {
+    const note = '<a href="x">&amp;/</a>';
+    const wire = JSON.parse(ObjectSerializer.serialize(new EdgeCases({ permissionsNote: note }))) as Record<string, unknown>;
+    expect(wire.permissionsNote).toBe(note);
+  });
+
+  test('bhv serialization 095 a value present on the wire, including an explicit null, replaces the schema default when decoding', () => {
+    const explicit = ObjectSerializer.deserialize({ retries: 7, label: null }, Defaults)!;
+    expect(explicit.retries).toBe(7);
+    expect(explicit.label).toBeNull();
+  });
+
+  test('bhv serialization 096 an absent field decodes to its declared schema default', () => {
+    const decoded = ObjectSerializer.deserialize({}, Defaults)!;
+    expect(decoded.retries).toBe(3);
+    expect(decoded.label).toBe('untitled');
+  });
+
+  test('bhv serialization 097 an enum field with a schema default is written with that default value when it is serialized', () => {
+    const wire = JSON.parse(ObjectSerializer.serialize(new Defaults())) as Record<string, unknown>;
+    expect(wire.mode).toBe('medium');
+  });
+
+  test('bhv serialization 099 a strict model rejects a key it does not declare with an error', () => {
+    expect(() => ObjectSerializer.deserialize({ id: 1, extra: 1 }, StrictTag)).toThrow(SerializationError);
+  });
+
+  test('bhv serialization 100 a valid payload containing several declared fields decodes every field through the typed decoder', () => {
+    const order = ObjectSerializer.deserialize(
+      { id: 7, petId: 3, quantity: 2, complete: true, status: 'placed', shipDate: '2026-01-02T03:04:05Z' },
+      Order,
+    ) as Order;
+    expect(order.id).toBe(7);
+    expect(order.petId).toBe(3);
+    expect(order.quantity).toBe(2);
+    expect(order.complete).toBe(true);
+    expect(order.status).toBe('placed');
+    expect(order.shipDate).toBeInstanceOf(Date);
+  });
+
+  test('bhv serialization 101 an integer-backed enum is written as a JSON number', () => {
+    const wire = JSON.parse(ObjectSerializer.serialize(new StockItem({ priority: Priority.Number1 } as Partial<StockItem>))) as Record<string, unknown>;
+    expect(wire.priority).toBe(1);
+  });
+
+  test('bhv serialization 103 a body that is not well-formed JSON is rejected with an error message that describes the malformed document', () => {
+    expect(() => ObjectSerializer.parseJson('{"priority":1,')).toThrow(SerializationError);
+    expect(() => ObjectSerializer.parseJson('{"priority":1,')).toThrow('Failed to deserialize JSON');
+  });
+});

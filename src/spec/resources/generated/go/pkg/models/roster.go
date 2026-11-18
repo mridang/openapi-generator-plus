@@ -39,6 +39,16 @@ func (o *Roster) Equal(other *Roster) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Roster) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Roster{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithLabel returns a copy of the model with Label replaced; the receiver is unchanged.
 func (o Roster) WithLabel(value string) Roster {
 	o.Label = &value

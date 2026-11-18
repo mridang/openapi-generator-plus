@@ -320,6 +320,25 @@ func TestBhvSerializationobject007_Model_PasswordIsMaskedInTheStringForm(t *test
 	}
 }
 
+// A model's string form shows the contents of its list, map and byte fields rather than their addresses.
+func TestBhvMisc113_Model_AStringFormShowsTheContentsOfListMapAndByteFields(t *testing.T) {
+	t.Parallel()
+	seal := []byte{0x01, 0x02, 0x03}
+	shards := [][]byte{{0x04, 0x05}}
+	labels := map[string][]byte{"first": {0x07, 0x08}}
+	vault := models.BinaryVault{Seal: &seal, Shards: &shards, Labels: &labels}
+	text := vault.String()
+	if !strings.Contains(text, `"seal":"AQID"`) {
+		t.Errorf("expected the byte field contents in the string form, got %s", text)
+	}
+	if !strings.Contains(text, `"shards":["BAU="]`) {
+		t.Errorf("expected the list contents in the string form, got %s", text)
+	}
+	if !strings.Contains(text, `"labels":{"first":"Bwg="}`) {
+		t.Errorf("expected the map contents in the string form, got %s", text)
+	}
+}
+
 // Extra properties are written as top-level keys beside the declared fields.
 func TestBhvSerialization067_Model_AdditionalPropertiesAreWrittenAsTopLevelKeys(t *testing.T) {
 	t.Parallel()

@@ -2604,6 +2604,104 @@ void main() {
     );
 
     test(
+      'bhv misc 263 a per-call timeout longer than the client timeout lets a slow response complete',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await Future<void>.delayed(const Duration(milliseconds: 1500));
+          request.response.statusCode = 200;
+          request.response.close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder().timeout(1200).build();
+          final client = DefaultApiClient(transportOptions: transport);
+          final resp = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/slow',
+            {},
+            null,
+            timeout: 5000,
+          );
+          expect(resp.statusCode, equals(200));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 265 a redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response.statusCode = 302;
+          request.response.headers.set('Location', 'ftp://files.invalid/x');
+          request.response.close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .followRedirects(true)
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/start',
+              {},
+              null,
+            ),
+            throwsA(
+              isA<ApiException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                302,
+              ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 266 default headers supplied by the caller replace the SDK user agent and request id regardless of case',
+      () async {
+        final received = <String, List<String>>{};
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.headers.forEach(
+            (name, values) => received[name.toLowerCase()] = values,
+          );
+          request.response.close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .injectRequestId(true)
+              .defaultHeaders({
+                'USER-AGENT': 'Caller/2.0',
+                'x-request-id': 'caller-42',
+              })
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+          await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/test',
+            {},
+            null,
+          );
+          expect(received['user-agent'], equals(['Caller/2.0']));
+          expect(received['x-request-id'], equals(['caller-42']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv misc 224 transport default headers are not sent on a request that goes to another origin after a redirect',
       () async {
         final seen = <String?>[];
@@ -6171,6 +6269,42 @@ void main() {
         await client.sendRequest('GET', 'http://example.com/pool', {}, null);
 
         expect(received, isTrue);
+      },
+    );
+    test(
+      'bhv retries 051 a request with a body is refused with status 307 when a redirect downgrades https to http',
+      () async {
+        var calls = 0;
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .httpClient(
+              MockClient((request) async {
+                calls++;
+                if (calls == 1) {
+                  return http.Response(
+                    '',
+                    307,
+                    headers: {'location': 'http://example.com/insecure'},
+                  );
+                }
+                return http.Response('ok', 200);
+              }),
+            )
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await expectLater(
+          client.sendRequest(
+            'POST',
+            'https://example.com/secret',
+            {'Content-Type': 'application/json'},
+            Uint8List.fromList(utf8.encode('hello-body')),
+          ),
+          throwsA(
+            isA<ApiException>().having((e) => e.statusCode, 'statusCode', 307),
+          ),
+        );
+        expect(calls, equals(1));
       },
     );
   });
