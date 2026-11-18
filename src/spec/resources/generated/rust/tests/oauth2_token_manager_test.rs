@@ -1071,6 +1071,31 @@ async fn test_bhv_authoauthtwotokenmgr_041_a_non_json_2xx_token_body_is_not_echo
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwotokenmgr_047_a_server_error_without_an_error_code_names_the_status_and_raw_body(
+) {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("<html>bad gateway</html>", 502);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a 502 without an OAuth2 error object must fail");
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .expect("expected OAuth2ServerError");
+    assert_eq!(None, server_err.code());
+    assert_eq!(
+        "Token request failed with status 502: <html>bad gateway</html>",
+        err.to_string()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_bhv_authoauthtwotokenmgr_032_token_endpoint_error_response_parsed_to_typed_error() {
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
     // typed OAuth2ServerError carrying code/description/uri.

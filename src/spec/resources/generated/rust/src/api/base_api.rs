@@ -1318,7 +1318,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_a_network_failure_carries_the_method_and_path_of_the_request() {
+    async fn test_bhv_errors_057_a_network_failure_carries_the_method_and_path_of_the_request() {
         let api = api_for(ScriptedClient::custom(200, true, 0));
 
         let err = api

@@ -2164,6 +2164,36 @@ async fn test_bhv_lifecycle_023_request_after_close_returns_invalid_state() {
     }
 }
 
+/// A request issued after close fails with the closed-client error and never
+/// reaches the transport: the listener it targets accepts no connection.
+#[tokio::test]
+async fn test_bhv_lifecycle_035_request_after_close_fails_and_never_reaches_the_transport() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    listener
+        .set_nonblocking(true)
+        .expect("non-blocking listener");
+    let base_url = format!("http://{}", listener.local_addr().expect("local address"));
+    let client = DefaultApiClient::new(None);
+    client.close();
+
+    let err = client
+        .send_request("GET", &format!("{}/echo", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a request after close must fail");
+    assert!(matches!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(ConfigurationError::InvalidState(reason))
+            if reason == "ApiClient has been closed and can no longer send requests"
+    ));
+    assert_eq!(
+        std::io::ErrorKind::WouldBlock,
+        listener
+            .accept()
+            .expect_err("no connection reached the listener")
+            .kind()
+    );
+}
+
 /// Starts a server that reads one request, waits `delay_ms`, and then answers 200.
 fn start_delayed_server(delay_ms: u64) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");

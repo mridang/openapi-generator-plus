@@ -77,7 +77,7 @@ async fn test_base_api_error_dispatch_404() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_409() {
+async fn test_bhv_errors_067_base_api_error_dispatch_409() {
     let base_url = format!(
         "{}/test/status/409",
         testcontainers_helper::chasm_http_url()
@@ -129,7 +129,7 @@ async fn test_base_api_error_dispatch_500() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_502() {
+async fn test_bhv_errors_070_base_api_error_dispatch_502() {
     let base_url = format!(
         "{}/test/status/502",
         testcontainers_helper::chasm_http_url()
@@ -1962,7 +1962,7 @@ fn make_api_error(code: u16) -> petstore::ApiError {
 }
 
 #[test]
-fn test_api_error_kind_bad_request_variant() {
+fn test_bhv_errors_058_api_error_kind_bad_request_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(400).into();
     assert!(matches!(kind, petstore::ApiErrorKind::BadRequest(_)));
     assert_eq!(kind.status_code(), 400);
@@ -1975,13 +1975,13 @@ fn test_api_error_kind_unauthorized_variant() {
 }
 
 #[test]
-fn test_api_error_kind_forbidden_variant() {
+fn test_bhv_errors_059_api_error_kind_forbidden_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(403).into();
     assert!(matches!(kind, petstore::ApiErrorKind::Forbidden(_)));
 }
 
 #[test]
-fn test_api_error_kind_not_found_variant() {
+fn test_bhv_errors_060_api_error_kind_not_found_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(404).into();
     assert!(matches!(kind, petstore::ApiErrorKind::NotFound(_)));
 }
@@ -1999,7 +1999,7 @@ fn test_api_error_kind_too_many_requests_variant() {
 }
 
 #[test]
-fn test_api_error_kind_unprocessable_entity_variant() {
+fn test_bhv_errors_068_api_error_kind_unprocessable_entity_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(422).into();
     assert!(matches!(
         kind,
@@ -2008,7 +2008,7 @@ fn test_api_error_kind_unprocessable_entity_variant() {
 }
 
 #[test]
-fn test_api_error_kind_internal_server_error_variant() {
+fn test_bhv_errors_069_api_error_kind_internal_server_error_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(500).into();
     assert!(matches!(
         kind,

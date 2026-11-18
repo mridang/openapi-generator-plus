@@ -220,6 +220,37 @@ fn test_bhv_errors_022_api_error_display_omits_empty_parts() {
     );
 }
 
+/// An empty message renders the default text, the same as a message that is
+/// not given at all.
+#[test]
+fn test_bhv_errors_064_an_empty_message_renders_the_default_text() {
+    let err = ApiError::new(500, String::new(), None, None);
+    assert_eq!(
+        "Error message: the server returns an error\nHTTP status code: 500",
+        err.to_string()
+    );
+}
+
+/// A response body longer than 1 KiB is cut in the error text, which counts the
+/// bytes left out; the full body stays on the error's accessor.
+#[test]
+fn test_bhv_errors_065_the_error_text_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out() {
+    let body = "a".repeat(3000);
+    let err = ApiError::new(502, "bad gateway".to_string(), None, Some(body.clone()));
+    assert_eq!(
+        format!(
+            "bad gateway\nHTTP status code: 502\nResponse body: {}... (1976 more bytes)",
+            "a".repeat(1024)
+        ),
+        err.to_string()
+    );
+    assert_eq!(
+        Some(body.as_str()),
+        err.response_body(),
+        "the full body stays on the error"
+    );
+}
+
 /// A token endpoint failure renders in one of three forms: the raw body when no
 /// OAuth error code was parsed, the code alone, or the code with its description.
 #[test]
@@ -637,7 +668,7 @@ fn test_server_error_is_open_api_error_and_chains_to_api_error() {
 }
 
 #[test]
-fn test_bad_request_error_is_open_api_error_and_chains() {
+fn test_bhv_errors_061_bad_request_error_is_open_api_error_and_chains() {
     let err =
         BadRequestError::try_from(client_chain(400, "bad request")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
@@ -700,7 +731,7 @@ fn test_unprocessable_entity_error_is_open_api_error_and_chains() {
 }
 
 #[test]
-fn test_too_many_requests_error_is_open_api_error_and_chains() {
+fn test_bhv_errors_066_too_many_requests_error_is_open_api_error_and_chains() {
     let err =
         TooManyRequestsError::try_from(client_chain(429, "slow down")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
