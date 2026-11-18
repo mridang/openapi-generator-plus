@@ -65,7 +65,7 @@ describe("ApiError", () => {
       expect(err.responseBody).toBeNull();
     });
 
-    test("requestMethod and requestPath are null unless the error says which request it answers", () => {
+    test("bhv errors 092 requestMethod and requestPath are null unless the error says which request it answers", () => {
       const err = new ApiError(500, "boom");
       expect(err.requestMethod).toBeNull();
       expect(err.requestPath).toBeNull();
@@ -434,12 +434,15 @@ describe("ApiError", () => {
         (c: Error) => new ServerError(503, "m", null, null, null, { cause: c }),
         503,
       ],
-    ])("%s accepts an optional cause", (_name, build, status) => {
-      const cause = new Error("root cause");
-      const err = build(cause);
-      expect(err.cause).toBe(cause);
-      expect(err.statusCode).toBe(status);
-    });
+    ])(
+      "bhv langnode 002 %s accepts an optional cause",
+      (_name, build, status) => {
+        const cause = new Error("root cause");
+        const err = build(cause);
+        expect(err.cause).toBe(cause);
+        expect(err.statusCode).toBe(status);
+      },
+    );
   });
 
   describe("getTypedErrorBody", () => {
@@ -718,11 +721,11 @@ describe("ApiError", () => {
         { "retry-after": "Wed, 21 Oct 2015 07:28:00 GMT" },
         0,
       ],
-    ])("reads %s", (_label, headers, expected) => {
+    ])("bhv langnode 003 reads %s", (_label, headers, expected) => {
       expect(tooMany(headers).retryAfter).toBe(expected);
     });
 
-    test("reads an HTTP date as the seconds left until it", () => {
+    test("bhv langnode 001 reads an HTTP date as the seconds left until it", () => {
       const seconds = tooMany({
         "retry-after": new Date(Date.now() + 30_000).toUTCString(),
       }).retryAfter;
@@ -735,7 +738,7 @@ describe("ApiError", () => {
       ["no Retry-After", { "x-other": "1" }],
       ["an unparseable value", { "retry-after": "soon" }],
       ["an empty value", { "retry-after": "" }],
-    ])("is null with %s", (_label, headers) => {
+    ])("bhv langnode 004 is null with %s", (_label, headers) => {
       expect(tooMany(headers).retryAfter).toBeNull();
     });
   });
@@ -765,7 +768,7 @@ describe("ApiError", () => {
       [599, ServerError],
       [302, ApiError],
     ])(
-      "maps status %i to its exception class and keeps the response context",
+      "bhv langnode 005 maps status %i to its exception class and keeps the response context",
       (status, expected) => {
         const err = ApiError.fromResponse(
           status,
@@ -802,12 +805,15 @@ describe("ApiError", () => {
       ["a JSON string", '"plain text"', "plain text"],
       ["a JSON number", "42", 42],
       ["a JSON boolean", "true", true],
-    ])("keeps %s as the error body", (_label, body, expected) => {
-      const err = ApiError.fromResponse(400, {}, body);
-      expect(err.constructor).toBe(BadRequestError);
-      expect(err.responseBody).toBe(body);
-      expect(err.errorBody).toBe(expected);
-    });
+    ])(
+      "bhv errors 093 keeps %s as the error body",
+      (_label, body, expected) => {
+        const err = ApiError.fromResponse(400, {}, body);
+        expect(err.constructor).toBe(BadRequestError);
+        expect(err.responseBody).toBe(body);
+        expect(err.errorBody).toBe(expected);
+      },
+    );
 
     test("bhv errors 012 fromResponse without a request keeps the plain message", () => {
       const err = ApiError.fromResponse(404, {}, null);
@@ -832,7 +838,7 @@ describe("ApiError", () => {
       [599, ServerError],
       [200, ApiError],
     ])(
-      "fromResponse records the request on the %i fallback error",
+      "bhv langnode 006 fromResponse records the request on the %i fallback error",
       (status, expected) => {
         const err = ApiError.fromResponse(status, {}, null, {
           method: "POST",
@@ -895,7 +901,7 @@ describe("ApiError", () => {
       );
     });
 
-    test("escapes CR, LF and other control characters in the rendered body", () => {
+    test("bhv errors 085 escapes CR, LF and other control characters in the rendered body", () => {
       const err = new ApiError(
         500,
         "boom",
@@ -959,7 +965,7 @@ describe("ApiError", () => {
       expect(err.requestPath).toBe("/a\r\nHTTP status code: 200");
     });
 
-    test("omits the request when only one half is known", () => {
+    test("bhv misc 020 omits the request when only one half is known", () => {
       const err = new ApiError(404, "not found", null, null, null, {
         requestMethod: "GET",
       });
