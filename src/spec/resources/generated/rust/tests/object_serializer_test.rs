@@ -120,7 +120,8 @@ fn test_bhv_serializationobject_089_proto_duration_rejects_overflow() {
 }
 
 #[test]
-fn test_proto_duration_accepts_the_full_protobuf_range() {
+fn test_bhv_serializationobject_223_the_protobuf_duration_bound_is_accepted_and_one_past_it_rejected(
+) {
     use chrono::Duration;
     use petstore::proto_duration;
 
@@ -136,6 +137,14 @@ fn test_proto_duration_accepts_the_full_protobuf_range() {
         Duration::seconds(9_223_372_037) + Duration::milliseconds(500)
     );
     assert_eq!(proto_duration::format(&max), "315576000000s");
+    assert!(
+        proto_duration::parse("315576000001s").is_err(),
+        "one second past the bound must be rejected"
+    );
+    assert!(
+        proto_duration::parse("-315576000001s").is_err(),
+        "one second below the bound must be rejected"
+    );
 }
 
 #[test]
@@ -157,7 +166,8 @@ fn test_proto_duration_format_does_not_overflow() {
 }
 
 #[test]
-fn test_proto_duration_sub_tenth_milli_magnitude_no_scientific_notation() {
+fn test_bhv_serializationobject_212_a_sub_tenth_milli_or_negative_duration_is_written_without_scientific_notation(
+) {
     // Regression: a sub-0.0001s magnitude must render as a plain decimal
     // fraction (fixed-point, padded to a 3/6/9-digit grouping), NEVER in
     // scientific notation ("5e-5s"). 50 microseconds is 50_000 nanoseconds,
@@ -816,4 +826,81 @@ fn test_bhv_serializationobject_231_deserializing_a_payload_that_omits_optional_
     assert_eq!(account.username, "ann");
     assert_eq!(account.id, None);
     assert_eq!(account.password, None);
+}
+
+#[test]
+fn test_bhv_serializationobject_206_a_differing_map_key_makes_two_models_unequal() {
+    use petstore::models::BinaryVault;
+
+    fn vault(key: &str) -> BinaryVault {
+        let mut vault = BinaryVault::new();
+        vault.labels = Some(std::collections::HashMap::from([(
+            key.to_string(),
+            vec![7, 8],
+        )]));
+        vault
+    }
+
+    assert_eq!(vault("first"), vault("first"));
+    assert_ne!(vault("first"), vault("second"));
+}
+
+#[test]
+fn test_bhv_serializationobject_207_a_non_standard_base64_value_is_rejected_on_decode() {
+    use petstore::models::BinaryVault;
+
+    /* The URL-safe alphabet uses `-` and `_` where the standard one uses `+` and `/`. */
+    let body = r#"{"seal":"-_-_"}"#;
+    assert!(
+        serde_json::from_str::<BinaryVault>(body).is_err(),
+        "the URL-safe alphabet must not decode"
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_209_a_model_copy_replaces_the_given_fields_and_leaves_the_original_unchanged(
+) {
+    use petstore::models::BinaryVault;
+
+    let original = BinaryVault::new().with_seal(vec![1, 2, 3]);
+    let copy = BinaryVault {
+        seal: Some(vec![9]),
+        ..original.clone()
+    };
+    assert_eq!(Some(vec![9]), copy.seal);
+    assert_eq!(Some(vec![1, 2, 3]), original.seal);
+}
+
+#[test]
+fn test_bhv_serializationobject_218_a_required_nullable_property_with_a_value_is_written_as_given()
+{
+    use petstore::models::RequiredNullable;
+
+    let body = serde_json::to_string(&RequiredNullable::new(Some("kept".to_string())))
+        .expect("serializes");
+    assert_eq!(r#"{"note":"kept"}"#, body);
+}
+
+#[test]
+fn test_bhv_serializationobject_221_an_array_of_base64_strings_decodes_each_element_to_raw_bytes() {
+    use petstore::models::BinaryVault;
+
+    let vault: BinaryVault =
+        serde_json::from_str(r#"{"shards":["AQI=","BA=="]}"#).expect("each element is base64");
+    assert_eq!(Some(vec![vec![1, 2], vec![4]]), vault.shards);
+}
+
+#[test]
+fn test_bhv_serializationobject_222_an_array_of_byte_values_encodes_each_element_to_base64_on_the_wire(
+) {
+    use petstore::models::BinaryVault;
+
+    let mut vault = BinaryVault::new();
+    vault.shards = Some(vec![vec![1, 2], vec![4]]);
+    let json = serde_json::to_string(&vault).expect("serialize BinaryVault");
+    assert!(
+        json.contains(r#""shards":["AQI=","BA=="]"#),
+        "got: {}",
+        json
+    );
 }

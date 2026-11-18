@@ -1052,7 +1052,8 @@ mod tests {
      * caller (and the other SDKs' tests) can tell a request that could not be
      * written from a response that could not be read. */
     #[test]
-    fn test_serialize_failure_messages_start_with_the_canonical_prefix() {
+    fn test_bhv_serializationobject_200_a_serialize_failure_carries_the_canonical_prefix_and_the_detail(
+    ) {
         let non_finite = object_serializer::serialize(&f64::NAN).expect_err("NaN is refused");
         assert_eq!(
             "failed to serialize object to JSON: non-finite float (NaN or Infinity) is not permitted by RFC 8259",
@@ -1458,23 +1459,104 @@ mod tests {
     /* -- skip_serializing_if = "Option::is_none" on all optional model fields -- */
 
     #[test]
-    fn test_optional_none_fields_skipped_on_serialize() {
-        /* Category has an optional `name` field. When None, the field must be
-         * omitted from the JSON wire form -- not written as "name":null. */
-        let cat = Category::default();
+    fn test_bhv_serializationobject_202_a_null_field_is_omitted_while_non_null_fields_are_kept() {
+        /* Category has an optional `name` and an optional `id`. A None `name` is
+         * left out of the wire form, and the `id` that is set is kept. */
+        let mut cat = crate::models::Category::default();
+        cat.id = Some(3);
+        cat.name = None;
         let json = object_serializer::serialize(&cat).expect("serialize must succeed");
-        /* The exact shape depends on Category's required fields, but `name`
-         * must not appear when it is None. */
-        if !json.contains("\"name\"") || json.contains("\"name\":null") {
-            /* pass -- either omitted entirely or never present */
-        } else {
-            /* If name shows up at all, it must be a real value, not null. */
+        assert_eq!(r#"{"id":3}"#, json);
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_210_a_header_list_of_strings_is_joined_with_commas() {
+        let items = vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
+        assert_eq!("alpha,beta,gamma", to_header_value(&items));
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_211_an_int64_is_stringified_to_its_decimal_digits() {
+        let value: i64 = 1 << 40;
+        assert_eq!("1099511627776", object_serializer::stringify(&value));
+        assert_eq!("-1", object_serializer::stringify(&-1_i64));
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_219_a_time_value_keeps_its_milliseconds_when_written() {
+        let time = chrono::NaiveTime::from_hms_milli_opt(12, 34, 56, 789).unwrap();
+        assert_eq!(
+            r#""12:34:56.789""#,
+            object_serializer::serialize(&time).expect("serializes")
+        );
+    }
+
+    #[test]
+    fn test_bhv_unions_033_an_unknown_missing_or_empty_discriminator_fails_with_the_serialization_error(
+    ) {
+        /* The discriminated oneOf wrappers dispatch on `foodType`; this internally
+         * tagged enum has the same three failure shapes, decoded through the SDK's
+         * deserializer that returns the SerializationError. */
+        #[derive(serde::Deserialize, Debug)]
+        #[serde(tag = "foodType")]
+        enum Food {
+            #[serde(rename = "dry")]
+            Dry {
+                #[serde(rename = "weightKg")]
+                weight_kg: f64,
+            },
+            #[serde(rename = "wet")]
+            Wet {
+                #[serde(rename = "volumeMl")]
+                volume_ml: i32,
+            },
+        }
+        for body in [
+            r#"{"foodType":"raw","weightKg":2.5}"#,
+            r#"{"weightKg":2.5}"#,
+            r#"{"foodType":"","weightKg":2.5}"#,
+        ] {
+            let err =
+                deserialize::<Food>(body.as_bytes()).expect_err("a bad discriminator must fail");
             assert!(
-                !json.contains("\"name\":null"),
-                "optional None fields must be skipped, got: {}",
-                json
+                err.message().starts_with("failed to deserialize JSON: "),
+                "{}",
+                err.message()
             );
         }
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_104_the_content_cookie_encoding_keeps_only_the_unreserved_set_literal(
+    ) {
+        /* Every ASCII byte: the unreserved set A-Z a-z 0-9 - . _ ~ stays literal and
+         * every other byte is written as %XX, the encoding a content cookie uses. */
+        for byte in 0u8..=0x7f {
+            let text = (byte as char).to_string();
+            let encoded = urlencoding::encode(&text).into_owned();
+            let unreserved =
+                (byte as char).is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~');
+            if unreserved {
+                assert_eq!(text, encoded, "byte {:#04x} must stay literal", byte);
+            } else {
+                assert_eq!(
+                    format!("%{:02X}", byte),
+                    encoded,
+                    "byte {:#04x} must be percent-encoded",
+                    byte
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_224_a_content_cookie_is_the_serializer_json_percent_encoded() {
+        let value = serde_json::json!({"q": "x/y?z=1&w"});
+        let json = object_serializer::serialize(&value).expect("serializes");
+        assert_eq!(
+            "%7B%22q%22%3A%22x%2Fy%3Fz%3D1%26w%22%7D",
+            urlencoding::encode(&json).into_owned()
+        );
     }
 
     /* -- Unknown fields tolerated on deserialize (no deny_unknown_fields) -- */

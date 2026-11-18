@@ -2338,10 +2338,10 @@ fn start_silent_server() -> String {
 }
 
 /// F1064: cancelling an in-flight call is dropping its future. The call stops
-/// at once, without waiting for the server, and the client stays usable for
-/// the next call.
+/// at once, without waiting for the server and without reporting a timeout, and
+/// the client stays usable for the next call.
 #[tokio::test]
-async fn test_dropping_an_in_flight_call_cancels_it() {
+async fn test_bhv_transport_060_dropping_an_in_flight_call_cancels_it_without_a_timeout() {
     let base_url = start_silent_server();
     let client = DefaultApiClient::new(None);
 
@@ -2370,6 +2370,66 @@ async fn test_dropping_an_in_flight_call_cancels_it() {
         .await
         .expect("the client is usable after a cancelled call");
     assert_eq!(200, response.status_code());
+}
+
+/// Starts a server that answers `302` with a redirect to a non-HTTP URL and a body it never
+/// finishes, then reports whether the client closed the connection.
+fn start_unfinished_redirect_server() -> (String, std::sync::mpsc::Receiver<bool>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let (released_tx, released_rx) = std::sync::mpsc::channel();
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let head = "HTTP/1.1 302 Found\r\nLocation: ftp://example.test/next\r\nContent-Length: 1000\r\n\r\npartial";
+            let _ = std::io::Write::write_all(&mut stream, head.as_bytes());
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(10)));
+            /* End of stream (or a reset) means the client let the connection go. */
+            let released = match stream.read(&mut buf) {
+                Ok(0) => true,
+                Err(e) => !matches!(
+                    e.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ),
+                Ok(_) => false,
+            };
+            let _ = released_tx.send(released);
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    (format!("http://{}", addr), released_rx)
+}
+
+/// transport064: the response of a refused redirect is released, so its connection closes.
+/// The wait blocks its thread, so the test runs on a multi-thread runtime that keeps driving
+/// the connection task meanwhile.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_transport_064_the_intermediate_response_of_a_refused_redirect_is_released() {
+    let (base_url, released) = start_unfinished_redirect_server();
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let result = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a redirect to a non-HTTP URL must be refused"
+    );
+    assert!(
+        released
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("the server must see the connection end"),
+        "the refused redirect's response must be released"
+    );
 }
 
 /// A malformed request URL is a caller mistake: `ConfigurationError::

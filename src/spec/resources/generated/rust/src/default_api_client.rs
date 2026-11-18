@@ -1147,7 +1147,7 @@ mod tests {
     use crate::object_serializer;
 
     #[test]
-    fn test_root_certificates_trusts_every_certificate_in_a_bundle() {
+    fn test_bhv_transport_066_a_ca_bundle_file_trusts_every_certificate_it_contains() {
         use super::root_certificates;
         let ca = std::fs::read(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -1443,6 +1443,21 @@ mod tests {
         assert!(same_origin(
             &parse("https://Example.COM/a"),
             &parse("https://example.com/b")
+        ));
+    }
+
+    /* redirects037: the credentials are kept on a redirect that stays on the origin, and the
+     * explicit default port is that same origin. */
+    #[test]
+    fn test_bhv_redirects_037_a_redirect_to_the_explicit_default_port_keeps_authorization() {
+        let parse = |s: &str| reqwest::Url::parse(s).unwrap();
+        assert!(same_origin(
+            &parse("https://example.com/start"),
+            &parse("https://example.com:443/landed")
+        ));
+        assert!(same_origin(
+            &parse("http://example.com/start"),
+            &parse("http://example.com:80/landed")
         ));
     }
 

@@ -215,6 +215,74 @@ async fn test_bhv_transport_021_default_api_client_proxy_with_credentials_inject
     assert_eq!(without_credentials.status_code(), 407);
 }
 
+/* transport062: with verification off, a certificate that fails validation is accepted,
+ * and the same certificate is refused once verification is on. */
+#[tokio::test]
+async fn test_bhv_transport_062_verify_ssl_false_accepts_a_certificate_that_fails_validation() {
+    let chasm_url = testcontainers_helper::chasm_https_url();
+    let unverified = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build()
+        .expect("valid transport options");
+    let accepted = DefaultApiClient::new(Some(unverified))
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("verification off accepts the fixture certificate");
+    assert_eq!(accepted.status_code(), 200);
+
+    let verified = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .build()
+        .expect("valid transport options");
+    let refused = DefaultApiClient::new(Some(verified))
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await;
+    assert!(
+        refused.is_err(),
+        "verification on must refuse the fixture certificate"
+    );
+}
+
+/* transport063: an authenticating proxy that is sent no credentials answers 407 and
+ * challenges with Proxy-Authenticate. */
+#[tokio::test]
+async fn test_bhv_transport_063_a_proxy_that_requires_credentials_answers_407_without_them() {
+    let chasm_url = testcontainers_helper::chasm_internal_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(testcontainers_helper::auth_proxy_url())
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let answer = client
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("the proxy answers with a status");
+    assert_eq!(answer.status_code(), 407);
+    assert!(
+        answer
+            .headers()
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("proxy-authenticate")),
+        "the 407 must carry a Proxy-Authenticate challenge, got: {:?}",
+        answer.headers().keys().collect::<Vec<_>>()
+    );
+}
+
 /* The authenticating proxy answers 407 to a request that carries no credentials. */
 #[tokio::test]
 async fn test_bhv_transport_059_authenticating_proxy_refuses_a_request_without_credentials() {
@@ -234,6 +302,39 @@ async fn test_bhv_transport_059_authenticating_proxy_refuses_a_request_without_c
         .await
         .expect("the proxy answers with a status");
     assert_eq!(answer.status_code(), 407);
+}
+
+/* transport065: a configured CA is the only trust anchor. A public CA that the system store
+ * trusts is refused next to it, so the configured bundle replaces the system store. */
+#[tokio::test]
+async fn test_bhv_transport_065_a_configured_ca_bundle_replaces_the_system_trust_store() {
+    use std::net::ToSocketAddrs;
+    let reachable = "example.com:443"
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .map(|addr| {
+            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).is_ok()
+        })
+        .unwrap_or(false);
+    assert!(
+        reachable,
+        "example.com:443 must be reachable: the replacement check needs a public CA chain"
+    );
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(testcontainers_helper::ca_cert_path())
+        .build()
+        .expect("valid transport options");
+    let result = DefaultApiClient::new(Some(transport))
+        .send_request("GET", "https://example.com/", &HashMap::new(), None)
+        .await;
+    let err = result.expect_err("a public CA must not be trusted next to a configured CA");
+    assert!(
+        err.downcast_ref::<NetworkError>().is_some(),
+        "expected a NetworkError, got: {}",
+        err
+    );
 }
 
 // Gap AK (fleet-wide regression guard) — a proxy URL carrying inline userinfo

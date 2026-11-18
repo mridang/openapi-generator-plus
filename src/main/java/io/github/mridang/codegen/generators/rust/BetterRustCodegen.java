@@ -199,13 +199,18 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     private final java.util.Set<String> bhvIdsClaimed = new java.util.HashSet<>();
     /* Catalogue id of the empty-variable test, keyed by the scheme module it belongs to. */
     private static final Map<String, String> EMPTY_VARIABLE_BHV_IDS =
-            Map.of(
-                    "service_token_authenticator", "authscheme_011",
-                    "internal_api_key_authenticator", "authscheme_012",
-                    "machine_auth_client_credentials_authenticator", "authscheme_013",
-                    "legacy_auth_password_authenticator", "authscheme_014",
-                    "user_auth_authorization_code_authenticator", "authscheme_015",
-                    "browser_auth_implicit_authenticator", "authscheme_016");
+            Map.ofEntries(
+                    Map.entry("admin_basic_authenticator", "authscheme_004"),
+                    Map.entry("api_key_header_authenticator", "authscheme_005"),
+                    Map.entry("api_key_query_authenticator", "authscheme_006"),
+                    Map.entry("session_cookie_authenticator", "authscheme_007"),
+                    Map.entry("sso_auth_authenticator", "authscheme_008"),
+                    Map.entry("service_token_authenticator", "authscheme_011"),
+                    Map.entry("internal_api_key_authenticator", "authscheme_012"),
+                    Map.entry("machine_auth_client_credentials_authenticator", "authscheme_013"),
+                    Map.entry("legacy_auth_password_authenticator", "authscheme_014"),
+                    Map.entry("user_auth_authorization_code_authenticator", "authscheme_015"),
+                    Map.entry("browser_auth_implicit_authenticator", "authscheme_016"));
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
@@ -1486,6 +1491,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         entry.put("isBasic", "BasicAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("basic"));
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("apikey"));
         entry.put("bearerIdOnce", bearer && bhvIdsClaimed.add("bearer"));
+        /* The explicit-wins test (authscheme 009) carries its catalogue id in one module only. */
+        entry.put("explicitWinsOnce", bhvIdsClaimed.add("explicit_wins"));
         final String emptyVariableBhv = EMPTY_VARIABLE_BHV_IDS.get(stem);
         entry.put("emptyVariableBhv", emptyVariableBhv != null);
         entry.put("emptyVariableToken", emptyVariableBhv == null ? "" : emptyVariableBhv);
