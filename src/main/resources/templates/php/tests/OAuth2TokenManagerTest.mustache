@@ -1066,3 +1066,13 @@ test('bhv misc 059 a token whose lifetime is not finite is not cached', function
     'overflowing lifetime' => ['{"access_token":"inf1","expires_in":1e999}'],
     'negative overflowing lifetime' => ['{"access_token":"inf1","expires_in":-1e999}'],
 ]);
+
+test('bhv misc 069 a non string access token is refused with an error that names the field', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode(['access_token' => 12345, 'expires_in' => 3600]), ['Content-Type' => 'application/json']));
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(OAuth2TokenException::class, 'access_token');
+});

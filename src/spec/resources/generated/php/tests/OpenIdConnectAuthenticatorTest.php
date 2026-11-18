@@ -860,3 +860,40 @@ test('bhv auth 029 after the cached discovery document expires, later calls use 
     expect($authenticator->buildAuthorizationUrl())->toStartWith('https://auth2.example.com/authorize?');
     expect($client->capturedRequests)->toHaveCount(2);
 });
+
+test('bhv misc 070 a discovery document that is not a json object keeps no cause and hides its body', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, '"leaked-body"', ['Content-Type' => 'application/json']));
+    $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
+
+    $caught = null;
+    try {
+        $authenticator->buildAuthorizationUrl();
+    } catch (SerializationException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->not->toBeNull();
+    expect($caught->getMessage())->toBe('OIDC discovery document is not a JSON object');
+    expect($caught->getPrevious())->toBeNull();
+    expect($caught->getMessage())->not->toContain('leaked-body');
+});
+
+test('bhv misc 078 the authorization url carries an s256 challenge and no nonce', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl(), PHP_URL_QUERY), $params);
+
+    expect($params['code_challenge_method'] ?? null)->toBe('S256');
+    expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $params['code_challenge'] ?? ''))->toBe(1);
+    expect($params)->not->toHaveKey('nonce');
+});
