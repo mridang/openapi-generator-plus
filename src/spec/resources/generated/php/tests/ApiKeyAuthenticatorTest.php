@@ -527,11 +527,15 @@ function newApiKeyWrapper(string $class, string ...$args): ApiKeyAuthenticator
 
 /**
  * The environment variable a generated api key wrapper reads its key from.
+ *
+ * @param class-string $class
  */
 function apiKeyWrapperEnvVariable(string $class): string
 {
     $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
     \assert(is_array($constants));
+    $first = array_values($constants)[0];
+    \assert(is_string($first));
 
-    return (string) array_values($constants)[0];
+    return $first;
 }

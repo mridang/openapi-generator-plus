@@ -780,8 +780,9 @@ function makePkceAuthenticator(string $verifier): OAuth2AuthorizationCodeAuthent
  */
 function pkceChallengeOf(OAuth2AuthorizationCodeAuthenticator $authenticator): string
 {
-    $verifier = (string) (new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier'))
+    $verifier = (new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier'))
         ->getValue($authenticator);
+    \assert(is_string($verifier));
 
     return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 }

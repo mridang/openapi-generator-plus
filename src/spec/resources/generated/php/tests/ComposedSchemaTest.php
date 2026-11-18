@@ -182,7 +182,6 @@ test('bhv unions 009 any of retains all matching variants (medication and surger
     expect($serialized)->toContain('dosage');
     expect($serialized)->toContain('procedureName');
     expect($serialized)->toContain('durationMinutes');
-    /** @var array<string, mixed> $roundTripped */
     $roundTripped = json_decode($serialized, true);
     \assert(is_array($roundTripped));
     expect($roundTripped)->toMatchArray([
@@ -255,7 +254,6 @@ test('bhv unions 003 any of single variant still round-trips after retain-all', 
     expect($result->getActualInstance())->toBe($result->getMatchedInstances()[0]);
 
     $serialized = ObjectSerializer::serialize($result);
-    /** @var array<string, mixed> $roundTripped */
     $roundTripped = json_decode($serialized, true);
     \assert(is_array($roundTripped));
     expect($roundTripped)->toMatchArray(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);

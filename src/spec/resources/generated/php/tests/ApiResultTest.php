@@ -12,8 +12,10 @@ test('bhv results 006 the headers of a result are a copy taken when it is built 
 
     expect($result->headers)->toBe(['X-Request-Id' => 'abc']);
     expect(function () use ($result): void {
-        $property = 'headers';
-        $result->{$property}['X-Injected'] = 'x';
+        $headers = (new \ReflectionProperty(ApiResult::class, 'headers'))->getValue($result);
+        \assert(is_array($headers));
+        $headers['X-Injected'] = 'x';
+        (new \ReflectionProperty(ApiResult::class, 'headers'))->setValue($result, $headers);
     })->toThrow(\Error::class);
 });
 

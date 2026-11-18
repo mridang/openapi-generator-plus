@@ -183,6 +183,7 @@ test('bhv misc 002 a trace propagator the caller registers is the one used and h
         /** @param mixed $carrier */
         public function inject(&$carrier, ?PropagationSetterInterface $setter = null, ?ContextInterface $context = null): void
         {
+            \assert(is_array($carrier));
             $carrier['x-caller-trace'] = 'registered';
         }
 

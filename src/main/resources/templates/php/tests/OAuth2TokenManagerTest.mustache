@@ -576,14 +576,15 @@ test('bhv authoauthtwotokenmgr 041 a non-JSON 2xx token body is not echoed into 
     $manager = new OAuth2TokenManager();
     $manager->setApiClient($client);
 
-    expect(fn (): string => $manager->getAccessToken(
-        'https://auth.example.com/token',
-        ['grant_type' => 'client_credentials']
-    ))->toThrow(function (\Throwable $e) use ($body, $message): void {
-        \assert($e instanceof OAuth2TokenException);
-        expect($e->getMessage())->toContain($message);
-        expect($e->getMessage())->not->toContain($body);
-    });
+    $error = null;
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    } catch (\Throwable $e) {
+        $error = $e;
+    }
+    \assert($error instanceof OAuth2TokenException);
+    expect($error->getMessage())->toContain($message);
+    expect($error->getMessage())->not->toContain($body);
 })->with([
     'form encoded' => ['access_token=abc&token_type=bearer', 'Token response is not valid JSON'],
     'list' => ['["tok"]', 'Token response is not a JSON object'],

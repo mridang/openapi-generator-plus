@@ -287,6 +287,7 @@ function basicWrapper(string $class, string ...$args): BasicAuthenticator
 /**
  * The environment variable names a generated basic wrapper reads its user and password from.
  *
+ * @param class-string $class
  * @return array<string, string>
  */
 function basicWrapperEnvVariables(string $class): array
@@ -294,5 +295,9 @@ function basicWrapperEnvVariables(string $class): array
     $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
     \assert(is_array($constants));
 
-    return array_map(static fn (mixed $name): string => (string) $name, $constants);
+    return array_map(static function (mixed $name): string {
+        \assert(is_string($name));
+
+        return $name;
+    }, $constants);
 }

@@ -213,12 +213,14 @@ test('bhv servers 025 changing the variables map after building the configuratio
 });
 
 test('bhv servers 028 a generated server and its variables cannot be changed after creation', function (): void {
-    $urlProperty = 'urlTemplate';
-    $variablesProperty = 'variables';
-    expect(function () use ($urlProperty): void {
-        Servers::all()[2]->{$urlProperty} = 'https://evil.example.com';
+    $server = Servers::all()[2];
+    expect(function () use ($server): void {
+        (new \ReflectionProperty(ServerConfiguration::class, 'urlTemplate'))->setValue($server, 'https://evil.example.com');
     })->toThrow(\Error::class);
-    expect(function () use ($variablesProperty): void {
-        Servers::all()[2]->{$variablesProperty}['tenant'] = new ServerVariable(defaultValue: 'x');
+    expect(function () use ($server): void {
+        $variables = (new \ReflectionProperty(ServerConfiguration::class, 'variables'))->getValue($server);
+        \assert(is_array($variables));
+        $variables['tenant'] = new ServerVariable(defaultValue: 'x');
+        (new \ReflectionProperty(ServerConfiguration::class, 'variables'))->setValue($server, $variables);
     })->toThrow(\Error::class);
 });

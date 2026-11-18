@@ -1071,7 +1071,10 @@ test('bhv transport 064 the intermediate response of a refused redirect is relea
     /** @var \ArrayObject<string, mixed> $probe */
     $probe = new \ArrayObject(['released' => false]);
     $mock = new MockHttpClient(fn(): MockResponse => new class ('', ['http_code' => 302, 'response_headers' => ['Location' => 'ftp://example.com/next']], $probe) extends MockResponse {
-        /** @param array<string, mixed> $info */
+        /**
+         * @param array<string, mixed> $info
+         * @param \ArrayObject<string, mixed> $probe
+         */
         public function __construct(string $body, array $info, private \ArrayObject $probe)
         {
             parent::__construct($body, $info);
