@@ -1429,4 +1429,13 @@ class OAuth2TokenManagerTest {
             assertEquals(2, client.bodies.size, raw)
         }
     }
+
+    @Test
+    fun bhvMisc286ServerErrorMessageNamesHttpStatusAndOauthCode() =
+        runBlocking<Unit> {
+            val ex = oauth2ErrorFor("""{"error":"invalid_client"}""")
+            assertEquals(400, ex.statusCode)
+            assertEquals("invalid_client", ex.code)
+            assertTrue(ex.message!!.contains("400") && ex.message!!.contains("invalid_client"), ex.message)
+        }
 }

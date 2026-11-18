@@ -270,4 +270,19 @@ class ServerConfigurationTest {
     fun bhvMisc158FixedUrlIsReportedUnchanged() {
         assertEquals("https://api.example.com/v1", ServerConfiguration(urlTemplate = "https://api.example.com/v1").getUrl())
     }
+
+
+    @Test
+    fun bhvMisc297TemplateVariablesAreReplacedWhenTheUrlIsBuilt() = runBlocking<Unit> {
+        val server = ServerConfiguration(
+            "https://{a}.example.com/{b}/{c}",
+            null,
+            mapOf(
+                "a" to ServerVariable("one", null, emptyList()),
+                "b" to ServerVariable("two", null, emptyList()),
+                "c" to ServerVariable("three", null, emptyList()),
+            ),
+        )
+        assertEquals("https://x.example.com/y/z", server.getUrl(mapOf("a" to "x", "b" to "y", "c" to "z")))
+    }
 }
