@@ -50,7 +50,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).must_equal("missing\nHTTP status code: 404")
   end
 
-  it 'omits the headers and body sections when they are nil' do
+  it 'bhv_errors_074 omits the headers and body sections when they are nil' do
     err = Petstore::Client::Errors::ApiError.new(
       status_code: 0, message: 'connection reset', response_headers: nil, response_body: nil
     )
@@ -131,7 +131,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
   end
 
-  it 'chains a typed status error up through ClientError, ApiError and the branded base' do
+  it 'bhv_errors_080 chains a typed status error up through ClientError, ApiError and the branded base' do
     err = Petstore::Client::Errors::BadRequestError.new(message: 'bad input')
 
     _(err).must_be_kind_of(Petstore::Client::Errors::ClientError)

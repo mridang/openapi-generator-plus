@@ -190,7 +190,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(secret_auth.to_s).wont_include 'super_secret_value'
   end
 
-  def test_redacts_secret
+  def test_bhv_auth_016_redacts_secret
     auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',

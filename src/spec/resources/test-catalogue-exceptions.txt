@@ -210,3 +210,8 @@ php | config024 | php has no process-wide default configuration by design (see t
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
 ruby | serialization037 | Ruby maps a bare decimal number to Float (the README precision caveat), so digits beyond double precision cannot be kept; a BigDecimal would emit scientific or quoted text and break the unquoted wire form
+ruby | transport068 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a call cannot be handed an already-cancelled signal
+ruby | transport069 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancellation signal or context reaches a request
+ruby | auth013 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can cancel the token request it started
+ruby | auth027 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancelled refresh can be rethrown as a distinct case
+ruby | auth001 | The token exchange runs inside the synchronous auth_headers call and no credential needs an asynchronous step, so the refusal cannot occur

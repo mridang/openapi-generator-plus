@@ -435,7 +435,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(secret_auth.to_s).wont_include 'super_secret_value'
   end
 
-  def test_redacts_secret
+  def test_bhv_auth_018_redacts_secret
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
@@ -522,7 +522,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(discovery_requests(client).length).must_equal 2
   end
 
-  it 'uses the rediscovered endpoints once the cached document has expired' do
+  it 'bhv_auth_029 uses the rediscovered endpoints once the cached document has expired' do
     moved = { status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/v2/authorize',
                                    'token_endpoint' => 'https://auth.example.com/v2/token' } }
     client = FakeOidcClient.new([discovery_response.merge(headers: { 'cache-control' => 'max-age=0' }), moved])

@@ -475,7 +475,7 @@ describe {{moduleName}}::Api::BaseApi do
       _(client.captured_headers['X-Credential']).must_equal 'key'
     end
 
-    it 'sends no credential when no scheme matches and there is no client authenticator' do
+    it 'bhv_auth_021 sends no credential when no scheme matches and there is no client authenticator' do
       api, client = api_with({ 'adminBasic' => credential('admin') })
 
       add_pet(api)

@@ -171,7 +171,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer from-env'
     end
 
-    it 'asks the token provider for every request when neither a token nor the variable is set' do
+    it 'bhv_auth_005 asks the token provider for every request when neither a token nor the variable is set' do
       calls = 0
       provider = -> { "token-#{calls += 1}" }
       auth = Petstore::Client::Auth::BearerAuthenticator.new(
