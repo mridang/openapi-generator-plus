@@ -190,12 +190,43 @@ class TransportOptionsTest {
     }
 
     @Test
-    @DisplayName("a negative maxRedirects is rejected")
-    void negativeMaxRedirectsIsRejected() {
+    @DisplayName("bhvOptions045 a negative maxRedirects is rejected")
+    void bhvOptions045NegativeMaxRedirectsIsRejected() {
         IllegalArgumentException ex = assertThrowsExactly(
                 IllegalArgumentException.class, () -> TransportOptions.builder().maxRedirects(-1));
         assertEquals("Invalid maxRedirects: must not be negative (got -1)", ex.getMessage());
         assertEquals(0, TransportOptions.builder().maxRedirects(0).build().getMaxRedirects());
+    }
+
+    @Test
+    @DisplayName("bhvOptions046 constructing transport options directly with a non-http proxy scheme is rejected")
+    void bhvOptions046DirectConstructionRejectsANonHttpProxyScheme() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                new TransportOptions(true, null, "ftp://proxy.example.com:21", null, true, null, null,
+                        Map.of(), false, null, 0));
+        assertEquals(
+                "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+                ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions047 a negative timeout is rejected at configuration")
+    void bhvOptions047NegativeTimeoutIsRejectedAtConfiguration() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().timeout(-1));
+        assertEquals(
+                "Invalid timeout: must be a positive number of milliseconds (got -1)",
+                ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions051 a proxy URL with a scheme other than http or https is rejected")
+    void bhvOptions051ProxyUrlWithAnotherSchemeIsRejected() {
+        for (String proxy : new String[] {"ftp://proxy.example.com:21", "socks5://proxy.example.com:1080"}) {
+            IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                    TransportOptions.builder().proxy(proxy).build());
+            assertEquals("Invalid proxy URL (must use http or https scheme): " + proxy, ex.getMessage());
+        }
     }
 
     @Test
