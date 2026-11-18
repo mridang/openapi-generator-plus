@@ -167,7 +167,7 @@ func TestBhvOptions041_TransportOptions_UserAgentDefaultsToNonEmptyString(t *tes
 	}
 }
 
-func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
+func TestBhvLanggo102_TransportOptions_UserAgentDefaultThenSet(t *testing.T) {
 	t.Parallel()
 	// The default carries the branded value; once set via the nullable setter
 	// it is applied and read back through the pointer.
@@ -1045,5 +1045,18 @@ func TestBhvMisc042_TransportOptions_DisabledVerificationRefusalNamesTheSetting(
 	_, err := petstore.NewTransportOptionsBuilder().HttpClient(&http.Client{}).VerifySsl(false).Build()
 	if !errors.Is(err, petstore.ErrTransportConflict) || !strings.Contains(err.Error(), "VerifySsl") {
 		t.Errorf("expected a conflict naming VerifySsl, got %v", err)
+	}
+}
+
+func TestBhvMisc298_TransportOptions_MalformedProxyUrlFailsTheClientWithInvalidProxyURL(t *testing.T) {
+	t.Parallel()
+	opts, err := petstore.NewTransportOptionsBuilder().
+		Proxy("http://[::1").
+		Build()
+	if !errors.Is(err, petstore.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions when the proxy URL is malformed")
 	}
 }

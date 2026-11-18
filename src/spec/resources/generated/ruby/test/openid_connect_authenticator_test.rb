@@ -410,7 +410,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
   # Discovery is an HTTP call like any other: a non-2xx answer raises the
   # same status-specific error an API call would.
   { 404 => Petstore::Client::Errors::NotFoundError, 500 => Petstore::Client::Errors::InternalServerError }.each do |status, error_class|
-    it "raises #{error_class} when discovery answers #{status}" do
+    it "bhv_langruby_067 raises #{error_class} when discovery answers #{status}" do
       client = FakeOidcClient.new([{ status: status, body: '{}' }])
       auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
         'https://api.example.com',

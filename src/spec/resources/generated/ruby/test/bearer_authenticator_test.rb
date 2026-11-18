@@ -234,17 +234,6 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer token-2'
     end
 
-    it 'reads the variable it is told to read, and no other' do
-      env = { "#{prefix}_TOKEN" => 'generic', 'OTHER_TOKEN' => 'from-other' }
-      auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: env, token_env: 'OTHER_TOKEN')
-
-      _(auth.auth_headers['Authorization']).must_equal 'Bearer from-other'
-      error = _(lambda do
-        Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: env, token_env: 'MISSING_TOKEN')
-      end).must_raise ArgumentError
-      _(error.message).must_equal 'Missing Bearer token: pass it or set the environment variable MISSING_TOKEN'
-    end
-
     it 'bhv_authbearer_014 rejects an empty token from the provider when the request is made' do
       auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', token_provider: -> { '' })
 

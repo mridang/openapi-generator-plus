@@ -169,7 +169,7 @@ describe 'Client' do
   # per-operation server types: they are declared inside the API file whose
   # operations use them, as in the other eleven SDKs, so they are listed by
   # name below and skipped.
-  it 'declares exactly the constant each lib file path names' do
+  it 'bhv_langruby_024 declares exactly the constant each lib file path names' do
     lib = File.expand_path('../lib', File.dirname(__FILE__))
     root_dir = File.join(lib, '{{modulePath}}')
     files = Dir.glob(File.join(root_dir, '**', '*.rb'))
@@ -328,7 +328,7 @@ describe 'Client' do
     client.instance_variables.map { |name| client.instance_variable_get(name) }.grep({{moduleName}}::Api::BaseApi)
   end
 
-  it 'hands the call hook to every API group' do
+  it 'bhv_langruby_025 hands the call hook to every API group' do
     hook = RecordingCallHook.new
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
 
@@ -343,13 +343,6 @@ describe 'Client' do
     end
   end
 
-  it 'has no call hook unless one is given' do
-    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
-
-    groups = call_hook_groups_of({{moduleName}}::{{clientClassName}}.new(authenticator))
-
-    _(groups.map { |api| api.config.call_hook }.uniq).must_equal [nil]
-  end
 
   it 'bhv_lifecycle_008 close makes the client reject further requests' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')

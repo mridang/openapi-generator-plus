@@ -138,7 +138,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestFindPetsByStatusNoArgsDoesNotThrow()
+    public async Task BhvLangcsharp021TestFindPetsByStatusNoArgsDoesNotThrow()
     {
         // L10 regression: findPetsByStatus has ONLY optional params, so the
         // Options arg is generated as `FindPetsByStatusOptions? options = null`.
@@ -235,7 +235,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetPhotosNullOptionsNamesTheFirstRequiredField()
+    public async Task BhvLangcsharp022TestAddPetPhotosNullOptionsNamesTheFirstRequiredField()
     {
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _api.AddPetPhotosAsync(1L, null!)
@@ -306,7 +306,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestDeletePetRejectsControlCharInCookieParam()
+    public async Task BhvLangcsharp023TestDeletePetRejectsControlCharInCookieParam()
     {
         // A bare control character (not only CR/LF) in the operation cookie
         // value is equally forbidden by RFC 6265 and must fail closed.
@@ -689,7 +689,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetStagingPetInfoUsesTheResolvedVariableUrl()
+    public async Task BhvLangcsharp024TestGetStagingPetInfoUsesTheResolvedVariableUrl()
     {
         const string stagingServer = "https://sandbox.example.com/api/v2";
         var redirecting = new RedirectingApiClient(stagingServer, _baseUrl);
@@ -1386,7 +1386,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt()
+    public async Task BhvLangcsharp025TestTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt()
     {
         // The client holds one credential per scheme, named after the scheme.
         // addPet accepts apiKeyHeader or petStoreBearer, so the credential
@@ -1474,7 +1474,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestPathParamEncodedExactlyOnce()
+    public async Task BhvSerialization109TestPathParamEncodedExactlyOnce()
     {
         // path-double-encoding regression: a string path param carrying an
         // encodable char (space, '/') must be percent-encoded exactly once.
@@ -1869,7 +1869,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestJsonNullBodyForCollectionReturningOpThrowsApiException()
+    public async Task BhvLangcsharp026TestJsonNullBodyForCollectionReturningOpThrowsApiException()
     {
         var mockApi = NewPetApiForMock(200, "application/json", "null");
 
@@ -2252,7 +2252,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task FormDateTimeParamEmitsCanonicalStringifyForm()
+    public async Task BhvLangcsharp027FormDateTimeParamEmitsCanonicalStringifyForm()
     {
         var client = new DateWireCapturingApiClient
         {
@@ -2359,7 +2359,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public void OperationsThatAreNotDeprecatedCarryNoObsoleteMarker()
+    public void BhvLangcsharp028OperationsThatAreNotDeprecatedCarryNoObsoleteMarker()
     {
         var method = typeof(PetApi).GetMethods().First(m => m.Name == "AddPetAsync");
 

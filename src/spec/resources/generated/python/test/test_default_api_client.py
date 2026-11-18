@@ -122,7 +122,7 @@ class TestAmbientProxyEnvironmentIsIgnored:
             "all_proxy",
         ],
     )
-    def test_a_client_without_a_proxy_connects_directly(
+    def test_bhv_misc_271_a_client_without_a_proxy_connects_directly(
         self, chasm_http_url: Any, monkeypatch: pytest.MonkeyPatch, variable: str
     ) -> None:
         monkeypatch.delenv("NO_PROXY", raising=False)
@@ -140,7 +140,7 @@ class TestProxyWithCredentials:
     # The fixture proxy's second port answers 407 unless the request carries
     # Proxy-Authorization, so these two prove the credentials in the proxy URL
     # reach the proxy on the wire.
-    def test_authenticating_proxy_accepts_credentials_from_the_proxy_url(
+    def test_bhv_misc_272_authenticating_proxy_accepts_credentials_from_the_proxy_url(
         self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
     ) -> None:
         transport = (
@@ -631,7 +631,9 @@ class TestRedirectSecurityGuards:
         assert "cookie" not in followup
         assert "x-custom-auth-key" not in followup
 
-    def test_strips_credential_named_headers_on_a_cross_origin_hop(self) -> None:
+    def test_bhv_lang_python_060_strips_credential_named_headers_on_a_cross_origin_hop(
+        self,
+    ) -> None:
         """A default or authenticator header named like a credential
         (X-Tenant-Token, X-Custom-Auth-Key) is not forwarded to another origin."""
 
@@ -785,7 +787,7 @@ class TestN1RedirectBodyReplayMatrix:
                 assert pool.calls[1][0] == method
                 assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
 
-    def test_bhv_redirects_048_301_and_302_turn_post_into_get(self) -> None:
+    def test_bhv_redirects_048_status_301_and_302_turn_post_into_get(self) -> None:
         for status in (301, 302):
             transport = TransportOptions.builder().follow_redirects(True).build()
             pool = self._pool(status)
@@ -870,7 +872,7 @@ class TestN1RedirectBodyReplayMatrix:
             assert pool.calls[1][0] == "GET"
             assert pool.calls[1][2] is None
 
-    def test_bhv_redirects_051_303_keeps_head_as_head(self) -> None:
+    def test_bhv_redirects_051_status_303_keeps_head_as_head(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._pool(303)
         client = DefaultApiClient(transport, pool_manager=pool)

@@ -499,7 +499,7 @@ class TestNullStyleFallback:
             == "5"
         )
 
-    def test_bhv_serialization_109_an_unknown_style_falls_back_to_plain_value(
+    def test_bhv_lang_python_205_an_unknown_style_falls_back_to_plain_value(
         self,
     ) -> None:
         assert (
@@ -518,7 +518,7 @@ class TestDeepObjectSerialization:
         assert result["filter[color]"] == "blue"
         assert result["filter[size]"] == "large"
 
-    def test_bhv_serialization_111_each_model_property_is_written_under_its_name_key(
+    def test_bhv_lang_python_207_each_model_property_is_written_under_its_name_key(
         self,
     ) -> None:
         from petstore_client.models.category import Category
@@ -733,7 +733,9 @@ class TestValueSerializerFormatDatePath:
         )
         assert ValueSerializer.serialize(moment, location, "date") == "2024-01-15"
 
-    def test_a_datetime_for_a_styled_date_parameter_sends_only_the_date(self) -> None:
+    def test_bhv_lang_python_197_a_datetime_for_a_styled_date_parameter_sends_only_the_date(
+        self,
+    ) -> None:
         moment = datetime.datetime(
             2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc
         )
@@ -754,7 +756,7 @@ class TestValueSerializerFormatDatePath:
         assert isinstance(rendered, str)
         assert rendered.startswith("2024-01-15T13:45:30")
 
-    def test_bhv_serialization_110_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
+    def test_bhv_lang_python_206_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
         moment = datetime.datetime(2024, 1, 1, 10, 30, 45, tzinfo=datetime.timezone.utc)
         assert ValueSerializer.serialize(moment, "query", "date") == "2024-01-01"
         assert (
@@ -858,13 +860,13 @@ class TestPathSegmentCharacterSet:
 class TestEncodeContent:
     """A `content` parameter's JSON text is encoded once, by its location."""
 
-    def test_path_value_is_fully_percent_encoded(self) -> None:
+    def test_bhv_lang_python_198_path_value_is_fully_percent_encoded(self) -> None:
         assert (
             ValueSerializer.encode_content("p", '{"a":"b/c"}', "path")
             == "%7B%22a%22%3A%22b%2Fc%22%7D"
         )
 
-    def test_bhv_serialization_118_cookie_value_is_fully_percent_encoded(self) -> None:
+    def test_bhv_lang_python_209_cookie_value_is_fully_percent_encoded(self) -> None:
         assert (
             ValueSerializer.encode_content("c", '{"a":1}', "cookie")
             == "%7B%22a%22%3A1%7D"
@@ -878,14 +880,16 @@ class TestEncodeContent:
             == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
         )
 
-    def test_header_value_is_sent_verbatim(self) -> None:
+    def test_bhv_lang_python_199_header_value_is_sent_verbatim(self) -> None:
         assert ValueSerializer.encode_content("h", '{"a":1}', "header") == '{"a":1}'
 
     def test_bhv_headers_031_header_value_with_a_line_break_is_rejected(self) -> None:
         with pytest.raises(ValueError):
             ValueSerializer.encode_content("h", '{"a":"x\ny"}', "header")
 
-    def test_query_value_is_left_for_the_query_builder(self) -> None:
+    def test_bhv_lang_python_200_query_value_is_left_for_the_query_builder(
+        self,
+    ) -> None:
         assert ValueSerializer.encode_content("q", '{"a":1}', "query") == '{"a":1}'
 
 
@@ -928,7 +932,7 @@ class TestObjectValuedParameters:
         )
         assert result == "breed,lab,min_age,3"
 
-    def test_simple_exploded_assigns_each_property(self) -> None:
+    def test_bhv_lang_python_201_simple_exploded_assigns_each_property(self) -> None:
         result = ValueSerializer.serialize_styled(
             "c", self._FIELDS, "header", "Obj", None, "simple", True
         )
@@ -960,12 +964,12 @@ class TestObjectValuedParameters:
             is None
         )
 
-    def test_query_entries_expand_an_exploded_object(self) -> None:
+    def test_bhv_lang_python_202_query_entries_expand_an_exploded_object(self) -> None:
         assert ValueSerializer.query_entries("c", {"a": "1"}) == {"a": "1"}
         assert ValueSerializer.query_entries("c", "v") == {"c": "v"}
         assert ValueSerializer.query_entries("c", None) == {}
 
-    def test_bhv_serialization_108_a_nested_object_leaf_is_a_serialization_error(
+    def test_bhv_lang_python_208_a_nested_object_leaf_is_a_serialization_error(
         self,
     ) -> None:
         from petstore_client.errors import SerializationException

@@ -104,7 +104,7 @@ func requireSchemePetStoreBasicAuthenticatorCredentials(t *testing.T, a *auth.Pe
 	}
 }
 
-func TestBhvAuthbasic001_SchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthbasic001_BhvLanggo116_SchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", "")
@@ -115,7 +115,7 @@ func TestBhvAuthbasic001_SchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEve
 	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestBhvAuthbasic013_SchemeAuthenticator_PetStoreBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvAuthbasic013_BhvLanggo117_SchemeAuthenticator_PetStoreBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
@@ -126,7 +126,7 @@ func TestBhvAuthbasic013_SchemeAuthenticator_PetStoreBasicAuthenticator_PrefersT
 	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_PetStoreBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_PetStoreBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
@@ -137,7 +137,7 @@ func TestSchemeAuthenticator_PetStoreBasicAuthenticator_ExplicitArgumentWinsWhil
 	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestBhvAuthbasic012_SchemeAuthenticator_PetStoreBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvAuthbasic012_BhvLanggo119_SchemeAuthenticator_PetStoreBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemePetStoreBasicAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, variable, "empty")
@@ -152,7 +152,7 @@ func TestBhvAuthbasic012_SchemeAuthenticator_PetStoreBasicAuthenticator_AnEmptyV
 	}
 }
 
-func TestBhvAuthbasic003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthbasic003_BhvLanggo121_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -169,7 +169,7 @@ func TestBhvAuthbasic003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNam
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvLanggo122_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -186,7 +186,7 @@ func TestSchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThat
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -245,7 +245,7 @@ func requireSchemeAdminBasicAuthenticatorCredentials(t *testing.T, a *auth.Admin
 	}
 }
 
-func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_BhvLanggo116_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewAdminBasicAuthenticator(schemeHost, "", "")
@@ -256,7 +256,7 @@ func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEvery
 	requireSchemeAdminBasicAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_AdminBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewAdminBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
@@ -267,7 +267,7 @@ func TestSchemeAuthenticator_AdminBasicAuthenticator_PrefersTheArgumentsOverTheE
 	requireSchemeAdminBasicAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestBhvAuthscheme009_SchemeAuthenticator_AdminBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvAuthscheme009_BhvLanggo118_SchemeAuthenticator_AdminBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewAdminBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
@@ -278,7 +278,7 @@ func TestBhvAuthscheme009_SchemeAuthenticator_AdminBasicAuthenticator_ExplicitAr
 	requireSchemeAdminBasicAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestBhvAuth003_SchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvAuth003_BhvLanggo119_SchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeAdminBasicAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, variable, "empty")
@@ -293,7 +293,7 @@ func TestBhvAuth003_SchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableC
 	}
 }
 
-func TestBhvAuthscheme004_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme004_BhvLanggo121_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeAdminBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeAdminBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -310,7 +310,7 @@ func TestBhvAuthscheme004_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamin
 	}
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvLanggo122_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeAdminBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeAdminBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -327,7 +327,7 @@ func TestSchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsE
 	}
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeAdminBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeAdminBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -355,7 +355,7 @@ func requireSchemePetStoreBearerAuthenticatorCredentials(t *testing.T, a *auth.P
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
@@ -366,7 +366,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ReadsEveryCredentialFro
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestBhvAuthbearer018_SchemeAuthenticator_PetStoreBearerAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvAuthbearer018_BhvLanggo117_SchemeAuthenticator_PetStoreBearerAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, schemeArgValue("token"))
@@ -377,7 +377,7 @@ func TestBhvAuthbearer018_SchemeAuthenticator_PetStoreBearerAuthenticator_Prefer
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_PetStoreBearerAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, schemeArgValue("token"))
@@ -388,7 +388,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ExplicitArgumentWinsWhi
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_PetStoreBearerAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemePetStoreBearerAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, variable, "empty")
@@ -403,7 +403,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_AnEmptyVariableCountsAs
 	}
 }
 
-func TestBhvAuthbearer019_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthbearer019_BhvLanggo121_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemePetStoreBearerAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBearerAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -423,7 +423,7 @@ func TestBhvAuthbearer019_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsN
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvLanggo122_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemePetStoreBearerAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBearerAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -443,7 +443,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableTha
 	}
 }
 
-func TestBhvAuthscheme010_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvAuthscheme010_BhvLanggo123_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemePetStoreBearerAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBearerAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -476,7 +476,7 @@ func TestBhvAuthscheme002_SchemeAuthenticator_PetStoreBearerAuthenticator_WithPr
 	}
 }
 
-func TestBhvLifecycle025_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func TestBhvLifecycle025_BhvLanggo124_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
@@ -489,7 +489,7 @@ func TestBhvLifecycle025_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTh
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestBhvAuth004_SchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
+func TestBhvAuth004_BhvLanggo125_SchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
 	a, err := auth.NewPetStoreBearerAuthenticatorWithProvider(schemeHost, nil)
 
 	if !errors.Is(err, auth.ErrInvalidBearerToken) {
@@ -511,7 +511,7 @@ func requireSchemeServiceTokenAuthenticatorCredentials(t *testing.T, a *auth.Ser
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
@@ -522,7 +522,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_ReadsEveryCredentialFromI
 	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_ServiceTokenAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, schemeArgValue("token"))
@@ -533,7 +533,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_PrefersTheArgumentsOverTh
 	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_ServiceTokenAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, schemeArgValue("token"))
@@ -544,7 +544,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_ExplicitArgumentWinsWhile
 	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_ServiceTokenAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeServiceTokenAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, variable, "empty")
@@ -559,7 +559,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_AnEmptyVariableCountsAsUn
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvLanggo121_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeServiceTokenAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeServiceTokenAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -579,7 +579,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatI
 	}
 }
 
-func TestBhvAuthscheme011_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvAuthscheme011_BhvLanggo122_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeServiceTokenAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeServiceTokenAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -599,7 +599,7 @@ func TestBhvAuthscheme011_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNam
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeServiceTokenAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeServiceTokenAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -632,7 +632,7 @@ func TestBhvAuthscheme002_SchemeAuthenticator_ServiceTokenAuthenticator_WithProv
 	}
 }
 
-func TestBhvAuthbearer025_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func TestBhvAuthbearer025_BhvLanggo124_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
@@ -645,7 +645,7 @@ func TestBhvAuthbearer025_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsThe
 	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
+func TestBhvLanggo125_SchemeAuthenticator_ServiceTokenAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
 	a, err := auth.NewServiceTokenAuthenticatorWithProvider(schemeHost, nil)
 
 	if !errors.Is(err, auth.ErrInvalidBearerToken) {
@@ -667,7 +667,7 @@ func requireSchemeApiKeyHeaderAuthenticatorCredentials(t *testing.T, a *auth.Api
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
@@ -678,7 +678,7 @@ func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsEveryCredentialFromI
 	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestBhvSerializationobject187_SchemeAuthenticator_ApiKeyHeaderAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvSerializationobject187_BhvLanggo117_SchemeAuthenticator_ApiKeyHeaderAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -689,7 +689,7 @@ func TestBhvSerializationobject187_SchemeAuthenticator_ApiKeyHeaderAuthenticator
 	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_ApiKeyHeaderAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -700,7 +700,7 @@ func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ExplicitArgumentWinsWhile
 	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_ApiKeyHeaderAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, "empty")
@@ -715,7 +715,7 @@ func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_AnEmptyVariableCountsAsUn
 	}
 }
 
-func TestBhvAuthapikey019_SchemeAuthenticator_ApiKeyHeaderAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+func TestBhvAuthapikey019_BhvLanggo120_SchemeAuthenticator_ApiKeyHeaderAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
 	for _, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, "unset")
 
@@ -760,7 +760,7 @@ func TestBhvAuthapikey025_SchemeAuthenticator_ApiKeyHeaderAuthenticator_MasksThe
 	}
 }
 
-func TestBhvAuthscheme005_SchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme005_BhvLanggo121_SchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -777,7 +777,7 @@ func TestBhvAuthscheme005_SchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNam
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvLanggo122_SchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -794,7 +794,7 @@ func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatI
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -822,7 +822,7 @@ func requireSchemeInternalApiKeyAuthenticatorCredentials(t *testing.T, a *auth.I
 	}
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_InternalApiKeyAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
 
 	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
@@ -833,7 +833,7 @@ func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ReadsEveryCredentialFro
 	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_InternalApiKeyAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
 
 	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -844,7 +844,7 @@ func TestSchemeAuthenticator_InternalApiKeyAuthenticator_PrefersTheArgumentsOver
 	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_InternalApiKeyAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
 
 	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -855,7 +855,7 @@ func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ExplicitArgumentWinsWhi
 	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_InternalApiKeyAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeInternalApiKeyAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, "empty")
@@ -870,7 +870,7 @@ func TestSchemeAuthenticator_InternalApiKeyAuthenticator_AnEmptyVariableCountsAs
 	}
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+func TestBhvLanggo120_SchemeAuthenticator_InternalApiKeyAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
 	for _, variable := range schemeInternalApiKeyAuthenticatorVariables {
 		setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, "unset")
 
@@ -884,7 +884,7 @@ func TestSchemeAuthenticator_InternalApiKeyAuthenticator_RejectsAnEmptyKeyAtCons
 	}
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvLanggo121_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -901,7 +901,7 @@ func TestSchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableTha
 	}
 }
 
-func TestBhvAuthscheme012_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvAuthscheme012_BhvLanggo122_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -918,7 +918,7 @@ func TestBhvAuthscheme012_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsN
 	}
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -946,7 +946,7 @@ func requireSchemeApiKeyQueryAuthenticatorCredentials(t *testing.T, a *auth.ApiK
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_ApiKeyQueryAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
@@ -957,7 +957,7 @@ func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_ReadsEveryCredentialFromIt
 	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_ApiKeyQueryAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -968,7 +968,7 @@ func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_PrefersTheArgumentsOverThe
 	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_ApiKeyQueryAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -979,7 +979,7 @@ func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_ExplicitArgumentWinsWhileT
 	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_ApiKeyQueryAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeApiKeyQueryAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, "empty")
@@ -994,7 +994,7 @@ func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_AnEmptyVariableCountsAsUns
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+func TestBhvLanggo120_SchemeAuthenticator_ApiKeyQueryAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
 	for _, variable := range schemeApiKeyQueryAuthenticatorVariables {
 		setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, "unset")
 
@@ -1008,7 +1008,7 @@ func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_RejectsAnEmptyKeyAtConstru
 	}
 }
 
-func TestBhvAuthscheme006_SchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme006_BhvLanggo121_SchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1025,7 +1025,7 @@ func TestBhvAuthscheme006_SchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNami
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvLanggo122_SchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1042,7 +1042,7 @@ func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIs
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1070,7 +1070,7 @@ func requireSchemeSessionCookieAuthenticatorCredentials(t *testing.T, a *auth.Se
 	}
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_SessionCookieAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
 
 	a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
@@ -1081,7 +1081,7 @@ func TestSchemeAuthenticator_SessionCookieAuthenticator_ReadsEveryCredentialFrom
 	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_SessionCookieAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
 
 	a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -1092,7 +1092,7 @@ func TestSchemeAuthenticator_SessionCookieAuthenticator_PrefersTheArgumentsOverT
 	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_SessionCookieAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
 
 	a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -1103,7 +1103,7 @@ func TestSchemeAuthenticator_SessionCookieAuthenticator_ExplicitArgumentWinsWhil
 	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_SessionCookieAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeSessionCookieAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, "empty")
@@ -1118,7 +1118,7 @@ func TestSchemeAuthenticator_SessionCookieAuthenticator_AnEmptyVariableCountsAsU
 	}
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+func TestBhvLanggo120_SchemeAuthenticator_SessionCookieAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
 	for _, variable := range schemeSessionCookieAuthenticatorVariables {
 		setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, "unset")
 
@@ -1132,7 +1132,7 @@ func TestSchemeAuthenticator_SessionCookieAuthenticator_RejectsAnEmptyKeyAtConst
 	}
 }
 
-func TestBhvAuthscheme007_SchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme007_BhvLanggo121_SchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeSessionCookieAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1149,7 +1149,7 @@ func TestBhvAuthscheme007_SchemeAuthenticator_SessionCookieAuthenticator_FailsNa
 	}
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvLanggo122_SchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeSessionCookieAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1166,7 +1166,7 @@ func TestSchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThat
 	}
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeSessionCookieAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1194,7 +1194,7 @@ func requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t *testin
 	}
 }
 
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
 
 	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
@@ -1205,7 +1205,7 @@ func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ReadsEver
 	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
 
 	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"))
@@ -1216,7 +1216,7 @@ func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_PrefersTh
 	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
 
 	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"))
@@ -1227,7 +1227,7 @@ func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ExplicitA
 	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, "empty")
@@ -1242,7 +1242,7 @@ func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_AnEmptyVa
 	}
 }
 
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvLanggo121_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1259,7 +1259,7 @@ func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNami
 	}
 }
 
-func TestBhvAuthscheme013_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvAuthscheme013_BhvLanggo122_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1276,7 +1276,7 @@ func TestBhvAuthscheme013_SchemeAuthenticator_MachineAuthClientCredentialsAuthen
 	}
 }
 
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1304,7 +1304,7 @@ func requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t *testing.T, a *oa
 	}
 }
 
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
 
 	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
@@ -1315,7 +1315,7 @@ func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ReadsEveryCredentia
 	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
 
 	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
@@ -1326,7 +1326,7 @@ func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_PrefersTheArguments
 	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
 
 	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
@@ -1337,7 +1337,7 @@ func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ExplicitArgumentWin
 	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, "empty")
@@ -1352,7 +1352,7 @@ func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_AnEmptyVariableCoun
 	}
 }
 
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvLanggo121_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1369,7 +1369,7 @@ func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariabl
 	}
 }
 
-func TestBhvAuthscheme014_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvAuthscheme014_BhvLanggo122_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1386,7 +1386,7 @@ func TestBhvAuthscheme014_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_Fa
 	}
 }
 
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1414,7 +1414,7 @@ func requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t *testing.T
 	}
 }
 
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
 
 	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
@@ -1425,7 +1425,7 @@ func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ReadsEveryCr
 	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
 
 	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
@@ -1436,7 +1436,7 @@ func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_PrefersTheAr
 	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
 
 	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
@@ -1447,7 +1447,7 @@ func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ExplicitArgu
 	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, "empty")
@@ -1462,7 +1462,7 @@ func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_AnEmptyVaria
 	}
 }
 
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvLanggo121_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1479,7 +1479,7 @@ func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingA
 	}
 }
 
-func TestBhvAuthscheme015_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvAuthscheme015_BhvLanggo122_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1496,7 +1496,7 @@ func TestBhvAuthscheme015_SchemeAuthenticator_UserAuthAuthorizationCodeAuthentic
 	}
 }
 
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1524,7 +1524,7 @@ func requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t *testing.T, a *o
 	}
 }
 
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
 
 	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
@@ -1535,7 +1535,7 @@ func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_ReadsEveryCredenti
 	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
 
 	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, schemeArgValue("clientId"))
@@ -1546,7 +1546,7 @@ func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_PrefersTheArgument
 	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
 
 	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, schemeArgValue("clientId"))
@@ -1557,7 +1557,7 @@ func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_ExplicitArgumentWi
 	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, "empty")
@@ -1572,7 +1572,7 @@ func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_AnEmptyVariableCou
 	}
 }
 
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvLanggo121_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1589,7 +1589,7 @@ func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariab
 	}
 }
 
-func TestBhvAuthscheme016_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvAuthscheme016_BhvLanggo122_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1606,7 +1606,7 @@ func TestBhvAuthscheme016_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_F
 	}
 }
 
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1634,7 +1634,7 @@ func requireSchemeSsoAuthAuthenticatorCredentials(t *testing.T, a *oauth.SsoAuth
 	}
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvLanggo116_SchemeAuthenticator_SsoAuthAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
 
 	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
@@ -1645,7 +1645,7 @@ func TestSchemeAuthenticator_SsoAuthAuthenticator_ReadsEveryCredentialFromItsVar
 	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestBhvLanggo117_SchemeAuthenticator_SsoAuthAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
 
 	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
@@ -1656,7 +1656,7 @@ func TestSchemeAuthenticator_SsoAuthAuthenticator_PrefersTheArgumentsOverTheEnvi
 	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+func TestBhvLanggo118_SchemeAuthenticator_SsoAuthAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
 
 	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
@@ -1667,7 +1667,7 @@ func TestSchemeAuthenticator_SsoAuthAuthenticator_ExplicitArgumentWinsWhileTheVa
 	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func TestBhvLanggo119_SchemeAuthenticator_SsoAuthAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
 	for _, variable := range schemeSsoAuthAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, "empty")
@@ -1682,7 +1682,7 @@ func TestSchemeAuthenticator_SsoAuthAuthenticator_AnEmptyVariableCountsAsUnset(t
 	}
 }
 
-func TestBhvAuthscheme008_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestBhvAuthscheme008_BhvLanggo121_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range schemeSsoAuthAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1699,7 +1699,7 @@ func TestBhvAuthscheme008_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAV
 	}
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func TestBhvLanggo122_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
 	for i, variable := range schemeSsoAuthAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -1716,7 +1716,7 @@ func TestSchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmpt
 	}
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func TestBhvLanggo123_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
 	for i, variable := range schemeSsoAuthAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {

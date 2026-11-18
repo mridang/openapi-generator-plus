@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestSkills_UploadParametersAreDocumentedAsIoReader(t *testing.T) {
+func TestBhvLanggo096_Skills_UploadParametersAreDocumentedAsIoReader(t *testing.T) {
 	t.Parallel()
 	skills := readSourceFile(t, "../SKILLS.md")
 	if !strings.Contains(skills, "File upload parameters and binary request bodies are typed as `io.Reader`;") {
@@ -17,7 +17,7 @@ func TestSkills_UploadParametersAreDocumentedAsIoReader(t *testing.T) {
 	}
 }
 
-func TestSkills_ErrorHandlingExampleEndsWithTheBaseApiErrorArm(t *testing.T) {
+func TestBhvLanggo097_Skills_ErrorHandlingExampleEndsWithTheBaseApiErrorArm(t *testing.T) {
 	t.Parallel()
 	skills := readSourceFile(t, "../SKILLS.md")
 	for _, want := range []string{

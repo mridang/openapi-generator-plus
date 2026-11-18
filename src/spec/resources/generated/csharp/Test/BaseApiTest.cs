@@ -472,7 +472,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ASuccessBodyIsDecodedByTheStatusThatArrived()
+    public async Task BhvMisc079ASuccessBodyIsDecodedByTheStatusThatArrived()
     {
         var decodedStatuses = new List<int>();
         string? Decode(int status, string body)
@@ -1637,7 +1637,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task AStreamBodyIsNotReplayedAfterA401()
+    public async Task BhvRetries045AStreamBodyIsNotReplayedAfterA401()
     {
         var client = new StatusSequenceApiClient(401, 200);
         var auth = new RefreshableAuthenticator();
