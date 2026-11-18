@@ -421,3 +421,56 @@ func TestBhvAuth007_ApiKeyAuthenticator_GenericWithoutKeyReadsNoneAndFails(t *te
 		t.Error("expected no authenticator")
 	}
 }
+
+// The header key is sent under its fixed name and value, exactly as passed.
+func TestBhvAuth031_ApiKeyAuthenticator_HeaderKeySendsFixedNameAndValueExactly(t *testing.T) {
+	t.Parallel()
+	a := mustApiKey(t, "https://api.example.com", "X-Fixed-Key", "fixed-value-42", auth.ApiKeyLocationHeader)
+	headers := a.AuthHeaders()
+	if len(headers) != 1 || headers["X-Fixed-Key"] != "fixed-value-42" {
+		t.Fatalf("expected exactly the fixed header, got %v", headers)
+	}
+}
+
+// The session-cookie authenticator sends its key under the SESSION_ID cookie name.
+func TestBhvAuth032_SessionCookieAuthenticator_SendsKeyAsSessionIdCookie(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewSessionCookieAuthenticator("https://api.example.com", "cookie-key-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cookies := a.CookieParams()
+	if len(cookies) != 1 || cookies["SESSION_ID"] != "cookie-key-1" {
+		t.Fatalf("expected exactly the SESSION_ID cookie, got %v", cookies)
+	}
+}
+
+// Printing an authenticator with any verb never reveals the key.
+func TestBhvAuth033_ApiKeyAuthenticator_PrintingNeverRevealsTheKey(t *testing.T) {
+	t.Parallel()
+	a := mustApiKey(t, "https://api.example.com", "X-API-Key", "s3cret-key-value", auth.ApiKeyLocationHeader)
+	for _, rendered := range []string{fmt.Sprint(a), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
+		if strings.Contains(rendered, "s3cret-key-value") {
+			t.Errorf("printed authenticator leaks the key: %s", rendered)
+		}
+	}
+}
+
+// An empty or blank key is refused when the authenticator is built.
+func TestBhvAuth034_ApiKeyAuthenticator_RefusesAnEmptyOrBlankKeyWhenBuilt(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"", " ", "\t\n"} {
+		a, err := auth.NewApiKeyAuthenticator("https://api.example.com", "X-API-Key", value, auth.ApiKeyLocationHeader)
+		if !errors.Is(err, auth.ErrInvalidApiKey) || a != nil {
+			t.Errorf("value %q: expected ErrInvalidApiKey and no authenticator, got %v %v", value, a, err)
+		}
+	}
+}
+
+// A header value with a control or DEL character is refused rather than sent mangled.
+func TestBhvAuth035_ApiKeyAuthenticator_HeaderRefusesControlAndDeleteCharacters(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"abc\x01def", "abc\x1bdef", "abc\x7fdef"} {
+		expectInvalidApiKey(t, value, auth.ApiKeyLocationHeader)
+	}
+}

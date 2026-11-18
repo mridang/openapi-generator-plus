@@ -1613,3 +1613,27 @@ func TestBhvAuth030_OAuth2TokenManager_ConcurrentSetAndReadNeverSeesAnUnsetToken
 		t.Errorf("observed a token that was never set: %s", problem)
 	}
 }
+
+// Exchanging a code discards the refresh token held from an earlier exchange.
+func TestBhvAuth053_OAuth2TokenManager_ExchangeDiscardsAPreviouslyHeldRefreshToken(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	m := oauth.NewOAuth2TokenManager()
+	m.SetApiClient(client)
+
+	if err := m.Exchange("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code", "code": "first"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := m.RefreshToken(); got != "ref1" {
+		t.Fatalf("expected the first refresh token, got %q", got)
+	}
+	if err := m.Exchange("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code", "code": "second"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := m.RefreshToken(); got != "" {
+		t.Errorf("expected the earlier refresh token discarded, got %q", got)
+	}
+}
