@@ -218,7 +218,7 @@ func TestBhvErrors020_ApiError_NetworkErrors_AreApiErrorsWithStatusZero(t *testi
 // TestApiError_TypedErrors_MatchTheirParentsViaErrorsAs confirms the hierarchy reads the
 // same as in the other SDKs: a *NotFoundError is a *ClientError and an
 // *ApiError, and an *InternalServerError is a *ServerError and an *ApiError.
-func TestApiError_TypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
+func TestBhvErrors095_ApiError_TypedErrors_MatchTheirParentsViaErrorsAs(t *testing.T) {
 	t.Parallel()
 	notFound := apierrors.FromResponse(404, nil, "")
 	if _, ok := notFound.(*apierrors.NotFoundError); !ok {
@@ -875,7 +875,7 @@ func TestBhvErrors003_ApiError_EveryStatusSpecificErrorKeepsAnOptionalCause(t *t
 // Error() renders the message first and then each part that is present on its
 // own line; an absent part leaves no empty line behind, and an empty message
 // falls back to the generic sentence.
-func TestApiError_ErrorRendersOnlyThePartsThatArePresent(t *testing.T) {
+func TestBhvErrors088_ApiError_ErrorRendersOnlyThePartsThatArePresent(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -1411,3 +1411,75 @@ func TestApiError_{{{className}}}_IsTypedAndMatchesEveryLevelAboveIt(t *testing.
 
 {{/errorSchemas}}
 {{/hasErrorSchemas}}
+
+// A carriage return, line feed or other control character in a response body appears escaped in the rendered message.
+func TestBhvErrors085_ApiError_ControlCharactersInTheBodyAreEscaped(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(500, "boom", "a\r\nb", nil, nil, nil)
+	if strings.Contains(err.Error(), "a\r\nb") {
+		t.Errorf("expected no raw line break in the body, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), `\x0D\x0A`) {
+		t.Errorf("expected the control characters escaped, got %q", err.Error())
+	}
+}
+
+// The rendered message truncates a body only when it exceeds 1 KiB; the full body stays on the error.
+func TestBhvErrors086_ApiError_TruncatesOnlyAboveOneKibibyte(t *testing.T) {
+	t.Parallel()
+	exact := strings.Repeat("a", 1024)
+	if err := apierrors.NewApiError(500, "boom", exact, nil, nil, nil); !strings.Contains(err.Error(), exact) || strings.Contains(err.Error(), "more bytes") {
+		t.Errorf("expected a 1 KiB body shown whole, got %q", err.Error())
+	}
+	long := strings.Repeat("a", 1025)
+	err := apierrors.NewApiError(500, "boom", long, nil, nil, nil)
+	if !strings.Contains(err.Error(), "more bytes") || err.ResponseBody() != long {
+		t.Errorf("expected a truncated message and the full body kept, got %q", err.Error())
+	}
+}
+
+// Authentication, session and challenge headers are masked in the rendered message.
+func TestBhvErrors087_ApiError_SecretHeadersAreMaskedInTheMessage(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(401, "denied", "", map[string]string{
+		"Authorization":    "Bearer s3cret-token",
+		"Cookie":           "sid=abc123",
+		"WWW-Authenticate": "Basic realm=hidden-realm",
+		"Proxy-Authenticate": "Basic realm=hidden-proxy",
+	}, nil, nil)
+	for _, secret := range []string{"s3cret-token", "sid=abc123", "hidden-realm", "hidden-proxy"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("expected %q masked in the message, got %q", secret, err.Error())
+		}
+	}
+}
+
+// An error with no message, whether null or empty, renders a default message text.
+func TestBhvErrors089_ApiError_AnEmptyMessageRendersADefault(t *testing.T) {
+	t.Parallel()
+	if got := apierrors.NewApiError(500, "", "", nil, nil, nil).Error(); strings.TrimSpace(got) == "" {
+		t.Errorf("expected a default message text, got %q", got)
+	}
+}
+
+// An error that has no response data keeps its response headers as null rather than empty values.
+func TestBhvErrors090_NetworkError_HasNoResponseHeadersWhenNoResponseArrived(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewNetworkError("connection refused", nil)
+	if err.ResponseHeaders() != nil {
+		t.Errorf("expected nil headers when no response arrived, got %v", err.ResponseHeaders())
+	}
+}
+
+// A status outside a class's range is not classified into that class, and a status of 600 or above falls back to the base error.
+func TestBhvErrors096_FromResponse_AStatusOutsideItsClassFallsBackToTheBase(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{399, 600} {
+		err := apierrors.FromResponse(status, map[string]string{}, "{}")
+		var client *apierrors.ClientError
+		var server *apierrors.ServerError
+		if errors.As(err, &client) || errors.As(err, &server) {
+			t.Errorf("status %d: expected no client or server class, got %T", status, err)
+		}
+	}
+}

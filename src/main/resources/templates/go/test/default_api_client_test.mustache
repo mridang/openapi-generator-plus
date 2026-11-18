@@ -2809,3 +2809,105 @@ func TestBhvRetries051_DefaultApiClient_ABodyIsNotResentAcrossAnHttpsToHttpDowng
 		t.Errorf("expected a 307 refusal to replay the body, got %T: %v", err, err)
 	}
 }
+
+// A validly gzip-encoded response body is decoded before it is returned.
+func TestBhvTransport088_DefaultApiClient_AGzipBodyIsDecodedBeforeItIsReturned(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var buf bytes.Buffer
+		zw := gzip.NewWriter(&buf)
+		_, _ = zw.Write([]byte("hello"))
+		_ = zw.Close()
+		w.Header().Set("Content-Encoding", "gzip")
+		_, _ = w.Write(buf.Bytes())
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	resp, err := client.SendRequest("GET", server.URL, nil, nil)
+	if err != nil || resp.Body != "hello" {
+		t.Errorf("expected the decoded body hello, got %q %v", resp.Body, err)
+	}
+}
+
+// A response whose declared Content-Encoding does not match its body raises the SDK's API error, not a crash.
+func TestBhvTransport089_DefaultApiClient_AMismatchedContentEncodingIsAnApiError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		_, _ = w.Write([]byte("not gzip at all"))
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	_, err = client.SendRequest("GET", server.URL, nil, nil)
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Errorf("expected an ApiError for the mismatched encoding, got %T: %v", err, err)
+	}
+}
+
+// Response headers repeated on the wire are returned with every value present.
+func TestBhvTransport090_DefaultApiClient_RepeatedResponseHeadersKeepEveryValue(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("X-Multi", "first")
+		w.Header().Add("X-Multi", "second")
+	}))
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	resp, err := client.SendRequest("GET", server.URL, nil, nil)
+	if err != nil || !strings.Contains(resp.Headers["x-multi"], "first") || !strings.Contains(resp.Headers["x-multi"], "second") {
+		t.Errorf("expected both values kept, got %q %v", resp.Headers["x-multi"], err)
+	}
+}
+
+// countingHttpDoer is a caller-supplied HTTP client that counts the requests the SDK hands it.
+type countingHttpDoer struct {
+	hits  atomic.Int32
+	inner *http.Client
+}
+
+func (d *countingHttpDoer) Do(req *http.Request) (*http.Response, error) {
+	d.hits.Add(1)
+	return d.inner.Do(req)
+}
+
+// A caller-supplied HTTP client receives the SDK's request.
+func TestBhvTransport092_DefaultApiClient_ACallerSuppliedClientReceivesTheRequest(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	doer := &countingHttpDoer{inner: server.Client()}
+	opts, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", server.URL, nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := doer.hits.Load(); got != 1 {
+		t.Errorf("expected the caller's client to receive 1 request, got %d", got)
+	}
+}

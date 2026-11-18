@@ -414,3 +414,12 @@ func TestBhvConfig015_Configuration_StringMasksSecretHeaders(t *testing.T) {
 		}
 	}
 }
+
+// A configuration built through the builder entry point returns the base URL set on the builder.
+func TestBhvConfig026_Configuration_TheBuilderKeepsTheBaseUrl(t *testing.T) {
+	t.Parallel()
+	cfg := petstore.NewConfigurationBuilder().BaseURL("https://api.example.com/v2").Build()
+	if got := cfg.BaseURL(); got != "https://api.example.com/v2" {
+		t.Errorf("expected the builder base URL, got %q", got)
+	}
+}

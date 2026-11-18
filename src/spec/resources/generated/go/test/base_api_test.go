@@ -2551,7 +2551,7 @@ func TestBhvErrors036_BaseApi_StatusErrorCarriesTheRequestMethodAndPathWithoutTh
 	}
 }
 
-func TestBaseApi_StatusErrorNamesTheSubstitutedPath(t *testing.T) {
+func TestBhvErrors091_BaseApi_StatusErrorNamesTheSubstitutedPath(t *testing.T) {
 	t.Parallel()
 	client := &failingApiClient{status: 500}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -2695,7 +2695,7 @@ func TestBhvTransport002_BaseApi_NoPerCallTimeoutLeavesTheTransportTimeoutAlone(
 	}
 }
 
-func TestBaseApi_PerCallTimeoutShorterThanTheClientsFailsTheCallWithATimeout(t *testing.T) {
+func TestBhvTransport086_BaseApi_PerCallTimeoutShorterThanTheClientsFailsTheCallWithATimeout(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {

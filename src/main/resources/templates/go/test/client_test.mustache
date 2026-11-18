@@ -11,9 +11,11 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"{{packageName}}/pkg"
 	"{{packageName}}/pkg/auth"
+	apierrors "{{packageName}}/pkg/errors"
 )
 
 func TestBhvLifecycle012_Client_ConstructWithAuthenticatorOnly(t *testing.T) {
@@ -564,4 +566,95 @@ func TestBhvLifecycle045_Client_ClosingTheSdkLeavesACallerSuppliedClientOpen(t *
 		t.Fatalf("expected the caller-supplied client to keep working, got %v", err)
 	}
 	_ = resp.Body.Close()
+}
+
+// Cancelling a call through its own context stops that request at once.
+func TestBhvTransport084_Client_CancellingTheCallStopsTheRequestAtOnce(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(2 * time.Second):
+		}
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(50*time.Millisecond, cancel)
+	start := time.Now()
+	_, err = client.Pet.GetPetById(ctx, int64(1), nil)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("expected the cancelled request to stop at once, took %s", elapsed)
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got %v", err)
+	}
+}
+
+// A timeout still raises the network timeout error when the call's context is supplied but never cancelled.
+func TestBhvTransport085_Client_ATimeoutStillFiresWhenTheContextIsNeverCancelled(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(2 * time.Second):
+		}
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err = client.Pet.GetPetById(ctx, int64(1), nil, {{packageName}}.WithTimeout(100*time.Millisecond))
+	var timeoutErr *apierrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Errorf("expected a NetworkTimeoutError, got %T: %v", err, err)
+	}
+}
+
+// A connection that cannot be established raises the SDK's network error.
+func TestBhvTransport087_Client_AConnectionFailureIsTheNetworkError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := server.URL
+	server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(url, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	var netErr *apierrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Errorf("expected a NetworkError, got %T: %v", err, err)
+	}
+}
+
+// Every error raised for a request, including a network failure, carries that request's method and path.
+func TestBhvErrors092_Client_ANetworkErrorCarriesTheRequestMethodAndPath(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := server.URL
+	server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(url, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	var netErr *apierrors.NetworkError
+	if !errors.As(err, &netErr) || netErr.RequestMethod() != "GET" || netErr.RequestPath() != "/pet/1" {
+		t.Errorf("expected the request method and path on the network error, got %T: %v", err, err)
+	}
 }

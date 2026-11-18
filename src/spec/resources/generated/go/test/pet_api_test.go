@@ -1421,7 +1421,7 @@ func TestBhvOperations157_PetApi_BinaryBodyAcceptsAnIoReader(t *testing.T) {
 
 // S16/F406: a handle the caller passes in stays the caller's to close, after a
 // raw binary body and after a multipart file part alike.
-func TestPetApi_CallerSuppliedFileHandleIsNeverClosedByTheSdk(t *testing.T) {
+func TestBhvTransport091_PetApi_CallerSuppliedFileHandleIsNeverClosedByTheSdk(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)

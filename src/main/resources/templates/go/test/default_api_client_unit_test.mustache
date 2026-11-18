@@ -2671,7 +2671,7 @@ func TestBhvTransport062_DefaultApiClientUnit_VerifySslFalseAcceptsUntrustedCert
 
 // The certificate file is the trust anchor: the server's own certificate as the
 // CA verifies, an unrelated authority does not.
-func TestDefaultApiClientUnit_CaCertPathDecidesWhichServersAreTrusted(t *testing.T) {
+func TestBhvTransport093_DefaultApiClientUnit_CaCertPathDecidesWhichServersAreTrusted(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)

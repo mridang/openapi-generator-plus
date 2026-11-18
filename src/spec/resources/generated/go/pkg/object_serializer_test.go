@@ -1441,7 +1441,7 @@ func TestObjectSerializer_SerializationError_IsCatchableViaErrorsAs(t *testing.T
 // *SerializationError resolves to the branded OpenAPIError root at runtime via
 // errors.As, so callers can treat a serialization failure uniformly alongside
 // ApiError and the typed HTTP errors as "an error this SDK threw".
-func TestObjectSerializer_SerializationError_SatisfiesOpenAPIError(t *testing.T) {
+func TestBhvErrors094_ObjectSerializer_SerializationError_SatisfiesOpenAPIError(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
 	err := deserialize([]byte("not json"), &result)
