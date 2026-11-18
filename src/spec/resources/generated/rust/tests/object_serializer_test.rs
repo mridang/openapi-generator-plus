@@ -329,6 +329,41 @@ fn test_bhv_serializationobject_075_byte_array_fields_compare_by_content() {
     assert_ne!(vault(), label);
 }
 
+#[test]
+fn test_bhv_equality_001_models_compare_by_value() {
+    use petstore::models::BinaryVault;
+
+    fn vault() -> BinaryVault {
+        let mut vault = BinaryVault::new();
+        vault.seal = Some(vec![1, 2, 3]);
+        vault.shards = Some(vec![vec![4, 5], vec![6]]);
+        vault.labels = Some(std::collections::HashMap::from([(
+            "first".to_string(),
+            vec![7, 8],
+        )]));
+        vault
+    }
+
+    assert_eq!(vault(), vault());
+    assert_eq!(BinaryVault::new(), BinaryVault::new());
+
+    let mut shard = vault();
+    shard.shards = Some(vec![vec![4, 5], vec![7]]);
+    assert_ne!(vault(), shard);
+
+    let mut label = vault();
+    label.labels = Some(std::collections::HashMap::from([(
+        "first".to_string(),
+        vec![7, 9],
+    )]));
+    assert_ne!(vault(), label);
+
+    let mut absent = vault();
+    absent.seal = None;
+    assert_ne!(vault(), absent);
+    assert_eq!(absent, absent.clone());
+}
+
 // F867: a `format: password` property is shown as `***` in the Debug output,
 // and the wire form still carries the value.
 #[test]
