@@ -2000,6 +2000,32 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName(
+        "bhvHeaders030 a default header in another case replaces the negotiated one instead of"
+            + " being sent beside it")
+    void bhvHeaders030DefaultHeaderInAnotherCaseReplacesTheNegotiatedAccept() throws ApiException {
+      var client = new CapturingApiClient();
+      var config = new Configuration("http://localhost", Map.of("accept", "application/xml"));
+      var testApi = new TestableApi(client, config);
+      testApi.call(
+          "GET",
+          "/test/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          null,
+          null);
+      List<String> accepts =
+          client.capturedHeaders.keySet().stream()
+              .filter(name -> name.equalsIgnoreCase("accept"))
+              .toList();
+      assertEquals(1, accepts.size(), "two spellings of Accept were sent: " + accepts);
+      assertEquals("application/xml", client.capturedHeaders.get(accepts.get(0)));
+    }
+
+    @Test
     void bhvOperations008HeaderParamAcceptWinsOverTheConfigDefaultAndTheNegotiatedAccept()
         throws ApiException {
       var client = new CapturingApiClient();

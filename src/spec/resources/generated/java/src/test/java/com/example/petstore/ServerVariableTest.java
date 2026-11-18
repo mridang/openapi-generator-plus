@@ -10,6 +10,7 @@ package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -56,5 +57,15 @@ class ServerVariableTest {
     ServerVariable var = new ServerVariable("prod", null, List.of("prod", "staging"));
 
     assertTrue(!var.getEnumValues().contains("dev"));
+  }
+
+  @Test
+  void bhvServers024EnumValuesCannotBeMutated() {
+    // The enum list is copied into an immutable list, so a caller cannot
+    // widen the set that ServerConfiguration validates overrides against.
+    ServerVariable var = new ServerVariable("prod", null, List.of("prod", "staging"));
+
+    assertThrows(UnsupportedOperationException.class, () -> var.getEnumValues().add("dev"));
+    assertEquals(List.of("prod", "staging"), var.getEnumValues());
   }
 }

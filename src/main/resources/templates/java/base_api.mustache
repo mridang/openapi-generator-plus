@@ -294,7 +294,12 @@ public abstract class BaseApi {
         boolean isMultipart = "multipart/form-data".equals(contentType);
         Map<String, String> headers =
                 headerSelector.selectHeaders(accepts, contentType, isMultipart);
-        headers.putAll(config.getDefaultHeaders());
+        /* Header names are case-insensitive (RFC 9110 section 5.1): a default header spelled in
+         * another case replaces the negotiated one rather than being sent beside it. */
+        for (Map.Entry<String, String> defaultHeader : config.getDefaultHeaders().entrySet()) {
+            headers.keySet().removeIf(name -> name.equalsIgnoreCase(defaultHeader.getKey()));
+            headers.put(defaultHeader.getKey(), defaultHeader.getValue());
+        }
         if (headerParams != null) {
             headers.putAll(headerParams);
         }
