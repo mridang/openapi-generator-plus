@@ -404,6 +404,7 @@ mod tests {
 
     fn params() -> InvokeApiParams<'static> {
         InvokeApiParams {
+            operation: "TestApi.test",
             method: "GET",
             path: "/items/7",
             operation_id: "echo_operation",

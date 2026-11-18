@@ -532,7 +532,7 @@ class TestMetadataBehaviours:
     def test_bhv_models_015_a_changed_copy_keeps_the_additional_properties(self) -> None:
         from {{packageName}}.models import Metadata
 
-        original = ObjectSerializer().deserialize('{"origin":"a","extra":1}', Metadata)
+        original = ObjectSerializer().deserialize('{"origin":"a","extra":"x"}', Metadata)
         assert original is not None
         changed = original.model_copy(update={'origin': 'b'})
 
