@@ -615,3 +615,4 @@ go | misc153 | Go has no client-level cancellation signal: a context is passed t
 ||||||| 2c1a36607
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
 go | misc178 | the fixture declares no multipart content type other than multipart/form-data, so no operation sends a declared type that could reach the transport unchanged
+python | misc135 | Python has no client-level cancellation handle: a RequestHandle is passed to each send_request call, so the TransportOptionsBuilder has no field to store one
