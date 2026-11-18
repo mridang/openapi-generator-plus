@@ -207,3 +207,13 @@ describe {{moduleName}}::Auth::BearerAuthenticator do
     _(-> { auth.auth_headers }).must_raise ArgumentError
   end
 end
+
+describe 'BearerAuthenticator', 'token refusal at construction' do
+  parallelize_me!
+
+  it 'bhv_auth_009 refuses an access token that contains a carriage return or line feed' do
+    _(lambda {
+      {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', "xy\r\nz")
+    }).must_raise ArgumentError
+  end
+end

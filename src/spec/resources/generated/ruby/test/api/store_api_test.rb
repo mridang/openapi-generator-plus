@@ -174,7 +174,7 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
-    it 'rejects a per-call timeout that is not positive' do
+    it 'bhv_options_056 rejects a per-call timeout that is not positive' do
       _(-> { @api.get_inventory(Petstore::Client::Api::Options::GetInventoryOptions.new(timeout: 0)) }).must_raise ArgumentError
     end
 

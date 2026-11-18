@@ -866,7 +866,7 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_body.to_s).must_equal 'tags=a&tags=b'
   end
 
-  it 'form-urlencoded body stringifies a date-time in the canonical wire form' do
+  it 'bhv_serialization_040 form-urlencoded body stringifies a date-time in the canonical wire form' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -1185,7 +1185,7 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_url).wont_include '?'
   end
 
-  it 'mixed query with empty array omits the empty array but keeps other params' do
+  it 'bhv_serialization_014 mixed query with empty array omits the empty array but keeps other params' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -1289,7 +1289,7 @@ describe Petstore::Client::Api::BaseApi do
     _(client.api_requests.length).must_equal 1
   end
 
-  it 'does not replay an unauthenticated operation' do
+  it 'bhv_retries_043 does not replay an unauthenticated operation' do
     client = ReplayApiClient.new([401, 200])
     api = replay_api(client, client_credentials_auth)
 

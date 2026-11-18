@@ -149,7 +149,7 @@ describe Petstore::Client::Errors::ApiError do
     _(Petstore::Client::Errors::NetworkError.new(message: 'refused').status_code).must_equal(0)
   end
 
-  it 'defaults status_code to 0 when no HTTP response was received' do
+  it 'bhv_errors_084 defaults status_code to 0 when no HTTP response was received' do
     _(Petstore::Client::Errors::ApiError.new('connection reset').status_code).must_equal(0)
   end
 

@@ -209,3 +209,4 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+ruby | serialization037 | Ruby maps a bare decimal number to Float (the README precision caveat), so digits beyond double precision cannot be kept; a BigDecimal would emit scientific or quoted text and break the unquoted wire form

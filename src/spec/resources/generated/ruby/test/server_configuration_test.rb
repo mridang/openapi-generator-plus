@@ -196,3 +196,15 @@ describe Petstore::Client::ServerConfiguration do
     _(server.variables['tenant'].enum_values).must_equal ["o'neil", 'a&b']
   end
 end
+
+describe Petstore::Client::ServerConfiguration, 'variables are not shared with the caller' do
+  parallelize_me!
+
+  it 'bhv_servers_025 changing the variables map after building does not change the configuration' do
+    variables = { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
+    config = Petstore::Client::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
+
+    _(-> { variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(config.variables.keys).must_equal(['region'])
+  end
+end

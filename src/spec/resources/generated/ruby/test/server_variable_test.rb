@@ -45,3 +45,15 @@ describe Petstore::Client::ServerVariable do
     _(var.enum_values).must_be :frozen?
   end
 end
+
+describe Petstore::Client::ServerVariable, 'allowed values are not shared with the caller' do
+  parallelize_me!
+
+  it 'bhv_servers_026 changing the allowed-values list after building does not change the allowed values' do
+    allowed = %w[eu us]
+    variable = Petstore::Client::ServerVariable.new(default_value: 'eu', enum_values: allowed)
+
+    _(-> { allowed << 'zz' }).must_raise FrozenError
+    _(variable.enum_values).must_equal(%w[eu us])
+  end
+end

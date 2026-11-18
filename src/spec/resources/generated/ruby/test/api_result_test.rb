@@ -51,7 +51,7 @@ describe Petstore::Client::ApiResult do
     _(result.headers['Content-Type']).must_equal 'application/json'
   end
 
-  it 'freezes the headers map' do
+  it 'bhv_results_006 freezes the headers map' do
     result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: { 'Content-Type' => 'application/json' }
     )

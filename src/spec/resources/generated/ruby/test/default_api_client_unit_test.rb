@@ -1129,7 +1129,7 @@ describe 'DefaultApiClientUnit' do
     _(call_count).must_equal 1
   end
 
-  it 'follows a 307 HTTPS -> HTTP redirect of a POST that has no body' do
+  it 'bhv_redirects_039 follows a 307 HTTPS -> HTTP redirect of a POST that has no body' do
     # The empty string sent so Net::HTTP emits Content-Length: 0 is not a
     # body, so there is nothing to leak across the downgrade.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -1291,7 +1291,7 @@ describe 'DefaultApiClientUnit' do
     _(err.message).must_equal 'ApiClient has been closed and can no longer send requests'
   end
 
-  it 'close is idempotent' do
+  it 'bhv_lifecycle_036 close is idempotent' do
     client = Petstore::Client::DefaultApiClient.new
     client.close
     client.close # must not raise
@@ -1413,7 +1413,7 @@ describe 'DefaultApiClientUnit' do
     thread.join
   end
 
-  it 'close is on the ApiClient contract, not just the default transport' do
+  it 'bhv_lifecycle_038 close is on the ApiClient contract, not just the default transport' do
     # A custom transport must be closable through the abstraction, so the
     # base class declares close with a no-op default.
     _(Petstore::Client::ApiClient.new).must_respond_to(:close)
@@ -1631,7 +1631,7 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  it 'raises NetworkTimeoutError when the write times out' do
+  it 'bhv_transport_072 raises NetworkTimeoutError when the write times out' do
     # Faraday's net_http adapter rescues Timeout::Error, which Net::WriteTimeout
     # is, and re-raises it as Faraday::TimeoutError. The write deadline is the
     # same budget as the connect and read ones, so it is the same error type.
@@ -2405,7 +2405,7 @@ describe 'DefaultApiClientUnit' do
     _(envs.map { |env| env.request_headers['Authorization'] }).must_equal ['Bearer old', 'Bearer new']
   end
 
-  it 'gives a retry a new request id' do
+  it 'bhv_retries_044 gives a retry a new request id' do
     options = Petstore::Client::TransportOptions.builder.inject_request_id(true).build
     _outcome, envs, = run_retry_probe(options: options, &ok_after(1, [503, {}, 'busy']))
 

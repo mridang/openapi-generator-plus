@@ -191,3 +191,15 @@ describe {{moduleName}}::ServerConfiguration do
     _(server.variables['tenant'].enum_values).must_equal ["o'neil", 'a&b']
   end
 end
+
+describe {{moduleName}}::ServerConfiguration, 'variables are not shared with the caller' do
+  parallelize_me!
+
+  it 'bhv_servers_025 changing the variables map after building does not change the configuration' do
+    variables = { 'region' => {{moduleName}}::ServerVariable.new(default_value: 'eu') }
+    config = {{moduleName}}::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
+
+    _(-> { variables['zone'] = {{moduleName}}::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(config.variables.keys).must_equal(['region'])
+  end
+end
