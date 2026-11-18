@@ -794,6 +794,18 @@ public class StoreApiTest
         Assert.Null(typeof(ReserveStockResponse).GetProperty("ActualInstance")!.SetMethod);
     }
 
+    [Fact]
+    public async Task BhvOptions057NegativePerCallTimeoutIsRefusedBeforeAnyRequest()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            api.GetInventoryAsync(new GetInventoryOptions { Timeout = -1 })
+        );
+        Assert.Null(client.Timeout);
+    }
+
     private sealed class CallOptionsApiClient : IApiClient
     {
         public int? Timeout { get; private set; }
