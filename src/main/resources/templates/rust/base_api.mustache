@@ -1191,6 +1191,7 @@ mod tests {
             return_type: "",
             auth: None,
             call: CallOptions { max_retries: Some(2), ..CallOptions::default() },
+            error_schemas: &[],
         };
 
         let err = api.invoke_api(params).await.expect_err("a request past the timeout must fail");
@@ -1256,6 +1257,7 @@ mod tests {
             return_type: "",
             auth: None,
             call: CallOptions { max_retries: Some(2), ..CallOptions::default() },
+            error_schemas: &[],
         };
 
         let _ = api.invoke_api(params).await;
@@ -1292,6 +1294,7 @@ mod tests {
             return_type: "",
             auth: None,
             call: CallOptions::default(),
+            error_schemas: &[],
         };
 
         api.invoke_api(params).await.expect("a 200 response must succeed");

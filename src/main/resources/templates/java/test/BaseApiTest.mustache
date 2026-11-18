@@ -582,11 +582,11 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("bhvErrors070 502 throws ServerException")
+        @DisplayName("bhvErrors070 502 throws BadGatewayException")
         void bhvErrors070Status502ThrowsTheMappedError() {
             var ex =
                     assertThrowsExactly(
-                            ServerException.class,
+                            BadGatewayException.class,
                             () ->
                                     api().call(
                                             "GET",

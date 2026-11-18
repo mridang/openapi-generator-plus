@@ -1298,6 +1298,7 @@ mod tests {
                 max_retries: Some(2),
                 ..CallOptions::default()
             },
+            error_schemas: &[],
         };
 
         let err = api
@@ -1385,6 +1386,7 @@ mod tests {
                 max_retries: Some(2),
                 ..CallOptions::default()
             },
+            error_schemas: &[],
         };
 
         let _ = api.invoke_api(params).await;
@@ -1438,6 +1440,7 @@ mod tests {
             return_type: "",
             auth: None,
             call: CallOptions::default(),
+            error_schemas: &[],
         };
 
         api.invoke_api(params)

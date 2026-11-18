@@ -27,34 +27,6 @@ import {
   TreeNode,
 } from "../../src/models/index.js";
 import {
-  BadRequestError,
-  ClientError,
-  ConflictError,
-  ForbiddenError,
-  InternalServerError,
-  NotFoundError,
-  SerializationError,
-  ServerError,
-  UnauthorizedError,
-  UnprocessableEntityError,
-} from "../../src/errors/index.js";
-
-import {
-  Account,
-  Availability,
-  Defaults,
-  DefaultsModeEnum,
-  Order,
-  OrderStatusEnum,
-  Category,
-  PhotoMetadata,
-  Priority,
-  Reservation,
-  ReservationReceipt,
-  Swatch,
-  TreeNode,
-} from "../../src/models/index.js";
-import {
   BadGatewayError,
   BadRequestError,
   ClientError,
@@ -66,6 +38,7 @@ import {
   UnauthorizedError,
   UnprocessableEntityError,
 } from "../../src/errors/index.js";
+
 import { uuid, type UUID } from "../../src/brand.js";
 import { Temporal } from "temporal-polyfill";
 import type { ApiClient } from "../../src/api-client.js";
@@ -789,33 +762,6 @@ describe("StoreApi named-enum parameters", () => {
 });
 
 describe("StoreApi error dispatch through the typed status routes", () => {
-  test("bhv operations 110 getOrderById picks the status-specific error class for each typed status route", async () => {
-    const rows: Array<[number, unknown]> = [
-      [400, BadRequestError],
-      [401, UnauthorizedError],
-      [403, ForbiddenError],
-      [404, NotFoundError],
-      [409, ConflictError],
-      [418, ClientError],
-      [422, UnprocessableEntityError],
-      [500, InternalServerError],
-      [502, ServerError],
-    ];
-    for (const [status, expected] of rows) {
-      const statusApi = new StoreApi(
-        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
-        Configuration.builder()
-          .baseUrl(`${baseUrl}/test/status/${status}`)
-          .build(),
-      );
-
-      const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
-
-      expect((error as Error).constructor).toBe(expected);
-      expect((error as ClientError).statusCode).toBe(status);
-    }
-  });
-
   test.each([
     [400, BadRequestError],
     [401, UnauthorizedError],

@@ -48,13 +48,13 @@ import {
 } from "../../src/models/index.js";
 import { ApiError } from "../../src/errors/api-error.js";
 import {
+  BadGatewayError,
   BadRequestError,
   ClientError,
   ConflictError,
   ForbiddenError,
   InternalServerError,
   NotFoundError,
-  ServerError,
   UnauthorizedError,
   UnprocessableEntityError,
 } from "../../src/errors/index.js";
@@ -545,7 +545,7 @@ describe("PetApi", () => {
     [418, ClientError],
     [422, UnprocessableEntityError],
     [500, InternalServerError],
-    [502, ServerError],
+    [502, BadGatewayError],
   ])(
     "bhv operations 138 getPetById picks the status-specific error for status %i",
     async (status, expected) => {
