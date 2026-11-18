@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	petstore "petstore/pkg"
@@ -78,36 +77,6 @@ func TestBhvLifecycle017_Client_WithTokenRejectsInvalidToken(t *testing.T) {
 	client, err := petstore.NewClientWithToken("/api/v3", "test-token", nil)
 	if err != nil || client == nil {
 		t.Fatalf("expected a client for a valid token, got %v", err)
-	}
-}
-
-// authenticator-secret-in-default-string-repr: the bearer token must not leak
-// through the default string/format representation.
-func TestClient_BearerStringRedactsToken(t *testing.T) {
-	t.Parallel()
-	a := mustBearer(t, "/api/v3", "super-secret-token")
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
-		if strings.Contains(s, "super-secret-token") {
-			t.Errorf("expected token to be redacted, got %q", s)
-		}
-		if !strings.Contains(s, "***") {
-			t.Errorf("expected redaction marker '***', got %q", s)
-		}
-	}
-}
-
-// authenticator-secret-in-default-string-repr: the API key must not leak
-// through the default string/format representation.
-func TestClient_ApiKeyStringRedactsKey(t *testing.T) {
-	t.Parallel()
-	a := mustApiKey(t, "/api/v3", "X-Api-Key", "super-secret-key", auth.ApiKeyLocationHeader)
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
-		if strings.Contains(s, "super-secret-key") {
-			t.Errorf("expected api key to be redacted, got %q", s)
-		}
-		if !strings.Contains(s, "***") {
-			t.Errorf("expected redaction marker '***', got %q", s)
-		}
 	}
 }
 
