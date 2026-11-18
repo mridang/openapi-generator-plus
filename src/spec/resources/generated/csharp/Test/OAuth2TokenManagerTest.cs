@@ -19,7 +19,7 @@ public class OAuth2TokenManagerTest
     {
         private readonly Queue<ApiHttpResponse> _responses = new();
 
-        public void Enqueue(string body, int statusCode = 200)
+        internal void Enqueue(string body, int statusCode = 200)
         {
             _responses.Enqueue(
                 new ApiHttpResponse(statusCode, body, new Dictionary<string, string>())
@@ -1059,7 +1059,7 @@ public class OAuth2TokenManagerTest
 
         public int CallCount { get; private set; }
 
-        public void Enqueue(string body)
+        internal void Enqueue(string body)
         {
             _responses.Enqueue(new ApiHttpResponse(200, body, new Dictionary<string, string>()));
         }
