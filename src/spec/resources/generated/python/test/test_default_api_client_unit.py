@@ -615,6 +615,27 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert "proxy-authorization" not in body["headers"]
 
+    def test_bhv_misc_273_the_request_id_is_a_uuid_v4_when_enabled_and_omitted_when_disabled(
+        self,
+    ) -> None:
+        import uuid
+
+        enabled = DefaultApiClient(
+            TransportOptions.builder().inject_request_id(True).build()
+        )
+        body = json.loads(
+            enabled.send_request("GET", f"{self.base_url}/echo", {}, None).body
+        )
+        assert uuid.UUID(body["headers"]["x-request-id"]).version == 4
+
+        disabled = DefaultApiClient(
+            TransportOptions.builder().inject_request_id(False).build()
+        )
+        body = json.loads(
+            disabled.send_request("GET", f"{self.base_url}/echo", {}, None).body
+        )
+        assert "x-request-id" not in body["headers"]
+
 
 class TestCharsetDecoding:
     """Verify response body decoding honors the Content-Type charset."""
@@ -2424,6 +2445,18 @@ class TestCaCertPathFailsFast:
         ):
             DefaultApiClient(transport)
 
+    def test_bhv_misc_270_a_missing_ca_file_is_rejected_even_with_verification_disabled(
+        self,
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .verify_ssl(False)
+            .ca_cert_path("/nonexistent/ca.pem")
+            .build()
+        )
+        with pytest.raises(ValueError, match="/nonexistent/ca.pem"):
+            DefaultApiClient(transport)
+
 
 class TestApiKeyHeaderStrippedOnCrossOrigin:
     """3.1: spec-declared API-key header names are added to the cross-origin
@@ -2575,6 +2608,26 @@ class TestRedirectToNonHttpScheme:
         with pytest.raises(ApiException):
             client.send_request("GET", "https://example.com/start", {}, None)
         assert redirect.released
+
+    def test_bhv_misc_265_a_non_http_redirect_is_an_api_error_not_a_network_error(
+        self,
+    ) -> None:
+        from petstore_client.errors import ApiException, NetworkException
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                return _FakeResp(302, {"location": "file:///etc/passwd"})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert not isinstance(excinfo.value, NetworkException)
+        assert excinfo.value.status_code == 302
 
 
 class TestZstdDecompression:

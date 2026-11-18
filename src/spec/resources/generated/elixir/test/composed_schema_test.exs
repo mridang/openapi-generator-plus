@@ -117,6 +117,15 @@ defmodule PetstoreClient.ComposedSchemaTest do
                "dry"
     end
 
+    test "bhv misc 292 serializing a union value emits the bare variant payload with no wrapper envelope" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+      wrapped = PetstoreClient.Models.PetFood.from_dry_food(dry)
+      json = PetstoreClient.ObjectSerializer.serialize(wrapped)
+
+      assert Jason.decode!(json) == %{"foodType" => "dry", "weightKg" => 2.5}
+      assert PetstoreClient.ObjectSerializer.deserialize(json, "PetFood") == wrapped
+    end
+
     test "bhv unions 033 an unknown, missing or empty discriminator fails with the SDK's serialization error" do
       for json <- [
             ~s({"foodType":"raw","calories":300}),

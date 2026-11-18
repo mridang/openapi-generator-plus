@@ -716,4 +716,12 @@ class TransportOptionsTest {
     assertNull(
         TransportOptions.builder().proxy("http://proxy:3128").proxy(null).build().getProxy());
   }
+
+  @Test
+  void bhvMisc134AZeroTimeoutIsAnArgumentErrorAndNotAnSdkError() {
+    IllegalArgumentException thrown =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> TransportOptions.builder().timeout(0));
+    assertFalse(thrown instanceof OpenAPIException);
+  }
 }
