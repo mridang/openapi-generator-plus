@@ -1224,6 +1224,22 @@ class TestPetApi:
         assert isinstance(client.body, dict)
         assert "file" in client.body
 
+    async def test_bhv_misc_003_an_all_optional_operation_runs_with_no_arguments_and_sends_no_omitted_parameter(
+        self,
+    ) -> None:
+        captured = await _capture_get(
+            lambda api: api.find_pets_by_status(), reply=b"[]"
+        )
+
+        assert isinstance(captured["result"], list)
+        assert "status" not in captured["path"]
+
+    async def test_bhv_misc_012_a_nil_required_argument_is_named_and_nothing_is_sent(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError, match="pet"):
+            await self.api.add_pet(None)
+
 
 def _create_mock_server(
     status: int, content_type: str, body: str
@@ -1769,6 +1785,64 @@ class TestPetApiErrorHandling:
         assert captured.get("Authorization") == "Bearer client-level-token", (
             f"secured op must still apply the client credential, got: {captured}"
         )
+
+    async def test_bhv_misc_005_a_bare_null_body_for_a_list_operation_raises_an_api_error(
+        self,
+    ) -> None:
+        api, server = _create_mock_server(200, "application/json", "null")
+        with pytest.raises(ApiException):
+            await api.find_pets_by_status(FindPetsByStatusOptions(status="available"))
+
+    async def test_bhv_misc_014_a_null_success_body_for_a_body_returning_operation_raises_and_returns_no_value(
+        self,
+    ) -> None:
+        api, server = _create_mock_server(200, "application/json", "null")
+        with pytest.raises(ApiException):
+            await api.get_pet_by_id(1)
+
+    async def test_bhv_misc_019_a_request_target_in_an_error_is_reduced_to_its_path(
+        self,
+    ) -> None:
+        api, server = _create_mock_server(
+            404, "application/json", '{"message":"Pet not found"}'
+        )
+        with pytest.raises(NotFoundException) as exc_info:
+            await api.get_pet_by_id(99999)
+        assert exc_info.value.request_path == "/pet/99999"
+
+    async def test_bhv_misc_024_a_transport_failure_keeps_the_underlying_error_as_its_cause(
+        self,
+    ) -> None:
+        from petstore_client.errors.network_exception import NetworkException
+
+        config = Configuration.builder().base_url("http://127.0.0.1:1").build()
+        api = PetApi(
+            api_client=DefaultApiClient(
+                TransportOptions.builder().max_retries(0).build()
+            ),
+            config=config,
+        )
+        with pytest.raises(NetworkException) as exc_info:
+            await api.get_pet_by_id(1)
+        assert exc_info.value.__cause__ is not None
+
+    async def test_bhv_misc_027_a_transport_failure_without_a_response_is_a_network_or_timeout_error(
+        self,
+    ) -> None:
+        from petstore_client.errors.network_exception import NetworkException
+        from petstore_client.errors.network_timeout_exception import (
+            NetworkTimeoutException,
+        )
+
+        config = Configuration.builder().base_url("http://127.0.0.1:1").build()
+        api = PetApi(
+            api_client=DefaultApiClient(
+                TransportOptions.builder().max_retries(0).build()
+            ),
+            config=config,
+        )
+        with pytest.raises((NetworkException, NetworkTimeoutException)):
+            await api.get_pet_by_id(1)
 
 
 class TestPetApiWithHttpInfo:
