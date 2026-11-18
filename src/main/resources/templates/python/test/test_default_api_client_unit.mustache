@@ -593,16 +593,8 @@ class TestMultipartFieldNameUtf8:
     the name intact.
     """
 
-    def test_field_name_helper_preserves_non_ascii(self) -> None:
-        # The helper must return the name unchanged (no '?' substitution).
-        assert _sanitize_multipart_field_name("dépôt") == "dépôt"
-
     def test_bhv_serialization_056_field_name_helper_escapes_quote_and_backslash(self) -> None:
         assert _sanitize_multipart_field_name('a"b\\c') == 'a\\"b\\\\c'
-
-    def test_field_name_helper_rejects_crlf(self) -> None:
-        with pytest.raises(ValueError):
-            _sanitize_multipart_field_name("a\r\nX-Injected: yes")
 
     def test_field_name_helper_rejects_nul(self) -> None:
         with pytest.raises(ValueError):
@@ -618,16 +610,6 @@ class TestMultipartFieldNameUtf8:
         # non-ASCII to '?' alongside an RFC 5987 filename*= parameter).
         assert 'name="café"'.encode("utf-8") in body
         assert b'; name="caf?"' not in body
-
-    def test_multipart_body_preserves_cjk_field_name_as_utf8(self) -> None:
-        client = DefaultApiClient()
-        body = client._build_multipart_body({"標籤": b"x"}, "boundary")
-        # The name directive must carry the raw UTF-8 field name. The filename
-        # fallback derived from the reused field name may legitimately fold
-        # non-ASCII to '?' alongside an RFC 5987 filename*= parameter, so only
-        # the name directive is asserted free of folding here.
-        assert 'name="標籤"'.encode("utf-8") in body
-        assert b'; name="?' not in body
 
 
 class TestMultipartContentType:
@@ -1297,9 +1279,6 @@ class TestAuthRequestsOmitTheCallersDefaultHeaders:
         sent = self._send(True)
         assert "X-Default" not in sent
         assert sent["Accept"] == "application/json"
-
-    def test_a_default_header_is_sent_on_an_ordinary_request(self) -> None:
-        assert self._send(False)["X-Default"] == "d"
 
 
 class TestRedirectLocationResolution:

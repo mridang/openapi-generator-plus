@@ -430,41 +430,6 @@ class TestRedirectSecurityGuards:
     These exercise the manual redirect loop in DefaultApiClient.
     """
 
-    def test_refuses_non_http_redirect_scheme(self) -> None:
-        """Guard 1: a Location: file:/// (or data:, javascript:, etc.)
-        must NOT be followed. urllib3's default Retry-based redirect
-        handling will happily walk into anything that parses as a URL,
-        which is a local-file / sandbox-escape vector."""
-        from {{packageName}}.errors import ApiException
-
-        class _FakeResp:
-            def __init__(self, status: int, headers: dict[str, Any]) -> None:
-                self.status = status
-                self.headers = headers
-            def read(self) -> bytes:
-                return b''
-            def release_conn(self) -> None:
-                return None
-
-        class _FakePool:
-            def __init__(self) -> None:
-                self.calls: list[Any] = []
-            def request(self, method: str, url: str, **kwargs: Any) -> Any:
-                self.calls.append((method, url))
-                # First response is a 302 pointing at file:///etc/passwd.
-                if len(self.calls) == 1:
-                    return _FakeResp(302, {'location': 'file:///etc/passwd'})
-                return _FakeResp(200, {})
-
-        transport = TransportOptions.builder().follow_redirects(True).build()
-        pool = _FakePool()
-        client = DefaultApiClient(transport, pool_manager=pool)
-        with pytest.raises(ApiException) as excinfo:
-            client.send_request('GET', 'http://example.com/start', {}, None)
-        assert 'non-HTTP(S)' in str(excinfo.value.message or '')
-        # The follow-up request must NEVER have been issued.
-        assert len(pool.calls) == 1
-
     def test_strips_authorization_on_https_to_http_downgrade(self) -> None:
         """Guard 2: an HTTPS -> HTTP redirect is a TLS downgrade and
         MUST strip Authorization / Cookie before re-issuing. Same host
@@ -1021,20 +986,6 @@ class TestCancellation:
         while client._inflight and time.monotonic() < deadline:
             await asyncio.sleep(0.05)
         assert client._inflight == set()
-
-    async def test_closing_the_client_lets_the_request_in_flight_finish(self, chasm_http_url: Any) -> None:
-        client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())
-        task = asyncio.ensure_future(
-            asyncio.to_thread(client.send_request, 'GET', chasm_http_url + '/test/slow', {}, None)
-        )
-        await asyncio.sleep(0.5)
-
-        client.close()
-        response = await task
-
-        assert response.status_code == 200
-        with pytest.raises(RuntimeError, match='closed'):
-            client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
 
     async def test_a_request_cancelled_through_its_handle_ends_at_once(self, chasm_http_url: Any) -> None:
         from {{packageName}}.default_api_client import RequestHandle

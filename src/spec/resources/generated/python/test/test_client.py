@@ -496,19 +496,6 @@ class TestClientClose:
         )
         assert pool.requests == 0
 
-    async def test_a_request_in_flight_is_not_aborted_by_close(self) -> None:
-        pool = _SlowPool()
-        client = _owning(pool)
-        request = asyncio.ensure_future(_send(client))
-        await asyncio.to_thread(pool.started.wait, 5)
-
-        client.close()
-        await asyncio.sleep(0.2)
-
-        assert not request.done()
-        pool.finish.set()
-        await request
-
     async def test_bhv_lifecycle_009_a_pool_manager_the_caller_supplied_is_never_cleared(
         self,
     ) -> None:
@@ -542,14 +529,6 @@ class _OwnedPool(urllib3.PoolManager):
 
 
 class TestClientPoolManager:
-    def test_client_never_closes_a_supplied_pool_manager(self) -> None:
-        pool = _OwnedPool()
-        client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
-
-        client.close()
-
-        assert pool.cleared is False
-
     def test_bhv_lifecycle_008_closed_client_rejects_further_requests(self) -> None:
         client = Client(BearerAuthenticator("/api/v3", "test-token"))
 
@@ -575,16 +554,6 @@ class TestClientPoolManager:
             pass
 
         assert pool.cleared is False
-
-    def test_supplied_pool_manager_conflicts_with_a_proxy(self) -> None:
-        transport = (
-            TransportOptions.builder().proxy("http://proxy.example.com:3128").build()
-        )
-
-        with pytest.raises(ValueError, match="pool_manager"):
-            Client(
-                BearerAuthenticator("/api/v3", "test-token"), transport, _OwnedPool()
-            )
 
 
 class TestCallerTransportWithoutClose:

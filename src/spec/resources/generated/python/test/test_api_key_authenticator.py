@@ -168,16 +168,6 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.HEADER,
             )
 
-    def test_api_key_is_not_leaked_in_repr(self) -> None:
-        auth = ApiKeyAuthenticator(
-            host="https://api.example.com",
-            key_param_name="X-API-Key",
-            api_key="topsecretkey",
-            location=ApiKeyLocation.HEADER,
-        )
-        assert "topsecretkey" not in repr(auth)
-        assert "topsecretkey" not in str(auth)
-
     def test_bhv_authapikey_010_redacts_secret(self) -> None:
         """The repr masks the API key as ``***`` and never leaks its value."""
         auth = ApiKeyAuthenticator(
