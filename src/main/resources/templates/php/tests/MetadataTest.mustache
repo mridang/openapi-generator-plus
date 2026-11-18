@@ -57,7 +57,7 @@ test('bhv models 004 deserializes additional string properties', function (): vo
 });
 
 test('bhv models 011 round trip preserves additional properties', function (): void {
-    /** @var \Ds\Map<string, mixed> $additionalProperties */
+    /** @var \Ds\Map<string, string> $additionalProperties */
     $additionalProperties = new \Ds\Map(['customField' => 'hello', 'anotherField' => 'world']);
     $metadata = (new Metadata(new \DateTime('2024-01-01T00:00:00+00:00')))
         ->withAdditionalProperties($additionalProperties);
@@ -116,7 +116,9 @@ test('bhv models 028 a typed additional property is written flat in its wire for
 
     expect($moments->additionalProperties->get('at'))->toBeInstanceOf(\DateTimeInterface::class);
     $json = ObjectSerializer::serialize($moments);
-    expect(array_keys(json_decode($json, true)))->toBe(['label', 'at']);
+    /** @var array<string, mixed> $decoded */
+    $decoded = json_decode($json, true);
+    expect(array_keys($decoded))->toBe(['label', 'at']);
     expect($json)->toContain('2024-01-01T00:00:00');
 
     /** @var \{{modelPackage}}\Blobs $blobs */
@@ -197,7 +199,7 @@ test('bhv models 007 generated models never claim a null example', function (): 
 });
 
 test('bhv models 010 a declared property wins over a colliding additional property', function (): void {
-    /** @var \Ds\Map<string, mixed> $additionalProperties */
+    /** @var \Ds\Map<string, string> $additionalProperties */
     $additionalProperties = new \Ds\Map(['createdAt' => 'x', 'other' => 'y']);
     $metadata = (new Metadata(new \DateTime('2024-01-15T10:30:00+00:00')))
         ->withAdditionalProperties($additionalProperties);
@@ -229,7 +231,7 @@ test('bhv models 017 a with method returns a changed copy and leaves the model a
 });
 
 test('bhv models 012 the field dump lists the fields and the additional properties map', function (): void {
-    /** @var \Ds\Map<string, mixed> $extra */
+    /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['customField' => 'hello']);
     $dump = print_r((new Metadata())->withAdditionalProperties($extra), true);
 
@@ -238,7 +240,7 @@ test('bhv models 012 the field dump lists the fields and the additional properti
 });
 
 test('bhv models 015 a with method carries the additional properties over to the copy', function (): void {
-    /** @var \Ds\Map<string, mixed> $extra */
+    /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['customField' => 'hello']);
     $metadata = (new Metadata())->withAdditionalProperties($extra);
 
@@ -252,7 +254,7 @@ test('bhv models 016 a copy clears an optional field only when null is passed an
     $original = new Metadata(new \DateTime('2024-01-01T00:00:00+00:00'));
 
     expect($original->withCreatedAt(null)->createdAt)->toBeNull();
-    /** @var array<string, mixed> $extraValues */
+    /** @var array<string, string> $extraValues */
     $extraValues = ['k' => 'v'];
     expect($original->withAdditionalProperties(new \Ds\Map($extraValues))->createdAt)->toEqual($original->createdAt);
     expect($original->createdAt)->not->toBeNull();

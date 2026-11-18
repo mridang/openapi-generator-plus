@@ -3395,11 +3395,11 @@ class ObjectSerializerTest {
       assertEquals("{\"a\":1,\"b\":2}", serializer.serialize(extras));
       com.example.petstore.models.Metadata metadata =
           com.example.petstore.models.Metadata.builder()
-              .putAdditionalProperty("y", 1)
-              .putAdditionalProperty("x", 2)
+              .putAdditionalProperty("y", "1")
+              .putAdditionalProperty("x", "2")
               .build();
       assertTrue(
-          serializer.serialize(metadata).endsWith("\"x\":2,\"y\":1}"),
+          serializer.serialize(metadata).endsWith("\"x\":\"2\",\"y\":\"1\"}"),
           serializer.serialize(metadata));
     }
 
@@ -3609,18 +3609,18 @@ class ObjectSerializerTest {
     @Test
     void bhvSerialization052UndeclaredKeysAreKeptAsAdditionalPropertiesOfNestedModels() {
       com.example.petstore.models.Metadata decoded =
-          serializer.deserialize("{\"extra\":true}", com.example.petstore.models.Metadata.class);
+          serializer.deserialize("{\"extra\":\"yes\"}", com.example.petstore.models.Metadata.class);
       assertNotNull(decoded);
-      assertEquals(true, decoded.getAdditionalProperties().get("extra"));
+      assertEquals("yes", decoded.getAdditionalProperties().get("extra"));
     }
 
     @Test
     void bhvSerialization053UndeclaredKeysAreWrittenBackAsKeysOfTheirModel() {
       com.example.petstore.models.Metadata decoded =
           serializer.deserialize(
-              "{\"createdAt\":null,\"extra\":true}", com.example.petstore.models.Metadata.class);
+              "{\"createdAt\":null,\"extra\":\"yes\"}", com.example.petstore.models.Metadata.class);
       assertNotNull(decoded);
-      assertTrue(serializer.serialize(decoded).contains("\"extra\":true"));
+      assertTrue(serializer.serialize(decoded).contains("\"extra\":\"yes\""));
     }
 
     @Test

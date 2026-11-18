@@ -582,7 +582,16 @@ class ClientTest {
     @Test
     @DisplayName("bhvHooks010 a hook set on the client still fires when the caller supplied the transport")
     fun aHookFiresWithASuppliedTransport() {
-        val custom = HttpClient(MockEngine { respond("{\"name\":\"n\",\"photoUrls\":[]}", HttpStatusCode.OK, io.ktor.http.headersOf("Content-Type", "application/json")) })
+        val custom =
+            HttpClient(
+                MockEngine {
+                    respond(
+                        "{\"name\":\"n\",\"photoUrls\":[]}",
+                        HttpStatusCode.OK,
+                        io.ktor.http.headersOf("Content-Type", "application/json"),
+                    )
+                },
+            ) { followRedirects = false }
         val starts = mutableListOf<CallInfo>()
         val finishes = mutableListOf<CallOutcome>()
         val hook = CallHook { info, _ ->
@@ -607,7 +616,12 @@ class ClientTest {
             starts.add(info)
             null
         }
-        val custom = HttpClient(MockEngine { respond("{}", HttpStatusCode.OK, io.ktor.http.headersOf("Content-Type", "application/json")) })
+        val custom =
+            HttpClient(
+                MockEngine {
+                    respond("{}", HttpStatusCode.OK, io.ktor.http.headersOf("Content-Type", "application/json"))
+                },
+            ) { followRedirects = false }
         val transport = TransportOptions.builder().httpClient(custom).build()
         runCatching { runBlocking { {{clientClassName}}.withToken("{{{basePath}}}", "t", transport, hook).pet.getPetById(1L) } }
         runCatching { runBlocking { {{clientClassName}}.withAuthenticator(authenticator, transport, hook).pet.getPetById(1L) } }

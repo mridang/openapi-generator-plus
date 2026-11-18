@@ -743,7 +743,7 @@ class ClientTest {
                         io.ktor.http.headersOf("Content-Type", "application/json"),
                     )
                 },
-            )
+            ) { followRedirects = false }
         val starts = mutableListOf<CallInfo>()
         val finishes = mutableListOf<CallOutcome>()
         val hook =
@@ -770,7 +770,12 @@ class ClientTest {
                 starts.add(info)
                 null
             }
-        val custom = HttpClient(MockEngine { respond("{}", HttpStatusCode.OK, io.ktor.http.headersOf("Content-Type", "application/json")) })
+        val custom =
+            HttpClient(
+                MockEngine {
+                    respond("{}", HttpStatusCode.OK, io.ktor.http.headersOf("Content-Type", "application/json"))
+                },
+            ) { followRedirects = false }
         val transport = TransportOptions.builder().httpClient(custom).build()
         runCatching { runBlocking { Client.withToken("/api/v3", "t", transport, hook).pet.getPetById(1L) } }
         runCatching { runBlocking { Client.withAuthenticator(authenticator, transport, hook).pet.getPetById(1L) } }

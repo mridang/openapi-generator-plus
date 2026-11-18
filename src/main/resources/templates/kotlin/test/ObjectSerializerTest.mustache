@@ -366,10 +366,10 @@ class ObjectSerializerTest {
         fun uriFormatRequiresAnAbsoluteUri() {
             assertEquals(
                 "https://example.com/a",
-                serializer.deserialize<io.ktor.http.Url>("\"https://example.com/a\"")?.toString(),
+                serializer.deserialize<java.net.URI>("\"https://example.com/a\"")?.toString(),
             )
             assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
-                serializer.deserialize<io.ktor.http.Url>("\"relative/path\"")
+                serializer.deserialize<java.net.URI>("\"relative/path\"")
             }
         }
 
@@ -3239,22 +3239,21 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("bhvEnums009 a member with a description carries it as the one-line comment directly above it")
         fun descriptionIsTheCommentAboveTheMember() {
-            assertTrue(modelSource("Tier").contains("/** The smallest tier. */\n  @SerialName(\"s\")\n  SMALL("))
-            assertTrue(modelSource("Tier").contains("/** The medium tier. */\n  @SerialName(\"m\")\n  MEDIUM("))
+            assertTrue(modelSource("Tier").contains("/** The smallest tier. */\n    @SerialName(\"s\")\n    SMALL("))
+            assertTrue(modelSource("Tier").contains("/** The medium tier. */\n    @SerialName(\"m\")\n    MEDIUM("))
         }
 
         @Test
         @DisplayName("bhvEnums010 a member without a description keeps the comment it has today")
         fun undescribedMemberKeepsItsComment() {
-            assertFalse(modelSource("Rank").contains("/** The"))
-            assertTrue(modelSource("Rank").contains("  MEDIUM(2)"))
+            assertTrue(modelSource("Rank").contains("LOW(1),\n    MEDIUM(2),\n\n    /** The highest rank. */"))
         }
 
         @Test
         @DisplayName("bhvEnums011 a description with comment terminators still yields a compiling comment")
         fun hostileDescriptionStaysAComment() {
             val source = modelSource("Tier")
-            assertTrue(source.contains("/** The largest tier. Ends with * / and #{x} and \$x. */\n  @SerialName(\"l\")"))
+            assertTrue(source.contains("/** The largest tier. Ends with * / and #{x} and \$x. */\n    @SerialName(\"l\")"))
         }
     }
 }

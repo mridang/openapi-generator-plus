@@ -530,6 +530,11 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     protected const string ADDITIONAL_PROPERTIES_TYPE = '{{#vendorExtensions.additionalPropertiesValue}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{>deserialize_arg}}{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}}';
 
 {{#vendorExtensions.additionalPropertiesValue}}
+{{#isInteger}}
+    /** The value schema is a 32-bit integer, so a decoded additional property outside that range is refused. */
+    protected const bool ADDITIONAL_PROPERTIES_INT32 = true;
+
+{{/isInteger}}
 {{#isNullable}}
     /** The value schema is nullable, so a null additional property is kept. */
     protected const bool ADDITIONAL_PROPERTIES_NULLABLE = true;

@@ -604,7 +604,7 @@ fn test_bhv_models_015_a_changed_copy_keeps_the_additional_properties_of_the_ori
         changed
             .additional_properties
             .get("extra")
-            .and_then(|v| v.as_str()),
+            .map(String::as_str),
         Some("kept")
     );
 }
@@ -669,12 +669,12 @@ fn test_bhv_models_021_each_member_of_an_integer_backed_enum_carries_its_declare
 fn test_bhv_models_022_a_model_whose_schema_allows_undeclared_properties_accepts_them() {
     use petstore::models::StrictTag;
     let open: Metadata =
-        serde_json::from_str(r#"{"undeclared":true}"#).expect("an open model accepts it");
+        serde_json::from_str(r#"{"undeclared":"yes"}"#).expect("an open model accepts it");
     assert_eq!(
         open.additional_properties
             .get("undeclared")
-            .and_then(|v| v.as_bool()),
-        Some(true)
+            .map(String::as_str),
+        Some("yes")
     );
     assert!(
         serde_json::from_str::<StrictTag>(r#"{"undeclared":true}"#).is_err(),
@@ -684,19 +684,16 @@ fn test_bhv_models_022_a_model_whose_schema_allows_undeclared_properties_accepts
 
 #[test]
 fn test_bhv_models_023_undeclared_keys_named_like_sdk_methods_are_kept_as_additional_properties() {
-    let model: Metadata = serde_json::from_str(r#"{"new":1,"to_string":"x"}"#).expect("decodes");
+    let model: Metadata = serde_json::from_str(r#"{"new":"1","to_string":"x"}"#).expect("decodes");
     assert_eq!(
-        model
-            .additional_properties
-            .get("new")
-            .and_then(|v| v.as_i64()),
-        Some(1)
+        model.additional_properties.get("new").map(String::as_str),
+        Some("1")
     );
     assert_eq!(
         model
             .additional_properties
             .get("to_string")
-            .and_then(|v| v.as_str()),
+            .map(String::as_str),
         Some("x")
     );
 }

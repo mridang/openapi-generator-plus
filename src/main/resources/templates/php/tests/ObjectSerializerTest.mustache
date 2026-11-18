@@ -1983,14 +1983,14 @@ test('bhv serializationobject 205 an extra key survives a full deserialize then 
 });
 
 test('a model whose only fields are numeric additional properties serializes as an object', function (): void {
-    /** @var \Ds\Map<string, mixed> $extra */
+    /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['0' => 'x', '1' => 'y']);
     $meta = (new Metadata())->withAdditionalProperties($extra);
     expect(ObjectSerializer::serialize($meta))->toBe('{"0":"x","1":"y"}');
 });
 
 test('a model with numeric and named fields keeps both as an object', function (): void {
-    /** @var \Ds\Map<string, mixed> $extra */
+    /** @var \Ds\Map<string, string> $extra */
     $extra = new \Ds\Map(['0' => 'x']);
     $meta = (new Metadata(new \DateTime('2024-01-01T00:00:00+00:00')))->withAdditionalProperties($extra);
     expect(ObjectSerializer::serialize($meta))->toBe('{"createdAt":"2024-01-01T00:00:00.000+00:00","0":"x"}');
@@ -2542,8 +2542,8 @@ test('bhv serialization 047 a duration at the bound round trips without overflow
 });
 
 test('bhv serialization 054 a free form value keeps its json type', function (): void {
-    $meta = ObjectSerializer::deserialize('{"s":"5","n":null}', Metadata::class);
-    \assert($meta instanceof Metadata);
+    $meta = ObjectSerializer::deserialize('{"s":"5","n":null}', \{{modelPackage}}\Freeform::class);
+    \assert($meta instanceof \{{modelPackage}}\Freeform);
 
     expect($meta->additionalProperties->get('s'))->toBe('5');
     expect($meta->additionalProperties->hasKey('n'))->toBeTrue();
@@ -2642,6 +2642,7 @@ test('bhv enums 001 a string enum member named by an array exposes the given nam
     expect(\{{invokerPackage}}\Models\Tier::MEDIUM->value)->toBe('m');
     expect(\{{invokerPackage}}\Models\Tier::LARGE->value)->toBe('l');
     $item = ObjectSerializer::deserialize('{"rank":1,"tier":"m"}', \{{invokerPackage}}\Models\Subscription::class);
+    \assert($item instanceof \{{invokerPackage}}\Models\Subscription);
     expect($item->tier)->toBe(\{{invokerPackage}}\Models\Tier::MEDIUM);
 });
 
@@ -2650,13 +2651,16 @@ test('bhv enums 002 an integer enum member named by an array exposes the given n
     expect(\{{invokerPackage}}\Models\Rank::MEDIUM->value)->toBe(2);
     expect(\{{invokerPackage}}\Models\Rank::HIGH->value)->toBe(3);
     $item = ObjectSerializer::deserialize('{"rank":3}', \{{invokerPackage}}\Models\Subscription::class);
+    \assert($item instanceof \{{invokerPackage}}\Models\Subscription);
     expect($item->rank)->toBe(\{{invokerPackage}}\Models\Rank::HIGH);
     expect(ObjectSerializer::serialize($item))->toContain('"rank":3');
 });
 
 test('bhv enums 003 an enum named by an object keyed by wire value names the members it lists', function (): void {
     $paused = ObjectSerializer::deserialize('{"rank":1,"stage":"paused"}', \{{invokerPackage}}\Models\Subscription::class);
+    \assert($paused instanceof \{{invokerPackage}}\Models\Subscription);
     $active = ObjectSerializer::deserialize('{"rank":1,"stage":"active"}', \{{invokerPackage}}\Models\Subscription::class);
+    \assert($active instanceof \{{invokerPackage}}\Models\Subscription);
     expect($paused->stage)->toBe(\{{invokerPackage}}\Models\Stage::ON_HOLD);
     expect($active->stage)->toBe(\{{invokerPackage}}\Models\Stage::ACTIVE);
 });
@@ -2669,6 +2673,7 @@ test('bhv enums 005 two supplied names that collide after casing keep distinct n
     expect(\{{invokerPackage}}\Models\Stage::ACTIVE->value)->toBe('active');
     expect(\{{invokerPackage}}\Models\Stage::ACTIVE2->value)->toBe('live');
     $item = ObjectSerializer::deserialize('{"rank":1,"stage":"live"}', \{{invokerPackage}}\Models\Subscription::class);
+    \assert($item instanceof \{{invokerPackage}}\Models\Subscription);
     expect($item->stage)->toBe(\{{invokerPackage}}\Models\Stage::ACTIVE2);
 });
 
@@ -2680,6 +2685,7 @@ test('bhv enums 006 an inline property enum takes its member names from its own 
 test('bhv enums 007 a default on a referenced enum property starts at the member with the supplied name', function (): void {
     expect((new \{{invokerPackage}}\Models\Subscription(\{{invokerPackage}}\Models\Rank::LOW))->tier)->toBe(\{{invokerPackage}}\Models\Tier::MEDIUM);
     $item = ObjectSerializer::deserialize('{"rank":1}', \{{invokerPackage}}\Models\Subscription::class);
+    \assert($item instanceof \{{invokerPackage}}\Models\Subscription);
     expect($item->tier)->toBe(\{{invokerPackage}}\Models\Tier::MEDIUM);
 });
 
