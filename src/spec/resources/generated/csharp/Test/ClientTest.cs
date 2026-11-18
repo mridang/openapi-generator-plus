@@ -997,11 +997,12 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("response_type=token", authorizeUrl, StringComparison.Ordinal);
         Assert.Contains("scope=read", authorizeUrl, StringComparison.Ordinal);
 
+        string[] twoScopeList = ["read", "write"];
         var twoScopes = new OAuth2ImplicitAuthenticator(
             Host,
             "cid",
             new Uri("https://auth.example.com/authorize"),
-            new[] { "read", "write" }
+            twoScopeList
         );
         Assert.Contains(
             "scope=read%20write",

@@ -2569,7 +2569,7 @@ public class DefaultApiClientUnitTest
         var client = new DefaultApiClient(http);
         client.Dispose();
 
-        await http.GetAsync("http://example.com/after");
+        await http.GetAsync(new Uri("http://example.com/after"));
 
         Assert.False(handler.Disposed);
         Assert.Equal(1, handler.Requests);
