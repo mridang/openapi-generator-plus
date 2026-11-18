@@ -390,6 +390,8 @@ public class PetApi : BaseApi
                 ResolveSchemeAuth("petStoreBearer", "apiKeyHeader"),
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.AddPet",
+                operationId: "addPet",
+                urlTemplate: "/pet",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -520,6 +522,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.AddPetPhotos",
+                operationId: "addPetPhotos",
+                urlTemplate: "/pet/{petId}/photos",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -622,6 +626,8 @@ public class PetApi : BaseApi
                 ResolveSchemeAuth("petStoreBasic", "petStoreBearer"),
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.AddPetTreatment",
+                operationId: "addPetTreatment",
+                urlTemplate: "/pet/{petId}/treatment",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -737,6 +743,8 @@ public class PetApi : BaseApi
                 ResolveSchemeAuth("machineAuth", "adminBasic"),
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.DeletePet",
+                operationId: "deletePet",
+                urlTemplate: "/pet/{petId}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -858,6 +866,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.DownloadPetDocument",
+                operationId: "downloadPetDocument",
+                urlTemplate: "/pet/{petId}/documents/{documentId}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -955,6 +965,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.FindPetsBornOn",
+                operationId: "findPetsBornOn",
+                urlTemplate: "/pet/born-on/{bornOn}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1106,6 +1118,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.FindPetsByStatus",
+                operationId: "findPetsByStatus",
+                urlTemplate: "/pet/findByStatus",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1219,6 +1233,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetExternalPetInfo",
+                operationId: "getExternalPetInfo",
+                urlTemplate: "/pet/{petId}/external",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1332,6 +1348,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetMultiServerPetInfo",
+                operationId: "getMultiServerPetInfo",
+                urlTemplate: "/pet/{petId}/multi",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1433,6 +1451,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetAvatar",
+                operationId: "getPetAvatar",
+                urlTemplate: "/pet/{petId}/avatar",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1534,6 +1554,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetAvatarThumbnail",
+                operationId: "getPetAvatarThumbnail",
+                urlTemplate: "/pet/{petId}/avatar/thumbnail",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1657,6 +1679,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetById",
+                operationId: "getPetById",
+                urlTemplate: "/pet/{petId}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1826,6 +1850,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetByName",
+                operationId: "getPetByName",
+                urlTemplate: "/pet/byName/{name}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1927,6 +1953,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetPassport",
+                operationId: "getPetPassport",
+                urlTemplate: "/pet/{petId}/passport",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -2048,6 +2076,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetPhoto",
+                operationId: "getPetPhoto",
+                urlTemplate: "/pet/{petId}/photos/{photoId}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -2246,6 +2276,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetSummary",
+                operationId: "getPetSummary",
+                urlTemplate: "/pet/{petId}/summary/{asOf}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -2513,6 +2545,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetTag",
+                operationId: "getPetTag",
+                urlTemplate: "/pet/{petId}/tag/{tagName}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -2626,6 +2660,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetStagingPetInfo",
+                operationId: "getStagingPetInfo",
+                urlTemplate: "/pet/{petId}/staging",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -2732,6 +2768,8 @@ public class PetApi : BaseApi
                 rawBody: true,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.SetPetAvatar",
+                operationId: "setPetAvatar",
+                urlTemplate: "/pet/{petId}/avatar",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -2815,6 +2853,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.SetPetAvatarThumbnail",
+                operationId: "setPetAvatarThumbnail",
+                urlTemplate: "/pet/{petId}/avatar/thumbnail",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -2957,6 +2997,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.SetPetPreferences",
+                operationId: "setPetPreferences",
+                urlTemplate: "/pet/{petId}/preferences",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -3063,6 +3105,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.UpdatePet",
+                operationId: "updatePet",
+                urlTemplate: "/pet/{petId}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -3182,6 +3226,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.UploadPetCertificate",
+                operationId: "uploadPetCertificate",
+                urlTemplate: "/pet/{petId}/certificate",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -3347,6 +3393,8 @@ public class PetApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.UploadPetDocument",
+                operationId: "uploadPetDocument",
+                urlTemplate: "/pet/{petId}/documents",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
