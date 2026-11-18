@@ -54,7 +54,7 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void validatesTheCredentialsAtConstruction() {
+    void bhvAuth036ValidatesTheCredentialsAtConstruction() {
       assertThrows(
           IllegalArgumentException.class,
           () -> new AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
@@ -263,6 +263,34 @@ class SchemeAuthenticatorTest {
       PetStoreBearerAuthenticator auth =
           new PetStoreBearerAuthenticator(HOST, "explicit", Map.of(TOKEN_VARIABLE, "env-token"));
       assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuth041ExplicitTokenWinsOverTheSameEnvironmentVariable() {
+      PetStoreBearerAuthenticator auth =
+          new PetStoreBearerAuthenticator(
+              HOST, "from-argument", Map.of(TOKEN_VARIABLE, "from-environment"));
+      assertEquals("Bearer from-argument", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuth040EmptyEnvironmentVariableIsTreatedAsUnset() {
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "")));
+      assertTrue(
+          java.util.Objects.requireNonNull(ex.getMessage()).contains(TOKEN_VARIABLE),
+          ex.getMessage());
+    }
+
+    @Test
+    void bhvAuth042ExplicitEmptyTokenIsRejectedAndNotReplacedByTheEnvironment() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              new PetStoreBearerAuthenticator(
+                  HOST, "", Map.of(TOKEN_VARIABLE, "from-environment")));
     }
 
     @Test

@@ -601,4 +601,26 @@ class TransportOptionsTest {
         assertDoesNotThrow(() ->
                 TransportOptions.builder().proxy("http://proxy.example.com:8080").build());
     }
+
+    @Test
+    void bhvLifecycle041SuppliedHttpClientRejectsAnSdkProxySetting() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
+        } finally {
+            supplied.close();
+        }
+    }
+
+    @Test
+    void bhvLifecycle041SuppliedHttpClientRejectsAnSdkTlsSetting() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
+        } finally {
+            supplied.close();
+        }
+    }
 }

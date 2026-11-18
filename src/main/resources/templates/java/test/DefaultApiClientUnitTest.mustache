@@ -613,7 +613,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirect301And302RewriteOnlyPostToGet() {
+  void bhvRedirects048Redirect301And302RewriteOnlyPostToGet() {
     for (int status : new int[] {301, 302}) {
       assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect("POST", status));
       for (String method : new String[] {"PUT", "PATCH", "DELETE"}) {
@@ -2380,7 +2380,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void staleConnectionRetryDrawsFromTheRemainingBudget() throws Exception {
+  void bhvRetries047StaleConnectionRetryDrawsFromTheRemainingBudget() throws Exception {
     // D76: the one retry after "header parser received no bytes" shares the end-to-end
     // budget. The first connection is held 1.5 s and dropped without a byte; the second is
     // never answered. With a 2 s budget the call ends near 2 s, not near 3.5 s.
@@ -3600,6 +3600,175 @@ class DefaultApiClientUnitTest {
           () -> client.sendRequest("GET", baseUrl + "/echo", Map.of(), null));
     } finally {
       supplied.close();
+    }
+  }
+
+  @Test
+  void bhvRedirects049SeeOtherAndTemporaryRedirectsAreFollowedByDefault() {
+    for (int status : new int[] {307, 308}) {
+      RecordingHttpClient transport = redirectingOnceTo(status, "http://localhost/landed");
+      DefaultApiClient client = new DefaultApiClient(
+          TransportOptions.builder().httpClient(transport).build());
+      client.sendRequest("POST", "http://localhost/start", Map.of(), "payload");
+      assertEquals(2, transport.requests.size());
+      assertEquals("POST", transport.requests.get(1).method());
+    }
+  }
+
+  @Test
+  void bhvRedirects050FollowUpMethodFollowsTheRfc9110TableForEachStatus() {
+    String[][] rows = {
+      {"301", "POST", "GET"}, {"301", "PUT", "PUT"},
+      {"302", "POST", "GET"}, {"302", "DELETE", "DELETE"},
+      {"303", "POST", "GET"}, {"303", "PUT", "GET"}, {"303", "HEAD", "HEAD"},
+      {"307", "POST", "POST"}, {"307", "PATCH", "PATCH"},
+      {"308", "PUT", "PUT"}, {"308", "DELETE", "DELETE"},
+    };
+    for (String[] row : rows) {
+      RecordingHttpClient transport = redirectingOnceTo(Integer.parseInt(row[0]), "http://localhost/landed");
+      DefaultApiClient client = new DefaultApiClient(
+          TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+      client.sendRequest(row[1], "http://localhost/start", Map.of(), "payload");
+      assertEquals(row[2], transport.requests.get(1).method(), row[0] + " " + row[1]);
+    }
+  }
+
+  @Test
+  void bhvRedirects051SeeOtherTurnsFollowUpIntoGetExceptHeadWhichStaysHead() {
+    RecordingHttpClient transport = redirectingOnceTo(303, "http://localhost/landed");
+    DefaultApiClient client = new DefaultApiClient(
+        TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("HEAD", "http://localhost/start", Map.of(), null);
+    assertEquals("HEAD", transport.requests.get(1).method());
+  }
+
+  @Test
+  void bhvRedirects052CrossOriginRedirectRemovesCredentialHeaders() {
+    RecordingHttpClient transport = redirectingOnceTo(307, "http://other.example.com/landed");
+    DefaultApiClient client = new DefaultApiClient(
+        TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("GET", "http://localhost/start",
+        Map.of("Authorization", "Bearer secret", "Cookie", "session=secret", "X-Api-Token", "secret"), null);
+    java.net.http.HttpRequest second = transport.requests.get(1);
+    assertFalse(second.headers().firstValue("Authorization").isPresent());
+    assertFalse(second.headers().firstValue("Cookie").isPresent());
+    assertFalse(second.headers().firstValue("Proxy-Authorization").isPresent());
+    assertFalse(second.headers().firstValue("X-Api-Token").isPresent());
+  }
+
+  @Test
+  void bhvRetries046RequestBodyIsResentUnchangedAfterASameSchemeTemporaryRedirect() {
+    assertEquals(echoed("POST", "payload"), methodAndBodyAfterRedirect("POST", 307));
+  }
+
+  @Test
+  void bhvRetries048DefaultClientRetriesA503OverARealConnectionAndReturnsTheSuccess() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(503, "0") : new Reply(200, ""), hits);
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      assertEquals(200, response.statusCode());
+      assertEquals(2, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRetries049MaxRetriesAllowsThatManyRetriesThenReturnsTheLastFailure() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(3).build());
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(4, hits.get(), "three retries after the first attempt");
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRetries050RetryAfterHttpDateIsHonouredAndTheRequestIsRetried() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(
+        n -> n == 1 ? new Reply(503, "Thu, 01 Jan 1970 00:00:00 GMT") : new Reply(200, ""), hits);
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      assertEquals(200, response.statusCode());
+      assertEquals(2, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvRetries051Redirect307HttpsToHttpBodyIsRefusedWithStatus307() {
+    assertHttpsToHttpBodyIsRefused(307);
+  }
+
+  @Test
+  void bhvRedirects055RedirectToANonHttpSchemeIsRefused() {
+    RecordingHttpClient transport = redirectingOnceTo(302, "ftp://example.com/x");
+    DefaultApiClient client = new DefaultApiClient(
+        TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    assertThrowsExactly(ApiException.class,
+        () -> client.sendRequest("GET", "http://localhost/start", Map.of(), null));
+    assertEquals(1, transport.requests.size(), "the non-http target must not be requested");
+  }
+
+  @Test
+  void bhvRedirects056NoRedirectRequestSendsNoDefaultsAndTheNextNormalRequestSendsThemAgain()
+      throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse optedOut =
+        client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null, true);
+    assertFalse(optedOut.body().contains("x-custom"));
+    ApiHttpResponse normal = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertTrue(normal.body().contains("\"x-custom\":\"custom-value\""), normal.body());
+  }
+
+  @Test
+  void bhvRedirects054OneTimeoutBudgetCoversEveryHopOfTheChain() throws Exception {
+    HttpServer hops = HttpServer.create(new InetSocketAddress(0), 0);
+    String base = "http://localhost:" + hops.getAddress().getPort();
+    hops.createContext("/a", exchange -> {
+      pause(150);
+      exchange.getResponseHeaders().add("Location", base + "/b");
+      exchange.sendResponseHeaders(302, -1);
+      exchange.close();
+    });
+    hops.createContext("/b", exchange -> {
+      pause(150);
+      exchange.getResponseHeaders().add("Location", base + "/c");
+      exchange.sendResponseHeaders(302, -1);
+      exchange.close();
+    });
+    hops.createContext("/c", exchange -> {
+      exchange.sendResponseHeaders(200, -1);
+      exchange.close();
+    });
+    hops.start();
+    try {
+      DefaultApiClient client = new DefaultApiClient(
+          TransportOptions.builder().followRedirects(true).timeout(250).build());
+      assertThrowsExactly({{invokerPackage}}.errors.NetworkTimeoutException.class,
+          () -> client.sendRequest("GET", base + "/a", Map.of(), null));
+    } finally {
+      hops.stop(0);
+    }
+  }
+
+  private static void pause(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
   }
 }
