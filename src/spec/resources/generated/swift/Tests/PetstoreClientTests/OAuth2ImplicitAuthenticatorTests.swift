@@ -76,6 +76,18 @@ import Testing
         || url.contains("scope=read write"))
   }
 
+  /* The implicit flow builds an exact authorize URL with response_type token and percent-encoded scopes. */
+  @Test func testBhvAuth049ImplicitAuthorizeUrlHasResponseTypeTokenAndPercentEncodedScopes() throws
+  {
+    let auth = createAuthenticator()
+
+    let url = try auth.buildAuthorizationURL()
+
+    #expect(url.contains("response_type=token"))
+    #expect(url.contains("scope=read%20write"))
+    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+  }
+
   @Test func testBhvAuthoauthtwoimplicit005BuildsAuthorizationUrlWithState() throws {
     let auth = createAuthenticator()
 

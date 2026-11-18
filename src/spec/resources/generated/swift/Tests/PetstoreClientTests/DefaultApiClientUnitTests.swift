@@ -2180,6 +2180,76 @@ import Testing
     #expect(DefaultApiClient.redirectMethod(status: 303, method: "HEAD") == "HEAD")
   }
 
+  /* A 301 or 302 turns a POST follow-up into a GET, and every other method keeps its own. */
+  @Test func testBhvRedirects048A301Or302TurnsPostIntoGetAndKeepsTheOtherMethods() {
+    for status in [301, 302] {
+      #expect(DefaultApiClient.redirectMethod(status: status, method: "POST") == "GET")
+      for method in ["PUT", "PATCH", "DELETE", "HEAD", "GET"] {
+        #expect(DefaultApiClient.redirectMethod(status: status, method: method) == method)
+      }
+    }
+  }
+
+  /* A 307 or 308 repeats the request with the same method, so the body is replayed too. */
+  @Test(arguments: [307, 308])
+  func testBhvRedirects049A307Or308RepeatsTheSameMethod(status: Int) {
+    for method in ["POST", "PUT", "PATCH", "DELETE", "GET"] {
+      #expect(DefaultApiClient.redirectMethod(status: status, method: method) == method)
+    }
+  }
+
+  /* The RFC 9110 15.4 follow-up table, row by row, for the redirect statuses the SDK follows. */
+  @Test(arguments: [
+    (301, "POST", "GET"), (301, "PUT", "PUT"), (302, "POST", "GET"), (302, "HEAD", "HEAD"),
+    (303, "POST", "GET"), (303, "HEAD", "HEAD"), (303, "PUT", "GET"),
+    (307, "POST", "POST"), (307, "DELETE", "DELETE"), (308, "POST", "POST"),
+    (308, "PATCH", "PATCH"),
+  ])
+  func testBhvRedirects050FollowUpMethodMatchesTheRfc9110Table(
+    status: Int, method: String, expected: String
+  ) {
+    #expect(DefaultApiClient.redirectMethod(status: status, method: method) == expected)
+  }
+
+  /* A 303 turns a follow-up into a GET, except that a HEAD request stays HEAD. */
+  @Test func testBhvRedirects051A303TurnsTheFollowUpIntoGetExceptHead() {
+    #expect(DefaultApiClient.redirectMethod(status: 303, method: "POST") == "GET")
+    #expect(DefaultApiClient.redirectMethod(status: 303, method: "HEAD") == "HEAD")
+  }
+
+  /* A redirect to another origin drops Authorization, Cookie, Proxy-Authorization and any secret-named header. */
+  @Test(arguments: ["Authorization", "Cookie", "Proxy-Authorization", "X-Api-Secret"])
+  func testBhvRedirects052CrossOriginHopDropsSensitiveHeaders(name: String) {
+    #expect(DefaultApiClient.isSensitiveRedirectHeader(name))
+  }
+
+  /* A request that completes after the client is closed still returns its response. */
+  @Test func testBhvLifecycle044AnInFlightRequestCompletesAfterClose() async throws {
+    var client: DefaultApiClient? = nil
+    client = makeClient { _ in
+      client?.close()
+      return (self.body(#"{"ok":true}"#), 200, [:])
+    }
+    let resp = try await client!.sendRequest(
+      method: "GET", url: "http://localhost/in-flight", headers: [:], body: nil)
+    #expect(resp.statusCode == 200)
+  }
+
+  /* A request with no body sends no Content-Type, even when a default header supplied one under another case. */
+  @Test func testBhvOperations163BodilessRequestSendsNoContentType() async throws {
+    let transport = try TransportOptionsBuilder().defaultHeaders([
+      "content-type": "application/json"
+    ]).build()
+    var seen: String? = "unset"
+    let client = makeClient(transport: transport) { req in
+      seen = req.value(forHTTPHeaderField: "Content-Type")
+      return (self.body(), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/no-body", headers: [:], body: nil)
+    #expect(seen == nil)
+  }
+
   // MARK: - Behaviour catalogue: header refusal and lifecycle
 
   /* A header value with a line break is refused before the request is sent. */

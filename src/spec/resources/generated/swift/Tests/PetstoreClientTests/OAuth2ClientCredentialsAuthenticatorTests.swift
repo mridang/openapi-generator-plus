@@ -21,6 +21,8 @@ import Testing
     var lastHeaders: [String: String] = [:]
     var lastBody: Data? = nil
 
+    var failure: Error? = nil
+
     /// Satisfies the ApiClient requirement that carries no request options.
     func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
       async throws -> ApiHttpResponse
@@ -36,6 +38,7 @@ import Testing
       lastURL = url
       lastHeaders = headers
       lastBody = body as? Data
+      if let failure { throw failure }
       return responses.removeFirst()
     }
   }
@@ -97,6 +100,89 @@ import Testing
       bodyString
         == "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
     )
+  }
+
+  /* The client-credentials grant posts grant_type client_credentials and the scopes joined by a plus to the token URL. */
+  @Test func testBhvAuth050ClientCredentialsPostsItsGrantAndJoinedScopesToTheTokenUrl() async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+
+    #expect(client.lastMethod == "POST")
+    #expect(client.lastURL == "https://auth.example.com/token")
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body.split(separator: "&").contains("grant_type=client_credentials"))
+    #expect(body.split(separator: "&").contains("scope=read+write"))
+  }
+
+  /* A non-success token response surfaces as an OAuth2 server error that names the status and the body. */
+  @Test func testBhvAuth054NonSuccessTokenResponseIsAnOAuth2ServerErrorNamingStatusAndBody()
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "denied by policy", statusCode: 403))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    var caught: Error? = nil
+    do {
+      _ = try await auth.authHeaders()
+    } catch {
+      caught = error
+    }
+    let serverError = try #require(caught as? OAuth2ServerError)
+    #expect("\(serverError)".contains("403"))
+    #expect("\(serverError)".contains("denied by policy"))
+  }
+
+  /* A network failure during the token request reaches the caller unchanged. */
+  @Test func testBhvAuth055NetworkFailureDuringTokenRequestReachesTheCallerUnchanged() async {
+    let client = MockApiClient()
+    client.failure = NetworkDown()
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    await #expect(throws: NetworkDown.self) {
+      _ = try await auth.authHeaders()
+    }
+  }
+
+  private struct NetworkDown: Error, Equatable {}
+
+  /* A numeric expires_in is honoured as decimal seconds, so a second call reuses the cached token. */
+  @Test func testBhvAuth056NumericExpiresInIsHonouredAsDecimalSeconds() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+    #expect(client.responses.count == 1)
+  }
+
+  /* An expires_in that is not a decimal number marks the token as stale, so the next call fetches again. */
+  @Test func testBhvAuth056NonNumericExpiresInMarksTheTokenStale() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":\"soon\"}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok2"])
+    #expect(client.responses.isEmpty)
   }
 
   @Test func testBhvAuthoauthtwoclientcred013SendsScopes() async throws {

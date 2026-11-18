@@ -817,7 +817,7 @@ final class PetApiTests {
   // instead of raw "\(value)" substitution. This regression-guards that the
   // simple-style integer path param is still substituted + encoded
   // correctly into the URL after the routing change.
-  @Test func testPathParamRoutedThroughSerializerStyling() async throws {
+  @Test func testBhvOperations165PathParamRoutedThroughSerializerStyling() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"id\":7,\"name\":\"Fido\",\"photoUrls\":[]}"
@@ -826,6 +826,32 @@ final class PetApiTests {
     let api = PetApi(apiClient: mockClient, config: config)
     _ = try await api.getPetByIdWithHTTPInfo(petId: 7)
     #expect(mockClient.lastURL == "https://example.com/pet/7")
+  }
+
+  /* A header supplied on one call is sent with that call only. */
+  @Test func testBhvOperations158PerCallHeaderIsSentWithThatCall() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"id\":7,\"name\":\"Fido\",\"photoUrls\":[]}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    _ = try await api.getPetByIdWithHTTPInfo(
+      petId: 7, options: GetPetByIdOptions(headers: ["X-Call-Id": "call-158"]))
+    #expect(mockClient.lastHeaders["X-Call-Id"] == "call-158")
+  }
+
+  /* A call that returns a value raises a typed API error when a success response has an empty body. */
+  @Test func testBhvOperations159EmptySuccessBodyRaisesATypedApiError() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = ""
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    await #expect(throws: ApiError.self) {
+      _ = try await api.getPetById(petId: 7)
+    }
   }
 
   // convenience-empty-body-handling: a body-returning operation that
