@@ -601,3 +601,10 @@ csharp | misc188 | the C# client exposes no public closed state to read, so the 
 python | misc145 | python exposes additional_properties as the model's own dict field, so reading it hands back the stored dict rather than a copy
 python | misc149 | python copies a model with pydantic's model_copy, which does not refuse an undeclared key, so there is no refusal to observe
 python | misc153 | python has no client-level cancellation handle: a RequestHandle is passed to each send_request call, so a cancel set on the client cannot exist
+||||||| 0fbd691e5
+ruby | misc081 | Ruby returns a binary-typed response body to the caller as the raw text it was sent in, which bhv_serializationwire_017 relies on (the caller decodes the base64 itself), so the body is not decoded before it is returned as a string
+||||||| 2db8d272f
+node | misc074 | BaseApi resolves one credential, the first listed scheme the client holds, so an alternative naming two schemes applies a single credential and never both
+node | misc075 | the credentials object is typed with one optional field per declared scheme, so TypeScript refuses an undeclared key at compile time and the client reads only declared schemes
+node | misc081 | a binary response is carried as the base64 text of its bytes (bhv serializationwire 018), so a base64 body under a binary content type is returned as that text and never decoded to a string
+node | misc091 | settled decision S3 and bhv serialization 069: schema constraints such as pattern, length and range are not enforced by the client, so refusing a value that breaks one would contradict it
