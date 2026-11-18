@@ -282,6 +282,28 @@ class TestErrorTreeExports:
                 "petstore_client.errors"
             )
 
+    def test_bhv_errors_094_every_raised_error_is_the_root_type(self) -> None:
+        from petstore_client.errors.serialization_exception import (
+            SerializationException,
+        )
+
+        raised = [
+            SerializationException(message="bad"),
+            NetworkTimeoutException(message="timed out"),
+            ApiException.from_response(404, {}, "{}"),
+        ]
+        for err in raised:
+            assert isinstance(err, OpenAPIException)
+
+    def test_bhv_misc_022_a_server_error_is_the_root_type_and_the_server_class(
+        self,
+    ) -> None:
+        from petstore_client.errors.server_exception import ServerException
+
+        err = ApiException.from_response(503, {}, "{}")
+        assert isinstance(err, ServerException)
+        assert isinstance(err, OpenAPIException)
+
     def test_bhv_misc_283_package_root_exports_the_whole_error_tree(self) -> None:
         for name in ERROR_TREE:
             assert name in petstore_client.__all__

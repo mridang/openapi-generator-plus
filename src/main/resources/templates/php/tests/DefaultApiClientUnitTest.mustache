@@ -3031,3 +3031,15 @@ test('bhv headers 031 a header value with a carriage return or line feed is refu
     'a line feed' => ["a\nInjected: yes"],
     'a carriage return and line feed' => ["a\r\nInjected: yes"],
 ]);
+
+test('bhv errors 098 an unreadable caCertPath names the certificate and the underlying cause', function (): void {
+    $transport = TransportOptions::builder()->caCertPath('/nonexistent/ca.pem')->build();
+
+    expect(fn (): mixed => new DefaultApiClient($transport))
+        ->toThrow(function (\Exception $e): void {
+            expect($e)->toBeInstanceOf(\InvalidArgumentException::class);
+            expect($e)->not->toBeInstanceOf(\ErrorException::class);
+            expect($e->getMessage())->toContain('/nonexistent/ca.pem');
+            expect($e->getMessage())->toContain('No such file or directory');
+        });
+});

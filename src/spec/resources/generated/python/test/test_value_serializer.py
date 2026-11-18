@@ -979,6 +979,49 @@ class TestObjectValuedParameters:
                 "c", {"a": {"b": 1}}, "query", "Obj", None, "form", True
             )
 
+    def test_bhv_serializationparam_108_a_nested_object_leaf_in_a_styled_parameter_is_a_serialization_error(
+        self,
+    ) -> None:
+        from petstore_client.errors import SerializationException
+
+        with pytest.raises(SerializationException):
+            ValueSerializer.serialize_styled(
+                "criteria", {"a": {"b": 1}}, "query", "object", None, "form", True
+            )
+
+    def test_bhv_serializationparam_109_an_unknown_style_falls_back_to_plain_value_serialization(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize_styled(
+                "id", "5", "query", "string", None, "unknownStyle", False
+            )
+            == "5"
+        )
+
+    def test_bhv_serializationparam_110_a_date_value_is_written_as_yyyy_mm_dd(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize(datetime.date(2025, 1, 1), "path", "string")
+            == "2025-01-01"
+        )
+
+    def test_bhv_serializationparam_111_a_deep_object_parameter_writes_each_property_as_name_key(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize_deep_object(
+            "filter", {"status": "active", "type": "dog"}
+        ) == {
+            "filter[status]": "active",
+            "filter[type]": "dog",
+        }
+
+    def test_bhv_serializationparam_118_a_content_cookie_value_is_encoded_to_the_shared_bytes(
+        self,
+    ) -> None:
+        assert ValueSerializer.encode_content("c", "a b~c", "cookie") == "a%20b~c"
+
     def test_bhv_serializationparam_003_allow_reserved_wraps_each_property_of_an_exploded_object(
         self,
     ) -> None:

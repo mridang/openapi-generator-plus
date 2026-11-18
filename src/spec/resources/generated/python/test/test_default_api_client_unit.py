@@ -2136,6 +2136,29 @@ class TestNetworkErrorMessageKeepsTheQueryOut:
         assert "api_key" not in str(excinfo.value)
 
 
+class TestPastDeadline:
+    def test_bhv_misc_030_a_request_past_its_deadline_is_a_timeout_and_never_reaches_the_transport(
+        self,
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from petstore_client.errors.network_timeout_exception import (
+            NetworkTimeoutException,
+        )
+
+        pool = MagicMock()
+        client = DefaultApiClient(
+            TransportOptions.builder().max_retries(0).build(), pool_manager=pool
+        )
+
+        with pytest.raises(NetworkTimeoutException):
+            client.send_request(
+                "GET", "http://127.0.0.1:1/echo", {}, None, False, time.monotonic() - 1
+            )
+
+        pool.request.assert_not_called()
+
+
 class TestCaCertPathFailsFast:
     """An explicitly configured CA certificate path that cannot be read or
     parsed must fail fast at construction with a ValueError rather than
