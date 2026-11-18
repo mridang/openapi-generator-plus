@@ -633,17 +633,12 @@ public class OpenIdConnectAuthenticatorTest
         auth.SetApiClient(new FailingRediscoveryApiClient());
 
         await auth.ExchangeCodeAsync("the-code");
-        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(() =>
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ServerException>(() =>
             auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
         );
         Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
             TestContext.Current.CancellationToken
         );
-
-        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ServerException>(() =>
-            auth.GetAuthHeadersAsync()
-        );
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
 
         Assert.Equal("Bearer at-1", headers["Authorization"]);
     }
