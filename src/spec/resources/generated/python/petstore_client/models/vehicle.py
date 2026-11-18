@@ -10,7 +10,7 @@ from __future__ import annotations
 from pydantic import ConfigDict, Field, ValidationInfo, model_validator
 from pydantic import StrictStr
 from petstore_client._types import ApiModel, hash_model
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Dict
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ class Vehicle(ApiModel):
     }
 
     @classmethod
-    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
         """Returns the discriminator value (object type) of the data.
 
         Gap AU: raises ValueError when the discriminator field is missing
