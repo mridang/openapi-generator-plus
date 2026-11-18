@@ -3890,4 +3890,21 @@ class DefaultApiClientUnitTest {
       Thread.currentThread().interrupt();
     }
   }
+
+  @Test
+  void bhvErrors098MissingCaCertificateNamesThePathAndWrapsTheNotFoundCause() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new DefaultApiClient(
+                    TransportOptions.builder()
+                        .caCertPath("/nonexistent/ca-certificate.pem")
+                        .build()));
+    assertTrue(
+        ex.getMessage() != null && ex.getMessage().contains("/nonexistent/ca-certificate.pem"),
+        ex.getMessage());
+    assertTrue(
+        ex.getCause() instanceof java.io.FileNotFoundException, String.valueOf(ex.getCause()));
+  }
 }

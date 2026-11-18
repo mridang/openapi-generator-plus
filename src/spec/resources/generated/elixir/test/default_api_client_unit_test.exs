@@ -2829,4 +2829,14 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert function_exported?(PetstoreClient.DefaultApiClient, :close, 1)
     end
   end
+
+  test "bhv errors 098 a missing CA certificate path names the certificate and the not-found cause at construction" do
+    path = "/nonexistent/ca-#{System.unique_integer([:positive])}.pem"
+    transport = PetstoreClient.TransportOptions.new(ca_cert_path: path)
+
+    error = assert_raise ArgumentError, fn -> PetstoreClient.DefaultApiClient.new(transport) end
+
+    assert error.message =~ path
+    assert error.message =~ "no such file or directory"
+  end
 end
