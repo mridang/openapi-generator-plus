@@ -934,7 +934,7 @@ test('bhv errors 082 a token error keeps its valid code when its description or 
     }
 });
 
-test('a non string error value is not taken as an error code', function (): void {
+test('bhv langphp 065 a non string error value is not taken as an error code', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(400, (string) json_encode(['error' => 7]), ['Content-Type' => 'application/json']));
 

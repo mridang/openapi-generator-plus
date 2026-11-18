@@ -556,7 +556,7 @@ test('bhv authoidc 019 redacts secret', function (): void {
     expect($printR)->toContain('***');
 });
 
-test('secret constructor parameters are marked sensitive', function (): void {
+test('bhv langphp 048 secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
     foreach ((new \ReflectionMethod(OpenIdConnectAuthenticator::class, '__construct'))->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
