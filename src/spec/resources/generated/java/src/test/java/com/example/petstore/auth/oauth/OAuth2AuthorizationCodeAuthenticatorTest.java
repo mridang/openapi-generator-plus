@@ -598,7 +598,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void generatedVerifiersAreFortyThreeUnreservedCharactersAndDiffer() {
+  void bhvLangjava060GeneratedVerifiersAreFortyThreeUnreservedCharactersAndDiffer() {
     String first = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
     String second = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
 

@@ -1406,7 +1406,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void failedFirstExchangeLeavesNoSessionAndIsNotExchanged() {
+  void bhvLangjava061FailedFirstExchangeLeavesNoSessionAndIsNotExchanged() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(fakeClient(400, "{\"error\":\"invalid_grant\"}"));
     Map<String, String> params = new HashMap<>();

@@ -1252,7 +1252,7 @@ class BaseApiTest {
 
     @Test
     @DisplayName("without per-call settings the plain send is used")
-    void withoutPerCallSettingsThePlainSendIsUsed() {
+    void bhvLangjava043WithoutPerCallSettingsThePlainSendIsUsed() {
       var client = new OverrideCapturingClient();
       try {
         apiOver(client).findPetsByStatus(new FindPetsByStatusOptions());
@@ -2652,7 +2652,7 @@ class BaseApiTest {
 
     @Test
     @DisplayName("defaults to UTF-8 when Content-Type has no charset")
-    void defaultsToUtf8WhenNoCharset() {
+    void bhvLangjava044DefaultsToUtf8WhenNoCharset() {
       byte[] utf8Bytes = "héllo".getBytes(java.nio.charset.StandardCharsets.UTF_8);
       // UTF-8 default produces the original string
       String decoded = new String(utf8Bytes, java.nio.charset.StandardCharsets.UTF_8);
@@ -2661,7 +2661,7 @@ class BaseApiTest {
 
     @Test
     @DisplayName("falls back to UTF-8 for unknown charset without throwing")
-    void fallsBackToUtf8ForUnknownCharset() {
+    void bhvLangjava045FallsBackToUtf8ForUnknownCharset() {
       // Verify Charset lookup throws as expected for an unknown name —
       // template code catches this and falls back to UTF-8.
       assertThrows(
@@ -3072,7 +3072,7 @@ class BaseApiTest {
     @Test
     @DisplayName(
         "optional array query params serialize with their declared style, not a debug blob")
-    void optionalArrayQueryParamsUseDeclaredStyle() {
+    void bhvLangjava046OptionalArrayQueryParamsUseDeclaredStyle() {
       var client = new CapturingApiClient();
       var config = new Configuration("http://localhost", Map.of());
       var api = new PetApi(client, config);
