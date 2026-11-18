@@ -595,6 +595,11 @@ swift | misc091 | The Swift generator emits no schema constraint or pattern chec
 swift | misc098 | The Swift multipart builder takes only Data, String and model values as parts, so a caller-supplied stream can never be a part; a caller body stream is covered by the transport tests
 swift | misc100 | The Swift client always sends multipart/form-data with its own boundary and ignores a declared multipart subtype, so the declared subtype is never kept
 swift | misc101 | Swift multipart parts are Data, String or model values already in memory, so a part source cannot fail to read at send time
+swift | misc110 | The Swift decoder reads a calendar-date field as a plain String and has no list-of-dates type whose elements are refused when they are not dates
+swift | misc111 | The Swift client writes uniqueItems collections in their natural order and never sorts them (documented in the readme)
+swift | misc113 | Swift models print through the default Mirror description of their stored properties, so the Python type-name string form does not exist to be replaced
+swift | misc114 | A Swift operation returns the single success type its spec declares, so there is no per-status decoder to choose from the status code received
+swift | misc116 | The Swift generator emits no minimum or maximum checks into its models, so an integer field's declared bounds are never enforced at decode
 ||||||| 80c094f97
 java | misc068 | java keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 java | misc074 | BaseApi.resolveSchemeAuth returns the credential of the first listed scheme the client holds, so an alternative naming two schemes applies one credential and never both
