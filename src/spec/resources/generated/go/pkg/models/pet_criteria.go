@@ -37,6 +37,16 @@ func (o *PetCriteria) Equal(other *PetCriteria) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o PetCriteria) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "PetCriteria{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithBreed returns a copy of the model with Breed replaced; the receiver is unchanged.
 func (o PetCriteria) WithBreed(value string) PetCriteria {
 	o.Breed = &value

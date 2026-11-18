@@ -285,7 +285,7 @@ class OAuth2TokenManager {
          * ApiClient honours noRedirect=true by surfacing the first 3xx
          * straight to us. A transport failure propagates unchanged as
          * NetworkException / NetworkTimeoutException. */
-        val response: ApiHttpResponse = client.sendRequest("POST", tokenUrl, headers, body, noRedirect = true)
+        val response: ApiHttpResponse = client.sendTokenRequest("POST", tokenUrl, headers, body)
         if (response.statusCode < 200 || response.statusCode >= 300) {
             /* Any non-2xx answer, a refused 3xx included, is an
              * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses

@@ -112,6 +112,28 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
+  it 'bhv_misc_172 a request to a token endpoint is sent once and not retried, even when the server answers 503' do
+    requests = 0
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.post('/token') do
+          requests += 1
+          [503, { 'content-type' => 'application/json' }, '{}']
+        end
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.max_retries(2).build)
+    token_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+      'http://localhost', 'my_client_id', 'my_client_secret', 'http://localhost/token', %w[read]
+    )
+    token_auth.api_client = client
+    client.stub(:build_connection, Faraday.new('http://localhost') { |f| f.adapter :test, stubs }) do
+      _(-> { token_auth.auth_headers }).must_raise ::Petstore::Client::Errors::OpenAPIError
+    end
+
+    _(requests).must_equal 1
+  end
+
   it 'bhv_authoauthtwoclientcred_015 token fetch error is surfaced not swallowed' do
     # oauth-cc-authheaders-error-swallow: a failed client-credentials token
     # exchange must surface to the caller as a raised error — NOT be

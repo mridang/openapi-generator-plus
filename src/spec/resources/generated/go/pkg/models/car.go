@@ -39,6 +39,16 @@ func (o *Car) Equal(other *Car) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Car) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Car{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithVehicleType returns a copy of the model with VehicleType replaced; the receiver is unchanged.
 func (o Car) WithVehicleType(value string) Car {
 	o.VehicleType = value

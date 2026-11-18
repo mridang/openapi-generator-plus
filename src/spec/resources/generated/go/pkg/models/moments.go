@@ -39,6 +39,16 @@ func (o *Moments) Equal(other *Moments) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Moments) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Moments{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithLabel returns a copy of the model with Label replaced; the receiver is unchanged.
 func (o Moments) WithLabel(value string) Moments {
 	o.Label = &value

@@ -54,6 +54,23 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
                "Basic " <> Base.encode64("bob:changed")
     end
 
+    test "bhv misc 068 an empty string passed for a credential counts as not passed" do
+      user = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
+      pass = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"
+      System.put_env(user, "alice")
+      System.put_env(pass, "from-env")
+
+      on_exit(fn ->
+        System.delete_env(user)
+        System.delete_env(pass)
+      end)
+
+      auth = BasicAuthenticator.new("https://api.example.com", "", "")
+
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] ==
+               "Basic " <> Base.encode64("alice:from-env")
+    end
+
     test "bhv authbasic 013 explicit credentials win over the environment" do
       user = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
       pass = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"
