@@ -1,0 +1,63 @@
+require 'opentelemetry-api'
+require 'opentelemetry-metrics-api'
+
+# A call hook that records one span, one request count and one duration per
+# call. It needs the opentelemetry-api and opentelemetry-metrics-api gems, and
+# does nothing until you configure an OpenTelemetry SDK or pass providers.
+class TelemetryCallHook
+  # Ends the span and records the count and the duration of one call.
+  class Observer
+    def initialize(span, attributes, count, duration, started)
+      @span = span
+      @attributes = attributes
+      @count = count
+      @duration = duration
+      @started = started
+    end
+
+    def finish(outcome)
+      attributes = @attributes.dup
+      attributes['http.response.status_code'] = outcome.status_code if outcome.status_code.positive?
+      failure = error_type(outcome)
+      attributes['error.type'] = failure if failure
+      @span.add_attributes(attributes.slice('http.response.status_code', 'error.type'))
+      @span.status = OpenTelemetry::Trace::Status.error(failure) if failure
+      @span.finish
+      @count.add(1, attributes: attributes)
+      @duration.record(Process.clock_gettime(Process::CLOCK_MONOTONIC) - @started, attributes: attributes)
+    end
+
+    private
+
+    def error_type(outcome)
+      return outcome.status_code.to_s if outcome.status_code >= 400
+
+      case outcome.error
+      when nil then nil
+      when ::{{moduleName}}::Errors::NetworkTimeoutError then 'timeout'
+      when ::{{moduleName}}::Errors::NetworkError then 'network_error'
+      when ::{{moduleName}}::Errors::SerializationError then 'serialization_error'
+      when ::SignalException then 'cancelled'
+      else '_OTHER'
+      end
+    end
+  end
+
+  def initialize(tracer_provider: OpenTelemetry.tracer_provider, meter_provider: OpenTelemetry.meter_provider)
+    @tracer = tracer_provider.tracer('{{gemName}}', ::{{moduleName}}::VERSION)
+    meter = meter_provider.meter('{{gemName}}', version: ::{{moduleName}}::VERSION)
+    @count = meter.create_counter('http.client.request.count', unit: '{request}')
+    @duration = meter.create_histogram('http.client.request.duration', unit: 's')
+  end
+
+  def start(info, headers)
+    attributes = {
+      'http.request.method' => info.http_method,
+      'url.template' => info.url_template,
+      'server.address' => info.server_address
+    }
+    span = @tracer.start_span(info.operation_id, kind: :client, attributes: attributes)
+    OpenTelemetry.propagation.inject(headers, context: OpenTelemetry::Trace.context_with_span(span))
+    Observer.new(span, attributes, @count, @duration, Process.clock_gettime(Process::CLOCK_MONOTONIC))
+  end
+end

@@ -19,7 +19,8 @@ REQUIRED_TEST_GEMS = {
   'better_junit' => 'better_coverage',
   'testcontainers' => 'testcontainers',
   'docker' => 'docker-api',
-  'opentelemetry/sdk' => 'opentelemetry-sdk'
+  'opentelemetry/sdk' => 'opentelemetry-sdk',
+  'opentelemetry-metrics-sdk' => 'opentelemetry-metrics-sdk'
 }.freeze
 
 missing_test_gems = REQUIRED_TEST_GEMS.filter_map do |feature, gem_name|
@@ -186,3 +187,43 @@ unless shared_helpers
 end
 
 ENV['CA_CERT_PATH'] = File.join(Dir.pwd, 'test', 'fixtures', 'certs', 'ca.pem')
+
+# A call hook that records what it is told, for the tests of the hook. It runs
+# +edit+ with the headers when it starts and writes to +log+, when given, the
+# order in which it started and finished.
+class RecordingCallHook
+  attr_reader :infos, :seen_headers, :outcomes
+
+  def initialize(name = nil, log = nil, &edit)
+    @name = name
+    @log = log
+    @edit = edit
+    @infos = [] # : Array[untyped]
+    @seen_headers = [] # : Array[Hash[String, String]]
+    @outcomes = [] # : Array[untyped]
+  end
+
+  def start(info, headers)
+    @infos << info
+    @seen_headers << headers.dup
+    @log&.push("start #{@name}")
+    @edit&.call(headers)
+    RecordingCallObserver.new(self)
+  end
+
+  def finished(outcome)
+    @outcomes << outcome
+    @log&.push("finish #{@name}")
+  end
+end
+
+# The observer a RecordingCallHook returns.
+class RecordingCallObserver
+  def initialize(hook)
+    @hook = hook
+  end
+
+  def finish(outcome)
+    @hook.finished(outcome)
+  end
+end

@@ -1762,4 +1762,39 @@ describe {{moduleName}}::Api::PetApi do
       _(err.message).must_include "Invalid value 'other' for server variable 'channel'"
     end
   end
+
+  # The call hook is told the operation as the spec writes it, whichever of the
+  # two variants of an operation the caller uses.
+  describe 'call hook' do
+    def hooked_pet_api(hook)
+      config = {{moduleName}}::Configuration.builder.base_url('http://127.0.0.1:1').call_hook(hook).build
+      {{moduleName}}::Api::PetApi.new(RecordingPetClient.new(body: '[]'), config)
+    end
+
+    it 'bhv_hooks_009 starts and finishes the hook once for each of the plain and the WithHttpInfo variant' do
+      hook = RecordingCallHook.new
+      api = hooked_pet_api(hook)
+
+      api.find_pets_by_status
+      _(hook.infos.length).must_equal 1
+      _(hook.outcomes.length).must_equal 1
+
+      api.find_pets_by_status_with_http_info
+      _(hook.infos.length).must_equal 2
+      _(hook.outcomes.length).must_equal 2
+    end
+
+    it 'bhv_hooks_002 names the operation as the spec writes it and gives its path template' do
+      hook = RecordingCallHook.new
+
+      hooked_pet_api(hook).find_pets_by_status
+
+      info = hook.infos.first
+      _(info.operation_id).must_equal 'findPetsByStatus'
+      _(info.http_method).must_equal 'GET'
+      _(info.url_template).must_equal '/pet/findByStatus'
+      _(info.url).must_equal 'http://127.0.0.1:1/pet/findByStatus'
+      _(hook.outcomes.first.status_code).must_equal 200
+    end
+  end
 end

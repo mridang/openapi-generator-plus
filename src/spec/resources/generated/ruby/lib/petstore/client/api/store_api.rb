@@ -68,6 +68,8 @@ module Petstore::Client
           'Account',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.create_account',
+          spec_operation_id: 'createAccount',
+          url_template: '/store/account',
           request_options: options
         )
       end
@@ -107,6 +109,8 @@ module Petstore::Client
           nil,
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'StoreApi.delete_order',
+          spec_operation_id: 'deleteOrder',
+          url_template: '/store/order/{orderId}',
           request_options: options
         )
       end
@@ -165,6 +169,8 @@ module Petstore::Client
           'Category',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_by_swatch',
+          spec_operation_id: 'getBySwatch',
+          url_template: '/store/by-swatch/{pathSwatch}',
           request_options: options
         )
       end
@@ -207,6 +213,8 @@ module Petstore::Client
           'Defaults',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_defaults',
+          spec_operation_id: 'getDefaults',
+          url_template: '/store/defaults',
           request_options: options
         )
       end
@@ -249,6 +257,8 @@ module Petstore::Client
           'Department',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_department',
+          spec_operation_id: 'getDepartment',
+          url_template: '/store/department',
           request_options: options
         )
       end
@@ -291,6 +301,8 @@ module Petstore::Client
           'Array<Hash<String, Category>>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_grouped_categories',
+          spec_operation_id: 'getGroupedCategories',
+          url_template: '/store/grouped-categories',
           request_options: options
         )
       end
@@ -333,6 +345,8 @@ module Petstore::Client
           'Hash<String, Integer>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_inventory',
+          spec_operation_id: 'getInventory',
+          url_template: '/store/inventory',
           request_options: options
         )
       end
@@ -375,6 +389,8 @@ module Petstore::Client
           'Array<Array<Integer>>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_matrix',
+          spec_operation_id: 'getMatrix',
+          url_template: '/store/matrix',
           request_options: options
         )
       end
@@ -428,6 +444,8 @@ module Petstore::Client
           'Order',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'StoreApi.get_order_by_id',
+          spec_operation_id: 'getOrderById',
+          url_template: '/store/order/{orderId}',
           request_options: options
         )
       end
@@ -482,6 +500,8 @@ module Petstore::Client
           'Order',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_order_by_tracking_id',
+          spec_operation_id: 'getOrderByTrackingId',
+          url_template: '/store/order/by-tracking/{trackingId}',
           request_options: options
         )
       end
@@ -532,6 +552,8 @@ module Petstore::Client
           'StockItem',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_stock_item',
+          spec_operation_id: 'getStockItem',
+          url_template: '/store/stock-item',
           request_options: options
         )
       end
@@ -574,6 +596,8 @@ module Petstore::Client
           'Swatch',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_swatch',
+          spec_operation_id: 'getSwatch',
+          url_template: '/store/swatch',
           request_options: options
         )
       end
@@ -616,6 +640,8 @@ module Petstore::Client
           'Array<Hash<String, Swatch>>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_swatch_groups',
+          spec_operation_id: 'getSwatchGroups',
+          url_template: '/store/swatch-groups',
           request_options: options
         )
       end
@@ -658,6 +684,8 @@ module Petstore::Client
           'Array<Hash<String, Time>>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_timestamp_groups',
+          spec_operation_id: 'getTimestampGroups',
+          url_template: '/store/timestamp-groups',
           request_options: options
         )
       end
@@ -700,6 +728,8 @@ module Petstore::Client
           'TreeNode',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.get_tree',
+          spec_operation_id: 'getTree',
+          url_template: '/store/tree',
           request_options: options
         )
       end
@@ -751,6 +781,8 @@ module Petstore::Client
           'Order',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'StoreApi.place_order',
+          spec_operation_id: 'placeOrder',
+          url_template: '/store/order',
           request_options: options
         )
       end
@@ -796,6 +828,8 @@ module Petstore::Client
           { 200 => 'Reservation', 201 => 'ReservationReceipt' },
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.reserve_stock',
+          spec_operation_id: 'reserveStock',
+          url_template: '/store/reservation',
           request_options: options
         )
       end
@@ -856,6 +890,8 @@ module Petstore::Client
           'Array<Order>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.search_store',
+          spec_operation_id: 'searchStore',
+          url_template: '/store/search',
           request_options: options
         )
       end

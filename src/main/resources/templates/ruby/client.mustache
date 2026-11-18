@@ -51,8 +51,9 @@ module {{moduleName}}
 {{#clientSchemes}}
     # @param {{argName}} [Auth::Authenticator, nil] credential of the +{{#lambda.rubyComment}}{{{schemeId}}}{{/lambda.rubyComment}}+ security scheme
 {{/clientSchemes}}
+    # @param call_hook [#start, nil] the hook that runs around every call, see {CallHook}
     # @raise [ArgumentError] when no credential is given
-    def initialize(authenticator = nil, transport_options = nil{{#clientSchemes}}, {{argName}}: nil{{/clientSchemes}})
+    def initialize(authenticator = nil, transport_options = nil{{#clientSchemes}}, {{argName}}: nil{{/clientSchemes}}, call_hook: nil)
       # @type var schemes: Hash[String, Auth::Authenticator]
       schemes = {}
 {{#clientSchemes}}
@@ -70,6 +71,7 @@ module {{moduleName}}
 
       config = Configuration.builder
         .base_url(first_credential.host)
+        .call_hook(call_hook)
         .build
 {{#apiInfo}}
 {{#apis}}
@@ -89,7 +91,8 @@ module {{moduleName}}
     #
     # @param authenticator [Auth::Authenticator] Provides host URL and auth headers.
     # @param transport_options [TransportOptions, nil] HTTP transport configuration (proxy, TLS, timeouts, etc.).
-    def initialize(authenticator, transport_options = nil)
+    # @param call_hook [#start, nil] the hook that runs around every call, see {CallHook}
+    def initialize(authenticator, transport_options = nil, call_hook: nil)
       transport_options ||= TransportOptions.builder.build
       api_client = DefaultApiClient.new(transport_options)
       @api_client = api_client
@@ -97,6 +100,7 @@ module {{moduleName}}
 
       config = Configuration.builder
         .base_url(authenticator.host)
+        .call_hook(call_hook)
         .build
 {{#apiInfo}}
 {{#apis}}
@@ -133,9 +137,11 @@ module {{moduleName}}
     # @param access_token [String, nil] Bearer token.
     # @param transport_options [TransportOptions, nil] Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
     # @param token_provider [#call, nil] Returns the Bearer token for one request.
+    # @param call_hook [#start, nil] The hook that runs around every call, see {CallHook}.
     # @return [{{clientClassName}}] Configured client instance.
-    def self.with_token(host, access_token = nil, transport_options = nil, token_provider: nil)
-      new(Auth::BearerAuthenticator.new(host, access_token, token_provider: token_provider), transport_options)
+    def self.with_token(host, access_token = nil, transport_options = nil, token_provider: nil, call_hook: nil)
+      new(Auth::BearerAuthenticator.new(host, access_token, token_provider: token_provider), transport_options,
+          call_hook: call_hook)
     end
 
     # Creates a client from a ready-made authenticator.
@@ -149,9 +155,10 @@ module {{moduleName}}
     #
     # @param authenticator [Auth::Authenticator] Provides host URL and auth headers.
     # @param transport_options [TransportOptions, nil] Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    # @param call_hook [#start, nil] The hook that runs around every call, see {CallHook}.
     # @return [{{clientClassName}}] Configured client instance.
-    def self.with_authenticator(authenticator, transport_options = nil)
-      new(authenticator, transport_options)
+    def self.with_authenticator(authenticator, transport_options = nil, call_hook: nil)
+      new(authenticator, transport_options, call_hook: call_hook)
     end
   end
 end
