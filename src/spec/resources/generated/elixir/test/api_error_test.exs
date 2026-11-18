@@ -496,7 +496,8 @@ defmodule PetstoreClient.ApiErrorTest do
     test "bhv errors 044 every error lives under the Errors namespace and the package root lists the whole tree" do
       errors = PetstoreClient.errors()
 
-      assert PetstoreClient.Errors.OpenAPIError in errors
+      assert PetstoreClient.Errors.ApiError in errors
+      refute PetstoreClient.Errors.OpenAPIError in errors
 
       for error <- errors do
         assert Code.ensure_loaded?(error)

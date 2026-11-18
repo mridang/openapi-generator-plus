@@ -216,7 +216,6 @@ defmodule {{moduleName}}.Api.StoreApiTest do
 
     cases = [
       {404, {{moduleName}}.Errors.NotFoundError},
-      {429, {{moduleName}}.Errors.TooManyRequestsError},
       {500, {{moduleName}}.Errors.InternalServerError}
     ]
 

@@ -72,11 +72,7 @@ defmodule {{moduleName}}.DefaultApiClient do
   defp base_request(%{user_agent: nil} = opts) do
     req = Req.new(merge_req_options(opts.req_options, request_options(opts)))
 
-    %{
-      req
-      | request_steps: Keyword.delete(req.request_steps, :put_user_agent),
-        current_request_steps: List.delete(req.current_request_steps, :put_user_agent)
-    }
+    %{req | request_steps: Keyword.delete(req.request_steps, :put_user_agent)}
   end
 
   defp base_request(opts), do: Req.new(merge_req_options(opts.req_options, request_options(opts)))
@@ -1179,7 +1175,7 @@ defmodule {{moduleName}}.DefaultApiClient do
 
   defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}
 
-  defp prepare_body(body, headers) when is_map(body) do
+  defp prepare_body(body, headers) when is_map(body) and not is_struct(body) do
     boundary = generate_uuid()
     content_type = "multipart/form-data; boundary=#{boundary}"
     headers = Map.put(headers, "Content-Type", content_type)

@@ -446,7 +446,8 @@ defmodule {{moduleName}}.ApiErrorTest do
     test "bhv errors 044 every error lives under the Errors namespace and the package root lists the whole tree" do
       errors = {{moduleName}}.errors()
 
-      assert {{moduleName}}.Errors.OpenAPIError in errors
+      assert {{moduleName}}.Errors.ApiError in errors
+      refute {{moduleName}}.Errors.{{errorPrefix}}Error in errors
 
       for error <- errors do
         assert Code.ensure_loaded?(error)

@@ -590,8 +590,9 @@ defmodule PetstoreClient.ObjectSerializer do
     to_string(value)
   rescue
     Protocol.UndefinedError ->
-      raise PetstoreClient.Errors.SerializationError,
-        message: "Failed to serialize object to JSON: #{inspect(value)} has no JSON form"
+      reraise PetstoreClient.Errors.SerializationError,
+              [message: "Failed to serialize object to JSON: #{inspect(value)} has no JSON form"],
+              __STACKTRACE__
   end
 
   # format: byte - encode the native `binary()` bytes back to a

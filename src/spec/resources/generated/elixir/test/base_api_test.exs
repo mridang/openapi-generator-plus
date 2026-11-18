@@ -2922,7 +2922,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert String.contains?(
              serialized,
-             "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\n" <>
+             ~s(Content-Disposition: form-data; name="file"; filename="file"\r\nContent-Type: application/octet-stream\r\n\r\n) <>
                bytes <> "\r\n--BOUNDARY--\r\n"
            )
   end
