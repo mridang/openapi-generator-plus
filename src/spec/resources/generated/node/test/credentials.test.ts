@@ -24,7 +24,7 @@ describe("credentials", () => {
     }
   });
 
-  it("reads the variable of the field", () => {
+  it("bhv misc 207 reads the variable of the field", () => {
     process.env[TOKEN_VARIABLE] = "from-env";
     expect(readEnvCredential(TOKEN_VARIABLE)).toBe("from-env");
   });
@@ -46,7 +46,7 @@ describe("credentials", () => {
     );
   });
 
-  it("falls back to the environment when no value is passed", () => {
+  it("bhv langnode 058 falls back to the environment when no value is passed", () => {
     process.env[TOKEN_VARIABLE] = "from-env";
     expect(resolveCredential(undefined, TOKEN_VARIABLE, "Token")).toBe(
       "from-env",
@@ -58,7 +58,7 @@ describe("credentials", () => {
     expect(resolveCredential("", TOKEN_VARIABLE, "Token")).toBe("");
   });
 
-  it("names the variable when nothing supplies the value", () => {
+  it("bhv langnode 059 names the variable when nothing supplies the value", () => {
     delete process.env[TOKEN_VARIABLE];
     expect(() => resolveCredential(undefined, TOKEN_VARIABLE, "Token")).toThrow(
       new TypeError(
@@ -67,14 +67,14 @@ describe("credentials", () => {
     );
   });
 
-  it("refuses an OAuth2 credential from the environment that has a line break", () => {
+  it("bhv langnode 060 refuses an OAuth2 credential from the environment that has a line break", () => {
     process.env[TOKEN_VARIABLE] = "bad\r\nvalue";
     expect(() =>
       resolveOAuthCredential(undefined, TOKEN_VARIABLE, "OAuth2 client ID"),
     ).toThrow(new TypeError("OAuth2 client ID must not contain CR, LF or NUL"));
   });
 
-  it("accepts an OAuth2 credential from the environment without a line break", () => {
+  it("bhv langnode 061 accepts an OAuth2 credential from the environment without a line break", () => {
     process.env[TOKEN_VARIABLE] = "from-env";
     expect(
       resolveOAuthCredential(undefined, TOKEN_VARIABLE, "OAuth2 client ID"),
