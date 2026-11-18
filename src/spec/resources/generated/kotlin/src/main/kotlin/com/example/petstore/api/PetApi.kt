@@ -57,7 +57,9 @@ import kotlin.collections.List
  * @see <a href="https://example.com/docs/pets">Find out more about pets (it's */ here)
 on two lines</a>
  */
-class PetApi : BaseApi {
+class PetApi :
+    BaseApi,
+    PetApiInterface {
     /**
      * Server type for the getExternalPetInfo operation.
      */
@@ -195,9 +197,9 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      */
-    suspend fun addPet(
+    override suspend fun addPet(
         pet: Pet,
-        options: AddPetOptions? = null,
+        options: AddPetOptions?,
     ): Pet =
         addPetWithHttpInfo(pet, options).let { result ->
             result.data ?: throw ApiException(
@@ -209,9 +211,9 @@ class PetApi : BaseApi {
         }
 
     /** Same as [addPet] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun addPetWithHttpInfo(
+    override suspend fun addPetWithHttpInfo(
         pet: Pet,
-        options: AddPetOptions? = null,
+        options: AddPetOptions?,
     ): ApiResult<Pet> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -249,7 +251,7 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun addPetPhotos(
+    override suspend fun addPetPhotos(
         petId: Long,
         options: AddPetPhotosOptions,
     ): List<Photo> =
@@ -263,7 +265,7 @@ class PetApi : BaseApi {
         }
 
     /** Same as [addPetPhotos] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun addPetPhotosWithHttpInfo(
+    override suspend fun addPetPhotosWithHttpInfo(
         petId: Long,
         options: AddPetPhotosOptions,
     ): ApiResult<List<Photo>> {
@@ -316,10 +318,10 @@ class PetApi : BaseApi {
      * @return PetTreatment
      * @throws ApiException if fails to make API call
      */
-    suspend fun addPetTreatment(
+    override suspend fun addPetTreatment(
         petId: Long,
         petTreatment: PetTreatment,
-        options: AddPetTreatmentOptions? = null,
+        options: AddPetTreatmentOptions?,
     ): PetTreatment =
         addPetTreatmentWithHttpInfo(petId, petTreatment, options).let { result ->
             result.data ?: throw ApiException(
@@ -331,10 +333,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [addPetTreatment] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun addPetTreatmentWithHttpInfo(
+    override suspend fun addPetTreatmentWithHttpInfo(
         petId: Long,
         petTreatment: PetTreatment,
-        options: AddPetTreatmentOptions? = null,
+        options: AddPetTreatmentOptions?,
     ): ApiResult<PetTreatment> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -378,17 +380,17 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      */
-    suspend fun deletePet(
+    override suspend fun deletePet(
         petId: Long,
-        options: DeletePetOptions? = null,
+        options: DeletePetOptions?,
     ) {
         deletePetWithHttpInfo(petId, options)
     }
 
     /** Same as [deletePet] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun deletePetWithHttpInfo(
+    override suspend fun deletePetWithHttpInfo(
         petId: Long,
-        options: DeletePetOptions? = null,
+        options: DeletePetOptions?,
     ): ApiResult<Unit> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -452,10 +454,10 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun downloadPetDocument(
+    override suspend fun downloadPetDocument(
         petId: Long,
         documentId: Long,
-        options: DownloadPetDocumentOptions? = null,
+        options: DownloadPetDocumentOptions?,
     ): ByteArray =
         downloadPetDocumentWithHttpInfo(petId, documentId, options).let { result ->
             result.data ?: throw ApiException(
@@ -467,10 +469,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [downloadPetDocument] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun downloadPetDocumentWithHttpInfo(
+    override suspend fun downloadPetDocumentWithHttpInfo(
         petId: Long,
         documentId: Long,
-        options: DownloadPetDocumentOptions? = null,
+        options: DownloadPetDocumentOptions?,
     ): ApiResult<ByteArray> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -517,9 +519,9 @@ class PetApi : BaseApi {
      * @return List<Pet>
      * @throws ApiException if fails to make API call
      */
-    suspend fun findPetsBornOn(
+    override suspend fun findPetsBornOn(
         bornOn: LocalDate,
-        options: FindPetsBornOnOptions? = null,
+        options: FindPetsBornOnOptions?,
     ): List<Pet> =
         findPetsBornOnWithHttpInfo(bornOn, options).let { result ->
             result.data ?: throw ApiException(
@@ -531,9 +533,9 @@ class PetApi : BaseApi {
         }
 
     /** Same as [findPetsBornOn] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun findPetsBornOnWithHttpInfo(
+    override suspend fun findPetsBornOnWithHttpInfo(
         bornOn: LocalDate,
-        options: FindPetsBornOnOptions? = null,
+        options: FindPetsBornOnOptions?,
     ): ApiResult<List<Pet>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -578,7 +580,7 @@ class PetApi : BaseApi {
      * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
      */
     @Deprecated("This operation is deprecated.")
-    suspend fun findPetsByStatus(options: FindPetsByStatusOptions? = null): List<Pet> =
+    override suspend fun findPetsByStatus(options: FindPetsByStatusOptions?): List<Pet> =
         findPetsByStatusWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -590,7 +592,7 @@ class PetApi : BaseApi {
 
     /** Same as [findPetsByStatus] but returns the full [ApiResult] (status code, headers and body). */
     @Deprecated("This operation is deprecated.")
-    suspend fun findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions? = null): ApiResult<List<Pet>> {
+    override suspend fun findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions?): ApiResult<List<Pet>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -641,18 +643,6 @@ class PetApi : BaseApi {
         )
     }
 
-    /** Same as [getExternalPetInfo] but sends the request to the default server. */
-    suspend fun getExternalPetInfo(
-        petId: Long,
-        options: GetExternalPetInfoOptions? = null,
-    ): Pet = getExternalPetInfo(petId = petId, options = options, server = null)
-
-    /** Same as [getExternalPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getExternalPetInfoWithHttpInfo(
-        petId: Long,
-        options: GetExternalPetInfoOptions? = null,
-    ): ApiResult<Pet> = getExternalPetInfoWithHttpInfo(petId = petId, options = options, server = null)
-
     /**
      * Get external pet info
      * @param petId  (required)
@@ -662,10 +652,10 @@ class PetApi : BaseApi {
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-    suspend fun getExternalPetInfo(
+    override suspend fun getExternalPetInfo(
         petId: Long,
-        server: GetExternalPetInfoServer? = null,
-        options: GetExternalPetInfoOptions? = null,
+        server: GetExternalPetInfoServer?,
+        options: GetExternalPetInfoOptions?,
     ): Pet =
         getExternalPetInfoWithHttpInfo(petId, server, options).let { result ->
             result.data ?: throw ApiException(
@@ -677,10 +667,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getExternalPetInfo] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getExternalPetInfoWithHttpInfo(
+    override suspend fun getExternalPetInfoWithHttpInfo(
         petId: Long,
-        server: GetExternalPetInfoServer? = null,
-        options: GetExternalPetInfoOptions? = null,
+        server: GetExternalPetInfoServer?,
+        options: GetExternalPetInfoOptions?,
     ): ApiResult<Pet> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -719,18 +709,6 @@ class PetApi : BaseApi {
         )
     }
 
-    /** Same as [getMultiServerPetInfo] but sends the request to the default server. */
-    suspend fun getMultiServerPetInfo(
-        petId: Long,
-        options: GetMultiServerPetInfoOptions? = null,
-    ): Pet = getMultiServerPetInfo(petId = petId, options = options, server = null)
-
-    /** Same as [getMultiServerPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getMultiServerPetInfoWithHttpInfo(
-        petId: Long,
-        options: GetMultiServerPetInfoOptions? = null,
-    ): ApiResult<Pet> = getMultiServerPetInfoWithHttpInfo(petId = petId, options = options, server = null)
-
     /**
      * Get multi-server pet info
      * @param petId  (required)
@@ -740,10 +718,10 @@ class PetApi : BaseApi {
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-    suspend fun getMultiServerPetInfo(
+    override suspend fun getMultiServerPetInfo(
         petId: Long,
-        server: GetMultiServerPetInfoServer? = null,
-        options: GetMultiServerPetInfoOptions? = null,
+        server: GetMultiServerPetInfoServer?,
+        options: GetMultiServerPetInfoOptions?,
     ): Pet =
         getMultiServerPetInfoWithHttpInfo(petId, server, options).let { result ->
             result.data ?: throw ApiException(
@@ -755,10 +733,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getMultiServerPetInfo] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getMultiServerPetInfoWithHttpInfo(
+    override suspend fun getMultiServerPetInfoWithHttpInfo(
         petId: Long,
-        server: GetMultiServerPetInfoServer? = null,
-        options: GetMultiServerPetInfoOptions? = null,
+        server: GetMultiServerPetInfoServer?,
+        options: GetMultiServerPetInfoOptions?,
     ): ApiResult<Pet> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -807,9 +785,9 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun getPetAvatar(
+    override suspend fun getPetAvatar(
         petId: Long,
-        options: GetPetAvatarOptions? = null,
+        options: GetPetAvatarOptions?,
     ): ByteArray =
         getPetAvatarWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
@@ -821,9 +799,9 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetAvatar] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetAvatarWithHttpInfo(
+    override suspend fun getPetAvatarWithHttpInfo(
         petId: Long,
-        options: GetPetAvatarOptions? = null,
+        options: GetPetAvatarOptions?,
     ): ApiResult<ByteArray> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -866,9 +844,9 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun getPetAvatarThumbnail(
+    override suspend fun getPetAvatarThumbnail(
         petId: Long,
-        options: GetPetAvatarThumbnailOptions? = null,
+        options: GetPetAvatarThumbnailOptions?,
     ): ByteArray =
         getPetAvatarThumbnailWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
@@ -880,9 +858,9 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetAvatarThumbnail] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetAvatarThumbnailWithHttpInfo(
+    override suspend fun getPetAvatarThumbnailWithHttpInfo(
         petId: Long,
-        options: GetPetAvatarThumbnailOptions? = null,
+        options: GetPetAvatarThumbnailOptions?,
     ): ApiResult<ByteArray> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -915,20 +893,6 @@ class PetApi : BaseApi {
         )
     }
 
-    /** Same as [getPetById] but sends the request to the default server. */
-    @Deprecated("This operation is deprecated.")
-    suspend fun getPetById(
-        petId: Long,
-        options: GetPetByIdOptions? = null,
-    ): Pet = getPetById(petId = petId, options = options, server = null)
-
-    /** Same as [getPetByIdWithHttpInfo] but sends the request to the default server. */
-    @Deprecated("This operation is deprecated.")
-    suspend fun getPetByIdWithHttpInfo(
-        petId: Long,
-        options: GetPetByIdOptions? = null,
-    ): ApiResult<Pet> = getPetByIdWithHttpInfo(petId = petId, options = options, server = null)
-
     /**
      * Find pet by ID
      * Returns a single pet
@@ -945,10 +909,10 @@ class PetApi : BaseApi {
      * @deprecated This operation is deprecated.
      */
     @Deprecated("This operation is deprecated.")
-    suspend fun getPetById(
+    override suspend fun getPetById(
         petId: Long,
-        server: GetPetByIdServer? = null,
-        options: GetPetByIdOptions? = null,
+        server: GetPetByIdServer?,
+        options: GetPetByIdOptions?,
     ): Pet =
         getPetByIdWithHttpInfo(petId, server, options).let { result ->
             result.data ?: throw ApiException(
@@ -961,10 +925,10 @@ class PetApi : BaseApi {
 
     /** Same as [getPetById] but returns the full [ApiResult] (status code, headers and body). */
     @Deprecated("This operation is deprecated.")
-    suspend fun getPetByIdWithHttpInfo(
+    override suspend fun getPetByIdWithHttpInfo(
         petId: Long,
-        server: GetPetByIdServer? = null,
-        options: GetPetByIdOptions? = null,
+        server: GetPetByIdServer?,
+        options: GetPetByIdOptions?,
     ): ApiResult<Pet> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -1011,7 +975,7 @@ class PetApi : BaseApi {
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-    suspend fun getPetByName(
+    override suspend fun getPetByName(
         name: String,
         options: GetPetByNameOptions,
     ): Pet =
@@ -1025,7 +989,7 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetByName] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetByNameWithHttpInfo(
+    override suspend fun getPetByNameWithHttpInfo(
         name: String,
         options: GetPetByNameOptions,
     ): ApiResult<Pet> {
@@ -1168,9 +1132,9 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun getPetPassport(
+    override suspend fun getPetPassport(
         petId: Long,
-        options: GetPetPassportOptions? = null,
+        options: GetPetPassportOptions?,
     ): PetPassport =
         getPetPassportWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
@@ -1182,9 +1146,9 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetPassport] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetPassportWithHttpInfo(
+    override suspend fun getPetPassportWithHttpInfo(
         petId: Long,
-        options: GetPetPassportOptions? = null,
+        options: GetPetPassportOptions?,
     ): ApiResult<PetPassport> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -1228,10 +1192,10 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun getPetPhoto(
+    override suspend fun getPetPhoto(
         petId: Long,
         photoId: Long,
-        options: GetPetPhotoOptions? = null,
+        options: GetPetPhotoOptions?,
     ): ByteArray =
         getPetPhotoWithHttpInfo(petId, photoId, options).let { result ->
             result.data ?: throw ApiException(
@@ -1243,10 +1207,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetPhoto] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetPhotoWithHttpInfo(
+    override suspend fun getPetPhotoWithHttpInfo(
         petId: Long,
         photoId: Long,
-        options: GetPetPhotoOptions? = null,
+        options: GetPetPhotoOptions?,
     ): ApiResult<ByteArray> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -1296,7 +1260,7 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun getPetSummary(
+    override suspend fun getPetSummary(
         petId: Long,
         asOf: LocalDate,
         options: GetPetSummaryOptions,
@@ -1311,7 +1275,7 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetSummary] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetSummaryWithHttpInfo(
+    override suspend fun getPetSummaryWithHttpInfo(
         petId: Long,
         asOf: LocalDate,
         options: GetPetSummaryOptions,
@@ -1396,10 +1360,10 @@ class PetApi : BaseApi {
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-    suspend fun getPetTag(
+    override suspend fun getPetTag(
         petId: Long,
         tagName: String,
-        options: GetPetTagOptions? = null,
+        options: GetPetTagOptions?,
     ): Pet =
         getPetTagWithHttpInfo(petId, tagName, options).let { result ->
             result.data ?: throw ApiException(
@@ -1411,10 +1375,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetTag] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetTagWithHttpInfo(
+    override suspend fun getPetTagWithHttpInfo(
         petId: Long,
         tagName: String,
-        options: GetPetTagOptions? = null,
+        options: GetPetTagOptions?,
     ): ApiResult<Pet> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -1527,18 +1491,6 @@ class PetApi : BaseApi {
         )
     }
 
-    /** Same as [getStagingPetInfo] but sends the request to the default server. */
-    suspend fun getStagingPetInfo(
-        petId: Long,
-        options: GetStagingPetInfoOptions? = null,
-    ): Pet = getStagingPetInfo(petId = petId, options = options, server = null)
-
-    /** Same as [getStagingPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getStagingPetInfoWithHttpInfo(
-        petId: Long,
-        options: GetStagingPetInfoOptions? = null,
-    ): ApiResult<Pet> = getStagingPetInfoWithHttpInfo(petId = petId, options = options, server = null)
-
     /**
      * Get staging pet info
      * @param petId  (required)
@@ -1548,10 +1500,10 @@ class PetApi : BaseApi {
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-    suspend fun getStagingPetInfo(
+    override suspend fun getStagingPetInfo(
         petId: Long,
-        server: GetStagingPetInfoServer? = null,
-        options: GetStagingPetInfoOptions? = null,
+        server: GetStagingPetInfoServer?,
+        options: GetStagingPetInfoOptions?,
     ): Pet =
         getStagingPetInfoWithHttpInfo(petId, server, options).let { result ->
             result.data ?: throw ApiException(
@@ -1563,10 +1515,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getStagingPetInfo] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getStagingPetInfoWithHttpInfo(
+    override suspend fun getStagingPetInfoWithHttpInfo(
         petId: Long,
-        server: GetStagingPetInfoServer? = null,
-        options: GetStagingPetInfoOptions? = null,
+        server: GetStagingPetInfoServer?,
+        options: GetStagingPetInfoOptions?,
     ): ApiResult<Pet> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -1617,21 +1569,21 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun setPetAvatar(
+    override suspend fun setPetAvatar(
         petId: Long,
         body: ByteArray,
-        options: SetPetAvatarOptions? = null,
-        requestContentType: String? = null,
+        options: SetPetAvatarOptions?,
+        requestContentType: String?,
     ) {
         setPetAvatarWithHttpInfo(petId, body, options, requestContentType)
     }
 
     /** Same as [setPetAvatar] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun setPetAvatarWithHttpInfo(
+    override suspend fun setPetAvatarWithHttpInfo(
         petId: Long,
         body: ByteArray,
-        options: SetPetAvatarOptions? = null,
-        requestContentType: String? = null,
+        options: SetPetAvatarOptions?,
+        requestContentType: String?,
     ): ApiResult<Unit> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -1690,19 +1642,19 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun setPetAvatarThumbnail(
+    override suspend fun setPetAvatarThumbnail(
         petId: Long,
         setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
-        options: SetPetAvatarThumbnailOptions? = null,
+        options: SetPetAvatarThumbnailOptions?,
     ) {
         setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest, options)
     }
 
     /** Same as [setPetAvatarThumbnail] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun setPetAvatarThumbnailWithHttpInfo(
+    override suspend fun setPetAvatarThumbnailWithHttpInfo(
         petId: Long,
         setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
-        options: SetPetAvatarThumbnailOptions? = null,
+        options: SetPetAvatarThumbnailOptions?,
     ): ApiResult<Unit> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -1748,7 +1700,7 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun setPetPreferences(
+    override suspend fun setPetPreferences(
         petId: Long,
         options: SetPetPreferencesOptions,
     ): ApiResponse =
@@ -1762,7 +1714,7 @@ class PetApi : BaseApi {
         }
 
     /** Same as [setPetPreferences] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun setPetPreferencesWithHttpInfo(
+    override suspend fun setPetPreferencesWithHttpInfo(
         petId: Long,
         options: SetPetPreferencesOptions,
     ): ApiResult<ApiResponse> {
@@ -1828,10 +1780,10 @@ class PetApi : BaseApi {
      * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun updatePet(
+    override suspend fun updatePet(
         petId: Long,
         pet: Pet,
-        options: UpdatePetOptions? = null,
+        options: UpdatePetOptions?,
     ): Pet =
         updatePetWithHttpInfo(petId, pet, options).let { result ->
             result.data ?: throw ApiException(
@@ -1843,10 +1795,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [updatePet] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun updatePetWithHttpInfo(
+    override suspend fun updatePetWithHttpInfo(
         petId: Long,
         pet: Pet,
-        options: UpdatePetOptions? = null,
+        options: UpdatePetOptions?,
     ): ApiResult<Pet> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -1892,7 +1844,7 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun uploadPetCertificate(
+    override suspend fun uploadPetCertificate(
         petId: Long,
         options: UploadPetCertificateOptions,
     ): ApiResponse =
@@ -1906,7 +1858,7 @@ class PetApi : BaseApi {
         }
 
     /** Same as [uploadPetCertificate] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun uploadPetCertificateWithHttpInfo(
+    override suspend fun uploadPetCertificateWithHttpInfo(
         petId: Long,
         options: UploadPetCertificateOptions,
     ): ApiResult<ApiResponse> {
@@ -1958,10 +1910,10 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun uploadPetDocument(
+    override suspend fun uploadPetDocument(
         petId: Long,
         options: UploadPetDocumentOptions,
-        requestContentType: String? = null,
+        requestContentType: String?,
     ): ApiResponse =
         uploadPetDocumentWithHttpInfo(petId, options, requestContentType).let { result ->
             result.data ?: throw ApiException(
@@ -1973,10 +1925,10 @@ class PetApi : BaseApi {
         }
 
     /** Same as [uploadPetDocument] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun uploadPetDocumentWithHttpInfo(
+    override suspend fun uploadPetDocumentWithHttpInfo(
         petId: Long,
         options: UploadPetDocumentOptions,
-        requestContentType: String? = null,
+        requestContentType: String?,
     ): ApiResult<ApiResponse> {
         val callTimeout: Long? = options.timeout
         val callHeaders: Map<String, String>? = options.headers

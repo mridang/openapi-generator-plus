@@ -36,10 +36,129 @@ import type { GetStockItemOptions } from "./options/get-stock-item-options.js";
 import type { SearchStoreOptions } from "./options/search-store-options.js";
 
 /**
+ * The contract of {@link StoreApi}: every operation of the Store API group and its
+ * `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+ * your own tests; the class has protected members, so a plain object cannot stand in for it.
+ */
+export interface StoreApiInterface {
+  createAccount(
+    account: DeepInput<Account>,
+    requestOptions?: RequestOptions,
+  ): Promise<Account>;
+  createAccountWithHttpInfo(
+    account: DeepInput<Account>,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Account>>;
+  deleteOrder(orderId: number, requestOptions?: RequestOptions): Promise<void>;
+  deleteOrderWithHttpInfo(
+    orderId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<void>>;
+  getBySwatch(
+    pathSwatch: Swatch,
+    options?: GetBySwatchOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Category>;
+  getBySwatchWithHttpInfo(
+    pathSwatch: Swatch,
+    options?: GetBySwatchOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Category>>;
+  getDefaults(requestOptions?: RequestOptions): Promise<Defaults>;
+  getDefaultsWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Defaults>>;
+  getDepartment(requestOptions?: RequestOptions): Promise<Department>;
+  getDepartmentWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Department>>;
+  getGroupedCategories(
+    requestOptions?: RequestOptions,
+  ): Promise<Array<{ [key: string]: Category }>>;
+  getGroupedCategoriesWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<{ [key: string]: Category }>>>;
+  getInventory(
+    requestOptions?: RequestOptions,
+  ): Promise<{ [key: string]: number }>;
+  getInventoryWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<{ [key: string]: number }>>;
+  getMatrix(requestOptions?: RequestOptions): Promise<Array<Array<number>>>;
+  getMatrixWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Array<number>>>>;
+  getOrderById(
+    orderId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<Order>;
+  getOrderByIdWithHttpInfo(
+    orderId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Order>>;
+  getOrderByTrackingId(
+    trackingId: UUID,
+    requestOptions?: RequestOptions,
+  ): Promise<Order>;
+  getOrderByTrackingIdWithHttpInfo(
+    trackingId: UUID,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Order>>;
+  getStockItem(
+    options?: GetStockItemOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<StockItem>;
+  getStockItemWithHttpInfo(
+    options?: GetStockItemOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<StockItem>>;
+  getSwatch(requestOptions?: RequestOptions): Promise<Swatch>;
+  getSwatchWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Swatch>>;
+  getSwatchGroups(
+    requestOptions?: RequestOptions,
+  ): Promise<Array<{ [key: string]: Swatch }>>;
+  getSwatchGroupsWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<{ [key: string]: Swatch }>>>;
+  getTimestampGroups(
+    requestOptions?: RequestOptions,
+  ): Promise<Array<{ [key: string]: Date }>>;
+  getTimestampGroupsWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<{ [key: string]: Date }>>>;
+  getTree(requestOptions?: RequestOptions): Promise<TreeNode>;
+  getTreeWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<TreeNode>>;
+  placeOrder(
+    order?: DeepInput<Order>,
+    requestOptions?: RequestOptions,
+  ): Promise<Order>;
+  placeOrderWithHttpInfo(
+    order?: DeepInput<Order>,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Order>>;
+  reserveStock(requestOptions?: RequestOptions): Promise<ReserveStockResponse>;
+  reserveStockWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ReserveStockResponse>>;
+  searchStore(
+    options?: SearchStoreOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Array<Order>>;
+  searchStoreWithHttpInfo(
+    options?: SearchStoreOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Order>>>;
+}
+
+/**
  * StoreApi provides methods for the Store API group.
  * Access to Petstore orders
  */
-export class StoreApi extends BaseApi {
+export class StoreApi extends BaseApi implements StoreApiInterface {
   constructor(
     apiClient?: ApiClient,
     config?: Configuration,

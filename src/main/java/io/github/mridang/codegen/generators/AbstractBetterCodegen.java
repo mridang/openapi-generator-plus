@@ -4250,6 +4250,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put("optionsArgOptional", optionsArgOptional);
         d.put("signatureArgsNoOptions", stripOptions(sigArgs));
         d.put("signatureArgsNoServerNoOptions", stripOptions(sigArgsNoServer));
+        // The arguments a caller must always pass: the optional ones (nullable body, optional
+        // options, server) are left out. A template for a language whose interface cannot carry
+        // default values uses this list to write the short form beside the full one.
+        final List<Map<String, Object>> requiredArgs = new ArrayList<>();
+        for (final Map<String, Object> a : sigArgs) {
+            if (!Boolean.TRUE.equals(a.get("nullable"))) {
+                requiredArgs.add(a);
+            }
+        }
+        d.put("signatureArgsRequired", requiredArgs);
 
         // Phase 1.7+ — Stamp the resolved authenticator class name on each
         // auth method so templates can reference {{vendorExtensions.
@@ -5373,7 +5383,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (operations != null) {
             final String classname = (String) operations.get("classname");
             if (classname != null) {
-                operations.put("clientPropertyName", deriveClientPropertyName(classname));
+                final String clientPropertyName = deriveClientPropertyName(classname);
+                operations.put("clientPropertyName", clientPropertyName);
+                // The accessor suffix of the client interface (getPet): the property name with
+                // its first letter upper-cased, computed here because a template cannot do it.
+                operations.put(
+                        "clientAccessorSuffix",
+                        clientPropertyName.isEmpty()
+                                ? clientPropertyName
+                                : Character.toUpperCase(clientPropertyName.charAt(0))
+                                        + clientPropertyName.substring(1));
             }
             injectTagMetadata(operations);
             final List<CodegenOperation> ops =

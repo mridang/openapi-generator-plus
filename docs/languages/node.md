@@ -76,6 +76,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - Models are classes with an `equals()` method. Their string form is `util.inspect`, with `format: password` fields shown as `***`.
 - A missing required parameter throws a `TypeError`, and its message is written with double quotes because it embeds `'<param>'`.
 - Property names keep the wire spelling (`modelPropertyNaming` is `original`) and imports end in `.js`.
+- Testing your code: `<Group>ApiInterface` in each group file and `ClientInterface` in `client.ts`, both exported from the entry point. The classes have protected members, so TypeScript treats them nominally and an object literal cannot stand in for them; the interface is what a fake satisfies.
 
 ## Known limits
 

@@ -96,6 +96,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
         modelTemplateFiles.put("models/model.mustache", ".php");
         apiTemplateFiles.put("api/api.mustache", ".php");
+        apiTemplateFiles.put("api/api_interface.mustache", "Interface.php");
 
         typeMapping.put("integer", "int");
         typeMapping.put("long", "int");
@@ -760,6 +761,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "client_interface.mustache",
+                        invokerFolder,
+                        clientClassName + "Interface.php"));
 
         if (emitUnitTests()) {
             // Spec-independent pure-unit tests. These reference only supporting

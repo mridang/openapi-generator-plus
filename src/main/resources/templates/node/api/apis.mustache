@@ -85,6 +85,24 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{/variants}}
 {{/serverTypeDefs}}
 /**
+ * The contract of {@link {{classname}}}: every operation of the {{baseName}} API group and its
+ * `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+ * your own tests; the class has protected members, so a plain object cannot stand in for it.
+ */
+export interface {{classname}}Interface {
+{{#operation}}
+{{#isDeprecated}}
+  /** @deprecated This operation is deprecated. */
+{{/isDeprecated}}
+  {{nickname}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}>;
+{{#isDeprecated}}
+  /** @deprecated This operation is deprecated. */
+{{/isDeprecated}}
+  {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>>;
+{{/operation}}
+}
+
+/**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
  * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
@@ -93,7 +111,7 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
  * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
 {{/tagExternalDocs}}
  */
-export class {{classname}} extends BaseApi {
+export class {{classname}} extends BaseApi implements {{classname}}Interface {
   constructor(
     apiClient?: ApiClient,
     config?: Configuration,

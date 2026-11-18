@@ -94,6 +94,7 @@ Only `invokerPackage` and `packageVersion` are declared as options in the genera
 - **Raw responses.** Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with public `statusCode`, `data`, `rawBody` and `headers`.
 - **Custom transport.** Wrap any PSR-18 client in `Psr18ApiClient`, or use `Client::withHttpClient(...)`. The SDK keeps its own redirect loop, so disable redirects on your client. `TransportOptions` settings for proxy, TLS and timeout do not apply to an injected client, and setting a proxy, CA bundle or `verifySsl(false)` together with one is rejected with `InvalidArgumentException`.
 - **Request id.** `injectRequestId(true)` adds an `X-Request-ID` header to every request.
+- Testing your code: `<Group>ApiInterface` and `ClientInterface` (one file each, PSR-4), with `get<Group>()` accessors beside the `readonly` properties because interface properties need PHP 8.4. `ClientInterface` is not the PSR-18 `Psr\Http\Client\ClientInterface`: `Client.php` imports the PSR one, so it names ours by its full name. The tests build fakes with `fakeGroup()` in `tests/bootstrap.php`, which generates a class from the interface with reflection and `eval`.
 
 ## Known limits
 

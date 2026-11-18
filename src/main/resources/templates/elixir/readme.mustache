@@ -79,6 +79,25 @@ client = {{moduleName}}.{{clientClassName}}.with_token("https://api.example.com"
 
 Pass Req options such as an `:adapter` or a `:plug` through `TransportOptions.new(req_options: [...])`. The SDK's own settings win and the SDK never closes a transport you supply.
 
+### Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{moduleName}}.Api.{{classname}}Behaviour{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client is a struct of the group structs, so a test can replace a group with a hand-written fake module: no mocking library, no network.
+
+```elixir
+defmodule FakeGroup do
+  @behaviour {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{moduleName}}.Api.{{classname}}Behaviour{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+
+  # Implement the callbacks your code calls; the compiler lists the ones still missing.
+end
+
+defmodule Subject do
+  # Code under test takes the group module, never the generated one.
+  def fetch(group, api), do: group
+end
+```
+
+A new operation in the API adds a callback to the behaviour, so a fake module that implements the whole behaviour warns about the missing callback after you regenerate; keep one fake module in your test support code so only the operation you fake is written.
+
 ### Retries
 
 A failed call is retried up to `max_retries` times (default `2`; `0` turns retries off): after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501. The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter, and a `Retry-After` header (seconds or an HTTP date, capped at 60 s) replaces it. Every retry is a fresh request with its authentication headers rebuilt, and no retry runs past the end-to-end `timeout`. A 401 on a call authenticated by OAuth2 or OpenID Connect drops the cached access token (the refresh token is kept) and replays the request once, rebuilt; a second 401 is the usual `UnauthorizedError`.

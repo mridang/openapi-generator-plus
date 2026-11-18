@@ -34,18 +34,27 @@ namespace PetstoreClient;
 /// var client = new Client(authenticator, transport);
 /// </code>
 /// </summary>
-public sealed class Client : IDisposable
+public sealed class Client : IClient
 {
     private readonly DefaultApiClient _apiClient;
 
     /// <summary>API operations for the PetApi group.</summary>
     public PetApi Pet { get; }
 
+    /// <inheritdoc/>
+    IPetApi IClient.Pet => Pet;
+
     /// <summary>API operations for the ProblemsApi group.</summary>
     public ProblemsApi Problems { get; }
 
+    /// <inheritdoc/>
+    IProblemsApi IClient.Problems => Problems;
+
     /// <summary>API operations for the StoreApi group.</summary>
     public StoreApi Store { get; }
+
+    /// <inheritdoc/>
+    IStoreApi IClient.Store => Store;
 
     /// <summary>
     /// Creates a new client with the given authenticator and default transport settings.

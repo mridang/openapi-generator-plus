@@ -79,6 +79,46 @@ PetApi _newPetApiForIntegration({Map<String, Authenticator>? schemes}) {
   );
 }
 
+/// A hand-written fake of the group: it fakes one operation and records the call.
+class _FakePetApi implements PetApiInterface {
+  _FakePetApi({this.failWith});
+
+  final Object? failWith;
+  final List<List<Object?>> calls = [];
+
+  @override
+  Future<Pet> getPetById(
+    int petId,
+    GetPetByIdServer? server,
+    GetPetByIdOptions? options,
+  ) async {
+    calls.add([petId, server, options]);
+    if (failWith != null) {
+      throw failWith!;
+    }
+    return Pet(name: 'fake', photoUrls: <String>{});
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+/// Code under test: it takes the group interface, never the generated class.
+Future<Pet> _lookUp(PetApiInterface group, int petId) =>
+    group.getPetById(petId, null, null);
+
+Future<String> _classify(Future<Object?> Function() call) async {
+  try {
+    await call();
+    return 'none';
+  } on NotFoundException {
+    return 'not found';
+  } on ApiException {
+    return 'api error';
+  }
+}
+
 void main() {
   setUpAll(() async {
     await setUpContainers();
@@ -2164,6 +2204,7 @@ void main() {
           source,
           contains(
             "  @Deprecated('This operation is deprecated.')\n"
+            '  @override\n'
             '  Future<List<Pet>> findPetsByStatus(',
           ),
         );
@@ -2171,6 +2212,7 @@ void main() {
           source,
           contains(
             "  @Deprecated('This operation is deprecated.')\n"
+            '  @override\n'
             '  Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(',
           ),
         );
@@ -2178,6 +2220,7 @@ void main() {
           source,
           contains(
             "  @Deprecated('This operation is deprecated.')\n"
+            '  @override\n'
             '  Future<Pet> getPetById(',
           ),
         );
@@ -2214,6 +2257,7 @@ void main() {
         contains(
           '  /// `options` options carrying the per-call timeout, headers and retry budget\n'
           '  /// Throws `BadRequestException` on HTTP 400.\n'
+          '  @override\n'
           '  Future<Pet> addPet(',
         ),
       );
@@ -2222,6 +2266,7 @@ void main() {
         contains(
           '  /// `options` options for query, header, form, and cookie parameters\n'
           '  /// Throws `BadRequestException` on HTTP 400.\n'
+          '  @override\n'
           '  Future<void> deletePet(',
         ),
       );
@@ -2231,6 +2276,7 @@ void main() {
           '  /// `days` Extra dates to summarise\n'
           '  /// `options` options for query, header, form, and cookie parameters\n'
           '  /// Throws `NotFoundException` on HTTP 404.\n'
+          '  @override\n'
           '  Future<String> getPetSummary(',
         ),
       );
@@ -2318,6 +2364,75 @@ void main() {
           ).getUrl(),
           equals("https://us.mirror.example.com/it's/v1"),
         );
+      },
+    );
+  });
+
+  group('PetApi mocking', () {
+    test(
+      'bhv mocking 003 a fake is accepted where the interface is accepted and receives the arguments',
+      () async {
+        final fake = _FakePetApi();
+
+        final pet = await _lookUp(fake, 42);
+
+        expect(pet.name, 'fake');
+        expect(fake.calls.map((call) => call[0]), [42]);
+      },
+    );
+
+    test(
+      'bhv mocking 004 a fake raises the typed error and the caller handles it like the real client',
+      () async {
+        final fake = _FakePetApi(
+          failWith: const NotFoundException(message: 'missing'),
+        );
+        final config = ConfigurationBuilder()
+            .baseUrl('$chasmHttpUrl/test/status/404')
+            .build();
+        final real = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        expect(await _classify(() => _lookUp(fake, 1)), 'not found');
+        expect(
+          await _classify(() => _lookUp(real, 1)),
+          await _classify(() => _lookUp(fake, 1)),
+        );
+        expect(() => _lookUp(fake, 1), throwsA(isA<ApiException>()));
+      },
+    );
+
+    test(
+      'bhv mocking 005 a call through the interface sends the same request as the class call',
+      () async {
+        final config = ConfigurationBuilder()
+            .baseUrl(chasmHttpUrl)
+            .defaultHeader('Authorization', 'Bearer test-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        final PetApiInterface viaInterface = api;
+
+        final direct = await api.getPetByIdWithHttpInfo(1, null, null);
+        final through = await viaInterface.getPetByIdWithHttpInfo(
+          1,
+          null,
+          null,
+        );
+
+        expect(through.statusCode, direct.statusCode);
+        expect(through.rawBody, direct.rawBody);
+      },
+    );
+
+    test(
+      'bhv mocking 006 a call without options reaches the full signature with none set',
+      () async {
+        final fake = _FakePetApi();
+
+        await _lookUp(fake, 7);
+
+        expect(fake.calls, [
+          [7, null, null],
+        ]);
       },
     );
   });

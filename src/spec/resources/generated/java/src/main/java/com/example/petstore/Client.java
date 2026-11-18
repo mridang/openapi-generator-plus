@@ -27,7 +27,6 @@ import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
 import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
 import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
 import com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -85,14 +84,11 @@ import javax.annotation.Nullable;
  * java.net.http.HttpClient} the caller supplied through {@link TransportOptions}. A request issued
  * after closing fails with an {@link IllegalStateException}.
  */
-@SuppressFBWarnings(
-    value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"},
-    justification = "the API-group fields exist for the caller, not for the SDK")
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
 /* A tag the spec spells with an acronym -- BetaOIDCService -- keeps that
  * spelling here, because the accessor is public API and every other SDK
  * spells it the same way. */
-@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
-public final class Client implements AutoCloseable {
+public final class Client implements ClientInterface {
 
   private final ApiClient apiClient;
 
@@ -343,6 +339,38 @@ public final class Client implements AutoCloseable {
       }
       return this;
     }
+  }
+
+  /**
+   * Returns the API operations of the PetApi group, the interface form of the {@link #pet} field.
+   *
+   * @return the group
+   */
+  @Override
+  public PetApi getPet() {
+    return pet;
+  }
+
+  /**
+   * Returns the API operations of the ProblemsApi group, the interface form of the {@link
+   * #problems} field.
+   *
+   * @return the group
+   */
+  @Override
+  public ProblemsApi getProblems() {
+    return problems;
+  }
+
+  /**
+   * Returns the API operations of the StoreApi group, the interface form of the {@link #store}
+   * field.
+   *
+   * @return the group
+   */
+  @Override
+  public StoreApi getStore() {
+    return store;
   }
 
   /**

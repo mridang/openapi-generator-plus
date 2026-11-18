@@ -6,6 +6,7 @@ import {{invokerPackage}}.errors.ApiException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -320,6 +321,105 @@ class ClientTest {
         } finally {
             tokenServer.stop(0);
         }
+    }
+
+
+    @Test
+    void bhvMocking001EveryGroupHasAnInterfaceTheClassImplements() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertTrue({{apiPackage}}.{{classname}}Interface.class.isAssignableFrom({{apiPackage}}.{{classname}}.class));
+        java.util.Set<String> {{clientPropertyName}}Listed = new java.util.HashSet<>();
+        for (java.lang.reflect.Method method : {{apiPackage}}.{{classname}}Interface.class.getMethods()) {
+            {{clientPropertyName}}Listed.add(method.getName());
+        }
+{{#operation}}
+        assertTrue({{clientPropertyName}}Listed.contains("{{operationId}}"));
+        assertTrue({{clientPropertyName}}Listed.contains("{{operationId}}WithHttpInfo"));
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test
+    void bhvMocking002GroupInterfaceListsExactlyThePublicOperationsOfTheClass() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertEquals(
+                publicMethodNames({{apiPackage}}.{{classname}}.class.getDeclaredMethods()),
+                publicMethodNames({{apiPackage}}.{{classname}}Interface.class.getMethods()));
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    private static java.util.Set<String> publicMethodNames(java.lang.reflect.Method[] methods) {
+        java.util.Set<String> names = new java.util.TreeSet<>();
+        for (java.lang.reflect.Method method : methods) {
+            if (java.lang.reflect.Modifier.isPublic(method.getModifiers()) && !method.isSynthetic()) {
+                names.add(method.getName());
+            }
+        }
+        return names;
+    }
+
+    @Test
+    void bhvMocking007ClientInterfaceExposesEveryGroupTypedAsItsInterfaceAndClose() throws Exception {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+        {{clientClassName}}Interface viaInterface = client;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertEquals(
+                {{apiPackage}}.{{classname}}Interface.class,
+                {{clientClassName}}Interface.class.getMethod("get{{clientAccessorSuffix}}").getReturnType());
+        assertSame(client.{{clientPropertyName}}, viaInterface.get{{clientAccessorSuffix}}());
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        viaInterface.close();
+        assertThrows(IllegalStateException.class,
+                () -> client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+    }
+
+    @Test
+    void bhvMocking008ClientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+        int[] closed = {0};
+        {{clientClassName}}Interface fake = new {{clientClassName}}Interface() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+            @Override
+            public {{apiPackage}}.{{classname}}Interface get{{clientAccessorSuffix}}() {
+                return ({{apiPackage}}.{{classname}}Interface) java.lang.reflect.Proxy.newProxyInstance(
+                        {{apiPackage}}.{{classname}}Interface.class.getClassLoader(),
+                        new Class<?>[] { {{apiPackage}}.{{classname}}Interface.class },
+                        (proxy, method, args) -> null);
+            }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+            @Override
+            public void close() {
+                closed[0]++;
+            }
+        };
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(fake.get{{clientAccessorSuffix}}());
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        fake.close();
+        fake.close();
+        assertEquals(2, closed[0]);
     }
 
 }

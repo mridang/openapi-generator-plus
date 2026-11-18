@@ -24,6 +24,13 @@ use petstore::auth::{ApiKeyHeaderAuthenticator, Authenticator};
 use petstore::models::*;
 use petstore::*;
 
+/* The signatures of the fakes name `crate::date_time`, which is the SDK's module; this file is its own
+ * crate, so the path is made to resolve to the SDK's. */
+#[allow(unused_imports)]
+mod date_time {
+    pub use petstore::date_time::*;
+}
+
 /// Test authenticator that returns a static bearer token.
 struct TestBearerAuth;
 
@@ -2325,4 +2332,826 @@ async fn test_pet_api_retries_a_503_with_the_default_transport() {
         .expect("the retry gets the 200");
 
     assert_eq!(2, served.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/// A hand-written fake of the PetApi group: it implements every operation, records each
+/// call as "operation(path arguments, options)" and fails with the typed not-found error.
+struct FakePetApi {
+    calls: std::sync::Mutex<Vec<String>>,
+}
+
+impl FakePetApi {
+    fn new() -> Self {
+        Self {
+            calls: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+
+    fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        let api_error =
+            petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
+        let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
+            .expect("a 404 is a client error");
+        Box::new(
+            petstore::errors::not_found_error::NotFoundError::try_from(client_error)
+                .expect("a 404 is not found"),
+        )
+    }
+}
+
+#[allow(unused_variables)]
+impl PetApiTrait for FakePetApi {
+    fn add_pet(
+        &self,
+        pet: Pet,
+        options: Option<&AddPetOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("add_pet( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn add_pet_with_http_info(
+        &self,
+        pet: Pet,
+        options: Option<&AddPetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "add_pet_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn add_pet_photos(
+        &self,
+        pet_id: i64,
+        options: Option<&AddPetPhotosOptions>,
+    ) -> impl Future<Output = Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "add_pet_photos({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn add_pet_photos_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AddPetPhotosOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "add_pet_photos_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn add_pet_treatment(
+        &self,
+        pet_id: i64,
+        pet_treatment: PetTreatment,
+        options: Option<&AddPetTreatmentOptions>,
+    ) -> impl Future<Output = Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "add_pet_treatment({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn add_pet_treatment_with_http_info(
+        &self,
+        pet_id: i64,
+        pet_treatment: PetTreatment,
+        options: Option<&AddPetTreatmentOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "add_pet_treatment_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn delete_pet(
+        &self,
+        pet_id: i64,
+        options: Option<&DeletePetOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "delete_pet({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn delete_pet_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&DeletePetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "delete_pet_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn download_pet_document(
+        &self,
+        pet_id: i64,
+        document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "download_pet_document({:?},{:?}, options={})",
+            pet_id,
+            document_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn download_pet_document_with_http_info(
+        &self,
+        pet_id: i64,
+        document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "download_pet_document_with_http_info({:?},{:?}, options={})",
+            pet_id,
+            document_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn find_pets_born_on(
+        &self,
+        born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "find_pets_born_on({:?}, options={})",
+            born_on,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn find_pets_born_on_with_http_info(
+        &self,
+        born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "find_pets_born_on_with_http_info({:?}, options={})",
+            born_on,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    #[allow(deprecated)]
+    fn find_pets_by_status(
+        &self,
+        options: Option<&FindPetsByStatusOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "find_pets_by_status( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    #[allow(deprecated)]
+    fn find_pets_by_status_with_http_info(
+        &self,
+        options: Option<&FindPetsByStatusOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "find_pets_by_status_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_external_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_external_pet_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_external_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_external_pet_info_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_multi_server_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_multi_server_pet_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_multi_server_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_multi_server_pet_info_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_pet_avatar(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_avatar({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_pet_avatar_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_avatar_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_pet_avatar_thumbnail(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_avatar_thumbnail({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_pet_avatar_thumbnail_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_avatar_thumbnail_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    #[allow(deprecated)]
+    fn get_pet_by_id(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_by_id({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    #[allow(deprecated)]
+    fn get_pet_by_id_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_by_id_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_pet_by_name(
+        &self,
+        name: String,
+        options: Option<&GetPetByNameOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_by_name({:?}, options={})",
+            name,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_pet_by_name_with_http_info(
+        &self,
+        name: String,
+        options: Option<&GetPetByNameOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_by_name_with_http_info({:?}, options={})",
+            name,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_pet_passport(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
+    ) -> impl Future<Output = Result<PetPassport, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_passport({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_pet_passport_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_passport_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_pet_photo(
+        &self,
+        pet_id: i64,
+        photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
+    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_photo({:?},{:?}, options={})",
+            pet_id,
+            photo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_pet_photo_with_http_info(
+        &self,
+        pet_id: i64,
+        photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_photo_with_http_info({:?},{:?}, options={})",
+            pet_id,
+            photo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_pet_summary(
+        &self,
+        pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
+    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_summary({:?},{:?}, options={})",
+            pet_id,
+            as_of,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_pet_summary_with_http_info(
+        &self,
+        pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
+    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_summary_with_http_info({:?},{:?}, options={})",
+            pet_id,
+            as_of,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_pet_tag(
+        &self,
+        pet_id: i64,
+        tag_name: String,
+        options: Option<&GetPetTagOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_tag({:?},{:?}, options={})",
+            pet_id,
+            tag_name,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_pet_tag_with_http_info(
+        &self,
+        pet_id: i64,
+        tag_name: String,
+        options: Option<&GetPetTagOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_pet_tag_with_http_info({:?},{:?}, options={})",
+            pet_id,
+            tag_name,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn get_staging_pet_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_staging_pet_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_staging_pet_info_with_http_info(
+        &self,
+        pet_id: i64,
+        server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_staging_pet_info_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn set_pet_avatar(
+        &self,
+        pet_id: i64,
+        body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "set_pet_avatar({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn set_pet_avatar_with_http_info(
+        &self,
+        pet_id: i64,
+        body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "set_pet_avatar_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn set_pet_avatar_thumbnail(
+        &self,
+        pet_id: i64,
+        set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "set_pet_avatar_thumbnail({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn set_pet_avatar_thumbnail_with_http_info(
+        &self,
+        pet_id: i64,
+        set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "set_pet_avatar_thumbnail_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn set_pet_preferences(
+        &self,
+        pet_id: i64,
+        options: Option<&SetPetPreferencesOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "set_pet_preferences({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn set_pet_preferences_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&SetPetPreferencesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "set_pet_preferences_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn update_pet(
+        &self,
+        pet_id: i64,
+        pet: Pet,
+        options: Option<&UpdatePetOptions>,
+    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "update_pet({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn update_pet_with_http_info(
+        &self,
+        pet_id: i64,
+        pet: Pet,
+        options: Option<&UpdatePetOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "update_pet_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn upload_pet_certificate(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetCertificateOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "upload_pet_certificate({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn upload_pet_certificate_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetCertificateOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "upload_pet_certificate_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn upload_pet_document(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetDocumentOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "upload_pet_document({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn upload_pet_document_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&UploadPetDocumentOptions>,
+
+        request_content_type: Option<&str>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "upload_pet_document_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+}
+
+/// Code under test: it takes the group trait, never the generated struct.
+async fn look_up<A: PetApiTrait>(
+    group: &A,
+    pet_id: i64,
+) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    group.get_pet_by_id(pet_id, None, None).await
+}
+
+fn classify(err: &(dyn std::error::Error + Send + Sync + 'static)) -> &'static str {
+    if err.downcast_ref::<NotFoundError>().is_some() {
+        "not found"
+    } else if err
+        .downcast_ref::<petstore::errors::api_error::ApiError>()
+        .is_some()
+    {
+        "api error"
+    } else {
+        "other"
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_mocking_003_pet_api_fake_is_accepted_where_the_trait_is_accepted_and_receives_the_arguments(
+) {
+    let fake = FakePetApi::new();
+
+    let _ = look_up(&fake, 42).await;
+
+    let calls = fake.calls.lock().unwrap();
+    assert_eq!(calls.len(), 1);
+    assert!(
+        calls[0].starts_with("get_pet_by_id(42,"),
+        "unexpected call {}",
+        calls[0]
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_mocking_004_pet_api_fake_raises_the_typed_error_the_caller_handles() {
+    let fake = FakePetApi::new();
+    let (real, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"Pet not found"}"#);
+
+    let from_fake = look_up(&fake, 1)
+        .await
+        .expect_err("the fake fails with the typed error");
+    let from_real = look_up(&real, 1)
+        .await
+        .expect_err("the real client fails with the typed error");
+
+    assert_eq!(classify(from_fake.as_ref()), "not found");
+    assert_eq!(classify(from_real.as_ref()), classify(from_fake.as_ref()));
+}
+
+#[tokio::test]
+async fn test_bhv_mocking_005_pet_api_trait_call_sends_the_same_request_as_the_struct_call() {
+    let body = r#"{"id":1,"name":"x","photoUrls":[]}"#;
+    let (direct_api, _) = new_pet_api_for_mock(200, "application/json", body);
+    let (trait_api, _) = new_pet_api_for_mock(200, "application/json", body);
+
+    let direct = PetApi::get_pet_by_id_with_http_info(&direct_api, 1, None, None)
+        .await
+        .expect("direct call");
+    let through = PetApiTrait::get_pet_by_id_with_http_info(&trait_api, 1, None, None)
+        .await
+        .expect("trait call");
+
+    assert_eq!(through.status_code(), direct.status_code());
+    assert_eq!(through.raw_body(), direct.raw_body());
+}
+
+#[tokio::test]
+async fn test_bhv_mocking_006_pet_api_call_without_options_reaches_the_full_signature_with_none_set(
+) {
+    let fake = FakePetApi::new();
+
+    let _ = look_up(&fake, 7).await;
+
+    let calls = fake.calls.lock().unwrap();
+    assert_eq!(calls.len(), 1);
+    assert!(
+        !calls[0].contains("options=true"),
+        "unexpected call {}",
+        calls[0]
+    );
 }

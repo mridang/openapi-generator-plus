@@ -73,6 +73,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - Builder setters name their parameter `val`.
 - `TraceContextUtil.propagator` is a registration hook that you set if you want trace headers, because Dart cannot detect an optional OpenTelemetry dependency at run time.
 - An absent optional server description is an empty string, not `null`. It never goes on the wire.
+- Testing your code: `abstract interface class <Group>ApiInterface` in the group file and `ClientInterface` in `client.dart`. `BaseApi` is public, so the implicit interface of the class would force a fake to implement its members; the explicit interface avoids that. A fake implements the interface and forwards `noSuchMethod`. The tests read the source files, because Dart has no run-time reflection.
 
 ## Known limits
 

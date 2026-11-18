@@ -226,7 +226,228 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
 ///
 /// See <https://example.com/docs/pets> Find out more about pets (it's */ here)
 /// on two lines
-class PetApi extends BaseApi {
+/// The contract of [PetApi]: every operation of the Pet API group and its
+/// `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+/// your own tests.
+abstract interface class PetApiInterface {
+  Future<Pet> addPet(Pet pet, AddPetOptions? options);
+
+  Future<ApiResult<Pet>> addPetWithHttpInfo(Pet pet, AddPetOptions? options);
+  Future<List<Photo>> addPetPhotos(int petId, AddPetPhotosOptions options);
+
+  Future<ApiResult<List<Photo>>> addPetPhotosWithHttpInfo(
+    int petId,
+    AddPetPhotosOptions options,
+  );
+  Future<PetTreatment> addPetTreatment(
+    int petId,
+    PetTreatment petTreatment,
+    AddPetTreatmentOptions? options,
+  );
+
+  Future<ApiResult<PetTreatment>> addPetTreatmentWithHttpInfo(
+    int petId,
+    PetTreatment petTreatment,
+    AddPetTreatmentOptions? options,
+  );
+  Future<void> deletePet(int petId, DeletePetOptions? options);
+
+  Future<ApiResult<void>> deletePetWithHttpInfo(
+    int petId,
+    DeletePetOptions? options,
+  );
+  Future<Uint8List> downloadPetDocument(
+    int petId,
+    int documentId,
+    DownloadPetDocumentOptions? options,
+  );
+
+  Future<ApiResult<Uint8List>> downloadPetDocumentWithHttpInfo(
+    int petId,
+    int documentId,
+    DownloadPetDocumentOptions? options,
+  );
+  Future<List<Pet>> findPetsBornOn(
+    DateTime bornOn,
+    FindPetsBornOnOptions? options,
+  );
+
+  Future<ApiResult<List<Pet>>> findPetsBornOnWithHttpInfo(
+    DateTime bornOn,
+    FindPetsBornOnOptions? options,
+  );
+  @Deprecated('This operation is deprecated.')
+  Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options);
+
+  @Deprecated('This operation is deprecated.')
+  Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(
+    FindPetsByStatusOptions? options,
+  );
+  Future<Pet> getExternalPetInfo(
+    int petId,
+    GetExternalPetInfoServer? server,
+    GetExternalPetInfoOptions? options,
+  );
+
+  Future<ApiResult<Pet>> getExternalPetInfoWithHttpInfo(
+    int petId,
+    GetExternalPetInfoServer? server,
+    GetExternalPetInfoOptions? options,
+  );
+  Future<Pet> getMultiServerPetInfo(
+    int petId,
+    GetMultiServerPetInfoServer? server,
+    GetMultiServerPetInfoOptions? options,
+  );
+
+  Future<ApiResult<Pet>> getMultiServerPetInfoWithHttpInfo(
+    int petId,
+    GetMultiServerPetInfoServer? server,
+    GetMultiServerPetInfoOptions? options,
+  );
+  Future<Uint8List> getPetAvatar(int petId, GetPetAvatarOptions? options);
+
+  Future<ApiResult<Uint8List>> getPetAvatarWithHttpInfo(
+    int petId,
+    GetPetAvatarOptions? options,
+  );
+  Future<Uint8List> getPetAvatarThumbnail(
+    int petId,
+    GetPetAvatarThumbnailOptions? options,
+  );
+
+  Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHttpInfo(
+    int petId,
+    GetPetAvatarThumbnailOptions? options,
+  );
+  @Deprecated('This operation is deprecated.')
+  Future<Pet> getPetById(
+    int petId,
+    GetPetByIdServer? server,
+    GetPetByIdOptions? options,
+  );
+
+  @Deprecated('This operation is deprecated.')
+  Future<ApiResult<Pet>> getPetByIdWithHttpInfo(
+    int petId,
+    GetPetByIdServer? server,
+    GetPetByIdOptions? options,
+  );
+  Future<Pet> getPetByName(String name, GetPetByNameOptions options);
+
+  Future<ApiResult<Pet>> getPetByNameWithHttpInfo(
+    String name,
+    GetPetByNameOptions options,
+  );
+  Future<PetPassport> getPetPassport(int petId, GetPetPassportOptions? options);
+
+  Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(
+    int petId,
+    GetPetPassportOptions? options,
+  );
+  Future<Uint8List> getPetPhoto(
+    int petId,
+    int photoId,
+    GetPetPhotoOptions? options,
+  );
+
+  Future<ApiResult<Uint8List>> getPetPhotoWithHttpInfo(
+    int petId,
+    int photoId,
+    GetPetPhotoOptions? options,
+  );
+  Future<String> getPetSummary(
+    int petId,
+    DateTime asOf,
+    GetPetSummaryOptions options,
+  );
+
+  Future<ApiResult<String>> getPetSummaryWithHttpInfo(
+    int petId,
+    DateTime asOf,
+    GetPetSummaryOptions options,
+  );
+  Future<Pet> getPetTag(int petId, String tagName, GetPetTagOptions? options);
+
+  Future<ApiResult<Pet>> getPetTagWithHttpInfo(
+    int petId,
+    String tagName,
+    GetPetTagOptions? options,
+  );
+  Future<Pet> getStagingPetInfo(
+    int petId,
+    GetStagingPetInfoServer? server,
+    GetStagingPetInfoOptions? options,
+  );
+
+  Future<ApiResult<Pet>> getStagingPetInfoWithHttpInfo(
+    int petId,
+    GetStagingPetInfoServer? server,
+    GetStagingPetInfoOptions? options,
+  );
+  Future<void> setPetAvatar(
+    int petId,
+    Uint8List body,
+    SetPetAvatarOptions? options, [
+    String? requestContentType,
+  ]);
+
+  Future<ApiResult<void>> setPetAvatarWithHttpInfo(
+    int petId,
+    Uint8List body,
+    SetPetAvatarOptions? options, [
+    String? requestContentType,
+  ]);
+  Future<void> setPetAvatarThumbnail(
+    int petId,
+    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+    SetPetAvatarThumbnailOptions? options,
+  );
+
+  Future<ApiResult<void>> setPetAvatarThumbnailWithHttpInfo(
+    int petId,
+    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+    SetPetAvatarThumbnailOptions? options,
+  );
+  Future<ApiResponse> setPetPreferences(
+    int petId,
+    SetPetPreferencesOptions options,
+  );
+
+  Future<ApiResult<ApiResponse>> setPetPreferencesWithHttpInfo(
+    int petId,
+    SetPetPreferencesOptions options,
+  );
+  Future<Pet> updatePet(int petId, Pet pet, UpdatePetOptions? options);
+
+  Future<ApiResult<Pet>> updatePetWithHttpInfo(
+    int petId,
+    Pet pet,
+    UpdatePetOptions? options,
+  );
+  Future<ApiResponse> uploadPetCertificate(
+    int petId,
+    UploadPetCertificateOptions options,
+  );
+
+  Future<ApiResult<ApiResponse>> uploadPetCertificateWithHttpInfo(
+    int petId,
+    UploadPetCertificateOptions options,
+  );
+  Future<ApiResponse> uploadPetDocument(
+    int petId,
+    UploadPetDocumentOptions options, [
+    String? requestContentType,
+  ]);
+
+  Future<ApiResult<ApiResponse>> uploadPetDocumentWithHttpInfo(
+    int petId,
+    UploadPetDocumentOptions options, [
+    String? requestContentType,
+  ]);
+}
+
+class PetApi extends BaseApi implements PetApiInterface {
   PetApi({
     super.apiClient,
     super.config,
@@ -238,6 +459,7 @@ class PetApi extends BaseApi {
   /// `pet` Create a new pet in the store
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `BadRequestException` on HTTP 400.
+  @override
   Future<Pet> addPet(Pet pet, AddPetOptions? options) async {
     final result = await addPetWithHttpInfo(pet, options);
     final data = result.data;
@@ -259,6 +481,7 @@ class PetApi extends BaseApi {
 
   /// Performs the addPet operation and returns the full API result.
   /// Throws `BadRequestException` on HTTP 400.
+  @override
   Future<ApiResult<Pet>> addPetWithHttpInfo(
     Pet pet,
     AddPetOptions? options,
@@ -299,6 +522,7 @@ class PetApi extends BaseApi {
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
   /// `options` options for query, header, form, and cookie parameters
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<List<Photo>> addPetPhotos(
     int petId,
     AddPetPhotosOptions options,
@@ -323,6 +547,7 @@ class PetApi extends BaseApi {
 
   /// Performs the addPetPhotos operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<List<Photo>>> addPetPhotosWithHttpInfo(
     int petId,
     AddPetPhotosOptions options,
@@ -396,6 +621,7 @@ class PetApi extends BaseApi {
 
   /// Record a treatment for a pet
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<PetTreatment> addPetTreatment(
     int petId,
     PetTreatment petTreatment,
@@ -425,6 +651,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the addPetTreatment operation and returns the full API result.
+  @override
   Future<ApiResult<PetTreatment>> addPetTreatmentWithHttpInfo(
     int petId,
     PetTreatment petTreatment,
@@ -489,12 +716,14 @@ class PetApi extends BaseApi {
   /// `apiKey` Session cookie used for authentication
   /// `options` options for query, header, form, and cookie parameters
   /// Throws `BadRequestException` on HTTP 400.
+  @override
   Future<void> deletePet(int petId, DeletePetOptions? options) async {
     await deletePetWithHttpInfo(petId, options);
   }
 
   /// Performs the deletePet operation and returns the full API result.
   /// Throws `BadRequestException` on HTTP 400.
+  @override
   Future<ApiResult<void>> deletePetWithHttpInfo(
     int petId,
     DeletePetOptions? options,
@@ -582,6 +811,7 @@ class PetApi extends BaseApi {
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<Uint8List> downloadPetDocument(
     int petId,
     int documentId,
@@ -612,6 +842,7 @@ class PetApi extends BaseApi {
 
   /// Performs the downloadPetDocument operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<Uint8List>> downloadPetDocumentWithHttpInfo(
     int petId,
     int documentId,
@@ -688,6 +919,7 @@ class PetApi extends BaseApi {
   /// List pets born on a given date
   /// `bornOn` Date of birth to match
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<List<Pet>> findPetsBornOn(
     DateTime bornOn,
     FindPetsBornOnOptions? options,
@@ -712,6 +944,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the findPetsBornOn operation and returns the full API result.
+  @override
   Future<ApiResult<List<Pet>>> findPetsBornOnWithHttpInfo(
     DateTime bornOn,
     FindPetsBornOnOptions? options,
@@ -783,6 +1016,7 @@ class PetApi extends BaseApi {
   /// See <https://example.com/docs/filtering> Find out more about filtering
   /// Throws `BadRequestException` on HTTP 400.
   @Deprecated('This operation is deprecated.')
+  @override
   Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options) async {
     final result = await findPetsByStatusWithHttpInfo(options);
     final data = result.data;
@@ -806,6 +1040,7 @@ class PetApi extends BaseApi {
   /// Performs the findPetsByStatus operation and returns the full API result.
   /// Throws `BadRequestException` on HTTP 400.
   @Deprecated('This operation is deprecated.')
+  @override
   Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(
     FindPetsByStatusOptions? options,
   ) async {
@@ -894,6 +1129,7 @@ class PetApi extends BaseApi {
 
   /// Get external pet info
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Pet> getExternalPetInfo(
     int petId,
     GetExternalPetInfoServer? server,
@@ -919,6 +1155,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getExternalPetInfo operation and returns the full API result.
+  @override
   Future<ApiResult<Pet>> getExternalPetInfoWithHttpInfo(
     int petId,
     GetExternalPetInfoServer? server,
@@ -980,6 +1217,7 @@ class PetApi extends BaseApi {
 
   /// Get multi-server pet info
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Pet> getMultiServerPetInfo(
     int petId,
     GetMultiServerPetInfoServer? server,
@@ -1009,6 +1247,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getMultiServerPetInfo operation and returns the full API result.
+  @override
   Future<ApiResult<Pet>> getMultiServerPetInfoWithHttpInfo(
     int petId,
     GetMultiServerPetInfoServer? server,
@@ -1072,6 +1311,7 @@ class PetApi extends BaseApi {
   /// Returns the raw image bytes of the pet's current avatar.
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<Uint8List> getPetAvatar(
     int petId,
     GetPetAvatarOptions? options,
@@ -1096,6 +1336,7 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetAvatar operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<Uint8List>> getPetAvatarWithHttpInfo(
     int petId,
     GetPetAvatarOptions? options,
@@ -1151,6 +1392,7 @@ class PetApi extends BaseApi {
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<Uint8List> getPetAvatarThumbnail(
     int petId,
     GetPetAvatarThumbnailOptions? options,
@@ -1176,6 +1418,7 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHttpInfo(
     int petId,
     GetPetAvatarThumbnailOptions? options,
@@ -1244,6 +1487,7 @@ class PetApi extends BaseApi {
   /// Throws `BadRequestException` on HTTP 400.
   /// Throws `NotFoundException` on HTTP 404.
   @Deprecated('This operation is deprecated.')
+  @override
   Future<Pet> getPetById(
     int petId,
     GetPetByIdServer? server,
@@ -1271,6 +1515,7 @@ class PetApi extends BaseApi {
   /// Throws `BadRequestException` on HTTP 400.
   /// Throws `NotFoundException` on HTTP 404.
   @Deprecated('This operation is deprecated.')
+  @override
   Future<ApiResult<Pet>> getPetByIdWithHttpInfo(
     int petId,
     GetPetByIdServer? server,
@@ -1332,6 +1577,7 @@ class PetApi extends BaseApi {
 
   /// Look up a pet by name (simple string path param + required query)
   /// `options` options for query, header, form, and cookie parameters
+  @override
   Future<Pet> getPetByName(String name, GetPetByNameOptions options) async {
     final result = await getPetByNameWithHttpInfo(name, options);
     final data = result.data;
@@ -1352,6 +1598,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetByName operation and returns the full API result.
+  @override
   Future<ApiResult<Pet>> getPetByNameWithHttpInfo(
     String name,
     GetPetByNameOptions options,
@@ -1527,6 +1774,7 @@ class PetApi extends BaseApi {
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<PetPassport> getPetPassport(
     int petId,
     GetPetPassportOptions? options,
@@ -1552,6 +1800,7 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetPassport operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(
     int petId,
     GetPetPassportOptions? options,
@@ -1609,6 +1858,7 @@ class PetApi extends BaseApi {
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<Uint8List> getPetPhoto(
     int petId,
     int photoId,
@@ -1634,6 +1884,7 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetPhoto operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<Uint8List>> getPetPhotoWithHttpInfo(
     int petId,
     int photoId,
@@ -1714,6 +1965,7 @@ class PetApi extends BaseApi {
   /// `days` Extra dates to summarise
   /// `options` options for query, header, form, and cookie parameters
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<String> getPetSummary(
     int petId,
     DateTime asOf,
@@ -1739,6 +1991,7 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetSummary operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<String>> getPetSummaryWithHttpInfo(
     int petId,
     DateTime asOf,
@@ -1865,6 +2118,7 @@ class PetApi extends BaseApi {
   /// `criteria` Object-valued query parameter, form style exploded (the OAS default for query)
   /// `fingerprint` Opaque bytes, base64 on the wire (OAS format byte)
   /// `options` options for query, header, form, and cookie parameters
+  @override
   Future<Pet> getPetTag(
     int petId,
     String tagName,
@@ -1889,6 +2143,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetTag operation and returns the full API result.
+  @override
   Future<ApiResult<Pet>> getPetTagWithHttpInfo(
     int petId,
     String tagName,
@@ -2085,6 +2340,7 @@ class PetApi extends BaseApi {
 
   /// Get staging pet info
   /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
   Future<Pet> getStagingPetInfo(
     int petId,
     GetStagingPetInfoServer? server,
@@ -2110,6 +2366,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getStagingPetInfo operation and returns the full API result.
+  @override
   Future<ApiResult<Pet>> getStagingPetInfoWithHttpInfo(
     int petId,
     GetStagingPetInfoServer? server,
@@ -2173,6 +2430,7 @@ class PetApi extends BaseApi {
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<void> setPetAvatar(
     int petId,
     Uint8List body,
@@ -2184,6 +2442,7 @@ class PetApi extends BaseApi {
 
   /// Performs the setPetAvatar operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<void>> setPetAvatarWithHttpInfo(
     int petId,
     Uint8List body,
@@ -2251,6 +2510,7 @@ class PetApi extends BaseApi {
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<void> setPetAvatarThumbnail(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -2265,6 +2525,7 @@ class PetApi extends BaseApi {
 
   /// Performs the setPetAvatarThumbnail operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<void>> setPetAvatarThumbnailWithHttpInfo(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -2320,6 +2581,7 @@ class PetApi extends BaseApi {
   /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
   /// `options` options for query, header, form, and cookie parameters
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResponse> setPetPreferences(
     int petId,
     SetPetPreferencesOptions options,
@@ -2345,6 +2607,7 @@ class PetApi extends BaseApi {
 
   /// Performs the setPetPreferences operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<ApiResponse>> setPetPreferencesWithHttpInfo(
     int petId,
     SetPetPreferencesOptions options,
@@ -2437,6 +2700,7 @@ class PetApi extends BaseApi {
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `BadRequestException` on HTTP 400.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<Pet> updatePet(int petId, Pet pet, UpdatePetOptions? options) async {
     final result = await updatePetWithHttpInfo(petId, pet, options);
     final data = result.data;
@@ -2459,6 +2723,7 @@ class PetApi extends BaseApi {
   /// Performs the updatePet operation and returns the full API result.
   /// Throws `BadRequestException` on HTTP 400.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<Pet>> updatePetWithHttpInfo(
     int petId,
     Pet pet,
@@ -2516,6 +2781,7 @@ class PetApi extends BaseApi {
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
   /// `options` options for query, header, form, and cookie parameters
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResponse> uploadPetCertificate(
     int petId,
     UploadPetCertificateOptions options,
@@ -2541,6 +2807,7 @@ class PetApi extends BaseApi {
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<ApiResponse>> uploadPetCertificateWithHttpInfo(
     int petId,
     UploadPetCertificateOptions options,
@@ -2613,6 +2880,7 @@ class PetApi extends BaseApi {
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
   /// `options` options for query, header, form, and cookie parameters
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResponse> uploadPetDocument(
     int petId,
     UploadPetDocumentOptions options, [
@@ -2643,6 +2911,7 @@ class PetApi extends BaseApi {
 
   /// Performs the uploadPetDocument operation and returns the full API result.
   /// Throws `NotFoundException` on HTTP 404.
+  @override
   Future<ApiResult<ApiResponse>> uploadPetDocumentWithHttpInfo(
     int petId,
     UploadPetDocumentOptions options, [

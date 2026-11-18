@@ -1051,6 +1051,19 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
+    it 'bhv_mocking_004 a fake raises the typed error and the caller handles it like the real client' do
+      fake = new_fake_pet_api(fail_with: Petstore::Client::Errors::NotFoundError.new(message: 'missing'))
+      real, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
+      begin
+        _(classify { look_up(fake, 1) }).must_equal 'not found'
+        _(classify { look_up(real, 1) }).must_equal(classify { look_up(fake, 1) })
+        _(-> { look_up(fake, 1) }).must_raise Petstore::Client::Errors::ApiError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     it 'bhv_operations_038 raises error on 500 response' do
       api, server, thread = new_pet_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
       begin
@@ -1886,5 +1899,61 @@ describe Petstore::Client::Api::PetApi do
       end
       _(err.message).must_include "Invalid value 'other' for server variable 'channel'"
     end
+  end
+
+  # A hand-written fake of the group: it fakes one operation and records the call.
+  def new_fake_pet_api(fail_with: nil)
+    calls = []
+    fake = Object.new
+    fake.define_singleton_method(:calls) { calls }
+    fake.define_singleton_method(:get_pet_by_id) do |pet_id, options = nil, server: nil|
+      calls << [pet_id, options, server]
+      raise fail_with if fail_with
+
+      Petstore::Client::Models::Pet.new(name: 'fake', photo_urls: Set.new)
+    end
+    fake
+  end
+
+  # Code under test: it takes the group interface, never the generated class.
+  def look_up(group, pet_id)
+    group.get_pet_by_id(pet_id)
+  end
+
+  def classify
+    yield
+    'none'
+  rescue Petstore::Client::Errors::NotFoundError
+    'not found'
+  rescue Petstore::Client::Errors::ApiError
+    'api error'
+  end
+
+  it 'bhv_mocking_003 a fake is accepted where the interface is accepted and receives the arguments' do
+    fake = new_fake_pet_api
+
+    pet = look_up(fake, 42)
+
+    _(pet.name).must_equal 'fake'
+    _(fake.calls.map(&:first)).must_equal [42]
+  end
+
+  it 'bhv_mocking_005 a call through the interface sends the same request as the class call' do
+    group = @api
+
+    direct = @api.get_pet_by_id_with_http_info(1)
+    through = group.get_pet_by_id_with_http_info(1)
+
+    _(through.status_code).must_equal direct.status_code
+    _(through.raw_body).must_equal direct.raw_body
+    _(through.data).must_equal direct.data
+  end
+
+  it 'bhv_mocking_006 a call without options reaches the full signature with none set' do
+    fake = new_fake_pet_api
+
+    look_up(fake, 7)
+
+    _(fake.calls).must_equal [[7, nil, nil]]
   end
 end

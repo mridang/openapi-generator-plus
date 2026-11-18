@@ -602,6 +602,13 @@ module Petstore::Client
     end
   end
 
+  interface _PetstoreInterface
+    def pet: () -> Api::_PetApiInterface
+    def problems: () -> Api::_ProblemsApiInterface
+    def store: () -> Api::_StoreApiInterface
+    def close: () -> void
+  end
+
   class Petstore
     attr_reader pet: Api::PetApi
     attr_reader problems: Api::ProblemsApi

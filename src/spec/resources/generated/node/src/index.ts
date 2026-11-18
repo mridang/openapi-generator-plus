@@ -19,7 +19,7 @@
  * inline-enum types, re-exported transitively through the api barrel).
  */
 export { Client } from "./client.js";
-export type { ClientOptions } from "./client.js";
+export type { ClientOptions, ClientInterface } from "./client.js";
 export * from "./api/index.js";
 
 /* Model types. */

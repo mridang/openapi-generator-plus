@@ -1,6 +1,7 @@
 {{>api_info}}
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
@@ -1026,6 +1027,105 @@ impl {{classname}} {
 {{^returnType}}
         self.base.invoke_api_for_empty_result(params).await
 {{/returnType}}
+    }
+{{/operation}}
+}
+
+/// The contract of [`{{classname}}`]: every operation of the {{baseName}} API group and its
+/// `_with_http_info` variant. Depend on it (`fn f<A: {{classname}}Trait>(api: &A)`) to substitute a
+/// hand-written fake in your own tests. The futures are not required to be `Send`, because the
+/// per-operation server traits are not.
+pub trait {{classname}}Trait {
+{{#operation}}
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
+    fn {{operationId}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>>>;
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
+    fn {{operationId}}_with_http_info(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>>>;
+{{/operation}}
+}
+
+impl {{classname}}Trait for {{classname}} {
+{{#operation}}
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{operationId}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>>> {
+        {{classname}}::{{operationId}}(
+            self,
+{{#vendorExtensions.op.signatureArgs}}
+{{^isServer}}{{^isOptions}}            {{paramName}},
+{{/isOptions}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}            server,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}            options,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+            request_content_type,
+{{/consumes.1}}
+        )
+    }
+
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{operationId}}_with_http_info(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>>> {
+        {{classname}}::{{operationId}}_with_http_info(
+            self,
+{{#vendorExtensions.op.signatureArgs}}
+{{^isServer}}{{^isOptions}}            {{paramName}},
+{{/isOptions}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}            server,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}            options,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+            request_content_type,
+{{/consumes.1}}
+        )
     }
 {{/operation}}
 }

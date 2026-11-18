@@ -89,6 +89,31 @@ redirect policy) and never closes what you supply. Combining a supplied
 transport with `Proxy`, `CACertPath` or `VerifySsl(false)` is rejected by
 `Build()` with `ErrTransportConflict`: configure those on your own transport.
 
+### Testing your code
+
+Every API group has an interface (`PetApiInterface`) and the client has one (`Client`, a struct whose group fields are typed as those interfaces), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```go
+// Code under test takes the group interface, never the generated struct.
+func use(api petstore.PetApiInterface) {}
+
+// The fake embeds the interface, so only the operations you fake are written.
+type fakePetApi struct {
+    petstore.PetApiInterface
+}
+
+func example() {
+    fake := fakePetApi{}
+    use(fake)
+
+    client := &petstore.Client{ Pet: fake }
+    defer client.Close() // a client of fakes holds no transport, so Close returns nil
+    _ = client.Pet
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; embed the interface so only the operation you fake is written.
+
 ### Credentials
 
 `NewClientWithToken(host, accessToken, transportOptions)` builds a client with a Bearer token. Each credential is resolved once, when the client is built: the argument you pass wins, then the environment variable (`SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL` for the host, `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` for the token); an empty value counts as unset. A host or token that cannot be resolved returns `ErrMissingCredential` there and then, not on the first request. `NewClientWithTokenProvider(host, provider, transportOptions)` takes a function returning the current token instead of a static one; the function runs for every request and receives the context of the call.

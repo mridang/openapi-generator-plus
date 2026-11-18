@@ -60,6 +60,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
 
         modelTemplateFiles.put("models/model.mustache", ".kt");
         apiTemplateFiles.put("api/api.mustache", ".kt");
+        apiTemplateFiles.put("api/api_interface.mustache", "Interface.kt");
 
         typeMapping.put("array", "List");
         typeMapping.put("map", "Map");
@@ -611,6 +612,11 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".kt"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "client_interface.mustache",
+                        invokerFolder,
+                        clientClassName + "Interface.kt"));
 
         final String testFolder =
                 Path.of("src", "test", "kotlin", invokerPackage.replace(".", "/")).toString();

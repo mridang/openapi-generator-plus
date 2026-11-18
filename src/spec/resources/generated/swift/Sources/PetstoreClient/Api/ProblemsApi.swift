@@ -9,7 +9,7 @@ import Foundation
 
 /// ProblemsApi provides methods for the Problems API group.
 /// Operations that declare typed error responses
-public final class ProblemsApi: BaseApi, @unchecked Sendable {
+public final class ProblemsApi: BaseApi, ProblemsApiProtocol, @unchecked Sendable {
   /// Creates a new `ProblemsApi`.
   public override init(
     apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,

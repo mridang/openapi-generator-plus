@@ -98,4 +98,13 @@ describe 'README' do
     _(readme).must_include '### Cookie parameters'
     _(readme).must_include 'RFC 6265 cookie-octet'
   end
+
+  it 'bhv_mocking_009 testing your code names the group interface and the client interface' do
+    start = readme.index("\n### Testing your code\n")
+    _(start).wont_be_nil
+    finish = readme.index("\n### ", start.to_i + 4)
+    section = readme[start.to_i...(finish || readme.length)].to_s
+    _(section).must_include '_PetApiInterface'
+    _(section).must_include '_PetstoreInterface'
+  end
 end

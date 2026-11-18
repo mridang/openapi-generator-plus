@@ -1597,6 +1597,48 @@ final class PetApiTests {
         #expect(!url.contains("blue%2C+black") && !url.contains("blue,+black"),
             "array must not be the Swift debug description, got: \(url)")
     }
+
+    // MARK: - Mocking
+
+    @Test func testBhvMocking003FakeIsAcceptedWhereTheProtocolIsAcceptedAndReceivesTheArguments() async throws {
+        let fake = FakePetApi()
+
+        _ = try? await lookUp(fake, petId: 42)
+
+        #expect(fake.calls.count == 1)
+        #expect(fake.calls.first?.hasPrefix("getPetById(42") == true)
+    }
+
+    @Test func testBhvMocking004FakeRaisesTheTypedErrorAndTheCallerHandlesItLikeTheRealClients() async throws {
+        let fake = FakePetApi()
+        let real = petApiForMock(statusCode: 404, body: "{\"message\":\"Pet not found\"}")
+
+        let fromFake = await classify { _ = try await lookUp(fake, petId: 1) }
+        let fromReal = await classify { _ = try await lookUp(real, petId: 1) }
+
+        #expect(fromFake == "not found")
+        #expect(fromReal == fromFake)
+    }
+
+    @Test func testBhvMocking005ProtocolCallSendsTheSameRequestAsTheClassCall() async throws {
+        let api = petApiForIntegration()
+        let viaProtocol: any PetApiProtocol = api
+
+        let direct = try await api.getPetByIdWithHTTPInfo(petId: 1)
+        let through = try await viaProtocol.getPetByIdWithHTTPInfo(petId: 1)
+
+        #expect(through.statusCode == direct.statusCode)
+        #expect(through.rawBody == direct.rawBody)
+    }
+
+    @Test func testBhvMocking006CallWithoutOptionsReachesTheFullSignatureWithNoneSet() async throws {
+        let fake = FakePetApi()
+
+        _ = try? await lookUp(fake, petId: 7)
+
+        #expect(fake.calls.count == 1)
+        #expect(fake.calls.first?.contains("options=set") != true)
+    }
 }
 
 /// Test authenticator for integration tests.
@@ -1660,4 +1702,32 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
 /// every path in the spec.
 private struct MockExternalPetInfoServer: GetExternalPetInfoServer {
     func getUrl() -> String { return chasmUrl }
+}
+
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+{{>test/FakeGroup}}
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+
+/* Code under test: it takes the group protocol, never the generated class. */
+private func lookUp<A: PetApiProtocol>(_ group: A, petId: Int64) async throws -> Pet {
+    try await group.getPetById(petId: petId)
+}
+
+private func classify(_ call: () async throws -> Void) async -> String {
+    do {
+        try await call()
+        return "none"
+    } catch is NotFoundError {
+        return "not found"
+    } catch is ApiError {
+        return "api error"
+    } catch {
+        return "other"
+    }
 }

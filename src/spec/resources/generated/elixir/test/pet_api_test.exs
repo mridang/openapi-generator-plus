@@ -2069,4 +2069,518 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     Agent.stop(name)
   end
+
+  defmodule FakePetApi do
+    @moduledoc """
+    A hand-written fake of the PetApi group: a module that implements the behaviour, tells the
+    test process about each call and fails with the typed not-found error.
+    """
+    @behaviour PetstoreClient.Api.PetApiBehaviour
+
+    defp failure, do: PetstoreClient.Errors.NotFoundError.exception("missing")
+
+    @impl true
+    def add_pet(_api, _pet, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :add_pet, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def add_pet!(_api, _pet, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :add_pet!, []})
+      raise failure()
+    end
+
+    @impl true
+    def add_pet_with_http_info(_api, _pet, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :add_pet_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def add_pet_photos(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :add_pet_photos, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def add_pet_photos!(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :add_pet_photos!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def add_pet_photos_with_http_info(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :add_pet_photos_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def add_pet_treatment(_api, pet_id, _pet_treatment, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :add_pet_treatment, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def add_pet_treatment!(_api, pet_id, _pet_treatment, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :add_pet_treatment!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def add_pet_treatment_with_http_info(
+          _api,
+          pet_id,
+          _pet_treatment,
+          _options \\ nil,
+          _opts \\ []
+        ) do
+      send(self(), {:called, :add_pet_treatment_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def delete_pet(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :delete_pet, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def delete_pet!(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :delete_pet!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def delete_pet_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :delete_pet_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def download_pet_document(_api, pet_id, document_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :download_pet_document, [pet_id, document_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def download_pet_document!(_api, pet_id, document_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :download_pet_document!, [pet_id, document_id]})
+      raise failure()
+    end
+
+    @impl true
+    def download_pet_document_with_http_info(
+          _api,
+          pet_id,
+          document_id,
+          _options \\ nil,
+          _opts \\ []
+        ) do
+      send(self(), {:called, :download_pet_document_with_http_info, [pet_id, document_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def find_pets_born_on(_api, born_on, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :find_pets_born_on, [born_on]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def find_pets_born_on!(_api, born_on, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :find_pets_born_on!, [born_on]})
+      raise failure()
+    end
+
+    @impl true
+    def find_pets_born_on_with_http_info(_api, born_on, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :find_pets_born_on_with_http_info, [born_on]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def find_pets_by_status(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :find_pets_by_status, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def find_pets_by_status!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :find_pets_by_status!, []})
+      raise failure()
+    end
+
+    @impl true
+    def find_pets_by_status_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :find_pets_by_status_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_external_pet_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_external_pet_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_external_pet_info!(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_external_pet_info!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def get_external_pet_info_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_external_pet_info_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_multi_server_pet_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_multi_server_pet_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_multi_server_pet_info!(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_multi_server_pet_info!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def get_multi_server_pet_info_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_multi_server_pet_info_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_avatar(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_avatar, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_avatar!(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_avatar!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_avatar_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_avatar_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_avatar_thumbnail(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_avatar_thumbnail, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_avatar_thumbnail!(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_avatar_thumbnail!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_avatar_thumbnail_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_avatar_thumbnail_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_by_id(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_id, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_by_id!(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_id!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_by_id_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_id_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_by_name(_api, name, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_name, [name]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_by_name!(_api, name, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_name!, [name]})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_by_name_with_http_info(_api, name, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_by_name_with_http_info, [name]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_passport(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_passport, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_passport!(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_passport!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_passport_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_passport_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_photo(_api, pet_id, photo_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_photo, [pet_id, photo_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_photo!(_api, pet_id, photo_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_photo!, [pet_id, photo_id]})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_photo_with_http_info(_api, pet_id, photo_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_photo_with_http_info, [pet_id, photo_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_summary(_api, pet_id, as_of, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_summary, [pet_id, as_of]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_summary!(_api, pet_id, as_of, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_summary!, [pet_id, as_of]})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_summary_with_http_info(_api, pet_id, as_of, _options, _opts \\ []) do
+      send(self(), {:called, :get_pet_summary_with_http_info, [pet_id, as_of]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_tag(_api, pet_id, tag_name, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_tag, [pet_id, tag_name]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_pet_tag!(_api, pet_id, tag_name, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_tag!, [pet_id, tag_name]})
+      raise failure()
+    end
+
+    @impl true
+    def get_pet_tag_with_http_info(_api, pet_id, tag_name, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_pet_tag_with_http_info, [pet_id, tag_name]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_staging_pet_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_staging_pet_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def get_staging_pet_info!(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_staging_pet_info!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def get_staging_pet_info_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :get_staging_pet_info_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def set_pet_avatar(_api, pet_id, _body, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :set_pet_avatar, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def set_pet_avatar!(_api, pet_id, _body, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :set_pet_avatar!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def set_pet_avatar_with_http_info(_api, pet_id, _body, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :set_pet_avatar_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def set_pet_avatar_thumbnail(
+          _api,
+          pet_id,
+          _set_pet_avatar_thumbnail_request,
+          _options \\ nil,
+          _opts \\ []
+        ) do
+      send(self(), {:called, :set_pet_avatar_thumbnail, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def set_pet_avatar_thumbnail!(
+          _api,
+          pet_id,
+          _set_pet_avatar_thumbnail_request,
+          _options \\ nil,
+          _opts \\ []
+        ) do
+      send(self(), {:called, :set_pet_avatar_thumbnail!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def set_pet_avatar_thumbnail_with_http_info(
+          _api,
+          pet_id,
+          _set_pet_avatar_thumbnail_request,
+          _options \\ nil,
+          _opts \\ []
+        ) do
+      send(self(), {:called, :set_pet_avatar_thumbnail_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def set_pet_preferences(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :set_pet_preferences, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def set_pet_preferences!(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :set_pet_preferences!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def set_pet_preferences_with_http_info(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :set_pet_preferences_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def update_pet(_api, pet_id, _pet, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :update_pet, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def update_pet!(_api, pet_id, _pet, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :update_pet!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def update_pet_with_http_info(_api, pet_id, _pet, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :update_pet_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def upload_pet_certificate(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :upload_pet_certificate, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def upload_pet_certificate!(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :upload_pet_certificate!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def upload_pet_certificate_with_http_info(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :upload_pet_certificate_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def upload_pet_document(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :upload_pet_document, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def upload_pet_document!(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :upload_pet_document!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def upload_pet_document_with_http_info(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :upload_pet_document_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+  end
+
+  # Code under test: it takes the group module, never the generated one.
+  defp look_up(group, api, pet_id), do: group.get_pet_by_id(api, pet_id)
+
+  defp classify({:error, %PetstoreClient.Errors.NotFoundError{}}), do: :not_found
+  defp classify({:error, %PetstoreClient.Errors.ApiError{}}), do: :api_error
+  defp classify({:error, _}), do: :other
+  defp classify({:ok, _}), do: :none
+
+  test "bhv mocking 003 a fake is accepted where the behaviour is accepted and receives the arguments" do
+    assert {:error, _} = look_up(FakePetApi, :api, 42)
+
+    assert_received {:called, :get_pet_by_id, [42]}
+  end
+
+  test "bhv mocking 004 a fake raises the typed error and the caller handles it like the real client" do
+    real = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
+
+    from_fake = classify(look_up(FakePetApi, :api, 1))
+    from_real = classify(look_up(PetstoreClient.Api.PetApi, real, 1))
+
+    assert from_fake == :not_found
+    assert from_real == from_fake
+    assert_raise PetstoreClient.Errors.NotFoundError, fn -> FakePetApi.get_pet_by_id!(:api, 1) end
+  end
+
+  test "bhv mocking 005 a call through the behaviour module sends the same request as the module call",
+       %{api: api} do
+    group = PetstoreClient.Api.PetApi
+
+    assert {:ok, direct} = PetstoreClient.Api.PetApi.get_pet_by_id_with_http_info(api, 1)
+    assert {:ok, through} = group.get_pet_by_id_with_http_info(api, 1)
+
+    assert through.status_code == direct.status_code
+    assert through.raw_body == direct.raw_body
+  end
+
+  test "bhv mocking 006 a call without options reaches the full signature with none set" do
+    assert {:error, _} = look_up(FakePetApi, :api, 7)
+
+    assert_received {:called, :get_pet_by_id, [7]}
+  end
 end

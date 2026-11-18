@@ -17,6 +17,13 @@ use {{packageName}}::api::options::*;
 use {{packageName}}::auth::{ApiKeyHeaderAuthenticator, Authenticator};
 use {{packageName}}::models::*;
 
+/* The signatures of the fakes name `crate::date_time`, which is the SDK's module; this file is its own
+ * crate, so the path is made to resolve to the SDK's. */
+#[allow(unused_imports)]
+mod date_time {
+    pub use {{packageName}}::date_time::*;
+}
+
 /// Test authenticator that returns a static bearer token.
 struct TestBearerAuth;
 
@@ -2026,4 +2033,76 @@ async fn test_pet_api_retries_a_503_with_the_default_transport() {
     api.delete_pet(1, None).await.expect("the retry gets the 200");
 
     assert_eq!(2, served.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+{{>test/fake_group}}
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+
+/// Code under test: it takes the group trait, never the generated struct.
+async fn look_up<A: PetApiTrait>(group: &A, pet_id: i64) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    group.get_pet_by_id(pet_id, None, None).await
+}
+
+fn classify(err: &(dyn std::error::Error + Send + Sync + 'static)) -> &'static str {
+    if err.downcast_ref::<NotFoundError>().is_some() {
+        "not found"
+    } else if err.downcast_ref::<{{packageName}}::errors::api_error::ApiError>().is_some() {
+        "api error"
+    } else {
+        "other"
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_mocking_003_pet_api_fake_is_accepted_where_the_trait_is_accepted_and_receives_the_arguments() {
+    let fake = FakePetApi::new();
+
+    let _ = look_up(&fake, 42).await;
+
+    let calls = fake.calls.lock().unwrap();
+    assert_eq!(calls.len(), 1);
+    assert!(calls[0].starts_with("get_pet_by_id(42,"), "unexpected call {}", calls[0]);
+}
+
+#[tokio::test]
+async fn test_bhv_mocking_004_pet_api_fake_raises_the_typed_error_the_caller_handles() {
+    let fake = FakePetApi::new();
+    let (real, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"Pet not found"}"#);
+
+    let from_fake = look_up(&fake, 1).await.expect_err("the fake fails with the typed error");
+    let from_real = look_up(&real, 1).await.expect_err("the real client fails with the typed error");
+
+    assert_eq!(classify(from_fake.as_ref()), "not found");
+    assert_eq!(classify(from_real.as_ref()), classify(from_fake.as_ref()));
+}
+
+#[tokio::test]
+async fn test_bhv_mocking_005_pet_api_trait_call_sends_the_same_request_as_the_struct_call() {
+    let body = r#"{"id":1,"name":"x","photoUrls":[]}"#;
+    let (direct_api, _) = new_pet_api_for_mock(200, "application/json", body);
+    let (trait_api, _) = new_pet_api_for_mock(200, "application/json", body);
+
+    let direct = PetApi::get_pet_by_id_with_http_info(&direct_api, 1, None, None).await.expect("direct call");
+    let through = PetApiTrait::get_pet_by_id_with_http_info(&trait_api, 1, None, None).await.expect("trait call");
+
+    assert_eq!(through.status_code(), direct.status_code());
+    assert_eq!(through.raw_body(), direct.raw_body());
+}
+
+#[tokio::test]
+async fn test_bhv_mocking_006_pet_api_call_without_options_reaches_the_full_signature_with_none_set() {
+    let fake = FakePetApi::new();
+
+    let _ = look_up(&fake, 7).await;
+
+    let calls = fake.calls.lock().unwrap();
+    assert_eq!(calls.len(), 1);
+    assert!(!calls[0].contains("options=true"), "unexpected call {}", calls[0]);
 }

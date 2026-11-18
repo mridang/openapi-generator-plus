@@ -104,6 +104,42 @@ it: you own its lifecycle. It cannot be combined with `proxy`, `caCertPath` or
 `verifySsl(false)`; `build()` rejects the combination, so configure proxy and
 TLS on the client you supply.
 
+## Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```kotlin
+import {{apiPackage}}.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+import {{invokerPackage}}.{{clientClassName}}Interface
+import java.lang.reflect.Proxy
+
+// Code under test takes the group interface, never the generated class.
+fun use(api: {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}) {}
+
+// A fake is any implementation of the interface; this one records every call it receives.
+inline fun <reified T : Any> fake(calls: MutableList<String>): T =
+    Proxy.newProxyInstance(T::class.java.classLoader, arrayOf(T::class.java)) { _, method, _ ->
+        calls.add(method.name)
+        null
+    } as T
+
+fun main() {
+    val calls = mutableListOf<String>()
+    use(fake<{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}>(calls))
+
+    val client =
+        object : {{clientClassName}}Interface {
+{{#apiInfo}}{{#apis}}{{#operations}}            override val {{clientPropertyName}}: {{classname}}Interface = fake(calls)
+{{/operations}}{{/apis}}{{/apiInfo}}
+            override fun close() {}
+        }
+    client.close()
+    println(calls)
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; delegate to a base fake with `by` or use a proxy like this one, so only the operation you fake is written.
+
 ## Raw responses, timeouts and request ids
 
 Every operation has a `*WithHttpInfo` variant that returns an `ApiResult`

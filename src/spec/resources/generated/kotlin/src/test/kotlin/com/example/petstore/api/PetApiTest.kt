@@ -115,6 +115,19 @@ class PetApiTest {
         private val api: PetApi get() = sharedApi
 
         @Test
+        @DisplayName("bhvMocking005 an operation called through the interface sends the same request as the class call")
+        fun interfaceCallSendsTheSameRequestAsTheClassCall() {
+            val viaInterface: com.example.petstore.api.PetApiInterface = api
+
+            val direct = runBlocking { api.getPetByIdWithHttpInfo(1L) }
+            val through = runBlocking { viaInterface.getPetByIdWithHttpInfo(1L) }
+
+            assertEquals(direct.statusCode, through.statusCode)
+            assertEquals(direct.rawBody, through.rawBody)
+            assertEquals(direct.data, through.data)
+        }
+
+        @Test
         @DisplayName("bhvOperations022 addPet")
         fun testAddPet() {
             val pet =
@@ -2366,5 +2379,93 @@ class PetApiTest {
                 runBlocking { api.getPetById(1L) }
             }
         }
+    }
+
+    // A hand-written fake of the group: a proxy that records every call that reaches it
+    // (default methods run their body, so a convenience overload lands on the full form).
+    private class FakePetApi(
+        private val failWith: Throwable? = null,
+    ) {
+        val calls = mutableListOf<Pair<String, List<Any?>>>()
+
+        fun asInterface(): com.example.petstore.api.PetApiInterface =
+            java.lang.reflect.Proxy.newProxyInstance(
+                com.example.petstore.api.PetApiInterface::class.java.classLoader,
+                arrayOf(com.example.petstore.api.PetApiInterface::class.java),
+            ) { proxy, method, args ->
+                val arguments = args?.toList() ?: emptyList()
+                if (method.isDefault) {
+                    java.lang.reflect.InvocationHandler
+                        .invokeDefault(proxy, method, *arguments.toTypedArray())
+                } else {
+                    calls.add(method.name to arguments.dropLast(1))
+                    if (failWith != null) throw failWith
+                    Pet(name = "fake", photoUrls = emptySet())
+                }
+            } as com.example.petstore.api.PetApiInterface
+    }
+
+    // Code under test: it takes the group interface, never the generated class.
+    private suspend fun lookUp(
+        api: com.example.petstore.api.PetApiInterface,
+        id: Long,
+    ): Pet = api.getPetById(id)
+
+    // The handler a caller writes once for the typed error.
+    private fun classify(block: suspend () -> Unit): String =
+        when (runCatching { runBlocking { block() } }.exceptionOrNull()) {
+            null -> "none"
+            is com.example.petstore.errors.NotFoundException -> "not found"
+            is ApiException -> "api error"
+            else -> "other"
+        }
+
+    @Test
+    @DisplayName("bhvMocking003 a fake is accepted where the interface is accepted and receives the arguments")
+    fun fakeIsAcceptedWhereTheInterfaceIsAccepted() {
+        val fake = FakePetApi()
+
+        val pet = runBlocking { lookUp(fake.asInterface(), 42L) }
+
+        assertEquals("fake", pet.name)
+        assertEquals(1, fake.calls.size)
+        assertEquals(42L, fake.calls[0].second[0])
+    }
+
+    @Test
+    @DisplayName("bhvMocking004 a fake raises the typed error and the caller handles it like the real client's")
+    fun fakeRaisesTheTypedErrorTheCallerHandles() {
+        val typed =
+            com.example.petstore.errors
+                .NotFoundException("Pet not found")
+        val fake = FakePetApi(typed)
+        val engine =
+            MockEngine { _ ->
+                respond(
+                    content = """{"code":404,"message":"Pet not found"}""",
+                    status = HttpStatusCode.NotFound,
+                    headers = headersOf("Content-Type", "application/json"),
+                )
+            }
+        val config = Configuration.builder().baseUrl("http://localhost").build()
+        val real = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+        val fromFake = classify { lookUp(fake.asInterface(), 1L) }
+        val fromReal = classify { lookUp(real, 1L) }
+
+        assertEquals("not found", fromFake)
+        assertEquals(fromReal, fromFake)
+        assertThrows(ApiException::class.java) { runBlocking { lookUp(fake.asInterface(), 1L) } }
+    }
+
+    @Test
+    @DisplayName("bhvMocking006 a call without the per-call options reaches the full signature with none set")
+    fun callWithoutOptionsReachesTheFullSignatureWithNoneSet() {
+        val fake = FakePetApi()
+
+        runBlocking { lookUp(fake.asInterface(), 7L) }
+
+        assertEquals(1, fake.calls.size)
+        assertEquals(listOf<Any?>(7L, null, null), fake.calls[0].second)
     }
 }

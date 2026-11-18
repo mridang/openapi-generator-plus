@@ -28,7 +28,7 @@ namespace {{packageName}};
 /// var client = new {{clientClassName}}(authenticator, transport);
 /// </code>
 /// </summary>
-public sealed class {{clientClassName}} : IDisposable
+public sealed class {{clientClassName}} : I{{clientClassName}}
 {
     private readonly DefaultApiClient _apiClient;
 
@@ -37,6 +37,9 @@ public sealed class {{clientClassName}} : IDisposable
 {{#operations}}
     /// <summary>API operations for the {{classname}} group.</summary>
     public {{classname}} {{clientPropertyName}} { get; }
+
+    /// <inheritdoc/>
+    I{{classname}} I{{clientClassName}}.{{clientPropertyName}} => {{clientPropertyName}};
 
 {{/operations}}
 {{/apis}}

@@ -89,6 +89,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
         modelTemplateFiles.put("models/model.mustache", ".cs");
         apiTemplateFiles.put("api/api.mustache", ".cs");
+        apiTemplateFiles.put("api/api_interface.mustache", ".cs");
 
         typeMapping.put("integer", "int");
         typeMapping.put("long", "long");
@@ -516,6 +517,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "client_interface.mustache", invokerFolder, "I" + clientClassName + ".cs"));
 
         if (emitUnitTests()) {
             supportingFiles.add(
@@ -1521,5 +1525,25 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             }
         }
         return false;
+    }
+
+    /**
+     * Names the group interface file with the C# {@code I} prefix ({@code IPetApi.cs}); the group
+     * class file keeps the plain name.
+     *
+     * @param templateName the API template being rendered
+     * @param tag the API group
+     * @return the output path
+     */
+    @Override
+    public String apiFilename(final String templateName, final String tag) {
+        if ("api/api_interface.mustache".equals(templateName)) {
+            return apiFileFolder()
+                    + java.io.File.separator
+                    + "I"
+                    + toApiFilename(tag)
+                    + apiTemplateFiles().get(templateName);
+        }
+        return super.apiFilename(templateName, tag);
     }
 }

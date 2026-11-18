@@ -1,5 +1,43 @@
 module Petstore::Client
   module Api
+    interface _StoreApiInterface
+      def create_account: (Models::Account account, ?Options::CreateAccountOptions? options) -> Models::Account
+      def create_account_with_http_info: (Models::Account account, ?Options::CreateAccountOptions? options) -> ::Petstore::Client::ApiResult[Models::Account]
+      def delete_order: (Integer order_id, ?Options::DeleteOrderOptions? options) -> void
+      def delete_order_with_http_info: (Integer order_id, ?Options::DeleteOrderOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
+      def get_by_swatch_with_http_info: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> ::Petstore::Client::ApiResult[Models::Category]
+      def get_defaults: (?Options::GetDefaultsOptions? options) -> Models::Defaults
+      def get_defaults_with_http_info: (?Options::GetDefaultsOptions? options) -> ::Petstore::Client::ApiResult[Models::Defaults]
+      def get_department: (?Options::GetDepartmentOptions? options) -> Models::Department
+      def get_department_with_http_info: (?Options::GetDepartmentOptions? options) -> ::Petstore::Client::ApiResult[Models::Department]
+      def get_grouped_categories: (?Options::GetGroupedCategoriesOptions? options) -> Array[Hash[String, Models::Category]]
+      def get_grouped_categories_with_http_info: (?Options::GetGroupedCategoriesOptions? options) -> ::Petstore::Client::ApiResult[Array[Hash[String, Models::Category]]]
+      def get_inventory: (?Options::GetInventoryOptions? options) -> Hash[String, Integer]
+      def get_inventory_with_http_info: (?Options::GetInventoryOptions? options) -> ::Petstore::Client::ApiResult[Hash[String, Integer]]
+      def get_matrix: (?Options::GetMatrixOptions? options) -> Array[Array[Integer]]
+      def get_matrix_with_http_info: (?Options::GetMatrixOptions? options) -> ::Petstore::Client::ApiResult[Array[Array[Integer]]]
+      def get_order_by_id: (Integer order_id, ?Options::GetOrderByIdOptions? options) -> Models::Order
+      def get_order_by_id_with_http_info: (Integer order_id, ?Options::GetOrderByIdOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
+      def get_order_by_tracking_id: (String tracking_id, ?Options::GetOrderByTrackingIdOptions? options) -> Models::Order
+      def get_order_by_tracking_id_with_http_info: (String tracking_id, ?Options::GetOrderByTrackingIdOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
+      def get_stock_item: (?Options::GetStockItemOptions? options) -> Models::StockItem
+      def get_stock_item_with_http_info: (?Options::GetStockItemOptions? options) -> ::Petstore::Client::ApiResult[Models::StockItem]
+      def get_swatch: (?Options::GetSwatchOptions? options) -> Models::Swatch
+      def get_swatch_with_http_info: (?Options::GetSwatchOptions? options) -> ::Petstore::Client::ApiResult[Models::Swatch]
+      def get_swatch_groups: (?Options::GetSwatchGroupsOptions? options) -> Array[Hash[String, Models::Swatch]]
+      def get_swatch_groups_with_http_info: (?Options::GetSwatchGroupsOptions? options) -> ::Petstore::Client::ApiResult[Array[Hash[String, Models::Swatch]]]
+      def get_timestamp_groups: (?Options::GetTimestampGroupsOptions? options) -> Array[Hash[String, Time]]
+      def get_timestamp_groups_with_http_info: (?Options::GetTimestampGroupsOptions? options) -> ::Petstore::Client::ApiResult[Array[Hash[String, Time]]]
+      def get_tree: (?Options::GetTreeOptions? options) -> Models::TreeNode
+      def get_tree_with_http_info: (?Options::GetTreeOptions? options) -> ::Petstore::Client::ApiResult[Models::TreeNode]
+      def place_order: (Models::Order? order, ?Options::PlaceOrderOptions? options) -> Models::Order
+      def place_order_with_http_info: (Models::Order? order, ?Options::PlaceOrderOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
+      def reserve_stock: (?Options::ReserveStockOptions? options) -> Models::ReserveStockResponse
+      def reserve_stock_with_http_info: (?Options::ReserveStockOptions? options) -> ::Petstore::Client::ApiResult[Models::ReserveStockResponse]
+      def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
+      def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
+    end
     class StoreApi < BaseApi
       def initialize: (?::Petstore::Client::ApiClient? api_client, ?::Petstore::Client::Configuration config, ?::Petstore::Client::Auth::Authenticator? authenticator, ?Hash[String, ::Petstore::Client::Auth::Authenticator] scheme_authenticators) -> void
       def create_account: (Models::Account account, ?Options::CreateAccountOptions? options) -> Models::Account

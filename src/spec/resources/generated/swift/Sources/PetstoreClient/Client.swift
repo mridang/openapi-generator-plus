@@ -29,7 +29,7 @@ import Foundation
 ///     .build()
 /// let client = try Client(authenticator: authenticator, transportOptions: transport)
 /// ```
-public final class Client: Sendable {
+public final class Client: ClientProtocol, Sendable {
   /* The transport this client built; kept so ``close()`` can release it. */
   private let ownedClient: DefaultApiClient
 

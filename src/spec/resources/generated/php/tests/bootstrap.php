@@ -39,6 +39,66 @@ function exposingContainer(string $image): GenericContainer
     };
 }
 
+/**
+ * Builds a hand-written fake of an interface: an object that implements every method of it,
+ * records each call in `$calls` as [method name, arguments] with the declared defaults filled in,
+ * raises `$failWith` when given, and otherwise returns `$result`. It is generated from the
+ * interface with eval only so that one helper serves every API group; it needs no mocking library.
+ *
+ * @template T of object
+ * @param class-string<T> $interface
+ * @return T
+ */
+function fakeGroup(string $interface, ?\Throwable $failWith = null, mixed $result = null): object
+{
+    $methods = '';
+    foreach ((new \ReflectionClass($interface))->getMethods() as $method) {
+        $params = [];
+        $names = [];
+        foreach ($method->getParameters() as $param) {
+            $type = $param->getType();
+            $default = $param->isDefaultValueAvailable() ? ' = ' . var_export($param->getDefaultValue(), true) : '';
+            $params[] = ($type === null ? '' : $type . ' ') . '$' . $param->getName() . $default;
+            $names[] = '$' . $param->getName();
+        }
+        $returnType = $method->hasReturnType() ? (string) $method->getReturnType() : null;
+        $call = '$this->record(\'' . $method->getName() . '\', [' . implode(', ', $names) . '])';
+        $body = $returnType === 'void' ? $call . ';' : 'return ' . $call . ';';
+        $methods .= 'public function ' . $method->getName() . '(' . implode(', ', $params) . ')'
+            . ($returnType === null ? '' : ': ' . $returnType) . ' { ' . $body . ' }' . "\n";
+    }
+    $source = 'return new class($failWith, $result) implements \\' . ltrim($interface, '\\') . ' {'
+        . ' /** @var list<array{string, array<mixed>}> */ public array $calls = [];'
+        . ' public function __construct(private ?\\Throwable $failWith, private mixed $result) {}'
+        . ' /** @param array<mixed> $arguments */'
+        . ' private function record(string $method, array $arguments): mixed {'
+        . ' $this->calls[] = [$method, $arguments];'
+        . ' if ($this->failWith !== null) { throw $this->failWith; }'
+        . ' return $this->result; }'
+        . $methods . '};';
+
+    /** @var T $fake */
+    $fake = eval($source);
+
+    return $fake;
+}
+
+/**
+ * The calls a fake from fakeGroup() received, as [method name, arguments] in order.
+ *
+ * @return list<array{string, array<mixed>}>
+ */
+function fakeCalls(object $fake): array
+{
+    $calls = (new \ReflectionProperty($fake, 'calls'))->getValue($fake);
+    assert(is_array($calls));
+
+    /** @var list<array{string, array<mixed>}> $list */
+    $list = array_values($calls);
+
+    return $list;
+}
+
 /*
  * A generated test may import a package that only the generator knows about,
  * and every real client keep-lists its own composer.json, so the two silently

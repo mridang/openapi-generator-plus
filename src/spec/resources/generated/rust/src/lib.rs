@@ -52,6 +52,7 @@ pub use api_http_response::ApiHttpResponse;
 pub use api_result::ApiResult;
 pub use auth::Authenticator;
 pub use client::Client;
+pub use client::ClientTrait;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use credentials::Credentials;
 pub use default_api_client::DefaultApiClient;

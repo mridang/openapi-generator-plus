@@ -93,6 +93,7 @@ HTTP is the JDK's own `java.net.http.HttpClient`, so there is no HTTP library to
 - **Raw responses.** Every operation has a `...WithHttpInfo` variant returning `ApiResult<T>`.
 - **Custom transport.** `TransportOptions.builder().httpClient(client)` sends requests through your own `java.net.http.HttpClient`; combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
 - **GraalVM.** The SDK ships reflection metadata for every model, so it works in a `native-image` build; the optional brotli and zstd decoders do not.
+- Testing your code: `<Group>ApiInterface` (a `...Interface.java` file per group, registered in `BetterJavaCodegen` with the suffix `Interface.java`) and `ClientInterface extends AutoCloseable` with `get<Group>()` accessors beside the public fields. The convenience overloads are `default` methods that delegate to the full form, so a fake implements one form per operation; every class method carries `@Override` because Error Prone's `MissingOverride` is an error at `failOnWarning`.
 
 ## Known limits
 

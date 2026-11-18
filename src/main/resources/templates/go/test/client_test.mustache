@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"{{packageName}}/pkg"
@@ -364,5 +365,81 @@ func TestBhvLifecycle006_Client_BearerRejectsCarriageReturnLineFeedAndNonAscii(t
 		if _, err := auth.NewBearerAuthenticator("{{{basePath}}}", bad); !errors.Is(err, auth.ErrInvalidBearerToken) {
 			t.Errorf("token %q: expected ErrInvalidBearerToken, got %v", bad, err)
 		}
+	}
+}
+
+func TestBhvMocking001_Client_EveryGroupHasAnInterfaceTheClassImplements(t *testing.T) {
+	t.Parallel()
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+	var _ {{packageName}}.{{classname}}Interface = (*{{packageName}}.{{classname}})(nil)
+	group{{classname}} := reflect.TypeOf((*{{packageName}}.{{classname}}Interface)(nil)).Elem()
+	for _, name := range []string{ {{#operation}}"{{operationId}}", "{{operationId}}WithHTTPInfo", {{/operation}} } {
+		if _, ok := group{{classname}}.MethodByName(name); !ok {
+			t.Errorf("expected {{classname}}Interface to list %s", name)
+		}
+	}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+func TestBhvMocking002_Client_GroupInterfaceListsExactlyThePublicOperationsOfTheClass(t *testing.T) {
+	t.Parallel()
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+	assertSameMethodNames(t, "{{classname}}", reflect.TypeOf((*{{packageName}}.{{classname}}Interface)(nil)).Elem(), reflect.TypeOf(&{{packageName}}.{{classname}}{}))
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+func assertSameMethodNames(t *testing.T, group string, iface reflect.Type, class reflect.Type) {
+	t.Helper()
+	listed := map[string]bool{}
+	for i := 0; i < iface.NumMethod(); i++ {
+		listed[iface.Method(i).Name] = true
+	}
+	for i := 0; i < class.NumMethod(); i++ {
+		name := class.Method(i).Name
+		if !listed[name] {
+			t.Errorf("expected %sInterface to list the public method %s", group, name)
+		}
+		delete(listed, name)
+	}
+	for name := range listed {
+		t.Errorf("expected %s to have the method %s that %sInterface lists", group, name, group)
+	}
+}
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+type fake{{classname}} struct {
+	{{packageName}}.{{classname}}Interface
+}
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+func TestBhvMocking008_Client_ClientBuiltFromFakesClosesWithoutError(t *testing.T) {
+	t.Parallel()
+	client := &{{packageName}}.{{clientClassName}}{
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+		{{baseName}}: fake{{classname}}{},
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+	}
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("expected closing a client of fakes to succeed, got %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected closing a second time to succeed, got %v", err)
 	}
 }

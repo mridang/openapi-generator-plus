@@ -1,6 +1,20 @@
 {{>api_info}}
 
+use std::future::Future;
+
 use {{packageName}}::{{clientClassName}};
+use {{packageName}}::{{clientClassName}}Trait;
+use {{packageName}}::ApiResult;
+use {{packageName}}::api::*;
+use {{packageName}}::api::options::*;
+use {{packageName}}::models::*;
+
+/* The signatures of the fakes name `crate::date_time`, which is the SDK's module; this file is its own
+ * crate, so the path is made to resolve to the SDK's. */
+#[allow(unused_imports)]
+mod date_time {
+    pub use {{packageName}}::date_time::*;
+}
 use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
 use {{packageName}}::auth::api_key_location::ApiKeyLocation;
 use {{packageName}}::auth::Authenticator;
@@ -318,3 +332,145 @@ fn test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_at_
 
 {{/hasSecuritySchemeEnvVars}}
 
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{>test/fake_group}}
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+/// Reads the interface block (the trait) and the group class of one API source file.
+fn read_group(file: &str, trait_name: &str) -> (Vec<String>, Vec<String>) {
+    let source = std::fs::read_to_string(file).expect("the API source is readable from the crate root");
+    let start = source.find(&format!("pub trait {} {{", trait_name)).expect("the group trait is declared");
+    let end = start + source[start..].find("\n}\n").expect("the group trait is closed");
+    let listed = source[start..end]
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("fn "))
+        .filter_map(|rest| rest.split('(').next())
+        .map(str::to_string)
+        .collect();
+    let declared = source
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("pub async fn "))
+        .filter_map(|rest| rest.split('(').next())
+        .map(str::to_string)
+        .collect();
+    (listed, declared)
+}
+
+#[test]
+fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
+    let authenticator = BearerAuthenticator::new("{{{basePath}}}", "test-token").unwrap();
+    let client = {{clientClassName}}::new(Box::new(authenticator), None);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    fn is_{{clientPropertyName}}_group<T: {{classname}}Trait>(_: &T) {}
+    is_{{clientPropertyName}}_group(&client.{{clientPropertyName}});
+    let ({{clientPropertyName}}_listed, _) = read_group("src/api/{{classFilename}}.rs", "{{classname}}Trait");
+{{#operation}}
+    assert!({{clientPropertyName}}_listed.contains(&"{{operationId}}".to_string()));
+    assert!({{clientPropertyName}}_listed.contains(&"{{operationId}}_with_http_info".to_string()));
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+#[test]
+fn test_bhv_mocking_002_group_trait_lists_exactly_the_public_operations_of_the_class() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    let (listed, declared) = read_group("src/api/{{classFilename}}.rs", "{{classname}}Trait");
+    let mut listed = listed;
+    let mut declared = declared;
+    listed.sort();
+    declared.sort();
+    assert_eq!(listed, declared);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+fn exposes_every_group_and_closes<C: {{clientClassName}}Trait>(client: &C) -> bool {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    let _ = client.{{clientPropertyName}}();
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    client.close();
+    client.is_closed()
+}
+
+#[test]
+fn test_bhv_mocking_007_client_trait_exposes_every_group_typed_as_its_trait_and_close() {
+    let authenticator = BearerAuthenticator::new("{{{basePath}}}", "test-token").unwrap();
+    let client = {{clientClassName}}::new(Box::new(authenticator), None);
+
+    assert!(exposes_every_group_and_closes(&client));
+}
+
+struct FakeClient {
+    closed: std::sync::atomic::AtomicUsize,
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    {{clientPropertyName}}: Fake{{classname}},
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+impl {{clientClassName}}Trait for FakeClient {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    type {{clientAccessorSuffix}} = Fake{{classname}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+
+    fn {{clientPropertyName}}(&self) -> &Self::{{clientAccessorSuffix}} {
+        &self.{{clientPropertyName}}
+    }
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    fn close(&self) {
+        self.closed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn is_closed(&self) -> bool {
+        self.closed.load(std::sync::atomic::Ordering::SeqCst) > 0
+    }
+}
+
+#[test]
+fn test_bhv_mocking_008_client_built_from_fakes_never_connects_and_closes_without_error() {
+    let fake = FakeClient {
+        closed: std::sync::atomic::AtomicUsize::new(0),
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        {{clientPropertyName}}: Fake{{classname}}::new(),
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    };
+
+    assert!(exposes_every_group_and_closes(&fake));
+    fake.close();
+
+    assert_eq!(fake.closed.load(std::sync::atomic::Ordering::SeqCst), 2);
+}

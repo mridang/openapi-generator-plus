@@ -94,6 +94,7 @@ The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example 
 - `Configuration` and the builders implement `Default`.
 - `ApiResult::into_data(self)` moves the payload out of the result.
 - Lint exclusions live in one place, the `[lints]` tables of `Cargo.toml`. Generated source files carry no `allow` attributes, and `cargo clippy -- -D warnings` is the gate.
+- Testing your code: `<Group>ApiTrait` in the group file and `ClientTrait` in `client.rs`, re-exported from the crate root. The trait methods are `fn ... -> impl Future<Output = ...>` and not `async fn`, which keeps the `async_fn_in_trait` lint quiet; they are not required to be `Send`, because the per-operation server traits have no `Send + Sync` bound and requiring it would be a breaking change. No `async-trait`, no `dyn`. `ClientTrait` has one associated type per group so `Client` keeps its concrete group structs. The Rust gate compiles only on CI.
 
 ## Credentials per security scheme
 

@@ -8,6 +8,7 @@
  */
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
@@ -1994,5 +1995,514 @@ impl StoreApi {
         };
 
         self.base.invoke_api_for_result::<Vec<Order>>(params).await
+    }
+}
+
+/// The contract of [`StoreApi`]: every operation of the Store API group and its
+/// `_with_http_info` variant. Depend on it (`fn f<A: StoreApiTrait>(api: &A)`) to substitute a
+/// hand-written fake in your own tests. The futures are not required to be `Send`, because the
+/// per-operation server traits are not.
+pub trait StoreApiTrait {
+    fn create_account(
+        &self,
+        account: Account,
+        options: Option<&CreateAccountOptions>,
+    ) -> impl Future<Output = Result<Account, Box<dyn std::error::Error + Send + Sync>>>;
+    fn create_account_with_http_info(
+        &self,
+        account: Account,
+        options: Option<&CreateAccountOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn delete_order(
+        &self,
+        order_id: i64,
+        options: Option<&DeleteOrderOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    fn delete_order_with_http_info(
+        &self,
+        order_id: i64,
+        options: Option<&DeleteOrderOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_by_swatch(
+        &self,
+        path_swatch: Swatch,
+        options: Option<&GetBySwatchOptions>,
+    ) -> impl Future<Output = Result<Category, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_by_swatch_with_http_info(
+        &self,
+        path_swatch: Swatch,
+        options: Option<&GetBySwatchOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_defaults(
+        &self,
+        options: Option<&GetDefaultsOptions>,
+    ) -> impl Future<Output = Result<Defaults, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_defaults_with_http_info(
+        &self,
+        options: Option<&GetDefaultsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_department(
+        &self,
+        options: Option<&GetDepartmentOptions>,
+    ) -> impl Future<Output = Result<Department, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_department_with_http_info(
+        &self,
+        options: Option<&GetDepartmentOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_grouped_categories(
+        &self,
+        options: Option<&GetGroupedCategoriesOptions>,
+    ) -> impl Future<
+        Output = Result<
+            Vec<std::collections::HashMap<String, Category>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    >;
+    fn get_grouped_categories_with_http_info(
+        &self,
+        options: Option<&GetGroupedCategoriesOptions>,
+    ) -> impl Future<
+        Output = Result<
+            ApiResult<Vec<std::collections::HashMap<String, Category>>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    >;
+    fn get_inventory(
+        &self,
+        options: Option<&GetInventoryOptions>,
+    ) -> impl Future<
+        Output = Result<
+            std::collections::HashMap<String, i32>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    >;
+    fn get_inventory_with_http_info(
+        &self,
+        options: Option<&GetInventoryOptions>,
+    ) -> impl Future<
+        Output = Result<
+            ApiResult<std::collections::HashMap<String, i32>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    >;
+    fn get_matrix(
+        &self,
+        options: Option<&GetMatrixOptions>,
+    ) -> impl Future<Output = Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_matrix_with_http_info(
+        &self,
+        options: Option<&GetMatrixOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_order_by_id(
+        &self,
+        order_id: i64,
+        options: Option<&GetOrderByIdOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_order_by_id_with_http_info(
+        &self,
+        order_id: i64,
+        options: Option<&GetOrderByIdOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_order_by_tracking_id(
+        &self,
+        tracking_id: uuid::Uuid,
+        options: Option<&GetOrderByTrackingIdOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_order_by_tracking_id_with_http_info(
+        &self,
+        tracking_id: uuid::Uuid,
+        options: Option<&GetOrderByTrackingIdOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_stock_item(
+        &self,
+        options: Option<&GetStockItemOptions>,
+    ) -> impl Future<Output = Result<StockItem, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_stock_item_with_http_info(
+        &self,
+        options: Option<&GetStockItemOptions>,
+    ) -> impl Future<Output = Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_swatch(
+        &self,
+        options: Option<&GetSwatchOptions>,
+    ) -> impl Future<Output = Result<Swatch, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_swatch_with_http_info(
+        &self,
+        options: Option<&GetSwatchOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_swatch_groups(
+        &self,
+        options: Option<&GetSwatchGroupsOptions>,
+    ) -> impl Future<
+        Output = Result<
+            Vec<std::collections::HashMap<String, Swatch>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    >;
+    fn get_swatch_groups_with_http_info(
+        &self,
+        options: Option<&GetSwatchGroupsOptions>,
+    ) -> impl Future<
+        Output = Result<
+            ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    >;
+    fn get_timestamp_groups(
+        &self,
+        options: Option<&GetTimestampGroupsOptions>,
+    ) -> impl Future<
+        Output = Result<
+            Vec<std::collections::HashMap<String, crate::date_time::DateTime>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    >;
+    fn get_timestamp_groups_with_http_info(
+        &self,
+        options: Option<&GetTimestampGroupsOptions>,
+    ) -> impl Future<
+        Output = Result<
+            ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    >;
+    fn get_tree(
+        &self,
+        options: Option<&GetTreeOptions>,
+    ) -> impl Future<Output = Result<TreeNode, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_tree_with_http_info(
+        &self,
+        options: Option<&GetTreeOptions>,
+    ) -> impl Future<Output = Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn place_order(
+        &self,
+        order: Option<Order>,
+        options: Option<&PlaceOrderOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
+    fn place_order_with_http_info(
+        &self,
+        order: Option<Order>,
+        options: Option<&PlaceOrderOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn reserve_stock(
+        &self,
+        options: Option<&ReserveStockOptions>,
+    ) -> impl Future<Output = Result<ReserveStockResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    fn reserve_stock_with_http_info(
+        &self,
+        options: Option<&ReserveStockOptions>,
+    ) -> impl Future<
+        Output = Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>>,
+    >;
+    fn search_store(
+        &self,
+        options: Option<&SearchStoreOptions>,
+    ) -> impl Future<Output = Result<Vec<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn search_store_with_http_info(
+        &self,
+        options: Option<&SearchStoreOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>;
+}
+
+impl StoreApiTrait for StoreApi {
+    fn create_account(
+        &self,
+        account: Account,
+        options: Option<&CreateAccountOptions>,
+    ) -> impl Future<Output = Result<Account, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::create_account(self, account, options)
+    }
+
+    fn create_account_with_http_info(
+        &self,
+        account: Account,
+        options: Option<&CreateAccountOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::create_account_with_http_info(self, account, options)
+    }
+    fn delete_order(
+        &self,
+        order_id: i64,
+        options: Option<&DeleteOrderOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::delete_order(self, order_id, options)
+    }
+
+    fn delete_order_with_http_info(
+        &self,
+        order_id: i64,
+        options: Option<&DeleteOrderOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::delete_order_with_http_info(self, order_id, options)
+    }
+    fn get_by_swatch(
+        &self,
+        path_swatch: Swatch,
+        options: Option<&GetBySwatchOptions>,
+    ) -> impl Future<Output = Result<Category, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_by_swatch(self, path_swatch, options)
+    }
+
+    fn get_by_swatch_with_http_info(
+        &self,
+        path_swatch: Swatch,
+        options: Option<&GetBySwatchOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_by_swatch_with_http_info(self, path_swatch, options)
+    }
+    fn get_defaults(
+        &self,
+        options: Option<&GetDefaultsOptions>,
+    ) -> impl Future<Output = Result<Defaults, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_defaults(self, options)
+    }
+
+    fn get_defaults_with_http_info(
+        &self,
+        options: Option<&GetDefaultsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_defaults_with_http_info(self, options)
+    }
+    fn get_department(
+        &self,
+        options: Option<&GetDepartmentOptions>,
+    ) -> impl Future<Output = Result<Department, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_department(self, options)
+    }
+
+    fn get_department_with_http_info(
+        &self,
+        options: Option<&GetDepartmentOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_department_with_http_info(self, options)
+    }
+    fn get_grouped_categories(
+        &self,
+        options: Option<&GetGroupedCategoriesOptions>,
+    ) -> impl Future<
+        Output = Result<
+            Vec<std::collections::HashMap<String, Category>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    > {
+        StoreApi::get_grouped_categories(self, options)
+    }
+
+    fn get_grouped_categories_with_http_info(
+        &self,
+        options: Option<&GetGroupedCategoriesOptions>,
+    ) -> impl Future<
+        Output = Result<
+            ApiResult<Vec<std::collections::HashMap<String, Category>>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    > {
+        StoreApi::get_grouped_categories_with_http_info(self, options)
+    }
+    fn get_inventory(
+        &self,
+        options: Option<&GetInventoryOptions>,
+    ) -> impl Future<
+        Output = Result<
+            std::collections::HashMap<String, i32>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    > {
+        StoreApi::get_inventory(self, options)
+    }
+
+    fn get_inventory_with_http_info(
+        &self,
+        options: Option<&GetInventoryOptions>,
+    ) -> impl Future<
+        Output = Result<
+            ApiResult<std::collections::HashMap<String, i32>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    > {
+        StoreApi::get_inventory_with_http_info(self, options)
+    }
+    fn get_matrix(
+        &self,
+        options: Option<&GetMatrixOptions>,
+    ) -> impl Future<Output = Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_matrix(self, options)
+    }
+
+    fn get_matrix_with_http_info(
+        &self,
+        options: Option<&GetMatrixOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_matrix_with_http_info(self, options)
+    }
+    fn get_order_by_id(
+        &self,
+        order_id: i64,
+        options: Option<&GetOrderByIdOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_order_by_id(self, order_id, options)
+    }
+
+    fn get_order_by_id_with_http_info(
+        &self,
+        order_id: i64,
+        options: Option<&GetOrderByIdOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_order_by_id_with_http_info(self, order_id, options)
+    }
+    fn get_order_by_tracking_id(
+        &self,
+        tracking_id: uuid::Uuid,
+        options: Option<&GetOrderByTrackingIdOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_order_by_tracking_id(self, tracking_id, options)
+    }
+
+    fn get_order_by_tracking_id_with_http_info(
+        &self,
+        tracking_id: uuid::Uuid,
+        options: Option<&GetOrderByTrackingIdOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_order_by_tracking_id_with_http_info(self, tracking_id, options)
+    }
+    fn get_stock_item(
+        &self,
+        options: Option<&GetStockItemOptions>,
+    ) -> impl Future<Output = Result<StockItem, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_stock_item(self, options)
+    }
+
+    fn get_stock_item_with_http_info(
+        &self,
+        options: Option<&GetStockItemOptions>,
+    ) -> impl Future<Output = Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_stock_item_with_http_info(self, options)
+    }
+    fn get_swatch(
+        &self,
+        options: Option<&GetSwatchOptions>,
+    ) -> impl Future<Output = Result<Swatch, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_swatch(self, options)
+    }
+
+    fn get_swatch_with_http_info(
+        &self,
+        options: Option<&GetSwatchOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_swatch_with_http_info(self, options)
+    }
+    fn get_swatch_groups(
+        &self,
+        options: Option<&GetSwatchGroupsOptions>,
+    ) -> impl Future<
+        Output = Result<
+            Vec<std::collections::HashMap<String, Swatch>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    > {
+        StoreApi::get_swatch_groups(self, options)
+    }
+
+    fn get_swatch_groups_with_http_info(
+        &self,
+        options: Option<&GetSwatchGroupsOptions>,
+    ) -> impl Future<
+        Output = Result<
+            ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    > {
+        StoreApi::get_swatch_groups_with_http_info(self, options)
+    }
+    fn get_timestamp_groups(
+        &self,
+        options: Option<&GetTimestampGroupsOptions>,
+    ) -> impl Future<
+        Output = Result<
+            Vec<std::collections::HashMap<String, crate::date_time::DateTime>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    > {
+        StoreApi::get_timestamp_groups(self, options)
+    }
+
+    fn get_timestamp_groups_with_http_info(
+        &self,
+        options: Option<&GetTimestampGroupsOptions>,
+    ) -> impl Future<
+        Output = Result<
+            ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
+            Box<dyn std::error::Error + Send + Sync>,
+        >,
+    > {
+        StoreApi::get_timestamp_groups_with_http_info(self, options)
+    }
+    fn get_tree(
+        &self,
+        options: Option<&GetTreeOptions>,
+    ) -> impl Future<Output = Result<TreeNode, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_tree(self, options)
+    }
+
+    fn get_tree_with_http_info(
+        &self,
+        options: Option<&GetTreeOptions>,
+    ) -> impl Future<Output = Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_tree_with_http_info(self, options)
+    }
+    fn place_order(
+        &self,
+        order: Option<Order>,
+        options: Option<&PlaceOrderOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::place_order(self, order, options)
+    }
+
+    fn place_order_with_http_info(
+        &self,
+        order: Option<Order>,
+        options: Option<&PlaceOrderOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::place_order_with_http_info(self, order, options)
+    }
+    fn reserve_stock(
+        &self,
+        options: Option<&ReserveStockOptions>,
+    ) -> impl Future<Output = Result<ReserveStockResponse, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::reserve_stock(self, options)
+    }
+
+    fn reserve_stock_with_http_info(
+        &self,
+        options: Option<&ReserveStockOptions>,
+    ) -> impl Future<
+        Output = Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>>,
+    > {
+        StoreApi::reserve_stock_with_http_info(self, options)
+    }
+    fn search_store(
+        &self,
+        options: Option<&SearchStoreOptions>,
+    ) -> impl Future<Output = Result<Vec<Order>, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::search_store(self, options)
+    }
+
+    fn search_store_with_http_info(
+        &self,
+        options: Option<&SearchStoreOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::search_store_with_http_info(self, options)
     }
 }

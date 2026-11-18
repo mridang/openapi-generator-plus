@@ -22,6 +22,10 @@ var ErrMissingCredential = auth.ErrMissingCredential
 // authentication HTTP calls (token exchange, discovery) use the same
 // transport configuration as regular API calls.
 //
+// Each group field is typed as the group's interface, so a test can build a
+// client from fakes: &{{packageName}}.{{clientClassName}}{...} with the group
+// fields set. Close on such a client returns nil.
+//
 // Usage:
 //
 //	// Default transport
@@ -49,8 +53,9 @@ type {{clientClassName}} struct {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-	/* {{baseName}} holds the API operations for the {{classname}} group. */
-	{{baseName}} *{{classname}}
+	/* {{baseName}} holds the API operations for the {{classname}} group, typed as
+	 * {{classname}}Interface so that a fake can stand in for the real group. */
+	{{baseName}} {{classname}}Interface
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
@@ -63,8 +68,12 @@ type {{clientClassName}} struct {
 // in flight finishes, and a request sent afterwards fails with ErrClientClosed.
 // Cancel a single request through its context. A transport the caller supplied through
 // TransportOptionsBuilder.HttpClient or RoundTripper is never closed: the
-// caller owns its lifecycle.
+// caller owns its lifecycle. A client built from fakes, as a struct literal with
+// the group fields set, holds no transport, and closing it returns nil.
 func (c *{{clientClassName}}) Close() error {
+	if c.apiClient == nil {
+		return nil
+	}
 	return c.apiClient.Close()
 }
 
@@ -119,24 +128,24 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 		BaseURL(host).
 		Build()
 
-	client := &{{clientClassName}}{
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+	api{{baseName}} := New{{classname}}(apiClient, config, authenticator, Credentials{})
+	api{{baseName}}.credentials = credentials
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+	return &{{clientClassName}}{
 		apiClient: apiClient,
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-		{{baseName}}: New{{classname}}(apiClient, config, authenticator, Credentials{}),
+		{{baseName}}: api{{baseName}},
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
 	}
-{{#apiInfo}}
-{{#apis}}
-{{#operations}}
-	client.{{baseName}}.credentials = credentials
-{{/operations}}
-{{/apis}}
-{{/apiInfo}}
-	return client
 }
 
 // New{{clientClassName}}WithToken creates a client authenticated with a static Bearer token.

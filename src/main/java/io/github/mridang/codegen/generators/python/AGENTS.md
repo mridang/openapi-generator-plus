@@ -243,6 +243,9 @@ Why: it is built on a different code path (the model's own `RootModel`); unifyin
 Where: `models/model.mustache`.
 Test: `test_composed_schema.mustache`.
 
+### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
+Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `<Group>ApiProtocol(Protocol)` in the group file and `ClientProtocol(Protocol)` in the client file, both exported from `__init__`. `PetApi` is not changed: it satisfies the protocol structurally, and a fake subclasses the protocol so only the operations it fakes are written (the stubs return `None`). Tests: test/test_client.mustache (001, 002, 007, 008), test/api/test_pet_api.mustache (003 to 006). Where: the templates named above, `BetterPythonCodegen`, the README template (`Testing your code`), `docs/languages/python.md`.
+
 ## Known limitations and out of scope
 
 Not decided or not done, each with its reason.

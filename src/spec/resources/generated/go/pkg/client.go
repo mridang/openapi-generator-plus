@@ -30,6 +30,10 @@ var ErrMissingCredential = auth.ErrMissingCredential
 // authentication HTTP calls (token exchange, discovery) use the same
 // transport configuration as regular API calls.
 //
+// Each group field is typed as the group's interface, so a test can build a
+// client from fakes: &petstore.Client{...} with the group
+// fields set. Close on such a client returns nil.
+//
 // Usage:
 //
 //	// Default transport
@@ -54,12 +58,15 @@ var ErrMissingCredential = auth.ErrMissingCredential
 //		HttpClient(myHTTPClient).
 //		Build()
 type Client struct {
-	/* Pet holds the API operations for the PetApi group. */
-	Pet *PetApi
-	/* Problems holds the API operations for the ProblemsApi group. */
-	Problems *ProblemsApi
-	/* Store holds the API operations for the StoreApi group. */
-	Store *StoreApi
+	/* Pet holds the API operations for the PetApi group, typed as
+	 * PetApiInterface so that a fake can stand in for the real group. */
+	Pet PetApiInterface
+	/* Problems holds the API operations for the ProblemsApi group, typed as
+	 * ProblemsApiInterface so that a fake can stand in for the real group. */
+	Problems ProblemsApiInterface
+	/* Store holds the API operations for the StoreApi group, typed as
+	 * StoreApiInterface so that a fake can stand in for the real group. */
+	Store StoreApiInterface
 
 	apiClient ApiClient
 }
@@ -69,8 +76,12 @@ type Client struct {
 // in flight finishes, and a request sent afterwards fails with ErrClientClosed.
 // Cancel a single request through its context. A transport the caller supplied through
 // TransportOptionsBuilder.HttpClient or RoundTripper is never closed: the
-// caller owns its lifecycle.
+// caller owns its lifecycle. A client built from fakes, as a struct literal with
+// the group fields set, holds no transport, and closing it returns nil.
 func (c *Client) Close() error {
+	if c.apiClient == nil {
+		return nil
+	}
 	return c.apiClient.Close()
 }
 
@@ -125,16 +136,18 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 		BaseURL(host).
 		Build()
 
-	client := &Client{
+	apiPet := NewPetApi(apiClient, config, authenticator, Credentials{})
+	apiPet.credentials = credentials
+	apiProblems := NewProblemsApi(apiClient, config, authenticator, Credentials{})
+	apiProblems.credentials = credentials
+	apiStore := NewStoreApi(apiClient, config, authenticator, Credentials{})
+	apiStore.credentials = credentials
+	return &Client{
 		apiClient: apiClient,
-		Pet:       NewPetApi(apiClient, config, authenticator, Credentials{}),
-		Problems:  NewProblemsApi(apiClient, config, authenticator, Credentials{}),
-		Store:     NewStoreApi(apiClient, config, authenticator, Credentials{}),
+		Pet:       apiPet,
+		Problems:  apiProblems,
+		Store:     apiStore,
 	}
-	client.Pet.credentials = credentials
-	client.Problems.credentials = credentials
-	client.Store.credentials = credentials
-	return client
 }
 
 // NewClientWithToken creates a client authenticated with a static Bearer token.

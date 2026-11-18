@@ -105,6 +105,22 @@ shuts it down. Setting a proxy, a CA certificate or `verify_ssl(false)` on
 `ConfigurationError::InvalidArgument`, because those belong to the client you
 built.
 
+### Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Trait{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Trait`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```rust
+use {{packageName}}::api::{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Trait{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
+
+// Code under test takes the group trait, never the generated struct.
+fn use_group<A: {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Trait{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}>(_api: &A) {}
+
+// A fake implements the trait; the compiler lists the operations it still has to implement.
+// use_group(&MyFake);
+```
+
+A new operation in the API adds a method to the trait, so a fake that implements the whole trait stops compiling after you regenerate; keep the fake in one place, or wrap the generated type and forward the operations you do not fake, so only the operation you fake is written.
+
 ### Credentials
 
 `{{clientClassName}}::with_token(host, access_token, transport_options)` takes both

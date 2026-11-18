@@ -153,7 +153,7 @@ public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets (globs like /pets/* and /pets/**/ and an id of #{petId})
 /// See https://example.com/docs/pets Find out more about pets (it's */ here) on two lines
-public final class PetApi: BaseApi, @unchecked Sendable {
+public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// Creates a new `PetApi`.
   public override init(
     apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,

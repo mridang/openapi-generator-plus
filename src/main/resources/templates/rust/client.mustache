@@ -252,3 +252,61 @@ impl {{clientClassName}} {
         Self::new(authenticator, transport_options)
     }
 }
+
+/// The contract of [`{{clientClassName}}`]: every API group, typed as its group trait, plus `close`
+/// and `is_closed`. Depend on it (`fn f<C: {{clientClassName}}Trait>(client: &C)`) to substitute a
+/// hand-written fake client in your own tests; a fake client built from fake groups opens no
+/// connection, and closing it does nothing.
+pub trait {{clientClassName}}Trait {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /// The type of the {{classname}} group.
+    type {{clientAccessorSuffix}}: crate::api::{{classname}}Trait;
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+
+    /// API operations for the {{classname}} group.
+    fn {{clientPropertyName}}(&self) -> &Self::{{clientAccessorSuffix}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    /// Closes the client; a fake client has nothing to release.
+    fn close(&self);
+
+    /// Returns true once [`Self::close`] has been called.
+    fn is_closed(&self) -> bool;
+}
+
+impl {{clientClassName}}Trait for {{clientClassName}} {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    type {{clientAccessorSuffix}} = {{classname}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+
+    fn {{clientPropertyName}}(&self) -> &Self::{{clientAccessorSuffix}} {
+        &self.{{clientPropertyName}}
+    }
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    fn close(&self) {
+        {{clientClassName}}::close(self);
+    }
+
+    fn is_closed(&self) -> bool {
+        {{clientClassName}}::is_closed(self)
+    }
+}

@@ -39,7 +39,7 @@ use {{apiPackage}}\{{classname}};
  * @category Class
  * @package  {{invokerPackage}}
  */
-class {{clientClassName}}
+class {{clientClassName}} implements \{{invokerPackage}}\{{clientClassName}}Interface
 {
     /** @var ApiClient The transport every API group sends through. */
     private readonly ApiClient $sdkTransport;
@@ -132,6 +132,18 @@ class {{clientClassName}}
 {{/apiInfo}}
     }
 
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /** The API operations of the {{classname}} group, the interface form of `${{clientPropertyName}}`. */
+    public function get{{clientAccessorSuffix}}(): {{classname}}
+    {
+        return $this->{{clientPropertyName}};
+    }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
     /**
      * Closes the client gracefully: a request already sent finishes, and every
      * later request fails with a \LogicException ("client closed"). Only the

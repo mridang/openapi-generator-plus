@@ -13,8 +13,11 @@ import { Configuration } from "./configuration.js";
 import { DefaultApiClient } from "#transport";
 import { TransportOptions } from "./transport-options.js";
 import { PetApi } from "./api/pet-api.js";
+import type { PetApiInterface } from "./api/pet-api.js";
 import { ProblemsApi } from "./api/problems-api.js";
+import type { ProblemsApiInterface } from "./api/problems-api.js";
 import { StoreApi } from "./api/store-api.js";
+import type { StoreApiInterface } from "./api/store-api.js";
 
 /**
  * Client-level options for Client.
@@ -102,6 +105,23 @@ function isAuthenticator(
 }
 
 /**
+ * The contract of {@link Client}: every API group typed as its group interface, plus
+ * `close()`. Depend on it instead of the class to substitute a hand-written fake client in your
+ * own tests; a fake client built from fake groups opens no connection, and closing it does
+ * nothing.
+ */
+export interface ClientInterface {
+  /** API operations for the PetApi group. */
+  readonly pet: PetApiInterface;
+  /** API operations for the ProblemsApi group. */
+  readonly problems: ProblemsApiInterface;
+  /** API operations for the StoreApi group. */
+  readonly store: StoreApiInterface;
+  /** Closes the client; a fake client has nothing to release. */
+  close(): Promise<void>;
+}
+
+/**
  * Unified entry point for all API services.
  *
  * Takes an {@link Authenticator} (or one optional credential per security
@@ -135,7 +155,7 @@ function isAuthenticator(
  * const cancellable = new Client(authenticator, undefined, { signal: controller.signal });
  * ```
  */
-export class Client {
+export class Client implements ClientInterface {
   private readonly ownedClient: DefaultApiClient;
 
   /** API operations for the PetApi group. */

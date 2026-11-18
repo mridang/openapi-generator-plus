@@ -361,3 +361,15 @@ php | tracing015 | PHP runs one request at a time in one process, so two operati
 ruby | tracing014 | the call is blocking and builds the headers on the caller's thread; tracing013 covers the path
 go | tracing014 | the caller's context is passed as an explicit argument, so no ambient scope can be lost before the span is read; tracing013 covers the path
 elixir | tracing014 | the headers are built in the calling process with no hand-off; tracing013 covers the path
+kotlin | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+csharp | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+php | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+python | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+node | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+dart | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+rust | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+swift | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+elixir | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
+go | mocking007 | Go interfaces carry methods and not fields, so there is no client interface; the Client struct holds group-interface fields and mocking008 covers a client built from fakes
+elixir | mocking007 | Elixir has no client behaviour: the Client is a struct of group structs and a fake is a module that implements the group behaviour (mocking001 to 004)
+elixir | mocking008 | There is no client behaviour to implement, so no fake client exists; a fake group module opens no connection by construction

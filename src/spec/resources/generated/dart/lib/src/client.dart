@@ -17,6 +17,24 @@ import 'api/pet_api.dart';
 import 'api/problems_api.dart';
 import 'api/store_api.dart';
 
+/// The contract of [Client]: every API group typed as its group interface, plus
+/// `close()`. Depend on it instead of the class to substitute a hand-written fake client in your
+/// own tests; a fake client built from fake groups opens no connection, and closing it does
+/// nothing.
+abstract interface class ClientInterface {
+  /// API operations for the PetApi group.
+  PetApiInterface get pet;
+
+  /// API operations for the ProblemsApi group.
+  ProblemsApiInterface get problems;
+
+  /// API operations for the StoreApi group.
+  StoreApiInterface get store;
+
+  /// Closes the client; a fake client has nothing to release.
+  void close();
+}
+
 /// Unified entry point for all API services.
 ///
 /// Takes an [Authenticator] and optionally [TransportOptions], then exposes
@@ -41,14 +59,17 @@ import 'api/store_api.dart';
 ///   transportOptions: transport,
 /// );
 /// ```
-class Client {
+class Client implements ClientInterface {
   /// API operations for the PetApi group.
+  @override
   final PetApi pet;
 
   /// API operations for the ProblemsApi group.
+  @override
   final ProblemsApi problems;
 
   /// API operations for the StoreApi group.
+  @override
   final StoreApi store;
 
   final DefaultApiClient _apiClient;
@@ -185,6 +206,7 @@ class Client {
   /// A transport supplied by the caller through
   /// [TransportOptions.httpClient] is never closed: the caller owns it. After
   /// this call any further request raises a [StateError]. Idempotent.
+  @override
   void close() {
     _apiClient.close();
   }

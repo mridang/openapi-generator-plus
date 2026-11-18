@@ -23,7 +23,14 @@ import { UserAuthAuthorizationCodeAuthenticator } from '../src/auth/oauth/user-a
 import type { ApiClient } from '../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../src/api-http-response{{importFileExtension}}';
 import * as entryPoint from '../src/index{{importFileExtension}}';
-import { {{clientClassName}}, type ClientCredentials } from '../src/{{clientClassFile}}{{importFileExtension}}';
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import { {{classname}}, type {{classname}}Interface } from '../src/api/{{classFilename}}{{importFileExtension}}';
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+import { {{clientClassName}}, type {{clientClassName}}Interface, type ClientCredentials } from '../src/{{clientClassFile}}{{importFileExtension}}';
 import { OpenIdConnectAuthenticator } from '../src/auth/oauth/openid-connect-authenticator{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 import { Pet } from '../src/models/index{{importFileExtension}}';
@@ -732,5 +739,78 @@ describe('generated documentation', () => {
     expect(readme).toContain('`TransportOptionsBuilder.proxy()` accepts only `http://` and `https://` URLs.');
     expect(readme).not.toContain('`TransportOptions.proxy()`');
     expect(() => TransportOptions.builder().proxy('socks5://proxy:1080')).toThrow(TypeError);
+  });
+});
+
+describe('mockable client', () => {
+  const authenticator = new BearerAuthenticator('{{{basePath}}}', 'test-token');
+
+  test('bhv mocking 001 every group has an interface the class implements', () => {
+    const client = new {{clientClassName}}(authenticator);
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    const {{clientPropertyName}}Group: {{classname}}Interface = client.{{clientPropertyName}};
+    const {{clientPropertyName}}Listed = [{{#operation}}'{{nickname}}', '{{nickname}}WithHttpInfo', {{/operation}}];
+    for (const name of {{clientPropertyName}}Listed) {
+      expect(typeof ({{clientPropertyName}}Group as unknown as Record<string, unknown>)[name]).toBe('function');
+    }
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  });
+
+  test('bhv mocking 002 the group interface lists exactly the public operations of the class', () => {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    const {{clientPropertyName}}Class = Object.getOwnPropertyNames({{classname}}.prototype)
+      .filter(name => name !== 'constructor')
+      .sort();
+    expect({{clientPropertyName}}Class).toEqual([{{#operation}}'{{nickname}}', '{{nickname}}WithHttpInfo', {{/operation}}].sort());
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  });
+
+  test('bhv mocking 007 the client interface exposes every group typed as its interface and close', async () => {
+    const client = new {{clientClassName}}(authenticator);
+    const viaInterface: {{clientClassName}}Interface = client;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    const {{clientPropertyName}}Group: {{classname}}Interface = viaInterface.{{clientPropertyName}};
+    expect({{clientPropertyName}}Group).toBe(client.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    await viaInterface.close();
+
+    const api = client as unknown as { ownedClient: ApiClient };
+    await expect(api.ownedClient.sendRequest('GET', 'http://example.invalid/', {}, null)).rejects.toThrow(
+      'ApiClient has been closed and can no longer send requests',
+    );
+  });
+
+  test('bhv mocking 008 a client built from fakes never connects and closes without error', async () => {
+    let closed = 0;
+    const fake: {{clientClassName}}Interface = {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      {{clientPropertyName}}: {} as {{classname}}Interface,
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+      close: async () => {
+        closed += 1;
+      },
+    };
+
+    await fake.close();
+    await fake.close();
+
+    expect(closed).toBe(2);
   });
 });

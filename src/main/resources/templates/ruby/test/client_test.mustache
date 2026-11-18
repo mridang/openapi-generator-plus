@@ -387,4 +387,77 @@ describe 'Client' do
     _(-> { {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', '') }).must_raise ArgumentError
     _({{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'test-token')).wont_be_nil
   end
+
+  # The group interfaces are RBS (Ruby has no interface keyword), so the tests read the
+  # signature files the gem ships and check them against the classes.
+  def signature_dir
+    File.expand_path('../sig', File.dirname(__FILE__))
+  end
+
+  def interface_methods(source, name)
+    body = source[/interface #{Regexp.escape(name)}\n(.*?)\n\s*end\n/m, 1]
+    _(body).wont_be_nil
+    body.to_s.scan(/^\s*def (\w+[?!]?):/).flatten.sort
+  end
+
+  it 'bhv_mocking_001 every group has an interface the class implements' do
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    source = File.read(Dir.glob(File.join(signature_dir, '**', '{{classFilename}}.rbs')).fetch(0))
+    listed = interface_methods(source, '_{{classname}}Interface')
+    group = {{moduleName}}::Api::{{classname}}.new(nil, TEST_CONFIGURATION)
+{{#operation}}
+    _(listed).must_include '{{operationId}}'
+    _(listed).must_include '{{operationId}}_with_http_info'
+    _(group).must_respond_to :{{operationId}}
+    _(group).must_respond_to :{{operationId}}_with_http_info
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  end
+
+  it 'bhv_mocking_002 the group interface lists exactly the public operations of the class' do
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    source = File.read(Dir.glob(File.join(signature_dir, '**', '{{classFilename}}.rbs')).fetch(0))
+    _(interface_methods(source, '_{{classname}}Interface'))
+      .must_equal {{moduleName}}::Api::{{classname}}.public_instance_methods(false).map(&:to_s).sort
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  end
+
+  it 'bhv_mocking_007 the client interface exposes every group typed as its interface and close' do
+    source = File.read(File.join(signature_dir, 'infrastructure.rbs'))
+    listed = interface_methods(source, '_{{clientClassName}}Interface')
+    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
+    client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    _(listed).must_include '{{clientPropertyName}}'
+    _(source).must_include 'def {{clientPropertyName}}: () -> Api::_{{classname}}Interface'
+    _(client).must_respond_to :{{clientPropertyName}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    _(listed).must_include 'close'
+    _(client).must_respond_to :close
+  end
+
+  it 'bhv_mocking_008 a client built from fakes never connects and closes without error' do
+    closed = 0
+    fake = Struct.new({{#apiInfo}}{{#apis}}{{#operations}}:{{clientPropertyName}}, {{/operations}}{{/apis}}{{/apiInfo}}:closer) do
+      define_method(:close) { closer.call }
+    end.new({{#apiInfo}}{{#apis}}{{#operations}}Object.new, {{/operations}}{{/apis}}{{/apiInfo}}-> { closed += 1 })
+
+    fake.close
+    fake.close
+
+    _(closed).must_equal 2
+  end
 end

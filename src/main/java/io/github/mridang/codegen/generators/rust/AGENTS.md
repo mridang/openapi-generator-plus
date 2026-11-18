@@ -309,6 +309,9 @@ Rule: no rust-specific rule beyond the shared one for D18 (BOM stripped in the s
 Why: confirmed already canonical.
 Where: see the named templates in Layout.
 
+### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
+Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `<Group>ApiTrait` in the group file and `ClientTrait` in `client.rs`, re-exported from the crate root. The trait methods are `fn ... -> impl Future<Output = ...>` and not `async fn`, which keeps the `async_fn_in_trait` lint quiet; they are not required to be `Send`, because the per-operation server traits have no `Send + Sync` bound and requiring it would be a breaking change. No `async-trait`, no `dyn`. `ClientTrait` has one associated type per group so `Client` keeps its concrete group structs. The Rust gate compiles only on CI. Tests: test/client_test.mustache (001, 002, 007, 008), test/api/pet_api_test.mustache (003 to 006), test/fake_group.mustache (the shared fake). Where: the templates named above, `BetterRustCodegen`, the README template (`Testing your code`), `docs/languages/rust.md`.
+
 ## Known limitations and out of scope
 
 Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and loading 3.2 documents is issue #50 (the pinned swagger-parser rejects it).

@@ -196,6 +196,42 @@ TLS and connection pool, so combining it with `Proxy`, `CaCertPath` or
 `VerifySsl(false)` fails in `Build()` with an `ArgumentException`, and so does
 a stock handler with `AllowAutoRedirect` turned on.
 
+### Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}I{{classname}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`I{{clientClassName}}`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```csharp
+using System.Reflection;
+using {{packageName}};
+using {{packageName}}.{{apiPackage}};
+
+public class Fake : DispatchProxy
+{
+    public List<string> Calls { get; } = new();
+
+    // A fake is any implementation of the interface; this one records every call it receives.
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+    {
+        Calls.Add(targetMethod!.Name);
+        return null;
+    }
+}
+
+public static class FakeExample
+{
+    // Code under test takes the group interface, never the generated class.
+    public static void Use({{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}I{{classname}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} api) { }
+
+    public static void Main()
+    {
+        var group = DispatchProxy.Create<{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}I{{classname}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}, Fake>();
+        Use(group);
+    }
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; use a proxy like this one, or delegate to a base fake, so only the operation you fake is written.
+
 ## Build
 
 ```bash

@@ -1884,5 +1884,55 @@ defmodule {{moduleName}}.Api.PetApiTest do
 
     Agent.stop(name)
   end
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+{{>test/fake_group}}
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+
+  # Code under test: it takes the group module, never the generated one.
+  defp look_up(group, api, pet_id), do: group.get_pet_by_id(api, pet_id)
+
+  defp classify({:error, %{{moduleName}}.Errors.NotFoundError{}}), do: :not_found
+  defp classify({:error, %{{moduleName}}.Errors.ApiError{}}), do: :api_error
+  defp classify({:error, _}), do: :other
+  defp classify({:ok, _}), do: :none
+
+  test "bhv mocking 003 a fake is accepted where the behaviour is accepted and receives the arguments" do
+    assert {:error, _} = look_up(FakePetApi, :api, 42)
+
+    assert_received {:called, :get_pet_by_id, [42]}
+  end
+
+  test "bhv mocking 004 a fake raises the typed error and the caller handles it like the real client" do
+    real = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
+
+    from_fake = classify(look_up(FakePetApi, :api, 1))
+    from_real = classify(look_up({{moduleName}}.Api.PetApi, real, 1))
+
+    assert from_fake == :not_found
+    assert from_real == from_fake
+    assert_raise {{moduleName}}.Errors.NotFoundError, fn -> FakePetApi.get_pet_by_id!(:api, 1) end
+  end
+
+  test "bhv mocking 005 a call through the behaviour module sends the same request as the module call", %{api: api} do
+    group = {{moduleName}}.Api.PetApi
+
+    assert {:ok, direct} = {{moduleName}}.Api.PetApi.get_pet_by_id_with_http_info(api, 1)
+    assert {:ok, through} = group.get_pet_by_id_with_http_info(api, 1)
+
+    assert through.status_code == direct.status_code
+    assert through.raw_body == direct.raw_body
+  end
+
+  test "bhv mocking 006 a call without options reaches the full signature with none set" do
+    assert {:error, _} = look_up(FakePetApi, :api, 7)
+
+    assert_received {:called, :get_pet_by_id, [7]}
+  end
 end
 {{/generateTests}}

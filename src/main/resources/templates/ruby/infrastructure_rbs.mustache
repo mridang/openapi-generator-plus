@@ -596,6 +596,17 @@
 {{/hasAnyOAuth2}}
   end
 
+  interface _{{clientClassName}}Interface
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    def {{clientPropertyName}}: () -> Api::_{{classname}}Interface
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    def close: () -> void
+  end
+
   class {{clientClassName}}
 {{#apiInfo}}
 {{#apis}}

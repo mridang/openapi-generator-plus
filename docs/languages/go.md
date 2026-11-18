@@ -74,6 +74,7 @@ HTTP is the standard library. Other requirements in the manifest are for the gen
 - Building a model never validates: `New<Model>` and the `With` methods accept any value, including an unknown enum member. Validation, and the loud failure on an unknown enum value, happen only when a payload is decoded.
 - Configuration is built with `NewConfigurationBuilder()` and `NewTransportOptionsBuilder()`.
 - You can supply your own HTTP stack with `TransportOptionsBuilder.HttpClient` (anything with `Do(*http.Request)`) or `RoundTripper`. Combining that with the SDK's own proxy, TLS or pool settings fails `Build()` with `ErrTransportConflict`, and the SDK never closes a client you supplied.
+- Testing your code: every group has `<Group>ApiInterface` and the `Client` group fields are typed as those interfaces, so `&pkg.Client{Pet: fake}` is a client of fakes whose `Close()` returns nil. There is no client interface, because Go interfaces carry methods and not fields. A fake embeds the group interface so only the operations it fakes are written.
 - Initialisms are upper case (`URL`, `ID`, `HTTP`).
 - A model struct can be created without its required properties. Decoding enforces them.
 

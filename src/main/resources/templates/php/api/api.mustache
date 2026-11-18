@@ -29,7 +29,7 @@ use {{invokerPackage}}\Models\{{.}};
  * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagExternalDocs}}
  */
-class {{classname}} extends BaseApi
+class {{classname}} extends BaseApi implements {{classname}}Interface
 {
 {{#operation}}
     /**

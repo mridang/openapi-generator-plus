@@ -47,6 +47,31 @@ never closes it: you own its lifecycle. Combining it with a proxy, a CA bundle
 or `verify_ssl(False)` in `TransportOptions` raises `ValueError`, because those
 settings belong to the pool manager you built.
 
+### Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protocol{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Protocol`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```python
+from typing import cast
+
+from {{packageName}} import {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protocol{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+
+
+# Code under test takes the group interface, never the generated class.
+def use(api: {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protocol{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}) -> None:
+    pass
+
+
+# A fake is any object with the operations your code calls; cast it where the interface is expected.
+class Fake:
+    pass
+
+
+use(cast({{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Protocol{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}, Fake()))
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops type-checking after you regenerate; give the fake only the operations your code calls and cast it, as above, so only the operation you fake is written.
+
 ### Automatic retries
 
 A request that fails with a transient error is retried by the SDK. `TransportOptions.builder().max_retries(n)` sets how many times (default 2, so up to three attempts); `max_retries(0)` disables retrying.

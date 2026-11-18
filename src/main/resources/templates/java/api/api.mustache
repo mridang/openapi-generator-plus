@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
  * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
 {{/tagExternalDocs}}
  */
-public class {{classname}} extends BaseApi {
+public class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#operation}}
 {{#returnType}}
 
@@ -153,6 +153,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
         {{#returnType}}return {{operationId}}({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});{{/returnType}}
     }
@@ -161,6 +162,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
         return {{operationId}}WithHttpInfo({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});
     }
@@ -183,6 +185,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
         {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}
     }
@@ -202,6 +205,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
         return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});
     }
@@ -221,6 +225,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}() {
         {{#returnType}}return {{operationId}}(null);{{/returnType}}{{^returnType}}{{operationId}}(null);{{/returnType}}
     }
@@ -237,6 +242,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo() {
         return {{operationId}}WithHttpInfo(null);
     }
@@ -246,6 +252,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
         {{#returnType}}return requireBody({{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}), "{{operationId}}");{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});{{/returnType}}
     }
@@ -273,6 +280,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
         {{#returnType}}return requireBody({{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType), "{{operationId}}");{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType);{{/returnType}}
     }
@@ -296,6 +304,7 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+    @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
         return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType);
     }
@@ -306,6 +315,7 @@ public class {{classname}} extends BaseApi {
     @Deprecated
 {{/isDeprecated}}
 {{#vendorExtensions.hasMultipleConsumes}}
+    @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
         return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, null);
     }
@@ -313,6 +323,7 @@ public class {{classname}} extends BaseApi {
     private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
 {{/vendorExtensions.hasMultipleConsumes}}
 {{^vendorExtensions.hasMultipleConsumes}}
+    @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
 {{/vendorExtensions.hasMultipleConsumes}}
 {{#pathParams}}

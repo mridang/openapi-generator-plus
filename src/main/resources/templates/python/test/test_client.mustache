@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import threading
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import urllib3
@@ -11,7 +11,12 @@ from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator
 from {{packageName}}.auth.api_key_location import ApiKeyLocation
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
 from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
-from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
+{{#apiInfo}}
+{{#apis}}
+from {{apiPackage}}.{{classFilename}} import {{classname}}, {{classname}}Protocol
+{{/apis}}
+{{/apiInfo}}
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}, {{clientClassName}}Protocol
 from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.transport_options import TransportOptions
 
@@ -447,3 +452,99 @@ class TestCallerTransportWithoutClose:
 
         client.close()
         client.close()
+
+
+class _FakeGroup:
+    """A hand-written fake of any API group: it opens no connection."""
+
+
+class _FakeClient:
+    """A client built from fakes; it has only what the test fakes, and is cast where the protocol is expected."""
+
+    def __init__(self) -> None:
+        self.closed = 0
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        self._{{clientPropertyName}} = cast({{classname}}Protocol, _FakeGroup())
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+
+    @property
+    def {{clientPropertyName}}(self) -> {{classname}}Protocol:
+        return self._{{clientPropertyName}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+def _public_names(owner: Any) -> set[str]:
+    return {name for name, member in vars(owner).items() if not name.startswith('_') and callable(member)}
+
+
+class TestMocking:
+    def test_bhv_mocking_001_every_group_has_a_protocol_the_class_satisfies(self) -> None:
+        client = {{clientClassName}}(BearerAuthenticator('{{{basePath}}}', 'test-token'))
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        {{clientPropertyName}}_group: {{classname}}Protocol = client.{{clientPropertyName}}
+        {{clientPropertyName}}_listed = _public_names({{classname}}Protocol)
+        assert {{clientPropertyName}}_group is client.{{clientPropertyName}}
+{{#operation}}
+        assert '{{operationId}}' in {{clientPropertyName}}_listed
+        assert '{{operationId}}_with_http_info' in {{clientPropertyName}}_listed
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        client.close()
+
+    def test_bhv_mocking_002_group_protocol_lists_exactly_the_public_operations_of_the_class(self) -> None:
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assert _public_names({{classname}}Protocol) == _public_names({{classname}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    def test_bhv_mocking_007_client_protocol_exposes_every_group_typed_as_its_protocol_and_close(self) -> None:
+        client = {{clientClassName}}(BearerAuthenticator('{{{basePath}}}', 'test-token'))
+        via_protocol: {{clientClassName}}Protocol = client
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assert via_protocol.{{clientPropertyName}} is client.{{clientPropertyName}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        via_protocol.close()
+
+        with pytest.raises(RuntimeError, match='closed'):
+            client._api_client.send_request('GET', '{{{basePath}}}/x', {}, None)
+
+    def test_bhv_mocking_008_client_built_from_fakes_never_connects_and_closes_without_error(self) -> None:
+        fake = _FakeClient()
+        via_protocol = cast({{clientClassName}}Protocol, fake)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assert via_protocol.{{clientPropertyName}} is not None
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        via_protocol.close()
+        via_protocol.close()
+
+        assert fake.closed == 2

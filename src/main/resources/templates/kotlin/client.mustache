@@ -42,7 +42,7 @@ import {{invokerPackage}}.auth.HttpAwareAuthenticator
  * val client = {{clientClassName}}(authenticator, transport)
  * ```
  */
-class {{clientClassName}} : AutoCloseable {
+class {{clientClassName}} : {{clientClassName}}Interface {
 
     private val apiClient: ApiClient
 
@@ -50,7 +50,7 @@ class {{clientClassName}} : AutoCloseable {
 {{#apis}}
 {{#operations}}
     /** API operations for the {{classname}} group. */
-    val {{clientPropertyName}}: {{classname}}
+    override val {{clientPropertyName}}: {{classname}}
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

@@ -276,6 +276,9 @@ Test: the generated suites listed above.
 Rule: the csharp differences are idiom only: the `(message, innerException)` constructor, `Dispose` instead of `close`, `parameters` instead of `params`, no `cause` member, no `ActualInstance`, internal `ObjectSerializer`, `ValueSerializer` and `HeaderSelector`, the `exchanged` flag kept on the authenticator, `ServerVariable` constructor overloads, and extra internal helper members. Add a difference only for genuine idiom and state the reason.
 Why: a difference without a language feature is a defect hidden.
 
+### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
+Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `I<Group>Api` (file `I<Group>Api.cs`, named by an `apiFilename` override in `BetterCSharpCodegen`) and `IClient : IDisposable`. `Client` implements `IClient` and each group property through an explicit implementation, so `client.Pet` keeps its concrete type. The interface repeats the default parameter values of the class. Tests: ClientTest.mustache (001, 002, 007, 008, a `DispatchProxy` for the fake groups), api/PetApiTest.mustache (003 to 006). Where: the templates named above, `BetterCSharpCodegen`, the README template (`Testing your code`), `docs/languages/csharp.md`.
+
 ## Known limitations and out of scope
 
 - Ambient proxy settings are still honoured because `UseProxy` is not set to false when no proxy is configured (D74,  open).

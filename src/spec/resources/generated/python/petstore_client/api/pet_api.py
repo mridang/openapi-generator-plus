@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Protocol
 from pydantic import StrictInt, StrictStr
 
 from petstore_client.models.api_response import ApiResponse
@@ -195,6 +195,423 @@ class GetStagingPetInfoServerStagingServer(GetStagingPetInfoServer):
         url = url.replace("{" + "environment" + "}", self.environment.value)
         url = url.replace("{" + "version" + "}", self.version.value)
         return url
+
+
+class PetApiProtocol(Protocol):
+    """The contract of :class:`PetApi`: every operation of the pet API group and its
+    ``_with_http_info`` variant. Depend on it instead of the class to substitute a hand-written fake
+    in your own tests; the class satisfies it structurally.
+    """
+
+    async def add_pet(
+        self,
+        pet: Pet,
+        options: Optional[AddPetOptions] = None,
+    ) -> Pet:
+        """The ``add_pet`` operation."""
+        ...
+
+    async def add_pet_with_http_info(
+        self,
+        pet: Pet,
+        options: Optional[AddPetOptions] = None,
+    ) -> "ApiResult[Pet]":
+        """The ``add_pet`` operation with its status code, headers and body."""
+        ...
+
+    async def add_pet_photos(
+        self,
+        pet_id: StrictInt,
+        options: AddPetPhotosOptions,
+    ) -> List[Photo]:
+        """The ``add_pet_photos`` operation."""
+        ...
+
+    async def add_pet_photos_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: AddPetPhotosOptions,
+    ) -> "ApiResult[List[Photo]]":
+        """The ``add_pet_photos`` operation with its status code, headers and body."""
+        ...
+
+    async def add_pet_treatment(
+        self,
+        pet_id: StrictInt,
+        pet_treatment: PetTreatment,
+        options: Optional[AddPetTreatmentOptions] = None,
+    ) -> PetTreatment:
+        """The ``add_pet_treatment`` operation."""
+        ...
+
+    async def add_pet_treatment_with_http_info(
+        self,
+        pet_id: StrictInt,
+        pet_treatment: PetTreatment,
+        options: Optional[AddPetTreatmentOptions] = None,
+    ) -> "ApiResult[PetTreatment]":
+        """The ``add_pet_treatment`` operation with its status code, headers and body."""
+        ...
+
+    async def delete_pet(
+        self,
+        pet_id: StrictInt,
+        options: Optional[DeletePetOptions] = None,
+    ) -> None:
+        """The ``delete_pet`` operation."""
+        ...
+
+    async def delete_pet_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: Optional[DeletePetOptions] = None,
+    ) -> "ApiResult[None]":
+        """The ``delete_pet`` operation with its status code, headers and body."""
+        ...
+
+    async def download_pet_document(
+        self,
+        pet_id: StrictInt,
+        document_id: StrictInt,
+        options: Optional[DownloadPetDocumentOptions] = None,
+    ) -> bytes:
+        """The ``download_pet_document`` operation."""
+        ...
+
+    async def download_pet_document_with_http_info(
+        self,
+        pet_id: StrictInt,
+        document_id: StrictInt,
+        options: Optional[DownloadPetDocumentOptions] = None,
+    ) -> "ApiResult[bytes]":
+        """The ``download_pet_document`` operation with its status code, headers and body."""
+        ...
+
+    async def find_pets_born_on(
+        self,
+        born_on: date,
+        options: Optional[FindPetsBornOnOptions] = None,
+    ) -> List[Pet]:
+        """The ``find_pets_born_on`` operation."""
+        ...
+
+    async def find_pets_born_on_with_http_info(
+        self,
+        born_on: date,
+        options: Optional[FindPetsBornOnOptions] = None,
+    ) -> "ApiResult[List[Pet]]":
+        """The ``find_pets_born_on`` operation with its status code, headers and body."""
+        ...
+
+    async def find_pets_by_status(
+        self,
+        options: Optional[FindPetsByStatusOptions] = None,
+    ) -> List[Pet]:
+        """The ``find_pets_by_status`` operation."""
+        ...
+
+    async def find_pets_by_status_with_http_info(
+        self,
+        options: Optional[FindPetsByStatusOptions] = None,
+    ) -> "ApiResult[List[Pet]]":
+        """The ``find_pets_by_status`` operation with its status code, headers and body."""
+        ...
+
+    async def get_external_pet_info(
+        self,
+        pet_id: StrictInt,
+        server: Optional["GetExternalPetInfoServer"] = None,
+        options: Optional[GetExternalPetInfoOptions] = None,
+    ) -> Pet:
+        """The ``get_external_pet_info`` operation."""
+        ...
+
+    async def get_external_pet_info_with_http_info(
+        self,
+        pet_id: StrictInt,
+        server: Optional["GetExternalPetInfoServer"] = None,
+        options: Optional[GetExternalPetInfoOptions] = None,
+    ) -> "ApiResult[Pet]":
+        """The ``get_external_pet_info`` operation with its status code, headers and body."""
+        ...
+
+    async def get_multi_server_pet_info(
+        self,
+        pet_id: StrictInt,
+        server: Optional["GetMultiServerPetInfoServer"] = None,
+        options: Optional[GetMultiServerPetInfoOptions] = None,
+    ) -> Pet:
+        """The ``get_multi_server_pet_info`` operation."""
+        ...
+
+    async def get_multi_server_pet_info_with_http_info(
+        self,
+        pet_id: StrictInt,
+        server: Optional["GetMultiServerPetInfoServer"] = None,
+        options: Optional[GetMultiServerPetInfoOptions] = None,
+    ) -> "ApiResult[Pet]":
+        """The ``get_multi_server_pet_info`` operation with its status code, headers and body."""
+        ...
+
+    async def get_pet_avatar(
+        self,
+        pet_id: StrictInt,
+        options: Optional[GetPetAvatarOptions] = None,
+    ) -> bytes:
+        """The ``get_pet_avatar`` operation."""
+        ...
+
+    async def get_pet_avatar_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: Optional[GetPetAvatarOptions] = None,
+    ) -> "ApiResult[bytes]":
+        """The ``get_pet_avatar`` operation with its status code, headers and body."""
+        ...
+
+    async def get_pet_avatar_thumbnail(
+        self,
+        pet_id: StrictInt,
+        options: Optional[GetPetAvatarThumbnailOptions] = None,
+    ) -> bytes:
+        """The ``get_pet_avatar_thumbnail`` operation."""
+        ...
+
+    async def get_pet_avatar_thumbnail_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: Optional[GetPetAvatarThumbnailOptions] = None,
+    ) -> "ApiResult[bytes]":
+        """The ``get_pet_avatar_thumbnail`` operation with its status code, headers and body."""
+        ...
+
+    async def get_pet_by_id(
+        self,
+        pet_id: StrictInt,
+        server: Optional["GetPetByIdServer"] = None,
+        options: Optional[GetPetByIdOptions] = None,
+    ) -> Pet:
+        """The ``get_pet_by_id`` operation."""
+        ...
+
+    async def get_pet_by_id_with_http_info(
+        self,
+        pet_id: StrictInt,
+        server: Optional["GetPetByIdServer"] = None,
+        options: Optional[GetPetByIdOptions] = None,
+    ) -> "ApiResult[Pet]":
+        """The ``get_pet_by_id`` operation with its status code, headers and body."""
+        ...
+
+    async def get_pet_by_name(
+        self,
+        name: StrictStr,
+        options: GetPetByNameOptions,
+    ) -> Pet:
+        """The ``get_pet_by_name`` operation."""
+        ...
+
+    async def get_pet_by_name_with_http_info(
+        self,
+        name: StrictStr,
+        options: GetPetByNameOptions,
+    ) -> "ApiResult[Pet]":
+        """The ``get_pet_by_name`` operation with its status code, headers and body."""
+        ...
+
+    async def get_pet_passport(
+        self,
+        pet_id: StrictInt,
+        options: Optional[GetPetPassportOptions] = None,
+    ) -> PetPassport:
+        """The ``get_pet_passport`` operation."""
+        ...
+
+    async def get_pet_passport_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: Optional[GetPetPassportOptions] = None,
+    ) -> "ApiResult[PetPassport]":
+        """The ``get_pet_passport`` operation with its status code, headers and body."""
+        ...
+
+    async def get_pet_photo(
+        self,
+        pet_id: StrictInt,
+        photo_id: StrictInt,
+        options: Optional[GetPetPhotoOptions] = None,
+    ) -> bytes:
+        """The ``get_pet_photo`` operation."""
+        ...
+
+    async def get_pet_photo_with_http_info(
+        self,
+        pet_id: StrictInt,
+        photo_id: StrictInt,
+        options: Optional[GetPetPhotoOptions] = None,
+    ) -> "ApiResult[bytes]":
+        """The ``get_pet_photo`` operation with its status code, headers and body."""
+        ...
+
+    async def get_pet_summary(
+        self,
+        pet_id: StrictInt,
+        as_of: date,
+        options: GetPetSummaryOptions,
+    ) -> StrictStr:
+        """The ``get_pet_summary`` operation."""
+        ...
+
+    async def get_pet_summary_with_http_info(
+        self,
+        pet_id: StrictInt,
+        as_of: date,
+        options: GetPetSummaryOptions,
+    ) -> "ApiResult[StrictStr]":
+        """The ``get_pet_summary`` operation with its status code, headers and body."""
+        ...
+
+    async def get_pet_tag(
+        self,
+        pet_id: StrictInt,
+        tag_name: StrictStr,
+        options: Optional[GetPetTagOptions] = None,
+    ) -> Pet:
+        """The ``get_pet_tag`` operation."""
+        ...
+
+    async def get_pet_tag_with_http_info(
+        self,
+        pet_id: StrictInt,
+        tag_name: StrictStr,
+        options: Optional[GetPetTagOptions] = None,
+    ) -> "ApiResult[Pet]":
+        """The ``get_pet_tag`` operation with its status code, headers and body."""
+        ...
+
+    async def get_staging_pet_info(
+        self,
+        pet_id: StrictInt,
+        server: Optional["GetStagingPetInfoServer"] = None,
+        options: Optional[GetStagingPetInfoOptions] = None,
+    ) -> Pet:
+        """The ``get_staging_pet_info`` operation."""
+        ...
+
+    async def get_staging_pet_info_with_http_info(
+        self,
+        pet_id: StrictInt,
+        server: Optional["GetStagingPetInfoServer"] = None,
+        options: Optional[GetStagingPetInfoOptions] = None,
+    ) -> "ApiResult[Pet]":
+        """The ``get_staging_pet_info`` operation with its status code, headers and body."""
+        ...
+
+    async def set_pet_avatar(
+        self,
+        pet_id: StrictInt,
+        body: bytes,
+        options: Optional[SetPetAvatarOptions] = None,
+        request_content_type: Optional[str] = None,
+    ) -> None:
+        """The ``set_pet_avatar`` operation."""
+        ...
+
+    async def set_pet_avatar_with_http_info(
+        self,
+        pet_id: StrictInt,
+        body: bytes,
+        options: Optional[SetPetAvatarOptions] = None,
+        request_content_type: Optional[str] = None,
+    ) -> "ApiResult[None]":
+        """The ``set_pet_avatar`` operation with its status code, headers and body."""
+        ...
+
+    async def set_pet_avatar_thumbnail(
+        self,
+        pet_id: StrictInt,
+        set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Optional[SetPetAvatarThumbnailOptions] = None,
+    ) -> None:
+        """The ``set_pet_avatar_thumbnail`` operation."""
+        ...
+
+    async def set_pet_avatar_thumbnail_with_http_info(
+        self,
+        pet_id: StrictInt,
+        set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Optional[SetPetAvatarThumbnailOptions] = None,
+    ) -> "ApiResult[None]":
+        """The ``set_pet_avatar_thumbnail`` operation with its status code, headers and body."""
+        ...
+
+    async def set_pet_preferences(
+        self,
+        pet_id: StrictInt,
+        options: SetPetPreferencesOptions,
+    ) -> ApiResponse:
+        """The ``set_pet_preferences`` operation."""
+        ...
+
+    async def set_pet_preferences_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: SetPetPreferencesOptions,
+    ) -> "ApiResult[ApiResponse]":
+        """The ``set_pet_preferences`` operation with its status code, headers and body."""
+        ...
+
+    async def update_pet(
+        self,
+        pet_id: StrictInt,
+        pet: Pet,
+        options: Optional[UpdatePetOptions] = None,
+    ) -> Pet:
+        """The ``update_pet`` operation."""
+        ...
+
+    async def update_pet_with_http_info(
+        self,
+        pet_id: StrictInt,
+        pet: Pet,
+        options: Optional[UpdatePetOptions] = None,
+    ) -> "ApiResult[Pet]":
+        """The ``update_pet`` operation with its status code, headers and body."""
+        ...
+
+    async def upload_pet_certificate(
+        self,
+        pet_id: StrictInt,
+        options: UploadPetCertificateOptions,
+    ) -> ApiResponse:
+        """The ``upload_pet_certificate`` operation."""
+        ...
+
+    async def upload_pet_certificate_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: UploadPetCertificateOptions,
+    ) -> "ApiResult[ApiResponse]":
+        """The ``upload_pet_certificate`` operation with its status code, headers and body."""
+        ...
+
+    async def upload_pet_document(
+        self,
+        pet_id: StrictInt,
+        options: UploadPetDocumentOptions,
+        request_content_type: Optional[str] = None,
+    ) -> ApiResponse:
+        """The ``upload_pet_document`` operation."""
+        ...
+
+    async def upload_pet_document_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: UploadPetDocumentOptions,
+        request_content_type: Optional[str] = None,
+    ) -> "ApiResult[ApiResponse]":
+        """The ``upload_pet_document`` operation with its status code, headers and body."""
+        ...
 
 
 class PetApi(BaseApi):

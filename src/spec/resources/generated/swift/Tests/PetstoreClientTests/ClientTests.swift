@@ -1226,3 +1226,1250 @@ private final class ClientStubProtocol: URLProtocol, @unchecked Sendable {
 
   override func stopLoading() {}
 }
+
+/* A hand-written fake of the PetApi group: it implements every operation, records each
+ * call as "operation(path arguments)" and fails with the typed not-found error. */
+private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
+  private let lock = NSLock()
+  private var recorded: [String] = []
+
+  var calls: [String] {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorded
+  }
+
+  private func record(_ call: String) {
+    lock.lock()
+    recorded.append(call)
+    lock.unlock()
+  }
+
+  public func addPet(pet: Pet, options: AddPetOptions?) async throws -> Pet {
+    var parts: [String] = []
+    var call = "addPet(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func addPetWithHTTPInfo(pet: Pet, options: AddPetOptions?) async throws -> ApiResult<Pet> {
+    var parts: [String] = []
+    var call = "addPetWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "addPetPhotos(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws
+    -> ApiResult<[Photo]>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "addPetPhotosWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func addPetTreatment(
+    petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?
+  ) async throws -> PetTreatment {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "addPetTreatment(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func addPetTreatmentWithHTTPInfo(
+    petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?
+  ) async throws -> ApiResult<PetTreatment> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "addPetTreatmentWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func deletePet(petId: Int64, options: DeletePetOptions?) async throws {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "deletePet(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions?) async throws
+    -> ApiResult<Void>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "deletePetWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func downloadPetDocument(
+    petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
+  ) async throws -> Data {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    parts.append(String(describing: documentId))
+    var call = "downloadPetDocument(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func downloadPetDocumentWithHTTPInfo(
+    petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
+  ) async throws -> ApiResult<Data> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    parts.append(String(describing: documentId))
+    var call = "downloadPetDocumentWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func findPetsBornOn(bornOn: String, options: FindPetsBornOnOptions?) async throws -> [Pet]
+  {
+    var parts: [String] = []
+    parts.append(String(describing: bornOn))
+    var call = "findPetsBornOn(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func findPetsBornOnWithHTTPInfo(bornOn: String, options: FindPetsBornOnOptions?)
+    async throws -> ApiResult<[Pet]>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: bornOn))
+    var call = "findPetsBornOnWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  @available(*, deprecated, message: "This operation is deprecated.")
+  public func findPetsByStatus(options: FindPetsByStatusOptions?) async throws -> [Pet] {
+    var parts: [String] = []
+    var call = "findPetsByStatus(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  @available(*, deprecated, message: "This operation is deprecated.")
+  public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions?) async throws
+    -> ApiResult<[Pet]>
+  {
+    var parts: [String] = []
+    var call = "findPetsByStatusWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getExternalPetInfo(
+    petId: Int64, server: (any GetExternalPetInfoServer)?, options: GetExternalPetInfoOptions?
+  ) async throws -> Pet {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getExternalPetInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getExternalPetInfoWithHTTPInfo(
+    petId: Int64, server: (any GetExternalPetInfoServer)?, options: GetExternalPetInfoOptions?
+  ) async throws -> ApiResult<Pet> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getExternalPetInfoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getMultiServerPetInfo(
+    petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?
+  ) async throws -> Pet {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getMultiServerPetInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getMultiServerPetInfoWithHTTPInfo(
+    petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?
+  ) async throws -> ApiResult<Pet> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getMultiServerPetInfoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> Data {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getPetAvatar(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions?) async throws
+    -> ApiResult<Data>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getPetAvatarWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetAvatarThumbnail(petId: Int64, options: GetPetAvatarThumbnailOptions?)
+    async throws -> Data
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getPetAvatarThumbnail(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetAvatarThumbnailWithHTTPInfo(
+    petId: Int64, options: GetPetAvatarThumbnailOptions?
+  ) async throws -> ApiResult<Data> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getPetAvatarThumbnailWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  @available(*, deprecated, message: "This operation is deprecated.")
+  public func getPetById(petId: Int64, server: (any GetPetByIdServer)?, options: GetPetByIdOptions?)
+    async throws -> Pet
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getPetById(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  @available(*, deprecated, message: "This operation is deprecated.")
+  public func getPetByIdWithHTTPInfo(
+    petId: Int64, server: (any GetPetByIdServer)?, options: GetPetByIdOptions?
+  ) async throws -> ApiResult<Pet> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getPetByIdWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
+    var parts: [String] = []
+    parts.append(String(describing: name))
+    var call = "getPetByName(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws
+    -> ApiResult<Pet>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: name))
+    var call = "getPetByNameWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetPassport(petId: Int64, options: GetPetPassportOptions?) async throws
+    -> PetPassport
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getPetPassport(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetPassportWithHTTPInfo(petId: Int64, options: GetPetPassportOptions?) async throws
+    -> ApiResult<PetPassport>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getPetPassportWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws
+    -> Data
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    parts.append(String(describing: photoId))
+    var call = "getPetPhoto(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?)
+    async throws -> ApiResult<Data>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    parts.append(String(describing: photoId))
+    var call = "getPetPhotoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
+    -> String
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    parts.append(String(describing: asOf))
+    var call = "getPetSummary(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions)
+    async throws -> ApiResult<String>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    parts.append(String(describing: asOf))
+    var call = "getPetSummaryWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions?) async throws
+    -> Pet
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    parts.append(String(describing: tagName))
+    var call = "getPetTag(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getPetTagWithHTTPInfo(petId: Int64, tagName: String, options: GetPetTagOptions?)
+    async throws -> ApiResult<Pet>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    parts.append(String(describing: tagName))
+    var call = "getPetTagWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getStagingPetInfo(
+    petId: Int64, server: (any GetStagingPetInfoServer)?, options: GetStagingPetInfoOptions?
+  ) async throws -> Pet {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getStagingPetInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getStagingPetInfoWithHTTPInfo(
+    petId: Int64, server: (any GetStagingPetInfoServer)?, options: GetStagingPetInfoOptions?
+  ) async throws -> ApiResult<Pet> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "getStagingPetInfoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func setPetAvatar(
+    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+  ) async throws {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "setPetAvatar(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func setPetAvatarWithHTTPInfo(
+    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+  ) async throws -> ApiResult<Void> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "setPetAvatarWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func setPetAvatarThumbnail(
+    petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
+    options: SetPetAvatarThumbnailOptions?
+  ) async throws {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "setPetAvatarThumbnail(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func setPetAvatarThumbnailWithHTTPInfo(
+    petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
+    options: SetPetAvatarThumbnailOptions?
+  ) async throws -> ApiResult<Void> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "setPetAvatarThumbnailWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws
+    -> ApiResponse
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "setPetPreferences(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func setPetPreferencesWithHTTPInfo(petId: Int64, options: SetPetPreferencesOptions)
+    async throws -> ApiResult<ApiResponse>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "setPetPreferencesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func updatePet(petId: Int64, pet: Pet, options: UpdatePetOptions?) async throws -> Pet {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "updatePet(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func updatePetWithHTTPInfo(petId: Int64, pet: Pet, options: UpdatePetOptions?) async throws
+    -> ApiResult<Pet>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "updatePetWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws
+    -> ApiResponse
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "uploadPetCertificate(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions)
+    async throws -> ApiResult<ApiResponse>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "uploadPetCertificateWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func uploadPetDocument(
+    petId: Int64, options: UploadPetDocumentOptions, requestContentType: String?
+  ) async throws -> ApiResponse {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "uploadPetDocument(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func uploadPetDocumentWithHTTPInfo(
+    petId: Int64, options: UploadPetDocumentOptions, requestContentType: String?
+  ) async throws -> ApiResult<ApiResponse> {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "uploadPetDocumentWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+}
+
+/* A hand-written fake of the ProblemsApi group: it implements every operation, records each
+ * call as "operation(path arguments)" and fails with the typed not-found error. */
+private final class FakeProblemsApi: ProblemsApiProtocol, @unchecked Sendable {
+  private let lock = NSLock()
+  private var recorded: [String] = []
+
+  var calls: [String] {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorded
+  }
+
+  private func record(_ call: String) {
+    lock.lock()
+    recorded.append(call)
+    lock.unlock()
+  }
+
+  public func getFallback(fallbackId: String, options: GetFallbackOptions?) async throws
+    -> ModelResult
+  {
+    var parts: [String] = []
+    parts.append(String(describing: fallbackId))
+    var call = "getFallback(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getFallbackWithHTTPInfo(fallbackId: String, options: GetFallbackOptions?) async throws
+    -> ApiResult<ModelResult>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: fallbackId))
+    var call = "getFallbackWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getMember(memberId: String, options: GetMemberOptions?) async throws -> ModelResult {
+    var parts: [String] = []
+    parts.append(String(describing: memberId))
+    var call = "getMember(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getMemberWithHTTPInfo(memberId: String, options: GetMemberOptions?) async throws
+    -> ApiResult<ModelResult>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: memberId))
+    var call = "getMemberWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getProject(projectId: String, options: GetProjectOptions?) async throws -> ModelResult
+  {
+    var parts: [String] = []
+    parts.append(String(describing: projectId))
+    var call = "getProject(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getProjectWithHTTPInfo(projectId: String, options: GetProjectOptions?) async throws
+    -> ApiResult<ModelResult>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: projectId))
+    var call = "getProjectWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getRange(rangeId: String, options: GetRangeOptions?) async throws -> ModelResult {
+    var parts: [String] = []
+    parts.append(String(describing: rangeId))
+    var call = "getRange(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getRangeWithHTTPInfo(rangeId: String, options: GetRangeOptions?) async throws
+    -> ApiResult<ModelResult>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: rangeId))
+    var call = "getRangeWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getUpstream(upstreamId: String, options: GetUpstreamOptions?) async throws
+    -> ModelResult
+  {
+    var parts: [String] = []
+    parts.append(String(describing: upstreamId))
+    var call = "getUpstream(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getUpstreamWithHTTPInfo(upstreamId: String, options: GetUpstreamOptions?) async throws
+    -> ApiResult<ModelResult>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: upstreamId))
+    var call = "getUpstreamWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func takeLock(lockId: String, options: TakeLockOptions?) async throws -> ModelResult {
+    var parts: [String] = []
+    parts.append(String(describing: lockId))
+    var call = "takeLock(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func takeLockWithHTTPInfo(lockId: String, options: TakeLockOptions?) async throws
+    -> ApiResult<ModelResult>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: lockId))
+    var call = "takeLockWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+}
+
+/* A hand-written fake of the StoreApi group: it implements every operation, records each
+ * call as "operation(path arguments)" and fails with the typed not-found error. */
+private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
+  private let lock = NSLock()
+  private var recorded: [String] = []
+
+  var calls: [String] {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorded
+  }
+
+  private func record(_ call: String) {
+    lock.lock()
+    recorded.append(call)
+    lock.unlock()
+  }
+
+  public func createAccount(account: Account, options: CreateAccountOptions?) async throws
+    -> Account
+  {
+    var parts: [String] = []
+    var call = "createAccount(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func createAccountWithHTTPInfo(account: Account, options: CreateAccountOptions?)
+    async throws -> ApiResult<Account>
+  {
+    var parts: [String] = []
+    var call = "createAccountWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func deleteOrder(orderId: Int64, options: DeleteOrderOptions?) async throws {
+    var parts: [String] = []
+    parts.append(String(describing: orderId))
+    var call = "deleteOrder(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func deleteOrderWithHTTPInfo(orderId: Int64, options: DeleteOrderOptions?) async throws
+    -> ApiResult<Void>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: orderId))
+    var call = "deleteOrderWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions?) async throws -> Category
+  {
+    var parts: [String] = []
+    parts.append(String(describing: pathSwatch))
+    var call = "getBySwatch(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getBySwatchWithHTTPInfo(pathSwatch: Swatch, options: GetBySwatchOptions?) async throws
+    -> ApiResult<Category>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: pathSwatch))
+    var call = "getBySwatchWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getDefaults(options: GetDefaultsOptions?) async throws -> Defaults {
+    var parts: [String] = []
+    var call = "getDefaults(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getDefaultsWithHTTPInfo(options: GetDefaultsOptions?) async throws -> ApiResult<
+    Defaults
+  > {
+    var parts: [String] = []
+    var call = "getDefaultsWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getDepartment(options: GetDepartmentOptions?) async throws -> Department {
+    var parts: [String] = []
+    var call = "getDepartment(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getDepartmentWithHTTPInfo(options: GetDepartmentOptions?) async throws -> ApiResult<
+    Department
+  > {
+    var parts: [String] = []
+    var call = "getDepartmentWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getGroupedCategories(options: GetGroupedCategoriesOptions?) async throws -> [[String:
+    Category]]
+  {
+    var parts: [String] = []
+    var call = "getGroupedCategories(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getGroupedCategoriesWithHTTPInfo(options: GetGroupedCategoriesOptions?) async throws
+    -> ApiResult<[[String: Category]]>
+  {
+    var parts: [String] = []
+    var call = "getGroupedCategoriesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getInventory(options: GetInventoryOptions?) async throws -> [String: Int] {
+    var parts: [String] = []
+    var call = "getInventory(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getInventoryWithHTTPInfo(options: GetInventoryOptions?) async throws -> ApiResult<
+    [String: Int]
+  > {
+    var parts: [String] = []
+    var call = "getInventoryWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getMatrix(options: GetMatrixOptions?) async throws -> [[Int]] {
+    var parts: [String] = []
+    var call = "getMatrix(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getMatrixWithHTTPInfo(options: GetMatrixOptions?) async throws -> ApiResult<[[Int]]> {
+    var parts: [String] = []
+    var call = "getMatrixWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getOrderById(orderId: Int64, options: GetOrderByIdOptions?) async throws -> Order {
+    var parts: [String] = []
+    parts.append(String(describing: orderId))
+    var call = "getOrderById(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getOrderByIdWithHTTPInfo(orderId: Int64, options: GetOrderByIdOptions?) async throws
+    -> ApiResult<Order>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: orderId))
+    var call = "getOrderByIdWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getOrderByTrackingId(trackingId: UUID, options: GetOrderByTrackingIdOptions?)
+    async throws -> Order
+  {
+    var parts: [String] = []
+    parts.append(String(describing: trackingId))
+    var call = "getOrderByTrackingId(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getOrderByTrackingIdWithHTTPInfo(
+    trackingId: UUID, options: GetOrderByTrackingIdOptions?
+  ) async throws -> ApiResult<Order> {
+    var parts: [String] = []
+    parts.append(String(describing: trackingId))
+    var call = "getOrderByTrackingIdWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getStockItem(options: GetStockItemOptions?) async throws -> StockItem {
+    var parts: [String] = []
+    var call = "getStockItem(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getStockItemWithHTTPInfo(options: GetStockItemOptions?) async throws -> ApiResult<
+    StockItem
+  > {
+    var parts: [String] = []
+    var call = "getStockItemWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getSwatch(options: GetSwatchOptions?) async throws -> Swatch {
+    var parts: [String] = []
+    var call = "getSwatch(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getSwatchWithHTTPInfo(options: GetSwatchOptions?) async throws -> ApiResult<Swatch> {
+    var parts: [String] = []
+    var call = "getSwatchWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getSwatchGroups(options: GetSwatchGroupsOptions?) async throws -> [[String: Swatch]] {
+    var parts: [String] = []
+    var call = "getSwatchGroups(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getSwatchGroupsWithHTTPInfo(options: GetSwatchGroupsOptions?) async throws
+    -> ApiResult<[[String: Swatch]]>
+  {
+    var parts: [String] = []
+    var call = "getSwatchGroupsWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getTimestampGroups(options: GetTimestampGroupsOptions?) async throws -> [[String:
+    Date]]
+  {
+    var parts: [String] = []
+    var call = "getTimestampGroups(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getTimestampGroupsWithHTTPInfo(options: GetTimestampGroupsOptions?) async throws
+    -> ApiResult<[[String: Date]]>
+  {
+    var parts: [String] = []
+    var call = "getTimestampGroupsWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getTree(options: GetTreeOptions?) async throws -> TreeNode {
+    var parts: [String] = []
+    var call = "getTree(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getTreeWithHTTPInfo(options: GetTreeOptions?) async throws -> ApiResult<TreeNode> {
+    var parts: [String] = []
+    var call = "getTreeWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func placeOrder(order: Order?, options: PlaceOrderOptions?) async throws -> Order {
+    var parts: [String] = []
+    var call = "placeOrder(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func placeOrderWithHTTPInfo(order: Order?, options: PlaceOrderOptions?) async throws
+    -> ApiResult<Order>
+  {
+    var parts: [String] = []
+    var call = "placeOrderWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func reserveStock(options: ReserveStockOptions?) async throws -> ReserveStockResponse {
+    var parts: [String] = []
+    var call = "reserveStock(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func reserveStockWithHTTPInfo(options: ReserveStockOptions?) async throws -> ApiResult<
+    ReserveStockResponse
+  > {
+    var parts: [String] = []
+    var call = "reserveStockWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func searchStore(options: SearchStoreOptions?) async throws -> [Order] {
+    var parts: [String] = []
+    var call = "searchStore(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func searchStoreWithHTTPInfo(options: SearchStoreOptions?) async throws -> ApiResult<
+    [Order]
+  > {
+    var parts: [String] = []
+    var call = "searchStoreWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+}
+
+private final class FakeClient: ClientProtocol, @unchecked Sendable {
+  private let lock = NSLock()
+  private var count = 0
+  let pet = FakePetApi()
+  let problems = FakeProblemsApi()
+  let store = FakeStoreApi()
+
+  var closed: Int {
+    lock.lock()
+    defer { lock.unlock() }
+    return count
+  }
+
+  func close() {
+    lock.lock()
+    count += 1
+    lock.unlock()
+  }
+}
+
+private func exposesEveryGroupAndCloses<C: ClientProtocol>(_ client: C) {
+  _ = client.pet
+  _ = client.problems
+  _ = client.store
+  client.close()
+}
+
+/* The names of the operations a source file declares, between two markers. */
+private func operationNames(file: String, from start: String, to end: String?, prefix: String)
+  throws -> [String]
+{
+  let source = try String(
+    contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      .appendingPathComponent("Sources/PetstoreClient/Api/\(file)"),
+    encoding: .utf8)
+  let lines = source.components(separatedBy: "\n")
+  let first = try #require(lines.firstIndex { $0.contains(start) })
+  let last =
+    end.flatMap { marker in lines[first...].firstIndex { $0.hasPrefix(marker) } } ?? lines.count
+  return lines[first..<last].compactMap { line -> String? in
+    let trimmed = line.trimmingCharacters(in: .whitespaces)
+    guard trimmed.hasPrefix(prefix) else { return nil }
+    return trimmed.dropFirst(prefix.count).split(separator: "(").first.map(String.init)
+  }
+}
+
+@Suite struct MockingTests {
+  private let authenticator: BearerAuthenticator = {
+    do {
+      return try BearerAuthenticator(host: "/api/v3", token: "test-token")
+    } catch {
+      preconditionFailure("test BearerAuthenticator initialization failed: \(error)")
+    }
+  }()
+
+  @Test func testBhvMocking001EveryGroupHasAProtocolTheClassImplements() throws {
+    let client = try Client(authenticator: authenticator)
+
+    func isPetApi<T: PetApiProtocol>(_ group: T) {}
+    isPetApi(client.pet)
+    let petListed = try operationNames(
+      file: "PetApiProtocol.swift", from: "public protocol PetApiProtocol",
+      to: "extension PetApiProtocol", prefix: "func ")
+    #expect(petListed.contains("addPet"))
+    #expect(petListed.contains("addPetWithHTTPInfo"))
+    #expect(petListed.contains("addPetPhotos"))
+    #expect(petListed.contains("addPetPhotosWithHTTPInfo"))
+    #expect(petListed.contains("addPetTreatment"))
+    #expect(petListed.contains("addPetTreatmentWithHTTPInfo"))
+    #expect(petListed.contains("deletePet"))
+    #expect(petListed.contains("deletePetWithHTTPInfo"))
+    #expect(petListed.contains("downloadPetDocument"))
+    #expect(petListed.contains("downloadPetDocumentWithHTTPInfo"))
+    #expect(petListed.contains("findPetsBornOn"))
+    #expect(petListed.contains("findPetsBornOnWithHTTPInfo"))
+    #expect(petListed.contains("findPetsByStatus"))
+    #expect(petListed.contains("findPetsByStatusWithHTTPInfo"))
+    #expect(petListed.contains("getExternalPetInfo"))
+    #expect(petListed.contains("getExternalPetInfoWithHTTPInfo"))
+    #expect(petListed.contains("getMultiServerPetInfo"))
+    #expect(petListed.contains("getMultiServerPetInfoWithHTTPInfo"))
+    #expect(petListed.contains("getPetAvatar"))
+    #expect(petListed.contains("getPetAvatarWithHTTPInfo"))
+    #expect(petListed.contains("getPetAvatarThumbnail"))
+    #expect(petListed.contains("getPetAvatarThumbnailWithHTTPInfo"))
+    #expect(petListed.contains("getPetById"))
+    #expect(petListed.contains("getPetByIdWithHTTPInfo"))
+    #expect(petListed.contains("getPetByName"))
+    #expect(petListed.contains("getPetByNameWithHTTPInfo"))
+    #expect(petListed.contains("getPetPassport"))
+    #expect(petListed.contains("getPetPassportWithHTTPInfo"))
+    #expect(petListed.contains("getPetPhoto"))
+    #expect(petListed.contains("getPetPhotoWithHTTPInfo"))
+    #expect(petListed.contains("getPetSummary"))
+    #expect(petListed.contains("getPetSummaryWithHTTPInfo"))
+    #expect(petListed.contains("getPetTag"))
+    #expect(petListed.contains("getPetTagWithHTTPInfo"))
+    #expect(petListed.contains("getStagingPetInfo"))
+    #expect(petListed.contains("getStagingPetInfoWithHTTPInfo"))
+    #expect(petListed.contains("setPetAvatar"))
+    #expect(petListed.contains("setPetAvatarWithHTTPInfo"))
+    #expect(petListed.contains("setPetAvatarThumbnail"))
+    #expect(petListed.contains("setPetAvatarThumbnailWithHTTPInfo"))
+    #expect(petListed.contains("setPetPreferences"))
+    #expect(petListed.contains("setPetPreferencesWithHTTPInfo"))
+    #expect(petListed.contains("updatePet"))
+    #expect(petListed.contains("updatePetWithHTTPInfo"))
+    #expect(petListed.contains("uploadPetCertificate"))
+    #expect(petListed.contains("uploadPetCertificateWithHTTPInfo"))
+    #expect(petListed.contains("uploadPetDocument"))
+    #expect(petListed.contains("uploadPetDocumentWithHTTPInfo"))
+    func isProblemsApi<T: ProblemsApiProtocol>(_ group: T) {}
+    isProblemsApi(client.problems)
+    let problemsListed = try operationNames(
+      file: "ProblemsApiProtocol.swift", from: "public protocol ProblemsApiProtocol",
+      to: "extension ProblemsApiProtocol", prefix: "func ")
+    #expect(problemsListed.contains("getFallback"))
+    #expect(problemsListed.contains("getFallbackWithHTTPInfo"))
+    #expect(problemsListed.contains("getMember"))
+    #expect(problemsListed.contains("getMemberWithHTTPInfo"))
+    #expect(problemsListed.contains("getProject"))
+    #expect(problemsListed.contains("getProjectWithHTTPInfo"))
+    #expect(problemsListed.contains("getRange"))
+    #expect(problemsListed.contains("getRangeWithHTTPInfo"))
+    #expect(problemsListed.contains("getUpstream"))
+    #expect(problemsListed.contains("getUpstreamWithHTTPInfo"))
+    #expect(problemsListed.contains("takeLock"))
+    #expect(problemsListed.contains("takeLockWithHTTPInfo"))
+    func isStoreApi<T: StoreApiProtocol>(_ group: T) {}
+    isStoreApi(client.store)
+    let storeListed = try operationNames(
+      file: "StoreApiProtocol.swift", from: "public protocol StoreApiProtocol",
+      to: "extension StoreApiProtocol", prefix: "func ")
+    #expect(storeListed.contains("createAccount"))
+    #expect(storeListed.contains("createAccountWithHTTPInfo"))
+    #expect(storeListed.contains("deleteOrder"))
+    #expect(storeListed.contains("deleteOrderWithHTTPInfo"))
+    #expect(storeListed.contains("getBySwatch"))
+    #expect(storeListed.contains("getBySwatchWithHTTPInfo"))
+    #expect(storeListed.contains("getDefaults"))
+    #expect(storeListed.contains("getDefaultsWithHTTPInfo"))
+    #expect(storeListed.contains("getDepartment"))
+    #expect(storeListed.contains("getDepartmentWithHTTPInfo"))
+    #expect(storeListed.contains("getGroupedCategories"))
+    #expect(storeListed.contains("getGroupedCategoriesWithHTTPInfo"))
+    #expect(storeListed.contains("getInventory"))
+    #expect(storeListed.contains("getInventoryWithHTTPInfo"))
+    #expect(storeListed.contains("getMatrix"))
+    #expect(storeListed.contains("getMatrixWithHTTPInfo"))
+    #expect(storeListed.contains("getOrderById"))
+    #expect(storeListed.contains("getOrderByIdWithHTTPInfo"))
+    #expect(storeListed.contains("getOrderByTrackingId"))
+    #expect(storeListed.contains("getOrderByTrackingIdWithHTTPInfo"))
+    #expect(storeListed.contains("getStockItem"))
+    #expect(storeListed.contains("getStockItemWithHTTPInfo"))
+    #expect(storeListed.contains("getSwatch"))
+    #expect(storeListed.contains("getSwatchWithHTTPInfo"))
+    #expect(storeListed.contains("getSwatchGroups"))
+    #expect(storeListed.contains("getSwatchGroupsWithHTTPInfo"))
+    #expect(storeListed.contains("getTimestampGroups"))
+    #expect(storeListed.contains("getTimestampGroupsWithHTTPInfo"))
+    #expect(storeListed.contains("getTree"))
+    #expect(storeListed.contains("getTreeWithHTTPInfo"))
+    #expect(storeListed.contains("placeOrder"))
+    #expect(storeListed.contains("placeOrderWithHTTPInfo"))
+    #expect(storeListed.contains("reserveStock"))
+    #expect(storeListed.contains("reserveStockWithHTTPInfo"))
+    #expect(storeListed.contains("searchStore"))
+    #expect(storeListed.contains("searchStoreWithHTTPInfo"))
+  }
+
+  @Test func testBhvMocking002GroupProtocolListsExactlyThePublicOperationsOfTheClass() throws {
+    let petListed = try operationNames(
+      file: "PetApiProtocol.swift", from: "public protocol PetApiProtocol",
+      to: "extension PetApiProtocol", prefix: "func ")
+    let petDeclared = try operationNames(
+      file: "PetApi.swift", from: "public final class PetApi", to: nil, prefix: "public func ")
+    #expect(Set(petListed) == Set(petDeclared))
+    let problemsListed = try operationNames(
+      file: "ProblemsApiProtocol.swift", from: "public protocol ProblemsApiProtocol",
+      to: "extension ProblemsApiProtocol", prefix: "func ")
+    let problemsDeclared = try operationNames(
+      file: "ProblemsApi.swift", from: "public final class ProblemsApi", to: nil,
+      prefix: "public func ")
+    #expect(Set(problemsListed) == Set(problemsDeclared))
+    let storeListed = try operationNames(
+      file: "StoreApiProtocol.swift", from: "public protocol StoreApiProtocol",
+      to: "extension StoreApiProtocol", prefix: "func ")
+    let storeDeclared = try operationNames(
+      file: "StoreApi.swift", from: "public final class StoreApi", to: nil, prefix: "public func ")
+    #expect(Set(storeListed) == Set(storeDeclared))
+  }
+
+  @Test func testBhvMocking007ClientProtocolExposesEveryGroupTypedAsItsProtocolAndClose() throws {
+    let client = try Client(authenticator: authenticator)
+
+    exposesEveryGroupAndCloses(client)
+  }
+
+  @Test func testBhvMocking008ClientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+    let fake = FakeClient()
+
+    exposesEveryGroupAndCloses(fake)
+    fake.close()
+
+    #expect(fake.closed == 2)
+  }
+}

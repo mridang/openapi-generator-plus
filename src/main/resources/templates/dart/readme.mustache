@@ -132,6 +132,29 @@ closes the client: you own its lifecycle. Because the client carries its own
 proxy and TLS settings, combining it with `proxy`, `caCertPath` or
 `verifySsl(false)` is rejected when the options are built.
 
+### Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```dart
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+// Code under test takes the group interface, never the generated class.
+void use({{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} api) {}
+
+// A fake implements the interface; noSuchMethod keeps the operations you do not fake out of the way.
+class Fake implements {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+void main() {
+  use(Fake());
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; forward `noSuchMethod` as above so only the operation you fake is written.
+
 ### Per-call options
 
 Every operation takes an options object as its trailing argument (`null` when

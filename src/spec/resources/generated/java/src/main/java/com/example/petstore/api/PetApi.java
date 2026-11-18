@@ -60,7 +60,7 @@ import javax.annotation.Nullable;
  * @see <a href="https://example.com/docs/pets">Find out more about pets (it's *{@literal /} here)
  *     on two lines</a>
  */
-public class PetApi extends BaseApi {
+public class PetApi extends BaseApi implements PetApiInterface {
 
   private static final java.lang.reflect.Type addPetTypeRef = new TypeReference<Pet>() {}.getType();
 
@@ -420,6 +420,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public Pet addPet(Pet pet) {
     return addPet(pet, null);
   }
@@ -436,6 +437,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<Pet> addPetWithHttpInfo(Pet pet) {
     return addPetWithHttpInfo(pet, null);
   }
@@ -449,6 +451,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public Pet addPet(Pet pet, @Nullable AddPetOptions options) {
     return requireBody(addPetWithHttpInfo(pet, options), "addPet");
   }
@@ -462,6 +465,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<Pet> addPetWithHttpInfo(Pet pet, @Nullable AddPetOptions options) {
     if (pet == null) {
       throw new IllegalArgumentException(
@@ -503,6 +507,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public List<Photo> addPetPhotos(Long petId, AddPetPhotosOptions options) {
     return requireBody(addPetPhotosWithHttpInfo(petId, options), "addPetPhotos");
   }
@@ -517,6 +522,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<List<Photo>> addPetPhotosWithHttpInfo(Long petId, AddPetPhotosOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -578,6 +584,7 @@ public class PetApi extends BaseApi {
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public PetTreatment addPetTreatment(Long petId, PetTreatment petTreatment) {
     return addPetTreatment(petId, petTreatment, null);
   }
@@ -594,6 +601,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
       Long petId, PetTreatment petTreatment) {
     return addPetTreatmentWithHttpInfo(petId, petTreatment, null);
@@ -608,6 +616,7 @@ public class PetApi extends BaseApi {
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public PetTreatment addPetTreatment(
       Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options) {
     return requireBody(
@@ -623,6 +632,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
       Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options) {
     if (petId == null) {
@@ -676,6 +686,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public void deletePet(Long petId) {
     deletePet(petId, null);
   }
@@ -692,6 +703,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<Void> deletePetWithHttpInfo(Long petId) {
     return deletePetWithHttpInfo(petId, null);
   }
@@ -704,6 +716,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public void deletePet(Long petId, @Nullable DeletePetOptions options) {
     deletePetWithHttpInfo(petId, options);
   }
@@ -717,6 +730,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
+  @Override
   public ApiResult<Void> deletePetWithHttpInfo(Long petId, @Nullable DeletePetOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -793,6 +807,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public InputStream downloadPetDocument(Long petId, Long documentId) {
     return downloadPetDocument(petId, documentId, null);
   }
@@ -810,6 +825,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
     return downloadPetDocumentWithHttpInfo(petId, documentId, null);
   }
@@ -825,6 +841,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public InputStream downloadPetDocument(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options) {
     return requireBody(
@@ -842,6 +859,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options) {
     if (petId == null) {
@@ -900,6 +918,7 @@ public class PetApi extends BaseApi {
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Pet> findPetsBornOn(LocalDate bornOn) {
     return findPetsBornOn(bornOn, null);
   }
@@ -915,6 +934,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(LocalDate bornOn) {
     return findPetsBornOnWithHttpInfo(bornOn, null);
   }
@@ -927,6 +947,7 @@ public class PetApi extends BaseApi {
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public List<Pet> findPetsBornOn(LocalDate bornOn, @Nullable FindPetsBornOnOptions options) {
     return requireBody(findPetsBornOnWithHttpInfo(bornOn, options), "findPetsBornOn");
   }
@@ -939,6 +960,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(
       LocalDate bornOn, @Nullable FindPetsBornOnOptions options) {
     if (bornOn == null) {
@@ -989,6 +1011,7 @@ public class PetApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   @Deprecated
+  @Override
   public List<Pet> findPetsByStatus() {
     return findPetsByStatus(null);
   }
@@ -1005,6 +1028,7 @@ public class PetApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   @Deprecated
+  @Override
   public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo() {
     return findPetsByStatusWithHttpInfo(null);
   }
@@ -1020,6 +1044,7 @@ public class PetApi extends BaseApi {
    * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
    */
   @Deprecated
+  @Override
   public List<Pet> findPetsByStatus(@Nullable FindPetsByStatusOptions options) {
     return requireBody(findPetsByStatusWithHttpInfo(options), "findPetsByStatus");
   }
@@ -1035,6 +1060,7 @@ public class PetApi extends BaseApi {
    * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
    */
   @Deprecated
+  @Override
   public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo(
       @Nullable FindPetsByStatusOptions options) {
     String path = "/pet/findByStatus";
@@ -1111,6 +1137,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoOptions options) {
     return getExternalPetInfo(petId, null, options);
   }
@@ -1123,6 +1150,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getExternalPetInfoWithHttpInfo(
       Long petId, @Nullable GetExternalPetInfoOptions options) {
     return getExternalPetInfoWithHttpInfo(petId, null, options);
@@ -1139,6 +1167,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getExternalPetInfo(Long petId) {
     return getExternalPetInfo(petId, null);
   }
@@ -1154,6 +1183,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getExternalPetInfoWithHttpInfo(Long petId) {
     return getExternalPetInfoWithHttpInfo(petId, null);
   }
@@ -1167,6 +1197,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getExternalPetInfo(
       Long petId,
       @Nullable GetExternalPetInfoServer server,
@@ -1184,6 +1215,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getExternalPetInfoWithHttpInfo(
       Long petId,
       @Nullable GetExternalPetInfoServer server,
@@ -1238,6 +1270,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getMultiServerPetInfo(Long petId, @Nullable GetMultiServerPetInfoOptions options) {
     return getMultiServerPetInfo(petId, null, options);
   }
@@ -1250,6 +1283,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
       Long petId, @Nullable GetMultiServerPetInfoOptions options) {
     return getMultiServerPetInfoWithHttpInfo(petId, null, options);
@@ -1266,6 +1300,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getMultiServerPetInfo(Long petId) {
     return getMultiServerPetInfo(petId, null);
   }
@@ -1281,6 +1316,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(Long petId) {
     return getMultiServerPetInfoWithHttpInfo(petId, null);
   }
@@ -1294,6 +1330,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getMultiServerPetInfo(
       Long petId,
       @Nullable GetMultiServerPetInfoServer server,
@@ -1311,6 +1348,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
       Long petId,
       @Nullable GetMultiServerPetInfoServer server,
@@ -1369,6 +1407,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public InputStream getPetAvatar(Long petId) {
     return getPetAvatar(petId, null);
   }
@@ -1385,6 +1424,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
     return getPetAvatarWithHttpInfo(petId, null);
   }
@@ -1398,6 +1438,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public InputStream getPetAvatar(Long petId, @Nullable GetPetAvatarOptions options) {
     return requireBody(getPetAvatarWithHttpInfo(petId, options), "getPetAvatar");
   }
@@ -1411,6 +1452,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<InputStream> getPetAvatarWithHttpInfo(
       Long petId, @Nullable GetPetAvatarOptions options) {
     if (petId == null) {
@@ -1461,6 +1503,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public byte[] getPetAvatarThumbnail(Long petId) {
     return getPetAvatarThumbnail(petId, null);
   }
@@ -1477,6 +1520,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) {
     return getPetAvatarThumbnailWithHttpInfo(petId, null);
   }
@@ -1491,6 +1535,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public byte[] getPetAvatarThumbnail(Long petId, @Nullable GetPetAvatarThumbnailOptions options) {
     return requireBody(getPetAvatarThumbnailWithHttpInfo(petId, options), "getPetAvatarThumbnail");
   }
@@ -1505,6 +1550,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(
       Long petId, @Nullable GetPetAvatarThumbnailOptions options) {
     if (petId == null) {
@@ -1556,6 +1602,7 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
+  @Override
   public Pet getPetById(Long petId, @Nullable GetPetByIdOptions options) {
     return getPetById(petId, null, options);
   }
@@ -1573,6 +1620,7 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
+  @Override
   public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdOptions options) {
     return getPetByIdWithHttpInfo(petId, null, options);
   }
@@ -1592,6 +1640,7 @@ public class PetApi extends BaseApi {
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Deprecated
+  @Override
   public Pet getPetById(Long petId) {
     return getPetById(petId, null);
   }
@@ -1611,6 +1660,7 @@ public class PetApi extends BaseApi {
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Deprecated
+  @Override
   public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId) {
     return getPetByIdWithHttpInfo(petId, null);
   }
@@ -1629,6 +1679,7 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
+  @Override
   public Pet getPetById(
       Long petId, @Nullable GetPetByIdServer server, @Nullable GetPetByIdOptions options) {
     return requireBody(getPetByIdWithHttpInfo(petId, server, options), "getPetById");
@@ -1648,6 +1699,7 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
+  @Override
   public ApiResult<Pet> getPetByIdWithHttpInfo(
       Long petId, @Nullable GetPetByIdServer server, @Nullable GetPetByIdOptions options) {
     if (petId == null) {
@@ -1700,6 +1752,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getPetByName(String name, GetPetByNameOptions options) {
     return requireBody(getPetByNameWithHttpInfo(name, options), "getPetByName");
   }
@@ -1712,6 +1765,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options) {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException(
@@ -1867,6 +1921,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public PetPassport getPetPassport(Long petId) {
     return getPetPassport(petId, null);
   }
@@ -1883,6 +1938,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) {
     return getPetPassportWithHttpInfo(petId, null);
   }
@@ -1898,6 +1954,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public PetPassport getPetPassport(Long petId, @Nullable GetPetPassportOptions options) {
     return requireBody(getPetPassportWithHttpInfo(petId, options), "getPetPassport");
   }
@@ -1913,6 +1970,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<PetPassport> getPetPassportWithHttpInfo(
       Long petId, @Nullable GetPetPassportOptions options) {
     if (petId == null) {
@@ -1964,6 +2022,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public InputStream getPetPhoto(Long petId, Long photoId) {
     return getPetPhoto(petId, photoId, null);
   }
@@ -1981,6 +2040,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
     return getPetPhotoWithHttpInfo(petId, photoId, null);
   }
@@ -1996,6 +2056,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public InputStream getPetPhoto(Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
     return requireBody(getPetPhotoWithHttpInfo(petId, photoId, options), "getPetPhoto");
   }
@@ -2011,6 +2072,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<InputStream> getPetPhotoWithHttpInfo(
       Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
     if (petId == null) {
@@ -2069,6 +2131,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public String getPetSummary(Long petId, LocalDate asOf, GetPetSummaryOptions options) {
     return requireBody(getPetSummaryWithHttpInfo(petId, asOf, options), "getPetSummary");
   }
@@ -2084,6 +2147,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<String> getPetSummaryWithHttpInfo(
       Long petId, LocalDate asOf, GetPetSummaryOptions options) {
     if (petId == null) {
@@ -2183,6 +2247,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getPetTag(Long petId, String tagName) {
     return getPetTag(petId, tagName, null);
   }
@@ -2199,6 +2264,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getPetTagWithHttpInfo(Long petId, String tagName) {
     return getPetTagWithHttpInfo(petId, tagName, null);
   }
@@ -2212,6 +2278,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getPetTag(Long petId, String tagName, @Nullable GetPetTagOptions options) {
     return requireBody(getPetTagWithHttpInfo(petId, tagName, options), "getPetTag");
   }
@@ -2225,6 +2292,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getPetTagWithHttpInfo(
       Long petId, String tagName, @Nullable GetPetTagOptions options) {
     if (petId == null) {
@@ -2366,6 +2434,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getStagingPetInfo(Long petId, @Nullable GetStagingPetInfoOptions options) {
     return getStagingPetInfo(petId, null, options);
   }
@@ -2378,6 +2447,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getStagingPetInfoWithHttpInfo(
       Long petId, @Nullable GetStagingPetInfoOptions options) {
     return getStagingPetInfoWithHttpInfo(petId, null, options);
@@ -2394,6 +2464,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getStagingPetInfo(Long petId) {
     return getStagingPetInfo(petId, null);
   }
@@ -2409,6 +2480,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getStagingPetInfoWithHttpInfo(Long petId) {
     return getStagingPetInfoWithHttpInfo(petId, null);
   }
@@ -2422,6 +2494,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public Pet getStagingPetInfo(
       Long petId,
       @Nullable GetStagingPetInfoServer server,
@@ -2438,6 +2511,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
+  @Override
   public ApiResult<Pet> getStagingPetInfoWithHttpInfo(
       Long petId,
       @Nullable GetStagingPetInfoServer server,
@@ -2496,6 +2570,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public void setPetAvatar(Long petId, InputStream body) {
     setPetAvatar(petId, body, null);
   }
@@ -2513,6 +2588,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
     return setPetAvatarWithHttpInfo(petId, body, null);
   }
@@ -2527,6 +2603,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public void setPetAvatar(Long petId, InputStream body, @Nullable SetPetAvatarOptions options) {
     setPetAvatarWithHttpInfo(petId, body, options);
   }
@@ -2546,6 +2623,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public void setPetAvatar(
       Long petId,
       InputStream body,
@@ -2570,6 +2648,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Void> setPetAvatarWithHttpInfo(
       Long petId,
       InputStream body,
@@ -2589,6 +2668,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Void> setPetAvatarWithHttpInfo(
       Long petId, InputStream body, @Nullable SetPetAvatarOptions options) {
     return setPetAvatarInternal(petId, body, options, null);
@@ -2670,6 +2750,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public void setPetAvatarThumbnail(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
     setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest, null);
@@ -2688,6 +2769,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
     return setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest, null);
@@ -2703,6 +2785,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public void setPetAvatarThumbnail(
       Long petId,
       SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -2721,6 +2804,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
       Long petId,
       SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -2777,6 +2861,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResponse setPetPreferences(Long petId, SetPetPreferencesOptions options) {
     return requireBody(setPetPreferencesWithHttpInfo(petId, options), "setPetPreferences");
   }
@@ -2792,6 +2877,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<ApiResponse> setPetPreferencesWithHttpInfo(
       Long petId, SetPetPreferencesOptions options) {
     if (petId == null) {
@@ -2865,6 +2951,7 @@ public class PetApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public Pet updatePet(Long petId, Pet pet) {
     return updatePet(petId, pet, null);
   }
@@ -2883,6 +2970,7 @@ public class PetApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) {
     return updatePetWithHttpInfo(petId, pet, null);
   }
@@ -2898,6 +2986,7 @@ public class PetApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public Pet updatePet(Long petId, Pet pet, @Nullable UpdatePetOptions options) {
     return requireBody(updatePetWithHttpInfo(petId, pet, options), "updatePet");
   }
@@ -2913,6 +3002,7 @@ public class PetApi extends BaseApi {
    * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<Pet> updatePetWithHttpInfo(
       Long petId, Pet pet, @Nullable UpdatePetOptions options) {
     if (petId == null) {
@@ -2965,6 +3055,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResponse uploadPetCertificate(Long petId, UploadPetCertificateOptions options) {
     return requireBody(uploadPetCertificateWithHttpInfo(petId, options), "uploadPetCertificate");
   }
@@ -2979,6 +3070,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<ApiResponse> uploadPetCertificateWithHttpInfo(
       Long petId, UploadPetCertificateOptions options) {
     if (petId == null) {
@@ -3035,6 +3127,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResponse uploadPetDocument(Long petId, UploadPetDocumentOptions options) {
     return requireBody(uploadPetDocumentWithHttpInfo(petId, options), "uploadPetDocument");
   }
@@ -3054,6 +3147,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResponse uploadPetDocument(
       Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType) {
     return requireBody(
@@ -3075,6 +3169,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
       Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType) {
     return uploadPetDocumentInternal(petId, options, requestContentType);
@@ -3091,6 +3186,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
+  @Override
   public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
       Long petId, UploadPetDocumentOptions options) {
     return uploadPetDocumentInternal(petId, options, null);

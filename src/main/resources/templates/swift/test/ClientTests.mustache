@@ -566,3 +566,120 @@ private final class ClientStubProtocol: URLProtocol, @unchecked Sendable {
 
     override func stopLoading() {}
 }
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{>test/FakeGroup}}
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+private final class FakeClient: {{clientClassName}}Protocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    let {{clientPropertyName}} = Fake{{classname}}()
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    var closed: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+
+    func close() {
+        lock.lock()
+        count += 1
+        lock.unlock()
+    }
+}
+
+private func exposesEveryGroupAndCloses<C: {{clientClassName}}Protocol>(_ client: C) {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    _ = client.{{clientPropertyName}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    client.close()
+}
+
+/* The names of the operations a source file declares, between two markers. */
+private func operationNames(file: String, from start: String, to end: String?, prefix: String) throws -> [String] {
+    let source = try String(
+        contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/{{packageName}}/Api/\(file)"),
+        encoding: .utf8)
+    let lines = source.components(separatedBy: "\n")
+    let first = try #require(lines.firstIndex { $0.contains(start) })
+    let last = end.flatMap { marker in lines[first...].firstIndex { $0.hasPrefix(marker) } } ?? lines.count
+    return lines[first..<last].compactMap { line -> String? in
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix(prefix) else { return nil }
+        return trimmed.dropFirst(prefix.count).split(separator: "(").first.map(String.init)
+    }
+}
+
+@Suite struct MockingTests {
+    private let authenticator: BearerAuthenticator = {
+        do {
+            return try BearerAuthenticator(host: "{{{basePath}}}", token: "test-token")
+        } catch {
+            preconditionFailure("test BearerAuthenticator initialization failed: \(error)")
+        }
+    }()
+
+    @Test func testBhvMocking001EveryGroupHasAProtocolTheClassImplements() throws {
+        let client = try {{clientClassName}}(authenticator: authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        func is{{classname}}<T: {{classname}}Protocol>(_ group: T) {}
+        is{{classname}}(client.{{clientPropertyName}})
+        let {{clientPropertyName}}Listed = try operationNames(
+            file: "{{classname}}Protocol.swift", from: "public protocol {{classname}}Protocol", to: "extension {{classname}}Protocol", prefix: "func ")
+{{#operation}}
+        #expect({{clientPropertyName}}Listed.contains("{{operationId}}"))
+        #expect({{clientPropertyName}}Listed.contains("{{operationId}}WithHTTPInfo"))
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test func testBhvMocking002GroupProtocolListsExactlyThePublicOperationsOfTheClass() throws {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        let {{clientPropertyName}}Listed = try operationNames(
+            file: "{{classname}}Protocol.swift", from: "public protocol {{classname}}Protocol", to: "extension {{classname}}Protocol", prefix: "func ")
+        let {{clientPropertyName}}Declared = try operationNames(
+            file: "{{classname}}.swift", from: "public final class {{classname}}", to: nil, prefix: "public func ")
+        #expect(Set({{clientPropertyName}}Listed) == Set({{clientPropertyName}}Declared))
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test func testBhvMocking007ClientProtocolExposesEveryGroupTypedAsItsProtocolAndClose() throws {
+        let client = try {{clientClassName}}(authenticator: authenticator)
+
+        exposesEveryGroupAndCloses(client)
+    }
+
+    @Test func testBhvMocking008ClientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+        let fake = FakeClient()
+
+        exposesEveryGroupAndCloses(fake)
+        fake.close()
+
+        #expect(fake.closed == 2)
+    }
+}

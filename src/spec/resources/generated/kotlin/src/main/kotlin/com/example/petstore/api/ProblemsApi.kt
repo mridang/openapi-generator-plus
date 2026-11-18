@@ -28,7 +28,9 @@ import com.example.petstore.models.ModelResult
  * ProblemsApi provides methods for the Problems API group.
  * Operations that declare typed error responses
  */
-class ProblemsApi : BaseApi {
+class ProblemsApi :
+    BaseApi,
+    ProblemsApiInterface {
     constructor() : super()
 
     constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
@@ -51,9 +53,9 @@ class ProblemsApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.UnexpectedFailureException on HTTP default with a `UnexpectedFailure` body
      */
-    suspend fun getFallback(
+    override suspend fun getFallback(
         fallbackId: String,
-        options: GetFallbackOptions? = null,
+        options: GetFallbackOptions?,
     ): ModelResult =
         getFallbackWithHttpInfo(fallbackId, options).let { result ->
             result.data ?: throw ApiException(
@@ -65,9 +67,9 @@ class ProblemsApi : BaseApi {
         }
 
     /** Same as [getFallback] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getFallbackWithHttpInfo(
+    override suspend fun getFallbackWithHttpInfo(
         fallbackId: String,
-        options: GetFallbackOptions? = null,
+        options: GetFallbackOptions?,
     ): ApiResult<ModelResult> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -120,9 +122,9 @@ class ProblemsApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.MemberNotFoundException on HTTP 404 with a `MemberNotFound` body
      */
-    suspend fun getMember(
+    override suspend fun getMember(
         memberId: String,
-        options: GetMemberOptions? = null,
+        options: GetMemberOptions?,
     ): ModelResult =
         getMemberWithHttpInfo(memberId, options).let { result ->
             result.data ?: throw ApiException(
@@ -134,9 +136,9 @@ class ProblemsApi : BaseApi {
         }
 
     /** Same as [getMember] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getMemberWithHttpInfo(
+    override suspend fun getMemberWithHttpInfo(
         memberId: String,
-        options: GetMemberOptions? = null,
+        options: GetMemberOptions?,
     ): ApiResult<ModelResult> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -189,9 +191,9 @@ class ProblemsApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.ProjectNotFoundException on HTTP 404 with a `ProjectNotFound` body
      */
-    suspend fun getProject(
+    override suspend fun getProject(
         projectId: String,
-        options: GetProjectOptions? = null,
+        options: GetProjectOptions?,
     ): ModelResult =
         getProjectWithHttpInfo(projectId, options).let { result ->
             result.data ?: throw ApiException(
@@ -203,9 +205,9 @@ class ProblemsApi : BaseApi {
         }
 
     /** Same as [getProject] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getProjectWithHttpInfo(
+    override suspend fun getProjectWithHttpInfo(
         projectId: String,
-        options: GetProjectOptions? = null,
+        options: GetProjectOptions?,
     ): ApiResult<ModelResult> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -258,9 +260,9 @@ class ProblemsApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.RejectedRequestException on HTTP 4XX with a `RejectedRequest` body
      */
-    suspend fun getRange(
+    override suspend fun getRange(
         rangeId: String,
-        options: GetRangeOptions? = null,
+        options: GetRangeOptions?,
     ): ModelResult =
         getRangeWithHttpInfo(rangeId, options).let { result ->
             result.data ?: throw ApiException(
@@ -272,9 +274,9 @@ class ProblemsApi : BaseApi {
         }
 
     /** Same as [getRange] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getRangeWithHttpInfo(
+    override suspend fun getRangeWithHttpInfo(
         rangeId: String,
-        options: GetRangeOptions? = null,
+        options: GetRangeOptions?,
     ): ApiResult<ModelResult> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -327,9 +329,9 @@ class ProblemsApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.UpstreamFailureException on HTTP 5XX with a `UpstreamFailure` body
      */
-    suspend fun getUpstream(
+    override suspend fun getUpstream(
         upstreamId: String,
-        options: GetUpstreamOptions? = null,
+        options: GetUpstreamOptions?,
     ): ModelResult =
         getUpstreamWithHttpInfo(upstreamId, options).let { result ->
             result.data ?: throw ApiException(
@@ -341,9 +343,9 @@ class ProblemsApi : BaseApi {
         }
 
     /** Same as [getUpstream] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getUpstreamWithHttpInfo(
+    override suspend fun getUpstreamWithHttpInfo(
         upstreamId: String,
-        options: GetUpstreamOptions? = null,
+        options: GetUpstreamOptions?,
     ): ApiResult<ModelResult> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -397,9 +399,9 @@ class ProblemsApi : BaseApi {
      * @throws com.example.petstore.errors.StateConflictException on HTTP 409 with a `StateConflict` body
      * @throws com.example.petstore.errors.StateConflictException on HTTP 423 with a `StateConflict` body
      */
-    suspend fun takeLock(
+    override suspend fun takeLock(
         lockId: String,
-        options: TakeLockOptions? = null,
+        options: TakeLockOptions?,
     ): ModelResult =
         takeLockWithHttpInfo(lockId, options).let { result ->
             result.data ?: throw ApiException(
@@ -411,9 +413,9 @@ class ProblemsApi : BaseApi {
         }
 
     /** Same as [takeLock] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun takeLockWithHttpInfo(
+    override suspend fun takeLockWithHttpInfo(
         lockId: String,
-        options: TakeLockOptions? = null,
+        options: TakeLockOptions?,
     ): ApiResult<ModelResult> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers

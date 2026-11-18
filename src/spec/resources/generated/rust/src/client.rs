@@ -263,3 +263,57 @@ impl Client {
         Self::new(authenticator, transport_options)
     }
 }
+
+/// The contract of [`Client`]: every API group, typed as its group trait, plus `close`
+/// and `is_closed`. Depend on it (`fn f<C: ClientTrait>(client: &C)`) to substitute a
+/// hand-written fake client in your own tests; a fake client built from fake groups opens no
+/// connection, and closing it does nothing.
+pub trait ClientTrait {
+    /// The type of the PetApi group.
+    type Pet: crate::api::PetApiTrait;
+    /// The type of the ProblemsApi group.
+    type Problems: crate::api::ProblemsApiTrait;
+    /// The type of the StoreApi group.
+    type Store: crate::api::StoreApiTrait;
+
+    /// API operations for the PetApi group.
+    fn pet(&self) -> &Self::Pet;
+
+    /// API operations for the ProblemsApi group.
+    fn problems(&self) -> &Self::Problems;
+
+    /// API operations for the StoreApi group.
+    fn store(&self) -> &Self::Store;
+
+    /// Closes the client; a fake client has nothing to release.
+    fn close(&self);
+
+    /// Returns true once [`Self::close`] has been called.
+    fn is_closed(&self) -> bool;
+}
+
+impl ClientTrait for Client {
+    type Pet = PetApi;
+    type Problems = ProblemsApi;
+    type Store = StoreApi;
+
+    fn pet(&self) -> &Self::Pet {
+        &self.pet
+    }
+
+    fn problems(&self) -> &Self::Problems {
+        &self.problems
+    }
+
+    fn store(&self) -> &Self::Store {
+        &self.store
+    }
+
+    fn close(&self) {
+        Client::close(self);
+    }
+
+    fn is_closed(&self) -> bool {
+        Client::is_closed(self)
+    }
+}

@@ -1,5 +1,19 @@
 module Petstore::Client
   module Api
+    interface _ProblemsApiInterface
+      def get_fallback: (String fallback_id, ?Options::GetFallbackOptions? options) -> Models::Result
+      def get_fallback_with_http_info: (String fallback_id, ?Options::GetFallbackOptions? options) -> ::Petstore::Client::ApiResult[Models::Result]
+      def get_member: (String member_id, ?Options::GetMemberOptions? options) -> Models::Result
+      def get_member_with_http_info: (String member_id, ?Options::GetMemberOptions? options) -> ::Petstore::Client::ApiResult[Models::Result]
+      def get_project: (String project_id, ?Options::GetProjectOptions? options) -> Models::Result
+      def get_project_with_http_info: (String project_id, ?Options::GetProjectOptions? options) -> ::Petstore::Client::ApiResult[Models::Result]
+      def get_range: (String range_id, ?Options::GetRangeOptions? options) -> Models::Result
+      def get_range_with_http_info: (String range_id, ?Options::GetRangeOptions? options) -> ::Petstore::Client::ApiResult[Models::Result]
+      def get_upstream: (String upstream_id, ?Options::GetUpstreamOptions? options) -> Models::Result
+      def get_upstream_with_http_info: (String upstream_id, ?Options::GetUpstreamOptions? options) -> ::Petstore::Client::ApiResult[Models::Result]
+      def take_lock: (String lock_id, ?Options::TakeLockOptions? options) -> Models::Result
+      def take_lock_with_http_info: (String lock_id, ?Options::TakeLockOptions? options) -> ::Petstore::Client::ApiResult[Models::Result]
+    end
     class ProblemsApi < BaseApi
       def initialize: (?::Petstore::Client::ApiClient? api_client, ?::Petstore::Client::Configuration config, ?::Petstore::Client::Auth::Authenticator? authenticator, ?Hash[String, ::Petstore::Client::Auth::Authenticator] scheme_authenticators) -> void
       def get_fallback: (String fallback_id, ?Options::GetFallbackOptions? options) -> Models::Result

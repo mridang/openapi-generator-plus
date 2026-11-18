@@ -1,0 +1,30 @@
+{{>api_info}}
+import Foundation
+
+/// The contract of ``{{clientClassName}}``: every API group typed as its group protocol, plus
+/// ``close()``. Depend on it instead of the class to substitute a hand-written fake client in your
+/// own tests; a fake client built from fake groups opens no connection, and closing it does
+/// nothing. Each group is an associated type so that ``{{clientClassName}}`` keeps its concrete
+/// group classes.
+public protocol {{clientClassName}}Protocol: Sendable {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /// The type of the {{classname}} group.
+    associatedtype {{classname}}Type: {{classname}}Protocol
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /// API operations for the {{classname}} group.
+    var {{clientPropertyName}}: {{classname}}Type { get }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    /// Closes the client; a fake client has nothing to release.
+    func close()
+}

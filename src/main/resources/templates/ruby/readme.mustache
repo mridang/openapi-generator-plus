@@ -65,6 +65,26 @@ A cookie parameter is sent as it is, without percent-encoding, when every charac
 
 `TransportOptions.builder.connection(faraday_connection)` supplies your own `Faraday::Connection`. The SDK keeps applying its timeout, user agent, redirect policy and query encoding, and never closes a connection you supplied.
 
+### Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}_{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`, an RBS interface) and the client has one (`_{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```ruby
+# Code under test takes anything that satisfies the group interface, never the generated class.
+def use(api)
+  api
+end
+
+# A fake is any object that responds to the operations you use; Ruby needs no base class.
+fake = Object.new
+def fake.close; end
+
+use(fake)
+fake.close
+```
+
+A new operation in the API adds a method to the interface, so a fake that must satisfy the whole interface for Steep fails to type-check after you regenerate; fake only the operations your code calls, or delegate the rest to a base fake.
+
 ### Automatic retries
 
 `TransportOptions.builder.max_retries(n)` sets how many times a failed request is sent again (default `2`; `0` turns retries off). A request is retried after a network error that happened before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) response. The wait starts at 0.5 seconds and doubles up to 8 seconds, with up to 25% jitter; a `Retry-After` header (seconds or an HTTP date, at most 60 seconds) is honoured instead. The `timeout` budget is never extended by retries, a TLS failure is not retried, and a multipart or stream body is never sent twice. Every retry is a new request: its headers, authentication included, are built again.

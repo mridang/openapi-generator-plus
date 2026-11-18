@@ -71,7 +71,24 @@ class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{#tagExternalDocs}}
 /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/tagExternalDocs}}
-class {{classname}} extends BaseApi {
+/// The contract of [{{classname}}]: every operation of the {{baseName}} API group and its
+/// `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+/// your own tests.
+abstract interface class {{classname}}Interface {
+{{#operation}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}});
+
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}});
+{{/operation}}
+}
+
+class {{classname}} extends BaseApi implements {{classname}}Interface {
   {{classname}}({
     ApiClient? apiClient,
     Configuration? config,
@@ -117,6 +134,7 @@ class {{classname}} extends BaseApi {
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
+  @override
   Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
 {{#returnType}}
     final result = await {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
@@ -146,6 +164,7 @@ class {{classname}} extends BaseApi {
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
+  @override
   Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
 {{#hasAuthMethods}}
     {{! The credential of the security scheme this operation's spec names, set }}

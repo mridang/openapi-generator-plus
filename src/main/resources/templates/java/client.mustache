@@ -9,7 +9,6 @@ import {{apiPackage}}.{{classname}};
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import {{invokerPackage}}.auth.Authenticator;
 import {{invokerPackage}}.auth.BearerAuthenticator;
 import {{invokerPackage}}.auth.HttpAwareAuthenticator;
@@ -64,14 +63,11 @@ import javax.annotation.Nullable;
  * {@link java.net.http.HttpClient} the caller supplied through {@link TransportOptions}. A
  * request issued after closing fails with an {@link IllegalStateException}.
  */
-@SuppressFBWarnings(
-    value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"},
-    justification = "the API-group fields exist for the caller, not for the SDK")
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
 /* A tag the spec spells with an acronym -- BetaOIDCService -- keeps that
  * spelling here, because the accessor is public API and every other SDK
  * spells it the same way. */
-@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
-public final class {{clientClassName}} implements AutoCloseable {
+public final class {{clientClassName}} implements {{clientClassName}}Interface {
 
     private final ApiClient apiClient;
 
@@ -213,6 +209,23 @@ public final class {{clientClassName}} implements AutoCloseable {
         }
     }
 
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /**
+     * Returns the API operations of the {{classname}} group, the interface form of the
+     * {@link #{{clientPropertyName}}} field.
+     *
+     * @return the group
+     */
+    @Override
+    public {{classname}} get{{clientAccessorSuffix}}() {
+        return {{clientPropertyName}};
+    }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
     /**
      * Closes the client gracefully. The first call marks it closed and returns at once; requests
      * already in flight finish, and the HTTP stack the SDK built is released when the last of
