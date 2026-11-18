@@ -78,6 +78,13 @@ defmodule PetstoreClient.HeaderSelectorTest do
       refute Map.has_key?(headers, "Accept")
     end
 
+    test "bhv headers 029 the Accept header carries no value when every entry is blank" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(["  ", "\t", ""], "application/json", false)
+
+      assert headers == %{"Content-Type" => "application/json"}
+    end
+
     test "bhv headers 025 sets Content-Type header when not multipart" do
       headers =
         PetstoreClient.HeaderSelector.select_headers(
