@@ -147,6 +147,28 @@ class MetadataTest {
   }
 
   @Test
+  void bhvEquality001TestEqualValuesAreEqualAndAnyChangeMakesThemUnequal() {
+    java.time.OffsetDateTime created = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
+    Metadata first =
+        Metadata.builder().createdAt(created).putAdditionalProperty("customField", "hello").build();
+    Metadata same =
+        Metadata.builder().createdAt(created).putAdditionalProperty("customField", "hello").build();
+    Metadata changedNested =
+        Metadata.builder().createdAt(created).putAdditionalProperty("customField", "world").build();
+    Metadata changedCreatedAt =
+        Metadata.builder()
+            .createdAt(java.time.OffsetDateTime.parse("2025-01-01T00:00:00Z"))
+            .putAdditionalProperty("customField", "hello")
+            .build();
+
+    assertThat(first).isEqualTo(same).hasSameHashCodeAs(same);
+    assertThat(first).isNotEqualTo(changedNested);
+    assertThat(first).isNotEqualTo(changedCreatedAt);
+    assertThat(first).isNotEqualTo("Metadata");
+    assertThat(first).isNotEqualTo(null);
+  }
+
+  @Test
   void bhvModels010TestDeclaredPropertyWinsOverCollidingAdditionalProperty() {
     Metadata metadata =
         Metadata.builder()
