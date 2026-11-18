@@ -1590,12 +1590,14 @@ describe('ObjectSerializer', () => {
     // 3600 -> 400.
     describe('Temporal.Duration (protobuf-JSON)', () => {
       test('bhv serialization 047 a duration too large for a 64-bit nanosecond count is formatted without overflow', () => {
+        /* 1e11 s is 1e20 ns, past the 64-bit nanosecond range, yet inside the
+         * google.protobuf.Duration bound (315,576,000,000 s) that decode enforces. */
         const json = ObjectSerializer.serialize(
-          new EdgeCases({ retryAfter: Temporal.Duration.from({ seconds: 1e12 }) }),
+          new EdgeCases({ retryAfter: Temporal.Duration.from({ seconds: 1e11 }) }),
         );
-        expect(JSON.parse(json)).toEqual({ retryAfter: '1000000000000s' });
+        expect(JSON.parse(json)).toEqual({ retryAfter: '100000000000s' });
         const decoded = ObjectSerializer.deserialize(JSON.parse(json), EdgeCases)!;
-        expect(decoded.retryAfter!.seconds).toBe(1e12);
+        expect(decoded.retryAfter!.seconds).toBe(1e11);
       });
 
       test('bhv serializationobject 081 stringify: whole-second duration emits "<secs>s"', () => {

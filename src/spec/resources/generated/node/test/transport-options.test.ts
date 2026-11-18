@@ -306,7 +306,17 @@ describe("TransportOptions", () => {
 
   test("bhv options 060 the static builder entry point carries the values set on it and the defaults of a direct build", () => {
     const built = TransportOptions.builder().timeout(5000).build();
-    const direct = new TransportOptions({ ...directOptions, timeout: 5000 });
+    const pkg = JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf-8"),
+    ) as {
+      name: string;
+      version: string;
+    };
+    const direct = new TransportOptions({
+      ...directOptions,
+      timeout: 5000,
+      userAgent: `${pkg.name}/${pkg.version} (node)`,
+    });
     expect(built.timeout).toBe(5000);
     expect(built.verifySsl).toBe(direct.verifySsl);
     expect(built.maxRetries).toBe(direct.maxRetries);

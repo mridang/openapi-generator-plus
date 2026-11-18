@@ -21,6 +21,7 @@ import {
   NetworkError,
   NetworkTimeoutError,
 } from "../src/errors/index.js";
+import { ClientError } from "../src/errors/client-error.js";
 import { TransportOptions } from "../src/transport-options.js";
 import { EdgeCases } from "../src/models/index.js";
 
@@ -3478,9 +3479,12 @@ describe("proxy that requires credentials", () => {
         .build(),
     );
     try {
-      await expect(
-        client.sendRequest("GET", `${baseUrl}/echo`, {}, null),
-      ).rejects.toBeInstanceOf(NetworkError);
+      /* The proxy answered, so its status maps to the status error a 4xx gets: a 407 is a ClientError. */
+      const caught = await client
+        .sendRequest("GET", `${baseUrl}/echo`, {}, null)
+        .catch((e: unknown) => e);
+      expect(caught).toBeInstanceOf(ClientError);
+      expect((caught as ClientError).statusCode).toBe(407);
       expect(seen).toHaveLength(1);
       expect(seen[0]).toBeUndefined();
     } finally {

@@ -9,6 +9,7 @@ import * as zlib from 'node:zlib';
 import { DefaultApiClient, SENSITIVE_HEADER_NAMES } from '../src/default-api-client{{importFileExtension}}';
 import { ApiError } from '../src/errors/api-error{{importFileExtension}}';
 import { {{errorPrefix}}Error, NetworkError, NetworkTimeoutError } from '../src/errors/index{{importFileExtension}}';
+import { ClientError } from '../src/errors/client-error{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 import { EdgeCases } from '../src/models/index{{importFileExtension}}';
 
@@ -2699,7 +2700,10 @@ describe('proxy that requires credentials', () => {
       TransportOptions.builder().proxy(`http://127.0.0.1:${port}`).maxRetries(0).build(),
     );
     try {
-      await expect(client.sendRequest('GET', `${baseUrl}/echo`, {}, null)).rejects.toBeInstanceOf(NetworkError);
+      /* The proxy answered, so its status maps to the status error a 4xx gets: a 407 is a ClientError. */
+      const caught = await client.sendRequest('GET', `${baseUrl}/echo`, {}, null).catch((e: unknown) => e);
+      expect(caught).toBeInstanceOf(ClientError);
+      expect((caught as ClientError).statusCode).toBe(407);
       expect(seen).toHaveLength(1);
       expect(seen[0]).toBeUndefined();
     } finally {
