@@ -1862,6 +1862,39 @@ void main() {
       },
     );
 
+    for (final status in [300, 305]) {
+      test(
+        'bhv misc 133 a $status response is returned as it is, even when it carries a Location header',
+        () async {
+          final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          server.listen((request) async {
+            await request.drain<void>();
+            request.response
+              ..statusCode = status
+              ..headers.set('Location', '/landed')
+              ..close();
+          });
+
+          try {
+            final client = DefaultApiClient(
+              transportOptions: TransportOptionsBuilder()
+                  .followRedirects(true)
+                  .build(),
+            );
+            final resp = await client.sendRequest(
+              'GET',
+              'http://localhost:${server.port}/start',
+              {},
+              null,
+            );
+            expect(resp.statusCode, equals(status));
+          } finally {
+            await server.close();
+          }
+        },
+      );
+    }
+
     test(
       'bhv misc 132 a per-call header whose name holds a credential word is dropped on a cross-origin redirect',
       () async {
