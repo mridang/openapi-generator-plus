@@ -401,7 +401,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperReadsTheClientCredentialsFromItsEnvironmentVariables() {
+  void bhvAuthscheme001SchemeWrapperReadsTheClientCredentialsFromItsEnvironmentVariables() {
     MachineAuthClientCredentialsAuthenticator auth =
         new MachineAuthClientCredentialsAuthenticator(
             "https://api.example.com",
@@ -414,7 +414,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperPrefersWhatYouPassToTheEnvironmentAndTreatsEmptyAsNotPassed() {
+  void bhvLangjava015SchemeWrapperPrefersWhatYouPassToTheEnvironmentAndTreatsEmptyAsNotPassed() {
     MachineAuthClientCredentialsAuthenticator auth =
         new MachineAuthClientCredentialsAuthenticator(
             "https://api.example.com",
@@ -427,7 +427,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperRefusesAMissingOrEmptyCredentialNamingTheVariable() {
+  void bhvAuthscheme003SchemeWrapperRefusesAMissingOrEmptyCredentialNamingTheVariable() {
     IllegalArgumentException missing =
         assertThrows(
             IllegalArgumentException.class,
