@@ -1241,4 +1241,30 @@ class ValueSerializerTest {
             )
         }
     }
+
+    @Nested
+    @DisplayName("deep objects, cookies and enum text")
+    inner class DeepObjectCookieAndEnumTextTests {
+        @Test
+        @DisplayName("bhvMisc120 an object parameter becomes name and value pairs sorted by name, with absent values left out")
+        fun bhvMisc120DeepObjectPairsAreSortedAndOmitAbsent() {
+            val pairs = ValueSerializer.serializeDeepObject("filter", mapOf("b" to "2", "a" to "1", "c" to null))
+            assertEquals(listOf("filter[a]", "filter[b]"), pairs.keys.toList())
+        }
+
+        @Test
+        @DisplayName("bhvMisc123 a cookie value the caller already percent-encoded reaches the wire unchanged")
+        fun bhvMisc123EncodedCookieIsNotEncodedAgain() {
+            assertEquals(
+                "a%20b",
+                ValueSerializer.serializeStyled("sid", "a%20b", "cookie", "string", null, "form", true).toString(),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvMisc138 converting an enum member to text yields its wire value")
+        fun bhvMisc138EnumTextIsTheWireValue() {
+            assertEquals("gold-tier", TierFixture.GOLD.toString())
+        }
+    }
 }

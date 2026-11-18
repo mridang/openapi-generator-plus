@@ -741,6 +741,18 @@ void main() {
       }
     });
 
+    test('bhv misc 215 getDefaults fills every declared default when the body is an empty object', () async {
+      final server = await _serveJson('{}');
+      try {
+        final defaults = await _storeApiFor(server).getDefaults(null);
+        expect(defaults.retries, equals(3));
+        expect(defaults.label, equals('untitled'));
+        expect(defaults.scale, equals(0.25));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv operations 123 getDefaults applies the typed schema defaults to an empty object', () async {
       final server = await _serveJson('{}');
       try {
