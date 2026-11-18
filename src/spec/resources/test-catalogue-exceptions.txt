@@ -215,3 +215,6 @@ node | errors079 | the method and path of an ApiError are fixed when it is built
 node | models014 | TypeScript readonly is a compile-time check only: a class field can still be assigned at run time, so only tsc refuses a reassignment and no jest test can observe it
 node | misc001 | Node runs JavaScript on one thread, so a synchronous read of the token never interleaves with its replacement and a partial token cannot be observed; the rotating-provider path is covered by the bearer authenticator tests
 node | serialization049 | Schema format constraints are not enforced at run time (settled decision S3), so a relative or empty URI-format string is accepted rather than refused
+node | serialization036 | JavaScript has one number type, so 1.0 and 1 are the same value and JSON.stringify writes a whole number without a decimal point; no float-typed value exists that could carry the point
+node | serialization040 | the fixture's only form-urlencoded operation declares string fields, so no generated operation can send a date-time, duration, number, integer or boolean as a form field; their wire text is pinned by the serializationparam tests
+node | redirects044 | the proxy credential is set on the undici ProxyAgent dispatcher, which a stubbed fetch never sees, so only the caller-header removal half is observable and that is covered by redirects 011 and 012

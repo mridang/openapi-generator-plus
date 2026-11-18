@@ -728,6 +728,17 @@ describe('DefaultApiClient.decodeBody charset handling', () => {
 });
 
 describe('DefaultApiClient.buildContentDisposition multipart filename safety', () => {
+  it('bhv serialization 057 a multipart field name containing a NUL byte or a line break is refused', () => {
+    expect(() => DefaultApiClient.buildContentDisposition('fi\r\nle', 'file.txt')).toThrow(TypeError);
+    expect(() => DefaultApiClient.buildContentDisposition(`fi${String.fromCharCode(0)}le`, 'file.txt')).toThrow(TypeError);
+  });
+
+  it('bhv serialization 056 quotes and backslashes in multipart field and file names are escaped', () => {
+    const header = DefaultApiClient.buildContentDisposition('a"b\\c', 'x"y.txt');
+    expect(header).toContain('name="a\\"b\\\\c"');
+    expect(header).toContain('filename="x\\"y.txt"');
+  });
+
   it('bhv serializationwire 043 throws on filename containing CR/LF (header-injection attempt)', () => {
     expect(() =>
       DefaultApiClient.buildContentDisposition('file', 'a\r\nX-Injected: yes')
@@ -933,6 +944,45 @@ describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', ()
       await client.sendRequest('POST', url, {}, { 'a"b.png': Buffer.from([0x89, 0x50, 0x4e, 0x47]) });
       const body = getBody().toString('binary');
       expect(body).toContain('filename="a\\"b.png"');
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv serialization 058 a multipart part with no filename is sent as application/octet-stream', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest('POST', url, {}, { blob: Buffer.from([0x00, 0x01]) });
+      const body = getBody().toString('binary');
+      expect(body).toContain('Content-Type: application/octet-stream');
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv serialization 059 a raw binary part is sent as a file part that carries exactly its bytes', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      const bytes = Buffer.from([0x00, 0xff, 0x7f, 0x0d, 0x0a]);
+      await client.sendRequest('POST', url, {}, { 'data.bin': bytes });
+      const body = getBody();
+      expect(body.includes(bytes)).toBe(true);
+      expect(body.toString('binary')).toContain('filename="data.bin"');
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv serialization 060 a model sent as a multipart part declares the application/json media type', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest('POST', url, {}, { edge: new EdgeCases({ n2fa: true }) });
+      const body = getBody().toString('utf-8');
+      expect(body).toContain('Content-Type: application/json');
+      expect(body).toContain('"2fa":true');
     } finally {
       close();
     }
