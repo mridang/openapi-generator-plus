@@ -3053,4 +3053,81 @@ class DefaultApiClientUnitTest {
             assertEquals(200, response.statusCode)
         }
     }
+
+    @Nested
+    @DisplayName("wire redirect behaviours")
+    inner class WireRedirectBehaviours {
+
+        private fun redirectThenOk(
+            status: HttpStatusCode,
+            seen: MutableList<io.ktor.client.request.HttpRequestData>,
+        ): MockEngine =
+            MockEngine { req ->
+                seen.add(req)
+                if (seen.size == 1) {
+                    respond(content = "", status = status, headers = headersOf("Location", "http://localhost/b"))
+                } else {
+                    respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
+                }
+            }
+
+        @Test
+        @DisplayName("bhvRedirects038 a 307 redirect that keeps the method resends the original body and its content type")
+        fun temporaryRedirectResendsBodyAndType() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.TemporaryRedirect, seen)),
+                TransportOptions.builder().build(),
+            )
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/a", mapOf("Content-Type" to "text/plain"), "payload")
+            }
+            assertEquals(2, seen.size)
+            assertEquals(io.ktor.http.HttpMethod.Post, seen[1].method)
+            assertEquals("text/plain", seen[1].headers["Content-Type"])
+        }
+
+        @Test
+        @DisplayName("bhvRedirects040 a 302 redirect from HTTPS to plain HTTP is followed for a request that sends no body")
+        fun foundRedirectFromHttpsToHttpIsFollowed() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.Found, seen)),
+                TransportOptions.builder().build(),
+            )
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "https://localhost/a", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals("http://localhost/b", seen[1].url.toString())
+        }
+
+        @Test
+        @DisplayName("bhvRedirects041 a redirect that turns a POST into a GET sends no Content-Length or Content-Type")
+        fun postTurnedIntoGetSendsNoBodyHeaders() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.SeeOther, seen)),
+                TransportOptions.builder().build(),
+            )
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/a", mapOf("Content-Type" to "text/plain"), "payload")
+            }
+            assertEquals(io.ktor.http.HttpMethod.Get, seen[1].method)
+            assertNull(seen[1].headers["Content-Length"])
+            assertNull(seen[1].headers["Content-Type"])
+        }
+
+        @Test
+        @DisplayName("bhvRedirects042 a 307 redirect of a bodyless POST keeps the request a POST")
+        fun temporaryRedirectKeepsBodylessPost() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.TemporaryRedirect, seen)),
+                TransportOptions.builder().build(),
+            )
+            runBlocking { apiClient.sendRequest("POST", "http://localhost/a", emptyMap(), null) }
+            assertEquals(io.ktor.http.HttpMethod.Post, seen[1].method)
+        }
+    }
 }
