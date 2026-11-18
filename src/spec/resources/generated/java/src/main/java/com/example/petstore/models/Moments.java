@@ -132,6 +132,8 @@ public class Moments {
      */
     @com.fasterxml.jackson.annotation.JsonAnySetter
     public Builder putAdditionalProperty(String key, OffsetDateTime value) {
+      /* A null extra is rejected unless the value schema is nullable, like a null element of a map. */
+      java.util.Objects.requireNonNull(value, "additional property value must not be null");
       this.additionalProperties.put(key, value);
       return this;
     }

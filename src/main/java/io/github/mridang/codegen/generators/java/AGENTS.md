@@ -494,4 +494,4 @@ Test: `ObjectSerializerTest` (`constructionNeverValidatesTheValuesItIsGiven`, `c
 ### Not adopted in round 4
 F1085 (generated TLS test material) is shared and out of scope for java.
 
-- **F15 (typed `additionalProperties`, #103).** The builder, accessor and `putAdditionalProperty` take the value type (`Map<String, V>`); Jackson types the any-setter value from the parameter, so a wrong JSON type fails with `SerializationException`. A Java `String` extra keeps a null, as a map of strings does (the element type carries no nullability).
+- **F15 (typed `additionalProperties`, #103).** The builder, accessor and `putAdditionalProperty` take the value type (`Map<String, V>`); Jackson types the any-setter value from the parameter, so a wrong JSON type fails with `SerializationException`. A null extra is rejected by `putAdditionalProperty` (a `NullPointerException`, wrapped in `SerializationException` on decode) unless the value schema is nullable.
