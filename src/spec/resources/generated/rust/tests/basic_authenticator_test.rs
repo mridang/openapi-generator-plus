@@ -116,6 +116,41 @@ fn test_bhv_authbasic_010_redacted_representation_shows_the_host_and_username() 
     );
 }
 
+/// Only the username may not contain a colon: a colon in the password is sent as-is.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authbasic_018_a_password_may_contain_a_colon() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "pa:ss:word").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Basic YWxpY2U6cGE6c3M6d29yZA==")
+    );
+}
+
+/// A generated basic wrapper emits exactly the header the base authenticator emits.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authbasic_019_generated_basic_wrappers_emit_the_same_basic_header_as_the_base() {
+    let host = "https://api.example.com";
+    let base = BasicAuthenticator::new(host, "alice", "s3cret")
+        .unwrap()
+        .auth_headers()
+        .await;
+    let admin = AdminBasicAuthenticator::new(host, Some("alice"), Some("s3cret"))
+        .unwrap()
+        .auth_headers()
+        .await;
+    assert_eq!(admin.get("Authorization"), base.get("Authorization"));
+}
+
+/// The password is masked in the debug output, compact and pretty alike.
+#[test]
+fn test_bhv_authbasic_020_masks_the_password_in_its_debug_output() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    for text in [format!("{:?}", auth), format!("{:#?}", auth)] {
+        assert!(!text.contains("s3cret"), "{}", text);
+    }
+}
+
 /// The scheme wrappers emit the same header as the authenticator they wrap and
 /// validate the credentials as eagerly.
 #[tokio::test(flavor = "multi_thread")]

@@ -186,6 +186,22 @@ mod pet_store_basic_authenticator {
             .is_ok());
         });
     }
+
+    #[test]
+    fn test_bhv_authscheme_003_a_scheme_authenticator_fails_naming_its_variable_when_empty() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(PetStoreBasicAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME"),
+                "{}",
+                text
+            );
+        });
+    }
 }
 
 mod admin_basic_authenticator {
@@ -416,6 +432,59 @@ mod pet_store_bearer_authenticator {
             headers.get("Authorization").map(|s| s.as_str()),
             Some("Bearer explicit-token")
         );
+    }
+
+    #[test]
+    fn test_bhv_authbearer_019_an_empty_environment_value_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_023_generated_bearer_wrappers_emit_a_bearer_header_and_keep_their_name(
+    ) {
+        let auth =
+            PetStoreBearerAuthenticator::new("https://api.example.com", Some("explicit-token"))
+                .unwrap();
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer explicit-token")
+        );
+        let debug = format!("{:?}", auth);
+        assert!(
+            debug.starts_with("PetStoreBearerAuthenticator("),
+            "{}",
+            debug
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_025_the_environment_variable_is_read_once_for_every_request() {
+        let auth = with_variables(&set_all(), || {
+            let auth = PetStoreBearerAuthenticator::new("https://api.example.com", None).unwrap();
+            std::env::set_var(
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN",
+                "changed-after-build",
+            );
+            auth
+        });
+        for _ in 0..2 {
+            let headers = auth.auth_headers().await;
+            assert_eq!(
+                headers.get("Authorization").map(|s| s.as_str()),
+                Some("Bearer value-token")
+            );
+        }
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -689,6 +758,41 @@ mod api_key_header_authenticator {
             )
             .is_ok());
         });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authapikey_021_the_key_is_read_from_the_environment_and_a_passed_key_wins() {
+        let from_environment = with_variables(&set_all(), || {
+            ApiKeyHeaderAuthenticator::new("https://api.example.com", None).unwrap()
+        });
+        let expected = "value-api_key";
+        let headers = from_environment.auth_headers().await;
+        let query = from_environment.query_params();
+        let cookies = from_environment.cookie_params();
+        assert!(
+            headers
+                .values()
+                .chain(query.values())
+                .chain(cookies.values())
+                .any(|v| v.as_str() == expected),
+            "the environment value was not emitted"
+        );
+
+        let explicit = with_variables(&set_all(), || {
+            ApiKeyHeaderAuthenticator::new("https://api.example.com", Some("explicit-api_key"))
+                .unwrap()
+        });
+        let headers = explicit.auth_headers().await;
+        let query = explicit.query_params();
+        let cookies = explicit.cookie_params();
+        assert!(
+            headers
+                .values()
+                .chain(query.values())
+                .chain(cookies.values())
+                .any(|v| v.as_str() == "explicit-api_key"),
+            "the passed key was not emitted"
+        );
     }
 }
 

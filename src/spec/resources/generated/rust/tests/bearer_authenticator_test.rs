@@ -175,6 +175,34 @@ fn test_bhv_authbearer_001_scheme_wrapper_debug_names_the_wrapper_and_redacts_th
     assert!(debug.contains("***"), "{}", debug);
 }
 
+/// A token outside printable ASCII is refused when the authenticator is built.
+#[test]
+fn test_bhv_authbearer_022_rejects_a_non_ascii_token_at_construction() {
+    match BearerAuthenticator::new("https://api.example.com", "tökén") {
+        Err(ConfigurationError::InvalidArgument(reason)) => {
+            assert!(reason.contains("printable ASCII"), "{}", reason)
+        }
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument, got {:?}",
+            other.map(|_| ())
+        ),
+    }
+}
+
+/// A token made only of whitespace is refused when the authenticator is built.
+#[test]
+fn test_bhv_authbearer_027_rejects_a_whitespace_only_token_at_construction() {
+    match BearerAuthenticator::new("https://api.example.com", "   ") {
+        Err(ConfigurationError::InvalidArgument(reason)) => {
+            assert!(reason.contains("must not be empty"), "{}", reason)
+        }
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument, got {:?}",
+            other.map(|_| ())
+        ),
+    }
+}
+
 /// The redacted representation shows the host and masks only the token.
 #[test]
 fn test_bhv_authbearer_013_redacted_representation_shows_the_host() {
