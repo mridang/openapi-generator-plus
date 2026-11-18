@@ -2825,6 +2825,27 @@ import Testing
     #expect(decoded.values == ["a", "b"])
   }
 
+  /* An object with no declared schema is written as a JSON object of its properties. */
+  @Test func testBhvMisc121AnObjectWithNoDeclaredSchemaIsWrittenAsAJsonObject() throws {
+    let data = try JSONEncoder().encode(
+      Metadata(additionalProperties: ["a": AnyCodable(1), "b": AnyCodable("x")]))
+    let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(json["a"] as? Int == 1)
+    #expect(json["b"] as? String == "x")
+  }
+
+  /* A generated enum lists its declared values and reports whether a given value is one of them. */
+  @Test func testBhvMisc137AGeneratedEnumListsItsDeclaredValues() {
+    #expect(OrderStatusEnum.allCases.map(\.rawValue) == ["placed", "approved", "delivered"])
+    #expect(OrderStatusEnum(rawValue: "approved") != nil)
+    #expect(OrderStatusEnum(rawValue: "cancelled") == nil)
+  }
+
+  /* Converting an enum member to text yields its wire value. */
+  @Test func testBhvMisc138ConvertingAnEnumMemberToTextYieldsItsWireValue() {
+    #expect("\(OrderStatusEnum.approved)" == "approved")
+  }
+
   /* An input object with no fields is filled with every declared default value. */
   @Test func testBhvMisc215AnInputObjectWithNoFieldsIsFilledWithEveryDeclaredDefault() throws {
     let defaults = Defaults()
@@ -2931,5 +2952,40 @@ import Testing
     let fields = try #require(
       try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
     #expect(Set(fields.keys) == ["username", "password"])
+  }
+
+  /* A free-form object-valued field keeps its object and integer entries through a JSON round trip. */
+  @Test func testBhvMisc249AFreeFormObjectKeepsItsObjectAndIntegerEntriesThroughARoundTrip() throws
+  {
+    let original = Freeform(additionalProperties: [
+      "meta": AnyCodable(["k": "v"]), "n": AnyCodable(7),
+    ])
+    let json = try ObjectSerializer.serialize(original)
+    let restored = try #require(
+      try ObjectSerializer.deserialize(Data(json.utf8), as: Freeform.self))
+    #expect(
+      (restored.additionalProperties["meta"]?.value as? [String: Any])?["k"] as? String == "v")
+    #expect(restored.additionalProperties["n"]?.value as? Int == 7)
+  }
+
+  /* A duration string with a day designator is rejected. */
+  @Test func testBhvMisc251ADurationStringWithADayDesignatorIsRejected() throws {
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.decodeDuration("1d")
+    }
+  }
+
+  /* An enum wire value containing separators round-trips unchanged. */
+  @Test func testBhvMisc252AnEnumWireValueWithSeparatorsRoundTripsUnchanged() throws {
+    enum Wire: String, Codable { case slashed = "a/b:c" }
+    struct Holder: Codable { let wire: Wire }
+    let json = try ObjectSerializer.serialize(Holder(wire: .slashed))
+    let restored = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Holder.self))
+    #expect(restored.wire == .slashed)
+  }
+
+  /* A fractional second is written with trailing zeros trimmed, keeping only the digits present. */
+  @Test func testBhvMisc256AFractionalSecondIsWrittenWithTrailingZerosTrimmed() throws {
+    #expect(try ObjectSerializer.encodeDuration(1.1) == "1.1s")
   }
 }

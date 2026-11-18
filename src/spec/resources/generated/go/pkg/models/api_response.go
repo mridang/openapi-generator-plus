@@ -38,6 +38,16 @@ func (o *ApiResponse) Equal(other *ApiResponse) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o ApiResponse) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "ApiResponse{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithCode returns a copy of the model with Code replaced; the receiver is unchanged.
 func (o ApiResponse) WithCode(value int32) ApiResponse {
 	o.Code = &value

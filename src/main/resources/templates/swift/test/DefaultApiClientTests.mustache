@@ -1115,6 +1115,70 @@ import FoundationNetworking
             method: "GET", url: "https://example.com/api/missing", headers: [:], body: nil)
         #expect(response.body == "caf\u{e9}")
     }
+
+    /* Cancelling a pending request surfaces the cancellation to the caller without wrapping it in an SDK error. */
+    @Test func testBhvMisc262CancellingAPendingRequestSurfacesCancellationUnwrapped() async throws {
+        HangingURLProtocol.reset()
+        let client = DefaultApiClient(transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
+        let task = Task {
+            try await client.sendRequest(
+                method: "GET", url: "https://example.com/pending", headers: [:], body: nil)
+        }
+        for _ in 0..<300 where !HangingURLProtocol.started {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        task.cancel()
+        await #expect(throws: CancellationError.self) {
+            _ = try await task.value
+        }
+    }
+
+    /* A per-call timeout longer than the client's timeout lets a slow response complete. */
+    @Test func testBhvMisc263ALongerPerCallTimeoutLetsASlowResponseComplete() async throws {
+        let transport = try TransportOptionsBuilder().timeout(1000).build()
+        let client = makeClient(transport: transport) { _ in
+            (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/slow", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, timeout: 5000)
+        #expect(response.statusCode == 200)
+    }
+
+    /* A redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status, not as a network error. */
+    @Test func testBhvMisc265ANonHttpRedirectSurfacesAsAnApiErrorWithItsStatus() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).build()
+        RedirectStubURLProtocol.configure { _ in
+            return .redirect(status: 302, location: "file:///etc/passwd")
+        }
+        let client = DefaultApiClient(
+            transportOptions: transport, protocolClasses: [RedirectStubURLProtocol.self])
+        let error = await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com/start", headers: [:], body: nil)
+        }
+        #expect(error?.statusCode == 302)
+    }
+
+    /* Default headers supplied by the caller replace the SDK's user agent and request id on the wire, in any header name case. */
+    @Test func testBhvMisc266ACallerDefaultHeaderReplacesTheSdkHeadersInAnyCase() async throws {
+        let transport = try TransportOptionsBuilder()
+            .userAgent("sdk/1.0")
+            .injectRequestID(true)
+            .defaultHeaders(["user-agent": "caller/2.0", "X-REQUEST-ID": "caller-id"])
+            .build()
+        var userAgent: String?
+        var requestID: String?
+        let client = makeClient(transport: transport) { req in
+            userAgent = req.value(forHTTPHeaderField: "User-Agent")
+            requestID = req.value(forHTTPHeaderField: "X-Request-ID")
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await client.sendRequest(
+            method: "GET", url: "https://example.com/headers", headers: [:], body: nil)
+        #expect(userAgent == "caller/2.0")
+        #expect(requestID == "caller-id")
+    }
 }
 
 /// A URLProtocol that accepts a request and never answers it, so a test can

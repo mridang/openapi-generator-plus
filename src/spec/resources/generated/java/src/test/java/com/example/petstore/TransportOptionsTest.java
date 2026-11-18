@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -734,5 +735,27 @@ class TransportOptionsTest {
                 .httpClient(java.net.http.HttpClient.newHttpClient())
                 .caCertPath("/tmp/ca.pem")
                 .build());
+  }
+
+  @Test
+  @DisplayName("bhvMisc298 a malformed proxy URL is rejected with an invalid proxy error")
+  void bhvMisc298AMalformedProxyUrlIsRejectedWithAnInvalidProxyError() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> TransportOptions.builder().proxy("ftp://proxy.example.com").build());
+    assertTrue(ex.getMessage().startsWith("Invalid proxy URL"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("bhvOptions068 a SOCKS proxy is refused at construction with the documented message")
+  void bhvOptions068ASocksProxyIsRefusedAtConstructionWithTheDocumentedMessage() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> TransportOptions.builder().proxy("socks5://proxy.example.com:1080"));
+    assertEquals(
+        "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
+        ex.getMessage());
   }
 }

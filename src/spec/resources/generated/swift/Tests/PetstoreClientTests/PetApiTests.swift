@@ -2607,4 +2607,16 @@ private func classify(_ call: () async throws -> Void) async -> String {
     let sent = mockClient.lastBody ?? Data()
     #expect(sent.range(of: Data("file-content-echo".utf8)) != nil)
   }
+
+  /* Each listed error HTTP status from the server raises the SDK's API error carrying that status code. */
+  @Test(arguments: [400, 404, 500])
+  func testBhvMisc264EachListedErrorStatusRaisesAnApiErrorWithThatCode(
+    status: Int
+  ) async throws {
+    let mockApi = petApiForMock(statusCode: status, body: "{}")
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await mockApi.getPetById(petId: 1)
+    }
+    #expect(error?.statusCode == status)
+  }
 }

@@ -39,6 +39,16 @@ func (o *Metadata) Equal(other *Metadata) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Metadata) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Metadata{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithCreatedAt returns a copy of the model with CreatedAt replaced; the receiver is unchanged.
 func (o Metadata) WithCreatedAt(value DateTime) Metadata {
 	o.CreatedAt = &value
