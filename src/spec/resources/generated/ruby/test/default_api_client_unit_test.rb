@@ -209,6 +209,33 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_misc_032 the raw response exposes its status code, body and headers under public names' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/raw') { [201, { 'x-raw' => 'yes' }, 'raw-body'] }
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/raw', {}, nil)
+      _(response.status_code).must_equal 201
+      _(response.body).must_equal 'raw-body'
+      _(response.headers['x-raw']).must_equal 'yes'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_040 response header names are returned in lower case' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/names') { [200, { 'X-Mixed-Case' => 'v' }, 'ok'] }
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/names', {}, nil)
+      _(response.headers['x-mixed-case']).must_equal 'v'
+      _(response.headers.keys.grep(/[A-Z]/)).must_be_empty
+    end
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_transport_051 returns response headers' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/echo') { [200, { 'x-test-header' => 'test-value' }, 'ok'] }
@@ -574,6 +601,21 @@ describe 'DefaultApiClientUnit' do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
     _(captured_body.to_s).must_include 'filename="a\\"b.txt"'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_036 a caller body part stays open after the request it was sent with fails' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') { raise Faraday::ConnectionFailed, 'connection refused' }
+    end
+    io = StringIO.new('payload')
+    client = Petstore::Client::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises(Petstore::Client::Errors::NetworkError) do
+        client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+      end
+    end
+    _(io.closed?).must_equal false
     stubs.verify_stubbed_calls
   end
 
@@ -1869,6 +1911,60 @@ describe 'DefaultApiClientUnit' do
     file&.unlink
   end
 
+  it 'bhv_misc_033 a pinned CA file holding only the root accepts a server that also sends the intermediate' do
+    issue = lambda do |subject, key, signer, signer_key, ca:|
+      cert = OpenSSL::X509::Certificate.new
+      cert.version = 2
+      cert.serial = rand(2..2**31)
+      cert.subject = OpenSSL::X509::Name.parse("/CN=#{subject}")
+      cert.issuer = signer ? signer.subject : cert.subject
+      cert.public_key = key.public_key
+      cert.not_before = Time.now - 60
+      cert.not_after = Time.now + 3600
+      factory = OpenSSL::X509::ExtensionFactory.new(signer || cert, cert)
+      cert.add_extension(factory.create_extension('basicConstraints', ca ? 'CA:TRUE' : 'CA:FALSE', true))
+      cert.add_extension(factory.create_extension('subjectAltName', 'DNS:localhost,IP:127.0.0.1')) unless ca
+      cert.sign(signer_key || key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+      cert
+    end
+    root_key = OpenSSL::PKey::RSA.new(2048)
+    intermediate_key = OpenSSL::PKey::RSA.new(2048)
+    leaf_key = OpenSSL::PKey::RSA.new(2048)
+    root = issue.call('bhv-root-ca', root_key, nil, nil, ca: true)
+    intermediate = issue.call('bhv-intermediate-ca', intermediate_key, root, root_key, ca: true)
+    leaf = issue.call('localhost', leaf_key, intermediate, intermediate_key, ca: false)
+
+    tcp = TCPServer.new('127.0.0.1', 0)
+    port = tcp.addr[1]
+    context = OpenSSL::SSL::SSLContext.new
+    context.cert = leaf
+    context.key = leaf_key
+    context.extra_chain_cert = [intermediate]
+    tls = OpenSSL::SSL::SSLServer.new(tcp, context)
+    thread = Thread.new do
+      conn = tls.accept
+      conn.gets
+      while (line = conn.gets)
+        break if line.strip.empty?
+      end
+      conn.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
+      conn.close
+    rescue StandardError
+      nil
+    end
+    file = Tempfile.new(['root', '.pem'])
+    file.write(root.to_pem)
+    file.close
+    transport = Petstore::Client::TransportOptions.builder.ca_cert_path(file.path).build
+
+    response = Petstore::Client::DefaultApiClient.new(transport).send_request('GET', "https://127.0.0.1:#{port}/ping", {}, nil)
+    _(response.status_code).must_equal 200
+  ensure
+    tls&.close
+    thread&.join(5)
+    file&.unlink
+  end
+
   it 'bhv_langruby_038 leaves the certificate store unset when no CA is configured' do
     ssl = Petstore::Client::DefaultApiClient.new.send(:build_connection).ssl
     _(ssl.cert_store).must_be_nil
@@ -2788,6 +2884,12 @@ describe 'DefaultApiClientUnit' do
       end
       _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
     end
+  end
+
+  it 'bhv_errors_098 a missing CA certificate fails with an ArgumentError that wraps the not-found cause' do
+    transport = Petstore::Client::TransportOptions.builder.ca_cert_path('/nonexistent/bhv-ca-098.pem').build
+    err = assert_raises(ArgumentError) { Petstore::Client::DefaultApiClient.new(transport) }
+    _(err.message).must_include 'No such file or directory'
   end
 
   it 'bhv_errors_083 names the CA certificate path that cannot be read, at construction' do
