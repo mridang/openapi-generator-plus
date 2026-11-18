@@ -423,7 +423,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("every part carries only Content-Disposition and Content-Type; field names are backslash-escaped")
+        @DisplayName("bhvSerialization056 every part carries only Content-Disposition and Content-Type; field names are backslash-escaped")
         fun partsCarryOnlyDispositionAndContentType() {
             var bodyBytes: ByteArray? = null
             var contentLength: Long? = null
@@ -1181,7 +1181,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("the SDK's own Proxy-Authorization survives a cross-origin http hop; caller credentials do not")
+        @DisplayName("bhvRedirects044 the SDK's own Proxy-Authorization survives a cross-origin http hop; caller credentials do not")
         fun proxyCredentialsSurviveCrossOriginRedirect() {
             val hops = mutableListOf<io.ktor.http.Headers>()
             val engine = MockEngine { req ->
@@ -1606,7 +1606,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.3: HTTPS->HTTP without body still allowed (no payload to leak)")
+        @DisplayName("bhvRedirects039 Gap 3.3: HTTPS->HTTP without body still allowed (no payload to leak)")
         fun httpsToHttpAllowedWithoutBody() {
             var hopCount = 0
             val engine = MockEngine { _ ->
@@ -1904,7 +1904,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("br and zstd without their codec library raise instead of returning the encoded body")
+        @DisplayName("bhvTransport074 br and zstd without their codec library raise instead of returning the encoded body")
         fun missingCodecLibraryRaises() {
             for (encoding in listOf("br", "zstd")) {
                 val ex = assertThrows(java.io.IOException::class.java) {
@@ -2059,7 +2059,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a parameter that only ends in charset is not the charset")
+        @DisplayName("bhvSerialization055 a parameter that only ends in charset is not the charset")
         fun ignoresAParameterNameThatMerelyEndsInCharset() {
             assertEquals(Charsets.UTF_8, charsetFor("text/plain; xcharset=ISO-8859-1"))
         }
@@ -2087,7 +2087,7 @@ class DefaultApiClientUnitTest {
     inner class ProxyAuthHeader {
 
         @Test
-        @DisplayName("a literal plus in the proxy userinfo is kept, not turned into a space")
+        @DisplayName("bhvTransport076 a literal plus in the proxy userinfo is kept, not turned into a space")
         fun keepsALiteralPlus() {
             val expected = java.util.Base64.getEncoder().encodeToString("svc:pa+ss".toByteArray(Charsets.UTF_8))
             assertEquals("Basic $expected", buildProxyAuthHeader("http://svc:pa+ss@proxy.example.com:3128"))
@@ -2378,7 +2378,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("an unreadable caCertPath is reported as a read failure naming the quoted path")
+        @DisplayName("bhvErrors083 an unreadable caCertPath is reported as a read failure naming the quoted path")
         fun unreadableCaCertPathNamesTheReadFailure() {
             val path = "/nonexistent/ca.pem"
             val transport = TransportOptions.builder().caCertPath(path).build()

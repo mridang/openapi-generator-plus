@@ -439,7 +439,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun renderedBodyNeverCutsAMultiByteCharacterInHalf() {
+    fun bhvErrors075RenderedBodyNeverCutsAMultiByteCharacterInHalf() {
         val body = "x".repeat(1023) + "\u00e9" + "tail"
 
         val rendered = ApiException(500, "boom", null, body).toString()

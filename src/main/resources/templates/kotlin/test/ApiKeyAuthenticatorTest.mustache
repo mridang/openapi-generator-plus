@@ -384,7 +384,7 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: a key provider feeds the header, query and cookie locations on every request")
+    @DisplayName("bhvAuth005 F862: a key provider feeds the header, query and cookie locations on every request")
     fun keyProviderFeedsEveryLocation() = runBlocking {
         var calls = 0
         for (location in ApiKeyLocation.values()) {

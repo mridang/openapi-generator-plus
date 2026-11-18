@@ -711,7 +711,7 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("matrix and label prefix the fields in a path")
+        @DisplayName("bhvSerialization015 matrix and label prefix the fields in a path")
         fun matrixAndLabelPrefixFields() {
             assertEquals(";p=breed,lab,min_age,3", ValueSerializer.serializeStyled("p", fields, "path", "object", null, "matrix", false))
             assertEquals(";breed=lab;min_age=3", ValueSerializer.serializeStyled("p", fields, "path", "object", null, "matrix", true))

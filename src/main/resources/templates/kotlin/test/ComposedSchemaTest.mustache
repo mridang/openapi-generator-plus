@@ -224,7 +224,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("constructs PetTreatment with surgery instance")
+        @DisplayName("bhvUnions037 constructs PetTreatment with surgery instance")
         fun testConstructWithSurgery() {
             val surgery = Surgery(procedureName = "Spay", durationMinutes = 45)
             val treatment = PetTreatment(actualInstance = surgery)
@@ -575,7 +575,7 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a union with no variant answers false and null to every accessor")
+        @DisplayName("bhvUnions042 a union with no variant answers false and null to every accessor")
         fun testEmptyUnionAnswersNothing() {
             val union = ReserveStockResponse()
 

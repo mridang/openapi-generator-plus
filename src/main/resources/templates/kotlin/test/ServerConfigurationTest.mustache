@@ -197,7 +197,7 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("the variables map is a copy: later changes to the source map do not leak in")
+    @DisplayName("bhvServers025 the variables map is a copy: later changes to the source map do not leak in")
     fun variablesAreCopiedAtConstruction() {
         val source = mutableMapOf("env" to ServerVariable("api", null, emptyList()))
         val server = ServerConfiguration("https://{env}.example.com", null, source)

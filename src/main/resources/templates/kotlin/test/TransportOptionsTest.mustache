@@ -471,7 +471,7 @@ class TransportOptionsTest {
     inner class CustomHttpClient {
 
         @Test
-        @DisplayName("httpClient defaults to null and is kept when set")
+        @DisplayName("bhvOptions058 httpClient defaults to null and is kept when set")
         fun httpClientIsKept() {
             assertNull(TransportOptions.builder().build().httpClient)
             val custom = HttpClient(MockEngine { respondOk() })

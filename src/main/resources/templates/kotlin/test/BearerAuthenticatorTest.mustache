@@ -309,7 +309,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: a scheme's authenticator takes the argument first, then the variable, then the provider")
+    @DisplayName("bhvAuth022 F862: a scheme's authenticator takes the argument first, then the variable, then the provider")
     fun schemeWrapperPrecedence() = runBlocking {
         val provider: suspend () -> String = { "from-provider" }
         val env = mapOf("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" to "from-env")
