@@ -1970,3 +1970,8 @@ langkotlin025 | Exactly the redirect statuses trigger a follow-up request, and n
 langkotlin026 | A timeout raised by the structured-concurrency timeout helper is not wrapped again
 langkotlin027 | A cancelled job surfaces its own cancellation and is not wrapped in an SDK error
 langkotlin028 | A text plain media type is not treated as JSON
+langkotlin029 | A model additional properties are read and written through its own accessor
+langkotlin030 | The additional properties constructor parameter is kept when the model is copied
+langkotlin031 | The spec directory of the generated project is compiled, run and linted by its own build
+langkotlin032 | Every development dependency the generated tests use is declared in the project manifest
+langkotlin033 | Generated sources contain no HTML character entities
