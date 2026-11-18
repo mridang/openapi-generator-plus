@@ -690,4 +690,14 @@ public class TransportOptionsTest
 
         _ = Assert.Throws<ArgumentException>(() => builder.Build());
     }
+
+    [Fact]
+    public void BhvOptions068ASocksProxySchemeFailsAtConstructionWithTheDocumentedMessage()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy("socks5://proxy.example.com:1080").Build()
+        );
+
+        Assert.Contains("must use http or https scheme", ex.Message, StringComparison.Ordinal);
+    }
 }

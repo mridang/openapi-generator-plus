@@ -57,6 +57,11 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array") == "a,b,c"
     end
 
+    test "bhv misc 250 array items containing a comma keep the literal comma across path and query styles" do
+      assert PetstoreClient.ValueSerializer.serialize(["a,b", "c"], :path, "array") == "a,b,c"
+      assert PetstoreClient.ValueSerializer.serialize(["a,b", "c"], :query, "array") == "a,b,c"
+    end
+
     test "bhv serializationparam 009 array joins with space for ssv" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array",
                collection_format: :ssv
@@ -1480,6 +1485,17 @@ defmodule PetstoreClient.ValueSerializerTest do
       for location <- [:path, :query, :header] do
         assert PetstoreClient.ValueSerializer.serialize(5, location, "integer") == "5"
       end
+    end
+  end
+
+  describe "misc parity deep object" do
+    test "bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, with absent values left out" do
+      assert PetstoreClient.ValueSerializer.serialize_deep_object("filter", %{
+               "b" => "2",
+               "c" => nil,
+               "a" => "1"
+             }) ==
+               %{"filter[a]" => "1", "filter[b]" => "2"}
     end
   end
 end

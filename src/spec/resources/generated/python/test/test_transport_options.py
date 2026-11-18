@@ -503,3 +503,22 @@ class TestTransportOptionsBehaviours:
     ) -> None:
         with pytest.raises(ValueError):
             TransportOptions.builder().proxy("socks5://127.0.0.1:1080").build()
+
+
+class TestCredentialHeaderNames:
+    def test_bhv_misc_175_credential_header_names_are_recognised_in_any_letter_case(
+        self,
+    ) -> None:
+        from petstore_client.transport_options import _is_sensitive_header
+
+        assert _is_sensitive_header("X-API-KEY") is True
+        assert _is_sensitive_header("x-auth-TOKEN") is True
+        assert _is_sensitive_header("Authorization") is True
+
+    def test_bhv_misc_175_ordinary_header_names_are_not_credential_bearing(
+        self,
+    ) -> None:
+        from petstore_client.transport_options import _is_sensitive_header
+
+        assert _is_sensitive_header("Accept") is False
+        assert _is_sensitive_header("X-Request-Id") is False

@@ -36,6 +36,20 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvMisc137AGeneratedEnumListsItsValuesAndReportsMembership()
+        {
+            Assert.Equal(3, Enum.GetValues<Priority>().Length);
+            Assert.True(Enum.IsDefined(Priority.Number2));
+            Assert.False(Enum.IsDefined((Priority)999));
+        }
+
+        [Fact]
+        public void BhvMisc138ConvertingAMemberToTextYieldsItsWireValue()
+        {
+            Assert.Equal("on-hold", ObjectSerializer.Stringify(Availability.OnHold));
+        }
+
+        [Fact]
         public void BhvSerializationobject110NullReturnsEmptyString()
         {
             Assert.Equal("", ObjectSerializer.Stringify(null));
@@ -195,6 +209,12 @@ public static class ObjectSerializerTest
         {
             Assert.Equal("false", ObjectSerializer.ToPathValue(false));
         }
+
+        [Fact]
+        public void BhvMisc232AStringPathParameterPercentEncodesSlashesInExplicitSimpleStyle()
+        {
+            Assert.Equal("a%2Fb", ObjectSerializer.ToPathValue("a/b"));
+        }
     }
 
     public class ToQueryValueTests
@@ -289,6 +309,43 @@ public static class ObjectSerializerTest
         {
             var values = new List<string> { "a", "b", "c" };
             Assert.Equal("a b c", ObjectSerializer.ToQueryValue(values, "ssv"));
+        }
+
+        [Fact]
+        public void BhvMisc236ADateOnlyValueIsWrittenAsIsoDateInQueryHeaderAndPathLocations()
+        {
+            var date = new DateOnly(2024, 1, 15);
+
+            Assert.Equal("2024-01-15", ObjectSerializer.ToQueryValue(date, null));
+            Assert.Equal("2024-01-15", ObjectSerializer.ToHeaderValue(date));
+            Assert.Equal("2024-01-15", ObjectSerializer.ToPathValue(date));
+        }
+
+        [Fact]
+        public void BhvMisc238ANumberQueryParameterIsSentAsAPlainNumber()
+        {
+            Assert.Equal("42", ObjectSerializer.ToQueryValue(42, null));
+            Assert.Equal("2.5", ObjectSerializer.ToQueryValue(2.5, null));
+        }
+
+        [Fact]
+        public void BhvMisc241ATimeOfDayQueryValueIsSentWithoutMilliseconds()
+        {
+            Assert.Equal(
+                "10:30:15",
+                ObjectSerializer.ToQueryValue(new TimeOnly(10, 30, 15, 999), null)
+            );
+        }
+
+        [Fact]
+        public void BhvMisc250AnArrayItemContainingACommaKeepsTheLiteralComma()
+        {
+            var items = new List<string> { "a,b", "c" };
+
+            Assert.Equal(
+                new List<string> { "a,b", "c" },
+                ObjectSerializer.ToQueryValue(items, "multi")
+            );
         }
     }
 
@@ -399,6 +456,16 @@ public static class ObjectSerializerTest
         public void BhvSerializationobject040ConvertsIntegerToString()
         {
             Assert.Equal("42", ObjectSerializer.ToCookieValue(42));
+        }
+
+        [Fact]
+        public void BhvMisc233ACookieCarryingAJsonModelIsFullyPercentEncoded()
+        {
+            var cookie = ObjectSerializer.ToCookieValue(new Freeform { Label = "a.b:c" });
+
+            Assert.DoesNotContain(":", cookie, StringComparison.Ordinal);
+            Assert.DoesNotContain(".", cookie, StringComparison.Ordinal);
+            Assert.Contains("%3A", cookie, StringComparison.Ordinal);
         }
     }
 
@@ -801,6 +868,72 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
+        public void BhvMisc087ADecimalInALooselyBuiltBodyIsABareJsonNumber()
+        {
+            string json = _serializer.Serialize(
+                new Dictionary<string, object> { ["weightKg"] = 12.5m }
+            );
+            Assert.Contains("\"weightKg\":12.5", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"weightKg\":\"12.5\"", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc088ADecimalDecodedFromTextKeepsItsDecimalPlaces()
+        {
+            decimal? value = _serializer.Deserialize<decimal>("12.50");
+            Assert.Equal(
+                "12.50",
+                value!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            );
+        }
+
+        [Fact]
+        public void BhvMisc089ADateTimeInAContainerIsWrittenInCanonicalForm()
+        {
+            var times = new List<DateTimeOffset>
+            {
+                new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero),
+            };
+            Assert.Contains(
+                "\"2026-01-02T03:04:05.000+00:00\"",
+                _serializer.Serialize(times),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void BhvMisc090ADurationInARecordWritesItsFractionalSeconds()
+        {
+            var durations = new Dictionary<string, TimeSpan>
+            {
+                { "retry", TimeSpan.FromMilliseconds(1500) },
+            };
+            Assert.Contains(
+                "\"retry\":\"1.500s\"",
+                _serializer.Serialize(durations),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void BhvMisc092PropertiesAreMatchedOnlyByTheirWireName()
+        {
+            var category = _serializer.Deserialize<Category>("{\"name\":\"x\",\"Name\":\"Dogs\"}");
+            Assert.Equal("x", category!.Name);
+        }
+
+        [Fact]
+        public void BhvMisc094AFreeFormObjectIsWrittenWithItsMembersUnchanged()
+        {
+            var freeForm = new Dictionary<string, object>
+            {
+                ["b"] = new object[] { 1, "x" },
+                ["a"] = new Dictionary<string, object> { ["c"] = true },
+            };
+            Assert.Equal("{\"a\":{\"c\":true},\"b\":[1,\"x\"]}", _serializer.Serialize(freeForm));
+        }
+
+        [Fact]
         public void BhvSerializationobject152SerializesModelToValidJson()
         {
             var category = new Category { Id = 1L, Name = "Dogs" };
@@ -933,6 +1066,24 @@ public static class ObjectSerializerTest
         public void BhvLangcsharp003FreeFormNullStaysNullAfterDecoding()
         {
             Assert.Null(_serializer.Deserialize<EdgeCases>("{\"freeFormAny\":null}")!.FreeFormAny);
+        }
+
+        [Fact]
+        public void BhvMisc234AModelInAListKeepsItsAdditionalPropertiesThroughARoundTrip()
+        {
+            var serializer = new ObjectSerializer();
+            var original = new List<Freeform>
+            {
+                new()
+                {
+                    Label = "x",
+                    AdditionalProperties = new() { ["extra"] = "y" },
+                },
+            };
+
+            var restored = serializer.Deserialize<List<Freeform>>(serializer.Serialize(original));
+
+            Assert.Equal("y", restored!.Single().AdditionalProperties["extra"].ToString());
         }
     }
 
@@ -1122,6 +1273,17 @@ public static class ObjectSerializerTest
             Assert.Equal(0.25f, fromEmpty.Scale);
             Assert.Equal(2.0, fromEmpty.Weight);
             Assert.Equal(9000000000L, fromEmpty.Ceiling);
+        }
+
+        [Fact]
+        public void BhvMisc252AnEnumWireValueWithSeparatorsRoundTripsUnchanged()
+        {
+            var serializer = new ObjectSerializer();
+            foreach (var member in Enum.GetValues<Separator>())
+            {
+                var wire = serializer.Serialize(member);
+                Assert.Equal(member, serializer.Deserialize<Separator>(wire));
+            }
         }
     }
 
@@ -1608,6 +1770,18 @@ public static class ObjectSerializerTest
                 _serializer.Deserialize<TimeSpan>("\"315576000001s\"")
             );
         }
+
+        [Fact]
+        public void BhvMisc235ADurationWithFractionalSecondsKeepsItsFractionWhenSerialized()
+        {
+            Assert.Equal("1.5s", ObjectSerializer.Format(TimeSpan.FromMilliseconds(1500)));
+        }
+
+        [Fact]
+        public void BhvMisc256AFractionalSecondIsWrittenWithTrailingZerosTrimmed()
+        {
+            Assert.Equal("1.1s", ObjectSerializer.Format(TimeSpan.FromMilliseconds(1100)));
+        }
     }
 
     public class DiscriminatorAutoInjectionTests
@@ -1717,6 +1891,32 @@ public static class ObjectSerializerTest
         public void BhvSerializationobject103MalformedUuidFailsToDeserialize(string json)
         {
             Assert.Throws<SerializationException>(() => _serializer.Deserialize<GuidHolder>(json));
+        }
+
+        [Fact]
+        public void BhvMisc247AUuidWithWrongSegmentLengthsIsRejected()
+        {
+            Assert.Throws<SerializationException>(() =>
+                new ObjectSerializer().Deserialize<Guid>(
+                    "\"123456789-1234-1234-1234-123456789012\""
+                )
+            );
+        }
+
+        [Fact]
+        public void BhvMisc242AReadOnlyPropertyIsNotSentAndAWriteOnlyPropertyIsNotReturned()
+        {
+            var json = new ObjectSerializer().Serialize(
+                new Account
+                {
+                    Id = 5,
+                    Username = "u",
+                    Password = "p",
+                }
+            );
+
+            Assert.DoesNotContain("\"id\"", json, StringComparison.Ordinal);
+            Assert.Contains("\"password\"", json, StringComparison.Ordinal);
         }
     }
 
@@ -2316,6 +2516,59 @@ public static class ObjectSerializerTest
             Assert.Equal(
                 "12.345678901234567890123",
                 ObjectSerializer.Stringify(12.345678901234567890123m)
+            );
+        }
+
+        [Fact]
+        public void BhvMisc214AnUnserializableQueryContentValueRaisesASerializationError()
+        {
+            var cyclic = new Dictionary<string, object>();
+            cyclic["self"] = cyclic;
+
+            Assert.Throws<SerializationException>(() => new ObjectSerializer().Serialize(cyclic));
+        }
+
+        [Fact]
+        public void BhvMisc215AnInputObjectWithNoFieldsIsFilledWithEveryDeclaredDefault()
+        {
+            var defaults = new Defaults();
+
+            Assert.Equal(3, defaults.Retries);
+            Assert.Equal(Defaults.ModeEnum.Medium, defaults.Mode);
+            Assert.Equal("untitled", defaults.Label);
+            Assert.Equal(Swatch.Green, defaults.Swatch);
+            Assert.Equal(1.5m, defaults.Ratio);
+            Assert.Equal(0.25f, defaults.Scale);
+            Assert.Equal(2d, defaults.Weight);
+            Assert.Equal(9000000000L, defaults.Ceiling);
+        }
+
+        [Fact]
+        public void BhvMisc216ABinaryValueDecodesToBytesWhileItsEncodedTextIsKept()
+        {
+            Assert.Equal(new byte[] { 0x68, 0x69 }, ObjectSerializer.Decode("aGk="));
+            Assert.Equal("aGk=", ObjectSerializer.Stringify(new byte[] { 0x68, 0x69 }));
+        }
+
+        [Fact]
+        public void BhvMisc230AModelWithNoExtraPropertiesWritesOnlyItsDeclaredKeys()
+        {
+            var json = new ObjectSerializer().Serialize(new Freeform { Label = "x" });
+
+            Assert.Equal("{\"label\":\"x\"}", json);
+        }
+
+        [Fact]
+        public void BhvMisc231AModelBuiltInCodeKeepsAWrongTypeThatDecodingRefuses()
+        {
+            var model = new Freeform
+            {
+                AdditionalProperties = new() { ["count"] = "not a number" },
+            };
+
+            Assert.Equal("not a number", model.AdditionalProperties["count"]);
+            Assert.Throws<SerializationException>(() =>
+                new ObjectSerializer().Deserialize<Counters>("{\"count\":\"not a number\"}")
             );
         }
     }
@@ -3530,6 +3783,304 @@ public static class ObjectSerializerTest
                 source,
                 StringComparison.Ordinal
             );
+        }
+    }
+
+    public class ModelValueTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void BhvMisc119AnEscapedDuplicateKeyIsTheSameKeyAndTheLastValueWins()
+        {
+            var category = _serializer.Deserialize<Category>(
+                @"{""name"":""First"",""\u006eame"":""Last""}"
+            );
+            Assert.Equal("Last", category!.Name);
+        }
+
+        [Fact]
+        public void BhvMisc121AnUndeclaredObjectIsWrittenAsAJsonObjectOfItsProperties()
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(
+                _serializer.Serialize(new Dictionary<string, object?> { { "b", "x" }, { "a", 1 } })
+            );
+            Assert.Equal(1, doc.RootElement.GetProperty("a").GetInt32());
+            Assert.Equal("x", doc.RootElement.GetProperty("b").GetString());
+        }
+
+        [Fact]
+        public void BhvMisc122AStringDefaultIsAppliedAsTheExactLiteral()
+        {
+            var defaults = _serializer.Deserialize<Defaults>("{}");
+            Assert.Equal("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b", defaults!.Greeting);
+        }
+
+        [Fact]
+        public void BhvMisc140DeserializingAModelWithoutARequiredPropertyNamesTheProperty()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Department>("{\"lead\":null}")
+            );
+            Assert.Contains("'name'", ex.ToString(), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc141AModelBuiltWithoutAValueKeepsTheSchemaDefault()
+        {
+            var defaults = new Defaults();
+            Assert.Equal(3, defaults.Retries);
+            Assert.Equal("untitled", defaults.Label);
+        }
+
+        [Fact]
+        public void BhvMisc142AdditionalPropertiesAreReturnedUnchangedByKeyAndHoldExactlyTheStoredEntries()
+        {
+            var metadata = _serializer.Deserialize<Metadata>(
+                "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"note\":\"x\",\"owner\":\"ann\"}"
+            );
+            Assert.Equal("x", metadata!.AdditionalProperties["note"]);
+            Assert.Equal(
+                new[] { "note", "owner" },
+                metadata.AdditionalProperties.Keys.OrderBy(k => k, StringComparer.Ordinal)
+            );
+        }
+
+        [Fact]
+        public void BhvMisc143ACopyKeepsTheAdditionalPropertiesAndComparesEqualToTheOriginal()
+        {
+            var original = new Metadata { AdditionalProperties = { ["customField"] = "a" } };
+            var copy = original with { };
+            Assert.Equal("a", copy.AdditionalProperties["customField"]);
+            Assert.Equal(original, copy);
+        }
+
+        [Fact]
+        public void BhvMisc144ValidatingAModelRefusesAStringGivenForANumericField()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Defaults>("{\"retries\":\"3\"}")
+            );
+        }
+
+        [Fact]
+        public void BhvMisc145ReadingTheUndeclaredKeysReturnsACopyThatLeavesTheInstanceUnchanged()
+        {
+            var metadata = _serializer.Deserialize<Metadata>("{\"note\":\"x\"}");
+            var copy = new Dictionary<string, string>(metadata!.AdditionalProperties);
+            copy["note"] = "changed";
+            Assert.Equal("x", metadata.AdditionalProperties["note"]);
+        }
+
+        [Fact]
+        public void BhvMisc146ACopyWithNoChangesIsANewInstanceThatComparesEqualToTheOriginal()
+        {
+            var original = new Metadata
+            {
+                CreatedAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            };
+            var copy = original with { };
+            Assert.NotSame(original, copy);
+            Assert.Equal(original, copy);
+        }
+
+        [Fact]
+        public void BhvMisc147ACopyHoldsTheSameNestedObjectAsTheOriginal()
+        {
+            var original = new Department
+            {
+                Name = "Ops",
+                Lead = new Employee { Name = "Ann" },
+            };
+            var copy = original with { Name = "Eng" };
+            Assert.Same(original.Lead, copy.Lead);
+        }
+
+        [Fact]
+        public void BhvMisc148ACopySerializesToTheWireFormOfTheOriginalWithItsChangesApplied()
+        {
+            var original = new Department
+            {
+                Name = "Ops",
+                Lead = new Employee { Name = "Ann" },
+            };
+            var copy = original with { Name = "Eng" };
+            using var doc = System.Text.Json.JsonDocument.Parse(_serializer.Serialize(copy));
+            Assert.Equal("Eng", doc.RootElement.GetProperty("name").GetString());
+            Assert.Equal(
+                "Ann",
+                doc.RootElement.GetProperty("lead").GetProperty("name").GetString()
+            );
+        }
+
+        [Fact]
+        public void BhvMisc150ModelsWhoseFieldsHoldEqualValuesCompareEqualAndDifferingValuesCompareUnequal()
+        {
+            var created = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            Assert.Equal(
+                new Metadata { CreatedAt = created },
+                new Metadata { CreatedAt = created }
+            );
+            Assert.NotEqual(
+                new Metadata { CreatedAt = created },
+                new Metadata { CreatedAt = created.AddYears(1) }
+            );
+        }
+
+        [Fact]
+        public void BhvMisc151AModelHoldingAMapComparesEqualWhenEntriesMatchAndUnequalWhenAnyDiffers()
+        {
+            var entries = new Dictionary<string, string> { ["a"] = "1", ["b"] = "2" };
+            var differs = new Dictionary<string, string> { ["a"] = "1", ["b"] = "3" };
+            Assert.Equal(
+                new Metadata { AdditionalProperties = new Dictionary<string, string>(entries) },
+                new Metadata { AdditionalProperties = new Dictionary<string, string>(entries) }
+            );
+            Assert.NotEqual(
+                new Metadata { AdditionalProperties = new Dictionary<string, string>(entries) },
+                new Metadata { AdditionalProperties = new Dictionary<string, string>(differs) }
+            );
+        }
+    }
+
+    public class SerializationEdgeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void BhvMisc102ABinaryFieldKeepsExactlyTheBytesGivenThroughCopy()
+        {
+            byte[] seal = [0x00, 0xFF, 0x0D, 0x0A];
+            var original = new BinaryVault { Seal = seal };
+
+            var copy = original with { };
+
+            Assert.Equal(seal, copy.Seal);
+        }
+
+        [Fact]
+        public void BhvMisc103ATolerantModelIgnoresAnUndeclaredKeyThatAStrictModelRefuses()
+        {
+            var category = _serializer.Deserialize<Category>(
+                "{\"id\":1,\"name\":\"Dogs\",\"unexpected\":true}"
+            );
+
+            Assert.NotNull(category);
+            Assert.Equal("Dogs", category!.Name);
+        }
+
+        [Fact]
+        public void BhvMisc104AnEmailFormatStringDecodesWithoutValidation()
+        {
+            Assert.Equal("x@", _serializer.Deserialize<string>("\"x@\""));
+        }
+
+        [Fact]
+        public void BhvMisc105ACopyDoesNotValidateTheValuesItIsGiven()
+        {
+            var original = new Reservation(31L, 4);
+
+            Reservation copy = original with { Quantity = -1 };
+
+            Assert.Equal(-1, copy.Quantity);
+        }
+
+        [Fact]
+        public void BhvMisc106ANullArrayElementKeepsItsPosition()
+        {
+            Assert.Equal("[1,null,2]", _serializer.Serialize(new List<int?> { 1, null, 2 }));
+        }
+
+        [Fact]
+        public void BhvMisc107AScalarFormParameterIsItsStringValue()
+        {
+            Assert.Equal("42", ObjectSerializer.ToFormValue(42));
+        }
+
+        [Fact]
+        public void BhvMisc108AValidIntegerEnumMemberKeepsItsWireValue()
+        {
+            var json = _serializer.Serialize(new StockItem(Priority.Number3));
+
+            Assert.Contains("\"priority\":3", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc109AStrictModelNestedInsideAnotherIsRefusedForAnUndeclaredKey()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Dictionary<string, StrictTag>>(
+                    "{\"outer\":{\"id\":1,\"name\":\"x\",\"unexpected\":true}}"
+                )
+            );
+        }
+
+        [Fact]
+        public void BhvMisc110AListOfDatesIsRefusedWhenAnElementIsNotADate()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<List<DateOnly>>("[\"2024-01-02\",\"not-a-date\"]")
+            );
+        }
+
+        [Fact]
+        public void BhvMisc111ASetOfStringsIsWrittenInCodePointOrder()
+        {
+            Assert.Equal(
+                "[\"a\",\"b\",\"c\"]",
+                _serializer.Serialize(new HashSet<string> { "c", "a", "b" })
+            );
+        }
+
+        [Fact]
+        public void BhvMisc112ARepeatedElementOfAUniqueArrayKeepsOneCopy()
+        {
+            var set = _serializer.Deserialize<HashSet<string>>("[\"a\",\"a\",\"b\"]");
+
+            Assert.Equal(2, set!.Count);
+        }
+
+        [Fact]
+        public void BhvMisc113ADescriptionShowsTheContentsOfByteArraysInsideACollection()
+        {
+            var text = ObjectSerializer.Describe(
+                new List<byte[]> { new byte[] { 4, 5 }, new byte[] { 6 } }
+            );
+
+            Assert.Equal("[BAU=, Bg==]", text);
+        }
+
+        [Fact]
+        public void BhvMisc115ABareStringSerializesAsAQuotedJsonString()
+        {
+            Assert.Equal("\"hi\"", _serializer.Serialize("hi"));
+        }
+
+        [Fact]
+        public void BhvMisc116AnInt32AcceptsItsBoundsAndRefusesOverflowAndFractions()
+        {
+            Assert.Equal(int.MaxValue, _serializer.Deserialize<int?>("2147483647"));
+            Assert.Equal(int.MinValue, _serializer.Deserialize<int?>("-2147483648"));
+            foreach (var wire in new[] { "2147483648", "-2147483649", "1.5" })
+            {
+                Assert.Throws<SerializationException>(() => _serializer.Deserialize<int?>(wire));
+            }
+        }
+
+        [Fact]
+        public void BhvMisc117AnAbsentValueSerializesAsTheJsonNull()
+        {
+            Assert.Equal("null", _serializer.Serialize(null));
+        }
+
+        [Fact]
+        public void BhvMisc118AnExactCaseDuplicateWinsOverADifferentlyCasedOne()
+        {
+            var category = _serializer.Deserialize<Category>(
+                "{\"name\":\"exact\",\"NAME\":\"other\"}"
+            );
+
+            Assert.Equal("exact", category!.Name);
         }
     }
 }
