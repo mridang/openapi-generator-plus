@@ -2955,7 +2955,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
-  test "a request that timed out is not retried" do
+  test "bhv retries 042 a request that timed out is not retried" do
     state = retry_state([{:transport_error, :timeout}, 200])
 
     assert {:error, %PetstoreClient.Errors.NetworkTimeoutError{}} = get_thing(state)

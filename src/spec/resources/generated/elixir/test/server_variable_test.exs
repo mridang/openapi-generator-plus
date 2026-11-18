@@ -41,6 +41,15 @@ defmodule PetstoreClient.ServerVariableTest do
       assert variable.enum_values == ["prod", "staging"]
     end
 
+    test "bhv servers 024 the enum values cannot be changed by updating a copy of the variable" do
+      variable = %ServerVariable{default_value: "prod", enum_values: ["prod", "staging"]}
+
+      updated = %{variable | enum_values: ["dev"]}
+
+      assert updated.enum_values == ["dev"]
+      assert variable.enum_values == ["prod", "staging"]
+    end
+
     test "requires the default_value key" do
       assert_raise ArgumentError, fn ->
         struct!(ServerVariable, description: "missing default")
