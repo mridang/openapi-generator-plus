@@ -14,17 +14,19 @@ class ServerVariable {
   /// specified.
   final String description;
 
-  /// Allowed values for this variable.
+  /// Allowed values for this variable, frozen so a caller cannot change them.
   ///
   /// An empty list means any value is accepted.
-  final List<String> enumValues;
+  List<String> get enumValues => List.unmodifiable(_enumValues);
+
+  final List<String> _enumValues;
 
   /// Create a new server variable.
   const ServerVariable({
     required this.defaultValue,
     this.description = '',
-    this.enumValues = const [],
-  });
+    List<String> enumValues = const [],
+  }) : _enumValues = enumValues;
 }
 
 /// Represents a single server entry from the OpenAPI specification.

@@ -102,11 +102,14 @@ void main() {
       expect(restored['foodType'], equals('dry'));
     });
 
-    test('DryFood fills the discriminator default when its key is absent', () {
-      final food = DryFood.fromJson(<String, dynamic>{'weightKg': 2.5});
+    test(
+      'bhv unions 030 DryFood fills the discriminator default when its key is absent',
+      () {
+        final food = DryFood.fromJson(<String, dynamic>{'weightKg': 2.5});
 
-      expect(food.foodType, equals('dry'));
-    });
+        expect(food.foodType, equals('dry'));
+      },
+    );
 
     test('DryFood rejects an explicit null discriminator', () {
       expect(
@@ -117,6 +120,54 @@ void main() {
         throwsA(isA<SerializationException>()),
       );
     });
+
+    test('bhv unions 029 oneOf wrappers have value equality', () {
+      final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
+      final a = PetFood.fromJson(json);
+      final b = PetFood.fromJson(json);
+
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test(
+      'bhv unions 033 an unknown, missing or empty discriminator fails with SerializationException',
+      () {
+        for (final json in <Map<String, dynamic>>[
+          {'foodType': 'raw', 'calories': 300},
+          {'calories': 300},
+          {'foodType': '', 'weightKg': 2.5},
+        ]) {
+          expect(
+            () => PetFood.fromJson(json),
+            throwsA(isA<SerializationException>()),
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv unions 034 a oneOf wrapper typed accessor returns the held variant and null for the other',
+      () {
+        final dry = PetFood.dryFood(DryFood(weightKg: 2.5));
+
+        expect(dry.asDryFood, isNotNull);
+        expect(dry.asWetFood, isNull);
+      },
+    );
+
+    test(
+      'bhv unions 035 a discriminator value not listed in the mapping fails to deserialize',
+      () {
+        expect(
+          () => PetFood.fromJson(<String, dynamic>{
+            'foodType': 'raw',
+            'calories': 300,
+          }),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
 
     test(
       'bhv unions 001 PetFood constructor wraps a variant that serializes with its discriminator',
@@ -140,7 +191,7 @@ void main() {
     });
 
     test(
-      'PetFood typed constructors, is and as accessors name the variant',
+      'bhv unions 032 PetFood typed constructors, is and as accessors name the variant',
       () {
         final dry = PetFood.dryFood(DryFood(weightKg: 2.5));
         final wet = PetFood.wetFood(WetFood(volumeMl: 400));
