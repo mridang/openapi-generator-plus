@@ -192,7 +192,9 @@ public class ProblemsApi extends BaseApi {
             java.util.Map.entry(
                 "default",
                 (com.example.petstore.errors.ErrorFactory)
-                    com.example.petstore.errors.UnexpectedFailureException::fromErrorResponse)));
+                    com.example.petstore.errors.UnexpectedFailureException::fromErrorResponse)),
+        "getFallback",
+        "/fallbacks/{fallbackId}");
   }
 
   /**
@@ -292,7 +294,9 @@ public class ProblemsApi extends BaseApi {
             java.util.Map.entry(
                 "404",
                 (com.example.petstore.errors.ErrorFactory)
-                    com.example.petstore.errors.MemberNotFoundException::fromErrorResponse)));
+                    com.example.petstore.errors.MemberNotFoundException::fromErrorResponse)),
+        "getMember",
+        "/members/{memberId}");
   }
 
   /**
@@ -392,7 +396,9 @@ public class ProblemsApi extends BaseApi {
             java.util.Map.entry(
                 "404",
                 (com.example.petstore.errors.ErrorFactory)
-                    com.example.petstore.errors.ProjectNotFoundException::fromErrorResponse)));
+                    com.example.petstore.errors.ProjectNotFoundException::fromErrorResponse)),
+        "getProject",
+        "/projects/{projectId}");
   }
 
   /**
@@ -491,7 +497,9 @@ public class ProblemsApi extends BaseApi {
             java.util.Map.entry(
                 "4XX",
                 (com.example.petstore.errors.ErrorFactory)
-                    com.example.petstore.errors.RejectedRequestException::fromErrorResponse)));
+                    com.example.petstore.errors.RejectedRequestException::fromErrorResponse)),
+        "getRange",
+        "/ranges/{rangeId}");
   }
 
   /**
@@ -591,7 +599,9 @@ public class ProblemsApi extends BaseApi {
             java.util.Map.entry(
                 "5XX",
                 (com.example.petstore.errors.ErrorFactory)
-                    com.example.petstore.errors.UpstreamFailureException::fromErrorResponse)));
+                    com.example.petstore.errors.UpstreamFailureException::fromErrorResponse)),
+        "getUpstream",
+        "/upstreams/{upstreamId}");
   }
 
   /**
@@ -702,7 +712,9 @@ public class ProblemsApi extends BaseApi {
             java.util.Map.entry(
                 "423",
                 (com.example.petstore.errors.ErrorFactory)
-                    com.example.petstore.errors.StateConflictException::fromErrorResponse)));
+                    com.example.petstore.errors.StateConflictException::fromErrorResponse)),
+        "takeLock",
+        "/locks/{lockId}");
   }
 
   /**

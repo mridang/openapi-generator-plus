@@ -84,6 +84,7 @@ class ClientTest {
                 "browserAuth",
                 "ssoAuth",
                 "build",
+                "callHook",
                 "transportOptions")
             .stream()
             .sorted()
@@ -270,6 +271,46 @@ class ClientTest {
   void bhvLifecycle006BearerRejectsCrLfAndNonAscii() {
     for (String token : new String[] {"abc\r\ndef", "töken"}) {
       assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator("/api/v3", token));
+    }
+  }
+
+  @Test
+  void bhvHooks010TheClientBuilderHandsTheHookToEveryApiAndItFiresWithASuppliedTransport()
+      throws Exception {
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(
+            new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          byte[] body = "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          exchange.getResponseBody().write(body);
+          exchange.close();
+        });
+    server.start();
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    java.util.List<String> started = new java.util.concurrent.CopyOnWriteArrayList<>();
+    java.util.List<Integer> finished = new java.util.concurrent.CopyOnWriteArrayList<>();
+    CallHook hook =
+        (info, headers) -> {
+          started.add(info.operationId() + " " + info.urlTemplate());
+          return outcome -> finished.add(outcome.statusCode());
+        };
+    try (supplied) {
+      Client client =
+          Client.builder("http://127.0.0.1:" + server.getAddress().getPort())
+              .transportOptions(TransportOptions.builder().httpClient(supplied).build())
+              .callHook(hook)
+              .build();
+      client.store.getInventory();
+
+      assertEquals(java.util.List.of("getInventory /store/inventory"), started);
+      assertEquals(java.util.List.of(200), finished);
+      client.close();
+    } finally {
+      server.stop(0);
     }
   }
 }

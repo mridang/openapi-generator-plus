@@ -227,7 +227,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "createAccount",
+        "/store/account");
   }
 
   /**
@@ -321,7 +323,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "deleteOrder",
+        "/store/order/{orderId}");
   }
 
   /**
@@ -430,7 +434,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getBySwatch",
+        "/store/by-swatch/{pathSwatch}");
   }
 
   /**
@@ -503,7 +509,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getDefaults",
+        "/store/defaults");
   }
 
   /**
@@ -576,7 +584,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getDepartment",
+        "/store/department");
   }
 
   /**
@@ -651,7 +661,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getGroupedCategories",
+        "/store/grouped-categories");
   }
 
   /**
@@ -725,7 +737,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getInventory",
+        "/store/inventory");
   }
 
   /**
@@ -798,7 +812,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getMatrix",
+        "/store/matrix");
   }
 
   /**
@@ -894,7 +910,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getOrderById",
+        "/store/order/{orderId}");
   }
 
   /**
@@ -984,7 +1002,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getOrderByTrackingId",
+        "/store/order/by-tracking/{trackingId}");
   }
 
   /**
@@ -1065,7 +1085,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getStockItem",
+        "/store/stock-item");
   }
 
   /**
@@ -1138,7 +1160,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getSwatch",
+        "/store/swatch");
   }
 
   /**
@@ -1212,7 +1236,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getSwatchGroups",
+        "/store/swatch-groups");
   }
 
   /**
@@ -1287,7 +1313,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getTimestampGroups",
+        "/store/timestamp-groups");
   }
 
   /**
@@ -1360,7 +1388,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getTree",
+        "/store/tree");
   }
 
   /**
@@ -1468,7 +1498,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "placeOrder",
+        "/store/order");
   }
 
   /**
@@ -1565,7 +1597,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         successDecoder,
-        null);
+        null,
+        "reserveStock",
+        "/store/reservation");
   }
 
   /**
@@ -1660,7 +1694,9 @@ public class StoreApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "searchStore",
+        "/store/search");
   }
 
   /**

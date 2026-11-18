@@ -1,0 +1,283 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.data.HistogramPointData;
+import io.opentelemetry.sdk.metrics.data.LongPointData;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
+
+/**
+ * Unit tests for OpenTelemetryCallHook. The tests replace the global OpenTelemetry instance, so
+ * the class runs isolated from every other test class.
+ */
+@Isolated
+class OpenTelemetryCallHookTest {
+
+    private static final CallInfo INFO =
+            new CallInfo("echo_operation", "GET", "/items/{id}", "http://localhost/items/7", "localhost");
+
+    private InMemorySpanExporter spans;
+    private InMemoryMetricReader metrics;
+    private OpenTelemetrySdk otel;
+
+    @BeforeEach
+    void setUp() {
+        GlobalOpenTelemetry.resetForTest();
+        spans = InMemorySpanExporter.create();
+        metrics = InMemoryMetricReader.create();
+        otel = OpenTelemetrySdk.builder()
+                .setTracerProvider(SdkTracerProvider.builder()
+                        .addSpanProcessor(SimpleSpanProcessor.create(spans))
+                        .build())
+                .setMeterProvider(SdkMeterProvider.builder().registerMetricReader(metrics).build())
+                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                .build();
+    }
+
+    @AfterEach
+    void tearDown() {
+        GlobalOpenTelemetry.resetForTest();
+    }
+
+    private void run(OpenTelemetryCallHook hook, CallInfo info, CallOutcome outcome) {
+        hook.start(info, new HashMap<>()).finish(outcome);
+    }
+
+    private SpanData onlySpan() {
+        List<SpanData> finished = spans.getFinishedSpanItems();
+        assertEquals(1, finished.size());
+        return finished.get(0);
+    }
+
+    private MetricData metric(String name) {
+        return metrics.collectAllMetrics().stream()
+                .filter(data -> data.getName().equals(name))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @Test
+    void bhvTelemetry001TheSpanIsNamedWithTheOperationIdAndHasKindClient() {
+        run(OpenTelemetryCallHook.create(otel), INFO, new CallOutcome(200, Map.of(), null));
+
+        assertEquals("echo_operation", onlySpan().getName());
+        assertEquals(SpanKind.CLIENT, onlySpan().getKind());
+    }
+
+    @Test
+    void bhvTelemetry002ASuccessSetsTheAttributesAndLeavesTheStatusUnset() {
+        run(OpenTelemetryCallHook.create(otel), INFO, new CallOutcome(200, Map.of(), null));
+
+        SpanData span = onlySpan();
+        assertEquals("GET", span.getAttributes().get(AttributeKey.stringKey("http.request.method")));
+        assertEquals("/items/{id}", span.getAttributes().get(AttributeKey.stringKey("url.template")));
+        assertEquals("localhost", span.getAttributes().get(AttributeKey.stringKey("server.address")));
+        assertEquals(200L, span.getAttributes().get(AttributeKey.longKey("http.response.status_code")));
+        assertNull(span.getAttributes().get(AttributeKey.stringKey("error.type")));
+        assertEquals(StatusCode.UNSET, span.getStatus().getStatusCode());
+    }
+
+    @Test
+    void bhvTelemetry003AFailureStatusSetsTheErrorTypeAndMarksTheSpanAsAnError() {
+        run(OpenTelemetryCallHook.create(otel), INFO, new CallOutcome(503, Map.of(), null));
+
+        SpanData span = onlySpan();
+        assertEquals("503", span.getAttributes().get(AttributeKey.stringKey("error.type")));
+        assertEquals(StatusCode.ERROR, span.getStatus().getStatusCode());
+    }
+
+    @Test
+    void bhvTelemetry004ErrorTypeNamesTheKindOfFailure() {
+        OpenTelemetryCallHook hook = OpenTelemetryCallHook.create(otel);
+        run(hook, INFO, new CallOutcome(0, null, new {{invokerPackage}}.errors.NetworkTimeoutException("t", new java.io.IOException())));
+        run(hook, INFO, new CallOutcome(0, null, new {{invokerPackage}}.errors.NetworkException("n", new java.io.IOException())));
+        run(hook, INFO, new CallOutcome(200, Map.of(), new {{invokerPackage}}.errors.SerializationException("s")));
+        run(hook, INFO, new CallOutcome(0, null, new java.util.concurrent.CancellationException("c")));
+        run(hook, INFO, new CallOutcome(0, null, new IllegalStateException("o")));
+
+        List<String> types = spans.getFinishedSpanItems().stream()
+                .map(span -> span.getAttributes().get(AttributeKey.stringKey("error.type")))
+                .toList();
+        assertEquals(
+                List.of("timeout", "network_error", "serialization_error", "cancelled", "_OTHER"), types);
+        assertTrue(spans.getFinishedSpanItems().stream()
+                .allMatch(span -> span.getStatus().getStatusCode() == StatusCode.ERROR));
+    }
+
+    @Test
+    void bhvTelemetry005ACallWithNoResponseSetsNoStatusCode() {
+        run(
+                OpenTelemetryCallHook.create(otel),
+                INFO,
+                new CallOutcome(0, null, new {{invokerPackage}}.errors.NetworkException("n", new java.io.IOException())));
+
+        assertFalse(onlySpan().getAttributes().asMap().containsKey(AttributeKey.longKey("http.response.status_code")));
+    }
+
+    @Test
+    void bhvTelemetry006TheSpanIsAChildOfTheActiveSpanAndTraceparentNamesTheClientSpan() {
+        Span parent = otel.getTracer("test").spanBuilder("parent").startSpan();
+        Map<String, String> headers = new HashMap<>();
+        Scope scope = parent.makeCurrent();
+        try {
+            OpenTelemetryCallHook.create(otel)
+                    .start(INFO, headers)
+                    .finish(new CallOutcome(200, Map.of(), null));
+        } finally {
+            scope.close();
+        }
+        parent.end();
+
+        SpanData client = spans.getFinishedSpanItems().stream()
+                .filter(span -> span.getName().equals("echo_operation"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(parent.getSpanContext().getSpanId(), client.getParentSpanId());
+        assertEquals(1, headers.keySet().stream().filter("traceparent"::equals).count());
+        String traceparent = String.valueOf(headers.get("traceparent"));
+        assertTrue(traceparent.startsWith("00-" + client.getTraceId() + "-" + client.getSpanId() + "-"));
+    }
+
+    @Test
+    void bhvTelemetry007ACallRecordsOneSpanAndOneCount() {
+        run(OpenTelemetryCallHook.create(otel), INFO, new CallOutcome(200, Map.of(), null));
+
+        assertEquals(1, spans.getFinishedSpanItems().size());
+        List<LongPointData> points = List.copyOf(metric("http.client.request.count").getLongSumData().getPoints());
+        assertEquals(1, points.size());
+        assertEquals(1L, points.get(0).getValue());
+    }
+
+    @Test
+    void bhvTelemetry008TheCountCarriesTheSpansAttributes() {
+        run(OpenTelemetryCallHook.create(otel), INFO, new CallOutcome(404, Map.of(), null));
+
+        MetricData count = metric("http.client.request.count");
+        assertEquals("{request}", count.getUnit());
+        LongPointData point = count.getLongSumData().getPoints().iterator().next();
+        assertEquals(onlySpan().getAttributes().asMap(), point.getAttributes().asMap());
+    }
+
+    @Test
+    void bhvTelemetry009TheHistogramRecordsOneValueInSecondsWithTheSpansAttributes() throws InterruptedException {
+        OpenTelemetryCallHook hook = OpenTelemetryCallHook.create(otel);
+        CallObserver observer = hook.start(INFO, new HashMap<>());
+        Thread.sleep(60);
+        observer.finish(new CallOutcome(200, Map.of(), null));
+
+        MetricData duration = metric("http.client.request.duration");
+        assertEquals("s", duration.getUnit());
+        HistogramPointData point = duration.getHistogramData().getPoints().iterator().next();
+        assertEquals(1L, point.getCount());
+        assertTrue(point.getSum() >= 0.05 && point.getSum() < 5.0, "expected seconds, got " + point.getSum());
+        assertEquals(onlySpan().getAttributes().asMap(), point.getAttributes().asMap());
+    }
+
+    @Test
+    void bhvTelemetry010TheScopeIsNamedAfterThePackageAndCarriesTheVersion() {
+        run(OpenTelemetryCallHook.create(otel), INFO, new CallOutcome(200, Map.of(), null));
+
+        assertEquals("{{artifactId}}", onlySpan().getInstrumentationScopeInfo().getName());
+        assertEquals("{{artifactVersion}}", onlySpan().getInstrumentationScopeInfo().getVersion());
+        assertEquals("{{artifactId}}", metric("http.client.request.count").getInstrumentationScopeInfo().getName());
+        assertEquals("{{artifactVersion}}", metric("http.client.request.duration").getInstrumentationScopeInfo().getVersion());
+    }
+
+    @Test
+    void bhvTelemetry011AProviderHandedToTheAdapterIsUsedInsteadOfTheGlobalOne() {
+        InMemorySpanExporter other = InMemorySpanExporter.create();
+        OpenTelemetrySdk global = OpenTelemetrySdk.builder()
+                .setTracerProvider(SdkTracerProvider.builder()
+                        .addSpanProcessor(SimpleSpanProcessor.create(other))
+                        .build())
+                .build();
+        GlobalOpenTelemetry.set(global);
+
+        run(OpenTelemetryCallHook.create(otel), INFO, new CallOutcome(200, Map.of(), null));
+        assertEquals(1, spans.getFinishedSpanItems().size());
+        assertEquals(0, other.getFinishedSpanItems().size());
+
+        run(OpenTelemetryCallHook.create(), INFO, new CallOutcome(200, Map.of(), null));
+        assertEquals(1, other.getFinishedSpanItems().size());
+    }
+
+    @Test
+    void bhvTelemetry012WithNoProviderConfiguredTheAdapterDoesNothing() {
+        Map<String, String> headers = new HashMap<>();
+        CallObserver observer = OpenTelemetryCallHook.create().start(INFO, headers);
+        observer.finish(new CallOutcome(200, Map.of(), null));
+
+        assertTrue(headers.isEmpty());
+        assertTrue(spans.getFinishedSpanItems().isEmpty());
+        assertTrue(metrics.collectAllMetrics().isEmpty());
+    }
+
+    @Test
+    void bhvTelemetry013TheSpanEndsOnceAlsoWhenTheCallThrows() {
+        BaseApiTest.RecordingHook inner = new BaseApiTest.RecordingHook();
+        CallHook hook = CallHook.chain(OpenTelemetryCallHook.create(otel), inner);
+        Configuration config = new Configuration("http://localhost", Map.of(), hook);
+        var client = new BaseApiTest.FixedApiClient(
+                new {{invokerPackage}}.errors.NetworkException("refused", new java.io.IOException()));
+
+        assertThrows(
+                {{invokerPackage}}.errors.NetworkException.class,
+                () -> new BaseApiTest.TestableApi(client, config)
+                        .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, null));
+
+        SpanData span = onlySpan();
+        assertTrue(span.hasEnded());
+        assertEquals("network_error", span.getAttributes().get(AttributeKey.stringKey("error.type")));
+        assertEquals(1, inner.outcomes.size());
+    }
+
+    @Test
+    void bhvTelemetry014NoAttributeCarriesAQueryStringAHeaderValueOrACredential() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", "Bearer secret-credential");
+        headers.put("Cookie", "session=secret-cookie");
+        OpenTelemetryCallHook.create(otel).start(INFO, headers)
+                .finish(new CallOutcome(200, Map.of("set-cookie", "secret-cookie"), null));
+
+        SpanData span = onlySpan();
+        Set<String> keys = new java.util.TreeSet<>();
+        span.getAttributes().forEach((key, value) -> {
+            keys.add(key.getKey());
+            assertFalse(String.valueOf(value).contains("secret"));
+            assertFalse(String.valueOf(value).contains("?"));
+        });
+        assertEquals(
+                Set.of("http.request.method", "url.template", "server.address", "http.response.status_code"),
+                keys);
+        assertTrue(headers.containsKey("traceparent"));
+    }
+}

@@ -123,6 +123,35 @@ last and still win. Leave the options object out, or pass `null`, to use the
 client's settings. An options object carries no authenticator: the credential comes
 from the client, as described next.
 
+### Hooks and telemetry
+
+One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport.
+
+```java
+CallHook hook = (info, headers) -> {
+    headers.put("X-Caller", "billing");
+    long started = System.nanoTime();
+    return outcome -> System.out.println(
+            info.operationId() + " " + outcome.statusCode() + " "
+                    + (System.nanoTime() - started) / 1_000_000 + " ms");
+};
+{{clientClassName}} client = {{clientClassName}}.builder("https://api.example.com")
+        .callHook(hook)
+        .build();
+```
+
+`start(info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `operationId` (as written in the spec), `method`, `urlTemplate`, `url` (without query string and fragment) and `serverAddress`. It returns the observer to call when the call ends, or `null`. `finish(outcome)` runs exactly once on every way the call can end, with `statusCode` (`0` when no response arrived), the lower-cased response `headers` (`null` when no response arrived) and the `error` the caller receives (`null` on success). An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `CallHook.chain(first, second)`: they start in the order given and finish in the reverse order.
+
+`OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `opentelemetry-api` to your build (the SDK itself does not need it), then pass `OpenTelemetryCallHook.create()` for the global instance or `OpenTelemetryCallHook.create(openTelemetry)` for your own.
+
+```java
+{{clientClassName}} client = {{clientClassName}}.builder("https://api.example.com")
+        .callHook(OpenTelemetryCallHook.create())
+        .build();
+```
+
+The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.
+
 {{#hasClientSchemes}}
 ### Credentials per security scheme
 

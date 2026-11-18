@@ -486,7 +486,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "addPet",
+        "/pet");
   }
 
   /**
@@ -559,7 +561,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "addPetPhotos",
+        "/pet/{petId}/photos");
   }
 
   /**
@@ -658,7 +662,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "addPetTreatment",
+        "/pet/{petId}/treatment");
   }
 
   /**
@@ -773,7 +779,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "deletePet",
+        "/pet/{petId}");
   }
 
   /**
@@ -882,7 +890,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "downloadPetDocument",
+        "/pet/{petId}/documents/{documentId}");
   }
 
   /**
@@ -970,7 +980,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "findPetsBornOn",
+        "/pet/born-on/{bornOn}");
   }
 
   /**
@@ -1096,7 +1108,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "findPetsByStatus",
+        "/pet/findByStatus");
   }
 
   /**
@@ -1223,7 +1237,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getExternalPetInfo",
+        "/pet/{petId}/external");
   }
 
   /**
@@ -1350,7 +1366,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getMultiServerPetInfo",
+        "/pet/{petId}/multi");
   }
 
   /**
@@ -1442,7 +1460,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetAvatar",
+        "/pet/{petId}/avatar");
   }
 
   /**
@@ -1536,7 +1556,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetAvatarThumbnail",
+        "/pet/{petId}/avatar/thumbnail");
   }
 
   /**
@@ -1685,7 +1707,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetById",
+        "/pet/{petId}");
   }
 
   /**
@@ -1775,7 +1799,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetByName",
+        "/pet/byName/{name}");
   }
 
   /**
@@ -1871,7 +1897,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetPassport",
+        "/pet/{petId}/passport");
   }
 
   /**
@@ -1978,7 +2006,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetPhoto",
+        "/pet/{petId}/photos/{photoId}");
   }
 
   /**
@@ -2091,7 +2121,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetSummary",
+        "/pet/{petId}/summary/{asOf}");
   }
 
   /**
@@ -2278,7 +2310,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getPetTag",
+        "/pet/{petId}/tag/{tagName}");
   }
 
   /**
@@ -2404,7 +2438,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "getStagingPetInfo",
+        "/pet/{petId}/staging");
   }
 
   /**
@@ -2578,7 +2614,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "setPetAvatar",
+        "/pet/{petId}/avatar");
   }
 
   /**
@@ -2686,7 +2724,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "setPetAvatarThumbnail",
+        "/pet/{petId}/avatar/thumbnail");
   }
 
   /**
@@ -2771,7 +2811,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "setPetPreferences",
+        "/pet/{petId}/preferences");
   }
 
   /**
@@ -2875,7 +2917,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "updatePet",
+        "/pet/{petId}");
   }
 
   /**
@@ -2944,7 +2988,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "uploadPetCertificate",
+        "/pet/{petId}/certificate");
   }
 
   /**
@@ -3098,7 +3144,9 @@ public class PetApi extends BaseApi {
         callTimeout,
         callMaxRetries,
         null,
-        null);
+        null,
+        "uploadPetDocument",
+        "/pet/{petId}/documents");
   }
 
   /**

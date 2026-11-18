@@ -111,6 +111,19 @@ class BaseApiTest {
                     returnType, auth);
         }
 
+        {{invokerPackage}}.ApiResult<JsonNode> hooked(
+                String method,
+                String path,
+                String urlTemplate,
+                Map<String, Object> queryParams,
+                @Nullable Object body,
+                @Nullable Authenticator auth) {
+            return this.<JsonNode>invokeApiForResult(
+                    "echoOperation", method, path, queryParams, new HashMap<>(), body,
+                    new String[] {"application/json"}, "application/json", JSON_NODE_TYPE, auth,
+                    null, null, null, null, "echo_operation", urlTemplate);
+        }
+
         <T> {{invokerPackage}}.ApiResult<T> callForResult(
                 String method,
                 String path,
@@ -2288,6 +2301,363 @@ class BaseApiTest {
             assertFalse(client.capturedUrl.contains("blue%2C+black"),
                     "URL must not contain a comma-joined debug rendering of colors, got: "
                             + client.capturedUrl);
+        }
+    }
+
+    /** Records what a hook was told and how every call ended. */
+    static final class RecordingHook implements CallHook {
+        final List<CallInfo> infos = new java.util.ArrayList<>();
+        final List<Map<String, String>> seen = new java.util.ArrayList<>();
+        final List<CallOutcome> outcomes = new java.util.ArrayList<>();
+        @Nullable java.util.function.Consumer<Map<String, String>> edit;
+
+        @Override
+        public CallObserver start(CallInfo info, Map<String, String> headers) {
+            infos.add(info);
+            seen.add(new HashMap<>(headers));
+            if (edit != null) {
+                edit.accept(headers);
+            }
+            return outcomes::add;
+        }
+    }
+
+    /** Answers with a fixed response, or throws what it was given. */
+    static final class FixedApiClient implements ApiClient {
+        final java.util.List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+        private final int status;
+        private final String body;
+        private final Map<String, String> headers;
+        @Nullable private final RuntimeException failure;
+
+        FixedApiClient(int status, String body, Map<String, String> headers) {
+            this.status = status;
+            this.body = body;
+            this.headers = headers;
+            this.failure = null;
+        }
+
+        FixedApiClient(RuntimeException failure) {
+            this.status = 0;
+            this.body = "";
+            this.headers = Map.of();
+            this.failure = failure;
+        }
+
+        @Override
+        public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+            sentHeaders.add(new HashMap<>(headers));
+            if (failure != null) {
+                throw failure;
+            }
+            return new ApiHttpResponse(status, this.body, this.headers);
+        }
+    }
+
+    private static final Map<String, String> JSON = Map.of("content-type", "application/json");
+
+    private static {{invokerPackage}}.ApiResult<JsonNode> hookedCall(
+            ApiClient client, RecordingHook hook) {
+        return hookedCall(client, hook, "http://localhost", "/items/7", new HashMap<>());
+    }
+
+    private static {{invokerPackage}}.ApiResult<JsonNode> hookedCall(
+            ApiClient client, CallHook hook, String baseUrl, String path, Map<String, Object> query) {
+        Configuration config = new Configuration(baseUrl, Map.of(), hook);
+        return new TestableApi(client, config)
+                .hooked("GET", path, "/items/{id}", query, null, null);
+    }
+
+    @Nested
+    @DisplayName("call hook")
+    class CallHooks {
+
+        @Test
+        @DisplayName("bhvHooks001 without a hook a call sends the same headers and returns the same result")
+        void bhvHooks001WithoutAHookNothingChanges() {
+            var plain = new CapturingApiClient();
+            var noop = new CapturingApiClient();
+            var withoutHook = new TestableApi(plain, "http://localhost")
+                    .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, null);
+            var nullObserver = new TestableApi(
+                            noop, new Configuration("http://localhost", Map.of(), (info, headers) -> null))
+                    .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, null);
+
+            assertNull(new Configuration("http://localhost", Map.of()).getCallHook());
+            assertEquals(200, withoutHook.statusCode());
+            assertEquals(withoutHook.statusCode(), nullObserver.statusCode());
+            assertEquals(plain.capturedHeaders, noop.capturedHeaders);
+        }
+
+        @Test
+        @DisplayName("bhvHooks002 start is called once with the spec operation id, method, template and url")
+        void bhvHooks002StartIsToldWhatTheCallIs() {
+            var hook = new RecordingHook();
+            Map<String, Object> query = new HashMap<>();
+            query.put("a", "1");
+            hookedCall(new CapturingApiClient(), hook, "http://localhost", "/items/7", query);
+
+            assertEquals(1, hook.infos.size());
+            assertEquals(
+                    new CallInfo("echo_operation", "GET", "/items/{id}", "http://localhost/items/7", "localhost"),
+                    hook.infos.get(0));
+        }
+
+        @Test
+        @DisplayName("bhvHooks003 serverAddress is the host without port and without IPv6 brackets")
+        void bhvHooks003ServerAddressIsTheBareHost() {
+            var hook = new RecordingHook();
+            hookedCall(new CapturingApiClient(), hook, "http://[::1]:8080", "/items/7", new HashMap<>());
+            hookedCall(new CapturingApiClient(), hook, "https://API.Example.com:8443", "/items/7", new HashMap<>());
+
+            assertEquals("::1", hook.infos.get(0).serverAddress());
+            assertEquals("api.example.com", hook.infos.get(1).serverAddress());
+        }
+
+        @Test
+        @DisplayName("bhvHooks004 a header the hook sets reaches the transport")
+        void bhvHooks004AHeaderTheHookSetsIsSent() {
+            var hook = new RecordingHook();
+            hook.edit = headers -> headers.put("X-Hook", "on");
+            var client = new CapturingApiClient();
+            hookedCall(client, hook);
+
+            assertEquals("on", client.capturedHeaders.get("X-Hook"));
+        }
+
+        @Test
+        @DisplayName("bhvHooks005 start sees the final headers and can replace one")
+        void bhvHooks005StartSeesTheFinalHeaders() {
+            var hook = new RecordingHook();
+            hook.edit = headers -> headers.put("Authorization", "Bearer replaced");
+            var client = new CapturingApiClient();
+            var auth = new TestAuthenticator(Map.of("Authorization", "Bearer original"), Map.of(), Map.of());
+            Configuration config = new Configuration("http://localhost", Map.of("X-Default", "d"), hook);
+            new TestableApi(client, config).hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, auth);
+
+            assertEquals("Bearer original", hook.seen.get(0).get("Authorization"));
+            assertEquals("d", hook.seen.get(0).get("X-Default"));
+            assertEquals("Bearer replaced", client.capturedHeaders.get("Authorization"));
+        }
+
+        @Test
+        @DisplayName("bhvHooks006 a header the hook sets is on every send, the replay after a 401 included")
+        void bhvHooks006AHookHeaderIsOnEverySend() {
+            var hook = new RecordingHook();
+            hook.edit = headers -> headers.put("X-Hook", "on");
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            new TestableApi(client, new Configuration("http://localhost", Map.of(), hook))
+                    .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, auth);
+
+            assertEquals(2, client.sentHeaders.size());
+            assertEquals("on", client.sentHeaders.get(0).get("X-Hook"));
+            assertEquals("on", client.sentHeaders.get(1).get("X-Hook"));
+            assertEquals(1, hook.infos.size());
+            assertEquals(1, hook.outcomes.size());
+        }
+
+        @Test
+        @DisplayName("bhvHooks007 the fresh authentication headers of a replay replace a hook header of the same name")
+        void bhvHooks007FreshAuthenticationWinsOnReplay() {
+            var hook = new RecordingHook();
+            hook.edit = headers -> headers.put("Authorization", "Bearer hook");
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            new TestableApi(client, new Configuration("http://localhost", Map.of(), hook))
+                    .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, auth);
+
+            assertEquals("Bearer hook", client.sentHeaders.get(0).get("Authorization"));
+            assertEquals("Bearer t2", client.sentHeaders.get(1).get("Authorization"));
+        }
+
+        @Test
+        @DisplayName("bhvHooks008 a call the transport retries calls start once and finish once")
+        void bhvHooks008ARetriedCallIsOneCall() throws Exception {
+            var requests = new java.util.concurrent.atomic.AtomicInteger();
+            var hookHeaders = new java.util.concurrent.CopyOnWriteArrayList<String>();
+            var server = com.sun.net.httpserver.HttpServer.create(
+                    new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+            server.createContext("/", exchange -> {
+                hookHeaders.add(String.valueOf(exchange.getRequestHeaders().getFirst("X-Hook")));
+                byte[] body = "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(requests.incrementAndGet() == 1 ? 503 : 200, body.length);
+                exchange.getResponseBody().write(body);
+                exchange.close();
+            });
+            server.start();
+            try {
+                var hook = new RecordingHook();
+                hook.edit = headers -> headers.put("X-Hook", "on");
+                var transport = new DefaultApiClient(TransportOptions.builder().maxRetries(2).build());
+                var result = hookedCall(
+                        transport, hook, "http://127.0.0.1:" + server.getAddress().getPort(),
+                        "/items/7", new HashMap<>());
+
+                assertEquals(200, result.statusCode());
+                assertEquals(2, requests.get());
+                assertEquals(List.of("on", "on"), hookHeaders);
+                assertEquals(1, hook.infos.size());
+                assertEquals(1, hook.outcomes.size());
+            } finally {
+                server.stop(0);
+            }
+        }
+
+        @Test
+        @DisplayName("bhvHooks009 the plain and the WithHttpInfo variant call the hook once each")
+        void bhvHooks009BothVariantsCallTheHookOnce() {
+            var hook = new RecordingHook();
+            var client = new FixedApiClient(200, "{}", JSON);
+            var api = new StoreApi(client, new Configuration("http://localhost", Map.of(), hook));
+            api.getInventory();
+            assertEquals(1, hook.infos.size());
+            api.getInventoryWithHttpInfo();
+
+            assertEquals(2, hook.infos.size());
+            assertEquals(2, hook.outcomes.size());
+            assertEquals("getInventory", hook.infos.get(0).operationId());
+            assertEquals("/store/inventory", hook.infos.get(0).urlTemplate());
+            assertEquals("getInventory", hook.infos.get(1).operationId());
+        }
+
+        @Test
+        @DisplayName("bhvHooks011 finish gets the status, the headers and no error on a 2xx")
+        void bhvHooks011FinishGetsTheSuccess() {
+            var hook = new RecordingHook();
+            hookedCall(new FixedApiClient(200, "{}", JSON), hook);
+
+            assertEquals(new CallOutcome(200, JSON, null), hook.outcomes.get(0));
+        }
+
+        @Test
+        @DisplayName("bhvHooks012 finish gets the same typed error the caller receives on a non-2xx")
+        void bhvHooks012FinishGetsTheTypedError() {
+            var hook = new RecordingHook();
+            var caught = assertThrows(
+                    NotFoundException.class,
+                    () -> hookedCall(new FixedApiClient(404, "{}", JSON), hook));
+
+            assertEquals(404, hook.outcomes.get(0).statusCode());
+            assertEquals(JSON, hook.outcomes.get(0).headers());
+            assertSame(caught, hook.outcomes.get(0).error());
+        }
+
+        @Test
+        @DisplayName("bhvHooks013 finish gets status 0, null headers and the network error when no response arrived")
+        void bhvHooks013FinishGetsTheNetworkError() {
+            var hook = new RecordingHook();
+            var failure = new {{invokerPackage}}.errors.NetworkException("refused", new java.io.IOException("x"));
+            var caught = assertThrows(
+                    {{invokerPackage}}.errors.NetworkException.class,
+                    () -> hookedCall(new FixedApiClient(failure), hook));
+
+            assertSame(failure, caught);
+            assertEquals(0, hook.outcomes.get(0).statusCode());
+            assertNull(hook.outcomes.get(0).headers());
+            assertSame(failure, hook.outcomes.get(0).error());
+        }
+
+        @Test
+        @DisplayName("bhvHooks014 finish gets the timeout error, never the cancellation error")
+        void bhvHooks014FinishGetsTheTimeout() {
+            var hook = new RecordingHook();
+            var failure = new {{invokerPackage}}.errors.NetworkTimeoutException("slow", new java.io.IOException("x"));
+            assertThrows(
+                    {{invokerPackage}}.errors.NetworkTimeoutException.class,
+                    () -> hookedCall(new FixedApiClient(failure), hook));
+
+            assertSame(failure, hook.outcomes.get(0).error());
+            assertFalse(hook.outcomes.get(0).error() instanceof java.util.concurrent.CancellationException);
+        }
+
+        @Test
+        @DisplayName("bhvHooks015 finish gets the cancellation and the call rethrows it")
+        void bhvHooks015FinishGetsTheCancellation() {
+            var hook = new RecordingHook();
+            var failure = new java.util.concurrent.CancellationException("interrupted");
+            var caught = assertThrows(
+                    java.util.concurrent.CancellationException.class,
+                    () -> hookedCall(new FixedApiClient(failure), hook));
+
+            assertSame(failure, caught);
+            assertSame(failure, hook.outcomes.get(0).error());
+            assertEquals(1, hook.outcomes.size());
+        }
+
+        @Test
+        @DisplayName("bhvHooks016 finish gets the serialization error with the status that arrived")
+        void bhvHooks016FinishGetsTheDecodeError() {
+            var hook = new RecordingHook();
+            var caught = assertThrows(
+                    SerializationException.class,
+                    () -> hookedCall(new FixedApiClient(200, "{not json", JSON), hook));
+
+            assertEquals(200, hook.outcomes.get(0).statusCode());
+            assertEquals(JSON, hook.outcomes.get(0).headers());
+            assertSame(caught, hook.outcomes.get(0).error());
+        }
+
+        @Test
+        @DisplayName("bhvHooks017 finish is called when the request body cannot be encoded and nothing is sent")
+        void bhvHooks017FinishIsCalledForAnUnencodableBody() {
+            var hook = new RecordingHook();
+            var client = new FixedApiClient(200, "{}", JSON);
+            List<Object> unencodable = new java.util.ArrayList<>();
+            unencodable.add(unencodable);
+            Configuration config = new Configuration("http://localhost", Map.of(), hook);
+            var caught = assertThrows(
+                    RuntimeException.class,
+                    () -> new TestableApi(client, config)
+                            .hooked("POST", "/items/7", "/items/{id}", new HashMap<>(), unencodable, null));
+
+            assertTrue(client.sentHeaders.isEmpty());
+            assertEquals(1, hook.outcomes.size());
+            assertEquals(0, hook.outcomes.get(0).statusCode());
+            assertSame(caught, hook.outcomes.get(0).error());
+        }
+
+        @Test
+        @DisplayName("bhvHooks018 an error thrown by start reaches the caller, nothing is sent and finish is not called")
+        void bhvHooks018AStartErrorPropagates() {
+            var failure = new IllegalStateException("refused by the hook");
+            var client = new FixedApiClient(200, "{}", JSON);
+            CallHook hook = (info, headers) -> {
+                throw failure;
+            };
+            var caught = assertThrows(IllegalStateException.class, () -> hookedCall(client, hook, "http://localhost", "/items/7", new HashMap<>()));
+
+            assertSame(failure, caught);
+            assertTrue(client.sentHeaders.isEmpty());
+        }
+
+        @Test
+        @DisplayName("bhvHooks019 an error thrown by finish is swallowed")
+        void bhvHooks019AFinishErrorIsSwallowed() {
+            CallHook hook = (info, headers) -> outcome -> {
+                throw new IllegalStateException("observer broke");
+            };
+            var ok = hookedCall(new FixedApiClient(200, "{}", JSON), hook, "http://localhost", "/items/7", new HashMap<>());
+            assertEquals(200, ok.statusCode());
+
+            assertThrows(
+                    NotFoundException.class,
+                    () -> hookedCall(new FixedApiClient(404, "{}", JSON), hook, "http://localhost", "/items/7", new HashMap<>()));
+        }
+
+        @Test
+        @DisplayName("bhvHooks021 the url given to the hook never carries the query string or the fragment")
+        void bhvHooks021TheUrlHasNoQueryOrFragment() {
+            var hook = new RecordingHook();
+            Map<String, Object> query = new HashMap<>();
+            query.put("a", "1");
+            hookedCall(new CapturingApiClient(), hook, "http://localhost", "/items/7#x", query);
+            hookedCall(new CapturingApiClient(), hook, "http://localhost", "/items/7", query);
+
+            assertEquals("http://localhost/items/7", hook.infos.get(0).url());
+            assertEquals("http://localhost/items/7", hook.infos.get(1).url());
         }
     }
 }
