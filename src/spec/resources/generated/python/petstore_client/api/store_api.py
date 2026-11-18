@@ -136,6 +136,8 @@ class StoreApi(BaseApi):
         :param order_id: ID of the order to delete (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.delete_order_with_http_info(
             order_id,
@@ -154,6 +156,8 @@ class StoreApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
+        :raises NotFoundException: on HTTP 404
         """
         if order_id is None:
             raise ValueError(
@@ -569,6 +573,8 @@ class StoreApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Order
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
+        :raises NotFoundException: on HTTP 404
         """
         result = await self.get_order_by_id_with_http_info(
             order_id,
@@ -598,6 +604,8 @@ class StoreApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
+        :raises NotFoundException: on HTTP 404
         """
         if order_id is None:
             raise ValueError(
@@ -1007,6 +1015,7 @@ class StoreApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Order
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
         """
         result = await self.place_order_with_http_info(
             order,
@@ -1036,6 +1045,7 @@ class StoreApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
         """
         path = "/store/order"
         query_params: Dict[str, Any] = {}
@@ -1065,6 +1075,7 @@ class StoreApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ReserveStockResponse
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
         """
         result = await self.reserve_stock_with_http_info(
             options=options,
@@ -1092,6 +1103,7 @@ class StoreApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises BadRequestException: on HTTP 400
         """
         path = "/store/reservation"
         query_params: Dict[str, Any] = {}

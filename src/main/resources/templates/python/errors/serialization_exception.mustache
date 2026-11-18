@@ -1,12 +1,18 @@
 {{>api_info}}
 
-from typing import Optional
+from typing import Mapping, Optional
 
 from {{packageName}}.errors import {{errorPrefix}}Exception
 
 
 class SerializationException({{errorPrefix}}Exception):
-    """Exception raised when serialization or deserialization fails."""
+    """Exception raised when serialization or deserialization fails.
+
+    When the failure is a response body that could not be decoded, the
+    exception also carries the response (``status_code``, ``response_headers``
+    and ``response_body``) and the request (``request_method`` and
+    ``request_path``, without the query string); all are ``None`` otherwise.
+    """
 
     def __init__(self, message: str, cause: Optional[Exception] = None):
         super().__init__(message)
@@ -14,6 +20,11 @@ class SerializationException({{errorPrefix}}Exception):
         # caught error's fields cannot be reassigned after construction.
         self._message = message
         self._cause = cause
+        self._status_code: Optional[int] = None
+        self._response_headers: Optional[Mapping[str, str]] = None
+        self._response_body: Optional[str] = None
+        self._request_method: Optional[str] = None
+        self._request_path: Optional[str] = None
 
     @property
     def message(self) -> str:
@@ -22,3 +33,44 @@ class SerializationException({{errorPrefix}}Exception):
     @property
     def cause(self) -> Optional[Exception]:
         return self._cause
+
+    @property
+    def status_code(self) -> Optional[int]:
+        """The HTTP status of the response that could not be decoded, if any."""
+        return self._status_code
+
+    @property
+    def response_headers(self) -> Optional[Mapping[str, str]]:
+        """The headers of the response that could not be decoded, if any."""
+        return self._response_headers
+
+    @property
+    def response_body(self) -> Optional[str]:
+        """The raw body of the response that could not be decoded, if any."""
+        return self._response_body
+
+    @property
+    def request_method(self) -> Optional[str]:
+        """The HTTP method of the request that got the response, if any."""
+        return self._request_method
+
+    @property
+    def request_path(self) -> Optional[str]:
+        """The path of the request that got the response, without its query string."""
+        return self._request_path
+
+    def _with_response(
+        self,
+        status_code: int,
+        headers: Optional[Mapping[str, str]],
+        body: Optional[str],
+        method: str,
+        path: str,
+    ) -> 'SerializationException':
+        """Record the response this error could not decode; the SDK calls it where it decodes."""
+        self._status_code = status_code
+        self._response_headers = dict(headers) if headers is not None else None
+        self._response_body = body
+        self._request_method = method
+        self._request_path = path.split('?', 1)[0]
+        return self

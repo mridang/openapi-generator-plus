@@ -462,6 +462,50 @@ class TestRequestContext:
         assert err.request_method == 'GET'
         assert err.request_path == '/items/7'
 
+    def test_bhv_errors_201_an_error_is_retryable_exactly_for_the_statuses_the_client_retries(self) -> None:
+        for status in (408, 409, 429, 500, 502, 503, 504, 599):
+            assert ApiException.from_response(status, {}, None).is_retryable, status
+        for status in (400, 401, 403, 404, 422, 501, 302):
+            assert not ApiException.from_response(status, {}, None).is_retryable, status
+
+    def test_bhv_errors_202_an_error_exposes_the_x_request_id_header_as_its_request_id(self) -> None:
+        assert ApiException.from_response(500, {'X-Request-ID': 'abc'}, None).request_id == 'abc'
+        assert ApiException.from_response(500, {'x-request-id': 'abc'}, None).request_id == 'abc'
+        assert ApiException.from_response(500, {'other': 'abc'}, None).request_id is None
+        assert ApiException(status_code=0, message='no response').request_id is None
+
+    def test_bhv_errors_203_the_error_factory_of_an_operation_is_chosen_by_exact_status_then_range_then_default(self) -> None:
+        def factory(label: str) -> Any:
+            return lambda status, headers, body, method, path: ApiException(
+                status_code=status, message=label, response_headers=headers, response_body=body
+            )
+
+        factories = {'404': factory('exact'), '4XX': factory('range'), 'default': factory('default')}
+
+        assert ApiException.from_response(404, {}, '{}', 'GET', '/x', factories).message == 'exact'
+        assert ApiException.from_response(418, {}, '{}', 'GET', '/x', factories).message == 'range'
+        assert ApiException.from_response(502, {}, '{}', 'GET', '/x', factories).message == 'default'
+        assert type(ApiException.from_response(502, {}, '{}', 'GET', '/x', {})) is BadGatewayException
+        assert type(ApiException.from_response(404, {}, '{}', 'GET', '/x', None)) is NotFoundException
+        assert type(ApiException.from_response(5000, {}, '{}', 'GET', '/x', {'5XX': factory('range')})) is ApiException
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+    def test_bhv_errors_204_a_body_that_does_not_match_its_declared_error_schema_leaves_the_status_error_with_the_raw_body_and_a_cause(self) -> None:
+        from {{packageName}}.errors import {{{className}}}
+
+        err = {{{className}}}.from_error_response({{sampleStatus}}, {}, '[1, 2', 'GET', '/x')
+
+        assert type(err) is type(ApiException.from_response({{sampleStatus}}, {}, '[1, 2'))
+        assert not isinstance(err, {{{className}}})
+        assert err.response_body == '[1, 2'
+        assert err.status_code == {{sampleStatus}}
+        assert err.__cause__ is not None
+{{/-first}}
+{{/errorSchemas}}
+{{/hasErrorSchemas}}
+
     @pytest.mark.parametrize(
         'make',
         [

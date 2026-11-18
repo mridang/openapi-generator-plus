@@ -1820,6 +1820,39 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
 
     /** {@inheritDoc} */
     @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_exception.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(
+                        outputFolder,
+                        packageName.replace('.', '/'),
+                        "errors",
+                        NamingConvention.SNAKE_CASE.apply(className) + ".py")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void decorateErrorSchema(Map<String, Object> schema) {
+        final String className = Objects.requireNonNull((String) schema.get("className"));
+        final String parentClassName = Objects.requireNonNull((String) schema.get("parentClassName"));
+        final boolean parentIsApi = "ApiException".equals(parentClassName);
+        schema.put("classFileName", NamingConvention.SNAKE_CASE.apply(className));
+        schema.put("parentIsApi", parentIsApi);
+        schema.put(
+                "parentImport",
+                parentIsApi
+                        ? packageName + ".errors"
+                        : packageName + ".errors." + NamingConvention.SNAKE_CASE.apply(parentClassName));
+        schema.put("modelFileName", toModelFilename(Objects.requireNonNull((String) schema.get("schemaName"))));
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
         return Path.of(

@@ -52,6 +52,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Result
         :raises ApiException: if fails to make API call
+        :raises UnexpectedFailureException: on HTTP default with a ``UnexpectedFailure`` body
         """
         result = await self.get_fallback_with_http_info(
             fallback_id,
@@ -81,6 +82,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises UnexpectedFailureException: on HTTP default with a ``UnexpectedFailure`` body
         """
         if fallback_id is None or fallback_id == "":
             raise ValueError(
@@ -106,6 +108,8 @@ class ProblemsApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
+        from .. import errors as _errors
+
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -118,6 +122,9 @@ class ProblemsApi(BaseApi):
             NO_AUTH,
             operation_name="get_fallback",
             request_options=options,
+            error_schemas={
+                "default": _errors.UnexpectedFailureException.from_error_response,
+            },
         )
 
     async def get_member(
@@ -130,6 +137,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Result
         :raises ApiException: if fails to make API call
+        :raises MemberNotFoundException: on HTTP 404 with a ``MemberNotFound`` body
         """
         result = await self.get_member_with_http_info(
             member_id,
@@ -159,6 +167,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises MemberNotFoundException: on HTTP 404 with a ``MemberNotFound`` body
         """
         if member_id is None or member_id == "":
             raise ValueError(
@@ -178,6 +187,8 @@ class ProblemsApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
+        from .. import errors as _errors
+
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -190,6 +201,9 @@ class ProblemsApi(BaseApi):
             NO_AUTH,
             operation_name="get_member",
             request_options=options,
+            error_schemas={
+                "404": _errors.MemberNotFoundException.from_error_response,
+            },
         )
 
     async def get_project(
@@ -202,6 +216,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Result
         :raises ApiException: if fails to make API call
+        :raises ProjectNotFoundException: on HTTP 404 with a ``ProjectNotFound`` body
         """
         result = await self.get_project_with_http_info(
             project_id,
@@ -231,6 +246,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises ProjectNotFoundException: on HTTP 404 with a ``ProjectNotFound`` body
         """
         if project_id is None or project_id == "":
             raise ValueError(
@@ -250,6 +266,8 @@ class ProblemsApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
+        from .. import errors as _errors
+
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -262,6 +280,9 @@ class ProblemsApi(BaseApi):
             NO_AUTH,
             operation_name="get_project",
             request_options=options,
+            error_schemas={
+                "404": _errors.ProjectNotFoundException.from_error_response,
+            },
         )
 
     async def get_range(
@@ -274,6 +295,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Result
         :raises ApiException: if fails to make API call
+        :raises RejectedRequestException: on HTTP 4XX with a ``RejectedRequest`` body
         """
         result = await self.get_range_with_http_info(
             range_id,
@@ -303,6 +325,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises RejectedRequestException: on HTTP 4XX with a ``RejectedRequest`` body
         """
         if range_id is None or range_id == "":
             raise ValueError(
@@ -322,6 +345,8 @@ class ProblemsApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
+        from .. import errors as _errors
+
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -334,6 +359,9 @@ class ProblemsApi(BaseApi):
             NO_AUTH,
             operation_name="get_range",
             request_options=options,
+            error_schemas={
+                "4XX": _errors.RejectedRequestException.from_error_response,
+            },
         )
 
     async def get_upstream(
@@ -346,6 +374,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Result
         :raises ApiException: if fails to make API call
+        :raises UpstreamFailureException: on HTTP 5XX with a ``UpstreamFailure`` body
         """
         result = await self.get_upstream_with_http_info(
             upstream_id,
@@ -375,6 +404,7 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises UpstreamFailureException: on HTTP 5XX with a ``UpstreamFailure`` body
         """
         if upstream_id is None or upstream_id == "":
             raise ValueError(
@@ -400,6 +430,8 @@ class ProblemsApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
+        from .. import errors as _errors
+
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -412,6 +444,9 @@ class ProblemsApi(BaseApi):
             NO_AUTH,
             operation_name="get_upstream",
             request_options=options,
+            error_schemas={
+                "5XX": _errors.UpstreamFailureException.from_error_response,
+            },
         )
 
     async def take_lock(
@@ -424,6 +459,8 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Result
         :raises ApiException: if fails to make API call
+        :raises StateConflictException: on HTTP 409 with a ``StateConflict`` body
+        :raises StateConflictException: on HTTP 423 with a ``StateConflict`` body
         """
         result = await self.take_lock_with_http_info(
             lock_id,
@@ -453,6 +490,8 @@ class ProblemsApi(BaseApi):
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+        :raises StateConflictException: on HTTP 409 with a ``StateConflict`` body
+        :raises StateConflictException: on HTTP 423 with a ``StateConflict`` body
         """
         if lock_id is None or lock_id == "":
             raise ValueError(
@@ -472,6 +511,8 @@ class ProblemsApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
+        from .. import errors as _errors
+
         return await self._invoke_api_for_result(
             "PUT",
             path,
@@ -484,4 +525,8 @@ class ProblemsApi(BaseApi):
             NO_AUTH,
             operation_name="take_lock",
             request_options=options,
+            error_schemas={
+                "409": _errors.StateConflictException.from_error_response,
+                "423": _errors.StateConflictException.from_error_response,
+            },
         )

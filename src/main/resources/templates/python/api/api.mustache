@@ -152,7 +152,7 @@ class {{classname}}(BaseApi):
         :return: {{{returnType}}}
 {{/returnType}}
         :raises ApiException: if fails to make API call
-{{#isDeprecated}}
+{{>api/operation_doc_raises}}{{#isDeprecated}}
 
         .. deprecated::
             This operation is deprecated.
@@ -249,7 +249,7 @@ class {{classname}}(BaseApi):
 {{/vendorExtensions.hasMultipleConsumes}}
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
-{{#isDeprecated}}
+{{>api/operation_doc_raises}}{{#isDeprecated}}
 
         .. deprecated::
             This operation is deprecated.
@@ -415,6 +415,10 @@ class {{classname}}(BaseApi):
             return self._object_serializer.deserialize(body, '{{{vendorExtensions.op.successUnionType}}}')
 
 {{/vendorExtensions.op.hasMultiple2xx}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+        from .. import errors as _errors
+
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
         return await self._invoke_api_for_result(
             '{{httpMethod}}',
             path,
@@ -435,6 +439,13 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.hasMultiple2xx}}
             decode_success=decode_success,
 {{/vendorExtensions.op.hasMultiple2xx}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+            error_schemas={
+{{#vendorExtensions.op.errorSchemaResponses}}
+                '{{{status}}}': _errors.{{{schemaClassName}}}.from_error_response,
+{{/vendorExtensions.op.errorSchemaResponses}}
+            },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
         )
 {{/operation}}
 {{/operations}}
