@@ -2631,6 +2631,32 @@ describe {{moduleName}}::ObjectSerializer, 'wire contract for scalars, container
     _(written['true']).must_equal true
   end
 
+  it 'bhv_misc_287 a wire key named additional_properties is kept as an undeclared extra' do
+    meta = {{moduleName}}::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","additional_properties":"x"}', 'Metadata')
+
+    _(meta.additional_properties).must_equal('additional_properties' => 'x')
+  end
+
+  it 'bhv_misc_288 a snake_case input key at the top level is captured as an undeclared extra' do
+    meta = {{moduleName}}::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","created_at":"x"}', 'Metadata')
+
+    _(meta.additional_properties).must_equal('created_at' => 'x')
+  end
+
+  it 'bhv_misc_289 a snake_case input key inside a list element is captured as an undeclared extra' do
+    items = {{moduleName}}::ObjectSerializer.deserialize('[{"createdAt":"2024-01-01T00:00:00Z","created_at":"x"}]', 'Array<Metadata>')
+
+    _(items.first.additional_properties).must_equal('created_at' => 'x')
+  end
+
+  it 'bhv_misc_290 an undeclared key holding an object survives a full deserialize and serialize round trip' do
+    json = '{"createdAt":"2024-01-01T00:00:00Z","extra":{"k":{"n":1}}}'
+    wire = {{moduleName}}::ObjectSerializer.serialize({{moduleName}}::ObjectSerializer.deserialize(json, 'Metadata'))
+    again = {{moduleName}}::ObjectSerializer.deserialize(wire, 'Metadata')
+
+    _(again.additional_properties).must_equal('extra' => { 'k' => { 'n' => 1 } })
+  end
+
   it 'bhv_serialization_052 undeclared keys are kept on every element of a list read from the wire' do
     items = {{moduleName}}::ObjectSerializer.deserialize('[{"customField":"a"}]', 'Array<Metadata>')
 

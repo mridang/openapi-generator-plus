@@ -425,4 +425,14 @@ import Testing
     #expect(OrderStatusEnum.allCases.map { $0.rawValue }.contains("approved"))
     #expect(OrderStatusEnum(rawValue: "not-a-status") == nil)
   }
+
+  /* Numeric additional property names are written as members of the JSON object. */
+  @Test func testBhvMisc093NumericAdditionalPropertyNamesAreWrittenAsObjectMembers() throws {
+    let metadata = try #require(
+      try ObjectSerializer.deserialize(
+        Data("{\"404\":\"missing\",\"7\":\"seven\"}".utf8), as: Metadata.self))
+    let text = try ObjectSerializer.serialize(metadata)
+    #expect(text.contains("\"404\":\"missing\""))
+    #expect(text.contains("\"7\":\"seven\""))
+  }
 }

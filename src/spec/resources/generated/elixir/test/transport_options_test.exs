@@ -485,6 +485,32 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
+  test "bhv misc 175 credential-bearing header names are recognised in any letter case and ordinary names are not" do
+    redacted =
+      PetstoreClient.TransportOptions.redact_headers(%{
+        "X-API-KEY" => "k1",
+        "authorization" => "Bearer t",
+        "Accept" => "application/json"
+      })
+
+    assert redacted["X-API-KEY"] == "***"
+    assert redacted["authorization"] == "***"
+    assert redacted["Accept"] == "application/json"
+  end
+
+  test "bhv misc 186 a non-keyword HTTP connection value and a ready-made connection with a CA setting are refused when the options are built" do
+    assert_raise ArgumentError, ~r/must be a keyword list/, fn ->
+      PetstoreClient.TransportOptions.new(req_options: "not-a-connection")
+    end
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.TransportOptions.new(
+        ca_cert_path: "/nonexistent/ca.pem",
+        req_options: [connect_options: [timeout: 1]]
+      )
+    end
+  end
+
   test "bhv transport 078 req_options connect_options conflicts with the SDK's own proxy settings" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
       PetstoreClient.TransportOptions.new(
@@ -544,5 +570,11 @@ defmodule PetstoreClient.TransportOptionsTest do
     opts = PetstoreClient.TransportOptions.new(req_options: [connect_options: [timeout: 1]])
 
     assert opts.req_options == [connect_options: [timeout: 1]]
+  end
+
+  test "bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error" do
+    assert_raise ArgumentError,
+                 "Invalid timeout: must be a positive number of milliseconds (got 0)",
+                 fn -> PetstoreClient.TransportOptions.new(timeout: 0) end
   end
 end

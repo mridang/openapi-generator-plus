@@ -202,6 +202,41 @@ describe {{moduleName}}::Errors::ApiError do
     _(err).must_be_kind_of({{apiErrorParent}})
   end
 
+  it 'bhv_misc_280 a body cut short in the message states how many bytes were left out' do
+    err = {{moduleName}}::Errors::ApiError.new(
+      status_code: 500, message: 'boom', response_headers: nil, response_body: 'c' * 1100
+    )
+
+    _(err.message).must_include '(76 more bytes)'
+  end
+
+  it 'bhv_misc_281 the headers of a received response are copied onto the error raised for it' do
+    err = {{moduleName}}::Errors::ApiError.from_response(404, { 'x-request-id' => 'req-7' }, 'no such thing')
+
+    _(err.response_headers).must_equal('x-request-id' => 'req-7')
+  end
+
+  it 'bhv_misc_283 the root module reaches every error class of the error tree through Errors' do
+    %i[ApiError NetworkError NetworkTimeoutError SerializationError BadRequestError NotFoundError InternalServerError].each do |name|
+      _({{moduleName}}::Errors.const_get(name)).must_be_kind_of Class
+    end
+  end
+
+  it 'bhv_misc_284 a status with a typed error class raises that class' do
+    {
+      400 => {{moduleName}}::Errors::BadRequestError,
+      403 => {{moduleName}}::Errors::ForbiddenError,
+      404 => {{moduleName}}::Errors::NotFoundError,
+      409 => {{moduleName}}::Errors::ConflictError,
+      422 => {{moduleName}}::Errors::UnprocessableEntityError,
+      429 => {{moduleName}}::Errors::TooManyRequestsError,
+      500 => {{moduleName}}::Errors::InternalServerError,
+      502 => {{moduleName}}::Errors::BadGatewayError
+    }.each do |status, klass|
+      _({{moduleName}}::Errors::ApiError.from_response(status, {}, '')).must_be_instance_of klass
+    end
+  end
+
   it 'bhv_misc_024 a transport failure keeps the underlying transport error reachable as its cause' do
     err = {{moduleName}}::Errors::NetworkTimeoutError.new(message: 'timed out')
 

@@ -649,6 +649,115 @@ public class DefaultApiClientUnitTest
         Assert.Equal("application/json", capturedAccept);
     }
 
+    [Fact]
+    public async Task BhvMisc095AResponseBodyWithInvalidBytesReplacesEachBadByte()
+    {
+        var handler = new RawBodyHandler(new byte[] { 0x61, 0xff, 0x62, 0xfe });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() => client.SendRequestAsync(
+            "GET", new Uri("http://example.com/test"), new Dictionary<string, string>(), null));
+        Assert.Equal("a\uFFFDb\uFFFD", ex.ResponseBody);
+    }
+
+    [Fact]
+    public async Task BhvMisc096ATextPartCarriesOnlyItsContentDisposition()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(), new Dictionary<string, object> { { "title", "hello" } });
+
+        Assert.NotNull(wireText);
+        Assert.Contains("Content-Disposition: form-data; name=\"title\"\r\n\r\nhello\r\n", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Content-Transfer-Encoding", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Content-Type", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc097AnArrayFieldIsOnePartPerElementInOrder()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"), new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "tags", new[] { "a", "b" } }, { "name", "x" } });
+
+        Assert.NotNull(wireText);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(wireText, "name=\"tags\"").Count);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(wireText, "name=\"name\"").Count);
+        Assert.True(wireText.IndexOf("\r\n\r\na\r\n", StringComparison.Ordinal) < wireText.IndexOf("\r\n\r\nb\r\n", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task BhvMisc098ACallerStreamPartIsNeverClosedBySdk()
+    {
+        var handler = new CapturingHandler(_ => Task.CompletedTask);
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var stream = new DisposeTrackingStream(new byte[] { 1, 2, 3 });
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"), new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "data.bin", stream } });
+
+        Assert.False(stream.WasDisposed);
+    }
+
+    [Fact]
+    public void BhvMisc099ANonAsciiFilenameHasOneFallbackAndAnExtendedForm()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("r\u00e9sum\u00e9.pdf");
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(directive, "filename=").Count);
+        Assert.Contains("filename*=UTF-8''r%C3%A9sum%C3%A9.pdf", directive, StringComparison.Ordinal);
+    }
+
+    private sealed class RawBodyHandler : HttpMessageHandler
+    {
+        private readonly byte[] _bytes;
+
+        public RawBodyHandler(byte[] bytes)
+        {
+            _bytes = bytes;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            {
+                Content = new ByteArrayContent(_bytes),
+            };
+            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain")
+            {
+                CharSet = "utf-8",
+            };
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class DisposeTrackingStream : MemoryStream
+    {
+        public DisposeTrackingStream(byte[] bytes)
+            : base(bytes)
+        {
+        }
+
+        public bool WasDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            WasDisposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
     // -- Gap J: per-part MIME sniffing for multipart uploads --
 
     [Fact]
@@ -2263,6 +2372,195 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc123APreEncodedCookieValueReachesTheWireUnchanged()
+    {
+        var handler = new ScriptedRedirectHandler([]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/x"),
+            new Dictionary<string, string> { { "Cookie", "api_key=a%20b" } },
+            null
+        );
+
+        Assert.True(handler.Requests[0].Headers.TryGetValues("Cookie", out var values));
+        Assert.Equal("api_key=a%20b", string.Join(";", values));
+    }
+
+    [Fact]
+    public async Task BhvMisc124APostBodyIsNotReplayedAcross301HttpsToHttp()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.MovedPermanently,
+            location: new Uri("http://downgraded.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            new byte[] { 1, 2, 3 }
+        ));
+
+        Assert.Single(handler.Requests);
+    }
+
+    [Theory]
+    [InlineData("https://secure.example.com/start")]
+    [InlineData("http://plain.example.com/start")]
+    public async Task BhvMisc125A307StayingOnOneSchemeOrUpgradingIsNotRefusedAsABodyReplay(string start)
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("https://secure.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(start),
+            new Dictionary<string, string>(),
+            "payload"
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc126AHeadRequestRedirectedWith303IsFollowedAsHead()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.SeeOther,
+            location: new Uri("http://origin.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "HEAD",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal("HEAD", handler.Requests[1].Method.Method);
+    }
+
+    [Fact]
+    public async Task BhvMisc127AQueryOnlyLocationKeepsThePathAndReplacesTheQuery()
+    {
+        var handler = new ScriptedRedirectHandler(
+            [(HttpStatusCode.Found, new Uri("?page=2", UriKind.Relative))]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("https://h.example.com/v1/items/1?x=1"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(new Uri("https://h.example.com/v1/items/1?page=2"), handler.Requests[1].RequestUri);
+    }
+
+    [Fact]
+    public async Task BhvMisc128AProxyCredentialSurvivesACrossOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed"));
+        var transport = TransportOptions.Builder().Proxy("http://user:pass@127.0.0.1:3128").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal("Basic dXNlcjpwYXNz", client.ProxyAuthorizationHeader);
+    }
+
+    [Fact]
+    public async Task BhvMisc129AProxyCredentialIsNotSentAgainOnAnHttpsCrossOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("https://other.example.com/landed"));
+        var transport = TransportOptions.Builder().Proxy("http://user:pass@127.0.0.1:3128").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("https://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("Proxy-Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvMisc131ACallerSuppliedClientStillDropsCredentialsOnACrossOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.Found,
+            location: new Uri("http://other.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { { "Authorization", "Bearer caller-secret" } },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvMisc132APerCallHeaderIsDroppedOnACrossOriginRedirect()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { { "X-Tenant-Token", "tenant-secret" } },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("X-Tenant-Token"));
+    }
+
+    [Theory]
+    [InlineData(300)]
+    [InlineData(305)]
+    public async Task BhvMisc133AMultipleChoicesOrUseProxyResponseIsReturnedAsIs(int status)
+    {
+        var handler = new ScriptedRedirectHandler(
+            [((HttpStatusCode)status, new Uri("http://origin.example.com/landed"))]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Single(handler.Requests);
+        Assert.Equal(status, response.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvRedirects039AllowsBodylessGetOnHttpsToHttpDowngrade()
     {
         // GET without a body has nothing to replay — the downgrade
@@ -3088,6 +3386,45 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc152AnAlreadyAbortedCallRejectsWithoutSendingTheRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            cts.Token
+        ));
+        Assert.False(handler.Entered.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task BhvMisc153ACallLevelCancelSignalAbortsTheSameInFlightRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var callSource = new CancellationTokenSource();
+        Task<ApiHttpResponse> pending = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            callSource.Token
+        );
+        await handler.Entered.Task;
+        await callSource.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+    }
+
+    [Fact]
     public async Task BhvTransport085TimeoutStaysDistinctFromCancellationWhenATokenIsSupplied()
     {
         var client = new DefaultApiClient(
@@ -3818,6 +4155,304 @@ public class DefaultApiClientUnitTest
         }
     }
 
+    [Fact]
+    public async Task BhvMisc217ABinaryBodyAndAStreamBodyAreSentAsTheirOwnBytes()
+    {
+        var handler = new SequenceHandler(_ => Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        _ = await SendGet(client, body: Encoding.UTF8.GetBytes("hello"), method: "POST");
+        _ = await SendGet(client, body: new MemoryStream(Encoding.UTF8.GetBytes("hello")), method: "POST");
+
+        Assert.Equal(new[] { "hello", "hello" }, handler.Bodies);
+    }
+
+    [Fact]
+    public async Task BhvMisc218APerCallHeaderReplacesTheConfiguredHeaderWithoutADuplicate()
+    {
+        HttpRequestMessage? sent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            sent = req;
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().DefaultHeader("X-Trace", "configured").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { ["X-Trace"] = "per-call" },
+            null);
+
+        Assert.Equal(new[] { "per-call" }, sent!.Headers.GetValues("X-Trace").ToArray());
+    }
+
+    [Fact]
+    public async Task BhvMisc219AnOperationWithSeveralServersSendsItsRequestToTheChosenServer()
+    {
+        var chosen = Servers.Server1.GetUrl();
+        var handler = new SequenceHandler(_ => Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri(chosen + "/retry"),
+            new Dictionary<string, string>(),
+            null);
+
+        Assert.Equal("GET " + chosen + "/retry", Assert.Single(handler.Requests));
+    }
+
+    [Fact]
+    public async Task BhvMisc220AFullResponseKeepsItsStatusAndItsBodyText()
+    {
+        var client = new DefaultApiClient(
+            CreateMockHttpClient(HttpStatusCode.OK, "{\"label\":\"ok\"}"),
+            TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal("{\"label\":\"ok\"}", response.Body);
+    }
+
+    [Fact]
+    public async Task BhvMisc221ACredentialIsSentInTheApiKeyHeaderAndNeverAsBearer()
+    {
+        string[] apiKeyHeaderNames =
+        [
+            {{#apiKeyHeaderNames}}"{{name}}", {{/apiKeyHeaderNames}}
+        ];
+        string apiKeyHeader = apiKeyHeaderNames[0];
+        HttpRequestMessage? sent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            sent = req;
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { [apiKeyHeader] = "secret" },
+            null);
+
+        Assert.Equal("secret", sent!.Headers.GetValues(apiKeyHeader).Single());
+        Assert.Null(sent.Headers.Authorization);
+    }
+
+    [Fact]
+    public async Task BhvMisc222A201WithAnEmptyBodyReturnsNoDataWithoutAnError()
+    {
+        var client = new DefaultApiClient(
+            CreateMockHttpClient(HttpStatusCode.Created, ""),
+            TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(201, response.StatusCode);
+        Assert.Equal("", response.Body);
+    }
+
+    [Fact]
+    public async Task BhvMisc223ASeeOtherFollowUpDropsTheBodyWhileA307ForwardsItUnchanged()
+    {
+        var seeOther = new RedirectingHandler(HttpStatusCode.SeeOther, new Uri("http://origin.example.com/landed"));
+        var seeOtherClient = new DefaultApiClient(new HttpClient(seeOther), TransportOptions.Builder().Build());
+        await SendGet(seeOtherClient, body: "payload", method: "POST");
+
+        Assert.Null(seeOther.Requests[1].Content);
+
+        var temporary = new RedirectingHandler(HttpStatusCode.TemporaryRedirect, new Uri("http://origin.example.com/landed"));
+        var temporaryClient = new DefaultApiClient(new HttpClient(temporary), TransportOptions.Builder().Build());
+        await SendGet(temporaryClient, body: "payload", method: "POST");
+
+        Assert.Equal("payload", Encoding.UTF8.GetString(temporary.Bodies[1]));
+    }
+
+    [Fact]
+    public async Task BhvMisc224ATransportDefaultHeaderIsNotSentToAnotherOriginAfterARedirect()
+    {
+        var handler = new RedirectingHandler(HttpStatusCode.Redirect, new Uri("http://other.example.com/dest"));
+        var transport = TransportOptions.Builder().DefaultHeader("X-Custom", "custom-value").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await SendGet(client);
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("X-Custom"));
+    }
+
+    [Fact]
+    public async Task BhvMisc225AThreeXxWithoutLocationIsReturnedAsTheFinalResponse()
+    {
+        var handler = new ScriptedRedirectHandler(
+            [(HttpStatusCode.Redirect, null)]);
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(302, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvMisc226AFollowedRedirectReturnsTheFinalOkResponse()
+    {
+        var handler = new RedirectingHandler(HttpStatusCode.Redirect, new Uri("http://origin.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc227ADroppedConnectionBeforeAnyResponseIsRetried()
+    {
+        var handler = new DropThenAnswerHandler();
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Attempts);
+    }
+
+    [Fact]
+    public async Task BhvMisc228AnUnparseableRetryAfterIsIgnoredAndTheNormalBackoffIsUsed()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(429, "soon-ish") : Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc229APerCallMaxRetriesCanRetryWhenTheClientHasNone()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(0).Build());
+
+        _ = await SendWithCallOptions(client, null, 2);
+
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    private sealed class DropThenAnswerHandler : HttpMessageHandler
+    {
+        public int Attempts { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Attempts++;
+            if (Attempts == 1)
+            {
+                throw new HttpRequestException("connection dropped");
+            }
+            return Task.FromResult(Respond(200, null));
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc237AnIso88591ErrorBodyDecodesToUtf8TextInTheError()
+    {
+        var handler = new RawByteHandler(
+            HttpStatusCode.BadRequest,
+            new byte[] { 0x63, 0x61, 0x66, 0xE9 },
+            "text/plain; charset=iso-8859-1");
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null));
+
+        Assert.Contains("café", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc239AnOperationQueryParameterIsSentWhenNoAuthenticatorIsConfigured()
+    {
+        HttpRequestMessage? sent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            sent = req;
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/items?limit=5"),
+            new Dictionary<string, string>(),
+            null);
+
+        Assert.Equal("http://origin.example.com/items?limit=5", sent!.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task BhvMisc240AMultipartFileContentIsEchoedBackInTheRequestBody()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "file", new byte[] { 0x41, 0x42, 0x43 } }
+        };
+
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(), formData);
+
+        Assert.NotNull(wireText);
+        Assert.Contains("ABC", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc265ARedirectToANonHttpSchemeIsAnApiErrorWithTheRedirectStatus()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.Redirect,
+            location: new Uri("ftp://example.com/file"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null));
+
+        Assert.Equal(302, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvOperations161ATextPlainResponseIsReturnedRawEvenWhenItLooksLikeBase64()
+    {
+        var client = new DefaultApiClient(CreateMockHttpClient(
+            HttpStatusCode.OK,
+            "aGk=",
+            new Dictionary<string, string> { ["Content-Type"] = "text/plain" }));
+
+        var response = await SendGet(client);
+
+        Assert.Equal("aGk=", response.Body);
+    }
+
     private static byte[] GzipBytes(string text)
     {
         using var compressed = new MemoryStream();
@@ -4521,6 +5156,41 @@ public sealed class MultipartShadeConverter : System.Text.Json.Serialization.Jso
         _ = release.TrySetResult(true);
         var response = await pending;
         Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc101AnUnreadableBodySourceFailsTheCall()
+    {
+        var handler = new CapturingHandler(async req => { await req.Content!.ReadAsByteArrayAsync(); });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object> { { "upload.bin", new UnreadableSource() } };
+
+        await Assert.ThrowsAnyAsync<Exception>(() => client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"), new Dictionary<string, string>(), formData));
+    }
+
+    private sealed class UnreadableSource : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new IOException("source is gone");
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
 }

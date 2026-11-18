@@ -1526,6 +1526,128 @@ void main() {
     );
 
     test(
+      'bhv misc 126 a HEAD request redirected by a 303 is followed as HEAD',
+      () async {
+        String? landedMethod;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          if (request.uri.path == '/start') {
+            await request.drain<void>();
+            request.response
+              ..statusCode = 303
+              ..headers.set('Location', '/landed')
+              ..close();
+            return;
+          }
+          landedMethod = request.method;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
+          );
+          await client.sendRequest(
+            'HEAD',
+            'http://localhost:${server.port}/start',
+            {},
+            null,
+          );
+          expect(landedMethod, equals('HEAD'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 127 a Location that holds only a query keeps the redirected path and replaces its query',
+      () async {
+        Uri? landed;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          if (request.uri.queryParameters['page'] == '2') {
+            landed = request.uri;
+            request.response
+              ..statusCode = 200
+              ..close();
+            return;
+          }
+          await request.drain<void>();
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', '?page=2')
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
+          );
+          await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/v1/items/1?x=1',
+            {},
+            null,
+          );
+          expect(landed?.path, equals('/v1/items/1'));
+          expect(landed?.query, equals('page=2'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 132 a per-call header whose name holds a credential word is dropped on a cross-origin redirect',
+      () async {
+        String? firstSeen;
+        String? landedSeen;
+        final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        target.listen((request) {
+          landedSeen = request.headers.value('x-call-token');
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+        final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        origin.listen((request) async {
+          firstSeen = request.headers.value('x-call-token');
+          await request.drain<void>();
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', 'http://127.0.0.1:${target.port}/end')
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
+          );
+          await client.sendRequest(
+            'GET',
+            'http://localhost:${origin.port}/start',
+            {'X-Call-Token': 'abc'},
+            null,
+          );
+          expect(firstSeen, equals('abc'));
+          expect(landedSeen, isNull);
+        } finally {
+          await origin.close();
+          await target.close();
+        }
+      },
+    );
+
+    test(
       'bhv redirects 025 strips a header whose name says key, token or secret on a cross-origin redirect',
       () async {
         final seen = <String, String?>{};
@@ -3158,6 +3280,37 @@ void main() {
      * `T`) reads [readBodyAsLatin1Raw] instead. */
     Future<String> readBodyAsLatin1(HttpRequest request) async =>
         (await readBodyAsLatin1Raw(request)).toLowerCase();
+
+    test(
+      'bhv misc 096 a text part carries only its Content-Disposition',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {'title': 'hello'},
+          );
+          expect(
+            body,
+            contains('content-disposition: form-data; name="title"'),
+          );
+          expect(body, isNot(contains('content-transfer-encoding')));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test(
       'bhv serializationwire 039 multipart .png field sets image/png Content-Type',
