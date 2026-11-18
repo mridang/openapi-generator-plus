@@ -43,7 +43,7 @@ defmodule {{moduleName}}.ClientTest do
     assert_received :through_adapter
   end
 
-  test "close releases the transport and the authenticator's token manager" do
+  test "bhv langelixir 020 close releases the transport and the authenticator's token manager" do
     authenticator =
       {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
         "{{{basePath}}}",
@@ -69,7 +69,7 @@ defmodule {{moduleName}}.ClientTest do
     assert err.message == "ApiClient has been closed and can no longer send requests"
   end
 
-  test "close works for an authenticator that starts nothing" do
+  test "bhv langelixir 021 close works for an authenticator that starts nothing" do
     authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
     client = {{moduleName}}.{{clientClassName}}.new(authenticator)
 
@@ -314,7 +314,7 @@ defmodule {{moduleName}}.ClientTest do
 {{/apiInfo}}
   end
 
-  test "a key that names no security scheme of the API raises ArgumentError" do
+  test "bhv langelixir 022 a key that names no security scheme of the API raises ArgumentError" do
     credential = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "scheme-token")
 
     assert_raise ArgumentError, ~r/unknown keys \[:no_such_scheme\]/, fn ->
@@ -375,7 +375,7 @@ defmodule {{moduleName}}.ClientTest do
     end
   end
 
-  test "close releases the authenticator and every scheme credential once" do
+  test "bhv langelixir 023 close releases the authenticator and every scheme credential once" do
     default = %ClosingAuthenticator{notify: self(), label: :default}
     credential = %ClosingAuthenticator{notify: self(), label: :scheme}
     client = {{moduleName}}.{{clientClassName}}.new(default, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
@@ -537,7 +537,7 @@ defmodule {{moduleName}}.ClientTest do
 {{/apiInfo}}
   end
 
-  test "a call hook given to the client reaches the configuration of every API" do
+  test "bhv langelixir 024 a call hook given to the client reaches the configuration of every API" do
     authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
     hook = {{moduleName}}.CallHook.chain([])
 

@@ -198,7 +198,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert message =~ "get_order_by_id"
   end
 
-  test "an error response names the request" do
+  test "bhv langelixir 089 an error response names the request" do
     api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
 
     assert {:error,

@@ -195,7 +195,7 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "a SOCKS proxy scheme is rejected at construction" do
+  test "bhv options 068 a SOCKS proxy scheme is rejected at construction" do
     for scheme <- ["socks", "socks4", "socks5"] do
       url = "#{scheme}://proxy.example.com:1080"
 
@@ -464,18 +464,18 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "req_options defaults to an empty list" do
+  test "bhv langelixir 009 req_options defaults to an empty list" do
     assert PetstoreClient.TransportOptions.new().req_options == []
   end
 
-  test "req_options carries the caller's Req options" do
+  test "bhv langelixir 010 req_options carries the caller's Req options" do
     adapter = fn request -> {request, Req.Response.new(status: 200)} end
     opts = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
 
     assert opts.req_options == [adapter: adapter]
   end
 
-  test "req_options must be a keyword list" do
+  test "bhv langelixir 011 req_options must be a keyword list" do
     assert_raise ArgumentError, ~r/req_options/, fn ->
       PetstoreClient.TransportOptions.new(req_options: %{adapter: :none})
     end
@@ -530,7 +530,7 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "req_options connect_options is accepted when the SDK sets no proxy or TLS option" do
+  test "bhv langelixir 012 req_options connect_options is accepted when the SDK sets no proxy or TLS option" do
     opts = PetstoreClient.TransportOptions.new(req_options: [connect_options: [timeout: 1]])
 
     assert opts.req_options == [connect_options: [timeout: 1]]
