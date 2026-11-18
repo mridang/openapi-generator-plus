@@ -43,15 +43,15 @@ describe Petstore::Client::Configuration do
   it 'bhv_config_012 builder sets multiple default headers' do
     config = Petstore::Client::Configuration.builder
       .default_headers({
-        'Authorization' => 'Bearer token123',
-        'X-Custom' => 'value'
-      })
+                         'Authorization' => 'Bearer token123',
+                         'X-Custom' => 'value'
+                       })
       .build
 
     _(config.default_headers).must_equal({
-      'Authorization' => 'Bearer token123',
-      'X-Custom' => 'value'
-    })
+                                           'Authorization' => 'Bearer token123',
+                                           'X-Custom' => 'value'
+                                         })
   end
 
   it 'bhv_config_002 builder accumulates headers' do
@@ -76,9 +76,9 @@ describe Petstore::Client::Configuration do
 
     _(config.base_url).must_equal('https://api.example.com')
     _(config.default_headers).must_equal({
-      'Authorization' => 'Bearer token',
-      'X-Custom' => 'value'
-    })
+                                           'Authorization' => 'Bearer token',
+                                           'X-Custom' => 'value'
+                                         })
   end
 
   it 'bhv_config_008 server resolves URL with default variables' do

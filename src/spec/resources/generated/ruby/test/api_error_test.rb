@@ -532,7 +532,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_misc_019 a request target shown in an error is reduced to its path, dropping scheme, host, query and fragment' do
     err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
-                                                         request_method: 'get', request_path: '/items/1?token=abc')
+                                                           request_method: 'get', request_path: '/items/1?token=abc')
 
     _(err.request_method).must_equal 'GET'
     _(err.request_path).must_equal '/items/1'
@@ -540,7 +540,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_errors_007 records the request method and path without the query string' do
     err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
-                                                         request_method: 'get', request_path: '/items/1?token=abc')
+                                                           request_method: 'get', request_path: '/items/1?token=abc')
 
     _(err.request_method).must_equal 'GET'
     _(err.request_path).must_equal '/items/1'
@@ -548,7 +548,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_misc_021 the request path an error reports includes the base URL path prefix and excludes the query string' do
     err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
-                                                         request_method: 'delete', request_path: '/items/1')
+                                                           request_method: 'delete', request_path: '/items/1')
 
     _(err.request_method).must_equal 'DELETE'
     _(err.request_path).must_equal '/items/1'
@@ -557,7 +557,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_errors_011 names the request in the message and in the request fields' do
     err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
-                                                         request_method: 'delete', request_path: '/items/1')
+                                                           request_method: 'delete', request_path: '/items/1')
 
     _(err.request_method).must_equal 'DELETE'
     _(err.request_path).must_equal '/items/1'
@@ -566,7 +566,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_misc_020 the rendered error text shows the request line only when the method and path are both known' do
     err = Petstore::Client::Errors::ApiError.from_response(500, {}, nil,
-                                                         request_method: 'get', request_path: '/items?api_key=secret')
+                                                           request_method: 'get', request_path: '/items?api_key=secret')
 
     _(err.message.split("\n")).must_include 'Request: GET /items'
     _(err.message).wont_include 'secret'
@@ -574,7 +574,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_errors_026 renders the request on its own line and never carries the query string' do
     err = Petstore::Client::Errors::ApiError.from_response(500, {}, nil,
-                                                         request_method: 'get', request_path: '/items?api_key=secret')
+                                                           request_method: 'get', request_path: '/items?api_key=secret')
 
     _(err.message.split("\n")).must_include 'Request: GET /items'
     _(err.message).wont_include 'secret'
@@ -601,14 +601,14 @@ describe Petstore::Client::Errors::ApiError do
   end
 
   it 'bhv_errors_093 an error body with a byte-order mark decodes and still parses' do
-    with_bom = Petstore::Client::Errors::ApiError.from_response(400, {}, "﻿{\"id\":42,\"name\":\"Dogs\"}")
+    with_bom = Petstore::Client::Errors::ApiError.from_response(400, {}, '﻿{"id":42,"name":"Dogs"}')
     without_bom = Petstore::Client::Errors::ApiError.from_response(400, {}, '{"id":42,"name":"Dogs"}')
 
     _(with_bom.typed_error_body('Category').to_h).must_equal(without_bom.typed_error_body('Category').to_h)
   end
 
   it 'bhv_errors_072 a typed view of a BOM-prefixed error body decodes like the body without it' do
-    with_bom = Petstore::Client::Errors::ApiError.from_response(400, {}, "﻿{\"id\":42,\"name\":\"Dogs\"}")
+    with_bom = Petstore::Client::Errors::ApiError.from_response(400, {}, '﻿{"id":42,"name":"Dogs"}')
     without_bom = Petstore::Client::Errors::ApiError.from_response(400, {}, '{"id":42,"name":"Dogs"}')
 
     _(with_bom.typed_error_body('Category').to_h).must_equal(without_bom.typed_error_body('Category').to_h)
@@ -632,7 +632,7 @@ describe Petstore::Client::Errors::ApiError do
       status_code: 500, message: 'boom', response_headers: nil, response_body: "a#{'é' * 600}"
     )
 
-    _(err.message).wont_include "�"
+    _(err.message).wont_include '�'
     _(err.message).must_include '... (178 more bytes)'
   end
 
@@ -674,7 +674,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_errors_201 an error is retryable exactly for the statuses the client retries' do
     [408, 409, 429, 500, 502, 503, 504, 599].each do |status|
-      assert Petstore::Client::Errors::ApiError.from_response(status, {}, nil).retryable?, "status #{status}"
+      assert_predicate Petstore::Client::Errors::ApiError.from_response(status, {}, nil), :retryable?, "status #{status}"
     end
     [400, 401, 403, 404, 422, 501, 302].each do |status|
       refute_predicate Petstore::Client::Errors::ApiError.from_response(status, {}, nil), :retryable?, "status #{status}"

@@ -336,7 +336,7 @@ describe Petstore::Client::Api::BaseApi do
   it 'bhv_serializationwire_003 application/json response parses to an object' do
     client = FixedResponseApiClient.new(
       Petstore::Client::ApiHttpResponse.new(status_code: 200, body: '{"id":1,"name":"Dogs"}',
-                                          headers: { 'Content-Type' => 'application/json' })
+                                            headers: { 'Content-Type' => 'application/json' })
     )
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -651,7 +651,7 @@ describe Petstore::Client::Api::BaseApi do
     refute client.captured_headers.key?('Cookie'),
            'security:[] op must not carry an auth cookie from the client authenticator'
     _(client.captured_url).wont_include 'api_key',
-      "security:[] op must not carry an api-key query param, got: #{client.captured_url}"
+                                        "security:[] op must not carry an api-key query param, got: #{client.captured_url}"
   end
 
   # INHERITED GLOBAL SECURITY — get_pet_by_id declares no security of its own, so
@@ -815,7 +815,7 @@ describe Petstore::Client::Api::BaseApi do
       # Response deserialization may fail; we only care about the captured URL
     end
     _(client.captured_url).wont_include 'status=',
-      "Expected no status param when options is nil, got: #{client.captured_url}"
+                                        "Expected no status param when options is nil, got: #{client.captured_url}"
   end
 
   it 'bhv_options_002 null options omits allow_empty_value param' do
@@ -828,7 +828,7 @@ describe Petstore::Client::Api::BaseApi do
       # Response deserialization may fail; we only care about the captured URL
     end
     _(client.captured_url).wont_include 'status=',
-      "Expected no status param when options is nil, got: #{client.captured_url}"
+                                        "Expected no status param when options is nil, got: #{client.captured_url}"
   end
 
   it 'bhv_serializationwire_001 allow_empty_value param omitted when value is nil in options' do

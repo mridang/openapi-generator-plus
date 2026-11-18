@@ -35,7 +35,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'bhv_authapikey_005 rejects an empty header key at construction' do
-    err = _(-> {
+    err = _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', '', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
@@ -44,7 +44,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'bhv_authapikey_006 rejects an empty query key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'api_key', '', Petstore::Client::Auth::ApiKeyLocation::QUERY
       )
@@ -52,7 +52,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'bhv_authapikey_004 rejects an empty cookie key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'session', '', Petstore::Client::Auth::ApiKeyLocation::COOKIE
       )
@@ -60,7 +60,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'bhv_authapikey_017 rejects a whitespace-only key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', '   ', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
@@ -68,7 +68,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'bhv_authapikey_011 rejects a key made only of ASCII whitespace such as a vertical tab' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'api_key', " \v\f", Petstore::Client::Auth::ApiKeyLocation::QUERY
       )
@@ -84,7 +84,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
 
   # CR/LF/NUL are forbidden control characters in ALL locations.
   it 'bhv_authapikey_003 rejects CR/LF in a query key at construction' do
-    err = _(-> {
+    err = _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'api_key', "abc\r\n", Petstore::Client::Auth::ApiKeyLocation::QUERY
       )
@@ -93,7 +93,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'bhv_authapikey_002 rejects LF in a cookie key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'session', "abc\n", Petstore::Client::Auth::ApiKeyLocation::COOKIE
       )
@@ -101,7 +101,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'bhv_authapikey_018 rejects CR in a header key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', "abc\rdef", Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
@@ -112,7 +112,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   # silent UTF-8 mangling that varies per HTTP lib. Non-header locations
   # accept arbitrary chars.
   it 'bhv_authapikey_008 HEADER location rejects a non-ASCII key' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-Api-Key', 'kéy', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
@@ -135,7 +135,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     )
     _(auth.inspect).wont_include 'super-secret-key'
     _(auth.to_s).wont_include 'super-secret-key'
-    _("#{auth}").wont_include 'super-secret-key'
+    _(auth.to_s).wont_include 'super-secret-key'
     _(auth.inspect).must_include '***'
   end
 
@@ -260,7 +260,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
 
   it 'bhv_auth_034 rejects an empty or blank key at construction' do
     ['', " \t "].each do |key|
-      _(-> {
+      _(lambda {
         Petstore::Client::Auth::ApiKeyAuthenticator.new(
           'https://api.example.com', 'X-API-Key', key, Petstore::Client::Auth::ApiKeyLocation::HEADER
         )
@@ -271,7 +271,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   it 'bhv_auth_035 rejects a control, NUL or non-ASCII key at construction' do
     location = Petstore::Client::Auth::ApiKeyLocation
     [["abc\r\n", location::QUERY], ["abc\0def", location::COOKIE], ['kéy', location::HEADER]].each do |key, where|
-      _(-> {
+      _(lambda {
         Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key, where)
       }).must_raise ArgumentError
     end
@@ -279,7 +279,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
 
   it 'bhv_auth_042 rejects an explicit empty key instead of reading the environment variable' do
     prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', '', Petstore::Client::Auth::ApiKeyLocation::HEADER,
         env: { "#{prefix}_API_KEY" => 'from-env' }

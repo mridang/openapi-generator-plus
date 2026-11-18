@@ -122,7 +122,7 @@ describe Petstore::Client::ObjectSerializer do
       _(result).must_include('2024-01-01')
       _(result).must_include('12:30:45')
       assert(result.include?('+00:00') || result.include?('Z') || result.end_with?('Z'),
-        "should contain UTC offset: #{result}")
+             "should contain UTC offset: #{result}")
     end
 
     it 'bhv_serializationobject_116 positive offset is preserved in serialized string' do
@@ -152,7 +152,7 @@ describe Petstore::Client::ObjectSerializer do
     it 'bhv_serializationobject_149 serialized datetime string contains an offset' do
       t = Time.new(2024, 1, 1, 12, 30, 45, '+00:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
-      assert(result.match?(/[+-]\d{2}:\d{2}$|Z$/), "should end with offset: #{result}")
+      assert_match(/[+-]\d{2}:\d{2}$|Z$/, result, "should end with offset: #{result}")
     end
 
     it 'bhv_serialization_093 a date-time is written with a numeric UTC offset, never Z, keeping sub-second digits' do
@@ -682,7 +682,7 @@ describe Petstore::Client::ObjectSerializer do
     # deserialization. JSON.parse tolerates the BOM, so a Category prefixed
     # with U+FEFF round-trips to the same model. GREEN everywhere.
     it 'bhv_serializationobject_060 deserializes BOM-prefixed JSON to typed model' do
-      json_str = "﻿{\"id\":1,\"name\":\"Dogs\"}"
+      json_str = '﻿{"id":1,"name":"Dogs"}'
       category = Petstore::Client::ObjectSerializer.deserialize(json_str, 'Category')
       _(category).must_be_kind_of(Petstore::Client::Models::Category)
       _(category.id).must_equal(1)
@@ -1292,7 +1292,7 @@ describe Petstore::Client::ObjectSerializer do
       # A top-level `type: string, format: byte` response carried as
       # application/json arrives as a JSON string literal. deserialize must
       # JSON-parse it and then base64-decode the inner string to raw bytes.
-      raw = "test-image".dup.force_encoding(Encoding::BINARY)
+      raw = 'test-image'.dup.force_encoding(Encoding::BINARY)
       json = Base64.strict_encode64(raw).to_json
       result = Petstore::Client::ObjectSerializer.deserialize(json, 'ByteArray')
       _(result).must_equal(raw)
