@@ -515,3 +515,15 @@ test('bhv lifecycle 045 closing the sdk client does not close a supplied http cl
         ->not->toThrow(\LogicException::class);
     expect($counts->closes)->toBe(0);
 });
+
+test('bhv lifecycle 041 a supplied http client with sdk proxy or tls settings is refused with a conflict error', function (TransportOptions $options): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+
+    expect(fn () => Client::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+})->with([
+    'proxy' => [TransportOptions::builder()->proxy('http://proxy:3128')->build()],
+    'ca bundle' => [TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
+    'tls verification off' => [TransportOptions::builder()->verifySsl(false)->build()],
+]);
