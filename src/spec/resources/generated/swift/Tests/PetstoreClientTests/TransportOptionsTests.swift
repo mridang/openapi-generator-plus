@@ -105,7 +105,7 @@ import Testing
     #expect(try TransportOptionsBuilder().build().session == nil)
   }
 
-  @Test func testSessionIsKept() throws {
+  @Test func testBhvLangswift071SessionIsKept() throws {
     let session = URLSession(configuration: .ephemeral)
     let opts = try TransportOptionsBuilder().session(session).build()
     #expect(opts.session === session)
@@ -303,7 +303,7 @@ import Testing
     }
   }
 
-  @Test func testEmptyProxyStringClearsTheProxy() throws {
+  @Test func testBhvLangswift072EmptyProxyStringClearsTheProxy() throws {
     let opts = try TransportOptionsBuilder()
       .proxy("http://proxy.example.com:8080")
       .proxy("")
@@ -311,7 +311,7 @@ import Testing
     #expect(opts.proxy == nil)
   }
 
-  @Test func testSocksProxySchemesAreRejectedWhenTheProxyIsSet() throws {
+  @Test func testBhvOptions068SocksProxySchemesAreRejectedWhenTheProxyIsSet() throws {
     let urls = [
       "socks://proxy.example.com:1080",
       "socks4://proxy.example.com:1080",

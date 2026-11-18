@@ -2012,3 +2012,5 @@ langswift067 | A nested array of integers with a wrongly typed element is reject
 langswift068 | A server configuration description defaults to an empty string
 langswift069 | A server variable stores its default value
 langswift070 | A server variable with an enum default resolves to that default
+langswift071 | A caller-supplied session is kept by the transport options
+langswift072 | An empty proxy string clears a proxy set earlier
