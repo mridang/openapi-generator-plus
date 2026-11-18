@@ -591,8 +591,8 @@ async fn test_bhv_operations_153_pet_api_operation_without_a_server_is_sent_to_t
 }
 
 /* The operation uses the credential of the first scheme its specification lists
- * that the client holds. The bearer scheme is listed first and is held too, yet
- * only the api key header goes out. */
+ * that the client holds. The api key header scheme is listed first and is held,
+ * so the bearer credential the client also holds does not go out. */
 #[tokio::test]
 async fn test_bhv_operations_148_pet_api_uses_the_first_listed_scheme_the_client_holds() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");

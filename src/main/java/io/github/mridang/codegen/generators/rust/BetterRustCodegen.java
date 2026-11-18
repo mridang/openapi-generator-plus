@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1090,11 +1091,48 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                             .findFirst()
                                             .orElse(""));
                     op.vendorExtensions.put("op", opDecorators);
+                    reorderAuthMethodsToSpecOrder(op);
                 }
             }
             sanitizeServerEnumNames(operations.get("serverTypeDefs"));
         }
         return result;
+    }
+
+    /**
+     * Core lists {@code authMethods} in the order the components declare them. The first scheme
+     * an operation names that the client holds supplies its credential (F857), so the list is
+     * put in the operation's own security order, which the shared generator records in
+     * {@code securitySchemeOrder}. Schemes that are not in that order keep their place at the
+     * end.
+     */
+    @SuppressWarnings("unchecked")
+    private static void reorderAuthMethodsToSpecOrder(final CodegenOperation op) {
+        if (op.authMethods == null || op.vendorExtensions == null) {
+            return;
+        }
+        final Object decorator = op.vendorExtensions.get("op");
+        if (!(decorator instanceof Map)) {
+            return;
+        }
+        final Object order = ((Map<String, Object>) decorator).get("securitySchemeOrder");
+        if (!(order instanceof List)) {
+            return;
+        }
+        final List<String> names = new ArrayList<>();
+        for (final Object entry : (List<Object>) order) {
+            names.add(String.valueOf(((Map<String, Object>) entry).get("schemeId")));
+        }
+        final int unlisted = names.size();
+        op.authMethods =
+                op.authMethods.stream()
+                        .sorted(
+                                Comparator.comparingInt(
+                                        am ->
+                                                names.contains(am.name)
+                                                        ? names.indexOf(am.name)
+                                                        : unlisted))
+                        .collect(Collectors.toList());
     }
 
     /**

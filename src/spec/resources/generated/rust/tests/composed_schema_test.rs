@@ -1412,7 +1412,6 @@ fn test_bhv_unions_043_a_discriminator_set_on_a_subtype_is_written_as_given() {
     let food = DryFood {
         food_type: "custom".to_string(),
         weight_kg: 2.5,
-        ..Default::default()
     };
     let wire = serde_json::to_value(PetFood::DryFood(food)).expect("serializes");
     assert_eq!(wire["foodType"], serde_json::json!("custom"));
