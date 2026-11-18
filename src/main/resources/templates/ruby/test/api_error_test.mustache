@@ -383,7 +383,7 @@ describe {{moduleName}}::Errors::ApiError do
       assert {{moduleName}}::Errors::ApiError.from_response(status, {}, nil).retryable?, "status #{status}"
     end
     [400, 401, 403, 404, 422, 501, 302].each do |status|
-      refute {{moduleName}}::Errors::ApiError.from_response(status, {}, nil).retryable?, "status #{status}"
+      refute_predicate {{moduleName}}::Errors::ApiError.from_response(status, {}, nil), :retryable?, "status #{status}"
     end
   end
 

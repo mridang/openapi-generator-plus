@@ -383,7 +383,7 @@ describe Petstore::Client::Errors::ApiError do
       assert_predicate Petstore::Client::Errors::ApiError.from_response(status, {}, nil), :retryable?, "status #{status}"
     end
     [400, 401, 403, 404, 422, 501, 302].each do |status|
-      refute Petstore::Client::Errors::ApiError.from_response(status, {}, nil).retryable?, "status #{status}"
+      refute_predicate Petstore::Client::Errors::ApiError.from_response(status, {}, nil), :retryable?, "status #{status}"
     end
   end
 
