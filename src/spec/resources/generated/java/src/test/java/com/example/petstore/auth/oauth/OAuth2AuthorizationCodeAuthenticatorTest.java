@@ -334,7 +334,9 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
     IllegalStateException caught =
         assertThrowsExactly(IllegalStateException.class, () -> auth.getAuthHeaders());
-    assertTrue(caught.getMessage().startsWith("Must call exchangeCode()"), caught.getMessage());
+    String message = caught.getMessage();
+    assertNotNull(message);
+    assertTrue(message.startsWith("Must call exchangeCode()"), message);
   }
 
   @Test

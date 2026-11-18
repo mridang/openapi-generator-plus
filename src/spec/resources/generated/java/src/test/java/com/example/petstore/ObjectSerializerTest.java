@@ -768,6 +768,7 @@ class ObjectSerializerTest {
               "{\"a\":{\"name\":\"a\",\"photoUrls\":[]},\"b\":{\"name\":\"b\",\"photoUrls\":[]}}",
               new com.fasterxml.jackson.core.type.TypeReference<
                   java.util.Map<String, com.example.petstore.models.Pet>>() {}.getType());
+      assertNotNull(decoded);
       assertEquals(2, decoded.size());
       assertInstanceOf(com.example.petstore.models.Pet.class, decoded.get("a"));
       assertEquals("b", java.util.Objects.requireNonNull(decoded.get("b")).name);
@@ -1376,6 +1377,7 @@ class ObjectSerializerTest {
           "{\"name\":\"Eng\",\"lead\":{\"name\":\"Ada\",\"department\":{\"name\":\"Core\"}}}";
       com.example.petstore.models.Department department =
           serializer.deserialize(json, com.example.petstore.models.Department.class);
+      assertNotNull(department);
       assertEquals("Eng", department.name);
       com.example.petstore.models.Employee lead = java.util.Objects.requireNonNull(department.lead);
       assertEquals("Ada", lead.name);
@@ -1726,11 +1728,9 @@ class ObjectSerializerTest {
             + " seconds is accepted and one past it is rejected")
     void bhvSerializationObject223DurationAcceptedAtBoundAndRejectedPast() {
       assertEquals(
-          Duration.ofSeconds(315_576_000_000L),
-          serializer.deserialize("\"315576000000s\"", Duration.class));
+          Duration.ofDays(3652500), serializer.deserialize("\"315576000000s\"", Duration.class));
       assertEquals(
-          Duration.ofSeconds(-315_576_000_000L),
-          serializer.deserialize("\"-315576000000s\"", Duration.class));
+          Duration.ofDays(-3652500), serializer.deserialize("\"-315576000000s\"", Duration.class));
       for (String text :
           new String[] {"315576000001s", "-315576000001s", "315576000000.000000001s"}) {
         assertThrowsExactly(
@@ -2352,9 +2352,10 @@ class ObjectSerializerTest {
       SerializationException ex =
           assertThrowsExactly(
               SerializationException.class, () -> serializer.serialize(new FailingGetter()));
-      assertTrue(
-          ex.getMessage().startsWith("Failed to serialize object to JSON: "), ex.getMessage());
-      assertTrue(ex.getMessage().contains("boom"), ex.getMessage());
+      String message = ex.getMessage();
+      assertNotNull(message);
+      assertTrue(message.startsWith("Failed to serialize object to JSON: "), message);
+      assertTrue(message.contains("boom"), message);
     }
 
     @Test
@@ -3187,7 +3188,7 @@ class ObjectSerializerTest {
   void bhvSerialization022TopLevelScalarDecodesToItsOwnType() {
     assertEquals(Integer.valueOf(42), serializer.deserialize("42", Integer.class));
     assertEquals("x", serializer.deserialize("\"x\"", String.class));
-    assertEquals(Boolean.TRUE, serializer.deserialize("true", Boolean.class));
+    assertEquals(true, serializer.deserialize("true", Boolean.class));
   }
 
   @Test
@@ -3202,6 +3203,7 @@ class ObjectSerializerTest {
   @Test
   void bhvSerialization024BracketsInsideStringsDoNotCountTowardTheDepthLimit() {
     java.util.Map<?, ?> decoded = serializer.deserialize("{\"s\":\"[[[[[\"}", java.util.Map.class);
+    assertNotNull(decoded);
     assertEquals("[[[[[", decoded.get("s"));
     String deep = "[".repeat(1200) + "]".repeat(1200);
     assertThrows(SerializationException.class, () -> serializer.deserialize(deep, Object.class));
@@ -3212,10 +3214,12 @@ class ObjectSerializerTest {
     java.lang.reflect.Type type =
         new com.fasterxml.jackson.core.type.TypeReference<
             java.util.Map<String, Integer>>() {}.getType();
-    assertEquals(
-        Integer.valueOf(1),
-        ((java.util.Map<?, ?>) serializer.deserialize("{\"a\":1}", type)).get("a"));
-    assertTrue(((java.util.Map<?, ?>) serializer.deserialize("{}", type)).isEmpty());
+    java.util.Map<?, ?> single = (java.util.Map<?, ?>) serializer.deserialize("{\"a\":1}", type);
+    assertNotNull(single);
+    assertEquals(Integer.valueOf(1), single.get("a"));
+    java.util.Map<?, ?> none = (java.util.Map<?, ?>) serializer.deserialize("{}", type);
+    assertNotNull(none);
+    assertTrue(none.isEmpty());
   }
 
   @Test
@@ -3265,12 +3269,14 @@ class ObjectSerializerTest {
     OffsetDateTime zulu = serializer.deserialize("\"2024-01-15T10:30:00Z\"", OffsetDateTime.class);
     OffsetDateTime offset =
         serializer.deserialize("\"2024-01-15T11:30:00.000+01:00\"", OffsetDateTime.class);
+    assertNotNull(zulu);
+    assertNotNull(offset);
     assertEquals(zulu.toInstant(), offset.toInstant());
   }
 
   @Test
   void bhvSerialization040FormValuesUseTheirCanonicalWireText() {
-    assertEquals("true", ObjectSerializer.toFormValue(Boolean.TRUE));
+    assertEquals("true", ObjectSerializer.toFormValue(true));
     assertEquals("1.50", ObjectSerializer.toFormValue(new java.math.BigDecimal("1.50")));
     assertEquals("1.500s", ObjectSerializer.toFormValue(Duration.ofMillis(1500)));
     assertEquals("2024-01-15", ObjectSerializer.toFormValue(LocalDate.of(2024, 1, 15)));
@@ -3328,7 +3334,8 @@ class ObjectSerializerTest {
   void bhvSerialization050PropertyNameStartingWithADigitUsesItsExactWireName() {
     com.example.petstore.models.EdgeCases decoded =
         serializer.deserialize("{\"2fa\":true}", com.example.petstore.models.EdgeCases.class);
-    assertEquals(Boolean.TRUE, decoded.n2fa);
+    assertNotNull(decoded);
+    assertEquals(true, decoded.n2fa);
     assertTrue(serializer.serialize(decoded).contains("\"2fa\":true"));
   }
 
@@ -3346,7 +3353,7 @@ class ObjectSerializerTest {
     com.example.petstore.models.Metadata decoded =
         serializer.deserialize("{\"extra\":true}", com.example.petstore.models.Metadata.class);
     assertNotNull(decoded);
-    assertEquals(Boolean.TRUE, decoded.getAdditionalProperties().get("extra"));
+    assertEquals(true, decoded.getAdditionalProperties().get("extra"));
   }
 
   @Test
@@ -3362,6 +3369,7 @@ class ObjectSerializerTest {
   void bhvSerialization054FreeFormValueKeepsItsJsonType() {
     java.util.Map<?, ?> decoded =
         serializer.deserialize("{\"s\":\"text\",\"n\":null}", java.util.Map.class);
+    assertNotNull(decoded);
     assertEquals("text", decoded.get("s"));
     assertTrue(decoded.containsKey("n"));
     assertNull(decoded.get("n"));
@@ -3400,6 +3408,7 @@ class ObjectSerializerTest {
     java.util.Map<String, String> fields =
         serializer.toWireMap(
             com.example.petstore.models.Category.builder().id(1L).name("x").build());
+    assertNotNull(fields);
     assertEquals(java.util.List.of("id", "name"), new java.util.ArrayList<>(fields.keySet()));
   }
 
@@ -3412,7 +3421,9 @@ class ObjectSerializerTest {
     java.util.Map<String, java.util.List<com.example.petstore.models.Category>> decoded =
         serializer.deserialize("{\"a\":[{\"id\":1,\"name\":\"x\"}]}", type);
     assertNotNull(decoded);
-    assertEquals(Long.valueOf(1L), decoded.get("a").get(0).id);
+    java.util.List<com.example.petstore.models.Category> values = decoded.get("a");
+    assertNotNull(values);
+    assertEquals(Long.valueOf(1L), values.get(0).id);
   }
 
   @Test

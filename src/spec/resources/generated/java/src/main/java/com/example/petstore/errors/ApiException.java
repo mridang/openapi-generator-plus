@@ -40,7 +40,7 @@ public class ApiException extends OpenAPIException {
    *
    * @param message the detail message
    */
-  public ApiException(String message) {
+  public ApiException(@Nullable String message) {
     super(message);
     this.statusCode = 0;
     this.responseHeaders = null;
@@ -60,7 +60,7 @@ public class ApiException extends OpenAPIException {
    * @param message the detail message
    * @param cause the underlying transport exception
    */
-  public ApiException(String message, Throwable cause) {
+  public ApiException(@Nullable String message, Throwable cause) {
     super(message, cause);
     this.statusCode = 0;
     this.responseHeaders = null;
@@ -81,7 +81,7 @@ public class ApiException extends OpenAPIException {
    * @param message the detail message
    * @param cause the underlying failure
    */
-  public ApiException(int statusCode, String message, Throwable cause) {
+  public ApiException(int statusCode, @Nullable String message, Throwable cause) {
     super(message, cause);
     this.statusCode = statusCode;
     this.responseHeaders = null;
@@ -101,7 +101,7 @@ public class ApiException extends OpenAPIException {
    */
   public ApiException(
       int statusCode,
-      String message,
+      @Nullable String message,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
     this(statusCode, message, responseHeaders, responseBody, null);
@@ -118,7 +118,7 @@ public class ApiException extends OpenAPIException {
    */
   public ApiException(
       int statusCode,
-      String message,
+      @Nullable String message,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody) {
@@ -137,7 +137,7 @@ public class ApiException extends OpenAPIException {
    */
   public ApiException(
       int statusCode,
-      String message,
+      @Nullable String message,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody,
@@ -160,7 +160,7 @@ public class ApiException extends OpenAPIException {
    */
   public ApiException(
       int statusCode,
-      String message,
+      @Nullable String message,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody,
