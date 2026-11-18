@@ -523,3 +523,20 @@ test('bhv misc 046 unions holding equal content compare equal and different cont
     expect($a->equals($b))->toBeTrue();
     expect($a->equals($c))->toBeFalse();
 });
+
+test('bhv misc 047 serializing a union holding a value that is not one of its variants fails naming the union', function (array $data): void {
+    expect(fn () => PetFood::build($data))->toThrow(\InvalidArgumentException::class, 'PetFood');
+})->with([
+    'unknown discriminator' => [['foodType' => 'raw', 'calories' => 300]],
+    'missing discriminator' => [['weightKg' => 2.5]],
+    'empty discriminator' => [['foodType' => '', 'weightKg' => 2.5]],
+]);
+
+test('bhv misc 049 a choice between one binary value and a list writes the list as base64 text items', function (): void {
+    $request = new SetPetAvatarThumbnailRequest(new \Ds\Vector(["\x01\x02\x03\x04"]));
+
+    $json = ObjectSerializer::serialize($request);
+
+    expect($json)->toBe('["AQIDBA=="]');
+    expect($json)->not->toContain('[1,2,3,4]');
+});

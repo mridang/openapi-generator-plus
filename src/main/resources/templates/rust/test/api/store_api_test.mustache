@@ -954,3 +954,16 @@ async fn test_bhv_misc_013_an_operation_without_parameters_is_called_with_no_arg
     let result = api.get_inventory(None).await;
     assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
 }
+
+#[tokio::test]
+async fn test_bhv_misc_048_a_success_status_no_row_names_decodes_as_the_union() {
+    let body = r#"{"reservationId":1,"quantity":2,"receiptCode":"rcpt-1","expiresAt":"2030-01-01T00:00:00Z"}"#;
+    let result = new_store_api_for_mock(202, "application/json", body)
+        .reserve_stock(None)
+        .await
+        .expect("a 202 with no declared row must decode as the union");
+    assert!(
+        matches!(result, ReserveStockResponse::ReservationReceipt(_) | ReserveStockResponse::Reservation(_)),
+        "{result:?}"
+    );
+}
