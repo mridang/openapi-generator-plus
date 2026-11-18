@@ -14,6 +14,22 @@ import Foundation
 /// collection formats, and URL encoding.
 internal enum ValueSerializer {
 
+  /// A `format: date` parameter is typed String in Swift, so a date-time string can reach it.
+  /// The wire form is the calendar date only: the time and offset are dropped, as written.
+  /// Any other value (a date, free text, a non-date parameter) is returned unchanged.
+  static func calendarDateValue(_ value: Any?, schemaType: String) -> Any? {
+    guard schemaType == "date", let text = value as? String else {
+      return value
+    }
+    guard
+      text.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:", options: .regularExpression)
+        != nil
+    else {
+      return value
+    }
+    return String(text.prefix(10))
+  }
+
   /// Serialize a value for use in an HTTP request parameter.
   ///
   /// The serialization strategy depends on the `location`:
@@ -26,8 +42,8 @@ internal enum ValueSerializer {
   /// - Parameters:
   ///   - value: The value to serialize (may be nil).
   ///   - location: Where the parameter appears: "path", "query", "header", or "cookie".
-  ///   - schemaType: The OpenAPI schema type (currently unused, reserved for
-  ///     future format-aware serialization).
+  ///   - schemaType: The OpenAPI schema type. `date` makes a date-time value
+  ///     write its calendar date only.
   ///   - collectionFormat: The collection format: "multi", "csv", "ssv", "tsv",
   ///     or "pipes" (only relevant for query parameters).
   /// - Returns: The serialized value: a `String`, a `[String]` (for "multi"
@@ -35,6 +51,7 @@ internal enum ValueSerializer {
   static func serializeValue(
     _ value: Any?, location: String, schemaType: String, collectionFormat: String
   ) -> Any? {
+    let value = calendarDateValue(value, schemaType: schemaType)
     guard let value = value else {
       return serializeNil(location: location)
     }
@@ -180,6 +197,7 @@ internal enum ValueSerializer {
     style: String,
     explode: Bool
   ) -> Any? {
+    let value = calendarDateValue(value, schemaType: schemaType)
     if style.isEmpty {
       return serializeValue(
         value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)

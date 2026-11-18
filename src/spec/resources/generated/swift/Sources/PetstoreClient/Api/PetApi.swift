@@ -497,7 +497,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     path = path.replacingOccurrences(
       of: "{" + "bornOn" + "}",
       with:
-        "\(ValueSerializer.serializeStyled("bornOn", value: bornOn, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        "\(ValueSerializer.serializeStyled("bornOn", value: bornOn, location: "path", schemaType: "date", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
     let queryParams: OrderedParams<Any?> = [:]
@@ -578,7 +578,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     if let options = options, let val = options.bornAfter {
       queryParams["bornAfter"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
-          "bornAfter", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          "bornAfter", value: val, location: "query", schemaType: "date", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     }
     if let options = options, let val = options.n2ndPage {
@@ -592,7 +592,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     if let options = options, let val = options.reportDate {
       headerParams["Report-Date"] = try ValueSerializer.headerValue(
         ValueSerializer.serializeStyled(
-          "Report-Date", value: val, location: "header", schemaType: "String", collectionFormat: "",
+          "Report-Date", value: val, location: "header", schemaType: "date", collectionFormat: "",
           style: "simple", explode: false))
     }
 
@@ -1174,7 +1174,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     path = path.replacingOccurrences(
       of: "{" + "asOf" + "}",
       with:
-        "\(ValueSerializer.serializeStyled("asOf", value: asOf, location: "path", schemaType: "String", collectionFormat: "", style: "matrix", explode: false) ?? "")"
+        "\(ValueSerializer.serializeStyled("asOf", value: asOf, location: "path", schemaType: "date", collectionFormat: "", style: "matrix", explode: false) ?? "")"
     )
 
     var queryParams: OrderedParams<Any?> = [:]
@@ -1596,7 +1596,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       formBody["note"] = val
     }
     if let val = options.renewalDate {
-      formBody["renewalDate"] = val
+      formBody["renewalDate"] = ValueSerializer.calendarDateValue(val, schemaType: "date")
     }
     if let val = options.reminder {
       formBody["reminder"] = val
