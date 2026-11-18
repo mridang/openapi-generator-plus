@@ -1018,7 +1018,7 @@ mod tests {
     }
 
     #[test]
-    fn test_object_valued_parameters_pipe_delimited_and_nested_values() {
+    fn test_bhv_serialization_016_object_valued_parameters_pipe_delimited_and_nested_values() {
         let mut map = sample_object();
 
         assert_eq!(
@@ -1100,7 +1100,7 @@ mod tests {
     /* F1090: additional properties are written in ascending key order, so a body
      * with several extras has the same bytes in every process. */
     #[test]
-    fn test_serialize_extras_writes_the_keys_in_ascending_order() {
+    fn test_bhv_serialization_012_serialize_extras_writes_the_keys_in_ascending_order() {
         use serde::Serialize;
         struct Extras(std::collections::HashMap<String, i32>);
         impl Serialize for Extras {
@@ -2289,7 +2289,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_duplicate_key_still_rejects_trailing_content() {
+    fn test_bhv_serialization_023_deserialize_duplicate_key_still_rejects_trailing_content() {
         let payload = br#"{"id":1,"id":2} trailing"#;
         let result: Result<Option<Category>, _> = object_serializer::deserialize(payload);
         assert!(result.is_err(), "trailing content must still be rejected");
@@ -2623,5 +2623,191 @@ mod tests {
             object_serializer::stringify(&chrono::Duration::zero()),
             "0s"
         );
+    }
+    #[test]
+    fn test_bhv_serialization_013_an_array_in_an_unstyled_header_is_written_as_its_items() {
+        let items = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(to_header_value(&items), "a,b");
+        assert_eq!(object_serializer::stringify(&items), "[\"a\",\"b\"]");
+    }
+
+    #[test]
+    fn test_bhv_serialization_022_a_top_level_json_scalar_decodes_to_its_own_type() {
+        let number: Option<i32> = deserialize(b"42").expect("a number decodes");
+        assert_eq!(number, Some(42));
+        let text: Option<String> = deserialize(br#""hi""#).expect("a string decodes");
+        assert_eq!(text, Some("hi".to_string()));
+        let flag: Option<bool> = deserialize(b"true").expect("a boolean decodes");
+        assert_eq!(flag, Some(true));
+    }
+
+    #[test]
+    fn test_bhv_serialization_024_brackets_inside_strings_do_not_count_toward_the_depth_limit() {
+        let inside = format!(r#"{{"a":"{}"}}"#, "[".repeat(1500));
+        let accepted: Result<Option<serde_json::Value>, _> = deserialize(inside.as_bytes());
+        assert!(
+            accepted.is_ok(),
+            "brackets inside a string must not count as nesting"
+        );
+        let deep = format!("{}{}", "[".repeat(1001), "]".repeat(1001));
+        let refused: Result<Option<serde_json::Value>, _> = deserialize(deep.as_bytes());
+        assert!(
+            refused.is_err(),
+            "a payload nested past the limit must be refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_027_an_empty_json_array_decodes_to_an_empty_collection_not_absent() {
+        let empty: Option<Vec<i32>> = deserialize(b"[]").expect("an empty array decodes");
+        assert_eq!(empty, Some(Vec::new()));
+        let absent: Option<Vec<i32>> = deserialize(b"null").expect("null decodes");
+        assert_eq!(absent, None);
+    }
+
+    #[test]
+    fn test_bhv_serialization_028_a_json_value_of_the_wrong_kind_is_refused() {
+        assert!(deserialize::<crate::models::Category>(b"[]").is_err());
+        assert!(deserialize::<Vec<i32>>(b"{}").is_err());
+        assert!(deserialize::<std::collections::HashMap<String, i32>>(b"[]").is_err());
+    }
+
+    #[test]
+    fn test_bhv_serialization_029_a_quoted_number_or_a_string_for_a_scalar_or_enum_is_refused() {
+        assert!(
+            deserialize::<i32>(br#""5""#).is_err(),
+            "a quoted number is not an integer"
+        );
+        assert!(
+            deserialize::<String>(b"5").is_err(),
+            "a number is not a string"
+        );
+        assert!(
+            deserialize::<crate::models::Color>(b"5").is_err(),
+            "a number is not an enum value"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_031_a_whole_number_at_the_integer_range_limits_decodes_exactly() {
+        assert_eq!(
+            deserialize::<i32>(b"2147483647").expect("i32 max"),
+            Some(i32::MAX)
+        );
+        assert_eq!(
+            deserialize::<i64>(b"9223372036854775807").expect("i64 max"),
+            Some(i64::MAX)
+        );
+        assert_eq!(
+            deserialize::<i64>(b"-9223372036854775808").expect("i64 min"),
+            Some(i64::MIN)
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_032_an_integer_field_refuses_a_fraction_or_an_exponent() {
+        assert!(
+            deserialize::<i32>(b"1.0").is_err(),
+            "a whole value with a fraction is refused"
+        );
+        assert!(
+            deserialize::<i32>(b"1e2").is_err(),
+            "an exponent is refused"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_033_each_leaf_of_an_integer_map_or_nested_array_must_be_a_plain_integer(
+    ) {
+        assert!(deserialize::<std::collections::HashMap<String, i32>>(br#"{"a":1.5}"#).is_err());
+        assert!(deserialize::<Vec<Vec<i32>>>(b"[[1,2.0]]").is_err());
+        assert!(deserialize::<Vec<Vec<i32>>>(b"[[1,2]]").is_ok());
+    }
+
+    #[test]
+    fn test_bhv_serialization_034_a_floating_point_field_decodes_finite_numbers_exactly() {
+        assert_eq!(deserialize::<f64>(b"0.1").expect("fraction"), Some(0.1));
+        assert_eq!(
+            deserialize::<f64>(b"-2.5e3").expect("exponent"),
+            Some(-2500.0)
+        );
+        assert_eq!(deserialize::<f64>(b"7").expect("whole"), Some(7.0));
+    }
+
+    #[test]
+    fn test_bhv_serialization_035_the_nan_and_infinity_literals_are_refused_on_decode() {
+        assert!(deserialize::<f64>(b"NaN").is_err());
+        assert!(deserialize::<f64>(b"Infinity").is_err());
+        assert!(deserialize::<f64>(b"-Infinity").is_err());
+    }
+
+    #[test]
+    fn test_bhv_serialization_036_a_whole_floating_point_value_is_written_with_a_decimal_point() {
+        assert_eq!(serialize(&1.0_f64).expect("serializes"), "1.0");
+        assert_eq!(serialize(&-3.0_f64).expect("serializes"), "-3.0");
+    }
+
+    #[test]
+    fn test_bhv_serialization_041_a_time_string_parses_into_its_hour_minute_and_second_fields() {
+        use chrono::Timelike;
+        let time: Option<chrono::NaiveTime> =
+            deserialize(br#""12:34:56""#).expect("a time string decodes");
+        let time = time.expect("a present time");
+        assert_eq!((time.hour(), time.minute(), time.second()), (12, 34, 56));
+    }
+
+    #[test]
+    fn test_bhv_serialization_043_a_time_of_day_is_written_as_hours_minutes_and_seconds() {
+        let time = chrono::NaiveTime::from_hms_opt(9, 5, 7).expect("a valid time");
+        assert_eq!(object_serializer::format_time(&time), "09:05:07");
+    }
+
+    #[test]
+    fn test_bhv_serialization_045_a_malformed_time_string_is_refused_with_a_serialization_error() {
+        assert!(deserialize::<chrono::NaiveTime>(br#""25:61:00""#).is_err());
+        assert!(deserialize::<chrono::NaiveTime>(br#""not a time""#).is_err());
+    }
+
+    #[test]
+    fn test_bhv_serialization_048_a_duration_outside_a_model_is_written_as_protobuf_seconds() {
+        assert_eq!(to_header_value(&chrono::Duration::seconds(5400)), "5400s");
+        assert_eq!(
+            object_serializer::stringify(&chrono::Duration::seconds(45)),
+            "45s"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_049_a_uri_value_must_be_absolute() {
+        assert!(object_serializer::absolute_uri::is_absolute(
+            "https://example.com/path"
+        ));
+        assert!(!object_serializer::absolute_uri::is_absolute(
+            "/relative/path"
+        ));
+        assert!(!object_serializer::absolute_uri::is_absolute(""));
+        assert!(!object_serializer::absolute_uri::is_absolute("not a uri"));
+    }
+
+    #[test]
+    fn test_bhv_serialization_061_slash_angle_brackets_ampersand_and_non_ascii_are_written_literally(
+    ) {
+        let text = "a/b<&\u{e9}>".to_string();
+        assert_eq!(serialize(&text).expect("serializes"), "\"a/b<&\u{e9}>\"");
+    }
+
+    #[test]
+    fn test_bhv_serialization_065_a_null_in_an_array_of_plain_or_timestamp_values_stays_in_its_position(
+    ) {
+        let plain: Option<Vec<Option<i32>>> =
+            deserialize(b"[1,null,3]").expect("a nullable array decodes");
+        assert_eq!(plain, Some(vec![Some(1), None, Some(3)]));
+        let stamps: Option<Vec<Option<crate::date_time::DateTime>>> =
+            deserialize(br#"[null,"2024-01-02T03:04:05.000+00:00"]"#)
+                .expect("a timestamp array with a null decodes");
+        let stamps = stamps.expect("a present array");
+        assert_eq!(stamps.len(), 2);
+        assert!(stamps[0].is_none());
+        assert!(stamps[1].is_some());
     }
 }

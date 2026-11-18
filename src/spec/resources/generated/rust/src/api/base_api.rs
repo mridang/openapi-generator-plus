@@ -210,7 +210,7 @@ impl BaseApi {
         request_path: &str,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(timeout) = params.call.timeout {
-            if timeout.is_zero() {
+            if timeout.as_millis() == 0 {
                 return Err(Box::new(ConfigurationError::InvalidTimeout(0)));
             }
         }
@@ -1711,6 +1711,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_bhv_options_057_a_sub_millisecond_per_call_timeout_is_refused_before_anything_is_sent(
+    ) {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions {
+                timeout: Some(std::time::Duration::from_micros(500)),
+                ..CallOptions::default()
+            }))
+            .await
+            .expect_err("a timeout under one millisecond must be refused");
+
+        assert!(err.to_string().contains("Invalid timeout"), "{err}");
+        assert_eq!(0, client.calls());
+    }
+
+    #[tokio::test]
     async fn test_bhv_retries_009_a_zero_per_call_timeout_is_refused_before_anything_is_sent() {
         let client = ScriptedClient::new(200);
         let api = api_for(client.clone());
@@ -2160,5 +2178,18 @@ mod tests {
 
         assert_eq!(Some("b".to_string()), host_for(&["a", "b", "c"]));
         assert_eq!(Some("c".to_string()), host_for(&["a", "c", "b"]));
+    }
+
+    #[test]
+    fn test_bhv_serialization_006_query_names_and_values_encode_reserved_and_space_characters() {
+        let query = super::build_query_string(&[("a&b=c".to_string(), "x&y z".to_string(), false)]);
+        assert_eq!(query, "a%26b%3Dc=x%26y%20z");
+    }
+
+    #[test]
+    fn test_bhv_serialization_007_a_plus_sign_is_sent_as_percent_2b_and_non_ascii_as_utf8_bytes() {
+        let query =
+            super::build_query_string(&[("q".to_string(), "1+2 \u{e9}".to_string(), false)]);
+        assert_eq!(query, "q=1%2B2%20%C3%A9");
     }
 }

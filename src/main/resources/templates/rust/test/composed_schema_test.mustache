@@ -7,7 +7,7 @@ use {{packageName}}::models::*;
 // -- String enums render as their wire value (F869) --
 
 #[test]
-fn test_string_enum_displays_its_wire_value() {
+fn test_bhv_serialization_001_string_enum_displays_its_wire_value() {
     assert_eq!("green", Color::Green.to_string());
     assert_eq!("a-b", Separator::AB.to_string());
     assert_eq!("a_b", Separator::AB2.to_string());
