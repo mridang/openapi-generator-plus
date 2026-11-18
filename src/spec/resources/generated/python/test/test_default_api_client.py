@@ -122,7 +122,7 @@ class TestAmbientProxyEnvironmentIsIgnored:
             "all_proxy",
         ],
     )
-    def test_a_client_without_a_proxy_connects_directly(
+    def test_bhv_misc_271_a_client_without_a_proxy_connects_directly(
         self, chasm_http_url: Any, monkeypatch: pytest.MonkeyPatch, variable: str
     ) -> None:
         monkeypatch.delenv("NO_PROXY", raising=False)
@@ -140,7 +140,7 @@ class TestProxyWithCredentials:
     # The fixture proxy's second port answers 407 unless the request carries
     # Proxy-Authorization, so these two prove the credentials in the proxy URL
     # reach the proxy on the wire.
-    def test_authenticating_proxy_accepts_credentials_from_the_proxy_url(
+    def test_bhv_misc_272_authenticating_proxy_accepts_credentials_from_the_proxy_url(
         self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
     ) -> None:
         transport = (
@@ -631,7 +631,9 @@ class TestRedirectSecurityGuards:
         assert "cookie" not in followup
         assert "x-custom-auth-key" not in followup
 
-    def test_strips_credential_named_headers_on_a_cross_origin_hop(self) -> None:
+    def test_bhv_lang_python_060_strips_credential_named_headers_on_a_cross_origin_hop(
+        self,
+    ) -> None:
         """A default or authenticator header named like a credential
         (X-Tenant-Token, X-Custom-Auth-Key) is not forwarded to another origin."""
 

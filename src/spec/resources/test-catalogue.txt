@@ -1999,3 +1999,4 @@ langpython056 | There is no call hook by default.
 langpython057 | The builder sets the call hook and the configuration reads it back.
 langpython058 | The string form does not print the call hook.
 langpython059 | The environment fills a value that was not passed.
+langpython060 | Strips credential named headers on a cross origin hop.
