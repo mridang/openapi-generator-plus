@@ -935,7 +935,7 @@ public sealed class ClientTest : IDisposable
 
         public List<(string Method, Uri Url, string Body)> Requests { get; } = [];
 
-        public void Enqueue(string body) => _bodies.Enqueue(body);
+        internal void Enqueue(string body) => _bodies.Enqueue(body);
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
