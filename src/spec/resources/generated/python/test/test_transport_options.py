@@ -129,6 +129,14 @@ class TestTransportOptions:
             TransportOptions(timeout=value)
         assert str(direct.value) == message
 
+    def test_bhv_misc_134_a_zero_timeout_is_a_value_error_and_not_an_sdk_error(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().timeout(0)
+        assert type(exc_info.value) is ValueError
+        assert not isinstance(exc_info.value, OpenAPIException)
+
     def test_bhv_options_045_a_negative_max_redirects_is_rejected_at_configuration(
         self,
     ) -> None:
