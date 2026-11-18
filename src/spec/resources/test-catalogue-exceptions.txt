@@ -443,6 +443,16 @@ go | misc105 | Go models have no validation step at construction or copy, so cop
 ||||||| 92a9dd837
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
+elixir | misc083 | Elixir takes query parameters as a keyword list that the SDK encodes itself, so there is no raw query text input whose repeated keys or existing percent-encodings could be kept as written
+elixir | misc087 | Elixir has no decimal type: a decimal field is a binary float, so it cannot be written with its exact digits in plain notation (see serializationobject410)
+elixir | misc088 | Elixir decodes a decimal into a binary float, so it cannot keep the number of decimal places it was written with (see serializationobject410)
+elixir | misc091 | Elixir decodes responses into plain maps and structs without checking the constraints or patterns the schema declares, so there is no decode-time refusal to test
+elixir | misc092 | Elixir structs have no separate SDK attribute name: a property is read only by the key it is decoded from, so there is no second name that could be matched
+elixir | misc098 | Elixir multipart parts take binary content only, so there is no caller-supplied stream for the SDK to read into the body or leave open
+||||||| 68cea441c
+ruby | misc152 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can carry an already-aborted signal
+ruby | misc153 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a caller's cancellation is never seen or surfaced by the SDK
+||||||| 9ea484caf
 ruby | misc044 | contradicts transport089: a Content-Encoding that does not match its body is an API error, so a gzip header without the gzip signature cannot also be returned as the plain body
 ruby | misc052 | Ruby keyword arguments cannot name the same option twice in one call (a repeated keyword is a syntax error), so there is no second value of the same per-call option to resolve
 ruby | misc054 | a call reads its header hash before it returns and keeps no reference to it, and no option object holds the map for later, so a change the caller makes afterwards cannot reach a request
