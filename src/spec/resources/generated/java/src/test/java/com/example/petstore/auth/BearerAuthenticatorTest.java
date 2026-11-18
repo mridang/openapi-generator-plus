@@ -10,6 +10,7 @@ package com.example.petstore.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -293,5 +294,27 @@ class BearerAuthenticatorTest {
     String message = java.util.Objects.requireNonNull(ex.getMessage());
     assertFalse(message.contains("tok\r\nInjected"));
     assertFalse(message.contains("Injected"));
+  }
+
+  @Test
+  void bhvMisc066ATokenProviderValueIsSentAsTheBearerCredential() {
+    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", () -> "live");
+    assertEquals("Bearer live", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvMisc067ATokenProviderErrorReachesTheCallerUnchanged() {
+    IllegalStateException boom = new IllegalStateException("provider boom");
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                new BearerAuthenticator(
+                        "https://api.example.com",
+                        () -> {
+                          throw boom;
+                        })
+                    .getAuthHeaders());
+    assertSame(boom, thrown);
   }
 }

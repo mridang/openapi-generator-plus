@@ -605,3 +605,6 @@ go | misc153 | Go has no client-level cancellation signal: a context is passed t
 ||||||| 2c1a36607
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
 go | misc178 | the fixture declares no multipart content type other than multipart/form-data, so no operation sends a declared type that could reach the transport unchanged
+java | misc068 | java keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
+java | misc074 | BaseApi.resolveSchemeAuth returns the credential of the first listed scheme the client holds, so an alternative naming two schemes applies one credential and never both
+java | misc075 | Java's client Builder takes one typed setter per declared scheme, so naming an undeclared scheme is refused by the compiler and no construction-time error exists
