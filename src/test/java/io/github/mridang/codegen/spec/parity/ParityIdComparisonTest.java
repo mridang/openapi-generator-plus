@@ -145,6 +145,21 @@ class ParityIdComparisonTest {
   }
 
   @Test
+  void shouldCountCsharpRowsWithUnbalancedQuotedArgumentsAsOneTest() {
+    Map<String, ParitySummary> present = new TreeMap<>();
+    present.put(
+        "csharp",
+        summary(
+            "csharp",
+            "Test.A.BhvTransport014RetriesOn503(character: \")\")",
+            "Test.A.BhvTransport014RetriesOn503(character: \"(\")",
+            "Test.A.BhvRetries007BacksOff()",
+            "Test.A.BhvAuthoauth031Refreshes()"));
+
+    assertThat(compare(present, TestCatalogueExceptions.empty())).isEmpty();
+  }
+
+  @Test
   void shouldKeepRowsThatDifferAfterTheTokenAsSeparateTests() {
     Map<String, ParitySummary> present = new TreeMap<>();
     present.put(
