@@ -1988,4 +1988,5 @@ langkotlin043 | Undeclared keys are kept as additional properties inside a conta
 langkotlin044 | A strict JSON reader without the SDK module does not decode a contextual serializer
 langkotlin045 | A strict JSON reader with the SDK module decodes a contextual serializer
 langkotlin046 | Decimal values with different scales but equal value compare equal
+langkotlin047 | A variable default value drives the substituted server URL
 langkotlin054 | A password grant wrapper whose refresh is rejected falls back to the original grant
