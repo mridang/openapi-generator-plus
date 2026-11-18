@@ -654,3 +654,4 @@ dart | misc100 | Dart always builds a Map body as multipart/form-data through pa
 dart | misc101 | Dart multipart parts are Uint8List values already held in memory and no stream part exists, so no source can fail to be read after the call is built
 dart | misc104 | the generic fixture models have no string field with the email format outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic email-format field exists to decode
 dart | misc112 | the generic fixture models have no unique-array field outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic set-typed field exists to decode
+java | misc135 | Java has no client-level cancellation handle to store: cancellation is the calling thread's interruption, so the configuration builder takes no cancel signal
