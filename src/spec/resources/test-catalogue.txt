@@ -1075,13 +1075,13 @@ authoauthtwopassword022 | The generated password scheme wrapper sends the first 
 authoauthtwotokenmgr042 | A token server error message names the status and, when present, the error code and description
 authoauthtwotokenmgr043 | The token request body is serialised with the parameters in a fixed shared key order
 authoauthtwotokenmgr045 | A padded decimal string expires_in is accepted as a lifetime so the token is cached
-authoauthtwotokenmgr046 | A string expires_in outside the plain decimal grammar leaves the token stale
+authoauthtwotokenmgr046 | A string expires_in outside the plain decimal grammar leaves the token stale | multi
 authoidc030 | A discovery document served with max-age=0 is fetched again on every use
 authoidc031 | A cached discovery document is fetched again once its Cache-Control max-age has elapsed
 authoidc032 | A discovered endpoint that is not https is rejected
 authoidc033 | A failed discovery request reports its method and path in the error
-authscheme009 | A credential passed explicitly wins over its environment variable
-authscheme010 | An empty environment variable for the bearer scheme credential is treated as unset and fails naming the variable
+authscheme009 | A credential passed explicitly wins over its environment variable | multi
+authscheme010 | An empty environment variable for the bearer scheme credential is treated as unset and fails naming the variable | multi
 authscheme011 | An empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable | multi
 authscheme012 | An empty environment variable for the api key scheme credential is treated as unset and fails naming the variable | multi
 authscheme013 | An empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable
@@ -1130,7 +1130,7 @@ operations130 | A malformed 2xx JSON body propagates the deserialization error
 operations131 | A request with no body sends no Content-Type header
 operations132 | A missing required options object or body names the first required field
 operations136 | A bare JSON null body from a model operation throws an API error naming the operation
-operations138 | An error response is thrown as the exception class specific to its status through the typed routes
+operations138 | An error response is thrown as the exception class specific to its status through the typed routes | multi
 operations139 | A time query parameter keeps its fractional seconds when non-zero
 skills001 | The skills guide names the root error and the error types that are siblings of the API error
 operations147 | Multipart parts are sent in declaration order
@@ -1170,7 +1170,7 @@ serializationobject200 | A serialize failure carries the canonical prefix and na
 serializationobject202 | A null field is omitted on serialize while non-null fields are kept
 serializationobject205 | An extra key survives a full deserialize then serialize round-trip
 serializationobject206 | A differing map key makes two models unequal
-serializationobject207 | A non-standard base64 value is rejected on decode
+serializationobject207 | A non-standard base64 value is rejected on decode | multi
 serializationobject208 | Hostile enum member wire strings are kept exactly through serialize and decode
 serializationobject209 | A model copy replaces the given fields and leaves the original unchanged
 serializationobject210 | A header value for a list of strings is joined with commas
@@ -1284,7 +1284,7 @@ auth007 | An authenticator reads only the environment variables it is told to re
 auth008 | The S256 PKCE challenge for the RFC 7636 appendix B verifier equals the published challenge value, base64url encoded with no padding.
 auth009 | An API key or access token that is empty, blank, or contains a carriage return, line feed or NUL is refused when built, whether passed, read from the environment, or returned by a provider.
 auth010 | The token endpoint request never carries the transport's default headers.
-auth011 | A discovery response whose cache header has no max-age, or an unparseable one, is cached for the default lifetime so repeated use does not fetch it again.
+auth011 | A discovery response whose cache header has no max-age, or an unparseable one, is cached for the default lifetime so repeated use does not fetch it again. | multi
 auth012 | Each rejected credential raises a message that states why it was refused.
 auth013 | Cancelling a call stops the token request it started, and the call reports the cancellation without waiting for the token endpoint.
 auth014 | The authorization URL encodes spaces between scopes as percent 20 and never as a plus sign.
@@ -1319,7 +1319,7 @@ serialization011 | Query parameters and model keys are written in the order the 
 serialization012 | Keys of maps and additional properties are written in ascending order, so equal data always produces identical output.
 serialization013 | A set or array parameter in an unstyled, header or simple style is written as its items.
 serialization014 | A query parameter whose value is empty or unset produces no query entry at all.
-serialization015 | An object-valued path or query parameter is written with the prefix, separators and explode behaviour of its declared style.
+serialization015 | An object-valued path or query parameter is written with the prefix, separators and explode behaviour of its declared style. | multi
 serialization016 | An object-valued parameter in a delimited style is written as alternating keys and values joined by that delimiter.
 serialization017 | An object-valued parameter built from a model is written under each property's wire name, in declaration order, in every style.
 serialization018 | A nested object or array inside an object-valued parameter is refused with a serialization error.
@@ -1332,9 +1332,9 @@ serialization024 | Brackets inside JSON strings never count toward the nesting d
 serialization025 | Typed leaves nested inside arrays, maps and models decode to their own typed values, including enum members and models.
 serialization026 | A JSON object decodes to a map of its keys and typed values, and an empty object decodes to an empty map.
 serialization027 | An empty JSON array decodes to an empty collection, distinct from an absent value.
-serialization028 | A JSON value of the wrong kind for a model, list or map is refused with a serialization error.
+serialization028 | A JSON value of the wrong kind for a model, list or map is refused with a serialization error. | multi
 serialization029 | A JSON value of the wrong kind for a scalar or enum field, such as a quoted number or a JSON string, is refused.
-serialization030 | A date-time field accepts only a string, so a JSON number, boolean or array in that field is refused.
+serialization030 | A date-time field accepts only a string, so a JSON number, boolean or array in that field is refused. | multi
 serialization031 | A whole number within an integer type's range, including its largest 32-bit and 64-bit values, decodes exactly.
 serialization032 | An integer field refuses any number written with a fraction or an exponent, even when its value is whole.
 serialization033 | Each leaf of an integer map or nested integer array must be a plain integer in range, and any other leaf is refused.
