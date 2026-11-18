@@ -695,7 +695,7 @@ func TestBhvOperations097_StoreApi_SearchStoreSerializesTheContentQueryLikeABody
 
 // A content-encoded query value that cannot be serialized is a
 // *SerializationError and no request is sent.
-func TestStoreApi_SearchStoreRejectsAnUnserializableContentQuery(t *testing.T) {
+func TestBhvOperations128_StoreApi_SearchStoreRejectsAnUnserializableContentQuery(t *testing.T) {
 	t.Parallel()
 	requests := 0
 	server := jsonStoreServer(`[]`, func(_ *http.Request) {
@@ -741,5 +741,40 @@ func TestBhvOperations120_StoreApi_ReserveStockDecodesTheBodyByItsStatus(t *test
 		if result.IsReservation() != tc.existing || result.IsReservationReceipt() == tc.existing {
 			t.Errorf("status %d: expected a reservation=%v, got %T", tc.status, tc.existing, result.ActualInstance())
 		}
+	}
+}
+
+func TestBhvOperations129_StoreApi_ReserveStockDecodesA200AsTheExistingReservation(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`{"reservationId":31,"quantity":4}`, func(*http.Request) {})
+	defer server.Close()
+
+	result, err := newStoreApiForMock(t, server).ReserveStock(context.Background())
+	if err != nil {
+		t.Fatalf("ReserveStock failed: %v", err)
+	}
+	reservation, ok := result.AsReservation()
+	if !ok {
+		t.Fatalf("expected the existing reservation for a 200, got %T", result.ActualInstance())
+	}
+	if reservation.ReservationId != 31 || reservation.Quantity != 4 {
+		t.Errorf("expected reservation 31 with quantity 4, got %+v", reservation)
+	}
+}
+
+func TestBhvOperations139_StoreApi_SearchStoreKeepsTheFractionOfATimeParameter(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := jsonStoreServer(`[]`, func(r *http.Request) {
+		query = r.URL.RawQuery
+	})
+	defer server.Close()
+
+	at := "10:30:00.123"
+	if _, err := newStoreApiForMock(t, server).SearchStore(context.Background(), &options.SearchStoreOptions{At: &at}); err != nil {
+		t.Fatalf("SearchStore failed: %v", err)
+	}
+	if want := "at=10%3A30%3A00.123"; query != want {
+		t.Errorf("expected query %q, got %q", want, query)
 	}
 }

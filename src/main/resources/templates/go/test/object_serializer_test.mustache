@@ -3180,3 +3180,40 @@ func TestBhvSerializationobject123_ObjectSerializer_Deserialize_NullValueInAMapO
 	var pets map[string]models.Pet
 	requireNullElementError(t, deserialize([]byte(`{"a":null,"b":{"name":"a","photoUrls":[]}}`), &pets))
 }
+
+func TestBhvSerializationobject188_ObjectSerializer_Serialize_EmptyObjectIsEmptyBraces(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(struct{}{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != "{}" {
+		t.Errorf("expected an empty JSON object, got %s", data)
+	}
+}
+
+func TestBhvSerializationobject189_ObjectSerializer_Deserialize_MutuallyRecursiveModelsDecodeFromNestedJSON(t *testing.T) {
+	t.Parallel()
+	const input = `{"name":"Eng","lead":{"name":"Ann","department":{"name":"Eng"}}}`
+	var department models.Department
+	if err := deserialize([]byte(input), &department); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if department.Lead == nil || department.Lead.Department == nil || department.Lead.Department.Name != "Eng" {
+		t.Fatalf("expected the nested Department to decode as a typed model, got %+v", department.Lead)
+	}
+	data, err := serialize(department)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got, want any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("written JSON does not parse: %v", err)
+	}
+	if err := json.Unmarshal([]byte(input), &want); err != nil {
+		t.Fatalf("fixture does not parse: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected the nested JSON to round-trip, got %s", data)
+	}
+}
