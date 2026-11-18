@@ -598,3 +598,6 @@ csharp | misc178 | the C# client builds every multipart body as MultipartFormDat
 csharp | misc182 | the C# SDK has no API that removes a default or per-call header by name, so there is no removal call whose name matching could be tested
 csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 csharp | misc188 | the C# client exposes no public closed state to read, so the only observable effect of closing it is the transport release already pinned by the lifecycle tests
+python | misc145 | python exposes additional_properties as the model's own dict field, so reading it hands back the stored dict rather than a copy
+python | misc149 | python copies a model with pydantic's model_copy, which does not refuse an undeclared key, so there is no refusal to observe
+python | misc153 | python has no client-level cancellation handle: a RequestHandle is passed to each send_request call, so a cancel set on the client cannot exist
