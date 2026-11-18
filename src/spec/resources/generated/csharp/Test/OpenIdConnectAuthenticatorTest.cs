@@ -91,7 +91,7 @@ public class OpenIdConnectAuthenticatorTest
             auth.GetAuthHeaders()
         );
         Assert.Equal(
-            "OAuth2 authenticators require async token exchange; use GetAuthHeadersAsync(TestContext.Current.CancellationToken) instead.",
+            "OAuth2 authenticators require async token exchange; use GetAuthHeadersAsync() instead.",
             ex.Message
         );
     }

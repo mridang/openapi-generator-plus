@@ -105,7 +105,7 @@ public sealed class ClientTest : IDisposable
     {
         WithEnvironment("http://localhost", null, () =>
         {
-            Assert.Throws<InvalidOperationException>(() => {{clientClassName}}.FromEnvironment(token: ""));
+            Assert.Throws<ArgumentException>(() => {{clientClassName}}.FromEnvironment(token: ""));
 
             using var built = {{clientClassName}}.FromEnvironment(token: "valid-token");
             Assert.NotNull(built);

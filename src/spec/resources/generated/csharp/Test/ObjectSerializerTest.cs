@@ -3110,7 +3110,7 @@ public static class ObjectSerializerTest
             var order = new Order();
 
             Assert.Null(order.Id);
-            Assert.Null(order.Status);
+            Assert.Equal(Order.StatusEnum.Placed, order.Status);
         }
     }
 }

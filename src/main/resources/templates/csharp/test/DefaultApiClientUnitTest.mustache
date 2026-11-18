@@ -2076,7 +2076,7 @@ public class DefaultApiClientUnitTest
         Assert.Equal(HttpMethod.Get, handler.Requests[1].Method);
         Assert.Empty(handler.Bodies[1]);
         Assert.Null(handler.ContentTypes[1]);
-        Assert.False(handler.Requests[1].Headers.Contains("Content-Length"));
+        Assert.False(handler.Requests[1].Content?.Headers.Contains("Content-Length") ?? false);
     }
 
     [Fact]

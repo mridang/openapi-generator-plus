@@ -603,7 +603,7 @@ public class TransportOptionsTest
     [Fact]
     public void BhvOptions065ToStringNeverShowsAHookOrAProxyPassword()
     {
-        using var handler = new HttpClientHandler();
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         string withHook = TransportOptions.Builder().HttpMessageHandler(handler).Build().ToString();
         string withProxy = TransportOptions
             .Builder()

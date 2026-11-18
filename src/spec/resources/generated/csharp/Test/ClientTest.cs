@@ -115,7 +115,7 @@ public sealed class ClientTest : IDisposable
             null,
             () =>
             {
-                Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment(token: ""));
+                Assert.Throws<ArgumentException>(() => Client.FromEnvironment(token: ""));
 
                 using var built = Client.FromEnvironment(token: "valid-token");
                 Assert.NotNull(built);

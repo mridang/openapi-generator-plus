@@ -1231,11 +1231,38 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             final boolean multiConsume = op.consumes != null && op.consumes.size() > 1;
             deco.put("cancellationLeadComma", hasArgs || multiConsume);
             op.vendorExtensions.put("op", deco);
+            reorderAuthMethodsToSpecOrder(op, deco);
             flagJsonContent(op.pathParams);
             flagJsonContent(op.headerParams);
             flagJsonContent(op.cookieParams);
         }
         return result;
+    }
+
+    /**
+     * Puts the operation's auth methods in the order its own security block lists them (F857).
+     * Core lists them in component declaration order; the first scheme an operation names that
+     * the client holds supplies its credential, so the list follows the shared
+     * {@code securitySchemeOrder}. Schemes not in that order keep their place at the end.
+     */
+    @SuppressWarnings("unchecked")
+    private static void reorderAuthMethodsToSpecOrder(
+            final CodegenOperation op, final Map<String, Object> deco) {
+        final Object order = deco.get("securitySchemeOrder");
+        if (op.authMethods == null || !(order instanceof List)) {
+            return;
+        }
+        final List<String> names = new ArrayList<>();
+        for (final Object entry : (List<Object>) order) {
+            names.add(String.valueOf(((Map<String, Object>) entry).get("schemeId")));
+        }
+        final int unlisted = names.size();
+        final List<org.openapitools.codegen.CodegenSecurity> sorted =
+                new ArrayList<>(op.authMethods);
+        sorted.sort(
+                java.util.Comparator.comparingInt(
+                        am -> names.contains(am.name) ? names.indexOf(am.name) : unlisted));
+        op.authMethods = sorted;
     }
 
     /**

@@ -32,6 +32,8 @@ public partial class OpenIdConnectAuthenticator
     private OAuth2AuthorizationCodeAuthenticator? _delegate;
     private DateTimeOffset _discoveryExpiry = DateTimeOffset.MinValue;
     private string? _discoveredEndpoints;
+    private readonly object _discoveryLock = new();
+    private Task<OAuth2AuthorizationCodeAuthenticator>? _discovery;
 
     [GeneratedRegex("max-age=(\\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex MaxAgePattern();
@@ -93,6 +95,33 @@ public partial class OpenIdConnectAuthenticator
             );
         }
 
+        /* Concurrent cold callers share one discovery request: the first caller
+           starts it and every other caller awaits the same task. The shared task
+           is cleared once it completes, so a later expiry starts a fresh one. */
+        Task<OAuth2AuthorizationCodeAuthenticator> pending;
+        lock (_discoveryLock)
+        {
+            _discovery ??= DiscoverAsync();
+            pending = _discovery;
+        }
+        try
+        {
+            return await pending.ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_discoveryLock)
+            {
+                if (ReferenceEquals(_discovery, pending))
+                {
+                    _discovery = null;
+                }
+            }
+        }
+    }
+
+    private async Task<OAuth2AuthorizationCodeAuthenticator> DiscoverAsync()
+    {
         /* Discovery is an HTTP call like any other: a transport failure
            propagates unchanged as NetworkException / NetworkTimeoutException.
            The request goes to the identity provider, not to the API, so it is

@@ -186,20 +186,20 @@ public sealed class {{clientClassName}} : IDisposable
             throw new InvalidOperationException(
                 "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable");
         }
+        /* Order: the explicit token is kept as given (an empty one is refused by the
+         * authenticator, never replaced by the environment), then the environment
+         * variable, then the token provider. */
+        string? resolvedToken = token ?? FirstSet(null, "{{envVarPrefix}}_TOKEN");
+        if (resolvedToken is not null)
+        {
+            return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions);
+        }
         if (tokenProvider is not null)
         {
             return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, tokenProvider), transportOptions);
         }
-        /* The explicit token is kept as given (an empty one is refused by the
-         * authenticator, never replaced by the environment); the environment is
-         * read only when no token argument is passed. */
-        string? resolvedToken = token ?? FirstSet(null, "{{envVarPrefix}}_TOKEN");
-        if (resolvedToken is null)
-        {
-            throw new InvalidOperationException(
-                "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable");
-        }
-        return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions);
+        throw new InvalidOperationException(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable");
     }
 
     private static string? FirstSet(string? explicitValue, string variable)

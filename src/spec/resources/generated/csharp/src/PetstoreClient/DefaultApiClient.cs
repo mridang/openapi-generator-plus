@@ -1710,6 +1710,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 continue;
             }
+            /* A non-empty gzip body is at least 18 bytes (a 10-byte header and an
+             * 8-byte trailer). A shorter one is a truncated stream, which GZipStream
+             * would otherwise read as an empty body without raising an error. An
+             * empty body is a valid empty response and passes through unchanged. */
+            if (coding is "GZIP" or "X-GZIP" && current.Length is > 0 and < 18)
+            {
+                throw new InvalidDataException(
+                    "truncated gzip stream: a gzip member is at least 18 bytes"
+                );
+            }
             using MemoryStream source = new(current);
             Stream decoder = coding switch
             {
