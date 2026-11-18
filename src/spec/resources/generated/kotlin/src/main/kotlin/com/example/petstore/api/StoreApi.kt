@@ -54,7 +54,9 @@ import kotlin.uuid.Uuid
  * StoreApi provides methods for the Store API group.
  * Access to Petstore orders
  */
-class StoreApi : BaseApi {
+class StoreApi :
+    BaseApi,
+    StoreApiInterface {
     constructor() : super()
 
     constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
@@ -76,9 +78,9 @@ class StoreApi : BaseApi {
      * @return Account
      * @throws ApiException if fails to make API call
      */
-    suspend fun createAccount(
+    override suspend fun createAccount(
         account: Account,
-        options: CreateAccountOptions? = null,
+        options: CreateAccountOptions?,
     ): Account =
         createAccountWithHttpInfo(account, options).let { result ->
             result.data ?: throw ApiException(
@@ -90,9 +92,9 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [createAccount] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun createAccountWithHttpInfo(
+    override suspend fun createAccountWithHttpInfo(
         account: Account,
-        options: CreateAccountOptions? = null,
+        options: CreateAccountOptions?,
     ): ApiResult<Account> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -129,17 +131,17 @@ class StoreApi : BaseApi {
      * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun deleteOrder(
+    override suspend fun deleteOrder(
         orderId: Long,
-        options: DeleteOrderOptions? = null,
+        options: DeleteOrderOptions?,
     ) {
         deleteOrderWithHttpInfo(orderId, options)
     }
 
     /** Same as [deleteOrder] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun deleteOrderWithHttpInfo(
+    override suspend fun deleteOrderWithHttpInfo(
         orderId: Long,
-        options: DeleteOrderOptions? = null,
+        options: DeleteOrderOptions?,
     ): ApiResult<Unit> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -180,9 +182,9 @@ class StoreApi : BaseApi {
      * @return Category
      * @throws ApiException if fails to make API call
      */
-    suspend fun getBySwatch(
+    override suspend fun getBySwatch(
         pathSwatch: Swatch,
-        options: GetBySwatchOptions? = null,
+        options: GetBySwatchOptions?,
     ): Category =
         getBySwatchWithHttpInfo(pathSwatch, options).let { result ->
             result.data ?: throw ApiException(
@@ -194,9 +196,9 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getBySwatch] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getBySwatchWithHttpInfo(
+    override suspend fun getBySwatchWithHttpInfo(
         pathSwatch: Swatch,
-        options: GetBySwatchOptions? = null,
+        options: GetBySwatchOptions?,
     ): ApiResult<Category> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -256,7 +258,7 @@ class StoreApi : BaseApi {
      * @return Defaults
      * @throws ApiException if fails to make API call
      */
-    suspend fun getDefaults(options: GetDefaultsOptions? = null): Defaults =
+    override suspend fun getDefaults(options: GetDefaultsOptions?): Defaults =
         getDefaultsWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -267,7 +269,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getDefaults] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getDefaultsWithHttpInfo(options: GetDefaultsOptions? = null): ApiResult<Defaults> {
+    override suspend fun getDefaultsWithHttpInfo(options: GetDefaultsOptions?): ApiResult<Defaults> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -298,7 +300,7 @@ class StoreApi : BaseApi {
      * @return Department
      * @throws ApiException if fails to make API call
      */
-    suspend fun getDepartment(options: GetDepartmentOptions? = null): Department =
+    override suspend fun getDepartment(options: GetDepartmentOptions?): Department =
         getDepartmentWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -309,7 +311,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getDepartment] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getDepartmentWithHttpInfo(options: GetDepartmentOptions? = null): ApiResult<Department> {
+    override suspend fun getDepartmentWithHttpInfo(options: GetDepartmentOptions?): ApiResult<Department> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -340,7 +342,7 @@ class StoreApi : BaseApi {
      * @return List<Map<String, Category>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getGroupedCategories(options: GetGroupedCategoriesOptions? = null): List<Map<String, Category>> =
+    override suspend fun getGroupedCategories(options: GetGroupedCategoriesOptions?): List<Map<String, Category>> =
         getGroupedCategoriesWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -351,7 +353,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getGroupedCategories] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getGroupedCategoriesWithHttpInfo(options: GetGroupedCategoriesOptions? = null): ApiResult<List<Map<String, Category>>> {
+    override suspend fun getGroupedCategoriesWithHttpInfo(options: GetGroupedCategoriesOptions?): ApiResult<List<Map<String, Category>>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -382,7 +384,7 @@ class StoreApi : BaseApi {
      * @return Map<String, Int>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getInventory(options: GetInventoryOptions? = null): Map<String, Int> =
+    override suspend fun getInventory(options: GetInventoryOptions?): Map<String, Int> =
         getInventoryWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -393,7 +395,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getInventory] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getInventoryWithHttpInfo(options: GetInventoryOptions? = null): ApiResult<Map<String, Int>> {
+    override suspend fun getInventoryWithHttpInfo(options: GetInventoryOptions?): ApiResult<Map<String, Int>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -424,7 +426,7 @@ class StoreApi : BaseApi {
      * @return List<List<Int>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getMatrix(options: GetMatrixOptions? = null): List<List<Int>> =
+    override suspend fun getMatrix(options: GetMatrixOptions?): List<List<Int>> =
         getMatrixWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -435,7 +437,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getMatrix] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getMatrixWithHttpInfo(options: GetMatrixOptions? = null): ApiResult<List<List<Int>>> {
+    override suspend fun getMatrixWithHttpInfo(options: GetMatrixOptions?): ApiResult<List<List<Int>>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -469,9 +471,9 @@ class StoreApi : BaseApi {
      * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
-    suspend fun getOrderById(
+    override suspend fun getOrderById(
         orderId: Long,
-        options: GetOrderByIdOptions? = null,
+        options: GetOrderByIdOptions?,
     ): Order =
         getOrderByIdWithHttpInfo(orderId, options).let { result ->
             result.data ?: throw ApiException(
@@ -483,9 +485,9 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getOrderById] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getOrderByIdWithHttpInfo(
+    override suspend fun getOrderByIdWithHttpInfo(
         orderId: Long,
-        options: GetOrderByIdOptions? = null,
+        options: GetOrderByIdOptions?,
     ): ApiResult<Order> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -526,9 +528,9 @@ class StoreApi : BaseApi {
      * @return Order
      * @throws ApiException if fails to make API call
      */
-    suspend fun getOrderByTrackingId(
+    override suspend fun getOrderByTrackingId(
         trackingId: Uuid,
-        options: GetOrderByTrackingIdOptions? = null,
+        options: GetOrderByTrackingIdOptions?,
     ): Order =
         getOrderByTrackingIdWithHttpInfo(trackingId, options).let { result ->
             result.data ?: throw ApiException(
@@ -540,9 +542,9 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getOrderByTrackingId] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getOrderByTrackingIdWithHttpInfo(
+    override suspend fun getOrderByTrackingIdWithHttpInfo(
         trackingId: Uuid,
-        options: GetOrderByTrackingIdOptions? = null,
+        options: GetOrderByTrackingIdOptions?,
     ): ApiResult<Order> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -582,7 +584,7 @@ class StoreApi : BaseApi {
      * @return StockItem
      * @throws ApiException if fails to make API call
      */
-    suspend fun getStockItem(options: GetStockItemOptions? = null): StockItem =
+    override suspend fun getStockItem(options: GetStockItemOptions?): StockItem =
         getStockItemWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -593,7 +595,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getStockItem] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getStockItemWithHttpInfo(options: GetStockItemOptions? = null): ApiResult<StockItem> {
+    override suspend fun getStockItemWithHttpInfo(options: GetStockItemOptions?): ApiResult<StockItem> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -632,7 +634,7 @@ class StoreApi : BaseApi {
      * @return Swatch
      * @throws ApiException if fails to make API call
      */
-    suspend fun getSwatch(options: GetSwatchOptions? = null): Swatch =
+    override suspend fun getSwatch(options: GetSwatchOptions?): Swatch =
         getSwatchWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -643,7 +645,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getSwatch] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getSwatchWithHttpInfo(options: GetSwatchOptions? = null): ApiResult<Swatch> {
+    override suspend fun getSwatchWithHttpInfo(options: GetSwatchOptions?): ApiResult<Swatch> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -674,7 +676,7 @@ class StoreApi : BaseApi {
      * @return List<Map<String, Swatch>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getSwatchGroups(options: GetSwatchGroupsOptions? = null): List<Map<String, Swatch>> =
+    override suspend fun getSwatchGroups(options: GetSwatchGroupsOptions?): List<Map<String, Swatch>> =
         getSwatchGroupsWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -685,7 +687,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getSwatchGroups] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getSwatchGroupsWithHttpInfo(options: GetSwatchGroupsOptions? = null): ApiResult<List<Map<String, Swatch>>> {
+    override suspend fun getSwatchGroupsWithHttpInfo(options: GetSwatchGroupsOptions?): ApiResult<List<Map<String, Swatch>>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -716,7 +718,7 @@ class StoreApi : BaseApi {
      * @return List<Map<String, OffsetDateTime>>
      * @throws ApiException if fails to make API call
      */
-    suspend fun getTimestampGroups(options: GetTimestampGroupsOptions? = null): List<Map<String, OffsetDateTime>> =
+    override suspend fun getTimestampGroups(options: GetTimestampGroupsOptions?): List<Map<String, OffsetDateTime>> =
         getTimestampGroupsWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -727,7 +729,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getTimestampGroups] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getTimestampGroupsWithHttpInfo(options: GetTimestampGroupsOptions? = null): ApiResult<List<Map<String, OffsetDateTime>>> {
+    override suspend fun getTimestampGroupsWithHttpInfo(options: GetTimestampGroupsOptions?): ApiResult<List<Map<String, OffsetDateTime>>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -758,7 +760,7 @@ class StoreApi : BaseApi {
      * @return TreeNode
      * @throws ApiException if fails to make API call
      */
-    suspend fun getTree(options: GetTreeOptions? = null): TreeNode =
+    override suspend fun getTree(options: GetTreeOptions?): TreeNode =
         getTreeWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -769,7 +771,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [getTree] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getTreeWithHttpInfo(options: GetTreeOptions? = null): ApiResult<TreeNode> {
+    override suspend fun getTreeWithHttpInfo(options: GetTreeOptions?): ApiResult<TreeNode> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -802,9 +804,9 @@ class StoreApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      */
-    suspend fun placeOrder(
-        order: Order? = null,
-        options: PlaceOrderOptions? = null,
+    override suspend fun placeOrder(
+        order: Order?,
+        options: PlaceOrderOptions?,
     ): Order =
         placeOrderWithHttpInfo(order, options).let { result ->
             result.data ?: throw ApiException(
@@ -816,9 +818,9 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [placeOrder] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun placeOrderWithHttpInfo(
-        order: Order? = null,
-        options: PlaceOrderOptions? = null,
+    override suspend fun placeOrderWithHttpInfo(
+        order: Order?,
+        options: PlaceOrderOptions?,
     ): ApiResult<Order> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
@@ -852,7 +854,7 @@ class StoreApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.BadRequestException on HTTP 400
      */
-    suspend fun reserveStock(options: ReserveStockOptions? = null): ReserveStockResponse =
+    override suspend fun reserveStock(options: ReserveStockOptions?): ReserveStockResponse =
         reserveStockWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -863,7 +865,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [reserveStock] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun reserveStockWithHttpInfo(options: ReserveStockOptions? = null): ApiResult<ReserveStockResponse> {
+    override suspend fun reserveStockWithHttpInfo(options: ReserveStockOptions?): ApiResult<ReserveStockResponse> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -903,7 +905,7 @@ class StoreApi : BaseApi {
      * @return List<Order>
      * @throws ApiException if fails to make API call
      */
-    suspend fun searchStore(options: SearchStoreOptions? = null): List<Order> =
+    override suspend fun searchStore(options: SearchStoreOptions?): List<Order> =
         searchStoreWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -914,7 +916,7 @@ class StoreApi : BaseApi {
         }
 
     /** Same as [searchStore] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun searchStoreWithHttpInfo(options: SearchStoreOptions? = null): ApiResult<List<Order>> {
+    override suspend fun searchStoreWithHttpInfo(options: SearchStoreOptions?): ApiResult<List<Order>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries

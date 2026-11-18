@@ -39,17 +39,17 @@ import com.example.petstore.auth.HttpAwareAuthenticator
  * val client = Client(authenticator, transport)
  * ```
  */
-class Client : AutoCloseable {
+class Client : ClientInterface {
     private val apiClient: ApiClient
 
     /** API operations for the PetApi group. */
-    val pet: PetApi
+    override val pet: PetApi
 
     /** API operations for the ProblemsApi group. */
-    val problems: ProblemsApi
+    override val problems: ProblemsApi
 
     /** API operations for the StoreApi group. */
-    val store: StoreApi
+    override val store: StoreApi
 
     /**
      * Creates a new client with the given authenticator and default transport settings.

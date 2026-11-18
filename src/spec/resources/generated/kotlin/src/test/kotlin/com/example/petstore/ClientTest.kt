@@ -382,4 +382,211 @@ class ClientTest {
         assertNotNull(client.problems)
         assertNotNull(client.store)
     }
+
+    @Test
+    @DisplayName("bhvMocking001 every group has an interface the class implements")
+    fun everyGroupHasAnInterfaceTheClassImplements() {
+        assertTrue(com.example.petstore.api.PetApiInterface::class.java.isAssignableFrom(com.example.petstore.api.PetApi::class.java))
+        val petListed =
+            com.example.petstore.api.PetApiInterface::class.java.methods
+                .map { it.name }
+                .toSet()
+        assertTrue("addPet" in petListed)
+        assertTrue("addPetWithHttpInfo" in petListed)
+        assertTrue("addPetPhotos" in petListed)
+        assertTrue("addPetPhotosWithHttpInfo" in petListed)
+        assertTrue("addPetTreatment" in petListed)
+        assertTrue("addPetTreatmentWithHttpInfo" in petListed)
+        assertTrue("deletePet" in petListed)
+        assertTrue("deletePetWithHttpInfo" in petListed)
+        assertTrue("downloadPetDocument" in petListed)
+        assertTrue("downloadPetDocumentWithHttpInfo" in petListed)
+        assertTrue("findPetsBornOn" in petListed)
+        assertTrue("findPetsBornOnWithHttpInfo" in petListed)
+        assertTrue("findPetsByStatus" in petListed)
+        assertTrue("findPetsByStatusWithHttpInfo" in petListed)
+        assertTrue("getExternalPetInfo" in petListed)
+        assertTrue("getExternalPetInfoWithHttpInfo" in petListed)
+        assertTrue("getMultiServerPetInfo" in petListed)
+        assertTrue("getMultiServerPetInfoWithHttpInfo" in petListed)
+        assertTrue("getPetAvatar" in petListed)
+        assertTrue("getPetAvatarWithHttpInfo" in petListed)
+        assertTrue("getPetAvatarThumbnail" in petListed)
+        assertTrue("getPetAvatarThumbnailWithHttpInfo" in petListed)
+        assertTrue("getPetById" in petListed)
+        assertTrue("getPetByIdWithHttpInfo" in petListed)
+        assertTrue("getPetByName" in petListed)
+        assertTrue("getPetByNameWithHttpInfo" in petListed)
+        assertTrue("getPetPassport" in petListed)
+        assertTrue("getPetPassportWithHttpInfo" in petListed)
+        assertTrue("getPetPhoto" in petListed)
+        assertTrue("getPetPhotoWithHttpInfo" in petListed)
+        assertTrue("getPetSummary" in petListed)
+        assertTrue("getPetSummaryWithHttpInfo" in petListed)
+        assertTrue("getPetTag" in petListed)
+        assertTrue("getPetTagWithHttpInfo" in petListed)
+        assertTrue("getStagingPetInfo" in petListed)
+        assertTrue("getStagingPetInfoWithHttpInfo" in petListed)
+        assertTrue("setPetAvatar" in petListed)
+        assertTrue("setPetAvatarWithHttpInfo" in petListed)
+        assertTrue("setPetAvatarThumbnail" in petListed)
+        assertTrue("setPetAvatarThumbnailWithHttpInfo" in petListed)
+        assertTrue("setPetPreferences" in petListed)
+        assertTrue("setPetPreferencesWithHttpInfo" in petListed)
+        assertTrue("updatePet" in petListed)
+        assertTrue("updatePetWithHttpInfo" in petListed)
+        assertTrue("uploadPetCertificate" in petListed)
+        assertTrue("uploadPetCertificateWithHttpInfo" in petListed)
+        assertTrue("uploadPetDocument" in petListed)
+        assertTrue("uploadPetDocumentWithHttpInfo" in petListed)
+        assertTrue(
+            com.example.petstore.api.ProblemsApiInterface::class.java.isAssignableFrom(com.example.petstore.api.ProblemsApi::class.java),
+        )
+        val problemsListed =
+            com.example.petstore.api.ProblemsApiInterface::class.java.methods
+                .map { it.name }
+                .toSet()
+        assertTrue("getFallback" in problemsListed)
+        assertTrue("getFallbackWithHttpInfo" in problemsListed)
+        assertTrue("getMember" in problemsListed)
+        assertTrue("getMemberWithHttpInfo" in problemsListed)
+        assertTrue("getProject" in problemsListed)
+        assertTrue("getProjectWithHttpInfo" in problemsListed)
+        assertTrue("getRange" in problemsListed)
+        assertTrue("getRangeWithHttpInfo" in problemsListed)
+        assertTrue("getUpstream" in problemsListed)
+        assertTrue("getUpstreamWithHttpInfo" in problemsListed)
+        assertTrue("takeLock" in problemsListed)
+        assertTrue("takeLockWithHttpInfo" in problemsListed)
+        assertTrue(com.example.petstore.api.StoreApiInterface::class.java.isAssignableFrom(com.example.petstore.api.StoreApi::class.java))
+        val storeListed =
+            com.example.petstore.api.StoreApiInterface::class.java.methods
+                .map { it.name }
+                .toSet()
+        assertTrue("createAccount" in storeListed)
+        assertTrue("createAccountWithHttpInfo" in storeListed)
+        assertTrue("deleteOrder" in storeListed)
+        assertTrue("deleteOrderWithHttpInfo" in storeListed)
+        assertTrue("getBySwatch" in storeListed)
+        assertTrue("getBySwatchWithHttpInfo" in storeListed)
+        assertTrue("getDefaults" in storeListed)
+        assertTrue("getDefaultsWithHttpInfo" in storeListed)
+        assertTrue("getDepartment" in storeListed)
+        assertTrue("getDepartmentWithHttpInfo" in storeListed)
+        assertTrue("getGroupedCategories" in storeListed)
+        assertTrue("getGroupedCategoriesWithHttpInfo" in storeListed)
+        assertTrue("getInventory" in storeListed)
+        assertTrue("getInventoryWithHttpInfo" in storeListed)
+        assertTrue("getMatrix" in storeListed)
+        assertTrue("getMatrixWithHttpInfo" in storeListed)
+        assertTrue("getOrderById" in storeListed)
+        assertTrue("getOrderByIdWithHttpInfo" in storeListed)
+        assertTrue("getOrderByTrackingId" in storeListed)
+        assertTrue("getOrderByTrackingIdWithHttpInfo" in storeListed)
+        assertTrue("getStockItem" in storeListed)
+        assertTrue("getStockItemWithHttpInfo" in storeListed)
+        assertTrue("getSwatch" in storeListed)
+        assertTrue("getSwatchWithHttpInfo" in storeListed)
+        assertTrue("getSwatchGroups" in storeListed)
+        assertTrue("getSwatchGroupsWithHttpInfo" in storeListed)
+        assertTrue("getTimestampGroups" in storeListed)
+        assertTrue("getTimestampGroupsWithHttpInfo" in storeListed)
+        assertTrue("getTree" in storeListed)
+        assertTrue("getTreeWithHttpInfo" in storeListed)
+        assertTrue("placeOrder" in storeListed)
+        assertTrue("placeOrderWithHttpInfo" in storeListed)
+        assertTrue("reserveStock" in storeListed)
+        assertTrue("reserveStockWithHttpInfo" in storeListed)
+        assertTrue("searchStore" in storeListed)
+        assertTrue("searchStoreWithHttpInfo" in storeListed)
+    }
+
+    private fun publicMethodNames(methods: Array<java.lang.reflect.Method>): Set<String> =
+        methods
+            .filter {
+                java.lang.reflect.Modifier
+                    .isPublic(it.modifiers) &&
+                    !it.isSynthetic &&
+                    !it.name.contains('$')
+            }.map { it.name }
+            .toSortedSet()
+
+    @Test
+    @DisplayName("bhvMocking002 the group interface lists exactly the public operations of the class")
+    fun groupInterfaceListsExactlyThePublicOperationsOfTheClass() {
+        assertEquals(
+            publicMethodNames(com.example.petstore.api.PetApi::class.java.declaredMethods),
+            publicMethodNames(com.example.petstore.api.PetApiInterface::class.java.methods),
+        )
+        assertEquals(
+            publicMethodNames(com.example.petstore.api.ProblemsApi::class.java.declaredMethods),
+            publicMethodNames(com.example.petstore.api.ProblemsApiInterface::class.java.methods),
+        )
+        assertEquals(
+            publicMethodNames(com.example.petstore.api.StoreApi::class.java.declaredMethods),
+            publicMethodNames(com.example.petstore.api.StoreApiInterface::class.java.methods),
+        )
+    }
+
+    @Test
+    @DisplayName("bhvMocking007 the client interface exposes every group typed as its interface and close")
+    fun clientInterfaceExposesEveryGroupTypedAsItsInterfaceAndClose() {
+        val client = Client(authenticator)
+        val viaInterface: ClientInterface = client
+
+        assertEquals(
+            com.example.petstore.api.PetApiInterface::class.java,
+            ClientInterface::class.java.getMethod("getPet").returnType,
+        )
+        assertSame(client.pet, viaInterface.pet)
+        assertEquals(
+            com.example.petstore.api.ProblemsApiInterface::class.java,
+            ClientInterface::class.java.getMethod("getProblems").returnType,
+        )
+        assertSame(client.problems, viaInterface.problems)
+        assertEquals(
+            com.example.petstore.api.StoreApiInterface::class.java,
+            ClientInterface::class.java.getMethod("getStore").returnType,
+        )
+        assertSame(client.store, viaInterface.store)
+        viaInterface.close()
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMocking008 a client built from fakes never connects and closes without error")
+    fun clientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+        var closed = 0
+        val fake =
+            object : ClientInterface {
+                override val pet: com.example.petstore.api.PetApiInterface =
+                    java.lang.reflect.Proxy.newProxyInstance(
+                        com.example.petstore.api.PetApiInterface::class.java.classLoader,
+                        arrayOf(com.example.petstore.api.PetApiInterface::class.java),
+                    ) { _, _, _ -> null } as com.example.petstore.api.PetApiInterface
+                override val problems: com.example.petstore.api.ProblemsApiInterface =
+                    java.lang.reflect.Proxy.newProxyInstance(
+                        com.example.petstore.api.ProblemsApiInterface::class.java.classLoader,
+                        arrayOf(com.example.petstore.api.ProblemsApiInterface::class.java),
+                    ) { _, _, _ -> null } as com.example.petstore.api.ProblemsApiInterface
+                override val store: com.example.petstore.api.StoreApiInterface =
+                    java.lang.reflect.Proxy.newProxyInstance(
+                        com.example.petstore.api.StoreApiInterface::class.java.classLoader,
+                        arrayOf(com.example.petstore.api.StoreApiInterface::class.java),
+                    ) { _, _, _ -> null } as com.example.petstore.api.StoreApiInterface
+
+                override fun close() {
+                    closed++
+                }
+            }
+
+        assertNotNull(fake.pet)
+        assertNotNull(fake.problems)
+        assertNotNull(fake.store)
+        fake.close()
+        fake.close()
+        assertEquals(2, closed)
+    }
 }

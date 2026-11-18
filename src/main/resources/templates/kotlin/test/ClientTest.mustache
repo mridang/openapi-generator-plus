@@ -356,4 +356,100 @@ class ClientTest {
 {{/apis}}
 {{/apiInfo}}
     }
+
+    @Test
+    @DisplayName("bhvMocking001 every group has an interface the class implements")
+    fun everyGroupHasAnInterfaceTheClassImplements() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertTrue({{apiPackage}}.{{classname}}Interface::class.java.isAssignableFrom({{apiPackage}}.{{classname}}::class.java))
+        val {{clientPropertyName}}Listed = {{apiPackage}}.{{classname}}Interface::class.java.methods.map { it.name }.toSet()
+{{#operation}}
+        assertTrue("{{operationId}}" in {{clientPropertyName}}Listed)
+        assertTrue("{{operationId}}WithHttpInfo" in {{clientPropertyName}}Listed)
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    private fun publicMethodNames(methods: Array<java.lang.reflect.Method>): Set<String> =
+        methods
+            .filter { java.lang.reflect.Modifier.isPublic(it.modifiers) && !it.isSynthetic && !it.name.contains('$') }
+            .map { it.name }
+            .toSortedSet()
+
+    @Test
+    @DisplayName("bhvMocking002 the group interface lists exactly the public operations of the class")
+    fun groupInterfaceListsExactlyThePublicOperationsOfTheClass() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertEquals(
+            publicMethodNames({{apiPackage}}.{{classname}}::class.java.declaredMethods),
+            publicMethodNames({{apiPackage}}.{{classname}}Interface::class.java.methods),
+        )
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test
+    @DisplayName("bhvMocking007 the client interface exposes every group typed as its interface and close")
+    fun clientInterfaceExposesEveryGroupTypedAsItsInterfaceAndClose() {
+        val client = {{clientClassName}}(authenticator)
+        val viaInterface: {{clientClassName}}Interface = client
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertEquals(
+            {{apiPackage}}.{{classname}}Interface::class.java,
+            {{clientClassName}}Interface::class.java.getMethod("get{{clientAccessorSuffix}}").returnType,
+        )
+        assertSame(client.{{clientPropertyName}}, viaInterface.{{clientPropertyName}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        viaInterface.close()
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMocking008 a client built from fakes never connects and closes without error")
+    fun clientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+        var closed = 0
+        val fake =
+            object : {{clientClassName}}Interface {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+                override val {{clientPropertyName}}: {{apiPackage}}.{{classname}}Interface =
+                    java.lang.reflect.Proxy.newProxyInstance(
+                        {{apiPackage}}.{{classname}}Interface::class.java.classLoader,
+                        arrayOf({{apiPackage}}.{{classname}}Interface::class.java),
+                    ) { _, _, _ -> null } as {{apiPackage}}.{{classname}}Interface
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+                override fun close() {
+                    closed++
+                }
+            }
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(fake.{{clientPropertyName}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        fake.close()
+        fake.close()
+        assertEquals(2, closed)
+    }
 }
