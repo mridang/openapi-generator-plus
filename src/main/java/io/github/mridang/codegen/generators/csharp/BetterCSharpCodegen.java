@@ -1009,7 +1009,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             final List<Map<String, Object>> envVars) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
-        entry.put("emptyVariableBhv", EMPTY_VARIABLE_BHV.getOrDefault((String) entry.get("className"), ""));
+        final String emptyVariableBhv = EMPTY_VARIABLE_BHV.getOrDefault((String) entry.get("className"), "");
+        entry.put("emptyVariableBhv", emptyVariableBhv);
+        entry.put("hasEmptyVariableBhv", !emptyVariableBhv.isEmpty());
         if (namespaceSuffix != null) {
             entry.put("namespaceSuffix", namespaceSuffix);
         }
