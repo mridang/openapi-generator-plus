@@ -57,6 +57,11 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array") == "a,b,c"
     end
 
+    test "bhv misc 250 array items containing a comma keep the literal comma across path and query styles" do
+      assert PetstoreClient.ValueSerializer.serialize(["a,b", "c"], :path, "array") == "a,b,c"
+      assert PetstoreClient.ValueSerializer.serialize(["a,b", "c"], :query, "array") == "a,b,c"
+    end
+
     test "bhv serializationparam 009 array joins with space for ssv" do
       assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array",
                collection_format: :ssv

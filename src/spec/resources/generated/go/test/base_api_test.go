@@ -33,6 +33,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	petstore "petstore/pkg"
+	"petstore/pkg/auth"
 	"petstore/pkg/auth/oauth"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
@@ -4086,6 +4087,301 @@ func TestBhvMisc284_BaseApi_AGeneratedCallRaisesTheTypedErrorForEachStatus(t *te
 		api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
 		if got := reflect.TypeOf(addPetCall(api)); got != reflect.TypeOf(c.typed) {
 			t.Errorf("status %d: expected %v, got %v", c.status, reflect.TypeOf(c.typed), got)
+		}
+	}
+}
+
+func TestBhvMisc179_BaseApi_AFormUrlencodedBodySendsItsContentType(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{Nickname: "a"})
+
+	var contentType string
+	for name, value := range client.capturedHeaders {
+		if strings.EqualFold(name, "Content-Type") {
+			contentType = value
+		}
+	}
+	if contentType != "application/x-www-form-urlencoded" {
+		t.Errorf("expected the form content type, got %q", contentType)
+	}
+}
+
+func TestBhvMisc180_BaseApi_ConfigurationStringShowsNonSensitiveDefaultHeaderValues(t *testing.T) {
+	t.Parallel()
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").
+		DefaultHeader("X-Visible", "shown-value").
+		DefaultHeader("Authorization", "Bearer hidden-secret").
+		Build()
+
+	text := config.String()
+	if !strings.Contains(text, "shown-value") {
+		t.Errorf("expected the non-sensitive header value in %s", text)
+	}
+	if strings.Contains(text, "hidden-secret") {
+		t.Errorf("expected the Authorization value to be hidden in %s", text)
+	}
+}
+
+func TestBhvMisc181_BaseApi_HeaderValueIsSentExactlyAsSerialisedWithoutPercentEncoding(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = r.Header.Get("X-Raw")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	api := retryApi(t, &scriptedServer{Server: server}, func(b *petstore.TransportOptionsBuilder) {
+		b.DefaultHeader("X-Raw", "a b/c%20d")
+	}, nil)
+
+	_ = addPetCall(api)
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "a b/c%20d" {
+		t.Errorf("expected the header exactly as serialised, got %q", got)
+	}
+}
+
+func TestBhvMisc189_BaseApi_ApiKeyQueryWrapperSendsTheKeyAsTheApiKeyParameter(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = r.URL.Query().Get("api_key")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	authObj, err := auth.NewApiKeyAuthenticator(server.URL, "api_key", "key-value", auth.ApiKeyLocationQuery)
+	if err != nil {
+		t.Fatalf("unexpected error from NewApiKeyAuthenticator: %v", err)
+	}
+	api := retryApi(t, &scriptedServer{Server: server}, nil, authObj)
+
+	_ = addPetCall(api)
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "key-value" {
+		t.Errorf("expected the api_key query parameter to be key-value, got %q", got)
+	}
+}
+
+func TestBhvMisc190_BaseApi_PrintedBearerAuthenticatorHidesTheToken(t *testing.T) {
+	t.Parallel()
+	authObj, err := auth.NewBearerAuthenticator("http://localhost", "super-secret-token")
+	if err != nil {
+		t.Fatalf("unexpected error from NewBearerAuthenticator: %v", err)
+	}
+	if s := authObj.String(); strings.Contains(s, "super-secret-token") {
+		t.Errorf("expected the token hidden in %s", s)
+	}
+}
+
+func TestBhvMisc191_BaseApi_AuthCookieWithForbiddenCharacterIsNotAnApiError(t *testing.T) {
+	t.Parallel()
+	authObj := newBaseApiAuth()
+	authObj.cookies["bad;name"] = "value"
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, authObj, petstore.Credentials{})
+
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
+	if !errors.Is(err, petstore.ErrInvalidCookie) {
+		t.Fatalf("expected ErrInvalidCookie, got %T: %v", err, err)
+	}
+	var apiErr *apierrors.ApiError
+	if errors.As(err, &apiErr) {
+		t.Errorf("expected a non-OpenAPI error, got *ApiError: %v", err)
+	}
+}
+
+func TestBhvMisc192_BaseApi_AuthCookieOfLegalOctetsIsSentExactlyAsGiven(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		if c, err := r.Cookie("session"); err == nil {
+			got = c.Value
+		}
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	authObj := newBaseApiAuth()
+	authObj.cookies["session"] = "abc-123_XYZ.~"
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, authObj, petstore.Credentials{})
+
+	_, _ = api.GetPetById(context.Background(), int64(1), nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "abc-123_XYZ.~" {
+		t.Errorf("expected the cookie sent exactly as given, got %q", got)
+	}
+}
+
+func TestBhvMisc193_BaseApi_BasicAndBearerAuthenticatorsRejectAnInvalidTokenLikeTheirBase(t *testing.T) {
+	t.Parallel()
+	basic, err := auth.NewBasicAuthenticator("http://localhost", "user", "pass")
+	if err != nil {
+		t.Fatalf("unexpected error from NewBasicAuthenticator: %v", err)
+	}
+	if got := basic.AuthHeaders()["Authorization"]; got != "Basic dXNlcjpwYXNz" {
+		t.Errorf("expected the base Basic header, got %q", got)
+	}
+	bearer, err := auth.NewBearerAuthenticator("http://localhost", "tok-123")
+	if err != nil {
+		t.Fatalf("unexpected error from NewBearerAuthenticator: %v", err)
+	}
+	if got := bearer.AuthHeaders()["Authorization"]; got != "Bearer tok-123" {
+		t.Errorf("expected the base Bearer header, got %q", got)
+	}
+	if _, err := auth.NewBearerAuthenticator("http://localhost", "bad token"); !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken for a token with a space, got %v", err)
+	}
+}
+
+func TestBhvMisc194_BaseApi_ProviderTokenIsSentUnderTheSameBearerPrefixAsAStaticToken(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = r.Header.Get("Authorization")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	provider := func(ctx context.Context) (string, error) { return "tok-123", nil }
+	authObj, err := auth.NewBearerAuthenticatorWithProvider(server.URL, provider)
+	if err != nil {
+		t.Fatalf("unexpected error from NewBearerAuthenticatorWithProvider: %v", err)
+	}
+	api := retryApi(t, &scriptedServer{Server: server}, nil, authObj)
+
+	_ = addPetCall(api)
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "Bearer tok-123" {
+		t.Errorf("expected the provider token under the Bearer prefix, got %q", got)
+	}
+}
+
+func TestBhvMisc195_BaseApi_WhitespaceOnlyProviderTokenIsRejectedBeforeTheRequest(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 200})
+	provider := func(ctx context.Context) (string, error) { return "   ", nil }
+	authObj, err := auth.NewBearerAuthenticatorWithProvider(srv.URL, provider)
+	if err != nil {
+		t.Fatalf("unexpected error from NewBearerAuthenticatorWithProvider: %v", err)
+	}
+	api := retryApi(t, srv, nil, authObj)
+
+	if err := addPetCall(api); err == nil {
+		t.Fatal("expected a whitespace-only provider token to be rejected")
+	}
+	if got := srv.hits.Load(); got != 0 {
+		t.Errorf("expected no request to be sent, got %d", got)
+	}
+}
+
+func TestBhvMisc197_BaseApi_OperationWhoseSchemesAreNotHeldUsesTheDefaultAuthenticator(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 200})
+	authObj, err := auth.NewBearerAuthenticator(srv.URL, "default-token")
+	if err != nil {
+		t.Fatalf("unexpected error from NewBearerAuthenticator: %v", err)
+	}
+	api := retryApi(t, srv, nil, authObj)
+
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(srv.auth) != 1 || srv.auth[0] != "Bearer default-token" {
+		t.Errorf("expected the default Bearer authenticator, got %v", srv.auth)
+	}
+}
+
+func TestBhvMisc209_BaseApi_VoidOperationIgnoresAnySuccessBody(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		contentType string
+		body        string
+	}{
+		{"text/plain", "plain text"},
+		{"application/json", "[1,2,3]"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", tc.contentType)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(tc.body))
+		}))
+		api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
+		if err := api.DeletePet(context.Background(), int64(1), nil); err != nil {
+			t.Errorf("body %q: expected no error, got %v", tc.body, err)
+		}
+		server.Close()
+	}
+}
+
+func TestBhvMisc210_BaseApi_FormDateTimeFieldIsEncodedInCanonicalFormOnTheWire(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+
+	when := models.DateTime(time.Date(2024, time.January, 15, 10, 30, 0, 0, time.UTC))
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{
+		Nickname: "a b",
+		Reminder: &when,
+	})
+
+	b, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected []byte body, got %T", client.capturedBody)
+	}
+	if wire := string(b); !strings.Contains(wire, "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00") {
+		t.Errorf("expected the date-time with escaped colons and plus sign, got %q", wire)
+	}
+}
+
+func TestBhvMisc212_BaseApi_NotFoundAndServerErrorRaiseTheirErrorThroughTheApi(t *testing.T) {
+	t.Parallel()
+	notFound := newScriptedServer(t, scriptedReply{status: 404})
+	var nfe *apierrors.NotFoundError
+	if err := addPetCall(retryApi(t, notFound, nil, nil)); !errors.As(err, &nfe) {
+		t.Errorf("expected *NotFoundError for a 404, got %T: %v", err, err)
+	}
+
+	serverError := newScriptedServer(t, scriptedReply{status: 500})
+	var sse *apierrors.InternalServerError
+	if err := addPetCall(retryApi(t, serverError, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)); !errors.As(err, &sse) {
+		t.Errorf("expected *InternalServerError for a 500, got %T: %v", err, err)
+	}
+}
+
+func TestBhvMisc213_BaseApi_OptionalArrayQueryParamIsNotRenderedAsBracketsOrCommaJoined(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+
+	colors := []string{"blue", "black"}
+	_, _ = api.GetPetTag(context.Background(), int64(5), "cute", &options.GetPetTagOptions{Colors: &colors})
+
+	for _, blob := range []string{"&[", "%5B", "%5b", "%26%5B", "blue+black", "blue%2Cblack", "blue,black"} {
+		if strings.Contains(client.capturedURL, blob) {
+			t.Errorf("expected the array in its declared style, found %q in %q", blob, client.capturedURL)
 		}
 	}
 }

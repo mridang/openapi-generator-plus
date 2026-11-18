@@ -318,3 +318,11 @@ class TestServerVariableOrderAndResolution:
             },
         )
         assert config.get_url() == "https://prod.api.example.com/v2"
+
+
+class TestFixedServerUrl:
+    def test_bhv_misc_158_a_server_with_a_fixed_url_reports_that_url_unchanged(
+        self,
+    ) -> None:
+        config = ServerConfiguration(url_template="https://fixed.example.com/v1/items")
+        assert config.get_url() == "https://fixed.example.com/v1/items"

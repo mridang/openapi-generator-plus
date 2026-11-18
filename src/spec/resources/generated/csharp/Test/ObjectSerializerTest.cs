@@ -815,6 +815,72 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
+        public void BhvMisc087ADecimalInALooselyBuiltBodyIsABareJsonNumber()
+        {
+            string json = _serializer.Serialize(
+                new Dictionary<string, object> { ["weightKg"] = 12.5m }
+            );
+            Assert.Contains("\"weightKg\":12.5", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"weightKg\":\"12.5\"", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc088ADecimalDecodedFromTextKeepsItsDecimalPlaces()
+        {
+            decimal? value = _serializer.Deserialize<decimal>("12.50");
+            Assert.Equal(
+                "12.50",
+                value!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            );
+        }
+
+        [Fact]
+        public void BhvMisc089ADateTimeInAContainerIsWrittenInCanonicalForm()
+        {
+            var times = new List<DateTimeOffset>
+            {
+                new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero),
+            };
+            Assert.Contains(
+                "\"2026-01-02T03:04:05.000+00:00\"",
+                _serializer.Serialize(times),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void BhvMisc090ADurationInARecordWritesItsFractionalSeconds()
+        {
+            var durations = new Dictionary<string, TimeSpan>
+            {
+                { "retry", TimeSpan.FromMilliseconds(1500) },
+            };
+            Assert.Contains(
+                "\"retry\":\"1.500s\"",
+                _serializer.Serialize(durations),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void BhvMisc092PropertiesAreMatchedOnlyByTheirWireName()
+        {
+            var category = _serializer.Deserialize<Category>("{\"name\":\"x\",\"Name\":\"Dogs\"}");
+            Assert.Equal("x", category!.Name);
+        }
+
+        [Fact]
+        public void BhvMisc094AFreeFormObjectIsWrittenWithItsMembersUnchanged()
+        {
+            var freeForm = new Dictionary<string, object>
+            {
+                ["b"] = new object[] { 1, "x" },
+                ["a"] = new Dictionary<string, object> { ["c"] = true },
+            };
+            Assert.Equal("{\"a\":{\"c\":true},\"b\":[1,\"x\"]}", _serializer.Serialize(freeForm));
+        }
+
+        [Fact]
         public void BhvSerializationobject152SerializesModelToValidJson()
         {
             var category = new Category { Id = 1L, Name = "Dogs" };
@@ -2332,6 +2398,59 @@ public static class ObjectSerializerTest
                 ObjectSerializer.Stringify(12.345678901234567890123m)
             );
         }
+
+        [Fact]
+        public void BhvMisc214AnUnserializableQueryContentValueRaisesASerializationError()
+        {
+            var cyclic = new Dictionary<string, object>();
+            cyclic["self"] = cyclic;
+
+            Assert.Throws<SerializationException>(() => new ObjectSerializer().Serialize(cyclic));
+        }
+
+        [Fact]
+        public void BhvMisc215AnInputObjectWithNoFieldsIsFilledWithEveryDeclaredDefault()
+        {
+            var defaults = new Defaults();
+
+            Assert.Equal(3, defaults.Retries);
+            Assert.Equal(Defaults.ModeEnum.Medium, defaults.Mode);
+            Assert.Equal("untitled", defaults.Label);
+            Assert.Equal(Swatch.Green, defaults.Swatch);
+            Assert.Equal(1.5m, defaults.Ratio);
+            Assert.Equal(0.25f, defaults.Scale);
+            Assert.Equal(2d, defaults.Weight);
+            Assert.Equal(9000000000L, defaults.Ceiling);
+        }
+
+        [Fact]
+        public void BhvMisc216ABinaryValueDecodesToBytesWhileItsEncodedTextIsKept()
+        {
+            Assert.Equal(new byte[] { 0x68, 0x69 }, ObjectSerializer.Decode("aGk="));
+            Assert.Equal("aGk=", ObjectSerializer.Stringify(new byte[] { 0x68, 0x69 }));
+        }
+
+        [Fact]
+        public void BhvMisc230AModelWithNoExtraPropertiesWritesOnlyItsDeclaredKeys()
+        {
+            var json = new ObjectSerializer().Serialize(new Freeform { Label = "x" });
+
+            Assert.Equal("{\"label\":\"x\"}", json);
+        }
+
+        [Fact]
+        public void BhvMisc231AModelBuiltInCodeKeepsAWrongTypeThatDecodingRefuses()
+        {
+            var model = new Freeform
+            {
+                AdditionalProperties = new() { ["count"] = "not a number" },
+            };
+
+            Assert.Equal("not a number", model.AdditionalProperties["count"]);
+            Assert.Throws<SerializationException>(() =>
+                new ObjectSerializer().Deserialize<Counters>("{\"count\":\"not a number\"}")
+            );
+        }
     }
 
     public class ByteArrayEqualityTests
@@ -3575,6 +3694,132 @@ public static class ObjectSerializerTest
         {
             var defaults = _serializer.Deserialize<Defaults>("{}");
             Assert.Equal("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b", defaults!.Greeting);
+        }
+
+        [Fact]
+        public void BhvMisc140DeserializingAModelWithoutARequiredPropertyNamesTheProperty()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Department>("{\"lead\":null}")
+            );
+            Assert.Contains("'name'", ex.ToString(), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc141AModelBuiltWithoutAValueKeepsTheSchemaDefault()
+        {
+            var defaults = new Defaults();
+            Assert.Equal(3, defaults.Retries);
+            Assert.Equal("untitled", defaults.Label);
+        }
+
+        [Fact]
+        public void BhvMisc142AdditionalPropertiesAreReturnedUnchangedByKeyAndHoldExactlyTheStoredEntries()
+        {
+            var metadata = _serializer.Deserialize<Metadata>(
+                "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"note\":\"x\",\"owner\":\"ann\"}"
+            );
+            Assert.Equal("x", metadata!.AdditionalProperties["note"]);
+            Assert.Equal(
+                new[] { "note", "owner" },
+                metadata.AdditionalProperties.Keys.OrderBy(k => k, StringComparer.Ordinal)
+            );
+        }
+
+        [Fact]
+        public void BhvMisc143ACopyKeepsTheAdditionalPropertiesAndComparesEqualToTheOriginal()
+        {
+            var original = new Metadata { AdditionalProperties = { ["customField"] = "a" } };
+            var copy = original with { };
+            Assert.Equal("a", copy.AdditionalProperties["customField"]);
+            Assert.Equal(original, copy);
+        }
+
+        [Fact]
+        public void BhvMisc144ValidatingAModelRefusesAStringGivenForANumericField()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Defaults>("{\"retries\":\"3\"}")
+            );
+        }
+
+        [Fact]
+        public void BhvMisc145ReadingTheUndeclaredKeysReturnsACopyThatLeavesTheInstanceUnchanged()
+        {
+            var metadata = _serializer.Deserialize<Metadata>("{\"note\":\"x\"}");
+            var copy = new Dictionary<string, string>(metadata!.AdditionalProperties);
+            copy["note"] = "changed";
+            Assert.Equal("x", metadata.AdditionalProperties["note"]);
+        }
+
+        [Fact]
+        public void BhvMisc146ACopyWithNoChangesIsANewInstanceThatComparesEqualToTheOriginal()
+        {
+            var original = new Metadata
+            {
+                CreatedAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            };
+            var copy = original with { };
+            Assert.NotSame(original, copy);
+            Assert.Equal(original, copy);
+        }
+
+        [Fact]
+        public void BhvMisc147ACopyHoldsTheSameNestedObjectAsTheOriginal()
+        {
+            var original = new Department
+            {
+                Name = "Ops",
+                Lead = new Employee { Name = "Ann" },
+            };
+            var copy = original with { Name = "Eng" };
+            Assert.Same(original.Lead, copy.Lead);
+        }
+
+        [Fact]
+        public void BhvMisc148ACopySerializesToTheWireFormOfTheOriginalWithItsChangesApplied()
+        {
+            var original = new Department
+            {
+                Name = "Ops",
+                Lead = new Employee { Name = "Ann" },
+            };
+            var copy = original with { Name = "Eng" };
+            using var doc = System.Text.Json.JsonDocument.Parse(_serializer.Serialize(copy));
+            Assert.Equal("Eng", doc.RootElement.GetProperty("name").GetString());
+            Assert.Equal(
+                "Ann",
+                doc.RootElement.GetProperty("lead").GetProperty("name").GetString()
+            );
+        }
+
+        [Fact]
+        public void BhvMisc150ModelsWhoseFieldsHoldEqualValuesCompareEqualAndDifferingValuesCompareUnequal()
+        {
+            var created = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            Assert.Equal(
+                new Metadata { CreatedAt = created },
+                new Metadata { CreatedAt = created }
+            );
+            Assert.NotEqual(
+                new Metadata { CreatedAt = created },
+                new Metadata { CreatedAt = created.AddYears(1) }
+            );
+        }
+
+        [Fact]
+        public void BhvMisc151AModelHoldingAMapComparesEqualWhenEntriesMatchAndUnequalWhenAnyDiffers()
+        {
+            var entries = new Dictionary<string, string> { ["a"] = "1", ["b"] = "2" };
+            var differs = new Dictionary<string, string> { ["a"] = "1", ["b"] = "3" };
+            Assert.Equal(
+                new Metadata { AdditionalProperties = new Dictionary<string, string>(entries) },
+                new Metadata { AdditionalProperties = new Dictionary<string, string>(entries) }
+            );
+            Assert.NotEqual(
+                new Metadata { AdditionalProperties = new Dictionary<string, string>(entries) },
+                new Metadata { AdditionalProperties = new Dictionary<string, string>(differs) }
+            );
         }
     }
 
