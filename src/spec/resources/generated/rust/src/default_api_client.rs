@@ -1519,7 +1519,7 @@ mod tests {
      * names are deliberately unsorted (z, a, m) so a sorting or hashing
      * container would fail this test. */
     #[test]
-    fn test_multipart_parts_keep_declaration_order() {
+    fn test_bhv_operations_147_multipart_parts_keep_declaration_order() {
         let fields: [(String, MultipartValue); 3] = [
             ("z".to_string(), MultipartValue::Text("1".to_string())),
             ("a".to_string(), MultipartValue::Text("2".to_string())),

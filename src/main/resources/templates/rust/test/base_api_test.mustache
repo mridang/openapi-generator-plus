@@ -1466,7 +1466,7 @@ async fn test_bhv_serializationwire_008_empty_json_object_body_includes_content_
 }
 
 #[tokio::test]
-async fn test_get_request_with_no_body_omits_content_type() {
+async fn test_bhv_operations_131_get_request_with_no_body_omits_content_type() {
     let client = Arc::new(HeaderCapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);

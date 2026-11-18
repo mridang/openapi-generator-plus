@@ -784,3 +784,13 @@ fn test_bhv_serializationobject_179_whole_second_datetime_serializes_with_a_fixe
         "\"2024-01-01T12:30:45.000+02:00\""
     );
 }
+
+// An object with every property unset writes an empty JSON object, never an
+// empty array or a null.
+#[test]
+fn test_bhv_serializationobject_188_an_empty_object_serializes_to_an_empty_json_object() {
+    use petstore::models::Category;
+
+    let body = serde_json::to_string(&Category::new()).expect("serialize");
+    assert_eq!(body, "{}");
+}

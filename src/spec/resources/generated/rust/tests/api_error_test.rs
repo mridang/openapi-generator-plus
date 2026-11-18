@@ -1049,7 +1049,7 @@ fn test_skills_error_handling_example_has_the_common_catch_arms() {
 /* F1084: the SKILLS.md error section documents the whole tree, not only the
  * ApiError branch. */
 #[test]
-fn test_skills_error_section_documents_the_full_error_tree() {
+fn test_bhv_skills_001_skills_error_section_documents_the_full_error_tree() {
     let skills = include_str!("../SKILLS.md");
     for name in [
         "`OpenAPIError` (root marker trait)",
@@ -1183,5 +1183,31 @@ fn test_bhv_errors_044_every_error_lives_in_errors_and_the_root_exports_it() {
     assert_eq!(
         TypeId::of::<errors::OAuth2AuthorizationCodeError>(),
         TypeId::of::<petstore::OAuth2AuthorizationCodeError>()
+    );
+}
+
+/* The SKILLS.md Configuration section documents the retries: the setting, the
+ * Retry-After header and the disabling value. */
+#[test]
+fn test_bhv_skills_002_skills_configuration_documents_the_retries() {
+    let skills = include_str!("../SKILLS.md");
+    let configuration = skills
+        .split("\n## Configuration\n")
+        .nth(1)
+        .expect("SKILLS.md must have a Configuration section")
+        .split("\n## ")
+        .next()
+        .unwrap_or_default();
+    assert!(
+        configuration.contains("### Retries"),
+        "the Configuration section must document retries"
+    );
+    assert!(
+        configuration.contains("`max_retries`"),
+        "the retries must name the max_retries setting"
+    );
+    assert!(
+        configuration.contains("`Retry-After`"),
+        "the retries must name the Retry-After header"
     );
 }
