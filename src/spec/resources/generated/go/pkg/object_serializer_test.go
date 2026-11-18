@@ -1636,7 +1636,7 @@ func TestBhvSerializationobject178_ObjectSerializer_Discriminator_WetSubtypeAuto
 	}
 }
 
-func TestObjectSerializer_Discriminator_CallerCanOverrideDefault(t *testing.T) {
+func TestBhvUnions043_ObjectSerializer_Discriminator_CallerCanOverrideDefault(t *testing.T) {
 	t.Parallel()
 	dry := models.NewDryFood(1)
 	dry.FoodType = "custom"

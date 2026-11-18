@@ -1846,7 +1846,7 @@ func TestPetApi_AnOperationWithoutSecuritySendsNoCredential(t *testing.T) {
 
 // F857: the host of a credentials client resolves like every credential: the
 // argument, then the environment variable, then ErrMissingCredential.
-func TestPetApi_CredentialsClientNeedsAHost(t *testing.T) {
+func TestBhvLifecycle039_PetApi_CredentialsClientNeedsAHost(t *testing.T) {
 	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
 	client, err := petstore.NewClientWithCredentials("", petstore.Credentials{}, nil)
 	if !errors.Is(err, petstore.ErrMissingCredential) || client != nil {

@@ -1057,7 +1057,7 @@ func TestBhvRedirects001_DefaultApiClient_Redirect302HttpsToHttpDropsTheBodyAndB
 // is none: a bodyless GET and a POST sent with a nil body (which carries an
 // empty body to get an explicit Content-Length: 0) both follow a 307/308
 // HTTPS→HTTP redirect, as the other SDKs do.
-func TestDefaultApiClient_RedirectDowngradeIgnoresRequestsWithoutBody(t *testing.T) {
+func TestBhvRedirects039_DefaultApiClient_RedirectDowngradeIgnoresRequestsWithoutBody(t *testing.T) {
 	t.Parallel()
 
 	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
