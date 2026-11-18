@@ -229,6 +229,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "createAccount",
       requestOptions,
+      undefined,
+      "createAccount",
+      "/store/account",
     );
   }
 
@@ -293,6 +296,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       "deleteOrder",
       requestOptions,
+      undefined,
+      "deleteOrder",
+      "/store/order/{orderId}",
     );
   }
 
@@ -401,6 +407,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getBySwatch",
       requestOptions,
+      undefined,
+      "getBySwatch",
+      "/store/by-swatch/{pathSwatch}",
     );
   }
 
@@ -453,6 +462,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getDefaults",
       requestOptions,
+      undefined,
+      "getDefaults",
+      "/store/defaults",
     );
   }
 
@@ -505,6 +517,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getDepartment",
       requestOptions,
+      undefined,
+      "getDepartment",
+      "/store/department",
     );
   }
 
@@ -564,6 +579,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getGroupedCategories",
       requestOptions,
+      undefined,
+      "getGroupedCategories",
+      "/store/grouped-categories",
     );
   }
 
@@ -621,6 +639,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getInventory",
       requestOptions,
+      undefined,
+      "getInventory",
+      "/store/inventory",
     );
   }
 
@@ -679,6 +700,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getMatrix",
       requestOptions,
+      undefined,
+      "getMatrix",
+      "/store/matrix",
     );
   }
 
@@ -876,6 +900,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getOrderById",
       requestOptions,
+      undefined,
+      "getOrderById",
+      "/store/order/{orderId}",
     );
   }
 
@@ -951,6 +978,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getOrderByTrackingId",
       requestOptions,
+      undefined,
+      "getOrderByTrackingId",
+      "/store/order/by-tracking/{trackingId}",
     );
   }
 
@@ -1025,6 +1055,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getStockItem",
       requestOptions,
+      undefined,
+      "getStockItem",
+      "/store/stock-item",
     );
   }
 
@@ -1080,6 +1113,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getSwatch",
       requestOptions,
+      undefined,
+      "getSwatch",
+      "/store/swatch",
     );
   }
 
@@ -1142,6 +1178,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getSwatchGroups",
       requestOptions,
+      undefined,
+      "getSwatchGroups",
+      "/store/swatch-groups",
     );
   }
 
@@ -1201,6 +1240,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getTimestampGroups",
       requestOptions,
+      undefined,
+      "getTimestampGroups",
+      "/store/timestamp-groups",
     );
   }
 
@@ -1252,6 +1294,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "getTree",
       requestOptions,
+      undefined,
+      "getTree",
+      "/store/tree",
     );
   }
 
@@ -1313,6 +1358,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "placeOrder",
       requestOptions,
+      undefined,
+      "placeOrder",
+      "/store/order",
     );
   }
 
@@ -1376,6 +1424,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "reserveStock",
       requestOptions,
+      undefined,
+      "reserveStock",
+      "/store/reservation",
     );
   }
 
@@ -1473,6 +1524,9 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       "model",
       "searchStore",
       requestOptions,
+      undefined,
+      "searchStore",
+      "/store/search",
     );
   }
 }

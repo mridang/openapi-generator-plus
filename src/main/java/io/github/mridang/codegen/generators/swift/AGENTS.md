@@ -23,6 +23,7 @@ Generates a Swift package (`swift-plus`, class `BetterSwiftCodegen`): `Sources/<
 | `templates/swift/object_serializer.mustache`, `value_serializer.mustache` | JSON serialisation and parameter styles | wire encoding |
 | `templates/swift/models/model.mustache` | structs, unions, `init(from:)`/`encode(to:)` | models |
 | `templates/swift/test/**` | generated Swift Testing sources | generated tests |
+| `templates/swift/call_hook.mustache`, `call_info.mustache`, `call_outcome.mustache`, `call_hook_recipe.mustache` | The call hook types, and the OpenTelemetry recipe partial shared by the README and `test/CallHookRecipeTests.mustache` | the hook API, the recipe |
 | `templates/swift/readme.mustache`, `skills.mustache` | README and SKILLS.md | docs |
 | `templates/swift/package_swift.mustache`, `makefile.mustache`, `swift_format_json.mustache`, `swiftlint_yml.mustache` | package manifest and tooling config | build and lint settings |
 
@@ -48,6 +49,7 @@ Generates a Swift package (`swift-plus`, class `BetterSwiftCodegen`): `Sources/<
 | Property `type` | stays `type`, not `_type` | the reserved list holds the capital-T metatype member only |
 | Integer-enum members | `number1`, `numberMinus1` | lowerCamel like the rest of Swift; string-enum cases stay verbatim |
 | Model copy | `copy(...)` with `T??` for an optional property, `.some(nil)` clears | structs have no builder; a bare `nil` also means keep |
+| Call hook and telemetry | `CallHook`, `CallObserver` (both `Sendable` protocols), `CallInfo`, `CallOutcome` and `CallHooks.chain` (`call_hook`, `call_info`, `call_outcome`), run by a private `CallRun` in `base_api.mustache`; the hook is `Configuration.callHook` and the `callHook:` argument of every `Client` initializer and factory; no OpenTelemetry adapter, only a README recipe (`call_hook_recipe.mustache`) that `test/CallHookRecipeTests.mustache` includes, so the text a user copies is the text under test | `start` and `finish` are `throws` (an error from `start` must reach the caller, one from `finish` is swallowed); SwiftPM has no optional dependency and the opentelemetry-swift metrics API (generic, with no unit) cannot name `{request}` or `s`, so the recipe passes the count and the duration to closures the user supplies. The headers dictionary is built once per call and reused by every send and the replay after a 401, whose fresh authentication headers replace a hook header of the same name, so no delta is kept |
 | Comments | `/* */` for implementation comments, `///` for documentation | repository rule `NoBlockComments` |
 
 ## Settled decisions (do not re-open in review)

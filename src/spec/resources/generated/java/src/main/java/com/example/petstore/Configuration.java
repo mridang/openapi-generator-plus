@@ -33,10 +33,16 @@ public final class Configuration {
 
   private final String baseUrl;
   private final Map<String, String> defaultHeaders;
+  @Nullable private final CallHook callHook;
 
   Configuration(String baseUrl, Map<String, String> defaultHeaders) {
+    this(baseUrl, defaultHeaders, null);
+  }
+
+  Configuration(String baseUrl, Map<String, String> defaultHeaders, @Nullable CallHook callHook) {
     this.baseUrl = baseUrl;
     this.defaultHeaders = Collections.unmodifiableMap(new HashMap<>(defaultHeaders));
+    this.callHook = callHook;
   }
 
   /**
@@ -84,6 +90,18 @@ public final class Configuration {
   }
 
   /**
+   * The hook that runs around every operation call.
+   *
+   * <p>It runs above the transport, so it also fires when the caller supplied the transport.
+   *
+   * @return the hook, or {@code null} when none is set
+   */
+  @Nullable
+  public CallHook getCallHook() {
+    return callHook;
+  }
+
+  /**
    * Describe this configuration for a log. The value of every sensitive default header is replaced
    * by {@code ***}, so the text never carries a credential.
    *
@@ -112,6 +130,7 @@ public final class Configuration {
 
     private String baseUrl = "/api/v3";
     private final Map<String, String> defaultHeaders = new HashMap<>();
+    @Nullable private CallHook callHook;
 
     Builder() {}
 
@@ -150,6 +169,18 @@ public final class Configuration {
     }
 
     /**
+     * Set the hook that runs around every operation call. Combine several with {@link
+     * CallHook#chain(CallHook...)}.
+     *
+     * @param callHook the hook, or {@code null} for none
+     * @return this builder
+     */
+    public Builder callHook(@Nullable CallHook callHook) {
+      this.callHook = callHook;
+      return this;
+    }
+
+    /**
      * Use a server configuration with variable overrides to set the base URL.
      *
      * <p>Resolves the server URL template with the given variable overrides and uses the result as
@@ -182,7 +213,7 @@ public final class Configuration {
      * @return the configured instance
      */
     public Configuration build() {
-      return new Configuration(baseUrl, new HashMap<>(defaultHeaders));
+      return new Configuration(baseUrl, new HashMap<>(defaultHeaders), callHook);
     }
   }
 }

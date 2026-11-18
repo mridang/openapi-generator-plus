@@ -53,7 +53,7 @@ Model properties are `readonly`.
 | `php-ds/php-ds` | `\Ds\Vector`, `\Ds\Set` and `\Ds\Map`; installing the PECL `ext-ds` replaces the userland classes with native ones |
 | `psr/http-client`, `psr/http-factory`, `psr/http-message` | the `Psr18ApiClient` adapter for your own HTTP client |
 | `ext-brotli`, `ext-zstd` (suggested) | decoding `br` and `zstd` responses; without them only `gzip` and `deflate` are advertised |
-| `open-telemetry/api` (suggested) | W3C trace context on outgoing requests |
+| `open-telemetry/api` (suggested) | W3C trace context on outgoing requests, and the `OpenTelemetryCallHook` adapter (PHP 8.2 or newer, below the 8.3 floor) |
 
 Development tooling is Pest, PHP-CS-Fixer (`@PSR12`), PHP_CodeSniffer, PHPStan at level 9 and Rector (`UP_TO_PHP_83`); none of it is a runtime dependency.
 
@@ -95,6 +95,8 @@ Only `invokerPackage` and `packageVersion` are declared as options in the genera
 - **Custom transport.** Wrap any PSR-18 client in `Psr18ApiClient`, or use `Client::withHttpClient(...)`. The SDK keeps its own redirect loop, so disable redirects on your client. `TransportOptions` settings for proxy, TLS and timeout do not apply to an injected client, and setting a proxy, CA bundle or `verifySsl(false)` together with one is rejected with `InvalidArgumentException`.
 - **Request id.** `injectRequestId(true)` adds an `X-Request-ID` header to every request.
 - Testing your code: `<Group>ApiInterface` and `ClientInterface` (one file each, PSR-4), with `get<Group>()` accessors beside the `readonly` properties because interface properties need PHP 8.4. `ClientInterface` is not the PSR-18 `Psr\Http\Client\ClientInterface`: `Client.php` imports the PSR one, so it names ours by its full name. The tests build fakes with `fakeGroup()` in `tests/bootstrap.php`, which generates a class from the interface with reflection and `eval`.
+- **Call hook.** `CallHook::start(CallInfo $info, array &$headers): ?CallObserver` runs once per operation call, after the trace context is injected, and may edit the headers (the array is passed by reference, as `TraceContextUtil::injectTraceContext()` does). The returned `CallObserver::finish(CallOutcome $outcome)` runs exactly once on every exit path with the status (`0` when none arrived), the lower-cased headers (`null` when none arrived) and the error the caller receives. Set it with `Configuration::builder()->callHook($hook)` (read with `getCallHook()`) or the trailing `callHook` argument of the client constructor and factories; `CallHookChain::chain($a, $b)` starts in order and finishes in reverse. It sits above the transport, so it also fires with a supplied PSR-18 or `ApiClient` transport. An exception from `start` reaches the caller and nothing is sent; one from `finish` is swallowed. PHP has no cancellation, so no outcome carries one.
+- **OpenTelemetry.** `OpenTelemetryCallHook::create(?TracerProviderInterface, ?MeterProviderInterface, ?TextMapPropagatorInterface)` records a client span named with the operation id, `http.client.request.count` and `http.client.request.duration` per call, with the scope named after the Composer package and the SDK version. It uses only `open-telemetry/api` and does nothing when the package is absent. A PHP process runs one request at a time, so a metric reaches a backend only when the application flushes its meter provider.
 
 ## Known limits
 

@@ -276,4 +276,19 @@ describe('Configuration', () => {
     const config = Configuration.builder().signal(new AbortController().signal).build();
     expect(Object.keys(config.toJSON())).toEqual(['baseUrl', 'defaultHeaders']);
   });
+
+  test('the call hook is undefined by default', () => {
+    expect(Configuration.builder().build().callHook).toBeUndefined();
+  });
+
+  test('the builder stores the call hook', () => {
+    const hook = { start: () => undefined };
+    expect(Configuration.builder().callHook(hook).build().callHook).toBe(hook);
+  });
+
+  test('the call hook is not part of the printable form', () => {
+    const config = Configuration.builder().callHook({ start: () => undefined }).build();
+    expect(Object.keys(config.toJSON())).toEqual(['baseUrl', 'defaultHeaders']);
+    expect(config.toString()).not.toContain('start');
+  });
 });

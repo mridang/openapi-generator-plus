@@ -45,6 +45,43 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     def requests(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
   end
 
+  # A call hook that reports to the test process. It is used as
+  # `{RecordingHook, opts}`, where `opts` holds `:pid` and, as a test needs,
+  # `:set` (headers to add), `:edit` (a function over the headers),
+  # `:nothing` (return nil), `:start_raises` and `:finish_raises` (an exception).
+  defmodule RecordingHook do
+    @behaviour {{moduleName}}.CallHook
+
+    @impl true
+    def start(info, headers), do: start(info, headers, %{pid: self()})
+
+    @impl true
+    def start(info, headers, opts) do
+      send(opts.pid, {:hook_start, info, headers})
+
+      if opts[:start_raises], do: raise(opts.start_raises)
+
+      if opts[:nothing] do
+        nil
+      else
+        edit = Map.get(opts, :edit, fn current -> current end)
+        {edit.(Map.merge(headers, Map.get(opts, :set, %{}))), opts}
+      end
+    end
+
+    @impl true
+    def finish(opts, outcome) do
+      send(opts.pid, {:hook_finish, outcome})
+
+      if opts[:finish_raises], do: raise(opts.finish_raises)
+    end
+  end
+
+  # A transport that is torn down mid-call, as a caller's process is.
+  defmodule ExitingApiClient do
+    def send_request(_method, _url, _headers, _body), do: exit(:shutdown)
+  end
+
   # Hands out a new header value on every call, so a test can tell whether the
   # authentication headers were rebuilt for an attempt.
   defmodule CountingAuthenticator do
@@ -2695,6 +2732,319 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     end
 
     refute Map.has_key?(echo_headers(), "traceparent")
+  end
+
+  # ---------------------------------------------------------------------------
+  # The call hook
+  # ---------------------------------------------------------------------------
+
+  defp hooked(state, hook), do: %{state | config: %{state.config | call_hook: hook}}
+
+  defp recording(extra \\ %{}), do: {RecordingHook, Map.merge(%{pid: self()}, extra)}
+
+  defp starts(acc \\ []) do
+    receive do
+      {:hook_start, info, headers} -> starts(acc ++ [{info, headers}])
+    after
+      0 -> acc
+    end
+  end
+
+  defp finishes(acc \\ []) do
+    receive do
+      {:hook_finish, outcome} -> finishes(acc ++ [outcome])
+    after
+      0 -> acc
+    end
+  end
+
+  defp answering(status, headers \\ %{}, body \\ "") do
+    ScriptedApiClient.new(fn _url, _headers, _requests ->
+      %{{moduleName}}.ApiHttpResponse{status_code: status, headers: headers, body: body}
+    end)
+  end
+
+  defp scripted_state(base_url, client) do
+    %{config: {{moduleName}}.Configuration.new(base_url: base_url), api_client: client}
+  end
+
+  defp hook_operation, do: [operation: {"findThings", "/things/{id}"}]
+
+  test "bhv hooks 001 without a hook a call sends the same headers and returns the same result" do
+    plain = retry_state([200])
+    assert plain.config.call_hook == nil
+    assert {:ok, nil} = get_thing(plain)
+    [plain_request] = attempts()
+
+    silent = hooked(retry_state([200]), recording(%{nothing: true}))
+    assert {:ok, nil} = get_thing(silent)
+    [silent_request] = attempts()
+
+    assert silent_request.headers == plain_request.headers
+    assert [_start] = starts()
+    assert finishes() == []
+  end
+
+  test "bhv hooks 002 start is called once per call with the spec operation id, the method, the url template and the url" do
+    state = hooked(retry_state([200]), recording())
+
+    assert {:ok, _} = get_thing_with(state, hook_operation(), [{"a", "1"}])
+
+    assert [{info, _headers}] = starts()
+
+    assert info == %{{moduleName}}.CallInfo{
+             operation_id: "findThings",
+             method: "GET",
+             url_template: "/things/{id}",
+             url: "http://retry.invalid/things",
+             server_address: "retry.invalid"
+           }
+  end
+
+  test "bhv hooks 003 server_address is the host without port and without the brackets of an IPv6 literal" do
+    for {base_url, host} <- [
+          {"https://API.Example.com:8443", "api.example.com"},
+          {"http://example.org", "example.org"},
+          {"http://[::1]:8080", "::1"}
+        ] do
+      state = hooked(scripted_state(base_url, answering(200)), recording())
+
+      assert {:ok, _} = get_thing(state)
+      assert [{info, _headers}] = starts()
+      assert info.server_address == host
+      finishes()
+    end
+  end
+
+  test "bhv hooks 004 a header the hook sets reaches the server" do
+    state = hooked(retry_state([200]), recording(%{set: %{"X-Tenant" => "a"}}))
+
+    assert {:ok, _} = get_thing(state)
+
+    [request] = attempts()
+    assert Req.Request.get_header(request, "x-tenant") == ["a"]
+  end
+
+  test "bhv hooks 005 start sees the final headers, authentication included, and can replace one" do
+    auth = {{moduleName}}.Auth.BearerAuthenticator.new("http://retry.invalid", "tok")
+    edit = fn headers -> Map.put(headers, "Authorization", "Bearer hook") end
+    state = hooked(retry_state([200], [], auth), recording(%{edit: edit}))
+
+    assert {:ok, _} = get_thing(state)
+
+    assert [{_info, seen}] = starts()
+    assert seen["Authorization"] == "Bearer tok"
+    assert seen["Accept"] == "application/json"
+
+    [request] = attempts()
+    assert Req.Request.get_header(request, "authorization") == ["Bearer hook"]
+  end
+
+  test "bhv hooks 006 a header the hook sets is on every send of the call, retries and the replay after a 401 included" do
+    retried = hooked(retry_state([{503, [{"retry-after", "0"}]}, 200]), recording(%{set: %{"X-Tenant" => "a"}}))
+
+    assert {:ok, _} = get_thing(retried)
+    assert [first, second] = attempts()
+    assert Req.Request.get_header(first, "x-tenant") == ["a"]
+    assert Req.Request.get_header(second, "x-tenant") == ["a"]
+    assert length(starts()) == 1
+    assert length(finishes()) == 1
+
+    client =
+      ScriptedApiClient.new(
+        token_answer(fn
+          "Bearer tok1" -> 401
+          _ -> 200
+        end)
+      )
+
+    state = hooked(oauth_state(client), recording(%{set: %{"X-Tenant" => "a"}}))
+
+    assert {:ok, _} = put_thing(state, nil, "application/json")
+    assert [{_, first_headers}, {_, second_headers}] = api_requests(client)
+    assert first_headers["X-Tenant"] == "a"
+    assert second_headers["X-Tenant"] == "a"
+    assert length(starts()) == 1
+    assert length(finishes()) == 1
+  end
+
+  test "bhv hooks 007 the fresh authentication headers of a replay replace a hook header of the same name" do
+    client =
+      ScriptedApiClient.new(
+        token_answer(fn
+          "Bearer hook" -> 401
+          _ -> 200
+        end)
+      )
+
+    edit = fn headers -> Map.put(headers, "Authorization", "Bearer hook") end
+    state = hooked(oauth_state(client), recording(%{edit: edit}))
+
+    assert {:ok, _} = put_thing(state, nil, "application/json")
+
+    assert Enum.map(api_requests(client), fn {_, headers} -> headers["Authorization"] end) ==
+             ["Bearer hook", "Bearer tok2"]
+  end
+
+  test "bhv hooks 008 a call that is retried calls start once and finish once" do
+    state = hooked(retry_state([{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200]), recording())
+
+    assert {:ok, _} = get_thing_with(state, [], %{}, %{})
+    assert length(attempts()) == 3
+    assert length(starts()) == 1
+    assert [%{{moduleName}}.CallOutcome{status_code: 200}] = finishes()
+  end
+
+  test "bhv hooks 009 the plain and the full-result entry points each call the hook once" do
+    state = hooked(scripted_state("https://api.example.com", answering(200)), recording())
+
+    assert {:ok, _} = get_thing(state)
+    assert length(starts()) == 1
+    assert length(finishes()) == 1
+
+    assert {:ok, _} =
+             {{moduleName}}.Api.BaseApi.invoke_api_for_result(
+               state, :get, "/things", %{}, %{}, nil, ["application/json"], "application/json", nil
+             )
+
+    assert length(starts()) == 1
+    assert length(finishes()) == 1
+  end
+
+  test "bhv hooks 010 a hook on the configuration still fires when the caller supplied the transport" do
+    client = answering(200)
+    state = hooked(scripted_state("https://api.example.com", client), recording(%{set: %{"X-Tenant" => "a"}}))
+
+    assert {:ok, _} = get_thing(state)
+
+    assert [{_url, headers}] = ScriptedApiClient.requests(client)
+    assert headers["X-Tenant"] == "a"
+    assert length(starts()) == 1
+    assert length(finishes()) == 1
+  end
+
+  test "bhv hooks 011 finish gets the status, the lower-cased headers and no error on a 2xx" do
+    state = hooked(scripted_state("https://api.example.com", answering(200, %{"X-A" => "1", "Content-Type" => "text/plain"})), recording())
+
+    assert {:ok, _} = get_thing(state)
+
+    assert [outcome] = finishes()
+    assert outcome.status_code == 200
+    assert outcome.headers == %{"x-a" => "1", "content-type" => "text/plain"}
+    assert outcome.error == nil
+  end
+
+  test "bhv hooks 012 finish gets the status, the headers and the same typed error the caller receives on a non-2xx" do
+    state = hooked(scripted_state("https://api.example.com", answering(404, %{"X-Request-Id" => "r1"})), recording())
+
+    assert {:error, %{{moduleName}}.Errors.NotFoundError{} = error} = get_thing(state)
+
+    assert [outcome] = finishes()
+    assert outcome.status_code == 404
+    assert outcome.headers == %{"x-request-id" => "r1"}
+    assert outcome.error == error
+  end
+
+  test "bhv hooks 013 finish gets status 0, no headers and the network error when no response arrived" do
+    state = hooked(retry_state([{:transport_error, :econnrefused}], max_retries: 0), recording())
+
+    assert {:error, %{{moduleName}}.Errors.NetworkError{} = error} = get_thing(state)
+
+    assert [outcome] = finishes()
+    assert outcome.status_code == 0
+    assert outcome.headers == nil
+    assert outcome.error == error
+  end
+
+  test "bhv hooks 014 finish gets the timeout error when the call times out, never the cancellation" do
+    state = hooked(retry_state([{:transport_error, :timeout}]), recording())
+
+    assert {:error, %{{moduleName}}.Errors.NetworkTimeoutError{} = error} = get_thing(state)
+
+    assert [outcome] = finishes()
+    assert outcome.error == error
+    assert outcome.status_code == 0
+  end
+
+  test "bhv hooks 015 finish gets the cancellation and the call exits with it, never as the timeout error" do
+    state = hooked(%{config: {{moduleName}}.Configuration.new(base_url: "https://api.example.com"), api_client: ExitingApiClient}, recording())
+
+    assert catch_exit(get_thing(state)) == :shutdown
+
+    assert [outcome] = finishes()
+    assert outcome.error == {:exit, :shutdown}
+    assert outcome.status_code == 0
+    assert outcome.headers == nil
+  end
+
+  test "bhv hooks 016 finish gets the SerializationError with the status that arrived when the response cannot be decoded" do
+    client = answering(200, %{"Content-Type" => "text/plain"}, "not json")
+    state = hooked(scripted_state("https://api.example.com", client), recording())
+
+    error =
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.Api.BaseApi.invoke_api(
+          state, :get, "/things", %{}, %{}, nil, ["application/json"], "application/json", "Object"
+        )
+      end
+
+    assert [outcome] = finishes()
+    assert outcome.status_code == 200
+    assert outcome.headers == %{"content-type" => "text/plain"}
+    assert outcome.error == error
+  end
+
+  test "bhv hooks 017 finish is called when the request body cannot be encoded and nothing is sent" do
+    client = answering(200)
+    state = hooked(scripted_state("https://api.example.com", client), recording())
+
+    error =
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        put_thing(state, %{"field" => %{"nested" => 1}}, "application/x-www-form-urlencoded")
+      end
+
+    assert ScriptedApiClient.requests(client) == []
+    assert [outcome] = finishes()
+    assert outcome.error == error
+    assert outcome.status_code == 0
+  end
+
+  test "bhv hooks 018 an error raised by start reaches the caller unchanged, nothing is sent and finish is not called" do
+    client = answering(200)
+    state = hooked(scripted_state("https://api.example.com", client), recording(%{start_raises: "refused by the hook"}))
+
+    assert_raise RuntimeError, "refused by the hook", fn -> get_thing(state) end
+
+    assert ScriptedApiClient.requests(client) == []
+    assert length(starts()) == 1
+    assert finishes() == []
+  end
+
+  test "bhv hooks 019 an error raised by finish is swallowed and the caller still gets its result or its own error" do
+    ok = hooked(scripted_state("https://api.example.com", answering(200)), recording(%{finish_raises: "observer broke"}))
+    assert {:ok, _} = get_thing(ok)
+
+    failing = hooked(scripted_state("https://api.example.com", answering(404)), recording(%{finish_raises: "observer broke"}))
+    assert {:error, %{{moduleName}}.Errors.NotFoundError{}} = get_thing(failing)
+
+    assert length(finishes()) == 2
+  end
+
+  test "bhv hooks 021 the url given to the hook never carries the query string or the fragment" do
+    state = hooked(scripted_state("https://api.example.com", answering(200)), recording())
+
+    assert {:ok, _} =
+             {{moduleName}}.Api.BaseApi.invoke_api(
+               state, :get, "/things/1#frag", [{"a", "1"}], %{}, nil, ["application/json"], "application/json", nil
+             )
+
+    assert {:ok, _} =
+             {{moduleName}}.Api.BaseApi.invoke_api(
+               state, :get, "/things/1", [{"a", "1"}, {"b", "2"}], %{}, nil, ["application/json"], "application/json", nil
+             )
+
+    assert Enum.map(starts(), fn {info, _headers} -> info.url end) ==
+             ["https://api.example.com/things/1", "https://api.example.com/things/1"]
   end
 end
 {{/generateTests}}

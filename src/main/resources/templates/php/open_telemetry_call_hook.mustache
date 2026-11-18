@@ -1,0 +1,174 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+use {{invokerPackage}}\Errors\NetworkException;
+use {{invokerPackage}}\Errors\NetworkTimeoutException;
+use {{invokerPackage}}\Errors\SerializationException;
+use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Metrics\CounterInterface;
+use OpenTelemetry\API\Metrics\HistogramInterface;
+use OpenTelemetry\API\Metrics\MeterProviderInterface;
+use OpenTelemetry\API\Trace\SpanInterface;
+use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
+use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
+
+/**
+ * A {@see CallHook} that records one span, one request count and one duration
+ * histogram per operation call with OpenTelemetry. It is built on the
+ * OpenTelemetry API package (open-telemetry/api) and never on its SDK, which
+ * the application installs and configures. The package is optional: without
+ * it the hook does nothing.
+ *
+ * The span is named with the operation id, has kind client and carries
+ * http.request.method, url.template, server.address, http.response.status_code
+ * (only when a response arrived) and error.type (only on failure). The counter
+ * http.client.request.count (unit {request}) and the histogram
+ * http.client.request.duration (unit s) carry the same attributes. The
+ * instrumentation scope is the package name and the SDK version. The hook
+ * writes the traceparent header itself, so it names the client span as the
+ * parent. A PHP process runs one request at a time: a metric only reaches a
+ * backend when the application flushes its meter provider.
+ *
+ * Usage:
+ *
+ *     $config = Configuration::builder()
+ *         ->callHook(OpenTelemetryCallHook::create())
+ *         ->build();
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+final class OpenTelemetryCallHook implements CallHook
+{
+    private const SCOPE_NAME = '{{composerPackageName}}';
+
+    private const SCOPE_VERSION = '{{packageVersion}}';
+
+    private function __construct(
+        private readonly ?TracerProviderInterface $tracerProvider,
+        private readonly ?MeterProviderInterface $meterProvider,
+        private readonly ?TextMapPropagatorInterface $propagator,
+    ) {
+    }
+
+    /**
+     * Create the hook. Anything not given is taken from the global
+     * OpenTelemetry instance each time a call starts.
+     *
+     * @param TracerProviderInterface|null    $tracerProvider the provider of the tracer, or null for the global one
+     * @param MeterProviderInterface|null     $meterProvider  the provider of the meter, or null for the global one
+     * @param TextMapPropagatorInterface|null $propagator     the propagator of the traceparent header, or null
+     *                                                        for the global one
+     */
+    public static function create(
+        ?TracerProviderInterface $tracerProvider = null,
+        ?MeterProviderInterface $meterProvider = null,
+        ?TextMapPropagatorInterface $propagator = null,
+    ): self {
+        return new self($tracerProvider, $meterProvider, $propagator);
+    }
+
+    public function start(CallInfo $info, array &$headers): ?CallObserver
+    {
+        if (!class_exists(Globals::class)) {
+            return null;
+        }
+        $startedAt = hrtime(true);
+        $tracerProvider = $this->tracerProvider ?? Globals::tracerProvider();
+        $meterProvider = $this->meterProvider ?? Globals::meterProvider();
+        $propagator = $this->propagator ?? Globals::propagator();
+        $attributes = [
+            'http.request.method' => $info->method,
+            'url.template' => $info->urlTemplate,
+            'server.address' => $info->serverAddress,
+        ];
+        $spanName = $info->operationId !== '' ? $info->operationId : 'call';
+        $span = $tracerProvider->getTracer(self::SCOPE_NAME, self::SCOPE_VERSION)
+            ->spanBuilder($spanName)
+            ->setSpanKind(SpanKind::KIND_CLIENT)
+            ->setAttributes($attributes)
+            ->startSpan();
+        $carrier = [];
+        $propagator->inject($carrier, null, $span->storeInContext(Context::getCurrent()));
+        if (is_array($carrier)) {
+            foreach ($carrier as $name => $value) {
+                if (!is_string($name) || !is_string($value)) {
+                    continue;
+                }
+                foreach (array_keys($headers) as $existing) {
+                    if (strcasecmp((string) $existing, $name) === 0) {
+                        unset($headers[$existing]);
+                    }
+                }
+                $headers[$name] = $value;
+            }
+        }
+        $meter = $meterProvider->getMeter(self::SCOPE_NAME, self::SCOPE_VERSION);
+
+        return new class (
+            $span,
+            $attributes,
+            $startedAt,
+            $meter->createCounter('http.client.request.count', '{request}'),
+            $meter->createHistogram('http.client.request.duration', 's'),
+        ) implements CallObserver {
+            private bool $ended = false;
+
+            /**
+             * @param array<non-empty-string, string|int> $attributes
+             */
+            public function __construct(
+                private readonly SpanInterface $span,
+                private readonly array $attributes,
+                private readonly int|float $startedAt,
+                private readonly CounterInterface $counter,
+                private readonly HistogramInterface $histogram,
+            ) {
+            }
+
+            public function finish(CallOutcome $outcome): void
+            {
+                if ($this->ended) {
+                    return;
+                }
+                $this->ended = true;
+                $attributes = $this->attributes;
+                if ($outcome->statusCode > 0) {
+                    $attributes['http.response.status_code'] = $outcome->statusCode;
+                }
+                $errorType = self::errorType($outcome);
+                if ($errorType !== null) {
+                    $attributes['error.type'] = $errorType;
+                }
+                $this->span->setAttributes($attributes);
+                if ($errorType !== null) {
+                    $this->span->setStatus(StatusCode::STATUS_ERROR);
+                }
+                $this->span->end();
+                $this->counter->add(1, $attributes);
+                $this->histogram->record((hrtime(true) - $this->startedAt) / 1e9, $attributes);
+            }
+
+            private static function errorType(CallOutcome $outcome): ?string
+            {
+                if ($outcome->statusCode >= 400) {
+                    return (string) $outcome->statusCode;
+                }
+                $error = $outcome->error;
+                if ($error === null) {
+                    return null;
+                }
+
+                return match (true) {
+                    $error instanceof NetworkTimeoutException => 'timeout',
+                    $error instanceof NetworkException => 'network_error',
+                    $error instanceof SerializationException => 'serialization_error',
+                    default => '_OTHER',
+                };
+            }
+        };
+    }
+}

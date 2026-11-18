@@ -1,0 +1,70 @@
+{{>api_info}}
+
+import { chain } from '../src/call-hook{{importFileExtension}}';
+import type { CallHook, CallInfo, CallObserver, CallOutcome } from '../src/call-hook{{importFileExtension}}';
+
+const info: CallInfo = {
+  operationId: 'listItems',
+  method: 'GET',
+  urlTemplate: '/items',
+  url: 'https://api.example.com/items',
+  serverAddress: 'api.example.com'
+};
+const outcome: CallOutcome = { statusCode: 200, headers: {}, error: null };
+
+describe('chain', () => {
+  test('bhv hooks 020 starts the hooks in order, finishes their observers in reverse and skips a hook that returns nothing', () => {
+    const order: string[] = [];
+    const named = (name: string): CallHook => ({
+      start: () => {
+        order.push(`start ${name}`);
+        const observer: CallObserver = { finish: () => void order.push(`finish ${name}`) };
+        return observer;
+      }
+    });
+    const silent: CallHook = { start: () => void order.push('start silent') };
+
+    const observer = chain(named('a'), silent, named('b')).start(info, {});
+    order.push('call');
+    observer?.finish(outcome);
+
+    expect(order).toEqual(['start a', 'start silent', 'start b', 'call', 'finish b', 'finish a']);
+  });
+
+  test('every hook sees the same headers, so a later hook sees the edit of an earlier one', () => {
+    const first: CallHook = { start: (_info, headers) => void (headers['X-Step'] = 'one') };
+    let seen: string | undefined;
+    const second: CallHook = { start: (_info, headers) => void (seen = headers['X-Step']) };
+
+    chain(first, second).start(info, {});
+
+    expect(seen).toBe('one');
+  });
+
+  test('a failing observer does not stop the others', () => {
+    const finished: string[] = [];
+    const failing: CallHook = {
+      start: () => ({
+        finish: () => {
+          throw new Error('observer failed');
+        }
+      })
+    };
+    const recording: CallHook = { start: () => ({ finish: () => void finished.push('recorded') }) };
+
+    expect(() => chain(recording, failing).start(info, {})?.finish(outcome)).not.toThrow();
+
+    expect(finished).toEqual(['recorded']);
+  });
+
+  test('an error thrown by start propagates unchanged', () => {
+    const failure = new Error('refused');
+    const refusing: CallHook = {
+      start: () => {
+        throw failure;
+      }
+    };
+
+    expect(() => chain(refusing).start(info, {})).toThrow(failure);
+  });
+});

@@ -1,0 +1,28 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * What an operation call is about to do, handed to {@see CallHook::start()}.
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+final readonly class CallInfo
+{
+    /**
+     * @param string $operationId   the operation id exactly as written in the OpenAPI document
+     * @param string $method        the upper-case HTTP method
+     * @param string $urlTemplate   the path template of the operation, without the server base path
+     * @param string $url           the request URL without query string and fragment
+     * @param string $serverAddress the host of the request URL, lower-case, without port and
+     *                              without the brackets of an IPv6 literal
+     */
+    public function __construct(
+        public string $operationId,
+        public string $method,
+        public string $urlTemplate,
+        public string $url,
+        public string $serverAddress,
+    ) {
+    }
+}

@@ -148,6 +148,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface {
     return invokeApiForResult<Result>(
       method: 'GET',
       operation: 'ProblemsApi.getFallback',
+      operationId: 'getFallback',
+      urlTemplate: '/fallbacks/{fallbackId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -235,6 +237,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface {
     return invokeApiForResult<Result>(
       method: 'GET',
       operation: 'ProblemsApi.getMember',
+      operationId: 'getMember',
+      urlTemplate: '/members/{memberId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -323,6 +327,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface {
     return invokeApiForResult<Result>(
       method: 'GET',
       operation: 'ProblemsApi.getProject',
+      operationId: 'getProject',
+      urlTemplate: '/projects/{projectId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -408,6 +414,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface {
     return invokeApiForResult<Result>(
       method: 'GET',
       operation: 'ProblemsApi.getRange',
+      operationId: 'getRange',
+      urlTemplate: '/ranges/{rangeId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -496,6 +504,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface {
     return invokeApiForResult<Result>(
       method: 'GET',
       operation: 'ProblemsApi.getUpstream',
+      operationId: 'getUpstream',
+      urlTemplate: '/upstreams/{upstreamId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -583,6 +593,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface {
     return invokeApiForResult<Result>(
       method: 'PUT',
       operation: 'ProblemsApi.takeLock',
+      operationId: 'takeLock',
+      urlTemplate: '/locks/{lockId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,

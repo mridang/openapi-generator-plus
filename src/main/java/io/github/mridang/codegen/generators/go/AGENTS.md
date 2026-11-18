@@ -22,6 +22,7 @@
 | `base_api.mustache`, `api/api.mustache`, `api/options.mustache` | request assembly, response decoding, per-operation methods and `opts.*Options` structs | an operation signature or request/response handling |
 | `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache`, `path_utils.mustache`, `models/` | JSON and parameter encoding, models, `Set`, `DateTime`, `Duration` | models and wire encoding |
 | `configuration.mustache`, `client.mustache`, `servers.mustache`, `server_configuration.mustache` | `Configuration` and builder, `Client` facade, server tables | client construction |
+| `call_hook.mustache`, `otelhook.mustache` | the call hook types (`pkg/call_hook.go`) and the OpenTelemetry adapter (`pkg/otelhook`); `base_api.mustache` calls the hook, `configuration.mustache` and `client.mustache` carry it | hook and telemetry behaviour |
 | `readme.mustache`, `skills.mustache`, `go_mod.mustache`, `makefile.mustache`, `golangci.mustache`, `dev_dependencies.mustache` | README, SKILLS.md, module manifest, tool block and lint config | README sections, dependencies, lint |
 | `templates/go/test/` and `test/api/` | generated `_test.go` files | generated tests |
 
@@ -104,6 +105,12 @@ Rule: `TransportOptionsBuilder.HttpClient(HttpDoer)` accepts any value with `Do(
 Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client. Go is done.
 Where: `transport_options.mustache`, `default_api_client.mustache` (`newPolicyClient`, `locationGuardTransport`), `client.mustache`, `readme.mustache`.
 Test: `test/transport_options_test.mustache`, `test/default_api_client_test.mustache`.
+
+### The call hook and the OpenTelemetry adapter (#158, #108)
+Rule: `Start` returns `(CallObserver, error)` because go returns errors instead of throwing them; `baseApi.invokeApiForResult` calls it right after `InjectTraceContext` on the first attempt only and keeps the hook's edits as a delta (`callState.begin`) that is put on the rebuilt headers of every later attempt, except the names the fresh authentication of that attempt set (the replay after a 401 keeps its new token). The generated `<Op>WithHTTPInfo` method holds the `callState`, names its error result and defers `callState.end`, so `Finish` runs exactly once on every exit after `Start`, the decoding included; a panic in `Finish` is recovered. The hook lives on `Configuration` (`CallHook()`, builder `CallHook`) and clients take the trailing `WithCallHook` `ClientOption`. The adapter is the package `pkg/otelhook` of the same module (no nested module): the core package imports none of OpenTelemetry for it; `hasOpenTelemetryAdapter()` is true.
+Why: one seam for editing, observing and tracing; a nested module would need a version tag and a `replace` for the golden.
+Where: `base_api.mustache`, `api/api.mustache`, `call_hook.mustache`, `configuration.mustache`, `client.mustache`, `otelhook.mustache`, `go_mod.mustache`.
+Test: `test/base_api_test.mustache` (hooks), `test/client_test.mustache`, `test/configuration_test.mustache`, `test/call_hook_test.mustache`, `test/otelhook_test.mustache`.
 
 ### Dependencies (S10)
 Rule: a small pure module or a version bump is acceptable when it standardises behaviour; never a module that needs a native binary (cgo). `brotli`, `klauspost/compress` and `google/uuid` are accepted; the tool block pins `gotestsum`, `staticcheck`, `gofumpt` and `gocover-cobertura`.

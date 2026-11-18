@@ -30,23 +30,30 @@ defmodule PetstoreClient.Configuration do
     headers are merged after transport-level headers from
     `#{inspect(PetstoreClient.TransportOptions)}` but before operation-specific
     headers and authentication headers.
+  * `call_hook` - An optional hook that runs around every operation call (see
+    `#{inspect(PetstoreClient.CallHook)}`), or `nil`. It runs above the
+    transport, so it is not part of `#{inspect(PetstoreClient.TransportOptions)}`.
   """
   @type t :: %__MODULE__{
           base_url: String.t(),
-          default_headers: %{optional(String.t()) => String.t()}
+          default_headers: %{optional(String.t()) => String.t()},
+          call_hook: PetstoreClient.CallHook.t() | nil
         }
 
   @enforce_keys [:base_url]
   defstruct base_url: "/api/v3",
-            default_headers: %{}
+            default_headers: %{},
+            call_hook: nil
 
   # Default headers may carry credentials (for example Authorization), so the
-  # Inspect representation masks the sensitive ones as `***`.
+  # Inspect representation masks the sensitive ones as `***`. A hook may hold
+  # anything, so it is shown as `:set`, never printed.
   defimpl Inspect do
     def inspect(config, opts) do
       masked = %{
         config
-        | default_headers: PetstoreClient.TransportOptions.redact_headers(config.default_headers)
+        | default_headers: PetstoreClient.TransportOptions.redact_headers(config.default_headers),
+          call_hook: if(config.call_hook, do: :set)
       }
 
       Inspect.Any.inspect(masked, opts)
@@ -64,21 +71,24 @@ defmodule PetstoreClient.Configuration do
       headers are merged after transport-level headers from
       `#{inspect(PetstoreClient.TransportOptions)}` but before operation-specific
       headers and authentication headers.
+    * `:call_hook` - A `#{inspect(PetstoreClient.CallHook)}` module, or
+      `{module, opts}`, that runs around every operation call. Defaults to none.
 
   ## Examples
 
       iex> PetstoreClient.Configuration.new()
-      %PetstoreClient.Configuration{base_url: "/api/v3", default_headers: %{}}
+      %PetstoreClient.Configuration{base_url: "/api/v3", default_headers: %{}, call_hook: nil}
 
       iex> PetstoreClient.Configuration.new(base_url: "https://custom.example.com")
-      %PetstoreClient.Configuration{base_url: "https://custom.example.com", default_headers: %{}}
+      %PetstoreClient.Configuration{base_url: "https://custom.example.com", default_headers: %{}, call_hook: nil}
 
   """
   @spec new(keyword()) :: t()
   def new(opts \\ []) do
     %__MODULE__{
       base_url: Keyword.get(opts, :base_url, "/api/v3"),
-      default_headers: Keyword.get(opts, :default_headers, %{})
+      default_headers: Keyword.get(opts, :default_headers, %{}),
+      call_hook: Keyword.get(opts, :call_hook)
     }
   end
 

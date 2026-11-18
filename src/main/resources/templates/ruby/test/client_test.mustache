@@ -249,11 +249,11 @@ describe 'Client' do
     client.instance_variables.map { |name| client.instance_variable_get(name) }.grep({{moduleName}}::Api::BaseApi)
   end
 
-  it 'bhv_lifecycle_015 takes one optional keyword credential per security scheme, named after it' do
+  it 'bhv_lifecycle_015 takes one optional keyword credential per security scheme, named after it, then the call hook' do
     keywords = {{moduleName}}::{{clientClassName}}.instance_method(:initialize).parameters
                                                   .filter_map { |kind, name| name if kind == :key }
 
-    _(keywords).must_equal %i[{{#clientSchemes}}{{argName}}{{^-last}} {{/-last}}{{/clientSchemes}}]
+    _(keywords).must_equal %i[{{#clientSchemes}}{{argName}} {{/clientSchemes}}call_hook]
   end
 
   it 'bhv_lifecycle_030 the base URL comes from the authenticator first, then from the first scheme credential' do
@@ -322,6 +322,33 @@ describe 'Client' do
         ENV[variable] = saved
       end
     end
+  end
+
+  def call_hook_groups_of(client)
+    client.instance_variables.map { |name| client.instance_variable_get(name) }.grep({{moduleName}}::Api::BaseApi)
+  end
+
+  it 'hands the call hook to every API group' do
+    hook = RecordingCallHook.new
+    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
+
+    client = {{moduleName}}::{{clientClassName}}.new(authenticator, nil, call_hook: hook)
+    from_token = {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'test-token', call_hook: hook)
+    from_authenticator = {{moduleName}}::{{clientClassName}}.with_authenticator(authenticator, call_hook: hook)
+
+    [client, from_token, from_authenticator].each do |built|
+      groups = call_hook_groups_of(built)
+      _(groups).wont_be_empty
+      _(groups.map { |api| api.config.call_hook }.uniq).must_equal [hook]
+    end
+  end
+
+  it 'has no call hook unless one is given' do
+    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
+
+    groups = call_hook_groups_of({{moduleName}}::{{clientClassName}}.new(authenticator))
+
+    _(groups.map { |api| api.config.call_hook }.uniq).must_equal [nil]
   end
 
   it 'bhv_lifecycle_008 close makes the client reject further requests' do

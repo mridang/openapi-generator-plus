@@ -369,6 +369,34 @@ The SDK has no cancellation handle of its own. Bound a call by time with `Transp
 
 Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode`, `data`, `rawBody`, `headers`). `timeout` is one end-to-end budget in milliseconds. An `X-Request-ID` header is added to each request when you set `TransportOptions.builder().injectRequestId(true)`.
 
+## Hooks and telemetry
+
+Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it with `callHook:` on the client or `.callHook(hook)` on the `ConfigurationBuilder`, and combine several with `chainCallHooks`.
+
+```dart
+class SourceHook implements CallHook {
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    headers['X-Source'] = 'nightly-job';
+    return _Watcher();
+  }
+}
+
+class _Watcher implements CallObserver {
+  @override
+  void finish(CallOutcome outcome) {
+    print('${outcome.statusCode} ${outcome.error}');
+  }
+}
+
+final client = Client(
+  authenticator: authenticator,
+  callHook: SourceHook(),
+);
+```
+
+`start` runs once per call, after the trace context is injected, with the final header set, and `finish` runs exactly once with the status code (0 when no response arrived), the lower-cased response headers (`null` when no response arrived) and the error the caller receives. An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed. A header the hook sets is on every send of the call. The README shows a recipe that records a span, a request count and a duration with the OpenTelemetry API.
+
 ## API Methods
 
 Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

@@ -532,6 +532,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "addPet",
       requestOptions,
+      undefined,
+      "addPet",
+      "/pet",
     );
   }
 
@@ -636,6 +639,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "addPetPhotos",
       requestOptions,
+      undefined,
+      "addPetPhotos",
+      "/pet/{petId}/photos",
     );
   }
 
@@ -722,6 +728,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "addPetTreatment",
       requestOptions,
+      undefined,
+      "addPetTreatment",
+      "/pet/{petId}/treatment",
     );
   }
 
@@ -809,6 +818,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       undefined,
       "deletePet",
       requestOptions,
+      undefined,
+      "deletePet",
+      "/pet/{petId}",
     );
   }
 
@@ -912,6 +924,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "binary",
       "downloadPetDocument",
       requestOptions,
+      undefined,
+      "downloadPetDocument",
+      "/pet/{petId}/documents/{documentId}",
     );
   }
 
@@ -989,6 +1004,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "findPetsBornOn",
       requestOptions,
+      undefined,
+      "findPetsBornOn",
+      "/pet/born-on/{bornOn}",
     );
   }
 
@@ -1120,6 +1138,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "findPetsByStatus",
       requestOptions,
+      undefined,
+      "findPetsByStatus",
+      "/pet/findByStatus",
     );
   }
 
@@ -1204,6 +1225,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getExternalPetInfo",
       requestOptions,
+      undefined,
+      "getExternalPetInfo",
+      "/pet/{petId}/external",
     );
   }
 
@@ -1289,6 +1313,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getMultiServerPetInfo",
       requestOptions,
+      undefined,
+      "getMultiServerPetInfo",
+      "/pet/{petId}/multi",
     );
   }
 
@@ -1369,6 +1396,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "binary",
       "getPetAvatar",
       requestOptions,
+      undefined,
+      "getPetAvatar",
+      "/pet/{petId}/avatar",
     );
   }
 
@@ -1447,6 +1477,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getPetAvatarThumbnail",
       requestOptions,
+      undefined,
+      "getPetAvatarThumbnail",
+      "/pet/{petId}/avatar/thumbnail",
     );
   }
 
@@ -1540,6 +1573,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getPetById",
       requestOptions,
+      undefined,
+      "getPetById",
+      "/pet/{petId}",
     );
   }
 
@@ -1658,6 +1694,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getPetByName",
       requestOptions,
+      undefined,
+      "getPetByName",
+      "/pet/byName/{name}",
     );
   }
 
@@ -1836,6 +1875,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getPetPassport",
       requestOptions,
+      undefined,
+      "getPetPassport",
+      "/pet/{petId}/passport",
     );
   }
 
@@ -1938,6 +1980,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "binary",
       "getPetPhoto",
       requestOptions,
+      undefined,
+      "getPetPhoto",
+      "/pet/{petId}/photos/{photoId}",
     );
   }
 
@@ -2086,6 +2131,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "string",
       "getPetSummary",
       requestOptions,
+      undefined,
+      "getPetSummary",
+      "/pet/{petId}/summary/{asOf}",
     );
   }
 
@@ -2326,6 +2374,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getPetTag",
       requestOptions,
+      undefined,
+      "getPetTag",
+      "/pet/{petId}/tag/{tagName}",
     );
   }
 
@@ -2410,6 +2461,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "getStagingPetInfo",
       requestOptions,
+      undefined,
+      "getStagingPetInfo",
+      "/pet/{petId}/staging",
     );
   }
 
@@ -2509,6 +2563,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       undefined,
       "setPetAvatar",
       requestOptions,
+      undefined,
+      "setPetAvatar",
+      "/pet/{petId}/avatar",
     );
   }
 
@@ -2584,6 +2641,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       undefined,
       "setPetAvatarThumbnail",
       requestOptions,
+      undefined,
+      "setPetAvatarThumbnail",
+      "/pet/{petId}/avatar/thumbnail",
     );
   }
 
@@ -2697,6 +2757,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "setPetPreferences",
       requestOptions,
+      undefined,
+      "setPetPreferences",
+      "/pet/{petId}/preferences",
     );
   }
 
@@ -2787,6 +2850,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "updatePet",
       requestOptions,
+      undefined,
+      "updatePet",
+      "/pet/{petId}",
     );
   }
 
@@ -2883,6 +2949,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "uploadPetCertificate",
       requestOptions,
+      undefined,
+      "uploadPetCertificate",
+      "/pet/{petId}/certificate",
     );
   }
 
@@ -3039,6 +3108,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
       "model",
       "uploadPetDocument",
       requestOptions,
+      undefined,
+      "uploadPetDocument",
+      "/pet/{petId}/documents",
     );
   }
 }

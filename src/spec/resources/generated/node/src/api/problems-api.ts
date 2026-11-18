@@ -179,6 +179,8 @@ export class ProblemsApi extends BaseApi implements ProblemsApiInterface {
             request,
           ),
       },
+      "getFallback",
+      "/fallbacks/{fallbackId}",
     );
   }
 
@@ -267,6 +269,8 @@ export class ProblemsApi extends BaseApi implements ProblemsApiInterface {
             request,
           ),
       },
+      "getMember",
+      "/members/{memberId}",
     );
   }
 
@@ -355,6 +359,8 @@ export class ProblemsApi extends BaseApi implements ProblemsApiInterface {
             request,
           ),
       },
+      "getProject",
+      "/projects/{projectId}",
     );
   }
 
@@ -443,6 +449,8 @@ export class ProblemsApi extends BaseApi implements ProblemsApiInterface {
             request,
           ),
       },
+      "getRange",
+      "/ranges/{rangeId}",
     );
   }
 
@@ -531,6 +539,8 @@ export class ProblemsApi extends BaseApi implements ProblemsApiInterface {
             request,
           ),
       },
+      "getUpstream",
+      "/upstreams/{upstreamId}",
     );
   }
 
@@ -628,6 +638,8 @@ export class ProblemsApi extends BaseApi implements ProblemsApiInterface {
             request,
           ),
       },
+      "takeLock",
+      "/locks/{lockId}",
     );
   }
 }

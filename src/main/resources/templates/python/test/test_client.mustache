@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import threading
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import pytest
 import urllib3
@@ -18,6 +18,7 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}, {{classname}}Protoco
 {{/apiInfo}}
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}, {{clientClassName}}Protocol
 from {{packageName}}.default_api_client import DefaultApiClient
+from {{packageName}}.call_hook import CallInfo, CallObserver
 from {{packageName}}.transport_options import TransportOptions
 
 
@@ -211,7 +212,7 @@ class TestClientSchemeCredentials:
         parameters = inspect.signature({{clientClassName}}.__init__).parameters
 
         assert list(parameters) == [
-            'self', 'authenticator', 'transport_options', 'pool_manager'{{#clientSchemes}}, '{{paramName}}'{{/clientSchemes}},
+            'self', 'authenticator', 'transport_options', 'pool_manager', 'call_hook'{{#clientSchemes}}, '{{paramName}}'{{/clientSchemes}},
         ]
 
     def test_the_scheme_credentials_are_keyword_only(self) -> None:
@@ -251,6 +252,22 @@ class TestClientSchemeCredentials:
 {{#operations}}
         assert client.{{clientPropertyName}}._authenticator is default
         assert list(client.{{clientPropertyName}}._scheme_authenticators.values()) == [held]
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    def test_the_call_hook_reaches_every_api_group(self) -> None:
+        class _Hook:
+            def start(self, info: CallInfo, headers: dict[str, str]) -> Optional[CallObserver]:
+                return None
+
+        hook = _Hook()
+        client = {{clientClassName}}(BearerAuthenticator('https://default.example.com', 'tok'), call_hook=hook)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assert client.{{clientPropertyName}}._config.call_hook is hook
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

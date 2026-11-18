@@ -24,6 +24,7 @@ The java generator (`java-plus`) emits a Maven project for Java 21 or newer (the
 | `templates/java/api/*.mustache` | per-tag API classes, per-operation `*Options` classes, server variants | operation surface |
 | `templates/java/test/**` | the emitted JUnit tests (extend these; never add a test file) | generated tests |
 | `templates/java/pom.mustache`, `checkstyle_suppressions.mustache`, `dev_dependencies.mustache`, `editorconfig.mustache`, `makefile.mustache`, `reflect_config.mustache` | build file, named Checkstyle suppressions, dev-dependency list, GraalVM reflection config | dependencies, compiler and lint flags |
+| `templates/java/call_hook.mustache`, `call_info.mustache`, `call_observer.mustache`, `call_outcome.mustache`, `open_telemetry_call_hook.mustache` | the call hook types (one public type per file) and the OpenTelemetry adapter; `base_api.mustache` calls the hook, `configuration.mustache` and `client.mustache` carry it | hook and telemetry behaviour |
 | `templates/java/readme.mustache`, `skills.mustache`, `skills_example_arg.mustache` | README and SKILLS.md | docs |
 | `src/main/resources/reserved-words/java.txt`, `src/test/resources/scripts/JavaKeywords.java` | reserved words, pinned by `JavaReservedWordsSpec` | escaped identifiers |
 
@@ -223,6 +224,12 @@ Rule: `ServerVariable.java` stays separate from `ServerConfiguration.java`.
 Why: java allows one public top-level class per file; the other nine co-locate it.
 Where: `server_variable.mustache`, `server_configuration.mustache`.
 Test: `ServerVariableTest`, `ServerConfigurationTest`.
+
+### The call hook and the OpenTelemetry adapter (#158, #108)
+Rule: `BaseApi.invokeApiForResult` calls `CallHook.start` right after `TraceContextUtil.injectTraceContext`, then runs the body encoding, send and decode in `sendAndDecode`, and calls `finish` exactly once on every exit path (a throwing `finish` is swallowed, a throwing `start` propagates). The hook is held by `Configuration` (`getCallHook`, builder `callHook`) and the client builder; the retries inside `DefaultApiClient` and the 401 replay are inside one call, and the replay's fresh authentication headers replace a hook header of the same name because the one header map is shared. The api template passes the spec id (`operationIdOriginal`) and the path template to the 16-argument overload; the shorter overloads fall back to `operationId` and the substituted path. `OpenTelemetryCallHook` is the adapter, built on the OpenTelemetry API only (an optional dependency); `hasOpenTelemetryAdapter()` is true. The four hook types are separate files because java allows one public top-level type per file.
+Why: one seam for editing, observing and tracing, with no OpenTelemetry in the core types.
+Where: `base_api.mustache`, `api/api.mustache`, `configuration.mustache`, `client.mustache`, `call_*.mustache`, `open_telemetry_call_hook.mustache`.
+Test: `BaseApiTest$CallHooks`, `ClientTest`, `ConfigurationTest`, `CallHookTest`, `OpenTelemetryCallHookTest` (golden-only, it reuses `BaseApiTest` helpers).
 
 ### Generated code never disables a tool (Guardrails, Linting)
 Rule: no generated file disables a rule set. Findings generated code cannot satisfy are named once, with a reason, in `checkstyle-suppressions.xml` (`SummaryJavadoc`, `AbbreviationAsWordInName`, `LineLength`, `MemberName`, `OverloadMethodsDeclarationOrder`, `VariableDeclarationUsageDistance`, and `MethodName`/`ParameterName` for `*Options`), in the pom's `-Xlint:-unchecked`, `-Xlint:-deprecation`, `-Xlint:-this-escape`, `-Xlint:-dangling-doc-comments`, `-Xep:InlineMeSuggester:OFF` and `-Xep:TypeParameterUnusedInFormals:OFF`, or by a class-level `@SuppressFBWarnings(justification = "generated code")` on `Client`, `DefaultApiClient` and models.

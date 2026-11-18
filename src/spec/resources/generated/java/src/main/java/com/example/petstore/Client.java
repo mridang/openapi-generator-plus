@@ -124,14 +124,15 @@ public final class Client implements ClientInterface {
    * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
    */
   public Client(Authenticator authenticator, TransportOptions transportOptions) {
-    this(hostOf(authenticator), authenticator, Map.of(), transportOptions);
+    this(hostOf(authenticator), authenticator, Map.of(), transportOptions, null);
   }
 
   private Client(
       String host,
       @Nullable Authenticator authenticator,
       Map<String, Authenticator> schemeAuthenticators,
-      TransportOptions transportOptions) {
+      TransportOptions transportOptions,
+      @Nullable CallHook callHook) {
     ApiClient apiClient = new DefaultApiClient(transportOptions);
     this.apiClient = apiClient;
 
@@ -144,7 +145,7 @@ public final class Client implements ClientInterface {
       }
     }
 
-    Configuration config = Configuration.builder().baseUrl(host).build();
+    Configuration config = Configuration.builder().baseUrl(host).callHook(callHook).build();
     this.pet = new PetApi(apiClient, config, authenticator, schemeAuthenticators);
     this.problems = new ProblemsApi(apiClient, config, authenticator, schemeAuthenticators);
     this.store = new StoreApi(apiClient, config, authenticator, schemeAuthenticators);
@@ -172,6 +173,7 @@ public final class Client implements ClientInterface {
     private final String host;
     private final Map<String, Authenticator> schemes = new LinkedHashMap<>();
     @Nullable private TransportOptions transportOptions;
+    @Nullable private CallHook callHook;
 
     private Builder(String host) {
       this.host = Objects.requireNonNull(host, "host");
@@ -319,6 +321,18 @@ public final class Client implements ClientInterface {
     }
 
     /**
+     * Sets the hook that runs around every operation call. Combine several with {@link
+     * CallHook#chain(CallHook...)}.
+     *
+     * @param callHook the hook, or {@code null} for none
+     * @return this builder
+     */
+    public Builder callHook(@Nullable CallHook callHook) {
+      this.callHook = callHook;
+      return this;
+    }
+
+    /**
      * Creates the client.
      *
      * @return the configured client
@@ -328,7 +342,7 @@ public final class Client implements ClientInterface {
     public Client build() {
       TransportOptions transport =
           transportOptions != null ? transportOptions : TransportOptions.builder().build();
-      return new Client(host, null, new LinkedHashMap<>(schemes), transport);
+      return new Client(host, null, new LinkedHashMap<>(schemes), transport, callHook);
     }
 
     private Builder scheme(String schemeId, @Nullable Authenticator authenticator) {

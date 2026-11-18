@@ -3,6 +3,7 @@
 import type { Authenticator } from './auth/authenticator{{importFileExtension}}';
 import { isHttpAwareAuthenticator } from './auth/http-aware-authenticator{{importFileExtension}}';
 import { BearerAuthenticator } from './auth/bearer-authenticator{{importFileExtension}}';
+import type { CallHook } from './call-hook{{importFileExtension}}';
 import type { CredentialProvider } from './auth/credentials{{importFileExtension}}';
 import { Configuration } from './configuration{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
@@ -23,9 +24,13 @@ import type { {{classname}}Interface } from './api/{{classFilename}}{{importFile
  *   is merged with the per-call `signal` of each operation (either one
  *   cancels the call) and raises the signal's reason (an `AbortError` by
  *   default), never a timeout error.
+ * - `callHook` -- a hook that runs around every operation call: it can edit
+ *   the request headers before the send and observe the status or the error
+ *   afterwards. Use `chain` to combine several hooks.
  */
 export interface {{clientClassName}}Options {
   readonly signal?: AbortSignal;
+  readonly callHook?: CallHook;
 }
 
 /**
@@ -227,6 +232,7 @@ export class {{clientClassName}} implements {{clientClassName}}Interface {
     const config = Configuration.builder()
       .baseUrl(host.getHost())
       .signal(clientOptions?.signal)
+      .callHook(clientOptions?.callHook)
       .build();
 {{#apiInfo}}
 {{#apis}}

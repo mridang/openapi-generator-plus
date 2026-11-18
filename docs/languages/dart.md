@@ -72,12 +72,14 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - Server URLs are the top-level constants `SERVER_0`, `SERVER_1` and so on, with `allServers`.
 - Builder setters name their parameter `val`.
 - `TraceContextUtil.propagator` is a registration hook that you set if you want trace headers, because Dart cannot detect an optional OpenTelemetry dependency at run time.
+- The call hook is `CallHook` with `start(CallInfo info, Map<String, String> headers)` returning a `CallObserver?`, whose `finish(CallOutcome outcome)` is called once when the call has ended; `chainCallHooks(List<CallHook>)` combines several. Set it with `ConfigurationBuilder.callHook(hook)` or with the `callHook:` argument of `Client` and `Client.withToken`. `CallInfo` carries `operationId` (as written in the spec), `method`, `urlTemplate`, `url` and `serverAddress`; `CallOutcome` carries `statusCode` (0 when no response arrived), `headers` (lower-cased, `null` when no response arrived) and `error`.
+- OpenTelemetry is a recipe, not a shipped adapter: the `opentelemetry` package is pre-1.0, offers no histogram, its SDK counter records nothing and Dart cannot declare an optional dependency. The generated README holds the recipe, `OpenTelemetryCallHook`, which records one span per call and hands the request count and the duration in seconds to two functions you supply; the generated test suite compiles and runs that same text.
 - An absent optional server description is an empty string, not `null`. It never goes on the wire.
 - Testing your code: `abstract interface class <Group>ApiInterface` in the group file and `ClientInterface` in `client.dart`. `BaseApi` is public, so the implicit interface of the class would force a fake to implement its members; the explicit interface avoids that. A fake implements the interface and forwards `noSuchMethod`. The tests read the source files, because Dart has no run-time reflection.
 
 ## Known limits
 
-- There is no per-call cancellation handle.
+- There is no per-call cancellation handle, so the call hook is never told of a cancelled call and the recipe has no `cancelled` error type.
 - Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only. Other charsets such as `shift_jis` fall back to lenient UTF-8, because Dart has no multi-charset standard library.
 - Bare `number` is a lossy `double`, and `int64` beyond 2^53 is lossy on the web.
 - Uploads and downloads are fully buffered.

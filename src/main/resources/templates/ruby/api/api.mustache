@@ -405,6 +405,8 @@ module {{moduleName}}
           },
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
           operation_id: '{{classname}}.{{operationId}}',
+          spec_operation_id: '{{#lambda.rubyQuoted}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.rubyQuoted}}',
+          url_template: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}',
           request_options: options
         )
       end

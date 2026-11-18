@@ -71,6 +71,22 @@ type Client struct {
 	apiClient ApiClient
 }
 
+// ClientOption configures a client built by one of the NewClient
+// constructors.
+type ClientOption func(*clientSettings)
+
+type clientSettings struct {
+	callHook CallHook
+}
+
+// WithCallHook sets the hook that runs around every operation call of the
+// client; see CallHook.
+func WithCallHook(hook CallHook) ClientOption {
+	return func(settings *clientSettings) {
+		settings.callHook = hook
+	}
+}
+
 // Close marks the client closed and releases the idle connections of the
 // transport the SDK created. It is graceful and idempotent: a request already
 // in flight finishes, and a request sent afterwards fails with ErrClientClosed.
@@ -96,8 +112,8 @@ func (c *Client) Close() error {
 // If the authenticator implements auth.HttpAwareAuthenticator, the shared ApiClient
 // is injected so that token exchange and discovery requests use the same proxy,
 // TLS, and timeout settings.
-func NewClient(authenticator Authenticator, transportOptions *TransportOptions) *Client {
-	return newClient(authenticator.Host(), authenticator, nil, transportOptions)
+func NewClient(authenticator Authenticator, transportOptions *TransportOptions, options ...ClientOption) *Client {
+	return newClient(authenticator.Host(), authenticator, nil, transportOptions, options)
 }
 
 // NewClientWithCredentials creates a client with one optional
@@ -108,15 +124,19 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 // empty value counts as unset. It returns ErrMissingCredential when the host
 // cannot be resolved. Credentials that need the transport (OAuth2, OpenID
 // Connect) get the client's own, like the authenticator of NewClient.
-func NewClientWithCredentials(host string, credentials Credentials, transportOptions *TransportOptions) (*Client, error) {
+func NewClientWithCredentials(host string, credentials Credentials, transportOptions *TransportOptions, options ...ClientOption) (*Client, error) {
 	resolvedHost, err := auth.ResolveCredential(host, "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "host")
 	if err != nil {
 		return nil, err
 	}
-	return newClient(resolvedHost, nil, credentials.bySchemeId(), transportOptions), nil
+	return newClient(resolvedHost, nil, credentials.bySchemeId(), transportOptions, options), nil
 }
 
-func newClient(host string, authenticator Authenticator, credentials map[string]Authenticator, transportOptions *TransportOptions) *Client {
+func newClient(host string, authenticator Authenticator, credentials map[string]Authenticator, transportOptions *TransportOptions, options []ClientOption) *Client {
+	settings := clientSettings{}
+	for _, option := range options {
+		option(&settings)
+	}
 	if transportOptions == nil {
 		transportOptions = defaultTransportOptions()
 	}
@@ -134,6 +154,7 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 
 	config := NewConfigurationBuilder().
 		BaseURL(host).
+		CallHook(settings.callHook).
 		Build()
 
 	apiPet := NewPetApi(apiClient, config, authenticator, Credentials{})
@@ -162,7 +183,7 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 // (a missing token also satisfies auth.ErrInvalidBearerToken), and
 // auth.ErrInvalidBearerToken when the token contains a character that cannot
 // be sent in a header.
-func NewClientWithToken(host, accessToken string, transportOptions *TransportOptions) (*Client, error) {
+func NewClientWithToken(host, accessToken string, transportOptions *TransportOptions, options ...ClientOption) (*Client, error) {
 	resolvedHost, err := auth.ResolveCredential(host, "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "host")
 	if err != nil {
 		return nil, err
@@ -175,7 +196,7 @@ func NewClientWithToken(host, accessToken string, transportOptions *TransportOpt
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(authenticator, transportOptions), nil
+	return NewClient(authenticator, transportOptions, options...), nil
 }
 
 // NewClientWithTokenProvider creates a client authenticated with a
@@ -186,7 +207,7 @@ func NewClientWithToken(host, accessToken string, transportOptions *TransportOpt
 // The host is resolved like in NewClientWithToken. Returns
 // ErrMissingCredential when it cannot be resolved, and
 // auth.ErrInvalidBearerToken when the provider is nil.
-func NewClientWithTokenProvider(host string, provider auth.TokenProvider, transportOptions *TransportOptions) (*Client, error) {
+func NewClientWithTokenProvider(host string, provider auth.TokenProvider, transportOptions *TransportOptions, options ...ClientOption) (*Client, error) {
 	resolvedHost, err := auth.ResolveCredential(host, "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "host")
 	if err != nil {
 		return nil, err
@@ -195,7 +216,7 @@ func NewClientWithTokenProvider(host string, provider auth.TokenProvider, transp
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(authenticator, transportOptions), nil
+	return NewClient(authenticator, transportOptions, options...), nil
 }
 
 // NewClientWithAuthenticator creates a client from any Authenticator implementation.
@@ -207,8 +228,8 @@ func NewClientWithTokenProvider(host string, provider auth.TokenProvider, transp
 // its HTTP calls reuse the same transport configuration. The optional transport
 // options are applied to both API calls and any authentication HTTP calls the
 // authenticator performs.
-func NewClientWithAuthenticator(authenticator Authenticator, transportOptions *TransportOptions) *Client {
-	return NewClient(authenticator, transportOptions)
+func NewClientWithAuthenticator(authenticator Authenticator, transportOptions *TransportOptions, options ...ClientOption) *Client {
+	return NewClient(authenticator, transportOptions, options...)
 }
 
 // authApiClientAdapter adapts the main package's ApiClient interface to the

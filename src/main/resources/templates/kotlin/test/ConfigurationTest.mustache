@@ -351,4 +351,20 @@ class ConfigurationTest {
             assertSame(builder, builder.server(server))
         }
     }
+
+    @Nested
+    @DisplayName("call hook")
+    inner class CallHookWiring {
+
+        @Test
+        @DisplayName("a hook set on the builder is on the configuration, and the string form never shows it")
+        fun theHookIsOnTheConfiguration() {
+            val hook = CallHook { _, _ -> null }
+            val config = Configuration.builder().callHook(hook).build()
+            assertSame(hook, config.callHook)
+            assertFalse(config.toString().contains("CallHook"), config.toString())
+            assertNull(Configuration.builder().callHook(hook).callHook(null).build().callHook)
+            assertNull(Configuration.defaultConfiguration().callHook)
+        }
+    }
 }

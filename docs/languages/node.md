@@ -40,7 +40,7 @@ A branded string is a `string` with a compile-time tag, so a plain string does n
 
 ## Dependencies
 
-Runtime dependencies are `class-transformer` (`^0.5`), `reflect-metadata` (`^0.2`) and `temporal-polyfill` (`^0.3`). `undici` (`^6`) is an optional dependency used by the Node transport. `@opentelemetry/api` (`^1.0.0`) is an optional peer dependency, used for tracing when you install it.
+Runtime dependencies are `class-transformer` (`^0.5`), `reflect-metadata` (`^0.2`) and `temporal-polyfill` (`^0.3`). `undici` (`^6`) is an optional dependency used by the Node transport. `@opentelemetry/api` (`^1.0.0`) is an optional peer dependency, used for trace propagation and by the OpenTelemetry adapter when you install it.
 
 The package uses legacy `experimentalDecorators`, because class-transformer needs them. It leaves `emitDecoratorMetadata` off, because turning it on causes temporal-dead-zone errors when models import each other in a cycle.
 
@@ -77,6 +77,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - A missing required parameter throws a `TypeError`, and its message is written with double quotes because it embeds `'<param>'`.
 - Property names keep the wire spelling (`modelPropertyNaming` is `original`) and imports end in `.js`.
 - Testing your code: `<Group>ApiInterface` in each group file and `ClientInterface` in `client.ts`, both exported from the entry point. The classes have protected members, so TypeScript treats them nominally and an object literal cannot stand in for them; the interface is what a fake satisfies.
+- A call hook runs around every operation call. `CallHook` has one method, `start(info, headers)`, that may edit the request headers and returns a `CallObserver` (one method, `finish(outcome)`) or nothing; `CallInfo` carries `operationId`, `method`, `urlTemplate`, `url` and `serverAddress`, and `CallOutcome` carries `statusCode`, `headers` and `error`. `chain(...hooks)` combines hooks. Set it with `Configuration.builder().callHook(hook)` or the `callHook` client option. It lives in `BaseApi`, above the transport, so it also runs with a supplied `fetch`. The OpenTelemetry adapter is the `./opentelemetry` subpath of the package: `createOpenTelemetryCallHook({ tracerProvider, meterProvider, propagator })`. It is the only file that imports `@opentelemetry/api` statically, and the package root never loads it. Its scope is the package name and version.
 
 ## Known limits
 

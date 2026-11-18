@@ -124,6 +124,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             errorSchemas: [
                 'default' => \PetstoreClient\Errors\UnexpectedFailureException::fromErrorResponse(...),
             ],
+            operationId: 'getFallback',
+            urlTemplate: '/fallbacks/{fallbackId}',
         );
         return $result;
     }
@@ -219,6 +221,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             errorSchemas: [
                 '404' => \PetstoreClient\Errors\MemberNotFoundException::fromErrorResponse(...),
             ],
+            operationId: 'getMember',
+            urlTemplate: '/members/{memberId}',
         );
         return $result;
     }
@@ -314,6 +318,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             errorSchemas: [
                 '404' => \PetstoreClient\Errors\ProjectNotFoundException::fromErrorResponse(...),
             ],
+            operationId: 'getProject',
+            urlTemplate: '/projects/{projectId}',
         );
         return $result;
     }
@@ -409,6 +415,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             errorSchemas: [
                 '4XX' => \PetstoreClient\Errors\RejectedRequestException::fromErrorResponse(...),
             ],
+            operationId: 'getRange',
+            urlTemplate: '/ranges/{rangeId}',
         );
         return $result;
     }
@@ -504,6 +512,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             errorSchemas: [
                 '5XX' => \PetstoreClient\Errors\UpstreamFailureException::fromErrorResponse(...),
             ],
+            operationId: 'getUpstream',
+            urlTemplate: '/upstreams/{upstreamId}',
         );
         return $result;
     }
@@ -602,6 +612,8 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
                 '409' => \PetstoreClient\Errors\StateConflictException::fromErrorResponse(...),
                 '423' => \PetstoreClient\Errors\StateConflictException::fromErrorResponse(...),
             ],
+            operationId: 'takeLock',
+            urlTemplate: '/locks/{lockId}',
         );
         return $result;
     }

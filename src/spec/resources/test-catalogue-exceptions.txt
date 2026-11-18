@@ -373,3 +373,5 @@ elixir | mocking009 | This language has no README test yet (#118); the section i
 go | mocking007 | Go interfaces carry methods and not fields, so there is no client interface; the Client struct holds group-interface fields and mocking008 covers a client built from fakes
 elixir | mocking007 | Elixir has no client behaviour: the Client is a struct of group structs and a fake is a module that implements the group behaviour (mocking001 to 004)
 elixir | mocking008 | There is no client behaviour to implement, so no fake client exists; a fake group module opens no connection by construction
+dart | hooks015 | Dart has no per-call cancellation (S7), so there is no cancelled call to report to finish; the timeout path is bhv hooks 014
+php | hooks015 | PHP has no per-call cancellation (S7) and runs one request at a time, so there is no cancelled call to observe; the timeout path is bhv hooks 014

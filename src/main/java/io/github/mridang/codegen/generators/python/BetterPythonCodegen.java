@@ -254,6 +254,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** The generated per-scheme authenticators that read an environment variable, for the unit test. */
     private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
 
+    /** Python ships the OpenTelemetry call hook adapter, built on the optional {@code opentelemetry-api} package. */
+    @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
+    }
+
     /** The names the generated operations add to their own signature, which a path or body parameter must not reuse (F1055). */
     @Override
     protected Set<String> getInjectedArgumentNames() {
@@ -558,7 +564,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
 
     /** The client arguments a scheme credential must not shadow. */
     private static final Set<String> CLIENT_ARGUMENT_NAMES =
-            Set.of("self", "authenticator", "transport_options", "pool_manager");
+            Set.of("self", "authenticator", "transport_options", "pool_manager", "call_hook");
 
     /**
      * The keyword argument that carries the credential of a security scheme.
@@ -636,6 +642,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("value_serializer.mustache", packagePath, "value_serializer.py"),
             new SupportingFileSpec("header_selector.mustache", packagePath, "header_selector.py"),
             new SupportingFileSpec("trace_context_util.mustache", packagePath, "trace_context_util.py"),
+            new SupportingFileSpec("call_hook.mustache", packagePath, "call_hook.py"),
+            new SupportingFileSpec("opentelemetry_call_hook.mustache", packagePath, "opentelemetry_call_hook.py"),
             new SupportingFileSpec("transport_options.mustache", packagePath, "transport_options.py"),
             new SupportingFileSpec("server_configuration.mustache", packagePath, "server_configuration.py"),
             new SupportingFileSpec("servers.mustache", packagePath, "servers.py"),
@@ -750,6 +758,16 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_trace_context_util.mustache",
                             "test",
                             "test_trace_context_util.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_call_hook.mustache",
+                            "test",
+                            "test_call_hook.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_opentelemetry_call_hook.mustache",
+                            "test",
+                            "test_opentelemetry_call_hook.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_configuration.mustache",

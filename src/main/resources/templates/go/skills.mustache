@@ -325,6 +325,10 @@ Every operation, also one with no parameters and no security, takes `RequestOpti
 
 Responses in `gzip`, `deflate`, `br` and `zstd` are decoded for you. The SDK writes no log lines: wrap the transport with `TransportOptionsBuilder.RoundTripper` to log requests. The module follows semantic versioning, and Go is supported from the oldest release that has not reached end of life.
 
+### Hooks and telemetry
+
+One optional hook runs around every call: `{{packageName}}.New{{clientClassName}}WithToken(host, token, nil, {{packageName}}.WithCallHook(hook))` (or `NewConfigurationBuilder().CallHook(hook)`). `CallHook.Start(ctx, info, headers)` runs once per call after the headers are final and may edit them; it returns a `CallObserver` (or `nil`) whose `Finish(outcome)` runs exactly once with the status (`0` when no response arrived), the lower-cased headers (`nil` when none arrived) and the error. An error from `Start` reaches the caller; a panic in `Finish` is recovered. `ChainCallHooks(a, b)` starts in order and finishes in reverse. `otelhook.New()` (package `pkg/otelhook`) records one span, `http.client.request.count` and `http.client.request.duration` per call; it needs `go.opentelemetry.io/otel` in your module.
+
 ## API Methods
 
 Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` is graceful and idempotent: requests in flight finish and new ones return `ErrClientClosed`. Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{baseName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

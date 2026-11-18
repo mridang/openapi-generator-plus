@@ -326,6 +326,10 @@ client.close()
 
 A cookie parameter is sent as given when every character is a legal RFC 6265 cookie-octet; any other value raises `ValueError` before anything is sent, so percent-encode it yourself.
 
+### Hooks and telemetry
+
+One optional hook runs around every call: `Client(authenticator, call_hook=hook)` (or `Configuration.builder().call_hook(hook)`). `CallHook.start(info, headers)` runs once per call after the headers are final and may edit them; it returns a `CallObserver` (or `None`) whose `finish(outcome)` runs exactly once with the status (`0` when no response arrived), the lower-cased headers (`None` when none arrived) and the error. An error from `start` reaches the caller; an error from `finish` is swallowed. `chain(a, b)` starts in order and finishes in reverse. `OpenTelemetryCallHook()` from `petstore_client.opentelemetry_call_hook` records one span, `http.client.request.count` and `http.client.request.duration` per call; it needs `opentelemetry-api` (`pip install petstore-client[opentelemetry]`).
+
 ## API Methods
 
 Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

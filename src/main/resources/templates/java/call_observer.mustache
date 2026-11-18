@@ -1,0 +1,19 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+/**
+ * Observes the end of one call. Returned by {@link CallHook#start}, and called exactly once on
+ * every way the call can end.
+ */
+@FunctionalInterface
+public interface CallObserver {
+
+    /**
+     * Called once when the call has ended. An error thrown here is swallowed, so the call still
+     * returns its result or its own error.
+     *
+     * @param outcome how the call ended
+     */
+    void finish(CallOutcome outcome);
+}

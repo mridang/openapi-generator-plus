@@ -86,6 +86,40 @@ describe("Client", () => {
     ).toBeDefined();
   });
 
+  test("the client options hand the call hook to the API objects", async () => {
+    const stub = (async () =>
+      new Response('{"id":1,"name":"x","photoUrls":[]}', {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })) as unknown as typeof fetch;
+    const transport = TransportOptions.builder().fetch(stub).build();
+    const operations: string[] = [];
+    const callHook = {
+      start: (info: { operationId: string }) => {
+        operations.push(info.operationId);
+        return { finish: () => void operations.push("finished") };
+      },
+    };
+
+    const host = "https://api.example.com";
+    const client = new Client(
+      new BearerAuthenticator(host, "test-token"),
+      transport,
+      { callHook },
+    );
+    await client.pet.getPetById(1);
+    await Client.withToken(host, "test-token", transport, {
+      callHook,
+    }).pet.getPetById(1);
+
+    expect(operations).toEqual([
+      "getPetById",
+      "finished",
+      "getPetById",
+      "finished",
+    ]);
+  });
+
   describe("withToken credentials", () => {
     const variable = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
     const saved = process.env[variable];

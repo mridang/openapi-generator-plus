@@ -274,4 +274,37 @@ describe Petstore::Client::Configuration do
 
     _(config.default_headers).must_equal({ 'X-Bulk' => 'bulk', 'X-Single' => 'single' })
   end
+
+  it 'has no call hook by default' do
+    _(Petstore::Client::Configuration.builder.build.call_hook).must_be_nil
+    _(Petstore::Client::Configuration.default_configuration.call_hook).must_be_nil
+  end
+
+  it 'builder sets the call hook and is fluent' do
+    hook = RecordingCallHook.new
+    builder = Petstore::Client::Configuration.builder
+
+    _(builder.call_hook(hook)).must_be_same_as(builder)
+    _(builder.build.call_hook).must_be_same_as(hook)
+  end
+
+  it 'builder removes the call hook with nil' do
+    config = Petstore::Client::Configuration.builder.call_hook(RecordingCallHook.new).call_hook(nil).build
+
+    _(config.call_hook).must_be_nil
+  end
+
+  it 'builder rejects a call hook that cannot start a call' do
+    error = _ { Petstore::Client::Configuration.builder.call_hook(Object.new) }.must_raise ArgumentError
+
+    _(error.message).must_equal 'call_hook must respond to start'
+  end
+
+  it 'inspect does not print the call hook' do
+    hook = RecordingCallHook.new('secret-hook-name')
+    config = Petstore::Client::Configuration.builder.call_hook(hook).build
+
+    _(config.inspect).wont_include 'secret-hook-name'
+    _(config.inspect).wont_include 'RecordingCallHook'
+  end
 end

@@ -289,6 +289,25 @@ Every operation takes an optional Options object whose `timeout` (milliseconds),
 options = Petstore::Client::Api::Options::<Operation>Options.new(timeout: 2_000, max_retries: 0)
 ```
 
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the request is sent and observe the status or the error afterwards, and without a hook set the call does nothing extra.
+
+A hook is any object that responds to `start(info, headers)` and returns an observer that responds to `finish(outcome)`, or `nil`. `info` is a `CallInfo` (`operation_id`, `http_method`, `url_template`, `url`, `server_address`), `headers` is the final mutable request header Hash and `outcome` is a `CallOutcome` (`status_code`, `headers`, `error`). `start` runs once per call, `finish` exactly once on every way the call can end, an error raised by `start` reaches the caller and an error raised by `finish` is swallowed. `CallHook.chain(first, second)` runs several hooks in order.
+
+```ruby
+class TenantHook
+  def start(_info, headers)
+    headers['X-Tenant'] = 'a'
+    nil
+  end
+end
+
+client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TenantHook.new)
+```
+
+For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCallHook` recipe that records one span, one request count and one duration per call.
+
 ### Closing the client
 
 `client.close` is graceful and idempotent. The client is marked closed at once and a request started afterwards raises a `RuntimeError`; a request already in flight finishes, and the connection the SDK built is released when the last one completes. A second `close` does nothing, and a `Faraday::Connection` you supplied is never closed.

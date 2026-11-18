@@ -171,6 +171,52 @@ its retry budget (`0` turns retries off) and `header(name, value)` adds a header
 that wins over the client's default headers and the operation's header
 parameters. Authentication headers are applied after it.
 
+### Hooks and telemetry
+
+One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `_with_http_info` variant alike, and also when you supply your own transport.
+
+```rust,ignore
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Instant;
+use {{packageName}}::{CallHook, CallInfo, CallObserver, CallOutcome};
+
+struct Timing;
+struct Finish {
+    operation_id: String,
+    started: Instant,
+}
+
+impl CallHook for Timing {
+    fn start(&self, info: &CallInfo, headers: &mut HashMap<String, String>) -> Option<Box<dyn CallObserver>> {
+        headers.insert("X-Caller".to_string(), "billing".to_string());
+        Some(Box::new(Finish { operation_id: info.operation_id.clone(), started: Instant::now() }))
+    }
+}
+
+impl CallObserver for Finish {
+    fn finish(self: Box<Self>, outcome: &CallOutcome<'_>) {
+        println!("{} {} {:?}", self.operation_id, outcome.status_code, self.started.elapsed());
+    }
+}
+
+let client = {{clientClassName}}::with_token(Some("https://api.example.com"), Some("token"), None)?
+    .with_call_hook(Arc::new(Timing));
+```
+
+`start(info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `operation_id` (as written in the spec), `method`, `url_template`, `url` (without query string and fragment) and `server_address`. It returns the observer to call when the call ends, or `None`. `finish(outcome)` runs exactly once on every way the call can end, with `status_code` (`0` when no response arrived), the lower-cased response `headers` (`None` when no response arrived) and the `error` the caller receives (`None` on success); a call whose future is dropped finishes with `CallCancelled`. An error thrown by `start` (a panic) reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `call_hook::chain(vec![first, second])`: they start in the order given and finish in the reverse order. Set a hook with `Client::with_call_hook` or `ConfigurationBuilder::call_hook`.
+
+{{#hasOpenTelemetryAdapter}}
+`OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Enable the `opentelemetry` feature (the SDK itself does not need the OpenTelemetry SDK), then pass `OpenTelemetryCallHook::new()` for the global providers or `OpenTelemetryCallHook::with_providers(&tracer_provider, &meter_provider)` for your own.
+
+```rust,ignore
+let client = {{clientClassName}}::with_token(Some("https://api.example.com"), Some("token"), None)?
+    .with_call_hook(Arc::new({{packageName}}::OpenTelemetryCallHook::new()));
+```
+
+The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.
+{{/hasOpenTelemetryAdapter}}
+
 ### Errors
 
 `ApiError` carries `request_method()` and `request_path()`, and so does the

@@ -233,6 +233,177 @@ path without its query string) next to `statusCode` and `responseBody`, and the
 message names them: `API returned status code 404 for GET /items/7`. The query
 string is left out so a key or token sent in it never reaches a log.
 
+## Hooks and telemetry
+
+Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it once on the client or on the `Configuration`, and combine several with `CallHooks.chain`, which starts them in the order given and finishes their observers in the reverse order.
+
+```swift
+import Foundation
+import PetstoreClient
+
+struct SourceHook: CallHook {
+    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+        headers["X-Source"] = "nightly-job"
+        return nil
+    }
+}
+
+let client = try Client.withToken(
+    host: "https://api.example.com",
+    accessToken: "your-token",
+    callHook: SourceHook()
+)
+```
+
+`start` runs once per call, however many sends the call takes, right after the trace context is injected, so `headers` is the final header set: authentication and default headers included, and any of them can be replaced. A header you set is on every send of the call, retries and the replay after a 401 included; the fresh authentication headers of a replay still replace a header of the same name. `start` returns a `CallObserver`, or `nil` when it has nothing to observe, and `CallObserver.finish` is called exactly once when the call has ended, with a `CallOutcome`: the `statusCode` (0 when no response arrived), the lower-cased response `headers` (`nil` when no response arrived) and the `error`, the very error the caller receives. `CallInfo` carries the `operationId` as written in the spec, the upper-case `method`, the `urlTemplate`, the `url` without its query string and the `serverAddress`. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook runs above the transport, so it also fires with a `URLSession` you supplied.
+
+To record one span, one request count and one duration per call, give the SDK a hook built on the OpenTelemetry API. The SDK itself has no OpenTelemetry dependency and a Swift package cannot declare an optional one, so this is a recipe you copy into your project rather than a class the SDK ships. It names the span after the operation id with kind client, sets `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code for a status of 400 or more, else `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`), and writes the `traceparent` of the client span into the request itself. The metrics API of opentelemetry-swift has no way to name a unit, so the count and the duration go to the closures you pass as `onRequest` and `onDuration`; forward them to your metrics library.
+
+```swift
+import Foundation
+import OpenTelemetryApi
+import PetstoreClient
+
+/// Records one span for every call, and hands its count and its duration to
+/// the closures you give it.
+public final class OpenTelemetryCallHook: CallHook, @unchecked Sendable {
+    private let tracerProvider: (any TracerProvider)?
+    private let propagator: (any TextMapPropagator)?
+    private let activeSpan: (@Sendable () -> (any Span)?)?
+    private let onRequest: (@Sendable ([String: AttributeValue]) -> Void)?
+    private let onDuration: (@Sendable (Double, [String: AttributeValue]) -> Void)?
+
+    /// - Parameters:
+    ///   - tracerProvider: The provider the spans come from; the global provider when nil.
+    ///   - propagator: Writes the trace context into the request; the global one when nil.
+    ///   - activeSpan: The span the call's span is a child of; the active span when nil.
+    ///   - onRequest: Called once per call with the attributes of its span.
+    ///   - onDuration: Called once per call with its duration in seconds and the attributes of its span.
+    public init(
+        tracerProvider: (any TracerProvider)? = nil,
+        propagator: (any TextMapPropagator)? = nil,
+        activeSpan: (@Sendable () -> (any Span)?)? = nil,
+        onRequest: (@Sendable ([String: AttributeValue]) -> Void)? = nil,
+        onDuration: (@Sendable (Double, [String: AttributeValue]) -> Void)? = nil
+    ) {
+        self.tracerProvider = tracerProvider
+        self.propagator = propagator
+        self.activeSpan = activeSpan
+        self.onRequest = onRequest
+        self.onDuration = onDuration
+    }
+
+    public func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+        let provider = tracerProvider ?? OpenTelemetry.instance.tracerProvider
+        if provider is DefaultTracerProvider {
+            /* No provider is configured: record nothing and leave the call alone. */
+            return nil
+        }
+        let tracer = provider.get(
+            instrumentationName: "PetstoreClient", instrumentationVersion: "1.0.0")
+        let attributes: [String: AttributeValue] = [
+            "http.request.method": .string(info.method),
+            "url.template": .string(info.urlTemplate),
+            "server.address": .string(info.serverAddress)
+        ]
+        let builder = tracer.spanBuilder(spanName: info.operationId).setSpanKind(spanKind: .client)
+        for (key, value) in attributes {
+            builder.setAttribute(key: key, value: value)
+        }
+        if let parent = (activeSpan ?? { OpenTelemetry.instance.contextProvider.activeSpan })() {
+            builder.setParent(parent)
+        }
+        let span = builder.startSpan()
+        var carrier: [String: String] = [:]
+        (propagator ?? OpenTelemetry.instance.propagators.textMapPropagator).inject(
+            spanContext: span.context, carrier: &carrier, setter: HeaderSetter())
+        for (name, value) in carrier where !value.isEmpty {
+            headers[name] = value
+        }
+        return SpanObserver(
+            hook: self, span: span, started: DispatchTime.now().uptimeNanoseconds,
+            attributes: attributes)
+    }
+
+    fileprivate func recorded(seconds: Double, attributes: [String: AttributeValue]) {
+        onRequest?(attributes)
+        onDuration?(seconds, attributes)
+    }
+}
+
+private struct HeaderSetter: Setter {
+    func set(carrier: inout [String: String], key: String, value: String) {
+        carrier[key] = value
+    }
+}
+
+private final class SpanObserver: CallObserver, @unchecked Sendable {
+    private let hook: OpenTelemetryCallHook
+    private let span: any Span
+    private let started: UInt64
+    private let attributes: [String: AttributeValue]
+
+    init(hook: OpenTelemetryCallHook, span: any Span, started: UInt64, attributes: [String: AttributeValue]) {
+        self.hook = hook
+        self.span = span
+        self.started = started
+        self.attributes = attributes
+    }
+
+    func finish(_ outcome: CallOutcome) throws {
+        var attributes = self.attributes
+        if outcome.statusCode > 0 {
+            attributes["http.response.status_code"] = .int(outcome.statusCode)
+        }
+        if let errorType = SpanObserver.errorType(of: outcome) {
+            attributes["error.type"] = .string(errorType)
+            span.status = .error(description: errorType)
+        }
+        span.setAttributes(attributes)
+        span.end()
+        let seconds = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
+        hook.recorded(seconds: seconds, attributes: attributes)
+    }
+
+    private static func errorType(of outcome: CallOutcome) -> String? {
+        if outcome.statusCode >= 400 {
+            return String(outcome.statusCode)
+        }
+        guard let error = outcome.error else {
+            return nil
+        }
+        if error is CancellationError {
+            return "cancelled"
+        }
+        if error is NetworkTimeoutError {
+            return "timeout"
+        }
+        if error is NetworkError {
+            return "network_error"
+        }
+        if error is SerializationError {
+            return "serialization_error"
+        }
+        return "_OTHER"
+    }
+}
+```
+
+Pass it as the `callHook`, with your tracer provider and propagator:
+
+```swift
+import OpenTelemetryApi
+
+let client = try Client.withToken(
+    host: "https://api.example.com",
+    accessToken: "your-token",
+    callHook: OpenTelemetryCallHook(
+        tracerProvider: OpenTelemetry.instance.tracerProvider,
+        propagator: W3CTraceContextPropagator()
+    )
+)
+```
+
 ## Immutable models
 
 Model properties are `let`, so a model is never changed after it is built. Copy

@@ -10,6 +10,11 @@ __all__ = [
     '{{clientClassName}}Protocol',
     'ApiClient',
     'Configuration',
+    'CallHook',
+    'CallObserver',
+    'CallInfo',
+    'CallOutcome',
+    'chain',
     'TransportOptions',
     'ServerConfiguration',
     'ServerVariable',
@@ -56,6 +61,11 @@ from {{packageName}}.auth.authenticator import Authenticator as Authenticator
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}} as {{clientClassName}}
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}Protocol as {{clientClassName}}Protocol
 from {{packageName}}.configuration import Configuration as Configuration
+from {{packageName}}.call_hook import CallHook as CallHook
+from {{packageName}}.call_hook import CallObserver as CallObserver
+from {{packageName}}.call_hook import CallInfo as CallInfo
+from {{packageName}}.call_hook import CallOutcome as CallOutcome
+from {{packageName}}.call_hook import chain as chain
 from {{packageName}}.transport_options import TransportOptions as TransportOptions
 from {{packageName}}.server_configuration import ServerConfiguration as ServerConfiguration
 from {{packageName}}.server_configuration import ServerVariable as ServerVariable

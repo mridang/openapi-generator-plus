@@ -403,6 +403,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("value_serializer.mustache", "src", "value-serializer.ts"),
             new SupportingFileSpec("header_selector.mustache", "src", "header-selector.ts"),
             new SupportingFileSpec("trace_context_util.mustache", "src", "trace-context-util.ts"),
+            new SupportingFileSpec("call_hook.mustache", "src", "call-hook.ts"),
+            new SupportingFileSpec("opentelemetry_call_hook.mustache", "src", "opentelemetry-call-hook.ts"),
             new SupportingFileSpec("tsconfig.mustache", "", "tsconfig.json"),
             new SupportingFileSpec("typedoc.mustache", "", "typedoc.json"),
             new SupportingFileSpec("models/index.mustache", "src/models", "index.ts"),
@@ -527,6 +529,16 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/trace-context-util.test.mustache",
                             "test",
                             "trace-context-util.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/call-hook.test.mustache",
+                            "test",
+                            "call-hook.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/opentelemetry-call-hook.test.mustache",
+                            "test",
+                            "opentelemetry-call-hook.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/default-api-client-unit.test.mustache",
@@ -785,6 +797,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                                         fragment.execute()
                                                 .replace("*/", "*\\/")
                                                 .replaceAll("\\s*(\\r\\n|\\r|\\n)\\s*", " ")));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
     }
 
     /** {@inheritDoc} */

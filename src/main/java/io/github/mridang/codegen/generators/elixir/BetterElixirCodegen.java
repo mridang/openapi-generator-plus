@@ -398,6 +398,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", libDir, "object_serializer.ex"),
             new SupportingFileSpec("value_serializer.mustache", libDir, "value_serializer.ex"),
             new SupportingFileSpec("trace_context_util.mustache", libDir, "trace_context_util.ex"),
+            new SupportingFileSpec("call_info.mustache", libDir, "call_info.ex"),
+            new SupportingFileSpec("call_outcome.mustache", libDir, "call_outcome.ex"),
+            new SupportingFileSpec("call_hook.mustache", libDir, "call_hook.ex"),
             new SupportingFileSpec("api_response.mustache", libDir, "api_http_response.ex"),
             new SupportingFileSpec("api_result.mustache", libDir, "api_result.ex"),
             new SupportingFileSpec("api_client.mustache", libDir, "api_client.ex"),
@@ -473,6 +476,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/trace_context_util_test.mustache",
                             "test",
                             "trace_context_util_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/call_hook_test.mustache",
+                            "test",
+                            "call_hook_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/call_hook_recipe_test.mustache",
+                            "test",
+                            "call_hook_recipe_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/default_api_client_unit_test.mustache",
@@ -1051,6 +1064,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                         (fragment, writer) ->
                                 writer.write(fragment.execute().replace("\\#{", "#{")))
                 .put(
+                        "elixirString",
+                        (fragment, writer) ->
+                                writer.write(toStringLiteralBody(fragment.execute())))
+                .put(
                         "elixirEnumWire",
                         (fragment, writer) -> writer.write(toEnumWireToken(fragment.execute())));
     }
@@ -1087,6 +1104,23 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     public String escapeUnsafeCharacters(String input) {
         return super.escapeUnsafeCharacters(input).replace("#{", "\\#{");
+    }
+
+    /**
+     * Escapes spec text for the inside of a double-quoted Elixir string: the
+     * backslash, the quote, the interpolation opener and the control characters,
+     * so the literal evaluates to exactly the spec's bytes.
+     */
+    static String toStringLiteralBody(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("#{", "\\#{")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     /**

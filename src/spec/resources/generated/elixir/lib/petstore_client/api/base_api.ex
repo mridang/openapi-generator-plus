@@ -32,6 +32,9 @@ defmodule PetstoreClient.Api.BaseApi do
   # collide with a real credential. Callers never see it.
   @no_auth :"$openapi_generator_plus_no_auth$"
 
+  @typedoc "The API state: the configuration and the transport, and whatever else the API module keeps."
+  @type state :: %{required(:config) => map(), optional(term()) => term()}
+
   @typedoc "What a response body is decoded as: a type name, nil for no body, or a union with one type per 2xx status."
   @type return_type :: String.t() | {String.t(), [{String.t(), String.t()}]} | nil
 
@@ -166,7 +169,7 @@ defmodule PetstoreClient.Api.BaseApi do
     `{:ok, data}` or `{:error, exception}` if the API call fails.
   """
   @spec invoke_api(
-          map(),
+          state(),
           atom(),
           String.t(),
           map() | [{String.t(), term()}],
@@ -224,7 +227,7 @@ defmodule PetstoreClient.Api.BaseApi do
     headers, or `{:error, exception}` if the API call fails.
   """
   @spec invoke_api_for_result(
-          map(),
+          state(),
           atom(),
           String.t(),
           map() | [{String.t(), term()}],
@@ -290,6 +293,9 @@ defmodule PetstoreClient.Api.BaseApi do
     :ok
   end
 
+  # Runs one operation call and, when the configuration holds a call hook, ends
+  # it exactly once on every way out: a result, an error that is returned, an
+  # exception, an exit or a throw. A hook never changes what the caller gets.
   defp run_api_call(
          state,
          method,
@@ -309,23 +315,59 @@ defmodule PetstoreClient.Api.BaseApi do
         do: method |> Atom.to_string() |> String.downcase() |> String.to_atom(),
         else: method
 
-    url =
-      if String.starts_with?(path, "http://") or String.starts_with?(path, "https://") do
-        path
-      else
-        # Strip trailing slash from the base URL when the path starts with a
-        # slash so baseUrl='https://x/' + path='/y' yields 'https://x/y' rather
-        # than 'https://x//y', which most servers route to 404.
-        base =
-          if String.starts_with?(path, "/") do
-            String.replace(state.config.base_url, ~r{/+$}, "")
-          else
-            state.config.base_url
-          end
+    url = request_url(state, path)
+    hook = call_hook_context(state, method, url, call)
 
-        base <> path
-      end
+    try do
+      result =
+        perform_call(
+          state,
+          {method, url},
+          {query_params, header_params, body},
+          {accepts, content_type, return_type},
+          {auth, call, errors},
+          hook
+        )
 
+      finish_call_hook(hook, result_outcome(result))
+      result
+    rescue
+      error ->
+        finish_call_hook(hook, error_outcome(error))
+        reraise error, __STACKTRACE__
+    catch
+      kind, reason ->
+        finish_call_hook(hook, error_outcome({kind, reason}))
+        :erlang.raise(kind, reason, __STACKTRACE__)
+    end
+  end
+
+  defp request_url(state, path) do
+    if String.starts_with?(path, "http://") or String.starts_with?(path, "https://") do
+      path
+    else
+      # Strip trailing slash from the base URL when the path starts with a
+      # slash so baseUrl='https://x/' + path='/y' yields 'https://x/y' rather
+      # than 'https://x//y', which most servers route to 404.
+      base =
+        if String.starts_with?(path, "/") do
+          String.replace(state.config.base_url, ~r{/+$}, "")
+        else
+          state.config.base_url
+        end
+
+      base <> path
+    end
+  end
+
+  defp perform_call(
+         state,
+         {method, url},
+         {query_params, header_params, body},
+         {accepts, content_type, return_type},
+         {auth, call, errors},
+         hook
+       ) do
     # Three-state auth resolution (see @no_auth). The sentinel suppresses the
     # client authenticator; a nil auth falls back to it (the client holds no
     # credential of the scheme the operation names); any other value is the
@@ -339,14 +381,15 @@ defmodule PetstoreClient.Api.BaseApi do
 
     # The request is rebuilt for every attempt (a replay after a 401, a retry), so
     # authentication headers are re-applied and never reused from the last try.
-    build_request = fn ->
+    build_request = fn mode ->
       build_request(
         state,
         effective_auth,
         {url, query_params, header_params},
         body,
         {accepts, content_type},
-        call
+        call,
+        {hook, mode}
       )
     end
 
@@ -401,7 +444,8 @@ defmodule PetstoreClient.Api.BaseApi do
          {url, query_params, header_params},
          body,
          {accepts, content_type},
-         call
+         call,
+         hook_mode
        ) do
     query_params =
       case auth_credentials(effective_auth, :query_params) do
@@ -488,11 +532,156 @@ defmodule PetstoreClient.Api.BaseApi do
       end
 
     headers = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+    headers = apply_call_hook(hook_mode, headers, effective_auth)
     serialized_body = serialize_body(body, content_type)
     headers = if is_nil(serialized_body), do: Map.delete(headers, "Content-Type"), else: headers
 
     {url, headers, serialized_body}
   end
+
+  # ---------------------------------------------------------------------------
+  # The call hook
+  # ---------------------------------------------------------------------------
+
+  # The hook context of one call, or nil when no hook is set. The state of the
+  # hook (its observer and the headers it changed) lives in the calling process
+  # under the key of `ref`, because the request is built inside the retry loop.
+  defp call_hook_context(state, method, url, call) do
+    case Map.get(state.config, :call_hook) do
+      nil ->
+        nil
+
+      hook ->
+        {operation_id, url_template} = Keyword.get(call, :operation, {"", ""})
+        bare_url = url |> String.split(["?", "#"], parts: 2) |> hd()
+
+        info = %PetstoreClient.CallInfo{
+          operation_id: operation_id,
+          method: method |> Atom.to_string() |> String.upcase(),
+          url_template: url_template,
+          url: bare_url,
+          server_address: server_address(bare_url)
+        }
+
+        %{ref: make_ref(), hook: hook, info: info}
+    end
+  end
+
+  defp server_address(url) do
+    case URI.parse(url).host do
+      nil -> ""
+      host -> String.downcase(host)
+    end
+  end
+
+  defp call_hook_key(%{ref: ref}), do: {__MODULE__, :call_hook, ref}
+
+  # Runs `start` on the first request of the call and keeps what it changed as a
+  # delta. Later requests of the same call (a retry, the replay after a 401) put
+  # the delta back on their freshly built headers, so a header the hook set is on
+  # every send; the fresh credentials of a replay still replace a hook header of
+  # the same name.
+  defp apply_call_hook({nil, _mode}, headers, _effective_auth), do: headers
+
+  defp apply_call_hook({hook, mode}, headers, effective_auth) do
+    key = call_hook_key(hook)
+
+    case Process.get(key) do
+      nil ->
+        {new_headers, observer} = start_call_hook(hook, headers)
+        Process.put(key, %{observer: observer, delta: header_delta(headers, new_headers)})
+        new_headers
+
+      %{delta: delta} ->
+        rebuilt = put_header_delta(headers, delta)
+
+        if mode == :replay do
+          fresh = auth_credentials(effective_auth, :auth_headers) || %{}
+
+          Enum.reduce(fresh, rebuilt, fn {name, value}, acc ->
+            put_header(acc, to_string(name), value)
+          end)
+        else
+          rebuilt
+        end
+    end
+  end
+
+  defp start_call_hook(%{hook: hook, info: info}, headers) do
+    case PetstoreClient.CallHook.start_one(hook, info, headers) do
+      {new_headers, state} when is_map(new_headers) ->
+        {new_headers, if(is_nil(state), do: nil, else: {hook, state})}
+
+      _nothing ->
+        {headers, nil}
+    end
+  end
+
+  defp header_delta(before, after_hook) do
+    set = for {name, value} <- after_hook, Map.get(before, name) != value, do: {name, value}
+    removed = for {name, _value} <- before, not Map.has_key?(after_hook, name), do: name
+    {set, removed}
+  end
+
+  defp put_header_delta(headers, {set, removed}) do
+    removed_lower = Enum.map(removed, &String.downcase(to_string(&1)))
+
+    headers
+    |> Enum.reject(fn {name, _value} -> String.downcase(to_string(name)) in removed_lower end)
+    |> Map.new()
+    |> then(fn kept ->
+      Enum.reduce(set, kept, fn {name, value}, acc -> put_header(acc, to_string(name), value) end)
+    end)
+  end
+
+  # Calls the observer of the hook once and forgets it. An error of `finish` is
+  # swallowed, so the call still returns its own result or error. When `start`
+  # raised there is no observer and nothing is called.
+  defp finish_call_hook(nil, _outcome), do: :ok
+
+  defp finish_call_hook(hook, outcome) do
+    case Process.delete(call_hook_key(hook)) do
+      %{observer: {observed_hook, state}} ->
+        try do
+          PetstoreClient.CallHook.finish_one(observed_hook, state, outcome)
+        rescue
+          _ -> :ok
+        catch
+          _, _ -> :ok
+        end
+
+      _none ->
+        :ok
+    end
+
+    :ok
+  end
+
+  defp result_outcome({:ok, %{status_code: status_code, headers: headers}}),
+    do: %PetstoreClient.CallOutcome{
+      status_code: status_code,
+      headers: lowercase_headers(headers),
+      error: nil
+    }
+
+  defp result_outcome({:error, error}), do: error_outcome(error)
+
+  # An error that carries a response (an ApiError or a decode failure) reports
+  # the status and the headers that arrived; any other ends with status 0 and no
+  # headers. An exit or a throw is reported as `{:exit, reason}` or `{:throw, value}`.
+  defp error_outcome(%{response_headers: headers, status_code: status_code} = error)
+       when is_integer(status_code) and status_code > 0,
+       do: %PetstoreClient.CallOutcome{
+         status_code: status_code,
+         headers: lowercase_headers(headers || %{}),
+         error: error
+       }
+
+  defp error_outcome(error),
+    do: %PetstoreClient.CallOutcome{status_code: 0, headers: nil, error: error}
+
+  defp lowercase_headers(headers),
+    do: Map.new(headers, fn {name, value} -> {String.downcase(to_string(name)), value} end)
 
   # ---------------------------------------------------------------------------
   # Sending: the 401 replay and the automatic retries
@@ -545,7 +734,13 @@ defmodule PetstoreClient.Api.BaseApi do
   # retried up to `TransportOptions.max_retries` times with backoff. Neither
   # happens for a body that cannot be sent twice (a stream), and a retry never
   # waits past the end-to-end timeout.
-  @spec send_with_retries(map(), atom(), term(), (-> {String.t(), map(), term()}), keyword()) ::
+  @spec send_with_retries(
+          state(),
+          atom(),
+          term(),
+          (:attempt | :replay -> {String.t(), map(), term()}),
+          keyword()
+        ) ::
           {:ok, term()} | {:error, Exception.t()}
   defp send_with_retries(state, method, effective_auth, build_request, call) do
     transport = transport_options(state.api_client)
@@ -563,10 +758,16 @@ defmodule PetstoreClient.Api.BaseApi do
     })
   end
 
-  @spec attempt(map(), atom(), term(), (-> {String.t(), map(), term()}), attempt_state()) ::
+  @spec attempt(
+          state(),
+          atom(),
+          term(),
+          (:attempt | :replay -> {String.t(), map(), term()}),
+          attempt_state()
+        ) ::
           {:ok, term()} | {:error, Exception.t()}
   defp attempt(state, method, effective_auth, build_request, ctx) do
-    {url, headers, serialized_body} = build_request.()
+    {url, headers, serialized_body} = build_request.(:attempt)
     ctx = if ctx.deadline == :unset, do: %{ctx | deadline: deadline(ctx.timeout)}, else: ctx
 
     result =
@@ -588,7 +789,10 @@ defmodule PetstoreClient.Api.BaseApi do
         # A failed re-authentication keeps the 401 it replaces, as in the other SDKs.
         case build_for_replay(build_request) do
           {:ok, request} ->
-            attempt(state, method, effective_auth, fn -> request end, %{ctx | replayed: true})
+            attempt(state, method, effective_auth, fn _mode -> request end, %{
+              ctx
+              | replayed: true
+            })
 
           :error ->
             result
@@ -613,7 +817,7 @@ defmodule PetstoreClient.Api.BaseApi do
   # Builds the request again for a replay. Only a credential that cannot be
   # obtained again counts as a failure here; anything else is raised as before.
   defp build_for_replay(build_request) do
-    {:ok, build_request.()}
+    {:ok, build_request.(:replay)}
   rescue
     _ in [
       PetstoreClient.Errors.OAuth2ServerError,

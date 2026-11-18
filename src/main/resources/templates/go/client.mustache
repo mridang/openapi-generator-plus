@@ -63,6 +63,22 @@ type {{clientClassName}} struct {
 	apiClient ApiClient
 }
 
+// ClientOption configures a client built by one of the New{{clientClassName}}
+// constructors.
+type ClientOption func(*clientSettings)
+
+type clientSettings struct {
+	callHook CallHook
+}
+
+// WithCallHook sets the hook that runs around every operation call of the
+// client; see CallHook.
+func WithCallHook(hook CallHook) ClientOption {
+	return func(settings *clientSettings) {
+		settings.callHook = hook
+	}
+}
+
 // Close marks the client closed and releases the idle connections of the
 // transport the SDK created. It is graceful and idempotent: a request already
 // in flight finishes, and a request sent afterwards fails with ErrClientClosed.
@@ -88,8 +104,8 @@ func (c *{{clientClassName}}) Close() error {
 // If the authenticator implements auth.HttpAwareAuthenticator, the shared ApiClient
 // is injected so that token exchange and discovery requests use the same proxy,
 // TLS, and timeout settings.
-func New{{clientClassName}}(authenticator Authenticator, transportOptions *TransportOptions) *{{clientClassName}} {
-	return newClient(authenticator.Host(), authenticator, nil, transportOptions)
+func New{{clientClassName}}(authenticator Authenticator, transportOptions *TransportOptions, options ...ClientOption) *{{clientClassName}} {
+	return newClient(authenticator.Host(), authenticator, nil, transportOptions, options)
 }
 
 // New{{clientClassName}}WithCredentials creates a client with one optional
@@ -100,15 +116,19 @@ func New{{clientClassName}}(authenticator Authenticator, transportOptions *Trans
 // empty value counts as unset. It returns ErrMissingCredential when the host
 // cannot be resolved. Credentials that need the transport (OAuth2, OpenID
 // Connect) get the client's own, like the authenticator of New{{clientClassName}}.
-func New{{clientClassName}}WithCredentials(host string, credentials Credentials, transportOptions *TransportOptions) (*{{clientClassName}}, error) {
+func New{{clientClassName}}WithCredentials(host string, credentials Credentials, transportOptions *TransportOptions, options ...ClientOption) (*{{clientClassName}}, error) {
 	resolvedHost, err := auth.ResolveCredential(host, "{{envVarPrefix}}_BASE_URL", "host")
 	if err != nil {
 		return nil, err
 	}
-	return newClient(resolvedHost, nil, credentials.bySchemeId(), transportOptions), nil
+	return newClient(resolvedHost, nil, credentials.bySchemeId(), transportOptions, options), nil
 }
 
-func newClient(host string, authenticator Authenticator, credentials map[string]Authenticator, transportOptions *TransportOptions) *{{clientClassName}} {
+func newClient(host string, authenticator Authenticator, credentials map[string]Authenticator, transportOptions *TransportOptions, options []ClientOption) *{{clientClassName}} {
+	settings := clientSettings{}
+	for _, option := range options {
+		option(&settings)
+	}
 	if transportOptions == nil {
 		transportOptions = defaultTransportOptions()
 	}
@@ -126,6 +146,7 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 
 	config := NewConfigurationBuilder().
 		BaseURL(host).
+		CallHook(settings.callHook).
 		Build()
 
 {{#apiInfo}}
@@ -160,7 +181,7 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 // (a missing token also satisfies auth.ErrInvalidBearerToken), and
 // auth.ErrInvalidBearerToken when the token contains a character that cannot
 // be sent in a header.
-func New{{clientClassName}}WithToken(host, accessToken string, transportOptions *TransportOptions) (*{{clientClassName}}, error) {
+func New{{clientClassName}}WithToken(host, accessToken string, transportOptions *TransportOptions, options ...ClientOption) (*{{clientClassName}}, error) {
 	resolvedHost, err := auth.ResolveCredential(host, "{{envVarPrefix}}_BASE_URL", "host")
 	if err != nil {
 		return nil, err
@@ -173,7 +194,7 @@ func New{{clientClassName}}WithToken(host, accessToken string, transportOptions 
 	if err != nil {
 		return nil, err
 	}
-	return New{{clientClassName}}(authenticator, transportOptions), nil
+	return New{{clientClassName}}(authenticator, transportOptions, options...), nil
 }
 
 // New{{clientClassName}}WithTokenProvider creates a client authenticated with a
@@ -184,7 +205,7 @@ func New{{clientClassName}}WithToken(host, accessToken string, transportOptions 
 // The host is resolved like in New{{clientClassName}}WithToken. Returns
 // ErrMissingCredential when it cannot be resolved, and
 // auth.ErrInvalidBearerToken when the provider is nil.
-func New{{clientClassName}}WithTokenProvider(host string, provider auth.TokenProvider, transportOptions *TransportOptions) (*{{clientClassName}}, error) {
+func New{{clientClassName}}WithTokenProvider(host string, provider auth.TokenProvider, transportOptions *TransportOptions, options ...ClientOption) (*{{clientClassName}}, error) {
 	resolvedHost, err := auth.ResolveCredential(host, "{{envVarPrefix}}_BASE_URL", "host")
 	if err != nil {
 		return nil, err
@@ -193,7 +214,7 @@ func New{{clientClassName}}WithTokenProvider(host string, provider auth.TokenPro
 	if err != nil {
 		return nil, err
 	}
-	return New{{clientClassName}}(authenticator, transportOptions), nil
+	return New{{clientClassName}}(authenticator, transportOptions, options...), nil
 }
 
 // New{{clientClassName}}WithAuthenticator creates a client from any Authenticator implementation.
@@ -205,8 +226,8 @@ func New{{clientClassName}}WithTokenProvider(host string, provider auth.TokenPro
 // its HTTP calls reuse the same transport configuration. The optional transport
 // options are applied to both API calls and any authentication HTTP calls the
 // authenticator performs.
-func New{{clientClassName}}WithAuthenticator(authenticator Authenticator, transportOptions *TransportOptions) *{{clientClassName}} {
-	return New{{clientClassName}}(authenticator, transportOptions)
+func New{{clientClassName}}WithAuthenticator(authenticator Authenticator, transportOptions *TransportOptions, options ...ClientOption) *{{clientClassName}} {
+	return New{{clientClassName}}(authenticator, transportOptions, options...)
 }
 
 // authApiClientAdapter adapts the main package's ApiClient interface to the

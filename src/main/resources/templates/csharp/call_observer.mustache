@@ -1,0 +1,16 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// Observes the end of one operation call. It is finished exactly once on every
+/// way the call can end after <see cref="ICallHook.Start"/> returned it. An
+/// error thrown from <see cref="Finish"/> is swallowed, so a call still returns
+/// its own result or its own error.
+/// </summary>
+public interface ICallObserver
+{
+    /// <summary>Called once when the call has ended.</summary>
+    /// <param name="outcome">The status, the response headers and the error of the call.</param>
+    void Finish(CallOutcome outcome);
+}

@@ -121,6 +121,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "createAccount",
+            urlTemplate = "/store/account",
         )
     }
 
@@ -173,6 +175,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "deleteOrder",
+            urlTemplate = "/store/order/{orderId}",
         )
     }
 
@@ -250,6 +254,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getBySwatch",
+            urlTemplate = "/store/by-swatch/{pathSwatch}",
         )
     }
 
@@ -292,6 +298,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getDefaults",
+            urlTemplate = "/store/defaults",
         )
     }
 
@@ -334,6 +342,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getDepartment",
+            urlTemplate = "/store/department",
         )
     }
 
@@ -376,6 +386,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getGroupedCategories",
+            urlTemplate = "/store/grouped-categories",
         )
     }
 
@@ -418,6 +430,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getInventory",
+            urlTemplate = "/store/inventory",
         )
     }
 
@@ -460,6 +474,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getMatrix",
+            urlTemplate = "/store/matrix",
         )
     }
 
@@ -589,6 +605,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getOrderById",
+            urlTemplate = "/store/order/{orderId}",
         )
     }
 
@@ -646,6 +664,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getOrderByTrackingId",
+            urlTemplate = "/store/order/by-tracking/{trackingId}",
         )
     }
 
@@ -696,6 +716,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getStockItem",
+            urlTemplate = "/store/stock-item",
         )
     }
 
@@ -738,6 +760,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getSwatch",
+            urlTemplate = "/store/swatch",
         )
     }
 
@@ -780,6 +804,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getSwatchGroups",
+            urlTemplate = "/store/swatch-groups",
         )
     }
 
@@ -822,6 +848,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getTimestampGroups",
+            urlTemplate = "/store/timestamp-groups",
         )
     }
 
@@ -864,6 +892,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getTree",
+            urlTemplate = "/store/tree",
         )
     }
 
@@ -914,6 +944,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "placeOrder",
+            urlTemplate = "/store/order",
         )
     }
 
@@ -958,6 +990,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "reserveStock",
+            urlTemplate = "/store/reservation",
             decodeSuccess = { status, text ->
                 when {
                     status == 200 ->
@@ -1031,6 +1065,8 @@ class StoreApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "searchStore",
+            urlTemplate = "/store/search",
         )
     }
 }

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Dict, Mapping, Optional
 
+from .call_hook import CallHook
 from .server_configuration import ServerConfiguration
 from .transport_options import _redact_headers
 
@@ -45,6 +46,14 @@ class Configuration:
     These headers are merged after transport-level headers from
     :class:`TransportOptions` but before operation-specific headers
     and authentication headers.
+    """
+
+    call_hook: Optional[CallHook] = None
+    """The hook that runs around every operation call, or ``None`` for none.
+
+    It runs above the transport, once per call, so it also fires when you
+    supply your own pool manager. See :class:`CallHook`. It is left out of the
+    string form.
     """
 
     def __post_init__(self) -> None:
@@ -89,6 +98,7 @@ class ConfigurationBuilder:
     def __init__(self) -> None:
         self._base_url: str = "/api/v3"
         self._default_headers: Dict[str, str] = {}
+        self._call_hook: Optional[CallHook] = None
 
     def base_url(self, base_url: str) -> "ConfigurationBuilder":
         """Set the base URL for all API requests.
@@ -127,6 +137,19 @@ class ConfigurationBuilder:
         self._default_headers.update(headers)
         return self
 
+    def call_hook(self, hook: Optional[CallHook]) -> "ConfigurationBuilder":
+        """Set the hook that runs around every operation call.
+
+        Args:
+            hook: The hook, or ``None`` for none. Combine several with
+                :func:`chain`.
+
+        Returns:
+            This builder.
+        """
+        self._call_hook = hook
+        return self
+
     def server(
         self,
         server_config: ServerConfiguration,
@@ -163,4 +186,5 @@ class ConfigurationBuilder:
         return Configuration(
             base_url=self._base_url,
             default_headers=self._default_headers,
+            call_hook=self._call_hook,
         )

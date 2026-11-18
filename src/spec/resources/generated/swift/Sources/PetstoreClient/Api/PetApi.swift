@@ -211,6 +211,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["apiKeyHeader", "petStoreBearer"]),
       operation: "PetApi.addPet",
+      operationId: "addPet",
+      urlTemplate: "/pet",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -281,6 +283,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "[Photo]",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.addPetPhotos",
+      operationId: "addPetPhotos",
+      urlTemplate: "/pet/{petId}/photos",
       timeout: options.timeout,
       requestHeaders: options.headers,
       maxRetries: options.maxRetries
@@ -339,6 +343,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "PetTreatment",
       auth: nil,
       operation: "PetApi.addPetTreatment",
+      operationId: "addPetTreatment",
+      urlTemplate: "/pet/{petId}/treatment",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -413,6 +419,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "",
       auth: schemeAuthenticator(["adminBasic", "machineAuth"]),
       operation: "PetApi.deletePet",
+      operationId: "deletePet",
+      urlTemplate: "/pet/{petId}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -483,6 +491,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Data",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.downloadPetDocument",
+      operationId: "downloadPetDocument",
+      urlTemplate: "/pet/{petId}/documents/{documentId}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -540,6 +550,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "[Pet]",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.findPetsBornOn",
+      operationId: "findPetsBornOn",
+      urlTemplate: "/pet/born-on/{bornOn}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -639,6 +651,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "[Pet]",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.findPetsByStatus",
+      operationId: "findPetsByStatus",
+      urlTemplate: "/pet/findByStatus",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -705,6 +719,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getExternalPetInfo",
+      operationId: "getExternalPetInfo",
+      urlTemplate: "/pet/{petId}/external",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -771,6 +787,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getMultiServerPetInfo",
+      operationId: "getMultiServerPetInfo",
+      urlTemplate: "/pet/{petId}/multi",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -832,6 +850,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Data",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetAvatar",
+      operationId: "getPetAvatar",
+      urlTemplate: "/pet/{petId}/avatar",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -895,6 +915,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Data",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetAvatarThumbnail",
+      operationId: "getPetAvatarThumbnail",
+      urlTemplate: "/pet/{petId}/avatar/thumbnail",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -981,6 +1003,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetById",
+      operationId: "getPetById",
+      urlTemplate: "/pet/{petId}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -1056,6 +1080,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetByName",
+      operationId: "getPetByName",
+      urlTemplate: "/pet/byName/{name}",
       timeout: options.timeout,
       requestHeaders: options.headers,
       maxRetries: options.maxRetries
@@ -1186,6 +1212,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "PetPassport",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetPassport",
+      operationId: "getPetPassport",
+      urlTemplate: "/pet/{petId}/passport",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -1255,6 +1283,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Data",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetPhoto",
+      operationId: "getPetPhoto",
+      urlTemplate: "/pet/{petId}/photos/{photoId}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -1355,6 +1385,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "String",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetSummary",
+      operationId: "getPetSummary",
+      urlTemplate: "/pet/{petId}/summary/{asOf}",
       timeout: options.timeout,
       requestHeaders: options.headers,
       maxRetries: options.maxRetries
@@ -1479,6 +1511,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetTag",
+      operationId: "getPetTag",
+      urlTemplate: "/pet/{petId}/tag/{tagName}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -1545,6 +1579,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getStagingPetInfo",
+      operationId: "getStagingPetInfo",
+      urlTemplate: "/pet/{petId}/staging",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -1622,6 +1658,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.setPetAvatar",
+      operationId: "setPetAvatar",
+      urlTemplate: "/pet/{petId}/avatar",
       rawBody: true,
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -1682,6 +1720,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.setPetAvatarThumbnail",
+      operationId: "setPetAvatarThumbnail",
+      urlTemplate: "/pet/{petId}/avatar/thumbnail",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -1769,6 +1809,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "ApiResponse",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.setPetPreferences",
+      operationId: "setPetPreferences",
+      urlTemplate: "/pet/{petId}/preferences",
       timeout: options.timeout,
       requestHeaders: options.headers,
       maxRetries: options.maxRetries
@@ -1834,6 +1876,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "Pet",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.updatePet",
+      operationId: "updatePet",
+      urlTemplate: "/pet/{petId}",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
       maxRetries: options?.maxRetries
@@ -1905,6 +1949,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "ApiResponse",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.uploadPetCertificate",
+      operationId: "uploadPetCertificate",
+      urlTemplate: "/pet/{petId}/certificate",
       timeout: options.timeout,
       requestHeaders: options.headers,
       maxRetries: options.maxRetries
@@ -2025,6 +2071,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       returnType: "ApiResponse",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.uploadPetDocument",
+      operationId: "uploadPetDocument",
+      urlTemplate: "/pet/{petId}/documents",
       timeout: options.timeout,
       requestHeaders: options.headers,
       maxRetries: options.maxRetries

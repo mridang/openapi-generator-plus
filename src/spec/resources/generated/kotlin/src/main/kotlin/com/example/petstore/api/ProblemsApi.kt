@@ -102,6 +102,8 @@ class ProblemsApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getFallback",
+            urlTemplate = "/fallbacks/{fallbackId}",
             errorSchemas =
                 mapOf(
                     "default" to
@@ -171,6 +173,8 @@ class ProblemsApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getMember",
+            urlTemplate = "/members/{memberId}",
             errorSchemas =
                 mapOf(
                     "404" to
@@ -240,6 +244,8 @@ class ProblemsApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getProject",
+            urlTemplate = "/projects/{projectId}",
             errorSchemas =
                 mapOf(
                     "404" to
@@ -309,6 +315,8 @@ class ProblemsApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getRange",
+            urlTemplate = "/ranges/{rangeId}",
             errorSchemas =
                 mapOf(
                     "4XX" to
@@ -378,6 +386,8 @@ class ProblemsApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getUpstream",
+            urlTemplate = "/upstreams/{upstreamId}",
             errorSchemas =
                 mapOf(
                     "5XX" to
@@ -448,6 +458,8 @@ class ProblemsApi :
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "takeLock",
+            urlTemplate = "/locks/{lockId}",
             errorSchemas =
                 mapOf(
                     "409" to

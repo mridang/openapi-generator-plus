@@ -164,6 +164,150 @@ Every operation has a `_with_http_info` variant that returns the status, headers
 
 An error carries the request it answers: `request_method` and `request_path` (the path without the query string), and its message has a `Request: GET /path` line after the status line.
 
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the request is sent and observe the status or the error afterwards, and without a hook set the call does nothing extra.
+
+A hook is a module that implements the `PetstoreClient.CallHook` behaviour, or `{module, opts}`, which is called as `module.start(info, headers, opts)`. `info` is a `CallInfo` with `operation_id` (exactly as the spec writes it), `method`, `url_template` (the spec path, for example `/items/{id}`), `url` (without query string and fragment) and `server_address` (the host, lower-case, without port or IPv6 brackets). `headers` is the final set of request headers: defaults, call headers, authentication, cookies and trace context are already in it. `start` returns the headers to send and a state, or `nil` for no change and nothing to observe. When the state is not `nil`, `finish(state, outcome)` is called once the call has ended. `outcome` is a `CallOutcome` with `status_code` (0 when no response arrived), `headers` (lower-cased names, `nil` when no response arrived) and `error` (the very error the caller receives, or `nil`). Set the hook with the `call_hook:` option of `Configuration.new/1` or of the client, and use `CallHook.chain([first, second])` to run several: they start in the order given and finish in the reverse order.
+
+`start` runs once per operation call, however many times the transport sends the request, and `finish` runs exactly once on every way the call can end. A header the hook sets is on every send of the call, and the fresh credentials of the one replay after a 401 still replace a header of the same name. An error raised by `start` reaches the caller unchanged and nothing is sent. An error raised by `finish` is swallowed. The hook runs above the transport, so it also runs when you supply your own, and it runs inline in the calling process, so it must not block. Headers are a plain map: reuse the spelling of an existing name to replace it.
+
+```elixir
+defmodule TenantHook do
+  @behaviour PetstoreClient.CallHook
+
+  @impl true
+  def start(_info, headers), do: {Map.put(headers, "X-Tenant", "a"), nil}
+
+  @impl true
+  def finish(_state, _outcome), do: :ok
+end
+
+client = PetstoreClient.Client.with_token("/api/v3", "token", nil, call_hook: TenantHook)
+```
+
+#### OpenTelemetry
+
+This SDK ships no OpenTelemetry adapter and the SDK itself depends on no OpenTelemetry package: the Elixir OpenTelemetry metrics API is not stable yet, so the same hook is shown as a recipe instead. It records one span per call, named with the operation id, of kind client, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code as text for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). It also records the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) with the same attributes, under an instrumentation scope named after the package and carrying its version. It injects the `traceparent` header itself, so the span sent to the server is the client span. Add `opentelemetry_api` and `opentelemetry_api_experimental` to your own `mix.exs`; without an OpenTelemetry SDK it does nothing.
+
+```elixir
+defmodule TelemetryCallHook do
+  @moduledoc """
+  A call hook that records one span, one request count and one duration per
+  call. It needs `opentelemetry_api` and `opentelemetry_api_experimental` in
+  your own `mix.exs`, and records nothing until an OpenTelemetry SDK runs.
+
+  Pass it as `{TelemetryCallHook, tracer: tracer, meter: meter}` to use a
+  tracer and a meter other than the global ones.
+  """
+
+  @behaviour PetstoreClient.CallHook
+
+  @scope_name :petstore_client
+  @scope_version "1.0.0"
+
+  @impl true
+  def start(info, headers), do: start(info, headers, [])
+
+  @impl true
+  def start(info, headers, opts) do
+    tracer =
+      Keyword.get_lazy(opts, :tracer, fn ->
+        :opentelemetry.get_tracer(@scope_name, @scope_version, :undefined)
+      end)
+
+    meter =
+      Keyword.get_lazy(opts, :meter, fn ->
+        :opentelemetry_experimental.get_meter(
+          :opentelemetry.instrumentation_scope(@scope_name, @scope_version, :undefined)
+        )
+      end)
+
+    attributes = %{
+      "http.request.method" => info.method,
+      "url.template" => info.url_template,
+      "server.address" => info.server_address
+    }
+
+    span =
+      :otel_tracer.start_span(tracer, info.operation_id, %{
+        kind: :client,
+        attributes: attributes
+      })
+
+    # The hook writes the traceparent itself, so the request names the client span.
+    headers =
+      :otel_propagator_text_map.inject_from(
+        :otel_tracer.set_current_span(:otel_ctx.get_current(), span),
+        :opentelemetry.get_text_map_injector(),
+        headers,
+        fn key, value, carrier -> Map.put(carrier, key, value) end
+      )
+
+    {headers,
+     %{span: span, meter: meter, attributes: attributes, started: System.monotonic_time()}}
+  end
+
+  @impl true
+  def finish(state, outcome) do
+    failure = error_type(outcome)
+
+    attributes =
+      state.attributes
+      |> then(fn attributes ->
+        if outcome.status_code > 0,
+          do: Map.put(attributes, "http.response.status_code", outcome.status_code),
+          else: attributes
+      end)
+      |> then(fn attributes ->
+        if failure, do: Map.put(attributes, "error.type", failure), else: attributes
+      end)
+
+    :otel_span.set_attributes(
+      state.span,
+      Map.take(attributes, ["http.response.status_code", "error.type"])
+    )
+
+    if failure, do: :otel_span.set_status(state.span, :opentelemetry.status(:error, failure))
+    :otel_span.end_span(state.span)
+
+    seconds =
+      System.convert_time_unit(System.monotonic_time() - state.started, :native, :nanosecond) /
+        1_000_000_000
+
+    context = :otel_ctx.get_current()
+    :otel_counter.create(state.meter, :"http.client.request.count", %{unit: :"{request}"})
+    :otel_counter.add(context, state.meter, :"http.client.request.count", 1, attributes)
+    :otel_histogram.create(state.meter, :"http.client.request.duration", %{unit: :s})
+
+    :otel_histogram.record(
+      context,
+      state.meter,
+      :"http.client.request.duration",
+      seconds,
+      attributes
+    )
+
+    :ok
+  end
+
+  defp error_type(%{status_code: status}) when status >= 400, do: Integer.to_string(status)
+  defp error_type(%{error: nil}), do: nil
+  defp error_type(%{error: %PetstoreClient.Errors.NetworkTimeoutError{}}), do: "timeout"
+  defp error_type(%{error: %PetstoreClient.Errors.NetworkError{}}), do: "network_error"
+
+  defp error_type(%{error: %PetstoreClient.Errors.SerializationError{}}),
+    do: "serialization_error"
+
+  defp error_type(%{error: {:exit, _reason}}), do: "cancelled"
+  defp error_type(_outcome), do: "_OTHER"
+end
+```
+
+```elixir
+client = PetstoreClient.Client.with_token("/api/v3", "token", nil, call_hook: TelemetryCallHook)
+```
+
 ### Response compression
 
 The SDK sends `Accept-Encoding` for the codecs it can decode (`gzip` and `deflate`, `br` when the optional `:brotli` dependency is present, `zstd` on OTP 28) and decodes the body before it returns; the returned headers no longer carry `content-encoding` or `content-length`. A caller-supplied `Accept-Encoding` header, in any casing, replaces the SDK's.

@@ -694,6 +694,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("apiKeyHeader", "petStoreBearer"),
             operation_name="add_pet",
+            operation_id="addPet",
+            url_template="/pet",
             request_options=options,
         )
 
@@ -784,6 +786,8 @@ class PetApi(BaseApi):
             "List[Photo]",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="add_pet_photos",
+            operation_id="addPetPhotos",
+            url_template="/pet/{petId}/photos",
             request_options=options,
         )
 
@@ -866,6 +870,8 @@ class PetApi(BaseApi):
             "PetTreatment",
             None,
             operation_name="add_pet_treatment",
+            operation_id="addPetTreatment",
+            url_template="/pet/{petId}/treatment",
             request_options=options,
         )
 
@@ -955,6 +961,8 @@ class PetApi(BaseApi):
             None,
             self._scheme_authenticator("adminBasic", "machineAuth"),
             operation_name="delete_pet",
+            operation_id="deletePet",
+            url_template="/pet/{petId}",
             request_options=options,
         )
 
@@ -1055,6 +1063,8 @@ class PetApi(BaseApi):
             "bytes",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="download_pet_document",
+            operation_id="downloadPetDocument",
+            url_template="/pet/{petId}/documents/{documentId}",
             request_options=options,
         )
 
@@ -1127,6 +1137,8 @@ class PetApi(BaseApi):
             "List[Pet]",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="find_pets_born_on",
+            operation_id="findPetsBornOn",
+            url_template="/pet/born-on/{bornOn}",
             request_options=options,
         )
 
@@ -1262,6 +1274,8 @@ class PetApi(BaseApi):
             "List[Pet]",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="find_pets_by_status",
+            operation_id="findPetsByStatus",
+            url_template="/pet/findByStatus",
             request_options=options,
         )
 
@@ -1341,6 +1355,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_external_pet_info",
+            operation_id="getExternalPetInfo",
+            url_template="/pet/{petId}/external",
             request_options=options,
         )
 
@@ -1420,6 +1436,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_multi_server_pet_info",
+            operation_id="getMultiServerPetInfo",
+            url_template="/pet/{petId}/multi",
             request_options=options,
         )
 
@@ -1496,6 +1514,8 @@ class PetApi(BaseApi):
             "bytes",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_avatar",
+            operation_id="getPetAvatar",
+            url_template="/pet/{petId}/avatar",
             request_options=options,
         )
 
@@ -1572,6 +1592,8 @@ class PetApi(BaseApi):
             "bytes",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_avatar_thumbnail",
+            operation_id="getPetAvatarThumbnail",
+            url_template="/pet/{petId}/avatar/thumbnail",
             request_options=options,
         )
 
@@ -1669,6 +1691,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_by_id",
+            operation_id="getPetById",
+            url_template="/pet/{petId}",
             request_options=options,
         )
 
@@ -1785,6 +1809,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_by_name",
+            operation_id="getPetByName",
+            url_template="/pet/byName/{name}",
             request_options=options,
         )
 
@@ -1965,6 +1991,8 @@ class PetApi(BaseApi):
             "PetPassport",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_passport",
+            operation_id="getPetPassport",
+            url_template="/pet/{petId}/passport",
             request_options=options,
         )
 
@@ -2059,6 +2087,8 @@ class PetApi(BaseApi):
             "bytes",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_photo",
+            operation_id="getPetPhoto",
+            url_template="/pet/{petId}/photos/{photoId}",
             request_options=options,
         )
 
@@ -2203,6 +2233,8 @@ class PetApi(BaseApi):
             "StrictStr",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_summary",
+            operation_id="getPetSummary",
+            url_template="/pet/{petId}/summary/{asOf}",
             request_options=options,
         )
 
@@ -2449,6 +2481,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_tag",
+            operation_id="getPetTag",
+            url_template="/pet/{petId}/tag/{tagName}",
             request_options=options,
         )
 
@@ -2528,6 +2562,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_staging_pet_info",
+            operation_id="getStagingPetInfo",
+            url_template="/pet/{petId}/staging",
             request_options=options,
         )
 
@@ -2624,6 +2660,8 @@ class PetApi(BaseApi):
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             raw_body=True,
             operation_name="set_pet_avatar",
+            operation_id="setPetAvatar",
+            url_template="/pet/{petId}/avatar",
             request_options=options,
         )
 
@@ -2698,6 +2736,8 @@ class PetApi(BaseApi):
             None,
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="set_pet_avatar_thumbnail",
+            operation_id="setPetAvatarThumbnail",
+            url_template="/pet/{petId}/avatar/thumbnail",
             request_options=options,
         )
 
@@ -2789,6 +2829,8 @@ class PetApi(BaseApi):
             "ApiResponse",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="set_pet_preferences",
+            operation_id="setPetPreferences",
+            url_template="/pet/{petId}/preferences",
             request_options=options,
         )
 
@@ -2875,6 +2917,8 @@ class PetApi(BaseApi):
             "Pet",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="update_pet",
+            operation_id="updatePet",
+            url_template="/pet/{petId}",
             request_options=options,
         )
 
@@ -2958,6 +3002,8 @@ class PetApi(BaseApi):
             "ApiResponse",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="upload_pet_certificate",
+            operation_id="uploadPetCertificate",
+            url_template="/pet/{petId}/certificate",
             request_options=options,
         )
 
@@ -3074,5 +3120,7 @@ class PetApi(BaseApi):
             "ApiResponse",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="upload_pet_document",
+            operation_id="uploadPetDocument",
+            url_template="/pet/{petId}/documents",
             request_options=options,
         )

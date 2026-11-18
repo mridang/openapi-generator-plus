@@ -34,6 +34,11 @@ export type { ApiClient, RequestOptions, SendRequestOptions } from './api-client
 export type { ApiResult } from './api-result{{importFileExtension}}';
 export { DefaultApiClient } from '#transport';
 
+/* The call hook around every operation call. The OpenTelemetry adapter built
+ * on it is the separate `./opentelemetry` entry point of the package. */
+export type { CallHook, CallInfo, CallObserver, CallOutcome } from './call-hook{{importFileExtension}}';
+export { chain } from './call-hook{{importFileExtension}}';
+
 /* Configuration and transport tuning. */
 export { Configuration, ConfigurationBuilder } from './configuration{{importFileExtension}}';
 export { TransportOptions, TransportOptionsBuilder } from './transport-options{{importFileExtension}}';

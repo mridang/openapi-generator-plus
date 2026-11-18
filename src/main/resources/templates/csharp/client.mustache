@@ -49,7 +49,7 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     public {{clientClassName}}(IAuthenticator authenticator)
-        : this(authenticator, TransportOptions.Builder().Build()) { }
+        : this(authenticator, TransportOptions.Builder().Build(), null) { }
 
     /// <summary>
     /// Creates a new client with the given authenticator and transport options.
@@ -61,8 +61,9 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     /// <param name="transportOptions">HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
-    public {{clientClassName}}(IAuthenticator authenticator, TransportOptions? transportOptions)
-        : this(HostOf(authenticator), authenticator, NoSchemeAuthenticators, transportOptions) { }
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
+    public {{clientClassName}}(IAuthenticator authenticator, TransportOptions? transportOptions, ICallHook? callHook = null)
+        : this(HostOf(authenticator), authenticator, NoSchemeAuthenticators, transportOptions, callHook) { }
 
     /// <summary>
     /// Creates a new client that holds one optional credential per security scheme the spec
@@ -75,12 +76,14 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
     /// <param name="{{argName}}">Credential for the <c>{{schemeName}}</c> security scheme, or null for none.</param>
 {{/clientSchemes}}
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     public {{clientClassName}}(
         string host,
 {{#clientSchemes}}
         {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}? {{argName}} = null,
 {{/clientSchemes}}
-        TransportOptions? transportOptions = null)
+        TransportOptions? transportOptions = null,
+        ICallHook? callHook = null)
         : this(
             host,
             null,
@@ -89,13 +92,15 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
                 ("{{schemeName}}", {{argName}}){{^-last}},{{/-last}}
 {{/clientSchemes}}
             ),
-            transportOptions) { }
+            transportOptions,
+            callHook) { }
 
     private {{clientClassName}}(
         string host,
         IAuthenticator? authenticator,
         IReadOnlyDictionary<string, IAuthenticator> schemeAuthenticators,
-        TransportOptions? transportOptions)
+        TransportOptions? transportOptions,
+        ICallHook? callHook)
     {
         ArgumentNullException.ThrowIfNull(host);
         transportOptions ??= TransportOptions.Builder().Build();
@@ -117,6 +122,7 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
         Configuration config = Configuration
             .Builder()
             .BaseUrl(host)
+            .CallHook(callHook)
             .Build();
 {{#apiInfo}}
 {{#apis}}
@@ -156,10 +162,11 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
     /// <param name="host">API base URL.</param>
     /// <param name="accessToken">Bearer token.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     /// <returns>Configured client instance.</returns>
-    public static {{clientClassName}} WithToken(string host, string accessToken, TransportOptions? transportOptions = null)
+    public static {{clientClassName}} WithToken(string host, string accessToken, TransportOptions? transportOptions = null, ICallHook? callHook = null)
     {
-        return new {{clientClassName}}(new BearerAuthenticator(host, accessToken), transportOptions ?? TransportOptions.Builder().Build());
+        return new {{clientClassName}}(new BearerAuthenticator(host, accessToken), transportOptions ?? TransportOptions.Builder().Build(), callHook);
     }
 
     /// <summary>
@@ -175,13 +182,15 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
     /// <param name="token">Bearer token, or null to read it from the environment.</param>
     /// <param name="tokenProvider">Callback that returns the current bearer token before each request.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     /// <returns>Configured client instance.</returns>
     /// <exception cref="InvalidOperationException">Thrown when no host or no credential is available.</exception>
     public static {{clientClassName}} FromEnvironment(
         string? host = null,
         string? token = null,
         Func<CancellationToken, Task<string>>? tokenProvider = null,
-        TransportOptions? transportOptions = null)
+        TransportOptions? transportOptions = null,
+        ICallHook? callHook = null)
     {
         string? resolvedHost = FirstSet(host, "{{envVarPrefix}}_HOST");
         if (resolvedHost is null)
@@ -195,11 +204,11 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
         string? resolvedToken = token ?? FirstSet(null, "{{envVarPrefix}}_TOKEN");
         if (resolvedToken is not null)
         {
-            return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions);
+            return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions, callHook);
         }
         if (tokenProvider is not null)
         {
-            return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, tokenProvider), transportOptions);
+            return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, tokenProvider), transportOptions, callHook);
         }
         throw new InvalidOperationException(
             "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable");
@@ -227,10 +236,11 @@ public sealed class {{clientClassName}} : I{{clientClassName}}
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     /// <returns>Configured client instance.</returns>
-    public static {{clientClassName}} WithAuthenticator(IAuthenticator authenticator, TransportOptions? transportOptions = null)
+    public static {{clientClassName}} WithAuthenticator(IAuthenticator authenticator, TransportOptions? transportOptions = null, ICallHook? callHook = null)
     {
-        return new {{clientClassName}}(authenticator, transportOptions ?? TransportOptions.Builder().Build());
+        return new {{clientClassName}}(authenticator, transportOptions ?? TransportOptions.Builder().Build(), callHook);
     }
 
     /// <inheritdoc/>

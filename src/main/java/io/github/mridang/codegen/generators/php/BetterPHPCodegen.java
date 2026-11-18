@@ -392,6 +392,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      * serialization, and optional test scaffolding.
      */
     @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
+    }
+
+    @Override
     protected List<SupportingFileSpec> getSupportingFileSpecs() {
         final String invokerFolder = SRC_BASE_PATH;
         final String apiFolder = Path.of(SRC_BASE_PATH, API_DIR_NAME).toString();
@@ -440,6 +445,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.php"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.php"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
+            new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.php"),
+            new SupportingFileSpec("call_observer.mustache", invokerFolder, "CallObserver.php"),
+            new SupportingFileSpec("call_info.mustache", invokerFolder, "CallInfo.php"),
+            new SupportingFileSpec("call_outcome.mustache", invokerFolder, "CallOutcome.php"),
+            new SupportingFileSpec("call_hook_chain.mustache", invokerFolder, "CallHookChain.php"),
+            new SupportingFileSpec(
+                "open_telemetry_call_hook.mustache", invokerFolder, "OpenTelemetryCallHook.php"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.php"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.php"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.php"),
@@ -726,6 +738,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final String composerPackage = composerName.substring(composerName.indexOf('/') + 1);
         additionalProperties.put(
                 "userAgentDefault", composerPackage + "/" + packageVersion + " (php)");
+        additionalProperties.put("composerPackageName", composerName);
 
         additionalProperties.put("credentialSchemeEnvVars", new ArrayList<Map<String, Object>>());
         additionalProperties.remove("bearerScheme");
@@ -811,6 +824,31 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/TraceContextUtilTest.mustache",
                             "tests",
                             "TraceContextUtilTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/RecordingCallHook.mustache",
+                            "tests",
+                            "RecordingCallHook.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/ScriptedApiClient.mustache",
+                            "tests",
+                            "ScriptedApiClient.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/HookTelemetry.mustache",
+                            "tests",
+                            "HookTelemetry.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/CallHookChainTest.mustache",
+                            "tests",
+                            "CallHookChainTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/OpenTelemetryCallHookTest.mustache",
+                            "tests",
+                            "OpenTelemetryCallHookTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/DefaultApiClientUnitTest.mustache",

@@ -24,6 +24,7 @@ This generator (`dart-plus`, class `BetterDartCodegen`) emits a pure Dart packag
 | `configuration.mustache`, `servers.mustache`, `server_configuration.mustache`, `client.mustache`, `barrel.mustache` | Builder, server constants, entry class, `lib/<package>.dart` barrel | Public entry surface |
 | `readme.mustache`, `skills.mustache` | README (Caveats, Not supported, Schema constraints) and SKILLS.md | Docs |
 | `pubspec.mustache`, `analysis_options.mustache`, `makefile.mustache`, `editorconfig.mustache`, `dev_dependencies.mustache` | Manifest, analyzer config, make targets | Dependencies, lint rules, SDK floor |
+| `call_hook.mustache`, `call_info.mustache`, `call_outcome.mustache`, `call_hook_recipe.mustache` | The call hook types, and the OpenTelemetry recipe partial shared by the README and `test/call_hook_recipe_test.mustache` | The hook API, the recipe |
 | `test/*.mustache`, `test/api/` | The generated `package:test` suite (extend these, never add a new file) | Tests |
 | `src/main/java/.../generators/dart/BetterDartCodegen.java` | Type mapping, naming, enum/default literals, supporting-file list, formatter commands, `dartString` lambda | Type mapping, reserved words, escaping, file layout |
 | `src/main/resources/reserved-words/dart.txt` | Keyword list | Reserved words |
@@ -46,6 +47,7 @@ This generator (`dart-plus`, class `BetterDartCodegen`) emits a pure Dart packag
 | `format: number` | Native `double` | Settled and documented; see the decision below |
 | Optional server description | Non-nullable empty string, not `null` | Same sentinel as go, rust and swift; metadata only, never on the wire |
 | Tracing | `TraceContextUtil.propagator` is a registration hook | Dart cannot detect an optional OpenTelemetry dependency at runtime |
+| Call hook and telemetry | `CallHook`, `CallObserver`, `CallInfo`, `CallOutcome` and `chainCallHooks` (`call_hook`, `call_info`, `call_outcome`), run by a private `_CallRun` in `base_api.mustache`; no OpenTelemetry adapter, only a README recipe (`call_hook_recipe.mustache`) that `test/call_hook_recipe_test.mustache` includes, so the text a user copies is the text under test | The `opentelemetry` package has no histogram, its SDK counter is a no-op and pub has no optional dependency, so the recipe passes the count and the duration to functions the user supplies; there is no cancellation, so no `cancelled` error type (catalogue exception `hooks015`) |
 | Composed schemas | oneOf/anyOf plumbing members (`oneOf0`, `matchesAny`, `openapiOneOf`...) exist on wrappers; the caller-facing accessor is `actualInstance` | The serializer hooks need them |
 | Constructors | `Client`, `DefaultApiClient`, `AbstractApiClient` take an extra trailing `http.Client`; auth constructors default optional scopes with default arguments | Injected transport (S9); Dart has default arguments instead of overloads |
 | Builder setters | Positional parameter named `val` | The call site is identical |

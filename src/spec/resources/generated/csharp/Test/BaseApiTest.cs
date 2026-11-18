@@ -148,6 +148,146 @@ public class BaseApiTest
         }
     }
 
+    private sealed class HookedApi(IApiClient apiClient, Configuration config)
+        : BaseApi(apiClient, config)
+    {
+        public Task<ApiResult<T>> CallAsync<T>(
+            string path,
+            Dictionary<string, object?>? queryParams = null,
+            object? body = null,
+            string contentType = "application/json",
+            IAuthenticator? auth = null,
+            Dictionary<string, string>? headerParams = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            return InvokeApiForResultAsync<T>(
+                "get",
+                path,
+                queryParams ?? [],
+                headerParams ?? [],
+                body,
+                ["application/json"],
+                contentType,
+                typeof(T),
+                auth,
+                operationId: "spec_Operation-id",
+                urlTemplate: "/items/{id}",
+                cancellationToken: cancellationToken
+            );
+        }
+    }
+
+    private sealed class RecordingHook : ICallHook
+    {
+        public List<CallInfo> Infos { get; } = [];
+        public List<Dictionary<string, string>> SeenHeaders { get; } = [];
+        public List<CallOutcome> Outcomes { get; } = [];
+        public Action<IDictionary<string, string>>? Edit { get; init; }
+        public Exception? ThrowOnStart { get; init; }
+        public Exception? ThrowOnFinish { get; init; }
+
+        public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers)
+        {
+            Infos.Add(info);
+            SeenHeaders.Add(new Dictionary<string, string>(headers));
+            if (ThrowOnStart is not null)
+            {
+                throw ThrowOnStart;
+            }
+            Edit?.Invoke(headers);
+            return new Observer(this);
+        }
+
+        private sealed class Observer(RecordingHook owner) : ICallObserver
+        {
+            public void Finish(CallOutcome outcome)
+            {
+                owner.Outcomes.Add(outcome);
+                if (owner.ThrowOnFinish is not null)
+                {
+                    throw owner.ThrowOnFinish;
+                }
+            }
+        }
+    }
+
+    /* A transport whose attempts follow a script: a status code answers, an
+       exception is thrown. A 503 that has a later step is retried the way the
+       default transport retries, through the refreshed headers. */
+    private sealed class ScriptedApiClient(params object[] script) : IApiClient
+    {
+        public List<Dictionary<string, string>> Sent { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            throw new NotSupportedException();
+        }
+
+        public async Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            CancellationToken cancellationToken
+        )
+        {
+            Dictionary<string, string> current = headers;
+            while (true)
+            {
+                int index = Sent.Count;
+                Sent.Add(new Dictionary<string, string>(current));
+                object step = script[Math.Min(index, script.Length - 1)];
+                if (step is Exception failure)
+                {
+                    throw failure;
+                }
+                int status = (int)step;
+                if (status == 503 && refreshHeaders is not null && index + 1 < script.Length)
+                {
+                    current = await refreshHeaders();
+                    continue;
+                }
+                return new ApiHttpResponse(
+                    status,
+                    "{}",
+                    new Dictionary<string, string>
+                    {
+                        { "Content-Type", "application/json" },
+                        { "X-Reply", "yes" },
+                    }
+                );
+            }
+        }
+    }
+
+    private sealed class HangingHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+        }
+    }
+
+    private static HookedApi Hooked(
+        IApiClient client,
+        ICallHook? hook,
+        string baseUrl = "http://localhost"
+    ) => new(client, new Configuration(baseUrl, null, hook));
+
     private sealed class CallOptionsApiClient(int status, string body) : IApiClient
     {
         public int? Timeout { get; private set; }
@@ -427,6 +567,391 @@ public class BaseApiTest
             new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build()),
             _fixture.BaseUrl
         );
+
+    [Fact]
+    public async Task BhvHooks001WithoutAHookACallSendsTheSameHeadersAndReturnsTheSameResult()
+    {
+        var plain = new ScriptedApiClient(200);
+        var passive = new ScriptedApiClient(200);
+        var passiveHook = new RecordingHook();
+
+        ApiResult<object> without = await Hooked(plain, null).CallAsync<object>("/items/7");
+        ApiResult<object> with = await Hooked(passive, passiveHook).CallAsync<object>("/items/7");
+
+        Assert.Null(new Configuration("http://localhost").CallHook);
+        Assert.Equal(plain.Sent.Single(), passive.Sent.Single());
+        Assert.Equal(without.StatusCode, with.StatusCode);
+        Assert.Equal(without.RawBody, with.RawBody);
+        Assert.Single(passiveHook.Infos);
+    }
+
+    [Fact]
+    public async Task BhvHooks002StartIsCalledOnceWithTheSpecOperationIdTheUpperCaseMethodTheTemplateAndTheUrlWithoutItsQuery()
+    {
+        var hook = new RecordingHook();
+
+        _ = await Hooked(new ScriptedApiClient(200), hook)
+            .CallAsync<object>("/items/7", new Dictionary<string, object?> { ["a"] = "1" });
+
+        CallInfo info = Assert.Single(hook.Infos);
+        Assert.Equal("spec_Operation-id", info.OperationId);
+        Assert.Equal("GET", info.Method);
+        Assert.Equal("/items/{id}", info.UrlTemplate);
+        Assert.Equal("http://localhost/items/7", info.Url);
+    }
+
+    [Fact]
+    public async Task BhvHooks002AGeneratedOperationHandsOverItsSpecOperationIdAndPathTemplate()
+    {
+        var hook = new RecordingHook();
+        var api = new StoreApi(
+            new ScriptedApiClient(200),
+            new Configuration("http://localhost", null, hook)
+        );
+
+        _ = await api.GetInventoryWithHttpInfoAsync();
+
+        CallInfo info = Assert.Single(hook.Infos);
+        Assert.Equal("getInventory", info.OperationId);
+        Assert.Equal("GET", info.Method);
+        Assert.Equal("/store/inventory", info.UrlTemplate);
+    }
+
+    [Theory]
+    [InlineData("http://Example.COM:8080/v1", "example.com")]
+    [InlineData("http://[::1]:8080", "::1")]
+    [InlineData("https://api.example.com", "api.example.com")]
+    public async Task BhvHooks003ServerAddressIsTheHostWithoutPortAndWithoutTheBracketsOfAnIpv6Literal(
+        string baseUrl,
+        string expected
+    )
+    {
+        var hook = new RecordingHook();
+
+        _ = await Hooked(new ScriptedApiClient(200), hook, baseUrl).CallAsync<object>("/items/7");
+
+        Assert.Equal(expected, Assert.Single(hook.Infos).ServerAddress);
+    }
+
+    [Fact]
+    public async Task BhvHooks004AHeaderTheHookSetsReachesTheServer()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["X-Hook"] = "yes" };
+        var api = new HookedApi(
+            new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build()),
+            new Configuration(_fixture.BaseUrl, null, hook)
+        );
+
+        ApiResult<JsonNode> result = await api.CallAsync<JsonNode>("/test/echo");
+
+        Assert.Equal("yes", result.Data!["headers"]?["x-hook"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task BhvHooks005StartSeesTheFinalHeaderSetAndCanReplaceOneOfIt()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["X-Custom"] = "replaced" };
+        var client = new ScriptedApiClient(200);
+        var auth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { ["X-Custom"] = "auth-value" }
+        );
+        var api = new HookedApi(
+            client,
+            new Configuration(
+                "http://localhost",
+                new Dictionary<string, string> { ["X-Default"] = "d" },
+                hook
+            )
+        );
+
+        _ = await api.CallAsync<object>(
+            "/items/7",
+            auth: auth,
+            headerParams: new Dictionary<string, string> { ["X-Operation"] = "o" }
+        );
+
+        Dictionary<string, string> seen = Assert.Single(hook.SeenHeaders);
+        Assert.Equal("auth-value", seen["X-Custom"]);
+        Assert.Equal("d", seen["X-Default"]);
+        Assert.Equal("o", seen["X-Operation"]);
+        Assert.Contains("Accept", seen.Keys);
+        Assert.Equal("replaced", client.Sent.Single()["X-Custom"]);
+    }
+
+    [Fact]
+    public async Task BhvHooks006AHeaderTheHookSetsIsOnEverySendOfTheCallRetriesIncluded()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["X-Hook"] = "yes" };
+        var client = new ScriptedApiClient(503, 503, 200);
+
+        _ = await Hooked(client, hook).CallAsync<object>("/items/7");
+
+        Assert.Equal(3, client.Sent.Count);
+        Assert.All(client.Sent, sent => Assert.Equal("yes", sent["X-Hook"]));
+    }
+
+    [Fact]
+    public async Task BhvHooks006AHeaderTheHookSetsIsOnTheReplayAfterA401AndARemovedHeaderStaysRemoved()
+    {
+        var hook = new RecordingHook
+        {
+            Edit = headers =>
+            {
+                headers["X-Hook"] = "yes";
+                _ = headers.Remove("Accept");
+            },
+        };
+        var client = new ScriptedApiClient(401, 200);
+
+        _ = await Hooked(client, hook)
+            .CallAsync<object>("/items/7", body: "{}", auth: new RefreshableAuthenticator());
+
+        Assert.Equal(2, client.Sent.Count);
+        Assert.All(client.Sent, sent => Assert.Equal("yes", sent["X-Hook"]));
+        Assert.All(client.Sent, sent => Assert.DoesNotContain("Accept", sent.Keys));
+    }
+
+    [Fact]
+    public async Task BhvHooks007TheFreshAuthenticationHeadersOfAReplayStillReplaceAHookHeaderOfTheSameName()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["Authorization"] = "Bearer hook" };
+        var client = new ScriptedApiClient(401, 200);
+
+        _ = await Hooked(client, hook)
+            .CallAsync<object>("/items/7", body: "{}", auth: new RefreshableAuthenticator());
+
+        Assert.Equal("Bearer hook", client.Sent[0]["Authorization"]);
+        Assert.Equal("Bearer t2", client.Sent[1]["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvHooks008ACallTheTransportRetriesCallsStartOnceAndFinishOnce()
+    {
+        var hook = new RecordingHook();
+        var client = new ScriptedApiClient(503, 200);
+
+        _ = await Hooked(client, hook).CallAsync<object>("/items/7");
+
+        Assert.Equal(2, client.Sent.Count);
+        _ = Assert.Single(hook.Infos);
+        Assert.Equal(200, Assert.Single(hook.Outcomes).StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvHooks009ThePlainAndTheWithHttpInfoVariantOfAnOperationCallTheHookOnceEach()
+    {
+        var hook = new RecordingHook();
+        var api = new StoreApi(
+            new CallOptionsApiClient(200, "{}"),
+            new Configuration("http://localhost", null, hook)
+        );
+
+        _ = await api.GetInventoryAsync();
+        Assert.Single(hook.Infos);
+        Assert.Single(hook.Outcomes);
+
+        _ = await api.GetInventoryWithHttpInfoAsync();
+        Assert.Equal(2, hook.Infos.Count);
+        Assert.Equal(2, hook.Outcomes.Count);
+    }
+
+    [Fact]
+    public async Task BhvHooks010AHookSetOnTheConfigurationStillFiresWhenTheCallerSuppliedTheTransport()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["X-Hook"] = "yes" };
+        var transport = new CapturingApiClient();
+        var api = new StoreApi(transport, new Configuration("http://localhost", null, hook));
+
+        _ = await api.GetInventoryAsync();
+
+        Assert.Single(hook.Infos);
+        Assert.Equal("yes", transport.CapturedHeaders["X-Hook"]);
+    }
+
+    [Fact]
+    public async Task BhvHooks011FinishGetsTheStatusTheLowerCasedHeadersAndNoErrorOnA2xx()
+    {
+        var hook = new RecordingHook();
+
+        _ = await Hooked(new ScriptedApiClient(200), hook).CallAsync<object>("/items/7");
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(200, outcome.StatusCode);
+        Assert.Equal("yes", outcome.Headers!["x-reply"]);
+        Assert.Equal("application/json", outcome.Headers["content-type"]);
+        Assert.DoesNotContain("X-Reply", outcome.Headers.Keys);
+        Assert.Null(outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks012FinishGetsTheStatusTheHeadersAndTheSameTypedErrorTheCallerReceivesOnANon2xx()
+    {
+        var hook = new RecordingHook();
+
+        var thrown = await Assert.ThrowsAsync<NotFoundException>(() =>
+            Hooked(new ScriptedApiClient(404), hook).CallAsync<object>("/items/7")
+        );
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(404, outcome.StatusCode);
+        Assert.Equal("yes", outcome.Headers!["x-reply"]);
+        Assert.Same(thrown, outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks013FinishGetsStatusZeroNullHeadersAndTheNetworkErrorWhenNoResponseArrived()
+    {
+        var hook = new RecordingHook();
+        var failure = new NetworkException("down");
+
+        var thrown = await Assert.ThrowsAsync<NetworkException>(() =>
+            Hooked(new ScriptedApiClient(failure), hook).CallAsync<object>("/items/7")
+        );
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(0, outcome.StatusCode);
+        Assert.Null(outcome.Headers);
+        Assert.Same(failure, outcome.Error);
+        Assert.Same(thrown, outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks014FinishGetsTheTimeoutErrorWhenTheBudgetIsExhaustedNeverTheCancellation()
+    {
+        var hook = new RecordingHook();
+        var transport = new DefaultApiClient(
+            TransportOptions
+                .Builder()
+                .HttpMessageHandler(new HangingHandler())
+                .Timeout(100)
+                .MaxRetries(0)
+                .Build()
+        );
+
+        var thrown = await Assert.ThrowsAsync<NetworkTimeoutException>(() =>
+            Hooked(transport, hook).CallAsync<object>("/items/7")
+        );
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Same(thrown, outcome.Error);
+        Assert.Equal(0, outcome.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvHooks015FinishGetsTheCancellationAndTheCallRethrowsItNeverAsTheTimeoutError()
+    {
+        var hook = new RecordingHook();
+        var transport = new DefaultApiClient(
+            TransportOptions
+                .Builder()
+                .HttpMessageHandler(new HangingHandler())
+                .MaxRetries(0)
+                .Build()
+        );
+        using var cancellation = new CancellationTokenSource();
+        cancellation.CancelAfter(100);
+
+        var thrown = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            Hooked(transport, hook)
+                .CallAsync<object>("/items/7", cancellationToken: cancellation.Token)
+        );
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Same(thrown, outcome.Error);
+        Assert.IsNotType<NetworkTimeoutException>(outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks016FinishGetsTheSerializationErrorWithTheStatusThatArrivedWhenTheResponseCannotBeDecoded()
+    {
+        var hook = new RecordingHook();
+
+        var thrown = await Assert.ThrowsAsync<SerializationException>(() =>
+            Hooked(new CallOptionsApiClient(200, "{not json"), hook)
+                .CallAsync<Dictionary<string, int>>("/items/7")
+        );
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(200, outcome.StatusCode);
+        Assert.NotNull(outcome.Headers);
+        Assert.Same(thrown, outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks017FinishIsCalledWhenTheRequestBodyCannotBeEncodedAndNothingIsSent()
+    {
+        var hook = new RecordingHook();
+        var client = new ScriptedApiClient(200);
+        var body = new Dictionary<string, object>
+        {
+            ["a"] = new Dictionary<string, object> { ["lat"] = 1.5 },
+        };
+
+        var thrown = await Assert.ThrowsAsync<SerializationException>(() =>
+            Hooked(client, hook)
+                .CallAsync<object>(
+                    "/items/7",
+                    body: body,
+                    contentType: "application/x-www-form-urlencoded"
+                )
+        );
+
+        Assert.Empty(client.Sent);
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(0, outcome.StatusCode);
+        Assert.Same(thrown, outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks018AnErrorThrownByStartReachesTheCallerUnchangedNothingIsSentAndFinishIsNotCalled()
+    {
+        var failure = new InvalidOperationException("refused");
+        var hook = new RecordingHook { ThrowOnStart = failure };
+        var client = new ScriptedApiClient(200);
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Hooked(client, hook).CallAsync<object>("/items/7")
+        );
+
+        Assert.Same(failure, thrown);
+        Assert.Empty(client.Sent);
+        Assert.Empty(hook.Outcomes);
+    }
+
+    [Fact]
+    public async Task BhvHooks019AnErrorThrownByFinishIsSwallowedAndTheCallerStillGetsItsResultOrItsOwnError()
+    {
+        var hook = new RecordingHook { ThrowOnFinish = new InvalidOperationException("observer") };
+
+        ApiResult<object> result = await Hooked(new ScriptedApiClient(200), hook)
+            .CallAsync<object>("/items/7");
+        _ = await Assert.ThrowsAsync<NotFoundException>(() =>
+            Hooked(new ScriptedApiClient(404), hook).CallAsync<object>("/items/7")
+        );
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(2, hook.Outcomes.Count);
+    }
+
+    [Fact]
+    public async Task BhvHooks021TheUrlGivenToTheHookNeverCarriesTheQueryStringOrTheFragment()
+    {
+        var hook = new RecordingHook();
+        var auth = new TestAuthenticator(
+            queryParams: new Dictionary<string, string> { ["api_key"] = "secret" }
+        );
+
+        _ = await Hooked(new ScriptedApiClient(200), hook)
+            .CallAsync<object>(
+                "/items/7#section",
+                new Dictionary<string, object?> { ["a"] = "1" },
+                auth: auth
+            );
+
+        string url = Assert.Single(hook.Infos).Url;
+        Assert.Equal("http://localhost/items/7", url);
+        Assert.DoesNotContain("secret", url, StringComparison.Ordinal);
+    }
 
     public static TheoryData<int, Type> StatusToException =>
         new()

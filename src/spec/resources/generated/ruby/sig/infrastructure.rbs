@@ -21,10 +21,41 @@ module Petstore::Client
     Nil: untyped
   end
 
+  interface _CallObserver
+    def finish: (CallOutcome) -> untyped
+  end
+
+  interface _CallHook
+    def start: (CallInfo, Hash[String, String]) -> _CallObserver?
+  end
+
+  class CallInfo < Data
+    attr_reader operation_id: String
+    attr_reader http_method: String
+    attr_reader url_template: String
+    attr_reader url: String
+    attr_reader server_address: String
+    def self.new: (operation_id: String, http_method: String, url_template: String, url: String, server_address: String) -> CallInfo
+                | (String, String, String, String, String) -> CallInfo
+  end
+
+  class CallOutcome < Data
+    attr_reader status_code: Integer
+    attr_reader headers: Hash[String, String]?
+    attr_reader error: Exception?
+    def self.new: (status_code: Integer, headers: Hash[String, String]?, error: Exception?) -> CallOutcome
+                | (Integer, Hash[String, String]?, Exception?) -> CallOutcome
+  end
+
+  module CallHook
+    def self.chain: (*untyped) -> untyped
+  end
+
   class Configuration
     attr_reader base_url: String
     attr_reader default_headers: Hash[String, String]
-    def initialize: (base_url: String, default_headers: Hash[String, String]) -> void
+    attr_reader call_hook: _CallHook?
+    def initialize: (base_url: String, default_headers: Hash[String, String], ?call_hook: _CallHook?) -> void
     def self.builder: () -> Configuration::Builder
     def self.default_configuration: () -> Configuration
     def inspect: () -> String
@@ -34,6 +65,7 @@ module Petstore::Client
       def base_url: (String) -> Builder
       def default_header: (String, String) -> Builder
       def default_headers: (Hash[String, String]) -> Builder
+      def call_hook: (untyped) -> Builder
       def server: (ServerConfiguration, ?Hash[String, String]) -> Builder
       def build: () -> Configuration
     end
@@ -614,10 +646,10 @@ module Petstore::Client
     attr_reader problems: Api::ProblemsApi
     attr_reader store: Api::StoreApi
     @api_client: DefaultApiClient
-    def initialize: (?Auth::Authenticator?, ?TransportOptions?, ?pet_store_basic: Auth::Authenticator?, ?admin_basic: Auth::Authenticator?, ?pet_store_bearer: Auth::Authenticator?, ?service_token: Auth::Authenticator?, ?api_key_header: Auth::Authenticator?, ?internal_api_key: Auth::Authenticator?, ?api_key_query: Auth::Authenticator?, ?session_cookie: Auth::Authenticator?, ?machine_auth: Auth::Authenticator?, ?legacy_auth: Auth::Authenticator?, ?user_auth: Auth::Authenticator?, ?browser_auth: Auth::Authenticator?, ?sso_auth: Auth::Authenticator?) -> void
+    def initialize: (?Auth::Authenticator?, ?TransportOptions?, ?pet_store_basic: Auth::Authenticator?, ?admin_basic: Auth::Authenticator?, ?pet_store_bearer: Auth::Authenticator?, ?service_token: Auth::Authenticator?, ?api_key_header: Auth::Authenticator?, ?internal_api_key: Auth::Authenticator?, ?api_key_query: Auth::Authenticator?, ?session_cookie: Auth::Authenticator?, ?machine_auth: Auth::Authenticator?, ?legacy_auth: Auth::Authenticator?, ?user_auth: Auth::Authenticator?, ?browser_auth: Auth::Authenticator?, ?sso_auth: Auth::Authenticator?, ?call_hook: _CallHook?) -> void
     def close: () -> void
-    def self.with_token: (String, ?String?, ?TransportOptions?, ?token_provider: (^() -> String)?) -> Petstore
-    def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?) -> Petstore
+    def self.with_token: (String, ?String?, ?TransportOptions?, ?token_provider: (^() -> String)?, ?call_hook: _CallHook?) -> Petstore
+    def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?, ?call_hook: _CallHook?) -> Petstore
   end
 
   module Models
@@ -631,11 +663,20 @@ module Petstore::Client
       attr_reader config: Configuration
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?, ?Hash[String, Auth::Authenticator]) -> void
       def scheme_authenticator: (*String) -> Auth::Authenticator?
-      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?) -> ApiResult[untyped]
+      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
       def authenticated_headers: (Hash[String, String], untyped) -> Hash[String, String]
-      def dispatch_request: (Symbol, String, Hash[String, String], untyped, ^() -> Hash[String, String], ?Hash[Symbol, untyped]) -> ApiHttpResponse
+      def credentialed_headers: (Hash[String, String], untyped) -> Hash[String, String]
+      def rebuilt_headers: (Hash[String, String], untyped, bool, Hash[Symbol, untyped]?, bool) -> Hash[String, String]
+      def header_delta: (Hash[String, String], Hash[String, String]) -> Hash[Symbol, untyped]
+      def apply_header_delta: (Hash[String, String], Hash[Symbol, untyped], Array[String]) -> void
+      def call_info_of: (Symbol, String, String, String?) -> CallInfo
+      def server_address_of: (String) -> String
+      def lower_cased_headers: (Hash[String, String]?) -> Hash[String, String]?
+      def error_outcome: (untyped) -> CallOutcome
+      def finish_call: (_CallObserver, CallOutcome) -> void
+      def dispatch_request: (Symbol, String, Hash[String, String], untyped, ^(?bool) -> Hash[String, String], ?Hash[Symbol, untyped]) -> ApiHttpResponse
       def replayable_body?: (untyped) -> bool
       def decode_success_body: (ApiHttpResponse, String, String?) -> untyped
       def throw_api_error: (ApiHttpResponse, Symbol, String, ?Hash[String, untyped]?) -> void
@@ -652,6 +693,8 @@ module Petstore::Client
     end
   end
 end
+
+$ERROR_INFO: Exception?
 
 module MIME
   class Types

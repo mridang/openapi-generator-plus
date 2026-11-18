@@ -382,3 +382,33 @@ fn test_bhv_config_010_configuration_builder_sets_all_fields() {
     );
     assert_eq!(headers.get("X-Trace").map(|v| v.as_str()), Some("abc"));
 }
+
+/// A hook set on the builder is read back, and the debug form names no hook
+/// internals.
+#[test]
+fn test_bhv_hooks_020_configuration_carries_the_call_hook_and_does_not_print_it() {
+    use std::sync::Arc;
+
+    struct SecretHook;
+    impl CallHook for SecretHook {
+        fn start(
+            &self,
+            _info: &CallInfo,
+            _headers: &mut HashMap<String, String>,
+        ) -> Option<Box<dyn CallObserver>> {
+            None
+        }
+    }
+    assert!(Configuration::default().call_hook().is_none());
+    let hook: Arc<dyn CallHook> = Arc::new(SecretHook);
+
+    let config = ConfigurationBuilder::new().call_hook(hook.clone()).build();
+
+    assert!(Arc::ptr_eq(
+        &hook,
+        config.call_hook().expect("a hook is set")
+    ));
+    let shown = format!("{:?}", config);
+    assert!(shown.contains("<hook>"), "{shown}");
+    assert!(!shown.contains("SecretHook"), "{shown}");
+}

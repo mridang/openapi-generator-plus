@@ -65,6 +65,7 @@ opentelemetry = ["dep:opentelemetry"]
 [dependencies.opentelemetry]
 version = "0.32"
 optional = true
+features = ["trace", "metrics"]
 
 [dev-dependencies]
 # The in-crate trace-context tests install the OpenTelemetry SDK with an

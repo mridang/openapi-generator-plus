@@ -553,6 +553,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("value_serializer.mustache", Path.of(invokerFolder, "api").toString(), "ValueSerializer.java"),
             new SupportingFileSpec("header_selector.mustache", Path.of(invokerFolder, "api").toString(), "HeaderSelector.java"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.java"),
+            new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.java"),
+            new SupportingFileSpec("call_info.mustache", invokerFolder, "CallInfo.java"),
+            new SupportingFileSpec("call_observer.mustache", invokerFolder, "CallObserver.java"),
+            new SupportingFileSpec("call_outcome.mustache", invokerFolder, "CallOutcome.java"),
+            new SupportingFileSpec(
+                "open_telemetry_call_hook.mustache", invokerFolder, "OpenTelemetryCallHook.java"),
             new SupportingFileSpec("pom.mustache", "", "pom.xml"),
             new SupportingFileSpec(
                 "checkstyle_suppressions.mustache", "", "checkstyle-suppressions.xml"),
@@ -652,6 +658,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             out.add(scheme);
         }
         return out;
+    }
+
+    /** Java ships an adapter on the OpenTelemetry API, an optional dependency of the SDK. */
+    @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
     }
 
     /**
@@ -819,6 +831,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "TraceContextUtilTest.java"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/CallHookTest.mustache", testFolder, "CallHookTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/ConfigurationTest.mustache",
                             testFolder,
                             "ConfigurationTest.java"));
@@ -849,6 +864,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/StoreApiTest.mustache", testApiFolder, "StoreApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OpenTelemetryCallHookTest.mustache",
+                            testFolder,
+                            "OpenTelemetryCallHookTest.java"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/DefaultApiClientTest.mustache",

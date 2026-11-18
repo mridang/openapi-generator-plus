@@ -73,6 +73,8 @@ module Petstore::Client
             'default' => ::Petstore::Client::Errors::UnexpectedFailureError
           },
           operation_id: 'ProblemsApi.get_fallback',
+          spec_operation_id: 'getFallback',
+          url_template: '/fallbacks/{fallbackId}',
           request_options: options
         )
       end
@@ -132,6 +134,8 @@ module Petstore::Client
             '404' => ::Petstore::Client::Errors::MemberNotFoundError
           },
           operation_id: 'ProblemsApi.get_member',
+          spec_operation_id: 'getMember',
+          url_template: '/members/{memberId}',
           request_options: options
         )
       end
@@ -191,6 +195,8 @@ module Petstore::Client
             '404' => ::Petstore::Client::Errors::ProjectNotFoundError
           },
           operation_id: 'ProblemsApi.get_project',
+          spec_operation_id: 'getProject',
+          url_template: '/projects/{projectId}',
           request_options: options
         )
       end
@@ -250,6 +256,8 @@ module Petstore::Client
             '4XX' => ::Petstore::Client::Errors::RejectedRequestError
           },
           operation_id: 'ProblemsApi.get_range',
+          spec_operation_id: 'getRange',
+          url_template: '/ranges/{rangeId}',
           request_options: options
         )
       end
@@ -309,6 +317,8 @@ module Petstore::Client
             '5XX' => ::Petstore::Client::Errors::UpstreamFailureError
           },
           operation_id: 'ProblemsApi.get_upstream',
+          spec_operation_id: 'getUpstream',
+          url_template: '/upstreams/{upstreamId}',
           request_options: options
         )
       end
@@ -371,6 +381,8 @@ module Petstore::Client
             '423' => ::Petstore::Client::Errors::StateConflictError
           },
           operation_id: 'ProblemsApi.take_lock',
+          spec_operation_id: 'takeLock',
+          url_template: '/locks/{lockId}',
           request_options: options
         )
       end

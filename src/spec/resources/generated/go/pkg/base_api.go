@@ -132,6 +132,9 @@ type invokeApiParams struct {
 	ctx            context.Context         // per-call context; cancelling it aborts the request (nil means Background)
 	order          []string                // spec declaration order of the query and form parameter names
 	settings       *callSettings           // per-call options (timeout, headers, retries); nil means the client's own
+	operationID    string                  // the operation id as written in the spec, for the call hook
+	urlTemplate    string                  // the spec path template of the operation, for the call hook
+	call           *callState              // the progress of the call through the call hook; nil when the caller does not follow it
 	errorFactories map[string]errorFactory // the error factory of each error response the operation declares, by status, range or default; nil when it declares none
 }
 
@@ -200,7 +203,9 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	var serializedBody []byte
 	var bodyContentType string
 	bodyBuilt := false
+	hook := b.config.CallHook()
 	buildAttempt := func() (string, map[string]string, error) {
+		freshAuth := map[string]struct{}{}
 		attemptURL := requestURL
 		queryParams := params.queryParams
 		if effectiveAuth != nil {
@@ -258,6 +263,9 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 				authHeaders = effectiveAuth.AuthHeaders()
 			}
 			mergeHeaders(headers, authHeaders)
+			for name := range authHeaders {
+				freshAuth[strings.ToLower(name)] = struct{}{}
+			}
 			/* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
 			 * most cookie parsers don't URL-decode, so `=` (base64 padding) would
 			 * arrive as literal `%3D` and break JWT/session cookies. Validate and
@@ -283,6 +291,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 					}
 					cookieParts = append(cookieParts, fmt.Sprintf("%s=%s", k, v))
 				}
+				freshAuth["cookie"] = struct{}{}
 				cookieStr := strings.Join(cookieParts, "; ")
 				if existing, ok := headers["Cookie"]; ok {
 					headers["Cookie"] = existing + "; " + cookieStr
@@ -297,6 +306,21 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 
 		/* Inject trace context */
 		InjectTraceContext(ctx, headers)
+
+		/* The call hook starts here, once per call, on the final headers; the
+		 * attempts after the first (a retry, the replay after a 401) rebuild the
+		 * headers, so the edits of the hook are put on them again, except the
+		 * headers the fresh authentication of that attempt set. */
+		if hook != nil && params.call != nil {
+			if !params.call.started {
+				info := newCallInfo(params.operationID, params.method, params.urlTemplate, requestURL)
+				if startErr := params.call.begin(ctx, hook, info, headers); startErr != nil {
+					return "", nil, startErr
+				}
+			} else {
+				params.call.reapply(headers, freshAuth)
+			}
+		}
 
 		/* Serialize body -- multipart/form-data is handled here so that
 		 * the boundary can be injected into the Content-Type header. */
@@ -375,6 +399,9 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			return nil, buildErr
 		}
 		response, err := b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
+		if params.call != nil {
+			params.call.record(response)
+		}
 		if err != nil {
 			attachRequestContext(err, params.method, requestPath)
 			if !streamBody && retries < maxRetries && isRetryableTransportError(err) {

@@ -153,6 +153,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.CreateAccount",
+                operationId: "createAccount",
+                urlTemplate: "/store/account",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -231,6 +233,8 @@ public class StoreApi : BaseApi, IStoreApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.DeleteOrder",
+                operationId: "deleteOrder",
+                urlTemplate: "/store/order/{orderId}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -356,6 +360,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetBySwatch",
+                operationId: "getBySwatch",
+                urlTemplate: "/store/by-swatch/{pathSwatch}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -430,6 +436,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetDefaults",
+                operationId: "getDefaults",
+                urlTemplate: "/store/defaults",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -507,6 +515,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetDepartment",
+                operationId: "getDepartment",
+                urlTemplate: "/store/department",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -584,6 +594,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetGroupedCategories",
+                operationId: "getGroupedCategories",
+                urlTemplate: "/store/grouped-categories",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -661,6 +673,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetInventory",
+                operationId: "getInventory",
+                urlTemplate: "/store/inventory",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -738,6 +752,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetMatrix",
+                operationId: "getMatrix",
+                urlTemplate: "/store/matrix",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -974,6 +990,8 @@ public class StoreApi : BaseApi, IStoreApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetOrderById",
+                operationId: "getOrderById",
+                urlTemplate: "/store/order/{orderId}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1071,6 +1089,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetOrderByTrackingId",
+                operationId: "getOrderByTrackingId",
+                urlTemplate: "/store/order/by-tracking/{trackingId}",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1160,6 +1180,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetStockItem",
+                operationId: "getStockItem",
+                urlTemplate: "/store/stock-item",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1234,6 +1256,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetSwatch",
+                operationId: "getSwatch",
+                urlTemplate: "/store/swatch",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1311,6 +1335,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetSwatchGroups",
+                operationId: "getSwatchGroups",
+                urlTemplate: "/store/swatch-groups",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1390,6 +1416,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetTimestampGroups",
+                operationId: "getTimestampGroups",
+                urlTemplate: "/store/timestamp-groups",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1464,6 +1492,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetTree",
+                operationId: "getTree",
+                urlTemplate: "/store/tree",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1548,6 +1578,8 @@ public class StoreApi : BaseApi, IStoreApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.PlaceOrder",
+                operationId: "placeOrder",
+                urlTemplate: "/store/order",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1629,6 +1661,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.ReserveStock",
+                operationId: "reserveStock",
+                urlTemplate: "/store/reservation",
                 decodeByStatus: (status, body) =>
                 {
                     if (status == 200)
@@ -1759,6 +1793,8 @@ public class StoreApi : BaseApi, IStoreApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.SearchStore",
+                operationId: "searchStore",
+                urlTemplate: "/store/search",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

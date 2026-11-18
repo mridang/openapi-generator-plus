@@ -249,6 +249,38 @@ void client;
 
 A new operation in the API adds a member to the interface, so a fake typed as the whole interface stops compiling after you regenerate; type it as `Partial` of the interface and cast, as above, so only the operation you fake is written.
 
+### Hooks and telemetry
+
+A call hook is one small, optional object that runs around every operation call. Before the request is sent it can read and edit the request headers, and when the call ends it is told the status or the error. A client with no hook does nothing extra. The hook runs once per call, however many sends happen inside it (transport retries, the one replay after a 401), and also when you supply the transport.
+
+```typescript
+import { {{clientClassName}}, type CallHook } from '{{npmName}}';
+
+const timing: CallHook = {
+  start(info, headers) {
+    headers['X-Caller'] = 'billing';
+    const started = performance.now();
+    return {
+      finish(outcome) {
+        console.log(info.operationId, outcome.statusCode, performance.now() - started);
+      },
+    };
+  },
+};
+
+const client = new {{clientClassName}}(authenticator, undefined, { callHook: timing });
+```
+
+`start` receives a `CallInfo` (`operationId` exactly as written in the spec, the upper-case `method`, the `urlTemplate`, the `url` without its query string and fragment, and the `serverAddress`) and the final request headers, which it may edit: an edit is on every send of the call. It returns an observer, or nothing. `finish` receives a `CallOutcome` (`statusCode`, 0 when no response arrived, the lower-cased `headers`, null when no response arrived, and the `error` the caller receives, or null) exactly once, whatever the outcome. An error thrown by `start` reaches the caller unchanged and nothing is sent; an error thrown by `finish` is swallowed. `chain(...hooks)` combines hooks: it starts them in the order given and finishes their observers in the reverse order. The hook goes on the `Configuration` builder (`.callHook(hook)`) or in the client options.
+
+For OpenTelemetry, the `{{npmName}}/opentelemetry` entry point provides `createOpenTelemetryCallHook()`. It records one span named with the operation id (kind client), one `http.client.request.count` and one `http.client.request.duration` (seconds) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type` attributes, and writes `traceparent` itself. It is built on `@opentelemetry/api`, an optional peer dependency, and records nothing when no provider is registered. Pass `{ tracerProvider, meterProvider }` to use providers other than the global ones.
+
+```typescript
+import { createOpenTelemetryCallHook } from '{{npmName}}/opentelemetry';
+
+const traced = new {{clientClassName}}(authenticator, undefined, { callHook: createOpenTelemetryCallHook() });
+```
+
 ## Develop
 
 ```bash

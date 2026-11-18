@@ -566,6 +566,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.kt"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.kt"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.kt"),
+            new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.kt"),
+            new SupportingFileSpec("open_telemetry_call_hook.mustache", jvmInvokerFolder, "OpenTelemetryCallHook.kt"),
             new SupportingFileSpec("http_client_factory_jvm.mustache", jvmInvokerFolder, "HttpClientFactory.kt"),
             new SupportingFileSpec("trace_context_util_jvm.mustache", jvmInvokerFolder, "TraceContextUtil.kt"),
             new SupportingFileSpec("build_gradle.mustache", "", "build.gradle.kts"),
@@ -579,6 +581,11 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec(
                 "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES")
         );
+    }
+
+    @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
     }
 
     @Override
@@ -647,6 +654,16 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/TraceContextUtilTest.mustache",
                             testFolder,
                             "TraceContextUtilTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/CallHookTest.mustache",
+                            testFolder,
+                            "CallHookTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OpenTelemetryCallHookTest.mustache",
+                            testFolder,
+                            "OpenTelemetryCallHookTest.kt"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ConfigurationTest.mustache",

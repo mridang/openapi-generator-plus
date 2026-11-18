@@ -190,7 +190,11 @@ func (a *{{classname}}) {{operationId}}(ctx context.Context, {{#vendorExtensions
 //
 // Deprecated: This operation is deprecated.
 {{/isDeprecated}}
-func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
+func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (_ *ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
 	settings, err := newCallSettings(callOptions)
 	if err != nil {
 		return nil, err
@@ -552,6 +556,9 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
+		operationID:  "{{#goStringLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/goStringLiteral}}",
+		urlTemplate:  "{{#goStringLiteral}}{{{path}}}{{/goStringLiteral}}",
+		call:         call,
 		order:        []string{ {{#queryParams}}"{{baseName}}", {{/queryParams}}{{#formParams}}"{{baseName}}", {{/formParams}}},
 		method:       "{{httpMethod}}",
 		path:         path,

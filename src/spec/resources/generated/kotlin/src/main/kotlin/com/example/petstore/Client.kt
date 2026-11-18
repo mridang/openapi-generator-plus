@@ -69,10 +69,11 @@ class Client : ClientInterface {
      *
      * @param authenticator provides host URL and auth headers
      * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @param callHook the hook that runs around every operation call, or null for none
      * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
      */
-    constructor(authenticator: Authenticator, transportOptions: TransportOptions) :
-        this(emptyMap(), authenticator, authenticator.getHost(), transportOptions)
+    constructor(authenticator: Authenticator, transportOptions: TransportOptions, callHook: CallHook? = null) :
+        this(emptyMap(), authenticator, authenticator.getHost(), transportOptions, callHook)
 
     /**
      * Creates a new client that holds one optional credential per security scheme the spec
@@ -95,6 +96,7 @@ class Client : ClientInterface {
      * @param browserAuth credential for the `browserAuth` security scheme, or null for none
      * @param ssoAuth credential for the `ssoAuth` security scheme, or null for none
      * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @param callHook the hook that runs around every operation call, or null for none
      * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
      */
     constructor(
@@ -113,6 +115,7 @@ class Client : ClientInterface {
         browserAuth: com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator? = null,
         ssoAuth: com.example.petstore.auth.oauth.SsoAuthAuthenticator? = null,
         transportOptions: TransportOptions? = null,
+        callHook: CallHook? = null,
     ) : this(
         mapOfNotNull(
             "petStoreBasic" to petStoreBasic,
@@ -132,6 +135,7 @@ class Client : ClientInterface {
         null,
         host,
         transportOptions ?: TransportOptions.builder().build(),
+        callHook,
     )
 
     private constructor(
@@ -139,6 +143,7 @@ class Client : ClientInterface {
         authenticator: Authenticator?,
         host: String,
         transportOptions: TransportOptions,
+        callHook: CallHook?,
     ) {
         val apiClient: ApiClient = DefaultApiClient(transportOptions)
         this.apiClient = apiClient
@@ -156,6 +161,7 @@ class Client : ClientInterface {
             Configuration
                 .builder()
                 .baseUrl(host)
+                .callHook(callHook)
                 .build()
 
         this.pet = PetApi(apiClient, config, authenticator, schemeAuthenticators)
@@ -193,6 +199,7 @@ class Client : ClientInterface {
          * @param accessToken Bearer token; when null the environment variable
          *   `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` is used, and a missing token fails here
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+         * @param callHook the hook that runs around every operation call, or null for none
          * @return configured client instance
          * @throws IllegalArgumentException if no token is given or set, or a configured custom CA certificate cannot be read or parsed
          */
@@ -200,12 +207,13 @@ class Client : ClientInterface {
             host: String,
             accessToken: String? = null,
             transportOptions: TransportOptions? = null,
+            callHook: CallHook? = null,
         ): Client =
-            if (transportOptions != null) {
-                Client(BearerAuthenticator(host, accessToken), transportOptions)
-            } else {
-                Client(BearerAuthenticator(host, accessToken))
-            }
+            Client(
+                BearerAuthenticator(host, accessToken),
+                transportOptions ?: TransportOptions.builder().build(),
+                callHook,
+            )
 
         /**
          * Creates a client from any [Authenticator] implementation.
@@ -218,17 +226,19 @@ class Client : ClientInterface {
          *
          * @param authenticator provides host URL and auth headers
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+         * @param callHook the hook that runs around every operation call, or null for none
          * @return configured client instance
          * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
          */
         fun withAuthenticator(
             authenticator: Authenticator,
             transportOptions: TransportOptions? = null,
+            callHook: CallHook? = null,
         ): Client =
-            if (transportOptions != null) {
-                Client(authenticator, transportOptions)
-            } else {
-                Client(authenticator)
-            }
+            Client(
+                authenticator,
+                transportOptions ?: TransportOptions.builder().build(),
+                callHook,
+            )
     }
 }

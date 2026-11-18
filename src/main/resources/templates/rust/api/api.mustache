@@ -119,6 +119,12 @@ impl {{classname}} {
         self.base = self.base.with_scheme_authenticators(authenticators);
         self
     }
+
+    /// Sets the call hook of this API.
+    pub(crate) fn with_call_hook(mut self, hook: Arc<dyn crate::call_hook::CallHook>) -> Self {
+        self.base = self.base.with_call_hook(hook);
+        self
+    }
 {{#operation}}
 
 {{#summary}}
@@ -962,6 +968,8 @@ impl {{classname}} {
             operation: "{{classname}}.{{operationId}}",
             method: "{{httpMethod}}",
             path: &path,
+            operation_id: "{{#lambda.rustString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.rustString}}",
+            url_template: "{{#lambda.rustString}}{{{path}}}{{/lambda.rustString}}",
             query_params,
             header_params,
             body: request_body,

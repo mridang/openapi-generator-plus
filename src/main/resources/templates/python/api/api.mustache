@@ -529,6 +529,8 @@ class {{classname}}(BaseApi):
 {{/isBinary}}
 {{/bodyParam}}
             operation_name='{{operationId}}',
+            operation_id={{#lambda.quotedLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.quotedLiteral}},
+            url_template={{#lambda.quotedLiteral}}{{{path}}}{{/lambda.quotedLiteral}},
             request_options=options,
 {{#vendorExtensions.op.hasMultiple2xx}}
             decode_success=decode_success,

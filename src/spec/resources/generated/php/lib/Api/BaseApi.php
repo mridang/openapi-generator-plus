@@ -19,6 +19,9 @@ use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\ApiResult;
+use PetstoreClient\CallInfo;
+use PetstoreClient\CallObserver;
+use PetstoreClient\CallOutcome;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\HeaderSelector;
@@ -163,6 +166,9 @@ class BaseApi
      *                                            Factory of the error type of each error schema
      *                                            the operation declares, by declared status (404,
      *                                            4XX or default). Empty when it declares none.
+     * @param string|null           $operationId  The operation id exactly as written in the OpenAPI
+     *                                            document, handed to the call hook
+     * @param string|null           $urlTemplate  The path template of the operation, handed to the call hook
      *
      * @return ApiResult<mixed> Result containing deserialized data, status code, raw body, and headers
      * @throws ApiException
@@ -184,7 +190,9 @@ class BaseApi
         ?int $maxRetries = null,
         array $successTypes = [],
         array $securityRequirements = [],
-        array $errorSchemas = []
+        array $errorSchemas = [],
+        ?string $operationId = null,
+        ?string $urlTemplate = null
     ): ApiResult {
         $this->lifecycle?->assertOpen();
         $callHeaders = $headers;
@@ -301,8 +309,7 @@ class BaseApi
             return $headers;
         };
 
-        $serializedBody = $this->serializeBody($body, $contentType, $isMultipart, $rawBody);
-        $noBody = $serializedBody === null;
+        $noBody = $body === null;
         $headersForAttempt = function () use ($buildHeaders, $noBody): array {
             $built = $buildHeaders();
             if ($noBody) {
@@ -317,70 +324,194 @@ class BaseApi
             return $built;
         };
 
-        /* A transport that derives from AbstractApiClient also retries a
-         * transient failure (TransportOptions::$maxRetries); any other
-         * ApiClient implementation sends once. */
-        $response = $this->apiClient instanceof AbstractApiClient
-            ? $this->apiClient->sendWithRetries(
-                $method,
-                $url,
-                $headersForAttempt,
-                $serializedBody,
-                $timeout,
-                $maxRetries
-            )
-            : $this->apiClient->sendRequest($method, $url, $headersForAttempt(), $serializedBody);
+        /* The call hook runs once per call, after the trace context is injected, so the
+         * header set it sees is final. What it changes is kept as a delta and applied to
+         * the headers of every later attempt, which are rebuilt from scratch. */
+        $observer = null;
+        $callHook = $this->config->getCallHook();
+        if ($callHook instanceof \PetstoreClient\CallHook) {
+            $initialHeaders = $headersForAttempt();
+            $headersBeforeHook = $initialHeaders;
+            $observer = $callHook->start(
+                new CallInfo(
+                    $operationId ?? '',
+                    $method,
+                    $urlTemplate ?? '',
+                    $this->urlWithoutQuery($url),
+                    $this->serverAddress($url)
+                ),
+                $initialHeaders
+            );
+            $rebuildHeaders = $headersForAttempt;
+            $attempts = 0;
+            $headersForAttempt = function () use ($rebuildHeaders, $headersBeforeHook, $initialHeaders, &$attempts): array {
+                if ($attempts++ === 0) {
+                    return $initialHeaders;
+                }
 
-        if (
-            $response->statusCode === 401
-            && $effectiveAuth instanceof Authenticator
-            && method_exists($effectiveAuth, 'invalidateAccessToken')
-            && ($serializedBody === null || is_string($serializedBody))
-        ) {
-            /* A revoked or rotated token keeps failing while it is cached.
-             * Drop it, obtain a new one (a refresh grant first) and replay the
-             * request once. A body that cannot be replayed (a stream) is not
-             * retried, and a failed re-authentication leaves the 401 as is. */
-            $effectiveAuth->invalidateAccessToken();
-            try {
-                $retryAuthHeaders = $effectiveAuth->getAuthHeaders();
-            } catch (\PetstoreClient\Errors\OpenAPIException) {
-                $retryAuthHeaders = null;
-            }
-            if ($retryAuthHeaders !== null) {
-                $response = $this->apiClient->sendRequest(
+                return $this->applyHeaderEdits($rebuildHeaders(), $headersBeforeHook, $initialHeaders);
+            };
+        }
+
+        $statusCode = 0;
+        $responseHeaders = null;
+        try {
+            $serializedBody = $this->serializeBody($body, $contentType, $isMultipart, $rawBody);
+
+            /* A transport that derives from AbstractApiClient also retries a
+             * transient failure (TransportOptions::$maxRetries); any other
+             * ApiClient implementation sends once. */
+            $response = $this->apiClient instanceof AbstractApiClient
+                ? $this->apiClient->sendWithRetries(
                     $method,
                     $url,
-                    array_merge($headersForAttempt(), $retryAuthHeaders),
-                    $serializedBody
+                    $headersForAttempt,
+                    $serializedBody,
+                    $timeout,
+                    $maxRetries
+                )
+                : $this->apiClient->sendRequest($method, $url, $headersForAttempt(), $serializedBody);
+            $statusCode = $response->statusCode;
+            $responseHeaders = $response->headers;
+
+            if (
+                $response->statusCode === 401
+                && $effectiveAuth instanceof Authenticator
+                && method_exists($effectiveAuth, 'invalidateAccessToken')
+                && ($serializedBody === null || is_string($serializedBody))
+            ) {
+                /* A revoked or rotated token keeps failing while it is cached.
+                 * Drop it, obtain a new one (a refresh grant first) and replay the
+                 * request once. A body that cannot be replayed (a stream) is not
+                 * retried, and a failed re-authentication leaves the 401 as is. */
+                $effectiveAuth->invalidateAccessToken();
+                try {
+                    $retryAuthHeaders = $effectiveAuth->getAuthHeaders();
+                } catch (\PetstoreClient\Errors\OpenAPIException) {
+                    $retryAuthHeaders = null;
+                }
+                if ($retryAuthHeaders !== null) {
+                    $response = $this->apiClient->sendRequest(
+                        $method,
+                        $url,
+                        array_merge($headersForAttempt(), $retryAuthHeaders),
+                        $serializedBody
+                    );
+                    $statusCode = $response->statusCode;
+                    $responseHeaders = $response->headers;
+                }
+            }
+
+            if ($response->statusCode < 200 || $response->statusCode >= 300) {
+                throw ApiException::fromResponse(
+                    $response->statusCode,
+                    $response->headers,
+                    $response->body,
+                    $method,
+                    $url,
+                    $errorSchemas
                 );
             }
-        }
 
-        if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            throw ApiException::fromResponse(
-                $response->statusCode,
-                $response->headers,
-                $response->body,
-                $method,
-                $url,
-                $errorSchemas
-            );
-        }
+            try {
+                $data = $this->decodeSuccessBody($response, $returnType, $successTypes);
+            } catch (SerializationException $e) {
+                throw $e->withResponse(
+                    $response->statusCode,
+                    $response->headers,
+                    $response->body,
+                    $method,
+                    $url
+                );
+            }
 
+            $result = new ApiResult($response->statusCode, $data, $response->body, $response->headers);
+        } catch (\Throwable $error) {
+            $this->finishCall($observer, $statusCode, $responseHeaders, $error);
+            throw $error;
+        }
+        $this->finishCall($observer, $statusCode, $responseHeaders, null);
+
+        return $result;
+    }
+
+    /**
+     * Tell the observer of the call hook how the call ended. An exception thrown by
+     * the observer is swallowed, so the call still returns its result or its own error.
+     *
+     * @param CallObserver|null          $observer   the observer {@see CallHook::start()} returned, if any
+     * @param int                        $statusCode the status that arrived, or 0
+     * @param array<string, string>|null $headers    the response headers, or null when no response arrived
+     * @param \Throwable|null            $error      the error the caller receives, or null on success
+     */
+    private function finishCall(
+        ?CallObserver $observer,
+        int $statusCode,
+        ?array $headers,
+        ?\Throwable $error
+    ): void {
+        if (!$observer instanceof \PetstoreClient\CallObserver) {
+            return;
+        }
         try {
-            $data = $this->decodeSuccessBody($response, $returnType, $successTypes);
-        } catch (SerializationException $e) {
-            throw $e->withResponse(
-                $response->statusCode,
-                $response->headers,
-                $response->body,
-                $method,
-                $url
+            $observer->finish(
+                new CallOutcome($statusCode, $headers === null ? null : array_change_key_case($headers, CASE_LOWER), $error)
             );
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * What the call hook changed in the headers: the headers it added or changed, and the
+     * names it removed, applied to a freshly built header set.
+     *
+     * @param array<string, string> $fresh  the headers of this attempt, built from scratch
+     * @param array<string, string> $before the headers of the first attempt before the hook ran
+     * @param array<string, string> $after  the headers of the first attempt after the hook ran
+     *
+     * @return array<string, string> the headers of this attempt with the edits of the hook
+     */
+    private function applyHeaderEdits(array $fresh, array $before, array $after): array
+    {
+        foreach (array_keys($before) as $name) {
+            if (!array_key_exists($name, $after)) {
+                unset($fresh[$name]);
+            }
+        }
+        foreach ($after as $name => $value) {
+            if (array_key_exists($name, $before) && $before[$name] === $value) {
+                continue;
+            }
+            foreach (array_keys($fresh) as $existing) {
+                if (strcasecmp((string) $existing, (string) $name) === 0) {
+                    unset($fresh[$existing]);
+                }
+            }
+            $fresh[$name] = $value;
         }
 
-        return new ApiResult($response->statusCode, $data, $response->body, $response->headers);
+        return $fresh;
+    }
+
+    /**
+     * The request URL without its query string and fragment.
+     */
+    private function urlWithoutQuery(string $url): string
+    {
+        $end = strcspn($url, '?#');
+
+        return substr($url, 0, $end);
+    }
+
+    /**
+     * The host of the request URL, lower-case, without port and without the brackets of
+     * an IPv6 literal.
+     */
+    private function serverAddress(string $url): string
+    {
+        $host = parse_url($this->urlWithoutQuery($url), PHP_URL_HOST);
+
+        return is_string($host) ? strtolower(trim($host, '[]')) : '';
     }
 
     /**

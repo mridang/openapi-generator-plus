@@ -24,6 +24,7 @@ import (
 type Configuration struct {
 	baseURL        string
 	defaultHeaders map[string]string
+	callHook       CallHook
 }
 
 // NewConfigurationBuilder creates a new builder for constructing Configuration instances.
@@ -63,10 +64,17 @@ func (c *Configuration) DefaultHeaders() map[string]string {
 	return result
 }
 
+// CallHook returns the hook that runs around every operation call, or nil when
+// none is set.
+func (c *Configuration) CallHook() CallHook {
+	return c.callHook
+}
+
 // ConfigurationBuilder builds immutable Configuration instances.
 type ConfigurationBuilder struct {
 	baseURL        string
 	defaultHeaders map[string]string
+	callHook       CallHook
 }
 
 // BaseURL sets the base URL for all API requests.
@@ -86,6 +94,13 @@ func (b *ConfigurationBuilder) DefaultHeaders(headers map[string]string) *Config
 	for k, v := range headers {
 		b.defaultHeaders[k] = v
 	}
+	return b
+}
+
+// CallHook sets the hook that runs around every operation call. A nil hook
+// means none.
+func (b *ConfigurationBuilder) CallHook(hook CallHook) *ConfigurationBuilder {
+	b.callHook = hook
 	return b
 }
 
@@ -113,6 +128,7 @@ func (b *ConfigurationBuilder) Build() *Configuration {
 	return &Configuration{
 		baseURL:        b.baseURL,
 		defaultHeaders: headers,
+		callHook:       b.callHook,
 	}
 }
 

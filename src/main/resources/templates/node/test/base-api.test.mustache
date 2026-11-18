@@ -28,7 +28,9 @@ import { OAuth2ClientCredentialsAuthenticator } from '../src/auth/oauth/oauth2-c
 import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
-import { {{errorPrefix}}Error, NetworkTimeoutError, SerializationError } from '../src/errors/index{{importFileExtension}}';
+import { {{errorPrefix}}Error, NetworkError, NetworkTimeoutError, SerializationError } from '../src/errors/index{{importFileExtension}}';
+import { chain } from '../src/call-hook{{importFileExtension}}';
+import type { CallHook, CallInfo, CallOutcome } from '../src/call-hook{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 
 
@@ -88,11 +90,13 @@ class TestableApi extends BaseApi {
     contentType: string,
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
-    requestOptions?: RequestOptions
+    requestOptions?: RequestOptions,
+    operationId?: string,
+    urlTemplate?: string
   ): Promise<ApiResult<T>> {
     return this.invokeApiForResult(
       method, path, queryParams, headerParams, body,
-      accepts, contentType, returnType, auth, false, undefined, '', requestOptions);
+      accepts, contentType, returnType, auth, false, undefined, '', requestOptions, undefined, operationId, urlTemplate);
   }
 }
 
@@ -2009,5 +2013,382 @@ describe('BaseApi trace context', () => {
     expect(client.capturedHeaders['traceparent']).toBeDefined();
     await callEcho(client);
     expect(client.capturedHeaders['traceparent']).toBeUndefined();
+  });
+});
+
+describe('BaseApi call hook', () => {
+  const base = 'https://api.example.com';
+  const json = { 'content-type': 'application/json' };
+
+  interface Sent {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+  }
+
+  /* A transport that records every send and answers from a script, the last step repeating. */
+  function scripted(...steps: Array<{ status: number; body?: string; headers?: Record<string, string> } | Error>): { client: ApiClient; sent: Sent[] } {
+    const sent: Sent[] = [];
+    const client: ApiClient = {
+      async sendRequest(method, url, headers): Promise<ApiHttpResponse> {
+        sent.push({ method, url, headers: { ...headers } });
+        const step = steps[Math.min(sent.length, steps.length) - 1]!;
+        if (step instanceof Error) {
+          throw step;
+        }
+        return { statusCode: step.status, body: step.body ?? '{}', headers: step.headers ?? json };
+      }
+    };
+    return { client, sent };
+  }
+
+  /* A hook that records what it is told and optionally edits the headers. */
+  function recording(edit: (headers: Record<string, string>) => void = () => undefined) {
+    const seen = {
+      infos: [] as CallInfo[],
+      headers: [] as Array<Record<string, string>>,
+      outcomes: [] as CallOutcome[],
+      order: [] as string[]
+    };
+    const hook: CallHook = {
+      start(info, headers) {
+        seen.infos.push(info);
+        seen.headers.push({ ...headers });
+        seen.order.push('start');
+        edit(headers);
+        return {
+          finish(outcome) {
+            seen.outcomes.push(outcome);
+            seen.order.push('finish');
+          }
+        };
+      }
+    };
+    return { hook, seen };
+  }
+
+  function hooked(client: ApiClient, hook: CallHook | undefined, baseUrl = base, authenticator?: Authenticator): TestableApi {
+    return new TestableApi(client, new Configuration({ baseUrl, callHook: hook }), authenticator);
+  }
+
+  const get = (testable: TestableApi, path = '/items/7', options?: RequestOptions, returnType: ((json: unknown) => unknown) | null = null, query: Record<string, unknown> = {}) =>
+    testable.callForResult('GET', path, query, {}, null, ['application/json'], 'application/json', returnType, undefined, options, 'getItem', '/items/{id}');
+
+  test('bhv hooks 001 without a hook a call sends the same headers and returns the same result', async () => {
+    const { client, sent } = scripted({ status: 200, body: '{"n":1}' });
+
+    const result = await get(hooked(client, undefined), '/items/7', undefined, (j) => j);
+
+    expect(sent[0]!.headers).toEqual({ Accept: 'application/json' });
+    expect(result.statusCode).toBe(200);
+    expect(result.data).toEqual({ n: 1 });
+  });
+
+  test('bhv hooks 002 start gets the spec operation id, the upper-case method, the url template and the url', async () => {
+    const { client } = scripted({ status: 200 });
+    const { hook, seen } = recording();
+
+    await hooked(client, hook).callForResult('get', '/items/7', { a: 1 }, {}, null, ['application/json'], 'application/json', null, undefined, undefined, 'getItem', '/items/{id}');
+
+    expect(seen.infos).toEqual([
+      { operationId: 'getItem', method: 'GET', urlTemplate: '/items/{id}', url: 'https://api.example.com/items/7', serverAddress: 'api.example.com' }
+    ]);
+    expect(seen.order).toEqual(['start', 'finish']);
+  });
+
+  test.each([
+    ['https://API.Example.com:8443', 'api.example.com'],
+    ['http://[::1]:8080', '::1'],
+    ['http://[2001:db8::1]', '2001:db8::1']
+  ])('bhv hooks 003 serverAddress of %s is the host without port or brackets', async (baseUrl, expected) => {
+    const { client } = scripted({ status: 200 });
+    const { hook, seen } = recording();
+
+    await get(hooked(client, hook, baseUrl));
+
+    expect(seen.infos[0]!.serverAddress).toBe(expected);
+  });
+
+  test('bhv hooks 004 a header the hook sets reaches the transport', async () => {
+    const { client, sent } = scripted({ status: 200 });
+    const { hook } = recording((headers) => {
+      headers['X-Hook'] = 'one';
+    });
+
+    await get(hooked(client, hook));
+
+    expect(sent[0]!.headers['X-Hook']).toBe('one');
+  });
+
+  test('bhv hooks 005 start sees the final header set and can replace one', async () => {
+    const { client, sent } = scripted({ status: 200 });
+    const { hook, seen } = recording((headers) => {
+      headers['Authorization'] = 'Bearer swapped';
+    });
+    const config = new Configuration({ baseUrl: base, callHook: hook, defaultHeaders: { 'X-Default': 'd' } });
+    const testable = new TestableApi(client, config, new TestAuthenticator({ Authorization: 'Bearer real' }));
+
+    await get(testable);
+
+    expect(seen.headers[0]).toMatchObject({ 'X-Default': 'd', Authorization: 'Bearer real', Accept: 'application/json' });
+    expect(sent[0]!.headers['Authorization']).toBe('Bearer swapped');
+  });
+
+  test('bhv hooks 011 finish gets the status, the lower-cased headers and no error on a 2xx', async () => {
+    const { client } = scripted({ status: 204, headers: { 'X-Request-Id': 'abc' } });
+    const { hook, seen } = recording();
+
+    await get(hooked(client, hook));
+
+    expect(seen.outcomes).toEqual([{ statusCode: 204, headers: { 'x-request-id': 'abc' }, error: null }]);
+    expect(Object.isFrozen(seen.outcomes[0]!.headers)).toBe(true);
+  });
+
+  test('bhv hooks 012 finish gets the status, the headers and the same typed error the caller receives', async () => {
+    const { client } = scripted({ status: 404, headers: { 'X-Trace': 't' } });
+    const { hook, seen } = recording();
+
+    const error = await get(hooked(client, hook)).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(NotFoundError);
+    expect(seen.outcomes).toHaveLength(1);
+    expect(seen.outcomes[0]!.statusCode).toBe(404);
+    expect(seen.outcomes[0]!.headers).toEqual({ 'x-trace': 't' });
+    expect(seen.outcomes[0]!.error).toBe(error);
+  });
+
+  test('bhv hooks 013 finish gets status 0, null headers and the network error when no response arrived', async () => {
+    const failure = new NetworkError('connection refused');
+    const { client } = scripted(failure);
+    const { hook, seen } = recording();
+
+    await expect(get(hooked(client, hook))).rejects.toBe(failure);
+
+    expect(seen.outcomes).toEqual([{ statusCode: 0, headers: null, error: failure }]);
+  });
+
+  test('bhv hooks 014 finish gets the timeout error, never the cancellation error', async () => {
+    const failure = new NetworkTimeoutError('timed out');
+    const { client } = scripted(failure);
+    const { hook, seen } = recording();
+
+    await expect(get(hooked(client, hook))).rejects.toBe(failure);
+
+    expect(seen.outcomes[0]!.error).toBe(failure);
+    expect(seen.outcomes[0]!.error).toBeInstanceOf(NetworkTimeoutError);
+  });
+
+  test('bhv hooks 015 finish gets the cancellation and the call rethrows it, never as the timeout error', async () => {
+    const controller = new AbortController();
+    const client: ApiClient = {
+      sendRequest: (_method, _url, _headers, _body, options) =>
+        new Promise<ApiHttpResponse>((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => reject(options.signal!.reason));
+          controller.abort();
+        })
+    };
+    const { hook, seen } = recording();
+
+    const error = await get(hooked(client, hook), '/items/7', { signal: controller.signal }).catch((e: unknown) => e);
+
+    expect((error as Error).name).toBe('AbortError');
+    expect(error).not.toBeInstanceOf(NetworkTimeoutError);
+    expect(seen.outcomes).toHaveLength(1);
+    expect(seen.outcomes[0]!.error).toBe(error);
+    expect(seen.outcomes[0]!.statusCode).toBe(0);
+  });
+
+  test('bhv hooks 016 finish gets the SerializationError, with the status that arrived, when the response cannot be decoded', async () => {
+    const { client } = scripted({ status: 200, body: 'not json' });
+    const { hook, seen } = recording();
+
+    const error = await get(hooked(client, hook), '/items/7', undefined, (j) => j).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(SerializationError);
+    expect(seen.outcomes).toHaveLength(1);
+    expect(seen.outcomes[0]!.statusCode).toBe(200);
+    expect(seen.outcomes[0]!.error).toBe(error);
+  });
+
+  test('bhv hooks 017 finish is called when the request body cannot be encoded and nothing is sent', async () => {
+    const { client, sent } = scripted({ status: 200 });
+    const { hook, seen } = recording();
+
+    const error = await hooked(client, hook)
+      .callForResult('POST', '/items', {}, {}, { nested: { a: 1 } }, ['application/json'], 'application/x-www-form-urlencoded', null)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(SerializationError);
+    expect(sent).toHaveLength(0);
+    expect(seen.outcomes).toEqual([{ statusCode: 0, headers: null, error }]);
+  });
+
+  test('bhv hooks 018 an error thrown by start reaches the caller unchanged, nothing is sent and finish is not called', async () => {
+    const { client, sent } = scripted({ status: 200 });
+    const failure = new Error('refused by the hook');
+    let finished = 0;
+    const hook: CallHook = {
+      start() {
+        throw failure;
+      }
+    };
+    const observed: CallHook = { start: () => ({ finish: () => void finished++ }) };
+
+    await expect(get(hooked(client, chain(observed, hook)))).rejects.toBe(failure);
+
+    expect(sent).toHaveLength(0);
+    expect(finished).toBe(0);
+  });
+
+  test('bhv hooks 019 an error thrown by finish is swallowed and the caller still gets its result or its own error', async () => {
+    const throwing: CallHook = {
+      start: () => ({
+        finish() {
+          throw new Error('observer failed');
+        }
+      })
+    };
+    const ok = scripted({ status: 200, body: '{"n":1}' });
+    const result = await get(hooked(ok.client, throwing), '/items/7', undefined, (j) => j);
+    expect(result.data).toEqual({ n: 1 });
+
+    const missing = scripted({ status: 404 });
+    await expect(get(hooked(missing.client, throwing))).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  test('bhv hooks 021 the url given to the hook never carries the query string or the fragment', async () => {
+    const { client } = scripted({ status: 200 });
+    const { hook, seen } = recording();
+
+    await get(hooked(client, hook), '/items/7#frag', undefined, null, { a: 1, b: 'x y' });
+
+    expect(seen.infos[0]!.url).toBe('https://api.example.com/items/7');
+    expect(JSON.stringify(seen.infos[0])).not.toContain('a=1');
+    expect(JSON.stringify(seen.infos[0])).not.toContain('frag');
+  });
+
+  describe('through the default transport', () => {
+    let delays: number[];
+    beforeEach(() => {
+      delays = [];
+      jest.spyOn(globalThis, 'setTimeout').mockImplementation(((handler: () => void, ms?: number) => {
+        delays.push(ms ?? 0);
+        handler();
+        return 0 as unknown as NodeJS.Timeout;
+      }) as unknown as typeof setTimeout);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    /* A transport whose fetch plays the statuses in order, the last one repeating, and records every request. */
+    function playing(...statuses: number[]): { client: DefaultApiClient; requests: Array<Record<string, string>> } {
+      const requests: Array<Record<string, string>> = [];
+      const stub = (async (_url: unknown, init?: { headers?: Record<string, string> }) => {
+        requests.push({ ...(init?.headers ?? {}) });
+        const status = statuses[Math.min(requests.length, statuses.length) - 1]!;
+        return new Response('{}', { status, headers: json });
+      }) as unknown as typeof fetch;
+      return { client: new DefaultApiClient(TransportOptions.builder().fetch(stub).build()), requests };
+    }
+
+    test('bhv hooks 006 a header the hook sets is on every send of the call, retries included', async () => {
+      const { client, requests } = playing(503, 503, 200);
+      const { hook } = recording((headers) => {
+        headers['X-Hook'] = 'one';
+      });
+
+      await get(hooked(client, hook));
+
+      expect(requests).toHaveLength(3);
+      expect(requests.map((request) => request['X-Hook'])).toEqual(['one', 'one', 'one']);
+    });
+
+    test('bhv hooks 008 a call retried by the transport calls start once and finish once', async () => {
+      const { client, requests } = playing(503, 200);
+      const { hook, seen } = recording();
+
+      await get(hooked(client, hook));
+
+      expect(requests).toHaveLength(2);
+      expect(seen.order).toEqual(['start', 'finish']);
+      expect(seen.outcomes[0]!.statusCode).toBe(200);
+    });
+
+    test('bhv hooks 010 a hook on the configuration fires when the caller supplied the transport', async () => {
+      const supplied = TransportOptions.builder()
+        .fetch((async () => new Response('{}', { status: 200, headers: json })) as unknown as typeof fetch)
+        .build();
+      const { hook, seen } = recording();
+
+      await get(hooked(new DefaultApiClient(supplied), hook));
+
+      expect(seen.order).toEqual(['start', 'finish']);
+    });
+  });
+
+  describe('a 401 on an OAuth2 call', () => {
+    const tokenUrl = 'https://auth.example.com/token';
+
+    function renewing(): { stub: ApiClient; seen: Array<{ url: string; headers: Record<string, string> }>; oauth: OAuth2ClientCredentialsAuthenticator } {
+      const seen: Array<{ url: string; headers: Record<string, string> }> = [];
+      let issued = 0;
+      const stub: ApiClient = {
+        async sendRequest(_method, url, headers): Promise<ApiHttpResponse> {
+          seen.push({ url, headers: { ...headers } });
+          if (url === tokenUrl) {
+            issued += 1;
+            return { statusCode: 200, body: JSON.stringify({ access_token: `tok-${issued}`, expires_in: 3600 }), headers: json };
+          }
+          return { statusCode: headers['Authorization'] === 'Bearer tok-2' ? 200 : 401, body: '{}', headers: json };
+        }
+      };
+      const oauth = new OAuth2ClientCredentialsAuthenticator('https://api.example.com', 'client-id', 'client-secret', tokenUrl, []);
+      oauth.setApiClient(stub);
+      return { stub, seen, oauth };
+    }
+
+    test('bhv hooks 006 a header the hook sets is on the replay after a 401', async () => {
+      const { stub, seen, oauth } = renewing();
+      const { hook, seen: calls } = recording((headers) => {
+        headers['X-Hook'] = 'one';
+      });
+
+      await get(hooked(stub, hook, base, oauth));
+
+      const api = seen.filter((request) => request.url !== tokenUrl);
+      expect(api).toHaveLength(2);
+      expect(api.map((request) => request.headers['X-Hook'])).toEqual(['one', 'one']);
+      expect(calls.order).toEqual(['start', 'finish']);
+    });
+
+    test('bhv hooks 007 the fresh authentication headers of a replay still replace a hook header of the same name', async () => {
+      const { stub, seen, oauth } = renewing();
+      const { hook } = recording((headers) => {
+        headers['Authorization'] = 'Bearer from-hook';
+      });
+
+      await get(hooked(stub, hook, base, oauth));
+
+      const api = seen.filter((request) => request.url !== tokenUrl);
+      expect(api[0]!.headers['Authorization']).toBe('Bearer from-hook');
+      expect(api[1]!.headers['Authorization']).toBe('Bearer tok-2');
+    });
+  });
+
+  test('bhv hooks 009 the plain and the WithHttpInfo variant of an operation call the hook once each', async () => {
+    const { client } = scripted({ status: 200, body: '{"id":1,"name":"x","photoUrls":[]}' });
+    const { hook, seen } = recording();
+    const operations = new PetApi(client, new Configuration({ baseUrl: base, callHook: hook }));
+
+    await operations.getPetById(1);
+    expect(seen.order).toEqual(['start', 'finish']);
+    await operations.getPetByIdWithHttpInfo(1);
+
+    expect(seen.order).toEqual(['start', 'finish', 'start', 'finish']);
+    expect(seen.infos.map((info) => [info.operationId, info.urlTemplate, info.url])).toEqual([
+      ['getPetById', '/pet/{petId}', 'https://api.example.com/pet/1'],
+      ['getPetById', '/pet/{petId}', 'https://api.example.com/pet/1']
+    ]);
   });
 });

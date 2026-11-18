@@ -281,6 +281,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return NamingConvention.CAMEL_CASE;
     }
 
+    /** Go ships an adapter on the OpenTelemetry API in the subpackage {@code pkg/otelhook}. */
+    @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
@@ -565,6 +571,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "server_variable_test.go"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/otelhook_test.mustache", "test", "otelhook_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/api_result_test.mustache",
                             "test",
                             "api_result_test.go"));
@@ -596,6 +605,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/trace_context_util_test.mustache",
                             "pkg",
                             "trace_context_util_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/call_hook_test.mustache", "pkg", "call_hook_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/default_api_client_unit_test.mustache",
@@ -707,6 +719,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("value_serializer.mustache", "pkg", "value_serializer.go"),
                 new SupportingFileSpec(
                         "trace_context_util.mustache", "pkg", "trace_context_util.go"),
+                new SupportingFileSpec("call_hook.mustache", "pkg", "call_hook.go"),
+                new SupportingFileSpec("otelhook.mustache", "pkg/otelhook", "otelhook.go"),
                 new SupportingFileSpec("api_response.mustache", "pkg", "api_http_response.go"),
                 new SupportingFileSpec("api_result.mustache", "pkg", "api_result.go"),
                 new SupportingFileSpec("api_client.mustache", "pkg", "api_client.go"),

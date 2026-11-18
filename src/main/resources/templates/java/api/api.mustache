@@ -560,11 +560,13 @@ public class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#vendorExtensions.op.errorSchemaResponses}}
                         java.util.Map.entry("{{{status}}}", ({{{invokerPackage}}}.errors.ErrorFactory) {{{invokerPackage}}}.errors.{{{schemaClassName}}}::fromErrorResponse){{^isLast}},{{/isLast}}
 {{/vendorExtensions.op.errorSchemaResponses}}
-                ));
+                ),
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
 {{^vendorExtensions.op.hasErrorSchemaResponses}}
-                null);
+                null,
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
+                "{{#lambda.javaString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.javaString}}",
+                "{{#lambda.javaString}}{{{path}}}{{/lambda.javaString}}");
     }
     {{/operation}}
 

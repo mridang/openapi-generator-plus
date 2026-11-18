@@ -1,0 +1,98 @@
+{{>api_info}}
+
+/**
+ * What a call hook is told about the call it wraps.
+ */
+export interface CallInfo {
+  /** The operation id exactly as written in the spec. */
+  readonly operationId: string;
+  /** The upper-case HTTP method. */
+  readonly method: string;
+  /** The spec path template of the operation, without the server base path. */
+  readonly urlTemplate: string;
+  /** The request URL without its query string and fragment. */
+  readonly url: string;
+  /** The lower-case host of the request URL, without port and without the brackets of an IPv6 literal. */
+  readonly serverAddress: string;
+}
+
+/**
+ * How a call ended.
+ */
+export interface CallOutcome {
+  /** The HTTP status code, or 0 when no response arrived. */
+  readonly statusCode: number;
+  /** The lower-cased read-only response headers, or null when no response arrived. */
+  readonly headers: Readonly<Record<string, string>> | null;
+  /** The very error the caller receives, or null on success. */
+  readonly error: unknown;
+}
+
+/**
+ * Observes the end of one call.
+ */
+export interface CallObserver {
+  /**
+   * Called exactly once when the call ends, whatever the outcome. An error it
+   * throws is swallowed: it never changes the result or the error of the call.
+   *
+   * @param outcome how the call ended
+   */
+  finish(outcome: CallOutcome): void;
+}
+
+/**
+ * A small hook around every operation call: it can edit the request headers
+ * before the send and observe the status or the error afterwards. A client
+ * with no hook does nothing extra.
+ *
+ * The hook runs once per call however many sends happen inside it (transport
+ * retries, the one replay after a 401), and also when the caller supplied the
+ * transport.
+ */
+export interface CallHook {
+  /**
+   * Called once per call, after the headers are final and before the first
+   * send. The headers may be edited in place; an edit is on every send of the
+   * call. An error thrown here reaches the caller unchanged, nothing is sent
+   * and `finish` is not called.
+   *
+   * @param info what is known about the call
+   * @param headers the request headers, mutable
+   * @returns an observer to be told how the call ended, or nothing
+   */
+  start(info: CallInfo, headers: Record<string, string>): CallObserver | void;
+}
+
+/**
+ * Combines hooks into one: `start` runs the hooks in the order given and
+ * `finish` runs their observers in the reverse order. A hook that returns no
+ * observer is skipped when the call ends.
+ *
+ * @param hooks the hooks to combine
+ * @returns one hook that runs all of them
+ */
+export function chain(...hooks: CallHook[]): CallHook {
+  return {
+    start(info, headers) {
+      const observers: CallObserver[] = [];
+      for (const hook of hooks) {
+        const observer = hook.start(info, headers);
+        if (observer != null) {
+          observers.push(observer);
+        }
+      }
+      return {
+        finish(outcome) {
+          for (const observer of [...observers].reverse()) {
+            try {
+              observer.finish(outcome);
+            } catch {
+              /* A failing observer never stops the others. */
+            }
+          }
+        }
+      };
+    }
+  };
+}

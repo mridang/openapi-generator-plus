@@ -20,6 +20,11 @@ __all__ = [
     "ClientProtocol",
     "ApiClient",
     "Configuration",
+    "CallHook",
+    "CallObserver",
+    "CallInfo",
+    "CallOutcome",
+    "chain",
     "TransportOptions",
     "ServerConfiguration",
     "ServerVariable",
@@ -125,6 +130,11 @@ from petstore_client.auth.authenticator import Authenticator as Authenticator
 from petstore_client.client import Client as Client
 from petstore_client.client import ClientProtocol as ClientProtocol
 from petstore_client.configuration import Configuration as Configuration
+from petstore_client.call_hook import CallHook as CallHook
+from petstore_client.call_hook import CallObserver as CallObserver
+from petstore_client.call_hook import CallInfo as CallInfo
+from petstore_client.call_hook import CallOutcome as CallOutcome
+from petstore_client.call_hook import chain as chain
 from petstore_client.transport_options import TransportOptions as TransportOptions
 from petstore_client.server_configuration import (
     ServerConfiguration as ServerConfiguration,

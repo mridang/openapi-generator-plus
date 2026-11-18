@@ -1458,3 +1458,38 @@ mocking006 | Calling an operation without the per-call options reaches the fake'
 mocking007 | The top-level client interface exposes every group typed as its group interface, plus close, and the real client implements it
 mocking008 | A fake client built from fake groups never opens a connection, and closing it does nothing and does not fail
 mocking009 | The README has a section named "Testing your code" that names the group interface and the top-level interface and shows a fake
+hooks001 | Without a hook set a call sends the same headers and returns the same result as before
+hooks002 | start is called once per operation call with the spec operation id, the upper-case method, the url template and the url without its query string
+hooks003 | serverAddress is the host without port, and without the brackets of an IPv6 literal | multi
+hooks004 | A header the hook sets reaches the server
+hooks005 | start sees the final header set, authentication and default headers included, and can replace one
+hooks006 | A header the hook sets is on every send of the call, retries and the replay after a 401 included
+hooks007 | The fresh authentication headers of a replay still replace a hook header of the same name
+hooks008 | A call that is retried by the transport calls start once and finish once
+hooks009 | The plain and the WithHttpInfo variant of an operation call the hook once each
+hooks010 | A hook set on the configuration still fires when the caller supplied the transport
+hooks011 | finish gets the status, the lower-cased response headers and no error on a 2xx
+hooks012 | finish gets the status, the headers and the same typed ApiError the caller receives on a non-2xx
+hooks013 | finish gets status 0, null headers and the network error when no response arrived
+hooks014 | finish gets the timeout error when the end-to-end budget is exhausted, never the cancellation error
+hooks015 | finish gets the cancellation and the call rethrows it, never as the timeout error
+hooks016 | finish gets the SerializationError, with the status that arrived, when the response cannot be decoded
+hooks017 | finish is called when the request body cannot be encoded and nothing is sent
+hooks018 | An error thrown by start reaches the caller unchanged, nothing is sent and finish is not called
+hooks019 | An error thrown by finish is swallowed and the caller still gets its result or its own error
+hooks020 | chain starts the hooks in order and finishes their observers in reverse order, and a hook that returns nothing is skipped
+hooks021 | The url given to the hook never carries the query string or the fragment
+telemetry001 | The span is named with the spec operation id and has kind client
+telemetry002 | A 2xx sets http.request.method, url.template, server.address and http.response.status_code and leaves the span status unset
+telemetry003 | A 4xx or 5xx sets error.type to the status code as text and marks the span as an error
+telemetry004 | error.type is timeout for the timeout error, network_error for the network error, serialization_error for the decode error, cancelled for a cancelled call and _OTHER for anything else
+telemetry005 | A call with no response sets no http.response.status_code
+telemetry006 | The span is a child of the caller's active span and the traceparent sent names the client span as its parent | multi
+telemetry007 | A call retried by the transport records one span and one count
+telemetry008 | The request count is incremented once per call with the same attributes as the span
+telemetry009 | The duration histogram records one value in seconds per call with the same attributes as the span
+telemetry010 | The instrumentation scope is named after the published package and carries the SDK version
+telemetry011 | A provider handed to the adapter is used instead of the global one | multi
+telemetry012 | With no provider configured the adapter does nothing and the call is unchanged
+telemetry013 | The span ends exactly once, also when the call throws
+telemetry014 | No attribute carries a query string, a header value or a credential

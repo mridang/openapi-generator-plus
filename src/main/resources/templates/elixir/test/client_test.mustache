@@ -515,5 +515,24 @@ defmodule {{moduleName}}.ClientTest do
 {{/apis}}
 {{/apiInfo}}
   end
+
+  test "a call hook given to the client reaches the configuration of every API" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+    hook = {{moduleName}}.CallHook.chain([])
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator, nil, [], call_hook: hook)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    assert client.{{clientPropertyName}}.config.call_hook == hook
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.{{clientClassName}}.new(authenticator, nil, [], unknown: 1)
+    end
+  end
 end
 {{/generateTests}}

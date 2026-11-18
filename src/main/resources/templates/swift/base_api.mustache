@@ -109,6 +109,10 @@ public class BaseApi: @unchecked Sendable {
         let auth: Authenticator?
         /// `Class.operationId` of the calling operation, named in errors.
         var operation: String = ""
+        /// The operation id as written in the spec, handed to the ``CallHook``.
+        var operationId: String = ""
+        /// The spec path template of the operation, handed to the ``CallHook``.
+        var urlTemplate: String = ""
         /// True when the operation's body parameter is `format: binary`: the
         /// caller's bytes are sent unchanged under whichever declared
         /// Content-Type was selected, never re-encoded as JSON.
@@ -126,6 +130,82 @@ public class BaseApi: @unchecked Sendable {
         /// declared status (`404`, `4XX`, `default`); nil for an operation that
         /// declares none, which then gets the plain status error.
         var errorSchemas: [String: ErrorFactory]? = nil
+    }
+
+    /// The state of one operation call as far as the ``CallHook`` is
+    /// concerned: the observer ``CallHook/start(info:headers:)`` returned. A
+    /// header the hook sets stays in the header set the send loop reuses for
+    /// every send of the call, so no copy of its edits is kept.
+    private final class CallRun {
+        let hook: (any CallHook)?
+        private var observer: (any CallObserver)?
+
+        init(hook: (any CallHook)?) {
+            self.hook = hook
+        }
+
+        /// Calls ``CallHook/start(info:headers:)`` once, with the final header
+        /// set. An error it throws reaches the caller unchanged.
+        func begin(
+            params: InvokeAPIParams, target: String, headers: inout [String: String]
+        ) throws {
+            guard let hook = hook else { return }
+            let info = CallInfo(
+                operationId: params.operationId, method: params.method,
+                urlTemplate: params.urlTemplate, target: target)
+            observer = try hook.start(info: info, headers: &headers)
+        }
+
+        /// Runs `body` and tells the observer how it ended: `describe` gives the
+        /// status and the headers of a result, and an error thrown by `body` is
+        /// reported and rethrown as it is.
+        func observe<R>(
+            _ body: () async throws -> R, describe: (R) -> (Int, [String: String])
+        ) async throws -> R {
+            if hook == nil {
+                return try await body()
+            }
+            let result: R
+            do {
+                result = try await body()
+            } catch {
+                finish(CallRun.outcome(of: error))
+                throw error
+            }
+            let (status, headers) = describe(result)
+            finish(CallOutcome(statusCode: status, headers: CallRun.lowerCased(headers), error: nil))
+            return result
+        }
+
+        /// Tells the observer, if there is one, that the call has ended. An
+        /// error of the observer is swallowed: it never replaces the result.
+        private func finish(_ outcome: CallOutcome) {
+            guard let observer = observer else { return }
+            self.observer = nil
+            try? observer.finish(outcome)
+        }
+
+        private static func outcome(of error: any Error) -> CallOutcome {
+            if let apiError = error as? ApiError {
+                return CallOutcome(
+                    statusCode: apiError.statusCode,
+                    headers: apiError.responseHeaders.map(lowerCased), error: error)
+            }
+            if let failure = error as? SerializationError {
+                return CallOutcome(
+                    statusCode: failure.statusCode ?? 0,
+                    headers: failure.responseHeaders.map(lowerCased), error: error)
+            }
+            return CallOutcome(statusCode: 0, headers: nil, error: error)
+        }
+
+        private static func lowerCased(_ headers: [String: String]) -> [String: String] {
+            var result: [String: String] = [:]
+            for (name, value) in headers {
+                result[name.lowercased()] = value
+            }
+            return result
+        }
     }
 
     /// Sends one prepared request through the client. The SDK's own transport
@@ -167,7 +247,10 @@ public class BaseApi: @unchecked Sendable {
     /// - Returns: The raw HTTP response.
     /// - Throws: ``ApiError`` if the API call fails.
     func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiHttpResponse {
-        return try await invokeAPIWithPath(params).response
+        let run = CallRun(hook: config.callHook)
+        return try await run.observe(
+            { try await invokeAPIWithPath(params, run: run).response },
+            describe: { ($0.statusCode, $0.headers) })
     }
 
     /// As ``invokeAPI(_:)``, and also returns the path of the request that was
@@ -177,7 +260,7 @@ public class BaseApi: @unchecked Sendable {
     /// - Parameter params: The invocation parameters.
     /// - Returns: The raw HTTP response and the request path.
     /// - Throws: ``ApiError`` if the API call fails.
-    private func invokeAPIWithPath(_ params: InvokeAPIParams) async throws -> (
+    private func invokeAPIWithPath(_ params: InvokeAPIParams, run: CallRun) async throws -> (
         response: ApiHttpResponse, requestPath: String
     ) {
         try Self.validatePerCall(timeout: params.timeout, maxRetries: params.maxRetries)
@@ -280,6 +363,7 @@ public class BaseApi: @unchecked Sendable {
 
         /* Inject trace context */
         TraceContextUtil.injectTraceContext(headers: &headers)
+        try run.begin(params: params, target: requestURL, headers: &headers)
 
         /* Serialize body -- multipart/form-data is handled separately so that
          * the boundary can be injected into the Content-Type header. */
@@ -353,7 +437,16 @@ public class BaseApi: @unchecked Sendable {
     /// - Returns: ``ApiResult`` containing deserialized data, status code, raw body, and headers.
     /// - Throws: ``ApiError`` if the API call fails.
     func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
-        let (response, requestPath) = try await invokeAPIWithPath(params)
+        let run = CallRun(hook: config.callHook)
+        return try await run.observe(
+            { try await decodeResult(params, run: run, as: type) },
+            describe: { ($0.statusCode, $0.headers) })
+    }
+
+    private func decodeResult<T: Decodable>(
+        _ params: InvokeAPIParams, run: CallRun, as type: T.Type
+    ) async throws -> ApiResult<T> {
+        let (response, requestPath) = try await invokeAPIWithPath(params, run: run)
         let responseContentType = response.headers.first(where: { $0.key.caseInsensitiveCompare("content-type") == .orderedSame })?.value ?? ""
         let isJsonResponse = responseContentType.isEmpty || headerSelector.isJsonMime(responseContentType)
         var data: T? = nil
@@ -420,7 +513,16 @@ public class BaseApi: @unchecked Sendable {
     func invokeAPIForResult<T: Sendable>(
         _ params: InvokeAPIParams, decodingByStatus decode: (ApiHttpResponse) throws -> T?
     ) async throws -> ApiResult<T> {
-        let (response, requestPath) = try await invokeAPIWithPath(params)
+        let run = CallRun(hook: config.callHook)
+        return try await run.observe(
+            { try await decodeResult(params, run: run, decodingByStatus: decode) },
+            describe: { ($0.statusCode, $0.headers) })
+    }
+
+    private func decodeResult<T: Sendable>(
+        _ params: InvokeAPIParams, run: CallRun, decodingByStatus decode: (ApiHttpResponse) throws -> T?
+    ) async throws -> ApiResult<T> {
+        let (response, requestPath) = try await invokeAPIWithPath(params, run: run)
         let data: T?
         do {
             data = response.body.isEmpty ? nil : try decode(response)

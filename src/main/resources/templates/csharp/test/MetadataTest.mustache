@@ -390,6 +390,8 @@ public class MetadataTest
         Assert.Equal(withExtra.GetHashCode(), sameExtra.GetHashCode());
     }
 
+    private static object? NoObject() => null;
+
     [Fact]
     public void BhvEquality001SameValuesAreEqualAndANestedChangeIsNot()
     {

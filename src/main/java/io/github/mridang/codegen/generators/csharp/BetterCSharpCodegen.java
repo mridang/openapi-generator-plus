@@ -411,6 +411,12 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return "<![CDATA[" + text.replace("]]>", "]]]]><![CDATA[>") + "]]>";
     }
 
+    /** The adapter is built on the base class library, so csharp always ships it. */
+    @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
+    }
+
     /**
      * Processes user-supplied codegen options after they are
      * resolved. Reads the source folder and package name, then
@@ -471,6 +477,13 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.cs"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.cs"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.cs"),
+            new SupportingFileSpec("call_hook.mustache", invokerFolder, "ICallHook.cs"),
+            new SupportingFileSpec("call_observer.mustache", invokerFolder, "ICallObserver.cs"),
+            new SupportingFileSpec("call_info.mustache", invokerFolder, "CallInfo.cs"),
+            new SupportingFileSpec("call_outcome.mustache", invokerFolder, "CallOutcome.cs"),
+            new SupportingFileSpec("chained_call_hook.mustache", invokerFolder, "ChainedCallHook.cs"),
+            new SupportingFileSpec(
+                "open_telemetry_call_hook.mustache", invokerFolder, "OpenTelemetryCallHook.cs"),
             new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "Auth").toString(), "IAuthenticator.cs"),
             new SupportingFileSpec("illink_descriptors.mustache", invokerFolder, "ILLink.Descriptors.xml"),
             new SupportingFileSpec("csproj.mustache", invokerFolder, pkg + ".csproj"),
@@ -558,6 +571,14 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/TraceContextUtilTest.mustache",
                             "Test",
                             "TraceContextUtilTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/CallHookTest.mustache", "Test", "CallHookTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OpenTelemetryCallHookTest.mustache",
+                            "Test",
+                            "OpenTelemetryCallHookTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ConfigurationTest.mustache",

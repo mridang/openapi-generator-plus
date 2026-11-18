@@ -182,6 +182,41 @@ Constructing a model never validates and never raises on a value: a value that f
 
 Models are frozen pydantic models: assigning a field raises `pydantic.ValidationError`, and they are hashable (a model that holds a list, map or set is hashed by value), so they work as dict keys and set members. Make a changed copy with `model.model_copy(update={"name": "new"})`; the update is not validated, and neither is a constructor, so validate a value that comes from outside with `Model.model_validate(...)`.
 
+### Hooks and telemetry
+
+One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `with_http_info` variant alike, and also when you supply your own transport.
+
+```python
+import time
+
+from petstore_client import CallInfo, CallOutcome, Client
+
+class TimingHook:
+    def start(self, info: CallInfo, headers: dict[str, str]):
+        headers['X-Caller'] = 'billing'
+        started = time.monotonic()
+
+        class Observer:
+            def finish(self, outcome: CallOutcome) -> None:
+                print(info.operation_id, outcome.status_code, time.monotonic() - started)
+
+        return Observer()
+
+client = Client(authenticator, call_hook=TimingHook())
+```
+
+`start(info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `operation_id` (as written in the spec), `method`, `url_template`, `url` (without query string and fragment) and `server_address`. It returns the observer to call when the call ends, or `None`. `finish(outcome)` runs exactly once on every way the call can end, with `status_code` (`0` when no response arrived), the lower-cased response `headers` (`None` when no response arrived) and the `error` the caller receives (`None` on success). An error raised by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error raised by `finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `chain(first, second)`: they start in the order given and finish in the reverse order. `start` and `finish` are plain functions called on the event loop, so they must not block.
+
+`OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Install `petstore-client[opentelemetry]` (the SDK itself does not need it), then pass `OpenTelemetryCallHook()` for the global providers or `OpenTelemetryCallHook(tracer_provider, meter_provider)` for your own.
+
+```python
+from petstore_client.opentelemetry_call_hook import OpenTelemetryCallHook
+
+client = Client(authenticator, call_hook=OpenTelemetryCallHook())
+```
+
+The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.
+
 ### Logging and tracing
 
 The SDK writes no log lines. To log requests, pass your own `urllib3.PoolManager` or wrap `DefaultApiClient`; every `repr` of a configuration, authenticator or error masks credentials. When `opentelemetry` is installed, the current trace context is sent as `traceparent` and `tracestate` request headers.

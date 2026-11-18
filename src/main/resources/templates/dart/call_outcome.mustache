@@ -1,0 +1,20 @@
+{{>api_info}}
+/// What a [CallObserver] is told when a call has ended.
+class CallOutcome {
+  /// Creates the outcome of one call.
+  const CallOutcome({
+    required this.statusCode,
+    required this.headers,
+    required this.error,
+  });
+
+  /// The HTTP status code, or 0 when no response arrived.
+  final int statusCode;
+
+  /// The response headers with lower-case names, or null when no response
+  /// arrived. A response without headers has an empty map, never null.
+  final Map<String, String>? headers;
+
+  /// The very error the caller receives, or null when the call succeeded.
+  final Object? error;
+}

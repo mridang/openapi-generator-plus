@@ -4,6 +4,7 @@ import 'dart:async';
 import 'auth/authenticator.dart';
 import 'auth/bearer_authenticator.dart';
 import 'auth/http_aware_authenticator.dart';
+import 'call_hook.dart';
 import 'configuration.dart';
 import 'default_api_client.dart';
 import 'transport_options.dart';
@@ -75,8 +76,9 @@ class {{clientClassName}} implements {{clientClassName}}Interface {
     Authenticator? authenticator,
     required Map<String, Authenticator> schemes,
     required DefaultApiClient apiClient,
+    CallHook? callHook,
   }) : _apiClient = apiClient,
-       {{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}} = _create{{classname}}(host, authenticator, schemes, apiClient){{^-last}},
+       {{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}} = _create{{classname}}(host, authenticator, schemes, apiClient, callHook){{^-last}},
        {{/-last}}{{#-last}};{{/-last}}{{/operations}}{{/apis}}{{/apiInfo}}
 
   /// Creates a new client from its credentials and transport options.
@@ -97,12 +99,15 @@ class {{clientClassName}} implements {{clientClassName}}Interface {
   ///     scheme credential matches
   ///   - [transportOptions]: HTTP transport configuration (proxy, TLS,
   ///     timeouts, etc.)
+  ///   - [callHook]: called around every operation call of every API group
+  ///     (see [CallHook])
   factory {{clientClassName}}({
     Authenticator? authenticator,
 {{#clientSchemes}}
     Authenticator? {{paramName}},
 {{/clientSchemes}}
     TransportOptions? transportOptions,
+    CallHook? callHook,
   }) {
     final schemes = <String, Authenticator>{
 {{#clientSchemes}}
@@ -124,6 +129,7 @@ class {{clientClassName}} implements {{clientClassName}}Interface {
       authenticator: authenticator,
       schemes: schemes,
       apiClient: apiClient,
+      callHook: callHook,
     );
   }
 
@@ -135,8 +141,10 @@ class {{clientClassName}} implements {{clientClassName}}Interface {
     Authenticator? authenticator,
     Map<String, Authenticator> schemes,
     DefaultApiClient apiClient,
+    CallHook? callHook,
   ) {
-    final config = ConfigurationBuilder().baseUrl(host.host()).build();
+    final config =
+        ConfigurationBuilder().baseUrl(host.host()).callHook(callHook).build();
     return {{classname}}(
       apiClient: apiClient,
       config: config,
@@ -172,11 +180,13 @@ class {{clientClassName}} implements {{clientClassName}}Interface {
   ///   - [tokenProvider]: returns the current Bearer token; may be asynchronous
   ///   - [transportOptions]: optional HTTP transport configuration (proxy,
   ///     TLS, timeouts, etc.)
+  ///   - [callHook]: called around every operation call (see [CallHook])
   factory {{clientClassName}}.withToken({
     required String host,
     String? accessToken,
     FutureOr<String> Function()? tokenProvider,
     TransportOptions? transportOptions,
+    CallHook? callHook,
   }) {
     return {{clientClassName}}(
       authenticator: BearerAuthenticator(
@@ -185,6 +195,7 @@ class {{clientClassName}} implements {{clientClassName}}Interface {
         tokenProvider: tokenProvider,
       ),
       transportOptions: transportOptions,
+      callHook: callHook,
     );
   }
 

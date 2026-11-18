@@ -544,6 +544,15 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         }
     }
 
+    /**
+     * Rust ships an adapter on the OpenTelemetry API, behind the existing {@code opentelemetry}
+     * feature, so the core takes no OpenTelemetry dependency.
+     */
+    @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected List<SupportingFileSpec> getSupportingFileSpecs() {
@@ -657,6 +666,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         "form_url_encode.rs"),
                 new SupportingFileSpec(
                         "trace_context_util.mustache", "src", "trace_context_util.rs"),
+                new SupportingFileSpec("call_hook.mustache", "src", "call_hook.rs"),
+                new SupportingFileSpec(
+                        "open_telemetry_call_hook.mustache",
+                        "src",
+                        "open_telemetry_call_hook.rs"),
                 new SupportingFileSpec("api_response.mustache", "src", "api_http_response.rs"),
                 new SupportingFileSpec("api_result.mustache", "src", "api_result.rs"),
                 new SupportingFileSpec("api_client.mustache", "src", "api_client.rs"),

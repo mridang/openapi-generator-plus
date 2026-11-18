@@ -247,6 +247,165 @@ carries its method, path, status and headers on the `ApiException`, with
 credential headers redacted in `toString()`. Set
 `TransportOptions.builder().injectRequestId(true)` to correlate with server logs.
 
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it once on the client or on the `Configuration`, and combine several with `chainCallHooks`, which starts them in the order given and finishes their observers in the reverse order.
+
+```dart
+import 'package:petstore_client/petstore_client.dart';
+
+class SourceHook implements CallHook {
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    headers['X-Source'] = 'nightly-job';
+    return null;
+  }
+}
+
+final client = Client.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: SourceHook(),
+);
+```
+
+`start` runs once per call, however many sends the call takes, right after the trace context is injected, so `headers` is the final header set: authentication and default headers included, and any of them can be replaced. A header you set is on every send of the call, retries and the replay after a 401 included; the fresh authentication headers of a replay still replace a header of the same name. `start` returns a `CallObserver`, or `null` when it has nothing to observe, and `CallObserver.finish` is called exactly once when the call has ended, with a `CallOutcome`: the `statusCode` (0 when no response arrived), the lower-cased response `headers` (`null` when no response arrived) and the `error`, the very error the caller receives. `CallInfo` carries the `operationId` as written in the spec, the upper-case `method`, the `urlTemplate`, the `url` without its query string and the `serverAddress`. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook runs above the transport, so it also fires with a `package:http` `Client` you supplied.
+
+To record one span, one request count and one duration per call, give the SDK a hook built on the OpenTelemetry API. The SDK itself has no OpenTelemetry dependency and Dart cannot detect an optional package, so this is a recipe you copy into your project rather than a class the SDK ships. It names the span after the operation id with kind client, sets `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code for a status of 400 or more, else `timeout`, `network_error`, `serialization_error` or `_OTHER`), and writes the `traceparent` of the client span into the request itself. The `opentelemetry` package offers no histogram and its SDK counter records nothing, so the count and the duration go to the functions you pass as `onRequest` and `onDuration`; forward them to your metrics library.
+
+```dart
+import 'package:opentelemetry/api.dart' as otel;
+import 'package:petstore_client/petstore_client.dart';
+
+/// Records one span for every call, and hands its count and its duration to
+/// the functions you give it.
+class OpenTelemetryCallHook implements CallHook {
+  OpenTelemetryCallHook({
+    this.tracerProvider,
+    this.propagator,
+    this.currentContext,
+    this.onRequest,
+    this.onDuration,
+  });
+
+  /// The provider the spans come from; the global provider when null.
+  final otel.TracerProvider? tracerProvider;
+
+  /// Writes the trace context into the request; the global one when null.
+  final otel.TextMapPropagator<dynamic>? propagator;
+
+  /// The context the span is a child of; the active context when null.
+  final otel.Context Function()? currentContext;
+
+  /// Called once per call with the attributes of its span.
+  final void Function(List<otel.Attribute> attributes)? onRequest;
+
+  /// Called once per call with its duration in seconds and the attributes of
+  /// its span.
+  final void Function(double seconds, List<otel.Attribute> attributes)?
+      onDuration;
+
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    final tracer = (tracerProvider ?? otel.globalTracerProvider)
+        .getTracer('petstore_client', version: '1.0.0');
+    final parent = (currentContext ?? () => otel.Context.current)();
+    final attributes = [
+      otel.Attribute.fromString('http.request.method', info.method),
+      otel.Attribute.fromString('url.template', info.urlTemplate),
+      otel.Attribute.fromString('server.address', info.serverAddress),
+    ];
+    final span = tracer.startSpan(
+      info.operationId,
+      context: parent,
+      kind: otel.SpanKind.client,
+      attributes: attributes,
+    );
+    final carrier = <String, String>{};
+    (propagator ?? otel.globalTextMapPropagator).inject(
+      otel.contextWithSpan(parent, span),
+      carrier,
+      _HeaderSetter(),
+    );
+    carrier.forEach((name, value) {
+      if (value.isNotEmpty) {
+        headers[name] = value;
+      }
+    });
+    return _SpanObserver(this, span, attributes, Stopwatch()..start());
+  }
+}
+
+class _SpanObserver implements CallObserver {
+  _SpanObserver(this._hook, this._span, this._attributes, this._clock);
+
+  final OpenTelemetryCallHook _hook;
+  final otel.Span _span;
+  final List<otel.Attribute> _attributes;
+  final Stopwatch _clock;
+
+  @override
+  void finish(CallOutcome outcome) {
+    final attributes = [..._attributes];
+    if (outcome.statusCode > 0) {
+      attributes.add(otel.Attribute.fromInt(
+          'http.response.status_code', outcome.statusCode));
+    }
+    final errorType = _errorType(outcome);
+    if (errorType != null) {
+      attributes.add(otel.Attribute.fromString('error.type', errorType));
+      _span.setStatus(otel.StatusCode.error);
+    }
+    _span.setAttributes(attributes);
+    _span.end();
+    _hook.onRequest?.call(attributes);
+    _hook.onDuration?.call(_clock.elapsedMicroseconds / 1e6, attributes);
+  }
+
+  static String? _errorType(CallOutcome outcome) {
+    if (outcome.statusCode >= 400) {
+      return '${outcome.statusCode}';
+    }
+    final error = outcome.error;
+    if (error == null) {
+      return null;
+    }
+    if (error is NetworkTimeoutException) {
+      return 'timeout';
+    }
+    if (error is NetworkException) {
+      return 'network_error';
+    }
+    if (error is SerializationException) {
+      return 'serialization_error';
+    }
+    return '_OTHER';
+  }
+}
+
+class _HeaderSetter implements otel.TextMapSetter<Map<String, String>> {
+  @override
+  void set(Map<String, String> carrier, String key, String value) {
+    carrier[key] = value;
+  }
+}
+```
+
+Pass it as the `callHook`, with your tracer provider and propagator:
+
+```dart
+import 'package:opentelemetry/api.dart' as otel;
+
+final client = Client.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: OpenTelemetryCallHook(
+    tracerProvider: otel.globalTracerProvider,
+    propagator: otel.W3CTraceContextPropagator(),
+  ),
+);
+```
+
 ### Versioning
 
 The package version is `1.0.0` and follows semantic versioning: a

@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, Optional, Protocol
 from petstore_client.auth.authenticator import Authenticator
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
+from petstore_client.call_hook import CallHook
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
@@ -93,6 +94,7 @@ class Client:
         authenticator: Optional[Authenticator] = None,
         transport_options: Optional[TransportOptions] = None,
         pool_manager: Optional[Any] = None,
+        call_hook: Optional[CallHook] = None,
         *,
         pet_store_basic: Optional[Authenticator] = None,
         admin_basic: Optional[Authenticator] = None,
@@ -131,6 +133,8 @@ class Client:
                 on top of it and the SDK never closes it. It cannot be
                 combined with a proxy or TLS setting in ``transport_options``;
                 a conflict raises :class:`ValueError`.
+            call_hook: A :class:`CallHook` that runs around every operation
+                call: it can edit the request headers and observe the outcome.
             pet_store_basic: The credential of the ``petStoreBasic`` security scheme.
             admin_basic: The credential of the ``adminBasic`` security scheme.
             pet_store_bearer: The credential of the ``petStoreBearer`` security scheme.
@@ -191,7 +195,12 @@ class Client:
             if isinstance(credential, HttpAwareAuthenticator):
                 credential.set_api_client(api_client)
 
-        config = Configuration.builder().base_url(credentials[0].get_host()).build()
+        config = (
+            Configuration.builder()
+            .base_url(credentials[0].get_host())
+            .call_hook(call_hook)
+            .build()
+        )
         # API operations for the PetApi group.
         self.pet: PetApi = PetApi(api_client, config, authenticator, schemes)
         # API operations for the ProblemsApi group.
@@ -209,6 +218,7 @@ class Client:
         transport_options: Optional[TransportOptions] = None,
         pool_manager: Optional[Any] = None,
         token_provider: Optional[Callable[[], str]] = None,
+        call_hook: Optional[CallHook] = None,
     ) -> "Client":
         """Creates a client authenticated with a Bearer token.
 
@@ -227,6 +237,7 @@ class Client:
             pool_manager: Optional caller-owned ``urllib3.PoolManager``.
             token_provider: Optional callable returning the current token.
                 It replaces ``access_token`` and the environment variable.
+            call_hook: Optional :class:`CallHook` around every operation call.
 
         Returns:
             Configured client instance.
@@ -258,7 +269,7 @@ class Client:
                     "or set SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"
                 )
             authenticator = BearerAuthenticator(resolved_host, resolved_token)
-        return cls(authenticator, transport_options, pool_manager)
+        return cls(authenticator, transport_options, pool_manager, call_hook)
 
     @classmethod
     def with_authenticator(
@@ -266,6 +277,7 @@ class Client:
         authenticator: Authenticator,
         transport_options: Optional[TransportOptions] = None,
         pool_manager: Optional[Any] = None,
+        call_hook: Optional[CallHook] = None,
     ) -> "Client":
         """Creates a client from a ready-made authenticator.
 
@@ -281,11 +293,12 @@ class Client:
             transport_options: Optional HTTP transport configuration (proxy,
                 TLS, timeouts, etc.).
             pool_manager: Optional caller-owned ``urllib3.PoolManager``.
+            call_hook: Optional :class:`CallHook` around every operation call.
 
         Returns:
             Configured client instance.
         """
-        return cls(authenticator, transport_options, pool_manager)
+        return cls(authenticator, transport_options, pool_manager, call_hook)
 
     def close(self) -> None:
         """Closes the client gracefully; calling it again does nothing.

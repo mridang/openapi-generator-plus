@@ -41,6 +41,7 @@ This generator (`csharp-plus`, class `BetterCSharpCodegen`) emits a NuGet packag
 | `params` | Token manager arguments are named `parameters` | `params` is a C# keyword |
 | `ServerVariable` | Optional description and values come from overloaded constructors | Record parameter defaults must be compile-time constants |
 | Trace context | `System.Diagnostics.DistributedContextPropagator` (W3C), not OpenTelemetry | In the BCL; no-ops when `Activity.Current` is null |
+| Call hook and telemetry | `ICallHook`, `ICallObserver`, `CallInfo` and `CallOutcome` records; the adapter `OpenTelemetryCallHook` on `ActivitySource` and `Meter`, no package; the hook is the trailing `callHook` argument of the `Client` constructors and factories (no client builder exists) | `I` prefix is the interface rule; the types are in the BCL; the facade is constructor based |
 | Doc comments | XML `///`; prose with XML metacharacters is wrapped in CDATA by the `escapeXml` lambda | CS1570 is an error under warnings as errors and named entities are banned |
 | Trimming | `ILLink.Descriptors.xml` embedded keep-list, parameterless model constructors with `required` init accessors | System.Text.Json reflection; proven by `CSharpTrimmedSpec` |
 | OIDC endpoints | Typed as `System.Uri`, so a non-absolute endpoint is rejected | Benign extra guard; the other eleven take any non-empty string |
@@ -116,6 +117,12 @@ Rule: callbacks and webhooks, XML bodies and nodeType, Link Objects and mutual T
 Why: backlog issues #53, #70, #78, #88, #90 were closed as out of scope.
 Where: `readme.mustache`.
 Test: golden README.
+
+### Call hook and OpenTelemetry adapter (D95, D96, issues 158 and 108)
+Rule: one optional `ICallHook` on `Configuration` runs once per operation call (both variants, retries and the 401 replay inside it, a supplied transport too). `Start` runs in `BaseApi.InvokeApiForResultAsync` on the final header set (after the per-call headers, so a hook can read and replace any of them) and before the body is encoded; its edits are kept as a delta and reapplied on every rebuild of the headers, except that the fresh authentication headers of a 401 replay win over a hook header of the same name. `Finish` runs in a `finally`, exactly once, with the very exception the caller receives; an error from `Start` propagates, an error from `Finish` is swallowed (`when` filter, CA1031). `operationId` is `operationIdOriginal` and `urlTemplate` is the spec path, both passed by `api/api.mustache`.
+Why: one hook for editing, observing and tracing in all twelve; the `ActivitySource` and `Meter` types are in the base class library, so the adapter ships in the core assembly with no package. The adapter restores `Activity.Current` after starting its span and writes `traceparent` itself; it accepts an `IMeterFactory`, which is the only provider concept .NET has.
+Where: `call_hook`, `call_observer`, `call_info`, `call_outcome`, `chained_call_hook`, `open_telemetry_call_hook`, `base_api`, `configuration`, `client`, `api/api.mustache`.
+Test: `BaseApiTest.mustache` (`BhvHooks001` to `BhvHooks019`, `BhvHooks021`), `CallHookTest.mustache` (`BhvHooks020`), `ClientTest.mustache` (`BhvHooks010`), `OpenTelemetryCallHookTest.mustache` (`BhvTelemetry001` to `BhvTelemetry014`).
 
 ### Test runner and caches (S13, 2026-11-16)
 Rule: spec parallelism is 3 (`junit-platform.properties`); the NuGet cache lives at `/root/.cache/csharp/nuget` (`NUGET_PACKAGES`); do not touch `.github` workflows from this repository.

@@ -111,6 +111,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'createAccount',
+            urlTemplate: '/store/account',
         );
         return $result;
     }
@@ -187,6 +189,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'deleteOrder',
+            urlTemplate: '/store/order/{orderId}',
         );
         return $result;
     }
@@ -298,6 +302,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getBySwatch',
+            urlTemplate: '/store/by-swatch/{pathSwatch}',
         );
         return $result;
     }
@@ -366,6 +372,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getDefaults',
+            urlTemplate: '/store/defaults',
         );
         return $result;
     }
@@ -434,6 +442,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getDepartment',
+            urlTemplate: '/store/department',
         );
         return $result;
     }
@@ -503,6 +513,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getGroupedCategories',
+            urlTemplate: '/store/grouped-categories',
         );
         return $result;
     }
@@ -572,6 +584,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getInventory',
+            urlTemplate: '/store/inventory',
         );
         return $result;
     }
@@ -641,6 +655,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getMatrix',
+            urlTemplate: '/store/matrix',
         );
         return $result;
     }
@@ -847,6 +863,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getOrderById',
+            urlTemplate: '/store/order/{orderId}',
         );
         return $result;
     }
@@ -934,6 +952,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getOrderByTrackingId',
+            urlTemplate: '/store/order/by-tracking/{trackingId}',
         );
         return $result;
     }
@@ -1013,6 +1033,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getStockItem',
+            urlTemplate: '/store/stock-item',
         );
         return $result;
     }
@@ -1081,6 +1103,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getSwatch',
+            urlTemplate: '/store/swatch',
         );
         return $result;
     }
@@ -1150,6 +1174,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getSwatchGroups',
+            urlTemplate: '/store/swatch-groups',
         );
         return $result;
     }
@@ -1219,6 +1245,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getTimestampGroups',
+            urlTemplate: '/store/timestamp-groups',
         );
         return $result;
     }
@@ -1287,6 +1315,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'getTree',
+            urlTemplate: '/store/tree',
         );
         return $result;
     }
@@ -1356,6 +1386,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'placeOrder',
+            urlTemplate: '/store/order',
         );
         return $result;
     }
@@ -1431,6 +1463,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
                 '201' => \PetstoreClient\Models\ReservationReceipt::class,
             ],
             securityRequirements: [],
+            operationId: 'reserveStock',
+            urlTemplate: '/store/reservation',
         );
         return $result;
     }
@@ -1529,6 +1563,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [],
+            operationId: 'searchStore',
+            urlTemplate: '/store/search',
         );
         return $result;
     }

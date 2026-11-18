@@ -502,6 +502,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'POST',
       operation: 'PetApi.addPet',
+      operationId: 'addPet',
+      urlTemplate: '/pet',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -602,6 +604,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<List<Photo>>(
       method: 'POST',
       operation: 'PetApi.addPetPhotos',
+      operationId: 'addPetPhotos',
+      urlTemplate: '/pet/{petId}/photos',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -694,6 +698,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<PetTreatment>(
       method: 'POST',
       operation: 'PetApi.addPetTreatment',
+      operationId: 'addPetTreatment',
+      urlTemplate: '/pet/{petId}/treatment',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -793,6 +799,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<void>(
       method: 'DELETE',
       operation: 'PetApi.deletePet',
+      operationId: 'deletePet',
+      urlTemplate: '/pet/{petId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -901,6 +909,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Uint8List>(
       method: 'GET',
       operation: 'PetApi.downloadPetDocument',
+      operationId: 'downloadPetDocument',
+      urlTemplate: '/pet/{petId}/documents/{documentId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -981,6 +991,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<List<Pet>>(
       method: 'GET',
       operation: 'PetApi.findPetsBornOn',
+      operationId: 'findPetsBornOn',
+      urlTemplate: '/pet/born-on/{bornOn}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1111,6 +1123,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<List<Pet>>(
       method: 'GET',
       operation: 'PetApi.findPetsByStatus',
+      operationId: 'findPetsByStatus',
+      urlTemplate: '/pet/findByStatus',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1199,6 +1213,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'GET',
       operation: 'PetApi.getExternalPetInfo',
+      operationId: 'getExternalPetInfo',
+      urlTemplate: '/pet/{petId}/external',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1291,6 +1307,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'GET',
       operation: 'PetApi.getMultiServerPetInfo',
+      operationId: 'getMultiServerPetInfo',
+      urlTemplate: '/pet/{petId}/multi',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1373,6 +1391,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Uint8List>(
       method: 'GET',
       operation: 'PetApi.getPetAvatar',
+      operationId: 'getPetAvatar',
+      urlTemplate: '/pet/{petId}/avatar',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1455,6 +1475,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Uint8List>(
       method: 'GET',
       operation: 'PetApi.getPetAvatarThumbnail',
+      operationId: 'getPetAvatarThumbnail',
+      urlTemplate: '/pet/{petId}/avatar/thumbnail',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1559,6 +1581,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'GET',
       operation: 'PetApi.getPetById',
+      operationId: 'getPetById',
+      urlTemplate: '/pet/{petId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1672,6 +1696,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'GET',
       operation: 'PetApi.getPetByName',
+      operationId: 'getPetByName',
+      urlTemplate: '/pet/byName/{name}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1837,6 +1863,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<PetPassport>(
       method: 'GET',
       operation: 'PetApi.getPetPassport',
+      operationId: 'getPetPassport',
+      urlTemplate: '/pet/{petId}/passport',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1943,6 +1971,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Uint8List>(
       method: 'GET',
       operation: 'PetApi.getPetPhoto',
+      operationId: 'getPetPhoto',
+      urlTemplate: '/pet/{petId}/photos/{photoId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2098,6 +2128,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<String>(
       method: 'GET',
       operation: 'PetApi.getPetSummary',
+      operationId: 'getPetSummary',
+      urlTemplate: '/pet/{petId}/summary/{asOf}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2322,6 +2354,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'GET',
       operation: 'PetApi.getPetTag',
+      operationId: 'getPetTag',
+      urlTemplate: '/pet/{petId}/tag/{tagName}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2410,6 +2444,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'GET',
       operation: 'PetApi.getStagingPetInfo',
+      operationId: 'getStagingPetInfo',
+      urlTemplate: '/pet/{petId}/staging',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2491,6 +2527,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<void>(
       method: 'PUT',
       operation: 'PetApi.setPetAvatar',
+      operationId: 'setPetAvatar',
+      urlTemplate: '/pet/{petId}/avatar',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2563,6 +2601,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<void>(
       method: 'PUT',
       operation: 'PetApi.setPetAvatarThumbnail',
+      operationId: 'setPetAvatarThumbnail',
+      urlTemplate: '/pet/{petId}/avatar/thumbnail',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2677,6 +2717,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<ApiResponse>(
       method: 'POST',
       operation: 'PetApi.setPetPreferences',
+      operationId: 'setPetPreferences',
+      urlTemplate: '/pet/{petId}/preferences',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2761,6 +2803,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<Pet>(
       method: 'PUT',
       operation: 'PetApi.updatePet',
+      operationId: 'updatePet',
+      urlTemplate: '/pet/{petId}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2859,6 +2903,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<ApiResponse>(
       method: 'POST',
       operation: 'PetApi.uploadPetCertificate',
+      operationId: 'uploadPetCertificate',
+      urlTemplate: '/pet/{petId}/certificate',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -3009,6 +3055,8 @@ class PetApi extends BaseApi implements PetApiInterface {
     return invokeApiForResult<ApiResponse>(
       method: 'POST',
       operation: 'PetApi.uploadPetDocument',
+      operationId: 'uploadPetDocument',
+      urlTemplate: '/pet/{petId}/documents',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
