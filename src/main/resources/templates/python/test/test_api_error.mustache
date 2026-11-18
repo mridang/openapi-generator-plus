@@ -509,6 +509,11 @@ class TestApiErrorTypedBodyFailures:
 
 
 class TestOAuth2ServerExceptionMessage:
+
+    def test_bhv_errors_049_names_the_status_and_the_error_code(self) -> None:
+        err = OAuth2ServerException(400, 'invalid_grant', None, None, '{}')
+
+        assert str(err) == 'Token request failed with status 400: invalid_grant'
     @pytest.mark.parametrize(
         ("code", "description", "raw_body", "expected"),
         [

@@ -20,6 +20,110 @@ from petstore_client.errors import OpenAPIException
 
 
 class TestOAuth2TokenManager:
+    def test_bhv_authoauthtwotokenmgr_042_a_token_server_error_names_the_status_the_code_and_the_description(
+        self,
+    ) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=400,
+            body=json.dumps(
+                {
+                    "error": "invalid_grant",
+                    "error_description": "refresh token expired",
+                }
+            ),
+            headers={"content-type": "application/json"},
+        )
+        manager.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2ServerException) as exc_info:
+            manager.get_access_token(
+                "https://auth.example.com/token",
+                {"grant_type": "client_credentials"},
+            )
+        assert str(exc_info.value) == (
+            "Token request failed with status 400: invalid_grant -- refresh token expired"
+        )
+
+    def test_bhv_authoauthtwotokenmgr_043_token_body_keeps_the_fixed_parameter_order(
+        self,
+    ) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({"access_token": "a1"}),
+            headers={"content-type": "application/json"},
+        )
+        manager.set_api_client(mock_client)
+        params = {
+            "grant_type": "password",
+            "username": "u",
+            "password": "p",
+            "client_id": "c",
+            "client_secret": "s",
+            "scope": "a b",
+            "audience": "x",
+            "resource": "r",
+        }
+
+        manager.get_access_token("https://auth.example.com/token", params)
+
+        assert mock_client.send_request.call_args[0][3] == (
+            "grant_type=password&username=u&password=p&client_id=c&client_secret=s"
+            "&scope=a+b&audience=x&resource=r"
+        )
+
+    def test_bhv_authoauthtwotokenmgr_045_a_padded_decimal_expires_in_with_a_fraction_is_cached(
+        self,
+    ) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({"access_token": "pad-tok", "expires_in": " 3600.5\n"}),
+            headers={"content-type": "application/json"},
+        )
+        manager.set_api_client(mock_client)
+        params = {"grant_type": "client_credentials"}
+
+        manager.get_access_token("https://auth.example.com/token", params)
+        manager.get_access_token("https://auth.example.com/token", params)
+
+        assert mock_client.send_request.call_count == 1
+
+    @pytest.mark.parametrize("raw", ["0x1000", "1e4", "1_000_000", "3600d", "-5"])
+    def test_bhv_authoauthtwotokenmgr_046_a_string_expires_in_outside_the_decimal_grammar_leaves_the_token_stale(
+        self,
+        raw: str,
+    ) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({"access_token": "first", "expires_in": raw}),
+                headers={"content-type": "application/json"},
+            ),
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({"access_token": "second", "expires_in": 3600}),
+                headers={"content-type": "application/json"},
+            ),
+        ]
+        manager.set_api_client(mock_client)
+        params = {"grant_type": "client_credentials"}
+
+        assert (
+            manager.get_access_token("https://auth.example.com/token", params)
+            == "first"
+        )
+        assert (
+            manager.get_access_token("https://auth.example.com/token", params)
+            == "second"
+        )
+
     def test_bhv_authoauthtwotokenmgr_014_extracts_access_token_from_response(
         self,
     ) -> None:

@@ -163,7 +163,11 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         # other, so it raises the same typed error an API call would.
         if response.status_code < 200 or response.status_code >= 300:
             raise ApiException.from_response(
-                response.status_code, response.headers, response.body
+                response.status_code,
+                response.headers,
+                response.body,
+                "GET",
+                urlparse(self._openid_connect_url).path,
             )
         try:
             discovery = json.loads(response.body)
