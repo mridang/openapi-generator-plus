@@ -93,6 +93,7 @@ test('bhv operations 148 an operation that inherits the root security uses the f
     /** @var \ArrayObject<string, mixed> $captured */
     $captured = new \ArrayObject(['headers' => []]);
     $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        /** @param \ArrayObject<string, mixed> $captured */
         public function __construct(private \ArrayObject $captured)
         {
         }
@@ -119,7 +120,9 @@ test('bhv operations 148 an operation that inherits the root security uses the f
 
     $api->getOrderById(1);
 
-    expect($captured['headers']['Authorization'] ?? null)->toStartWith('Basic ');
+    $headers = $captured['headers'];
+    \assert(is_array($headers));
+    expect($headers['Authorization'] ?? null)->toStartWith('Basic ');
 });
 
 test('bhv operations 096 an operation without parameters or security takes per call headers', function (): void {
@@ -214,6 +217,7 @@ test('bhv operations 126 place order without an argument sends no body', functio
     $captured = new \ArrayObject(['body' => 'unset', 'headers' => []]);
 
     $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        /** @param \ArrayObject<string, mixed> $captured */
         public function __construct(private \ArrayObject $captured)
         {
         }

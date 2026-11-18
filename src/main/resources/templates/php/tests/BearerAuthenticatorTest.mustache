@@ -446,11 +446,15 @@ function bearerWrapper(string $class, string ...$args): BearerAuthenticator
 
 /**
  * The environment variable a generated bearer wrapper reads its token from.
+ *
+ * @param class-string $class
  */
 function bearerWrapperEnvVariable(string $class): string
 {
     $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
     \assert(is_array($constants));
+    $first = array_values($constants)[0];
+    \assert(is_string($first));
 
-    return (string) array_values($constants)[0];
+    return $first;
 }

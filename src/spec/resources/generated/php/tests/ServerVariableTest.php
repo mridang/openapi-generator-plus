@@ -50,9 +50,11 @@ test('bhv servers 019 enum does not contain a value outside the allowed set', fu
 test('bhv servers 024 the enum values cannot be mutated', function (): void {
     $variable = new ServerVariable(defaultValue: 'v3', enumValues: ['v2', 'v3']);
 
-    $property = 'enumValues';
-    expect(function () use ($variable, $property): void {
-        $variable->{$property}[] = 'v4';
+    expect(function () use ($variable): void {
+        $values = (new \ReflectionProperty(ServerVariable::class, 'enumValues'))->getValue($variable);
+        \assert(is_array($values));
+        $values[] = 'v4';
+        (new \ReflectionProperty(ServerVariable::class, 'enumValues'))->setValue($variable, $values);
     })->toThrow(\Error::class);
 });
 
