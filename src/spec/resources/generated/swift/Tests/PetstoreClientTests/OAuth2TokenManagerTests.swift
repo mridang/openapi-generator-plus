@@ -957,6 +957,31 @@ import Testing
     }
   }
 
+  /* A token response whose access token is empty or not a string, or whose body is not a
+   * JSON object, is refused with an error that names the problem. */
+  @Test(arguments: [
+    ("{\"access_token\":\"\"}", "access_token"),
+    ("{\"access_token\":5}", "access_token"),
+    ("[1,2]", "JSON object"),
+  ])
+  func testBhvMisc069AnUnusableTokenResponseIsRefusedWithAProblem(body: String, names: String) async
+  {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: body))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    do {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"]
+      )
+      Issue.record("Expected OAuth2TokenError for \(body)")
+    } catch {
+      #expect(String(describing: error).contains(names))
+    }
+  }
+
   /// A 2xx response whose body is not a token JSON object must surface as
   /// OAuth2TokenError.invalidResponse, not a foreign DecodingError.
   @Test func testBhvAuthoauthtwotokenmgr001TokenResponseThatIsNotJsonThrowsTypedError() async {

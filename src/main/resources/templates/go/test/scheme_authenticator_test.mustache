@@ -364,4 +364,12 @@ func Test{{#firstBearer}}BhvAuth004_{{/firstBearer}}BhvLanggo125_SchemeAuthentic
 	}
 }
 {{/isBearer}}
+func TestBhvMisc196_SchemeAuthenticator_{{className}}_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	if _, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}}); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
 {{/schemeAuthTests}}

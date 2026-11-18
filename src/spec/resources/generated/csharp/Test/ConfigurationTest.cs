@@ -56,6 +56,21 @@ public class ConfigurationTest
         Assert.Empty(config.DefaultHeaders);
     }
 
+    [Fact]
+    public void BhvMisc136TheDebugTextShowsTheBaseUrlAndNonSensitiveHeaders()
+    {
+        var config = Configuration
+            .Builder()
+            .BaseUrl("https://api.example.com/v2")
+            .DefaultHeader("X-Trace", "keep")
+            .Build();
+
+        var text = config.ToString();
+
+        Assert.Contains("https://api.example.com/v2", text, StringComparison.Ordinal);
+        Assert.Contains("keep", text, StringComparison.Ordinal);
+    }
+
     private sealed class NoopHook : ICallHook
     {
         public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers) => null;

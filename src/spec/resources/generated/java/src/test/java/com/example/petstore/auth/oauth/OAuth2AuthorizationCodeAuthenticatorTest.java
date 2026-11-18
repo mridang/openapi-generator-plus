@@ -877,4 +877,14 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
             IllegalStateException.class, () -> auth.exchangeCode("the-code"));
     org.junit.jupiter.api.Assertions.assertSame(cause, thrown);
   }
+
+  @Test
+  void bhvMisc077AGeneratedPkceVerifierIsFortyThreeCharactersAndDiffersPerCall() {
+    String first = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
+    String second = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
+
+    assertEquals(43, first.length());
+    assertTrue(first.matches("[A-Za-z0-9_-]{43}"), first);
+    assertNotEquals(first, second);
+  }
 }

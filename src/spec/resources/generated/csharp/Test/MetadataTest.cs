@@ -39,6 +39,18 @@ public class MetadataTest
     }
 
     [Fact]
+    public void BhvMisc093NumericAdditionalPropertyNamesAreWrittenAsObjectMembers()
+    {
+        var metadata = new Metadata();
+        metadata.AdditionalProperties["404"] = "missing";
+        Assert.Contains(
+            "\"404\":\"missing\"",
+            _serializer.Serialize(metadata),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public void BhvLangcsharp029AdditionalPropertiesIsEmptyAndNeverNullOnNewInstance()
     {
         var metadata = new Metadata();
