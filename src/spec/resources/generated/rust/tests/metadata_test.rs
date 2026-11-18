@@ -509,10 +509,9 @@ fn test_generated_source_has_no_line_comments() {
 fn test_bhv_models_010_metadata_declared_property_wins_over_a_colliding_additional_property() {
     let mut metadata: Metadata = serde_json::from_str(r#"{"createdAt":"2024-01-15T10:30:00Z"}"#)
         .expect("failed to deserialize Metadata");
-    metadata.additional_properties.insert(
-        "createdAt".to_string(),
-        petstore::JsonValue::new(serde_json::Value::String("x".to_string())),
-    );
+    metadata
+        .additional_properties
+        .insert("createdAt".to_string(), "x".to_string());
 
     let data = serde_json::to_string(&metadata).expect("failed to serialize Metadata");
 

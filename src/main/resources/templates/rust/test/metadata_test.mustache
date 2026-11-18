@@ -471,7 +471,7 @@ fn test_bhv_models_010_metadata_declared_property_wins_over_a_colliding_addition
         .expect("failed to deserialize Metadata");
     metadata.additional_properties.insert(
         "createdAt".to_string(),
-        {{packageName}}::JsonValue::new(serde_json::Value::String("x".to_string())),
+        "x".to_string(),
     );
 
     let data = serde_json::to_string(&metadata).expect("failed to serialize Metadata");

@@ -536,6 +536,21 @@ internal partial class ObjectSerializer
     /// wire form. A wrong JSON type, or a null where the value schema is not nullable,
     /// fails the decode with a <see cref="JsonException"/>.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075",
+        Justification = "The model members are preserved by the embedded ILLink.Descriptors.xml keep-list."
+    )]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "The serializer is pinned to the reflection resolver, and the models are kept."
+    )]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "The serializer is pinned to the reflection resolver."
+    )]
     private static void TypedAdditionalProperties(
         System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo
     )
@@ -577,8 +592,17 @@ internal partial class ObjectSerializer
                 .GenericTypeArguments[1]
                 .ReadState == System.Reflection.NullabilityState.Nullable;
         JsonSerializerOptions options = typeInfo.Options;
-        extension.Get = owner =>
+        if (extension.Set is not Action<object, object?> rawSetter)
         {
+            return;
+        }
+        /* Writing: the raw dictionary is replaced by a fresh one holding the typed values in
+         * their wire form, so a shared instance is never mutated while another thread
+         * writes it. */
+        Action<object>? existingSerializing = typeInfo.OnSerializing;
+        typeInfo.OnSerializing = owner =>
+        {
+            existingSerializing?.Invoke(owner);
             Dictionary<string, JsonElement> wire = new(StringComparer.Ordinal);
             foreach (DictionaryEntry entry in (IDictionary)bucket.GetValue(owner)!)
             {
@@ -588,7 +612,7 @@ internal partial class ObjectSerializer
                     options
                 );
             }
-            return wire;
+            rawSetter(owner, wire);
         };
         Action<object>? existing = typeInfo.OnDeserialized;
         typeInfo.OnDeserialized = owner =>

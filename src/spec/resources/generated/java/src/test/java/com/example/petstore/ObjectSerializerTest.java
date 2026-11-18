@@ -2161,8 +2161,10 @@ class ObjectSerializerTest {
                   "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}",
                   com.example.petstore.models.Roster.class));
       Map<String, com.example.petstore.models.Category> extras = roster.getAdditionalProperties();
-      assertEquals(1L, extras.get("a").id);
-      assertEquals("x", extras.get("a").name);
+      com.example.petstore.models.Category category =
+          java.util.Objects.requireNonNull(extras.get("a"));
+      assertEquals(1L, category.id);
+      assertEquals("x", category.name);
       assertThrows(
           SerializationException.class,
           () ->
@@ -2177,11 +2179,10 @@ class ObjectSerializerTest {
       assertThrows(
           SerializationException.class,
           () -> serializer.deserialize("{\"a\":null}", com.example.petstore.models.Counters.class));
-      assertTrue(
+      com.example.petstore.models.Sparse sparse =
           java.util.Objects.requireNonNull(
-                  serializer.deserialize("{\"a\":null}", com.example.petstore.models.Sparse.class))
-              .getAdditionalProperties()
-              .containsKey("a"));
+              serializer.deserialize("{\"a\":null}", com.example.petstore.models.Sparse.class));
+      assertTrue(sparse.getAdditionalProperties().containsKey("a"));
     }
 
     @Test
@@ -2207,26 +2208,23 @@ class ObjectSerializerTest {
               .putAdditionalProperty("b", new byte[] {0x68, 0x69})
               .build();
       assertEquals("{\"b\":\"aGk=\"}", serializer.serialize(blobs));
+      com.example.petstore.models.Blobs decodedBlobs =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize("{\"b\":\"aGk=\"}", com.example.petstore.models.Blobs.class));
       assertTrue(
-          Arrays.equals(
-              new byte[] {0x68, 0x69},
-              java.util.Objects.requireNonNull(
-                      serializer.deserialize(
-                          "{\"b\":\"aGk=\"}", com.example.petstore.models.Blobs.class))
-                  .getAdditionalProperties()
-                  .get("b")));
+          Arrays.equals(new byte[] {0x68, 0x69}, decodedBlobs.getAdditionalProperties().get("b")));
     }
 
     @Test
     @DisplayName(
         "bhvModels016 a free-form additionalProperties keeps every JSON value as it arrives")
     void bhvModels016FreeFormAdditionalPropertiesKeepAnyValue() {
-      Map<String, Object> extras =
+      com.example.petstore.models.Freeform freeform =
           java.util.Objects.requireNonNull(
-                  serializer.deserialize(
-                      "{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}",
-                      com.example.petstore.models.Freeform.class))
-              .getAdditionalProperties();
+              serializer.deserialize(
+                  "{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}",
+                  com.example.petstore.models.Freeform.class));
+      Map<String, Object> extras = freeform.getAdditionalProperties();
       assertEquals(1, extras.get("a"));
       assertEquals("x", extras.get("b"));
       assertEquals(List.of(true), extras.get("c"));

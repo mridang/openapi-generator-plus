@@ -370,7 +370,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
     /* A typed extra is decoded like an element of a map of the same type, so a
      * wrong JSON type fails with a SerializationException and a null is
      * rejected unless the value schema is nullable. */
-    final additionalProperties = deserializeMap(additionalPropertyEntries, {{#isNullable}}(e) => e == null ? null : ({{>deserialize_arg}})(e){{/isNullable}}{{^isNullable}}{{>deserialize_arg}}{{/isNullable}});
+    final additionalProperties = deserializeMap(additionalPropertyEntries, {{#isNullable}}(Object? e) => deserializeNullable(e, {{>deserialize_arg}}){{/isNullable}}{{^isNullable}}{{>deserialize_arg}}{{/isNullable}});
 {{/vendorExtensions.additionalPropertiesValue}}
 {{^vendorExtensions.additionalPropertiesValue}}
     final additionalProperties = additionalPropertyEntries;
@@ -925,7 +925,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
      * whose key equals a declared wire name is dropped, so no key is written
      * twice and the typed value wins. */
     for (final entry in additionalProperties.entries) {
-      json.putIfAbsent(entry.key, () => {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}entry.value == null ? null : {{/isNullable}}{{#isByteArray}}base64Encode(entry.value{{#isNullable}}!{{/isNullable}}){{/isByteArray}}{{#isDateTime}}formatDateTimeOffset(entry.value{{#isNullable}}!{{/isNullable}}){{/isDateTime}}{{#isUuid}}entry.value{{#isNullable}}!{{/isNullable}}.toString(){{/isUuid}}{{^isByteArray}}{{^isDateTime}}{{^isUuid}}entry.value{{/isUuid}}{{/isDateTime}}{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}entry.value{{/vendorExtensions.additionalPropertiesValue}});
+      json.putIfAbsent(entry.key, () => {{#vendorExtensions.additionalPropertiesValue}}{{#isByteArray}}{{#isNullable}}entry.value == null ? null : {{/isNullable}}base64Encode(entry.value{{#isNullable}}!{{/isNullable}}){{/isByteArray}}{{#isDateTime}}{{#isNullable}}entry.value == null ? null : {{/isNullable}}formatDateTimeOffset(entry.value{{#isNullable}}!{{/isNullable}}){{/isDateTime}}{{#isUuid}}{{#isNullable}}entry.value == null ? null : {{/isNullable}}entry.value{{#isNullable}}!{{/isNullable}}.toString(){{/isUuid}}{{^isByteArray}}{{^isDateTime}}{{^isUuid}}entry.value{{/isUuid}}{{/isDateTime}}{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}entry.value{{/vendorExtensions.additionalPropertiesValue}});
     }
 {{/isAdditionalPropertiesTrue}}
     return json;

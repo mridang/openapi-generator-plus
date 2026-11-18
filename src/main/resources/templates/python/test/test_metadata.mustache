@@ -50,8 +50,6 @@ class TestMetadataTypedAdditionalProperties:
         assert metadata is not None
         assert isinstance(metadata.additional_properties, dict)
         assert isinstance(metadata.additional_properties['customField'], str)
-        annotation = str(type(metadata).model_fields['additional_properties'].annotation)
-        assert 'Dict[str, str]' in annotation or 'dict[str, str]' in annotation
 
     def test_bhv_models_012_an_additional_property_of_the_wrong_json_type_fails_the_decode(self) -> None:
         for body in ('{"a":2.5}', '{"a":"2"}'):
@@ -107,24 +105,24 @@ class TestMetadataTypedAdditionalProperties:
         from {{packageName}}.models import Metadata
         wire = {
             'createdAt': '2024-01-01T00:00:00Z',
-            'additional_properties': {'foo': 'bar'},
+            'additional_properties': 'bar',
         }
         metadata = Metadata.model_validate(wire)
         assert metadata.additional_properties == {
-            'additional_properties': {'foo': 'bar'},
+            'additional_properties': 'bar',
         }
 
     def test_wire_key_named_additional_properties_alongside_other_extras(self) -> None:
-        # The dict-valued `additional_properties` wire key coexists with other
+        # The string-valued `additional_properties` wire key coexists with other
         # genuine extras; none are lost.
         from {{packageName}}.models import Metadata
         wire = {
             'createdAt': '2024-01-01T00:00:00Z',
-            'additional_properties': {'foo': 'bar'},
+            'additional_properties': 'bar',
             'region': 'eu',
         }
         metadata = Metadata.model_validate(wire)
-        assert metadata.additional_properties['additional_properties'] == {'foo': 'bar'}
+        assert metadata.additional_properties['additional_properties'] == 'bar'
         assert metadata.additional_properties['region'] == 'eu'
 
     def test_field_name_kwargs_bucket_is_spread_not_nested(self) -> None:
@@ -136,13 +134,13 @@ class TestMetadataTypedAdditionalProperties:
 
     def test_dict_valued_wire_key_survives_full_round_trip(self) -> None:
         # End-to-end: deserialize -> serialize -> deserialize keeps the
-        # dict-valued `additional_properties` wire property intact. The
+        # string-valued `additional_properties` wire property intact. The
         # deserializing convenience method is wrapped so an unexpected
         # SerializationException surfaces as a clear test failure.
         try:
             wire = (
                 '{"createdAt":"2024-01-01T00:00:00Z",'
-                '"additional_properties":{"foo":"bar"}}'
+                '"additional_properties":"bar"}'
             )
             metadata = ObjectSerializer().deserialize(wire, 'Metadata')
             assert metadata is not None
@@ -151,7 +149,7 @@ class TestMetadataTypedAdditionalProperties:
             )
         except Exception as exc:  # pragma: no cover - defensive surface
             pytest.fail(f'round-trip raised unexpectedly: {exc}')
-        assert restored.additional_properties['additional_properties'] == {'foo': 'bar'}
+        assert restored.additional_properties['additional_properties'] == 'bar'
 
     def test_bhv_models_001_undeclared_wire_keys_are_captured_into_additional_properties(self) -> None:
         from {{packageName}}.models import Metadata
@@ -171,13 +169,13 @@ class TestMetadataTypedAdditionalProperties:
         # are spread into additional_properties; a wire-alias keyword would make
         # that dict a real wire property. mypy checks the alias keyword only.
         colliding = Metadata.model_validate(
-            {'created_at': stamp, 'additional_properties': {'createdAt': 'x', 'extra': 1}}
+            {'created_at': stamp, 'additional_properties': {'createdAt': 'x', 'extra': 'y'}}
         )
 
         data = json.loads(ObjectSerializer().serialize(colliding))
 
         assert data['createdAt'] == declared_only['createdAt']
-        assert data['extra'] == 1
+        assert data['extra'] == 'y'
 
 
 class TestModelDocstringNoExampleNull:

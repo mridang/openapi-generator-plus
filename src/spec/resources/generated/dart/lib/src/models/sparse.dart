@@ -32,7 +32,7 @@ class Sparse {
      * rejected unless the value schema is nullable. */
     final additionalProperties = deserializeMap(
       additionalPropertyEntries,
-      (e) => e == null ? null : ((e) => e as String)(e),
+      (Object? e) => deserializeNullable(e, (e) => e as String),
     );
     return Sparse(
       label: json['label'] as String?,
@@ -51,10 +51,7 @@ class Sparse {
      * whose key equals a declared wire name is dropped, so no key is written
      * twice and the typed value wins. */
     for (final entry in additionalProperties.entries) {
-      json.putIfAbsent(
-        entry.key,
-        () => entry.value == null ? null : entry.value,
-      );
+      json.putIfAbsent(entry.key, () => entry.value);
     }
     return json;
   }

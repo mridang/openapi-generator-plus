@@ -240,7 +240,7 @@ pub struct {{classname}} {
     /// Additional properties not defined in the schema. An entry whose key is
     /// the wire name of a declared property is not written: the declared
     /// property wins and the key appears once.
-    #[serde(flatten, serialize_with = "serialize_additional_properties"{{#vendorExtensions.additionalPropertiesValue}}{{#isByteArray}}, deserialize_with = "super::base64_serde::map"{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}})]
+    #[serde(flatten, serialize_with = "serialize_additional_properties"{{#vendorExtensions.additionalPropertiesValue}}{{#isByteArray}}, deserialize_with = "super::base64_serde::map::deserialize"{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}})]
     pub additional_properties: std::collections::HashMap<String, {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}Option<{{/isNullable}}{{{dataType}}}{{#isNullable}}>{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}crate::json_value::JsonValue{{/vendorExtensions.additionalPropertiesValue}}>,
 {{/isAdditionalPropertiesTrue}}
 }

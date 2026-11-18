@@ -329,7 +329,7 @@ models008 | Serialize empty metadata
 models009 | The additional properties of a model whose additionalProperties schema declares a value type are exposed as a string-keyed map of that value type, not a map of any
 models010 | Test declared property wins over colliding additional property
 models011 | Test round trip preserves additional properties
-models012 | An additional property whose value has the wrong JSON type fails the decode with the serialization error
+models012 | An additional property whose value has the wrong JSON type fails the decode with the serialization error | multi
 models013 | An additional property whose value type is a model decodes to that model
 models014 | A null additional property value is rejected unless the value schema is nullable
 models015 | A typed additional property is written back at the top level in its wire form after the declared properties

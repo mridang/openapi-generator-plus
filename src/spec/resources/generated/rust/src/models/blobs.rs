@@ -18,7 +18,7 @@ pub struct Blobs {
     #[serde(
         flatten,
         serialize_with = "serialize_additional_properties",
-        deserialize_with = "super::base64_serde::map"
+        deserialize_with = "super::base64_serde::map::deserialize"
     )]
     pub additional_properties: std::collections::HashMap<String, Vec<u8>>,
 }

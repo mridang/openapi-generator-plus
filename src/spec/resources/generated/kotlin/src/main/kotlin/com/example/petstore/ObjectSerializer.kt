@@ -870,6 +870,20 @@ internal class ObjectSerializer(
         return json.serializersModule.serializer(type) as KSerializer<Any?>
     }
 
+    /** The serializer of the bucket's values, accepting null when the value schema is nullable. */
+    @Suppress("UNCHECKED_CAST")
+    private fun additionalValueCodec(
+        model: Any,
+        type: java.lang.reflect.Type,
+    ): KSerializer<Any?> {
+        val serializer = additionalValueSerializer(type)
+        return if (additionalValueNullable(model)) {
+            (serializer as KSerializer<Any>).nullable as KSerializer<Any?>
+        } else {
+            serializer
+        }
+    }
+
     /**
      * Decodes one undeclared key into the typed bucket, like an element of a map of the
      * same type: a value of the wrong JSON type fails the decode, and a null fails
@@ -882,12 +896,7 @@ internal class ObjectSerializer(
     ): Any? {
         val type = additionalValueType(model) ?: return fromJsonElement(raw)
         return try {
-            val serializer = additionalValueSerializer(type)
-            val decoded =
-                json.decodeFromJsonElement(
-                    if (additionalValueNullable(model)) serializer.nullable else serializer,
-                    raw,
-                )
+            val decoded = json.decodeFromJsonElement(additionalValueCodec(model, type), raw)
             if (decoded != null) captureAdditionalProperties(decoded, raw)
             decoded
         } catch (e: OpenAPIException) {
@@ -904,8 +913,7 @@ internal class ObjectSerializer(
     ): JsonElement {
         val type = additionalValueType(model) ?: return toJsonElementStatic(value)
         return try {
-            val serializer = additionalValueSerializer(type)
-            json.encodeToJsonElement(if (additionalValueNullable(model)) serializer.nullable else serializer, value)
+            json.encodeToJsonElement(additionalValueCodec(model, type), value)
         } catch (e: OpenAPIException) {
             throw e
         } catch (e: Exception) {

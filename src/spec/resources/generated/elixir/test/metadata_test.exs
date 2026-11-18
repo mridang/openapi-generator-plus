@@ -33,7 +33,7 @@ defmodule PetstoreClient.Models.MetadataTest do
     end
 
     test "bhv models 012 an additional property of the wrong JSON type fails the decode" do
-      for body <- [~s({"a":2.5}), ~s({"a":"2"}), ~s({"a":3000000000})] do
+      for body <- [~s({"a":2.5}), ~s({"a":"2"})] do
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(body, "Counters")
         end

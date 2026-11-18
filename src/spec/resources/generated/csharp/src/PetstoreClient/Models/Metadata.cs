@@ -25,11 +25,17 @@ public record Metadata
 
     /// <summary>
     /// The raw undeclared properties as they arrive on the wire. System.Text.Json only
-    /// fills an extension-data dictionary of <see cref="JsonElement"/>; the serializer
+    /// fills an extension-data dictionary of <see cref="global::System.Text.Json.JsonElement"/>; the serializer
     /// converts it to and from <see cref="AdditionalProperties"/>.
     /// </summary>
     [JsonExtensionData]
-    internal Dictionary<string, JsonElement> AdditionalPropertiesWire { get; set; } = new();
+    [global::System.ComponentModel.EditorBrowsable(
+        global::System.ComponentModel.EditorBrowsableState.Never
+    )]
+    public Dictionary<
+        string,
+        global::System.Text.Json.JsonElement
+    > AdditionalPropertiesWire { get; init; } = new();
 
     /// <summary>Value-equality based on all declared fields
     /// (including the AdditionalProperties dictionary).</summary>
