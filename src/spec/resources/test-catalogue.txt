@@ -2240,3 +2240,11 @@ langnode088 | The undeclared-keys map is typed like an index signature
 langnode089 | The undeclared-keys map is not serialised as a data key
 langnode090 | The synchronous header getter throws rather than returning unauthenticated headers
 langnode091 | setAccessToken rejects a token containing a forbidden character
+langphp026 | Data methods declare the language's native return type rather than a generic one. | multi
+langphp027 | An operation summary and description reach its doc comment without escaping.
+langphp028 | A binary response is returned as decoded bytes and not as a base64 string.
+langphp029 | A date-only query parameter is sent without a time component.
+langphp030 | A required cookie parameter is sent when a value is supplied.
+langphp031 | The password authenticator masks its client secret and password in debug output.
+langphp032 | The OpenID Connect authenticator masks its client secret in debug output.
+langphp033 | A third global server keeps its URL, description and variable through a round trip.
