@@ -628,11 +628,10 @@ describe('StoreApi error dispatch through the typed status routes', () => {
       Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
     );
 
-      const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
+    const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
 
-      expect((error as Error).constructor).toBe(expected);
-      expect((error as ClientError).statusCode).toBe(status);
-    }
+    expect((error as Error).constructor).toBe(expected);
+    expect((error as ClientError).statusCode).toBe(status);
   });
 
   test('an error response on a typed route is thrown as the exception class specific to its status, not the generic client error', async () => {

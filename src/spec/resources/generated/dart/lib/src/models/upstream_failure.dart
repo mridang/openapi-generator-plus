@@ -17,11 +17,15 @@ class UpstreamFailure {
 
   /// Creates a [UpstreamFailure] from a JSON map.
   factory UpstreamFailure.fromJson(Map<String, dynamic> json) {
-    return UpstreamFailure(
-      code: readInt32OrNull(json['code']),
+    try {
+      return UpstreamFailure(
+        code: readInt32OrNull(json['code']),
 
-      message: json['message'] as String?,
-    );
+        message: json['message'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for UpstreamFailure: $e', e);
+    }
   }
 
   /// Converts this [UpstreamFailure] to a JSON map.

@@ -17,11 +17,15 @@ class RejectedRequest {
 
   /// Creates a [RejectedRequest] from a JSON map.
   factory RejectedRequest.fromJson(Map<String, dynamic> json) {
-    return RejectedRequest(
-      code: readInt32OrNull(json['code']),
+    try {
+      return RejectedRequest(
+        code: readInt32OrNull(json['code']),
 
-      message: json['message'] as String?,
-    );
+        message: json['message'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for RejectedRequest: $e', e);
+    }
   }
 
   /// Converts this [RejectedRequest] to a JSON map.

@@ -29,7 +29,7 @@ func TestBhvTracing007_TraceContextUtil_NoOpWithoutTracer(t *testing.T) {
 
 	// InjectTraceContext should be a no-op when OpenTelemetry is not configured.
 	// It should not panic or modify existing headers.
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 
 	if headers["X-Existing"] != "value" {
 		t.Errorf("expected existing header to be preserved, got %q", headers["X-Existing"])
@@ -41,14 +41,14 @@ func TestBhvTracing003_TraceContextUtil_EmptyHeadersDoNotCauseException(t *testi
 	headers := make(map[string]string)
 
 	// Should not panic with empty headers map
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 }
 
 func TestBhvTracing001_TraceContextUtil_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
 	t.Parallel()
 	headers := make(map[string]string)
 
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 
 	if _, ok := headers["traceparent"]; ok {
 		t.Error("expected no traceparent header without OpenTelemetry")
@@ -59,7 +59,7 @@ func TestBhvTracing002_TraceContextUtil_DoesNotInjectTracestateWithoutOTel(t *te
 	t.Parallel()
 	headers := make(map[string]string)
 
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 
 	if _, ok := headers["tracestate"]; ok {
 		t.Error("expected no tracestate header without OpenTelemetry")
@@ -72,7 +72,7 @@ func TestBhvTracing010_TraceContextUtil_PreservesAuthorizationHeader(t *testing.
 		"Authorization": "Bearer token123",
 	}
 
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 
 	if headers["Authorization"] != "Bearer token123" {
 		t.Errorf("expected Authorization header %q, got %q", "Bearer token123", headers["Authorization"])
@@ -85,7 +85,7 @@ func TestBhvTracing011_TraceContextUtil_PreservesContentTypeHeader(t *testing.T)
 		"Content-Type": "application/json",
 	}
 
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 
 	if headers["Content-Type"] != "application/json" {
 		t.Errorf("expected Content-Type header %q, got %q", "application/json", headers["Content-Type"])
@@ -98,7 +98,7 @@ func TestBhvTracing012_TraceContextUtil_PreservesXRequestIdHeader(t *testing.T) 
 		"X-Request-ID": "req-12345",
 	}
 
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 
 	if headers["X-Request-ID"] != "req-12345" {
 		t.Errorf("expected X-Request-ID header %q, got %q", "req-12345", headers["X-Request-ID"])
@@ -113,7 +113,7 @@ func TestBhvTracing009_TraceContextUtil_PreservesAllExistingHeaders(t *testing.T
 		"X-Request-ID":  "abc-123",
 	}
 
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 
 	if headers["Authorization"] != "Bearer token" {
 		t.Error("Authorization header was modified")
@@ -146,7 +146,7 @@ func TestTraceContextUtil_ConcurrentSetAndInjectIsRaceFree(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 200; j++ {
-				InjectTraceContext(map[string]string{})
+				InjectTraceContext(context.Background(), map[string]string{})
 			}
 		}()
 	}
@@ -165,7 +165,7 @@ func TestTraceContextUtil_RegisteredPropagatorIsUsed(t *testing.T) {
 	t.Cleanup(func() { SetTraceContextPropagator(nil) })
 
 	headers := map[string]string{"X-Existing": "value"}
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 
 	if headers["traceparent"] != traceparent {
 		t.Errorf("expected the registered propagator to inject %q, got %q", traceparent, headers["traceparent"])
@@ -176,11 +176,11 @@ func TestTraceContextUtil_RegisteredPropagatorIsUsed(t *testing.T) {
 }
 
 // withActiveSpan configures the OpenTelemetry SDK with an in-memory exporter,
-// starts a span under parent and routes InjectTraceContext through the W3C
-// propagator with that span active. Go has no ambient span, so the propagator
-// carries the span's context. The tests that call it do not run in parallel:
-// the propagator is package state, restored when the test ends.
-func withActiveSpan(t *testing.T, parent context.Context, sampler sdktrace.Sampler) (trace.Span, *tracetest.InMemoryExporter) {
+// starts a span under parent and registers the W3C propagator. Go has no ambient
+// span: the span travels in the returned context, which the test hands to
+// InjectTraceContext as the call context. The tests that call it do not run in
+// parallel: the propagator is package state, restored when the test ends.
+func withActiveSpan(t *testing.T, parent context.Context, sampler sdktrace.Sampler) (context.Context, trace.Span, *tracetest.InMemoryExporter) {
 	t.Helper()
 	exporter := tracetest.NewInMemoryExporter()
 	provider := sdktrace.NewTracerProvider(
@@ -189,11 +189,11 @@ func withActiveSpan(t *testing.T, parent context.Context, sampler sdktrace.Sampl
 	)
 	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
 	ctx, span := provider.Tracer("trace-context-test").Start(parent, "request")
-	SetTraceContextPropagator(func(_ context.Context, headers map[string]string) {
-		propagation.TraceContext{}.Inject(ctx, propagation.MapCarrier(headers))
+	SetTraceContextPropagator(func(callCtx context.Context, headers map[string]string) {
+		propagation.TraceContext{}.Inject(callCtx, propagation.MapCarrier(headers))
 	})
 	t.Cleanup(func() { SetTraceContextPropagator(nil) })
-	return span, exporter
+	return ctx, span, exporter
 }
 
 // remoteParent returns a context whose remote parent span carries state.
@@ -214,10 +214,10 @@ func remoteParent(t *testing.T, state string) context.Context {
 }
 
 func TestBhvTracing006_TraceContextUtil_InjectsTraceparentWhenSpanActive(t *testing.T) {
-	span, exporter := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
+	ctx, span, exporter := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
 	headers := map[string]string{}
 
-	InjectTraceContext(headers)
+	InjectTraceContext(ctx, headers)
 	span.End()
 
 	sc := span.SpanContext()
@@ -231,11 +231,11 @@ func TestBhvTracing006_TraceContextUtil_InjectsTraceparentWhenSpanActive(t *test
 }
 
 func TestBhvTracing005_TraceContextUtil_IncludesTracestateWhenPresent(t *testing.T) {
-	span, _ := withActiveSpan(t, remoteParent(t, "vendor=value"), sdktrace.AlwaysSample())
+	ctx, span, _ := withActiveSpan(t, remoteParent(t, "vendor=value"), sdktrace.AlwaysSample())
 	defer span.End()
 	headers := map[string]string{}
 
-	InjectTraceContext(headers)
+	InjectTraceContext(ctx, headers)
 
 	if headers["tracestate"] != "vendor=value" {
 		t.Errorf("expected tracestate %q, got %q", "vendor=value", headers["tracestate"])
@@ -243,11 +243,11 @@ func TestBhvTracing005_TraceContextUtil_IncludesTracestateWhenPresent(t *testing
 }
 
 func TestBhvTracing008_TraceContextUtil_OmitsTracestateWhenEmpty(t *testing.T) {
-	span, _ := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
+	ctx, span, _ := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
 	defer span.End()
 	headers := map[string]string{}
 
-	InjectTraceContext(headers)
+	InjectTraceContext(ctx, headers)
 
 	if _, ok := headers["traceparent"]; !ok {
 		t.Fatal("expected a traceparent header for the active span")
@@ -265,10 +265,10 @@ func TestBhvTracing004_TraceContextUtil_FormatsTraceFlagsCorrectly(t *testing.T)
 		{sdktrace.AlwaysSample(), "01"},
 		{sdktrace.NeverSample(), "00"},
 	} {
-		span, _ := withActiveSpan(t, context.Background(), tc.sampler)
+		ctx, span, _ := withActiveSpan(t, context.Background(), tc.sampler)
 		headers := map[string]string{}
 
-		InjectTraceContext(headers)
+		InjectTraceContext(ctx, headers)
 		span.End()
 
 		sc := span.SpanContext()
@@ -293,5 +293,18 @@ func TestBhvMisc002_TraceContextUtil_CallerPropagatorIsUsedAndExistingHeadersAre
 	}
 	if headers["traceparent"] == "" {
 		t.Errorf("expected the caller's propagator to inject traceparent, got %v", headers)
+	}
+}
+
+func TestTraceContextUtil_PropagatorReadsTheSpanFromTheCallContext(t *testing.T) {
+	_, span, _ := withActiveSpan(t, context.Background(), sdktrace.AlwaysSample())
+	defer span.End()
+	other := context.Background()
+	headers := map[string]string{}
+
+	InjectTraceContext(other, headers)
+
+	if _, ok := headers["traceparent"]; ok {
+		t.Error("expected no traceparent: the registered propagator must read the span from the call context, not from its own")
 	}
 }

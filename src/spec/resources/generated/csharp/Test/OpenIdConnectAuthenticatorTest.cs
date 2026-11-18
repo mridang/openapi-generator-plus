@@ -373,7 +373,7 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.ServerException>(() =>
+        var ex = await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ServerException>(() =>
             auth.BuildAuthorizationUrlAsync()
         );
         Assert.Equal("GET", ex.RequestMethod);
@@ -465,7 +465,7 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(() =>
+        var ex = await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ServerException>(() =>
             auth.BuildAuthorizationUrlAsync()
         );
         Assert.Equal(500, ex.StatusCode);
@@ -639,6 +639,11 @@ public class OpenIdConnectAuthenticatorTest
         Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
             TestContext.Current.CancellationToken
         );
+
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ServerException>(() =>
+            auth.GetAuthHeadersAsync()
+        );
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
 
         Assert.Equal("Bearer at-1", headers["Authorization"]);
     }

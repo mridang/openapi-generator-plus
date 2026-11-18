@@ -42,13 +42,17 @@ class Square extends Shape {
     if (json['side'] == null) {
       throw SerializationException("Missing required field 'side' for Square");
     }
-    return Square(
-      shapeType: json['shapeType'] as String,
+    try {
+      return Square(
+        shapeType: json['shapeType'] as String,
 
-      label: json['label'] as String?,
+        label: json['label'] as String?,
 
-      side: readDouble(json['side']),
-    );
+        side: readDouble(json['side']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Square: $e', e);
+    }
   }
 
   /// Converts this [Square] to a JSON map.

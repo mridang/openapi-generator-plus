@@ -17,11 +17,15 @@ class MemberNotFound {
 
   /// Creates a [MemberNotFound] from a JSON map.
   factory MemberNotFound.fromJson(Map<String, dynamic> json) {
-    return MemberNotFound(
-      code: readInt32OrNull(json['code']),
+    try {
+      return MemberNotFound(
+        code: readInt32OrNull(json['code']),
 
-      detail: json['detail'] as String?,
-    );
+        detail: json['detail'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for MemberNotFound: $e', e);
+    }
   }
 
   /// Converts this [MemberNotFound] to a JSON map.

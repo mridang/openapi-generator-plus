@@ -169,6 +169,7 @@ impl ProblemsApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "ProblemsApi.get_fallback",
             method: "GET",
             path: &path,
             query_params,
@@ -296,6 +297,7 @@ impl ProblemsApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "ProblemsApi.get_member",
             method: "GET",
             path: &path,
             query_params,
@@ -425,6 +427,7 @@ impl ProblemsApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "ProblemsApi.get_project",
             method: "GET",
             path: &path,
             query_params,
@@ -552,6 +555,7 @@ impl ProblemsApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "ProblemsApi.get_range",
             method: "GET",
             path: &path,
             query_params,
@@ -683,6 +687,7 @@ impl ProblemsApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "ProblemsApi.get_upstream",
             method: "GET",
             path: &path,
             query_params,
@@ -811,6 +816,7 @@ impl ProblemsApi {
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
+            operation: "ProblemsApi.take_lock",
             method: "PUT",
             path: &path,
             query_params,

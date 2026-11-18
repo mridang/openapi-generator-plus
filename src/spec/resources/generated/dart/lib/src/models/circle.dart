@@ -44,13 +44,17 @@ class Circle extends Shape {
         "Missing required field 'radius' for Circle",
       );
     }
-    return Circle(
-      shapeType: json['shapeType'] as String,
+    try {
+      return Circle(
+        shapeType: json['shapeType'] as String,
 
-      label: json['label'] as String?,
+        label: json['label'] as String?,
 
-      radius: readDouble(json['radius']),
-    );
+        radius: readDouble(json['radius']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Circle: $e', e);
+    }
   }
 
   /// Converts this [Circle] to a JSON map.

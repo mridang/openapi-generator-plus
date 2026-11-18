@@ -11,6 +11,7 @@ import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.BadRequestException
 import com.example.petstore.errors.ClientException
 import com.example.petstore.errors.ConflictException
+import com.example.petstore.errors.ErrorFactory
 import com.example.petstore.errors.ForbiddenException
 import com.example.petstore.errors.InternalServerErrorException
 import com.example.petstore.errors.NetworkException
@@ -317,9 +318,20 @@ class ApiExceptionTest {
                 409 to com.example.petstore.errors.ConflictException::class.java,
                 422 to com.example.petstore.errors.UnprocessableEntityException::class.java,
                 429 to com.example.petstore.errors.TooManyRequestsException::class.java,
+                402 to com.example.petstore.errors.PaymentRequiredException::class.java,
+                405 to com.example.petstore.errors.MethodNotAllowedException::class.java,
+                408 to com.example.petstore.errors.RequestTimeoutException::class.java,
+                410 to com.example.petstore.errors.GoneException::class.java,
+                413 to com.example.petstore.errors.PayloadTooLargeException::class.java,
+                415 to com.example.petstore.errors.UnsupportedMediaTypeException::class.java,
+                423 to com.example.petstore.errors.LockedException::class.java,
+                501 to com.example.petstore.errors.NotImplementedException::class.java,
+                502 to com.example.petstore.errors.BadGatewayException::class.java,
+                503 to com.example.petstore.errors.ServiceUnavailableException::class.java,
+                504 to com.example.petstore.errors.GatewayTimeoutException::class.java,
                 418 to com.example.petstore.errors.ClientException::class.java,
                 500 to com.example.petstore.errors.InternalServerErrorException::class.java,
-                503 to com.example.petstore.errors.ServerException::class.java,
+                599 to com.example.petstore.errors.ServerException::class.java,
                 // 302 is below the client range and 600 above the server range:
                 // neither is a ClientException or a ServerException, both are
                 // the base type.
@@ -343,7 +355,7 @@ class ApiExceptionTest {
 
     @Test
     fun bhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
-        val ex = ApiException.fromResponse(502, emptyMap(), "<html>bad gateway</html>")
+        val ex = ApiException.fromResponse(599, emptyMap(), "<html>bad gateway</html>")
 
         assertEquals(com.example.petstore.errors.ServerException::class.java, ex.javaClass)
         assertEquals("<html>bad gateway</html>", ex.responseBody)
@@ -376,6 +388,17 @@ class ApiExceptionTest {
                 com.example.petstore.errors.ConflictException::class.java,
                 com.example.petstore.errors.UnprocessableEntityException::class.java,
                 com.example.petstore.errors.TooManyRequestsException::class.java,
+                com.example.petstore.errors.PaymentRequiredException::class.java,
+                com.example.petstore.errors.MethodNotAllowedException::class.java,
+                com.example.petstore.errors.RequestTimeoutException::class.java,
+                com.example.petstore.errors.GoneException::class.java,
+                com.example.petstore.errors.PayloadTooLargeException::class.java,
+                com.example.petstore.errors.UnsupportedMediaTypeException::class.java,
+                com.example.petstore.errors.LockedException::class.java,
+                com.example.petstore.errors.NotImplementedException::class.java,
+                com.example.petstore.errors.BadGatewayException::class.java,
+                com.example.petstore.errors.ServiceUnavailableException::class.java,
+                com.example.petstore.errors.GatewayTimeoutException::class.java,
                 com.example.petstore.errors.InternalServerErrorException::class.java,
                 com.example.petstore.errors.NetworkException::class.java,
                 com.example.petstore.errors.NetworkTimeoutException::class.java,
@@ -498,6 +521,72 @@ class ApiExceptionTest {
         val cause = IllegalStateException("root")
         assertSame(cause, BadRequestException("bad", cause = cause).cause)
         assertSame(cause, NotFoundException("gone", cause = cause).cause)
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .PaymentRequiredException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .MethodNotAllowedException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .RequestTimeoutException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .GoneException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .PayloadTooLargeException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .UnsupportedMediaTypeException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .LockedException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .NotImplementedException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .BadGatewayException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .ServiceUnavailableException("gone", cause = cause)
+                .cause,
+        )
+        assertSame(
+            cause,
+            com.example.petstore.errors
+                .GatewayTimeoutException("gone", cause = cause)
+                .cause,
+        )
         assertSame(cause, ClientException(418, "teapot", cause = cause).cause)
         assertSame(cause, ServerException(503, "down", cause = cause).cause)
         assertNull(NotFoundException("gone").cause)
@@ -694,5 +783,56 @@ class ApiExceptionTest {
         fun errorBuiltWithoutResponseReportsZeroStatus() {
             assertEquals(0, ApiException("boom").statusCode)
         }
+    }
+
+    @DisplayName("bhvErrors201 an error is retryable exactly for the statuses the client retries")
+    fun anErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+        for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {
+            assertTrue(ApiException.fromResponse(status, emptyMap(), null).isRetryable, "status $status")
+        }
+        for (status in listOf(400, 401, 403, 404, 422, 501, 302)) {
+            assertFalse(ApiException.fromResponse(status, emptyMap(), null).isRetryable, "status $status")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvErrors202 an error exposes the x-request-id response header as its request id")
+    fun anErrorExposesTheRequestIdHeaderAsItsRequestId() {
+        assertEquals("abc", ApiException.fromResponse(500, mapOf("X-Request-ID" to "abc"), null).requestId)
+        assertEquals("abc", ApiException.fromResponse(500, mapOf("x-request-id" to "abc"), null).requestId)
+        assertNull(ApiException.fromResponse(500, mapOf("other" to "abc"), null).requestId)
+        assertNull(ApiException(0, "no response", null, null).requestId)
+    }
+
+    @Test
+    @DisplayName("bhvErrors203 the error factory of an operation is chosen by exact status, then range, then default")
+    fun theErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+        fun factory(message: String) = ErrorFactory { _, _, status, headers, body -> ApiException(status, message, headers, body) }
+        val factories = mapOf("404" to factory("exact"), "4XX" to factory("range"), "default" to factory("default"))
+
+        assertEquals("exact", ApiException.fromResponse(404, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals("range", ApiException.fromResponse(418, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals("default", ApiException.fromResponse(502, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals(
+            com.example.petstore.errors.BadGatewayException::class,
+            ApiException.fromResponse(502, emptyMap(), "{}", "GET", "/x", emptyMap())::class,
+        )
+        assertEquals(
+            NotFoundException::class,
+            ApiException.fromResponse(404, emptyMap(), "{}", "GET", "/x", null)::class,
+        )
+    }
+
+    @Test
+    @DisplayName("bhvErrors204 a body that does not match its declared error schema leaves the status error with the raw body and a cause")
+    fun aBodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+        val ex =
+            com.example.petstore.errors.UnexpectedFailureException
+                .fromErrorResponse("GET", "/x", 400, emptyMap(), "[1, 2")
+
+        assertEquals(ApiException.fromResponse(400, emptyMap(), "[1, 2")::class, ex::class)
+        assertEquals("[1, 2", ex.responseBody)
+        assertEquals(400, ex.statusCode)
+        assertNotNull(ex.cause)
     }
 }

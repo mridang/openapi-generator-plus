@@ -219,7 +219,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 500
   end
 
-  test "bhv errors 070 raises ServerError for status 502", %{state: state} do
+  test "bhv errors 070 raises BadGatewayError for status 502", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -233,7 +233,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
                nil
              )
 
-    assert %PetstoreClient.Errors.ServerError{} = error
+    assert %PetstoreClient.Errors.BadGatewayError{} = error
     assert error.status_code == 502
   end
 
@@ -3259,7 +3259,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   test "bhv retries 018 max_retries 0 sends the request once" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
 
-    assert {:error, %PetstoreClient.Errors.ServerError{status_code: 503}} = get_thing(state)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{status_code: 503}} =
+             get_thing(state)
+
     assert length(attempts()) == 1
   end
 
@@ -3304,11 +3306,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
     started = System.monotonic_time(:millisecond)
 
     asked = retry_state([{503, [{"retry-after", "5"}]}, 200], timeout: 300)
-    assert {:error, %PetstoreClient.Errors.ServerError{}} = get_thing(asked)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(asked)
     assert length(attempts()) == 1
 
     backoff = retry_state([503, 200], timeout: 100)
-    assert {:error, %PetstoreClient.Errors.ServerError{}} = get_thing(backoff)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(backoff)
     assert length(attempts()) == 1
 
     assert System.monotonic_time(:millisecond) - started < 1_000
@@ -3491,7 +3493,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
     state = retry_state([{503, [{"retry-after", "5"}]}, 200])
     started = System.monotonic_time(:millisecond)
 
-    assert {:error, %PetstoreClient.Errors.ServerError{}} = get_thing_with(state, timeout: 300)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} =
+             get_thing_with(state, timeout: 300)
+
     assert length(attempts()) == 1
     assert System.monotonic_time(:millisecond) - started < 1_000
   end
@@ -3709,5 +3713,42 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert retry_after.(%{"retry-after" => "120"}) == 60_000
     assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 18:49:37 GMT"}) == 60_000
+  end
+
+  test "bhv errors 205 a response body that cannot be decoded carries the response and the request" do
+    client =
+      ScriptedApiClient.new(fn _url, _headers, _requests ->
+        %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          headers: %{"content-type" => "text/plain", "x-trace" => "t1"},
+          body: "not json"
+        }
+      end)
+
+    state = %{
+      config: PetstoreClient.Configuration.new(base_url: "https://api.example.com"),
+      api_client: client
+    }
+
+    error =
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.Api.BaseApi.invoke_api(
+          state,
+          :get,
+          "/things",
+          [{"q", "1"}],
+          %{},
+          nil,
+          ["application/json"],
+          "application/json",
+          "Object"
+        )
+      end
+
+    assert error.status_code == 200
+    assert error.response_headers == %{"content-type" => "text/plain", "x-trace" => "t1"}
+    assert error.response_body == "not json"
+    assert error.request_method == "GET"
+    assert error.request_path == "/things"
   end
 end

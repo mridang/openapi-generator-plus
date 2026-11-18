@@ -38,6 +38,34 @@ import {
   UnauthorizedError,
   UnprocessableEntityError,
 } from "../../src/errors/index.js";
+
+import {
+  Account,
+  Availability,
+  Defaults,
+  DefaultsModeEnum,
+  Order,
+  OrderStatusEnum,
+  Category,
+  PhotoMetadata,
+  Priority,
+  Reservation,
+  ReservationReceipt,
+  Swatch,
+  TreeNode,
+} from "../../src/models/index.js";
+import {
+  BadGatewayError,
+  BadRequestError,
+  ClientError,
+  ConflictError,
+  ForbiddenError,
+  InternalServerError,
+  NotFoundError,
+  SerializationError,
+  UnauthorizedError,
+  UnprocessableEntityError,
+} from "../../src/errors/index.js";
 import { uuid, type UUID } from "../../src/brand.js";
 import { Temporal } from "temporal-polyfill";
 import type { ApiClient } from "../../src/api-client.js";
@@ -787,6 +815,33 @@ describe("StoreApi error dispatch through the typed status routes", () => {
       expect((error as ClientError).statusCode).toBe(status);
     }
   });
+
+  test.each([
+    [400, BadRequestError],
+    [401, UnauthorizedError],
+    [403, ForbiddenError],
+    [404, NotFoundError],
+    [409, ConflictError],
+    [418, ClientError],
+    [422, UnprocessableEntityError],
+    [500, InternalServerError],
+    [502, BadGatewayError],
+  ])(
+    "bhv operations 110 getOrderById picks the status-specific error for status %i",
+    async (status, expected) => {
+      const statusApi = new StoreApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder()
+          .baseUrl(`${baseUrl}/test/status/${status}`)
+          .build(),
+      );
+
+      const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(expected);
+      expect((error as ClientError).statusCode).toBe(status);
+    },
+  );
 
   test("an error response on a typed route is thrown as the exception class specific to its status, not the generic client error", async () => {
     for (const status of [400, 404, 422, 500]) {

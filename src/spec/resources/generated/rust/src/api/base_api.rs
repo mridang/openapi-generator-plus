@@ -114,6 +114,10 @@ pub(crate) struct InvokeApiParams<'a> {
     /// The per-call timeout, retry budget and extra headers a caller set on the
     /// operation's options struct.
     pub call: CallOptions,
+    /// The operation's own error factories by declared status (`"404"`,
+    /// `"4XX"`, `"default"`), see [`ApiError::from_response_with`]. Empty when
+    /// the operation declares no error schema.
+    pub error_schemas: &'a [(&'a str, crate::errors::api_error::ErrorFactory)],
 }
 
 /// Per-call settings that override the client's for one operation: the
@@ -459,12 +463,13 @@ impl BaseApi {
 
         /* Check for errors */
         if response.status_code() < 200 || response.status_code() >= 300 {
-            return Err(ApiError::from_response(
+            return Err(ApiError::from_response_with(
                 response.status_code(),
                 response.headers(),
                 response.body(),
                 Some(params.method),
                 Some(request_path),
+                params.error_schemas,
             ));
         }
 
@@ -482,8 +487,90 @@ impl BaseApi {
          * non-JSON bodies straight to the raw-bytes path below. */
         let is_binary_return = params.return_type == "Vec<u8>";
         let operation = params.operation;
+        let method = params.method;
+        let request_path = crate::errors::api_error::request_path_of(params.path);
         let response = self.invoke_api(params).await?;
+        decode_response(&response, is_binary_return, operation)
+            .map_err(|err| attach_response(err, &response, method, &request_path))
+    }
 
+    /// Invokes an operation that declares several 2xx responses with different
+    /// schemas and returns the full result. `decode` is handed the actual
+    /// status code and the raw body and builds the union variant that status
+    /// declares, so a 201 is never read as the schema of the 200. An empty
+    /// body leaves the data `None`.
+    pub async fn invoke_api_for_status_union<T, F>(
+        &self,
+        params: InvokeApiParams<'_>,
+        decode: F,
+    ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        F: FnOnce(
+            u16,
+            &[u8],
+        )
+            -> Result<Option<T>, crate::errors::serialization_error::SerializationError>,
+    {
+        let method = params.method;
+        let request_path = crate::errors::api_error::request_path_of(params.path);
+        let response = self.invoke_api(params).await?;
+        let data = if response.body().is_empty() {
+            None
+        } else {
+            decode(response.status_code(), response.body().as_bytes()).map_err(|err| {
+                err.with_response(response.status_code(), response.headers(), response.body())
+                    .with_request(method, &request_path)
+            })?
+        };
+        Ok(ApiResult::new(
+            response.status_code(),
+            data,
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
+    }
+
+    /// Invokes an API operation with no return type and returns the full
+    /// result (status code, headers, and raw body) with unit data.
+    pub async fn invoke_api_for_empty_result(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        let response = self.invoke_api(params).await?;
+        Ok(ApiResult::new(
+            response.status_code(),
+            Some(()),
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
+    }
+}
+
+/// Gives a decoding failure the response it came from and the request that drew
+/// it; any other error is returned unchanged.
+fn attach_response(
+    err: Box<dyn std::error::Error + Send + Sync>,
+    response: &ApiHttpResponse,
+    method: &str,
+    request_path: &str,
+) -> Box<dyn std::error::Error + Send + Sync> {
+    match err.downcast::<crate::errors::serialization_error::SerializationError>() {
+        Ok(serialization) => Box::new(
+            serialization
+                .with_response(response.status_code(), response.headers(), response.body())
+                .with_request(method, request_path),
+        ),
+        Err(other) => other,
+    }
+}
+
+/// Decodes the body of a successful response as the return type `T`.
+fn decode_response<T: DeserializeOwned>(
+    response: &ApiHttpResponse,
+    is_binary_return: bool,
+    operation: &str,
+) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
+    {
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
         let resp_content_type = response
             .headers()
@@ -594,52 +681,6 @@ impl BaseApi {
             response.headers().clone(),
         ))
     }
-
-    /// Invokes an operation that declares several 2xx responses with different
-    /// schemas and returns the full result. `decode` is handed the actual
-    /// status code and the raw body and builds the union variant that status
-    /// declares, so a 201 is never read as the schema of the 200. An empty
-    /// body leaves the data `None`.
-    pub async fn invoke_api_for_status_union<T, F>(
-        &self,
-        params: InvokeApiParams<'_>,
-        decode: F,
-    ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>>
-    where
-        F: FnOnce(
-            u16,
-            &[u8],
-        )
-            -> Result<Option<T>, crate::errors::serialization_error::SerializationError>,
-    {
-        let response = self.invoke_api(params).await?;
-        let data = if response.body().is_empty() {
-            None
-        } else {
-            decode(response.status_code(), response.body().as_bytes())?
-        };
-        Ok(ApiResult::new(
-            response.status_code(),
-            data,
-            response.body().to_string(),
-            response.headers().clone(),
-        ))
-    }
-
-    /// Invokes an API operation with no return type and returns the full
-    /// result (status code, headers, and raw body) with unit data.
-    pub async fn invoke_api_for_empty_result(
-        &self,
-        params: InvokeApiParams<'_>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        let response = self.invoke_api(params).await?;
-        Ok(ApiResult::new(
-            response.status_code(),
-            Some(()),
-            response.body().to_string(),
-            response.headers().clone(),
-        ))
-    }
 }
 
 /* Retry policy (F823). The numbers follow the other SDKs: 0.5 s doubling to
@@ -650,7 +691,7 @@ const RETRY_AFTER_CAP_MS: u64 = 60_000;
 
 /// Whether a response status is worth sending the request again for.
 pub(crate) fn is_retryable_status(status: u16) -> bool {
-    matches!(status, 408 | 409 | 429) || ((500..600).contains(&status) && status != 501)
+    crate::errors::api_error::is_retryable_status(status)
 }
 
 /// Whether a transport error happened before a response and may be retried: a
@@ -1164,6 +1205,7 @@ mod tests {
             return_type: "",
             auth: None,
             call: CallOptions::default(),
+            error_schemas: &[],
         };
 
         api.invoke_api(params)
@@ -1533,6 +1575,7 @@ mod tests {
             return_type: "",
             auth: None,
             call,
+            error_schemas: &[],
         }
     }
 
@@ -1562,6 +1605,75 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("secret"), "{text}");
+    }
+
+    /// Answers every request with one fixed response.
+    struct FixedClient {
+        status: u16,
+        body: &'static str,
+        headers: HashMap<String, String>,
+    }
+
+    impl ApiClient for FixedClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let response =
+                ApiHttpResponse::new(self.status, self.body.to_string(), self.headers.clone());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /// A decode target for the response-decoding tests.
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct Shape {
+        count: i64,
+    }
+
+    /* Catalogue 205: a response body that cannot be decoded raises an error
+     * that carries the response (status, headers, raw body) and the request
+     * (method and path without the query). */
+    #[tokio::test]
+    async fn test_bhv_errors_205_a_decode_failure_carries_the_response_and_the_request() {
+        let mut headers = HashMap::new();
+        headers.insert("content-type".to_string(), "application/json".to_string());
+        headers.insert("x-trace".to_string(), "t1".to_string());
+        let client = Arc::new(FixedClient {
+            status: 200,
+            body: r#"{"count":"many"}"#,
+            headers,
+        });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let api = BaseApi::new(client, config, None);
+
+        let err = api
+            .invoke_api_for_result::<Shape>(call_params(CallOptions::default()))
+            .await
+            .expect_err("a body that does not match the type must fail");
+
+        let decode = err
+            .downcast_ref::<crate::errors::SerializationError>()
+            .expect("the failure is a SerializationError");
+        assert_eq!(decode.status_code(), Some(200));
+        assert_eq!(decode.response_body(), Some(r#"{"count":"many"}"#));
+        let headers = decode.response_headers().expect("the headers are kept");
+        assert_eq!(headers.get("x-trace").map(String::as_str), Some("t1"));
+        assert_eq!(decode.request_method(), Some("GET"));
+        assert_eq!(decode.request_path(), Some("/items/7"));
     }
 
     /// Records the URL of the one request it receives.
@@ -1937,6 +2049,7 @@ mod tests {
             return_type: "String",
             auth: None,
             call: CallOptions::default(),
+            error_schemas: &[],
         };
         let result = api
             .invoke_api_for_result::<String>(params)

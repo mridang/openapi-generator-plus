@@ -122,6 +122,8 @@ class BaseApi {
   ///     operation header of the same name in any case
   ///   - [maxRetries]: retries for this call only, replacing the transport's;
   ///     0 disables them and a negative value is refused
+  ///   - [errorSchemas]: the error factories of the operation by declared
+  ///     status (`404`, `4XX`, `default`), or null when it declares none
   Future<ApiHttpResponse> invokeApi({
     required String method,
     required String path,
@@ -136,6 +138,7 @@ class BaseApi {
     int? timeout,
     Map<String, String>? callHeaders,
     int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
   }) async {
     if (timeout != null && timeout < 1) {
       throw ArgumentError(
@@ -148,10 +151,7 @@ class BaseApi {
       );
     }
     /* The path the errors name: no scheme, host, query or fragment. */
-    final requestPath =
-        path.startsWith('http://') || path.startsWith('https://')
-        ? ApiException.stripQuery(Uri.parse(path).path)
-        : ApiException.stripQuery(path);
+    final requestPath = _requestPathOf(path);
     var targetUrl = path;
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       /* Strip trailing slash from baseUrl when path starts with `/` so
@@ -373,6 +373,7 @@ class BaseApi {
             response.body,
             requestMethod: method,
             requestPath: requestPath,
+            errorSchemas: errorSchemas,
           );
         }
 
@@ -394,6 +395,12 @@ class BaseApi {
       finish?.call();
     }
   }
+
+  /// The path the errors name: no scheme, host, query or fragment.
+  static String _requestPathOf(String path) =>
+      path.startsWith('http://') || path.startsWith('https://')
+      ? ApiException.stripQuery(Uri.parse(path).path)
+      : ApiException.stripQuery(path);
 
   /// Waits for [delay] before a retry. Overridable so a test does not have to
   /// wait for real time.
@@ -522,6 +529,7 @@ class BaseApi {
     int? maxRetries,
     T Function(String body)? deserialize,
     T Function(String body, int statusCode)? deserializeByStatus,
+    Map<String, ErrorFactory>? errorSchemas,
   }) async {
     final response = await invokeApi(
       method: method,
@@ -537,6 +545,7 @@ class BaseApi {
       timeout: timeout,
       callHeaders: callHeaders,
       maxRetries: maxRetries,
+      errorSchemas: errorSchemas,
     );
 
     final T Function(String body)? decode =
@@ -546,83 +555,95 @@ class BaseApi {
             : (String body) => deserializeByStatus(body, response.statusCode));
 
     T? data;
-    if (returnType.isNotEmpty && response.body.isNotEmpty) {
-      final responseContentType =
-          response.headers.entries
-              .where((e) => e.key.toLowerCase() == 'content-type')
-              .map((e) => e.value)
-              .firstOrNull ??
-          '';
-      /* Binary response handling: DefaultApiClient encodes non-text
-       * response bodies as base64. When the SDK method expects bytes
-       * (`List<int>` / `Uint8List`), decode the base64 back to raw
-       * bytes here rather than handing the caller a base64 string.
-       * Detect binary by either the returnType signature or a binary
-       * content-type (octet-stream, image, audio, video media types). */
-      final returnsBytes =
-          returnType == 'List<int>' || returnType == 'Uint8List';
-      final isJsonBody =
-          _headerSelector.isJsonMime(responseContentType) ||
-          (responseContentType.isEmpty && !returnsBytes);
-      if (isJsonBody && response.body.trim() == 'null') {
-        /* A bare JSON `null` is an absent body, not a value: leave data null
-         * so the convenience method raises its uniform empty-body
-         * ApiException, instead of the generated deserializer casting null
-         * to the return type and surfacing a raw TypeError. */
-        data = null;
-      } else if (returnsBytes &&
-          _headerSelector.isJsonMime(responseContentType)) {
-        /* Top-level `format: byte` response carried as application/json: the
-         * body is a JSON string LITERAL, e.g. `"dGVzdC1pbWFnZQ=="` (quotes
-         * included). JSON-parse it first to recover the inner base64 string,
-         * then base64-decode to raw bytes. Decoding the raw body directly
-         * would either choke on the quotes or (via the utf8 fallback) return
-         * the bytes of the quoted literal — both wrong. */
-        final inner = parseJson(response.body);
-        if (inner is String) {
-          data = decodeBase64(inner) as T?;
+    try {
+      if (returnType.isNotEmpty && response.body.isNotEmpty) {
+        final responseContentType =
+            response.headers.entries
+                .where((e) => e.key.toLowerCase() == 'content-type')
+                .map((e) => e.value)
+                .firstOrNull ??
+            '';
+        /* Binary response handling: DefaultApiClient encodes non-text
+         * response bodies as base64. When the SDK method expects bytes
+         * (`List<int>` / `Uint8List`), decode the base64 back to raw
+         * bytes here rather than handing the caller a base64 string.
+         * Detect binary by either the returnType signature or a binary
+         * content-type (octet-stream, image, audio, video media types). */
+        final returnsBytes =
+            returnType == 'List<int>' || returnType == 'Uint8List';
+        final isJsonBody =
+            _headerSelector.isJsonMime(responseContentType) ||
+            (responseContentType.isEmpty && !returnsBytes);
+        if (isJsonBody && response.body.trim() == 'null') {
+          /* A bare JSON `null` is an absent body, not a value: leave data null
+           * so the convenience method raises its uniform empty-body
+           * ApiException, instead of the generated deserializer casting null
+           * to the return type and surfacing a raw TypeError. */
+          data = null;
+        } else if (returnsBytes &&
+            _headerSelector.isJsonMime(responseContentType)) {
+          /* Top-level `format: byte` response carried as application/json: the
+           * body is a JSON string LITERAL, e.g. `"dGVzdC1pbWFnZQ=="` (quotes
+           * included). JSON-parse it first to recover the inner base64 string,
+           * then base64-decode to raw bytes. Decoding the raw body directly
+           * would either choke on the quotes or (via the utf8 fallback) return
+           * the bytes of the quoted literal — both wrong. */
+          final inner = parseJson(response.body);
+          if (inner is String) {
+            data = decodeBase64(inner) as T?;
+          } else {
+            /* Not a string literal (shouldn't happen for format:byte); fall
+             * back to the binary decode path below by treating it as raw. */
+            data = Uint8List.fromList(utf8.encode(response.body)) as T?;
+          }
+        } else if (returnsBytes) {
+          try {
+            /* Body may be either base64 (the DefaultApiClient path) or a
+             * raw UTF-8 string (e.g. a test server writing JSON-encoded
+             * placeholder bytes for a binary endpoint). Try base64 first,
+             * fall back to utf8 bytes. */
+            final bytes = base64Decode(response.body);
+            data = bytes as T?;
+          } catch (_) {
+            data = Uint8List.fromList(utf8.encode(response.body)) as T?;
+          }
+        } else if ((responseContentType.isEmpty ||
+                _headerSelector.isJsonMime(responseContentType)) &&
+            decode != null) {
+          /* Some servers omit Content-Type on a JSON body; an absent/empty
+           * content-type defaults to JSON deserialization rather than dropping
+           * the body, matching swift/node and the other SDKs. */
+          data = decode(response.body);
+        } else if (returnType == 'String' &&
+            _isTextContentType(responseContentType)) {
+          data = response.body as T?;
+        } else if (responseContentType.isEmpty ||
+            _headerSelector.isJsonMime(responseContentType)) {
+          /* A JSON body with no deserializer supplied leaves data null;
+           * rawBody is still populated. */
+          data = null;
         } else {
-          /* Not a string literal (shouldn't happen for format:byte); fall
-           * back to the binary decode path below by treating it as raw. */
-          data = Uint8List.fromList(utf8.encode(response.body)) as T?;
+          /* A non-JSON body can only be returned verbatim for a String return
+           * type with a text media type; anything else would be a raw string
+           * typed as a model, so refuse it and name the Content-Type. */
+          final mediaType = responseContentType.split(';').first.trim();
+          throw SerializationException(
+            "Unexpected response Content-Type '$mediaType'"
+            "${operation.isEmpty ? '' : ' for $operation'}"
+            ': expected a JSON body',
+          );
         }
-      } else if (returnsBytes) {
-        try {
-          /* Body may be either base64 (the DefaultApiClient path) or a
-           * raw UTF-8 string (e.g. a test server writing JSON-encoded
-           * placeholder bytes for a binary endpoint). Try base64 first,
-           * fall back to utf8 bytes. */
-          final bytes = base64Decode(response.body);
-          data = bytes as T?;
-        } catch (_) {
-          data = Uint8List.fromList(utf8.encode(response.body)) as T?;
-        }
-      } else if ((responseContentType.isEmpty ||
-              _headerSelector.isJsonMime(responseContentType)) &&
-          decode != null) {
-        /* Some servers omit Content-Type on a JSON body; an absent/empty
-         * content-type defaults to JSON deserialization rather than dropping
-         * the body, matching swift/node and the other SDKs. */
-        data = decode(response.body);
-      } else if (returnType == 'String' &&
-          _isTextContentType(responseContentType)) {
-        data = response.body as T?;
-      } else if (responseContentType.isEmpty ||
-          _headerSelector.isJsonMime(responseContentType)) {
-        /* A JSON body with no deserializer supplied leaves data null;
-         * rawBody is still populated. */
-        data = null;
-      } else {
-        /* A non-JSON body can only be returned verbatim for a String return
-         * type with a text media type; anything else would be a raw string
-         * typed as a model, so refuse it and name the Content-Type. */
-        final mediaType = responseContentType.split(';').first.trim();
-        throw SerializationException(
-          "Unexpected response Content-Type '$mediaType'"
-          "${operation.isEmpty ? '' : ' for $operation'}"
-          ': expected a JSON body',
-        );
       }
+    } on SerializationException catch (e) {
+      /* A body that cannot be decoded still names the response it came in
+       * and the request that drew it. */
+      throw e.withResponse(
+        statusCode: response.statusCode,
+        responseHeaders: response.headers,
+        responseBody: response.body,
+        requestMethod: method,
+        requestPath: _requestPathOf(path),
+      );
     }
 
     return ApiResult<T>(
