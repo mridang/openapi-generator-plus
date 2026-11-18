@@ -80,7 +80,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "state=my-state")
     end
 
-    test "authorization URL parameters are in the fixed order" do
+    test "bhv langelixir 045 authorization URL parameters are in the fixed order" do
       auth = create_authenticator()
 
       url =

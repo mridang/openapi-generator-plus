@@ -128,7 +128,7 @@ func TestBhvLifecycle001_Client_ApiGroupsAreAccessible(t *testing.T) {
 // short group name (client.Pet, client.Store) to match the other SDKs, not the
 // type-suffixed name (client.PetApi). Pin the canonical accessors explicitly so
 // a regression in the field naming is caught regardless of the generic loop above.
-func TestClient_SubApiAccessorsUseShortGroupNames(t *testing.T) {
+func TestBhvLanggo023_Client_SubApiAccessorsUseShortGroupNames(t *testing.T) {
 	t.Parallel()
 	authenticator := mustBearer(t, "/api/v3", "test-token")
 
@@ -239,7 +239,7 @@ func TestBhvLifecycle028_Client_ExplicitHostAndTokenWinOverTheEnvironment(t *tes
 	}
 }
 
-func TestClient_WithTokenFailsWhenACredentialCannotBeResolved(t *testing.T) {
+func TestBhvLanggo024_Client_WithTokenFailsWhenACredentialCannotBeResolved(t *testing.T) {
 	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
 	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "")
 

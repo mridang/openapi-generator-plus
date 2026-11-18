@@ -511,7 +511,7 @@ async fn test_bhv_transport_042_injects_default_user_agent_when_not_explicitly_s
 }
 
 #[tokio::test]
-async fn test_no_user_agent_is_omitted_when_cleared() {
+async fn test_bhv_misc_043_no_user_agent_is_omitted_when_cleared() {
     let (base_url, head) = start_head_capture_server();
     let transport = TransportOptionsBuilder::new()
         .user_agent_opt(None)
@@ -533,7 +533,8 @@ async fn test_no_user_agent_is_omitted_when_cleared() {
 /// `%27`. That rewrite is the documented FORCED difference of this SDK, pinned
 /// here so it cannot drift.
 #[tokio::test]
-async fn test_allow_reserved_query_reaches_the_wire_with_the_apostrophe_rewritten() {
+async fn test_bhv_langrust_036_allow_reserved_query_reaches_the_wire_with_the_apostrophe_rewritten()
+{
     let (base_url, head) = start_head_capture_server();
     let client = DefaultApiClient::new(None);
 
@@ -2034,7 +2035,7 @@ async fn test_bhv_redirects_020_redirect_to_non_http_scheme_returns_error() {
 /// underlying reqwest error as its `source()`, rather than stringifying and
 /// discarding it.
 #[tokio::test]
-async fn test_transport_error_preserves_underlying_cause() {
+async fn test_bhv_misc_282_transport_error_preserves_underlying_cause() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     // Port 1 on loopback refuses connections.
@@ -2474,7 +2475,7 @@ fn start_canned_response_server(response: Vec<u8>) -> String {
 /// A redirect to a non-HTTP scheme is refused: the redirect response arrived,
 /// so the error is an `ApiError` with its real status, never a `NetworkError`.
 #[tokio::test]
-async fn test_redirect_to_non_http_scheme_is_api_error_with_status() {
+async fn test_bhv_langrust_037_redirect_to_non_http_scheme_is_api_error_with_status() {
     let response = b"HTTP/1.1 302 Found\r\nLocation: ftp://example.com/file\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
     let base_url = start_canned_response_server(response);
 
@@ -3575,7 +3576,7 @@ async fn test_bhv_redirects_047_a_refusal_does_not_change_a_concurrent_request()
 
 /// redirects048: a 301 or 302 turns a POST into a bodyless GET, while PUT, PATCH, DELETE, HEAD and GET keep their method.
 #[tokio::test]
-async fn test_bhv_redirects_048_301_and_302_turn_a_post_into_a_bodyless_get() {
+async fn test_bhv_redirects_048_a_301_and_302_turn_a_post_into_a_bodyless_get() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .build()
@@ -3630,7 +3631,7 @@ async fn test_bhv_redirects_048_301_and_302_turn_a_post_into_a_bodyless_get() {
 
 /// redirects049: a 307 or 308 repeats the request with the same method and body, and redirects are followed by default.
 #[tokio::test]
-async fn test_bhv_redirects_049_307_and_308_repeat_the_method_and_body_by_default() {
+async fn test_bhv_redirects_049_a_307_and_308_repeat_the_method_and_body_by_default() {
     let client = DefaultApiClient::new(None);
     for status in [307u16, 308] {
         let (base_url, rx) = start_recording_redirect_server(status, "/next");

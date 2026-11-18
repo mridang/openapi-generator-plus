@@ -1261,7 +1261,7 @@ mod tests {
      * as-is (not percent-encoded). The comma is the structural separator, so the
      * wire form for `["a,b", "c"]` is `a,b,c`, matching the other 11 SDKs. */
     #[test]
-    fn test_path_array_item_with_comma_preserves_literal_comma() {
+    fn test_bhv_misc_250_path_array_item_with_comma_preserves_literal_comma() {
         let two: Vec<String> = vec!["a,b".into(), "c".into()];
 
         /* simple */

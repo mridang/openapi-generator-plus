@@ -75,7 +75,7 @@ class TestServerConfiguration:
 
         assert list(config.variables) == ['env']
 
-    def test_variables_are_read_only(self) -> None:
+    def test_bhv_lang_python_194_variables_are_read_only(self) -> None:
         config = ServerConfiguration(
             url_template='https://{env}.example.com',
             variables={'env': ServerVariable(default_value='prod')},
@@ -86,7 +86,7 @@ class TestServerConfiguration:
 
 
 class TestGeneratedServers:
-    def test_all_is_an_immutable_tuple(self) -> None:
+    def test_bhv_lang_python_195_all_is_an_immutable_tuple(self) -> None:
         assert isinstance(ALL, tuple)
 
     def test_bhv_servers_010_generated_servers_substitute_their_default_values(self) -> None:

@@ -20,7 +20,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.default_headers == %{"Authorization" => "Bearer token123"}
   end
 
-  test "default_headers defaults to empty map" do
+  test "bhv langelixir 025 default_headers defaults to empty map" do
     config = PetstoreClient.Configuration.new()
     assert config.default_headers == %{}
   end
@@ -243,7 +243,7 @@ defmodule PetstoreClient.ConfigurationTest do
     def finish(_state, _outcome), do: :ok
   end
 
-  test "a call hook is none by default, set by call_hook and never printed" do
+  test "bhv langelixir 026 a call hook is none by default, set by call_hook and never printed" do
     assert PetstoreClient.Configuration.new().call_hook == nil
 
     config = PetstoreClient.Configuration.new(call_hook: {SomeHook, %{password: "hunter2"}})

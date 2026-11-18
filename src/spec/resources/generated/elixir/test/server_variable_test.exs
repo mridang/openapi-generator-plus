@@ -24,7 +24,7 @@ defmodule PetstoreClient.ServerVariableTest do
       assert variable.enum_values == []
     end
 
-    test "retains an enum constraint when provided" do
+    test "bhv langelixir 001 retains an enum constraint when provided" do
       variable = %ServerVariable{
         default_value: "prod",
         description: "Deployment environment",
@@ -50,7 +50,7 @@ defmodule PetstoreClient.ServerVariableTest do
       assert variable.enum_values == ["prod", "staging"]
     end
 
-    test "requires the default_value key" do
+    test "bhv langelixir 002 requires the default_value key" do
       assert_raise ArgumentError, fn ->
         struct!(ServerVariable, description: "missing default")
       end

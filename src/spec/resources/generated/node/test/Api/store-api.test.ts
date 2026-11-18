@@ -226,7 +226,7 @@ describe("StoreApi nested container deserialization", () => {
     ["a quoted number", '[[1,"2"]]'],
     ["a fractional number", "[[1,2.5]]"],
     ["a null", "[[1,null]]"],
-  ])("getMatrix rejects %s element", async (_label, body) => {
+  ])("bhv langnode 017 getMatrix rejects %s element", async (_label, body) => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -245,20 +245,23 @@ describe("StoreApi nested container deserialization", () => {
     ["a quoted number", '{"available":"5"}'],
     ["a fractional number", '{"available":5.5}'],
     ["a null", '{"available":null}'],
-  ])("getInventory rejects %s element", async (_label, body) => {
-    const { api: mockApi, close } = await createMockServer(
-      200,
-      "application/json",
-      body,
-    );
-    try {
-      await expect(mockApi.getInventory()).rejects.toBeInstanceOf(
-        SerializationError,
+  ])(
+    "bhv langnode 018 getInventory rejects %s element",
+    async (_label, body) => {
+      const { api: mockApi, close } = await createMockServer(
+        200,
+        "application/json",
+        body,
       );
-    } finally {
-      close();
-    }
-  });
+      try {
+        await expect(mockApi.getInventory()).rejects.toBeInstanceOf(
+          SerializationError,
+        );
+      } finally {
+        close();
+      }
+    },
+  );
 
   test("bhv operations 114 getSwatchGroups decodes enum leaves into Swatch values", async () => {
     // nested-container-deserialise: Array<Record<string, Swatch>> — an enum
@@ -442,7 +445,7 @@ describe("StoreApi response shapes", () => {
     }
   });
 
-  test("getDefaults fills every default when the body is an empty object", async () => {
+  test("bhv misc 215 getDefaults fills every default when the body is an empty object", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -584,7 +587,7 @@ describe("StoreApi content-encoded query parameters", () => {
     ]);
   });
 
-  test("searchStore expands a Set parameter like an array", async () => {
+  test("bhv langnode 016 searchStore expands a Set parameter like an array", async () => {
     const url = await captureRequest((s) =>
       s.searchStore({ labels: new Set(["red", "blue"]) }),
     );
@@ -597,14 +600,17 @@ describe("StoreApi content-encoded query parameters", () => {
   test.each([
     ["10:30:00.123456789", "at=10%3A30%3A00.123"],
     ["10:30:00", "at=10%3A30%3A00"],
-  ])("searchStore sends the time %s as %s", async (time, expected) => {
-    const url = await captureRequest((s) =>
-      s.searchStore({ at: Temporal.PlainTime.from(time) }),
-    );
+  ])(
+    "bhv misc 241 searchStore sends the time %s as %s",
+    async (time, expected) => {
+      const url = await captureRequest((s) =>
+        s.searchStore({ at: Temporal.PlainTime.from(time) }),
+      );
 
-    expect(url).toContain(expected);
-    expect(url).not.toContain(`${expected}0`);
-  });
+      expect(url).toContain(expected);
+      expect(url).not.toContain(`${expected}0`);
+    },
+  );
 
   test("bhv operations 139 searchStore keeps the fractional seconds of a time parameter when non-zero", async () => {
     const url = await captureRequest((s) =>
@@ -677,7 +683,7 @@ describe("StoreApi content-encoded query parameters", () => {
     expect(capturedHeader).toBe('{"colour":"red","size":"a b"}');
   });
 
-  test("searchStore sends a date-time inside q in the canonical +00:00 form", async () => {
+  test("bhv serialization 093 searchStore sends a date-time inside q in the canonical +00:00 form", async () => {
     const url = await captureSearch(
       new PhotoMetadata({ takenAt: new Date("2024-01-02T03:04:05Z") }),
     );
@@ -789,7 +795,7 @@ describe("StoreApi error dispatch through the typed status routes", () => {
     },
   );
 
-  test("an error response on a typed route is thrown as the exception class specific to its status, not the generic client error", async () => {
+  test("bhv operations 138 an error response on a typed route is thrown as the exception class specific to its status, not the generic client error", async () => {
     for (const status of [400, 404, 422, 500]) {
       const statusApi = new StoreApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),

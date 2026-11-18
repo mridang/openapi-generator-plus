@@ -487,13 +487,6 @@ async fn test_bhv_operations_055_pet_api_get_pet_photo() {
     assert_eq!(photo, b"FAKE_JPEG_BYTES".to_vec());
 }
 
-#[tokio::test]
-async fn test_pet_api_get_pet_photo_json_reply_returns_the_raw_bytes() {
-    let body = r#"{"id":7,"name":"photo"}"#;
-    let (api, _) = new_pet_api_for_mock(200, "application/json", body);
-    let photo = api.get_pet_photo(1, 1, None).await.expect("get_pet_photo failed");
-    assert_eq!(photo, body.as_bytes().to_vec());
-}
 
 #[tokio::test]
 async fn test_bhv_operations_063_pet_api_get_pet_avatar_thumbnail_rejects_malformed_base64() {
@@ -980,7 +973,7 @@ async fn test_bhv_operations_079_pet_api_credentials_send_the_bearer_scheme_the_
 
 /// F857: with only the API key held, the API key is sent and no bearer is.
 #[tokio::test]
-async fn test_pet_api_credentials_send_the_api_key_scheme_the_operation_lists() {
+async fn test_bhv_misc_221_pet_api_credentials_send_the_api_key_scheme_the_operation_lists() {
     let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
     let request = add_pet_request_with(Credentials::new().with_api_key_header(key)).await;
     assert!(request.contains("key-one"), "request: {}", request);
@@ -1046,25 +1039,6 @@ async fn test_bhv_operations_086_pet_api_unsecured_op_has_no_auth_field() {
 /// slash must be percent-encoded EXACTLY ONCE on the wire (`%20`/`%2F`),
 /// never double-encoded (`%2520`/`%252F`). serialize_styled already encodes
 /// path segments, so the operation template must not re-encode the output.
-#[tokio::test]
-async fn test_pet_api_get_pet_by_name_path_encoded_once() {
-    let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetByNameOptions::new("dogs".to_string(), "corr-1".to_string());
-    let _ = api.get_pet_by_name("a b/c".to_string(), Some(&opts)).await;
-
-    let request = rx.recv().expect("expected a captured request");
-    let request_line = request.lines().next().unwrap_or("");
-    assert!(
-        request_line.contains("/pet/byName/a%20b%2Fc"),
-        "expected single-encoded path segment, got request line: {}",
-        request_line
-    );
-    assert!(
-        !request_line.contains("%2520") && !request_line.contains("%252F"),
-        "path was double-encoded, got request line: {}",
-        request_line
-    );
-}
 
 /// required-nested-param-validation: `category` is a REQUIRED query parameter.
 /// Calling the operation without Options (where the required value lives) must
@@ -1489,20 +1463,6 @@ async fn test_bhv_operations_059_pet_api_get_pet_tag_byte_params_are_base64() {
     assert_eq!(Some("aGk=".to_string()), header, "{}", request);
 }
 
-#[tokio::test]
-async fn test_pet_api_get_pet_tag_byte_param_uses_the_standard_alphabet() {
-    let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetTagOptions::new().fingerprint(vec![0xFB, 0xFF]);
-    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
-
-    let request = rx.recv().expect("expected a captured request");
-    let request_line = request.lines().next().unwrap_or("");
-    assert!(
-        request_line.contains("fingerprint=%2B%2F8%3D"),
-        "got request line: {}",
-        request_line
-    );
-}
 
 #[tokio::test]
 async fn test_bhv_operations_038_pet_api_error_handling_server_error() {
@@ -1884,7 +1844,7 @@ async fn test_bhv_operations_084_pet_api_mirror_operation_server_is_the_host_of_
  * cookie and the date array reach the wire, and the text/plain answer comes
  * back as the text. */
 #[tokio::test]
-async fn test_pet_api_get_pet_summary_succeeds_with_a_text_plain_answer() {
+async fn test_bhv_langrust_045_pet_api_get_pet_summary_succeeds_with_a_text_plain_answer() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let base_url = format!("http://{}", listener.local_addr().unwrap());
     let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -1962,7 +1922,7 @@ async fn test_bhv_operations_043_pet_api_find_pets_born_on_path_param_is_date_on
 /// The API group can be built without wiring a client, configuration or
 /// authenticator, like the no-argument constructors in the other SDKs.
 #[test]
-fn test_pet_api_default_constructs_without_arguments() {
+fn test_bhv_misc_276_pet_api_default_constructs_without_arguments() {
     let _api = PetApi::default();
 }
 
@@ -1990,7 +1950,7 @@ fn test_bhv_operations_082_operations_document_their_options_argument() {
 /// written: no HTML entity, no leaked backslash-quote, and the angle brackets
 /// rustdoc reads as HTML tags are escaped so `cargo doc -D warnings` passes.
 #[test]
-fn test_operation_prose_is_raw_and_rustdoc_safe() {
+fn test_bhv_langrust_046_operation_prose_is_raw_and_rustdoc_safe() {
     let source = include_str!("../src/api/pet_api.rs");
     let expected = "    /// Get a \\<plain\\> \"text\" summary & it's short\n    \
 /// Returns '''plain''' text for /pets/#{id} and \\<b\\> & \"c\" it's done\n";

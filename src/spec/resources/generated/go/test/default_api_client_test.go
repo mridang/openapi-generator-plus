@@ -596,7 +596,7 @@ func TestBhvRedirects005_DefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t
 
 // F839 (RFC 9110 sec 15.4): on 301 and 302 only POST becomes GET, on 303 every
 // method except HEAD becomes GET, and 307 and 308 never change the method.
-func TestDefaultApiClient_RedirectMethodRewriting(t *testing.T) {
+func TestBhvLanggo031_DefaultApiClient_RedirectMethodRewriting(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		status     int
@@ -3188,5 +3188,30 @@ func TestBhvMisc056_DefaultApiClient_AnEmptyProxyRemovesTheEarlierProxy(t *testi
 	case <-hits:
 	default:
 		t.Error("expected the request to reach the server directly")
+	}
+}
+
+func TestBhvMisc299_DefaultApiClient_PerCallHeaderOverridesTheTransportDefaultOfTheSameRole(t *testing.T) {
+	t.Parallel()
+	sdkAgent := "sdk-default-agent"
+	transport, buildErr := NewTransportOptionsBuilder().
+		UserAgent(&sdkAgent).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	_, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{"User-Agent": "per-call-agent"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := <-seen; got != "per-call-agent" {
+		t.Errorf("expected the caller's User-Agent on the wire, got %q", got)
 	}
 }

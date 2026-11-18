@@ -281,7 +281,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
                    end
     end
 
-    test "scheme authenticators for Basic and Bearer delegate to the base authenticators" do
+    test "bhv langelixir 048 scheme authenticators for Basic and Bearer delegate to the base authenticators" do
       basic =
         PetstoreClient.Auth.AdminBasicAuthenticator.new(
           "https://api.example.com",

@@ -20,7 +20,7 @@ describe 'generated model doc comments' do
     File.join(File.expand_path('..', File.dirname(__FILE__)), 'lib', '{{modulePath}}', 'models', '*.rb')
   end
 
-  it 'finds the generated model sources on disk' do
+  it 'bhv_langruby_044 finds the generated model sources on disk' do
     # Sanity check: the glob must resolve to real files, otherwise the
     # pollution assertions below would pass vacuously.
     _(Dir.glob(models_glob)).wont_be_empty
@@ -37,7 +37,7 @@ describe 'generated model doc comments' do
     _(offenders).must_equal([], "models still document a null example: #{offenders.inspect}")
   end
 
-  it 'still documents genuine spec-declared examples' do
+  it 'bhv_langruby_045 still documents genuine spec-declared examples' do
     # Category#id (example: 1) and Category#name (example: Dogs) declare real
     # examples in the spec, so the guard must keep their "# @example" lines.
     # This proves the null filter does not over-suppress legitimate docs.

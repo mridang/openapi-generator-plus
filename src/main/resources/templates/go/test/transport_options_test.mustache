@@ -159,7 +159,7 @@ func TestBhvOptions041_TransportOptions_UserAgentDefaultsToNonEmptyString(t *tes
 	}
 }
 
-func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
+func TestBhvLanggo102_TransportOptions_UserAgentDefaultThenSet(t *testing.T) {
 	t.Parallel()
 	// The default carries the branded value; once set via the nullable setter
 	// it is applied and read back through the pointer.
@@ -1037,6 +1037,9 @@ func TestBhvMisc042_TransportOptions_DisabledVerificationRefusalNamesTheSetting(
 	_, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(&http.Client{}).VerifySsl(false).Build()
 	if !errors.Is(err, {{packageName}}.ErrTransportConflict) || !strings.Contains(err.Error(), "VerifySsl") {
 		t.Errorf("expected a conflict naming VerifySsl, got %v", err)
+	}
+}
+
 func TestBhvMisc298_TransportOptions_MalformedProxyUrlFailsTheClientWithInvalidProxyURL(t *testing.T) {
 	t.Parallel()
 	opts, err := {{packageName}}.NewTransportOptionsBuilder().

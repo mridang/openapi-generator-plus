@@ -411,7 +411,7 @@ class TestTransportOptionsRepr:
         assert 'hunter2' not in repr(opts)
         assert f"{name!r}: '***'" in repr(opts)
 
-    def test_repr_keeps_other_default_header_values(self) -> None:
+    def test_bhv_lang_python_196_repr_keeps_other_default_header_values(self) -> None:
         opts = TransportOptions.builder().default_header('Accept', 'text/plain').build()
 
         assert "'Accept': 'text/plain'" in repr(opts)

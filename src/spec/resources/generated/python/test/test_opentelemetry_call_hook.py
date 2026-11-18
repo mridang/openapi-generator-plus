@@ -195,7 +195,7 @@ class TestSpan:
         assert (span.attributes or {})["error.type"] == expected
         assert span.status.status_code == StatusCode.ERROR
 
-    async def test_bhv_telemetry_004_a_cancelled_call_is_cancelled(
+    async def test_bhv_lang_python_204_a_cancelled_call_is_cancelled(
         self, recorded: _Recorded
     ) -> None:
         transport = _Transport(_OK)

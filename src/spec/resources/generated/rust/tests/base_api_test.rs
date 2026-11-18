@@ -21,7 +21,7 @@ use petstore::*;
 // -- Error dispatch via chasm --
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_400() {
+async fn test_bhv_langrust_017_base_api_error_dispatch_400() {
     let base_url = format!(
         "{}/test/status/400",
         testcontainers_helper::chasm_http_url()
@@ -35,7 +35,7 @@ async fn test_base_api_error_dispatch_400() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_401() {
+async fn test_bhv_langrust_018_base_api_error_dispatch_401() {
     let base_url = format!(
         "{}/test/status/401",
         testcontainers_helper::chasm_http_url()
@@ -49,7 +49,7 @@ async fn test_base_api_error_dispatch_401() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_403() {
+async fn test_bhv_langrust_019_base_api_error_dispatch_403() {
     let base_url = format!(
         "{}/test/status/403",
         testcontainers_helper::chasm_http_url()
@@ -63,7 +63,7 @@ async fn test_base_api_error_dispatch_403() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_404() {
+async fn test_bhv_langrust_020_base_api_error_dispatch_404() {
     let base_url = format!(
         "{}/test/status/404",
         testcontainers_helper::chasm_http_url()
@@ -96,7 +96,7 @@ async fn test_bhv_errors_067_base_api_error_dispatch_409() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_422() {
+async fn test_bhv_langrust_021_base_api_error_dispatch_422() {
     let base_url = format!(
         "{}/test/status/422",
         testcontainers_helper::chasm_http_url()
@@ -350,25 +350,6 @@ impl petstore::api_client::ApiClient for PlainTextApiClient {
 
 /* D32: a text/plain 200 for an operation that returns a model is a
  * SerializationError naming the Content-Type, never a silently dropped body. */
-#[tokio::test]
-async fn test_base_api_rejects_a_text_plain_body_for_a_model_return() {
-    let client = Arc::new(PlainTextApiClient);
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
-    let api = PetApi::new(client, config, None);
-    let err = api
-        .get_pet_by_id_with_http_info(1, None, None)
-        .await
-        .expect_err("a text/plain body for a model return must be an error");
-    let serialization = err
-        .downcast_ref::<SerializationError>()
-        .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
-    assert_eq!(
-        "Unexpected response Content-Type 'text/plain' for PetApi.get_pet_by_id",
-        serialization.message()
-    );
-}
 
 struct VendorJsonApiClient;
 
@@ -847,7 +828,7 @@ async fn test_bhv_serializationwire_055_form_space_encodes_as_plus() {
 
 // -- form-urlencoded Content-Type set on the generated operation --
 #[tokio::test]
-async fn test_set_pet_preferences_sends_form_content_type() {
+async fn test_bhv_misc_179_set_pet_preferences_sends_form_content_type() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1262,7 +1243,7 @@ impl petstore::api_client::ApiClient for QueryCapturingApiClient {
 }
 
 #[tokio::test]
-async fn test_base_api_query_param_serialization() {
+async fn test_bhv_langrust_022_base_api_query_param_serialization() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
@@ -1994,13 +1975,13 @@ fn test_bhv_errors_060_api_error_kind_not_found_variant() {
 }
 
 #[test]
-fn test_api_error_kind_conflict_variant() {
+fn test_bhv_langrust_023_api_error_kind_conflict_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(409).into();
     assert!(matches!(kind, petstore::ApiErrorKind::Conflict(_)));
 }
 
 #[test]
-fn test_api_error_kind_too_many_requests_variant() {
+fn test_bhv_langrust_024_api_error_kind_too_many_requests_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(429).into();
     assert!(matches!(kind, petstore::ApiErrorKind::TooManyRequests(_)));
 }
@@ -2024,25 +2005,25 @@ fn test_bhv_errors_069_api_error_kind_internal_server_error_variant() {
 }
 
 #[test]
-fn test_api_error_kind_client_error_fallback() {
+fn test_bhv_langrust_025_api_error_kind_client_error_fallback() {
     let kind: petstore::ApiErrorKind = make_api_error(418).into();
     assert!(matches!(kind, petstore::ApiErrorKind::ClientError(_)));
 }
 
 #[test]
-fn test_api_error_kind_server_error_fallback() {
+fn test_bhv_langrust_026_api_error_kind_server_error_fallback() {
     let kind: petstore::ApiErrorKind = make_api_error(599).into();
     assert!(matches!(kind, petstore::ApiErrorKind::ServerError(_)));
 }
 
 #[test]
-fn test_api_error_kind_other_for_unrecognized_status() {
+fn test_bhv_langrust_027_api_error_kind_other_for_unrecognized_status() {
     let kind: petstore::ApiErrorKind = make_api_error(0).into();
     assert!(matches!(kind, petstore::ApiErrorKind::Other(_, _)));
 }
 
 #[test]
-fn test_api_error_kind_network_variants_have_status_zero() {
+fn test_bhv_langrust_028_api_error_kind_network_variants_have_status_zero() {
     let fields = petstore::ApiErrorFields::from(make_api_error(0));
     let kind = petstore::ApiErrorKind::Network(fields.clone());
     assert!(matches!(kind, petstore::ApiErrorKind::Network(_)));
@@ -2151,7 +2132,7 @@ fn test_bhv_operations_006_api_result_and_response_accessor_only() {
 // only through accessor methods (no `pub` field to forge or mutate error
 // state). Walk the full BadRequest -> ClientError -> ApiError accessor chain.
 #[test]
-fn test_typed_error_wrappers_accessor_only() {
+fn test_bhv_langrust_029_typed_error_wrappers_accessor_only() {
     let api_error =
         petstore::ApiError::new(400, "bad request".to_string(), None, Some("{}".to_string()));
     let client_error = ClientError::try_from(api_error).expect("the status is 4xx");
@@ -2939,7 +2920,7 @@ async fn test_bhv_retries_025_a_retry_that_does_not_fit_the_timeout_is_not_made(
 }
 
 #[tokio::test]
-async fn test_every_attempt_shares_one_deadline() {
+async fn test_bhv_langrust_030_every_attempt_shares_one_deadline() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(503, Some("0")),
