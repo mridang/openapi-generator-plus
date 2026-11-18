@@ -3426,3 +3426,18 @@ class TestDeadlineAndCancellationClassification:
             )
 
         assert not isinstance(excinfo.value, NetworkTimeoutException)
+
+
+class TestCancelSignalAlreadyAborted:
+    def test_bhv_misc_152_a_call_whose_handle_is_already_cancelled_raises(self) -> None:
+        from petstore_client.default_api_client import RequestHandle
+
+        handle = RequestHandle()
+        handle.cancel()
+        client = DefaultApiClient(
+            TransportOptions.builder().build(), pool_manager=_ScriptedPool()
+        )
+        with pytest.raises(RuntimeError, match="cancelled"):
+            client.send_request(
+                "GET", "https://example.com/start", {}, None, handle=handle
+            )

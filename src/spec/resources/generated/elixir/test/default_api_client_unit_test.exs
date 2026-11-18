@@ -2865,4 +2865,11 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert length(Regex.scan(~r/name="note"/, body)) == 1
     end
   end
+
+  describe "multipart filename directive" do
+    test "bhv misc 099 every multipart filename becomes one canonical content directive, with a quoted ASCII fallback and an extended form only when the name needs it" do
+      directive = PetstoreClient.DefaultApiClient.build_content_disposition("file", "naïve.txt")
+      assert directive =~ "filename*=UTF-8''na%C3%AFve.txt"
+    end
+  end
 end
