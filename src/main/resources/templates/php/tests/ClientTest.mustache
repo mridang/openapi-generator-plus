@@ -8,6 +8,7 @@ use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyLocation;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
+use {{invokerPackage}}\Auth\HttpAwareAuthenticator;
 use {{invokerPackage}}\Psr18ApiClient;
 use {{invokerPackage}}\TransportOptions;
 use {{invokerPackage}}\Test\RecordingCallHook;
@@ -727,4 +728,66 @@ test('bhv misc 042 disabled verification on a supplied client is refused and the
 
     expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
         ->toThrow(\InvalidArgumentException::class, 'verifySsl');
+});
+
+test('bhv misc 071 a client level credential that needs http receives the clients transport', function (): void {
+    $credential = new class('{{{basePath}}}', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
+        public ?ApiClient $received = null;
+
+        public function setApiClient(ApiClient $apiClient): void
+        {
+            $this->received = $apiClient;
+        }
+    };
+    $client = new {{clientClassName}}($credential);
+    $property = (new \ReflectionClass(\{{apiPackage}}\BaseApi::class))->getProperty('apiClient');
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    expect($property->getValue($client->{{clientPropertyName}}))->toBe($credential->received);
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+{{#schemeCredentials}}
+{{#-first}}
+test('bhv misc 072 every api group holds the default credential and the scheme credentials', function (): void {
+    $default = new BearerAuthenticator('https://default.example.com', 'tok');
+    $scheme = new BearerAuthenticator('https://scheme.example.com', 'tok');
+    $client = new {{clientClassName}}($default, {{param}}: $scheme);
+    $base = new \ReflectionClass(\{{apiPackage}}\BaseApi::class);
+    $authenticator = $base->getProperty('authenticator');
+    $schemes = $base->getProperty('schemeAuthenticators');
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    expect($authenticator->getValue($client->{{clientPropertyName}}))->toBe($default);
+    expect(array_values($schemes->getValue($client->{{clientPropertyName}})))->toBe([$scheme]);
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+{{/-first}}
+{{/schemeCredentials}}
+
+{{#hasSchemeCredentials}}
+test('bhv misc 073 a wrapper class exists for every security scheme the spec declares', function (): void {
+{{#schemeCredentials}}
+    expect(class_exists('{{{escapedClassFqcn}}}'))->toBeTrue();
+{{/schemeCredentials}}
+});
+{{/hasSchemeCredentials}}
+
+test('bhv misc 075 a credential keyed to an undeclared scheme is refused when the client is built', function (): void {
+    $credential = new BearerAuthenticator('{{{basePath}}}', 'tok');
+
+    expect(fn () => new {{clientClassName}}(undeclaredScheme: $credential))
+        ->toThrow(\Error::class, 'undeclaredScheme');
 });

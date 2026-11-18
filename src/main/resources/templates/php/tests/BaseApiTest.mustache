@@ -2467,4 +2467,27 @@ test('bhv misc 296 a failed request is retried twice by default, so three reques
     expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
         ->toThrow(ServerException::class);
     expect(count($seen))->toBe(3);
+||||||| 3712f2407
+test('bhv misc 081 a base64 body under a binary content type is decoded before the caller gets it', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, base64_encode("\x89PNG\r\n"), ['Content-Type' => 'image/png']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+
+    $result = $testApi->call('GET', '/test/echo', [], [], null, ['image/png'], 'application/json', 'string');
+
+    expect($result)->toBe("\x89PNG\r\n");
 });

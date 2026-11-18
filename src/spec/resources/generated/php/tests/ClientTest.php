@@ -8,6 +8,7 @@ use PetstoreClient\Client;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Auth\HttpAwareAuthenticator;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
 use PetstoreClient\Test\RecordingCallHook;
@@ -701,4 +702,54 @@ test('bhv misc 042 disabled verification on a supplied client is refused and the
 
     expect(fn () => Client::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
         ->toThrow(\InvalidArgumentException::class, 'verifySsl');
+});
+
+test('bhv misc 071 a client level credential that needs http receives the clients transport', function (): void {
+    $credential = new class ('/api/v3', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
+        public ?ApiClient $received = null;
+
+        public function setApiClient(ApiClient $apiClient): void
+        {
+            $this->received = $apiClient;
+        }
+    };
+    $client = new Client($credential);
+    $property = (new \ReflectionClass(\PetstoreClient\Api\BaseApi::class))->getProperty('apiClient');
+
+    expect($property->getValue($client->pet))->toBe($credential->received);
+});
+
+test('bhv misc 072 every api group holds the default credential and the scheme credentials', function (): void {
+    $default = new BearerAuthenticator('https://default.example.com', 'tok');
+    $scheme = new BearerAuthenticator('https://scheme.example.com', 'tok');
+    $client = new Client($default, petStoreBasic: $scheme);
+    $base = new \ReflectionClass(\PetstoreClient\Api\BaseApi::class);
+    $authenticator = $base->getProperty('authenticator');
+    $schemes = $base->getProperty('schemeAuthenticators');
+
+    expect($authenticator->getValue($client->pet))->toBe($default);
+    expect(array_values($schemes->getValue($client->pet)))->toBe([$scheme]);
+});
+
+test('bhv misc 073 a wrapper class exists for every security scheme the spec declares', function (): void {
+    expect(class_exists(\PetstoreClient\Auth\PetStoreBasicAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\AdminBasicAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\PetStoreBearerAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\ServiceTokenAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\ApiKeyHeaderAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\InternalApiKeyAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\ApiKeyQueryAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\SessionCookieAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\LegacyAuthPasswordAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\UserAuthAuthorizationCodeAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\BrowserAuthImplicitAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\SsoAuthAuthenticator::class))->toBeTrue();
+});
+
+test('bhv misc 075 a credential keyed to an undeclared scheme is refused when the client is built', function (): void {
+    $credential = new BearerAuthenticator('/api/v3', 'tok');
+
+    expect(fn () => new Client(undeclaredScheme: $credential))
+        ->toThrow(\Error::class, 'undeclaredScheme');
 });
