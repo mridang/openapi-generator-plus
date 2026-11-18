@@ -1434,4 +1434,23 @@ public class DefaultApiClientTest
             return Task.FromResult(redirect);
         }
     }
+
+    [Fact]
+    public async Task BhvMisc056AnEmptyProxyRemovesTheEarlierProxy()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy("http://127.0.0.1:1")
+            .Proxy("")
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+    }
 }

@@ -3234,4 +3234,19 @@ describe 'DefaultApiClientUnit' do
     _(seen).must_equal([['http://localhost/items', 'kept']] * 2)
     stubs.verify_stubbed_calls
   end
+
+  it 'bhv_misc_124 refuses a 301 redirect from HTTPS to HTTP for a POST with a body instead of replaying it' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do
+        [301, { 'location' => 'http://localhost/landing' }, '']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      _(proc {
+        client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
+      }).must_raise Petstore::Client::Errors::ApiError
+    end
+  end
 end
