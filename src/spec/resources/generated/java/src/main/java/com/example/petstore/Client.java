@@ -27,7 +27,6 @@ import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
 import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
 import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
 import com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -85,9 +84,6 @@ import javax.annotation.Nullable;
  * java.net.http.HttpClient} the caller supplied through {@link TransportOptions}. A request issued
  * after closing fails with an {@link IllegalStateException}.
  */
-@SuppressFBWarnings(
-    value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"},
-    justification = "the API-group fields exist for the caller, not for the SDK")
 /* A tag the spec spells with an acronym -- BetaOIDCService -- keeps that
  * spelling here, because the accessor is public API and every other SDK
  * spells it the same way. */
