@@ -3517,3 +3517,51 @@ describe('DefaultApiClient misc transport behaviours', () => {
     expect(out.toString('utf-8')).toBe('{"userId":1}');
   });
 });
+
+describe('DefaultApiClient misc cause and redirects', () => {
+  it('bhv misc 282 a network failure raised after the connection drops keeps the underlying transport error as its cause', async () => {
+    const client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+    let caught: ApiError | undefined;
+    try {
+      await client.sendRequest('GET', 'http://127.0.0.1:1/never', {}, null);
+    } catch (e) {
+      caught = e as ApiError;
+    } finally {
+      await client.close();
+    }
+    expect(caught!.cause).toBeDefined();
+  });
+
+  it('bhv redirects 049 a 307 or 308 response repeats the request with the same method and body', async () => {
+    const seen: Array<{ method: string; body: string }> = [];
+    const srv = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', (chunk: Buffer) => { body += chunk.toString('utf-8'); });
+      req.on('end', () => {
+        if (req.url === '/landing') {
+          seen.push({ method: req.method ?? '', body });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{}');
+          return;
+        }
+        res.writeHead(Number((req.url ?? '').split('/').pop()), { Location: '/landing' });
+        res.end();
+      });
+    });
+    await new Promise<void>((resolve) => srv.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${(srv.address() as { port: number }).port}`;
+    const client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+    try {
+      for (const status of [307, 308]) {
+        for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+          seen.length = 0;
+          await client.sendRequest(method, `${base}/start/${status}`, {}, 'payload');
+          expect(seen).toEqual([{ method, body: 'payload' }]);
+        }
+      }
+    } finally {
+      await client.close();
+      await new Promise<void>((resolve) => srv.close(() => resolve()));
+    }
+  });
+});

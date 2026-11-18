@@ -605,3 +605,11 @@ describe("TransportOptions builder refusals and proxy", () => {
     expect(options.proxy).toBeFalsy();
   });
 });
+
+describe("TransportOptions misc proxy schemes", () => {
+  test("bhv options 068 a SOCKS proxy scheme fails at construction with the documented error message", () => {
+    expect(() =>
+      TransportOptions.builder().proxy("socks5://proxy.example.com:1080"),
+    ).toThrow("Invalid proxy URL (must use http or https scheme)");
+  });
+});

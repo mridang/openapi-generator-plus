@@ -508,3 +508,22 @@ describe('Composed Schema', () => {
     expect(record.isSurgery()).toBe(true);
   });
 });
+
+describe('Composed Schema misc behaviours', () => {
+  test('bhv misc 291 a payload matching several union variants decodes to the first declared variant', () => {
+    const record = ObjectSerializer.deserialize({ drugName: 'a', procedureName: 'b' }, TreatmentRecord) as TreatmentRecord;
+    expect(record.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
+  test('bhv misc 292 serializing a union wrapper emits the bare variant payload and reads back to the same value', () => {
+    const wrapper = new PetTreatment(new Medication({ drugName: 'Amoxicillin', dosage: '500mg' }));
+    const wire = JSON.parse(ObjectSerializer.serialize(wrapper)) as Record<string, unknown>;
+    expect(wire).toEqual({ drugName: 'Amoxicillin', dosage: '500mg' });
+    const back = ObjectSerializer.deserialize(wire, PetTreatment) as PetTreatment;
+    expect(back.getActualInstance()).toEqual(new Medication({ drugName: 'Amoxicillin', dosage: '500mg' }));
+  });
+
+  test('bhv serialization 076 decoding a union value that matches none of its candidates raises a serialization error', () => {
+    expect(() => ObjectSerializer.deserialize({ unrelated: 1 }, TreatmentRecord)).toThrow(SerializationError);
+  });
+});

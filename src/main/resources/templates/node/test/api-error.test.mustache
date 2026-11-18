@@ -881,3 +881,43 @@ describe('ApiError misc behaviours', () => {
     expect(ApiError.fromResponse(399, {}, null).constructor).toBe(ApiError);
   });
 });
+
+describe('ApiError misc status mapping', () => {
+  test('bhv misc 281 headers from a received response are copied onto the error raised for that response', () => {
+    const err = ApiError.fromResponse(500, { 'x-trace': 'trace-281' }, '{}');
+    expect(err.responseHeaders?.['x-trace']).toBe('trace-281');
+  });
+
+  test('bhv misc 283 the package root re-exports every error type in the error tree', () => {
+    for (const cls of [
+      {{errorPrefix}}Error, ClientError, BadRequestError, ConflictError, ForbiddenError, InternalServerError,
+      NetworkError, NetworkTimeoutError, NotFoundError, OAuth2ServerError, OAuth2TokenError, SerializationError,
+      ServerError, UnauthorizedError, TooManyRequestsError, PaymentRequiredError, MethodNotAllowedError,
+      RequestTimeoutError, GoneError, PayloadTooLargeError, UnsupportedMediaTypeError, LockedError,
+      NotImplementedError, BadGatewayError, ServiceUnavailableError, GatewayTimeoutError, UnprocessableEntityError,
+    ]) {
+      expect(Object.values(sdk)).toContain(cls);
+    }
+  });
+
+  test('bhv misc 284 a status with a typed error raises that typed error', () => {
+    for (const [status, cls] of [
+      [400, BadRequestError],
+      [403, ForbiddenError],
+      [404, NotFoundError],
+      [409, ConflictError],
+      [422, UnprocessableEntityError],
+      [429, TooManyRequestsError],
+      [500, InternalServerError],
+      [502, BadGatewayError],
+    ] as const) {
+      expect(ApiError.fromResponse(status, {}, '{}')).toBeInstanceOf(cls);
+    }
+  });
+
+  test('bhv misc 286 an OAuth server error message names both its HTTP status and its error code', () => {
+    const err = new OAuth2ServerError(401, 'invalid_client', null, null, '{}');
+    expect(err.message).toContain('401');
+    expect(err.message).toContain('invalid_client');
+  });
+});

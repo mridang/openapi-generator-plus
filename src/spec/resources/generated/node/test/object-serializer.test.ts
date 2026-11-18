@@ -4145,3 +4145,25 @@ describe("ObjectSerializer union variants", () => {
     );
   });
 });
+
+describe("ObjectSerializer misc behaviours", () => {
+  test("bhv serialization 074 nested arrays decode and encode back to the same nested shape", () => {
+    const decoded = ObjectSerializer.deserializeArray(
+      [[1, 2], [3]],
+      (x: unknown) =>
+        ObjectSerializer.deserializeArray(x, (v: unknown) => v as number),
+    );
+    expect(JSON.stringify(decoded)).toBe("[[1,2],[3]]");
+  });
+
+  test("bhv serialization 083 a serialization error is caught as the library error type and carries a non-empty message", () => {
+    let caught: unknown = null;
+    try {
+      ObjectSerializer.deserializeArray({}, (v: unknown) => v);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(SerializationError);
+    expect((caught as Error).message).not.toBe("");
+  });
+});
