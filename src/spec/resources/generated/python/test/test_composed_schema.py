@@ -464,6 +464,6 @@ class TestUnionWrapperBehaviours:
     ) -> None:
         import json
 
-        food = DryFood(food_type="custom", weight_kg=2.5)
+        food = DryFood(foodType="custom", weightKg=2.5)
 
         assert json.loads(ObjectSerializer().serialize(food))["foodType"] == "custom"

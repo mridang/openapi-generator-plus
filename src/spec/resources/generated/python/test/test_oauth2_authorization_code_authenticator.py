@@ -11,7 +11,7 @@ import json
 import re
 from typing import Any
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse, parse_qs
 
 from petstore_client.auth.oauth.oauth2_authorization_code_authenticator import (
@@ -667,8 +667,11 @@ class TestPkceAppendixB:
         self,
     ) -> None:
         authenticator = _create_authenticator()
-        authenticator._pkce_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 
-        url = authenticator.build_authorization_url()
+        with patch(
+            "secrets.token_urlsafe",
+            return_value="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+        ):
+            url = authenticator.build_authorization_url()
 
         assert "code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM" in url

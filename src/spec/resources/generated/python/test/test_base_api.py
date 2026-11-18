@@ -3252,7 +3252,11 @@ class TestAutomaticRetries:
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls += 1
-                raise urllib3.exceptions.ReadTimeoutError(None, url, "read timed out")
+                raise urllib3.exceptions.ReadTimeoutError(
+                    urllib3.HTTPConnectionPool("api.example.test"),
+                    url,
+                    "read timed out",
+                )
 
             def clear(self) -> None:
                 return None

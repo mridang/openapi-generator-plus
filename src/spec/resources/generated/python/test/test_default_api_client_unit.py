@@ -1166,7 +1166,7 @@ class TestRedirectKeepsTheRequestOnTheHop:
         assert len(pool.calls) == 2
         method, url, body, headers = pool.calls[1]
         assert (method, url) == ("PUT", "https://example.com/landed")
-        assert body == '{"a":1}'
+        assert body == b'{"a":1}'
         assert headers.get("Content-Type") == "application/json"
 
     def test_bhv_redirects_039_a_bodyless_request_follows_an_https_to_http_redirect(
@@ -2772,6 +2772,8 @@ class TestTransportBehaviours:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url, kwargs))
                 raise urllib3.exceptions.ProtocolError("stop")
+
+        from petstore_client.errors import OpenAPIException
 
         pool = _RecordingPool()
         client = DefaultApiClient(pool_manager=pool)
