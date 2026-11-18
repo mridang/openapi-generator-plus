@@ -3708,4 +3708,77 @@ describe('automatic retries misc behaviours', () => {
     await send(playing([reply(503)], (builder) => builder.maxRetries(1)), { maxRetries: 4 });
     expect(calls).toHaveLength(5);
   });
+
+  const headerValue = (headers: Record<string, string>, name: string): string | undefined =>
+    Object.entries(headers).find(([key]) => key.toLowerCase() === name)?.[1];
+
+  it('bhv misc 173 a streamed body is refused across an https to http redirect when the body is not empty', async () => {
+    const client = playing([reply(307, { Location: 'http://api.example/plain' }), reply(200)], (builder) =>
+      builder.followRedirects(true),
+    );
+    await expect(client.sendRequest('POST', 'https://api.example/items', {}, 'payload')).rejects.toThrow(
+      'Refusing to replay request body',
+    );
+    expect(calls).toHaveLength(1);
+  });
+
+  it('bhv misc 177 a default Content-Type header given in any letter case is not sent when the request has no body', async () => {
+    const client = playing([reply(200)], (builder) => builder.defaultHeader('content-type', 'application/json'));
+    await send(client);
+    expect(headerValue(calls[0]!.headers, 'content-type')).toBeUndefined();
+  });
+
+  it('bhv misc 178 a declared multipart content type other than form-data reaches the transport with its subtype kept', async () => {
+    const client = playing([reply(200)]);
+    await client.sendRequest('POST', 'http://api.example/items', { 'Content-Type': 'multipart/related' }, { note: 'hello' });
+    expect(headerValue(calls[0]!.headers, 'content-type')!.startsWith('multipart/related; boundary=')).toBe(true);
+  });
+
+  it('bhv misc 179 a form-urlencoded body sends the application/x-www-form-urlencoded Content-Type', async () => {
+    const client = playing([reply(200)]);
+    await client.sendRequest(
+      'POST',
+      'http://api.example/items',
+      { 'Content-Type': 'application/x-www-form-urlencoded' },
+      'a=1',
+    );
+    expect(headerValue(calls[0]!.headers, 'content-type')).toBe('application/x-www-form-urlencoded');
+  });
+
+  it('bhv misc 181 content placed in a header is sent exactly as serialised, with no percent-encoding applied', async () => {
+    const client = playing([reply(200)]);
+    await client.sendRequest('GET', 'http://api.example/items', { 'X-Raw': 'a%20b c/d' }, null);
+    expect(headerValue(calls[0]!.headers, 'x-raw')).toBe('a%20b c/d');
+  });
+
+  it.each(['Authorization', 'authorization', 'AUTHORIZATION'])(
+    'bhv misc 182 a cross-origin redirect removes the %s header whatever its letter case',
+    async (name) => {
+      const client = playing([reply(302, { Location: 'https://other.example/next' }), reply(200)], (builder) =>
+        builder.followRedirects(true),
+      );
+      await client.sendRequest('GET', 'https://api.example/items', { [name]: 'Bearer x' }, null);
+      expect(calls).toHaveLength(2);
+      expect(headerValue(calls[1]!.headers, 'authorization')).toBeUndefined();
+    },
+  );
+});
+
+describe('DefaultApiClient lifecycle misc behaviours', () => {
+  it('bhv misc 175 credential header names are recognised regardless of letter case', () => {
+    const names = Array.from(SENSITIVE_HEADER_NAMES, (name) => name.toLowerCase());
+    expect(names).toContain('authorization');
+    expect(names).not.toContain('content-type');
+  });
+
+  it('bhv misc 183 closing a client whose credentials hold nothing that needs releasing succeeds', async () => {
+    await expect(new DefaultApiClient().close()).resolves.toBeUndefined();
+  });
+
+  it('bhv misc 188 a client reports itself as closed only after close has been called on it', async () => {
+    const client = new DefaultApiClient();
+    expect((client as unknown as { closed: boolean }).closed).toBe(false);
+    await client.close();
+    expect((client as unknown as { closed: boolean }).closed).toBe(true);
+  });
 });

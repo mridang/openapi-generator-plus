@@ -902,6 +902,14 @@ void main() {
     test('bhv auth 017 a form-encoded value writes a space as a plus sign and percent-encodes reserved punctuation', () {
       expect(encodeRfc3986QueryComponent('a b+c~d*', spaceToPlus: true), equals('a+b%2Bc~d%2A'));
     });
+
+    test('bhv serialization 106 a non-exploded array query parameter joins its values with commas', () {
+      expect(serializeValue(['a', 'b'], 'query', 'array', 'csv'), equals('a,b'));
+    });
+
+    test('bhv serialization 108 a path parameter with no declared style uses the simple style', () {
+      expect(serializeValue('hello world', 'path', 'string', ''), equals('hello%20world'));
+    });
   });
 }
 {{/generateTests}}

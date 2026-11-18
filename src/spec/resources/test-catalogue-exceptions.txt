@@ -536,6 +536,7 @@ elixir | transport085 | Elixir has no cancellation token or signal argument (S7)
 elixir | serialization129 | Elixir Duration holds microseconds only, so a nanosecond fraction cannot be held: the formatter writes at most six digits and the parser truncates digits past microseconds (bhv serializationobject 054)
 ||||||| 721d0e950
 elixir | misc153 | Elixir has no cancel signal for a call or the client: a call is cancelled by ending the calling process, so no signal set anywhere reaches the in-flight request as a value
+elixir | transport091 | Elixir has no caller-supplied stream: a file or upload part is an in-memory binary the SDK never opens, so there is no handle for it to leave open (the same reason as transport061)
 rust | misc047 | Rust unions are enums, so a value that is not one of the variants cannot be built and the compiler admits only variants when serializing, so no run-time error naming the union exists
 rust | misc050 | RequestOptions is a plain struct whose flags default to false, so an unset per-call flag cannot be told apart from an explicit false and cannot fall through to the transport options
 rust | misc051 | Rust builders expose only typed setters, so an option the builder does not have cannot be passed and the compiler rejects it before any run-time check
@@ -662,7 +663,6 @@ rust | misc101 | Rust multipart parts are byte buffers read before the call is m
 ||||||| 1e358825c
 node | misc131 | The node client has no caller-supplied session object: every request goes through fetch with the SDK transport options, so no session can bypass the redirect rules.
 node | misc140 | TypeScript rejects a missing required constructor property at compile time, and the runtime constructor accepts partial data by design, so the check is a compile-time guarantee.
-||||||| 669862760
 csharp | misc149 | a C# with-expression accepts only the record's declared members, so an undeclared attribute is a compile-time error and cannot be named at run time
 ||||||| 8d4c745f0
 go | misc202 | the petstore fixture declares no operation whose request body is text, so no call can send a text body whose content type was left undeclared
@@ -674,6 +674,14 @@ dart | misc100 | Dart always builds a Map body as multipart/form-data through pa
 dart | misc101 | Dart multipart parts are Uint8List values already held in memory and no stream part exists, so no source can fail to be read after the call is built
 dart | misc104 | the generic fixture models have no string field with the email format outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic email-format field exists to decode
 dart | misc112 | the generic fixture models have no unique-array field outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic set-typed field exists to decode
+dart | misc135 | Dart has no client-level cancellation handle: a call is cancelled through the subscription it returns, so the configuration holds no signal to store
+dart | misc139 | Dart model constructors are const and store a passed map by reference, so a copy cannot be taken when the model is built without losing const construction
+dart | misc145 | additionalProperties is a plain final Map on a const model, so a read returns the stored map and a copy on read would break the const model shape
+dart | misc149 | Dart named parameters are checked at compile time, so an undeclared copyWith attribute is a compile error and no runtime refusal can be tested
+dart | misc152 | Dart has no cancellation signal on a call: a request is cancelled by cancelling the stream subscription it returns, so there is no already-aborted signal to pass
+dart | misc153 | Dart has no cancellation signal on a call or client: a request is cancelled by cancelling its stream subscription, so no signal can abort an in-flight request
+dart | misc166 | invokeApi treats a null per-call timeout as the transport timeout, so a call has no way to switch its own deadline off
+dart | misc170 | TLS failures are dart:io TlsException values that the shared retry loop cannot name, since the web build has no dart:io; they are retried like other network errors
 kotlin | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
 kotlin | misc098 | Kotlin request bodies are ByteArray values and the MultipartWriter buffers every part into a ByteArrayOutputStream, so no caller-supplied stream reaches the SDK and there is nothing for it to close (transport061 pins the buffering)
 ||||||| 3033dba2f
@@ -684,5 +692,17 @@ java | misc135 | Java has no client-level cancellation handle to store: cancella
 ||||||| 72eb7d52b
 go | misc231 | Go model fields are statically typed, so a model built in code cannot hold a wrong-typed value for a declared property; the wrong-type check runs only when decoding
 go | misc215 | an input object with no declared fields has no declared defaults to fill, so there is no observable default-filling behaviour to test for it
+go | misc260 | Go takes server variable overrides as map[string]string, so a nil value for an enum variable cannot be expressed and the type system rules it out
+python | misc185 | python's OAuth2 token manager has no stop operation and holds no process or resource to release, so a second stop and a stopped-manager error do not exist
+python | misc186 | python transport options take no ready-made HTTP connection value, so there is no connection to refuse or to combine with a CA bundle setting
+||||||| 064947382
+||||||| dc8f610aa
+kotlin | misc101 | Kotlin request bodies and multipart parts are ByteArray or String values read in full before the call (transport061 pins the buffering), so no source can become unreadable during the send and a missing value fails when the caller builds the body
+kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema forbids cannot be passed to it, and the generated models never validate on copy (misc051 pins the typed arguments)
+||||||| 7b31d005e
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
 ruby | misc233 | the SDK writes a cookie value as the caller gives it (to_cookie_value does not percent-encode, see bhv_misc_123), so a JSON model cookie is not encoded by the SDK
+||||||| 795b7d215
+dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
+kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
+kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)

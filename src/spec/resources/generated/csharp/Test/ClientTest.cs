@@ -379,6 +379,97 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BhvMisc203ClosingAnAlreadyClosedClientRaisesNoError()
+    {
+        var client = Client.WithToken("http://localhost", "tok");
+        client.Dispose();
+
+        var error = Record.Exception(() => client.Dispose());
+
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void BhvMisc204ConstructingWithoutACredentialFailsImmediatelyWithAMissingCredentialError()
+    {
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains("No credential", ex.Message, StringComparison.Ordinal);
+            }
+        );
+    }
+
+    [Fact]
+    public void BhvMisc205AMissingCredentialErrorNamesTheVariableThatShouldHaveSuppliedIt()
+    {
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+            }
+        );
+    }
+
+    [Fact]
+    public void BhvMisc206AClientBuiltWithOnlyADefaultAuthenticatorIsConstructedAndTakesItsHost()
+    {
+        using var client = new Client(new TransportProbeAuthenticator());
+
+        Assert.Equal("http://localhost", client.GetHost());
+    }
+
+    [Fact]
+    public async Task BhvMisc207ACredentialNotPassedToTheConstructorIsReadFromItsEnvironmentVariable()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () => client = Client.FromEnvironment(transportOptions: transport)
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer env-token", handler.Authorization);
+    }
+
+    [Fact]
+    public void BhvMisc208AnEnvironmentVariableSetToEmptyIsTreatedAsUnset()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "",
+            () =>
+            {
+                Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc197AnOperationWhoseSchemesAreNotHeldIsServedByTheDefaultAuthenticator()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        using var client = Client.WithToken("http://localhost", "tok", transport);
+
+        _ = await client.Store.GetOrderByIdAsync(1);
+
+        Assert.Equal("Bearer tok", handler.Authorization);
+    }
+
+    [Fact]
     public void BhvAuth004FromEnvironmentWithNoArgumentNoVariableAndNoProviderIsRefused()
     {
         WithEnvironment(

@@ -1862,6 +1862,79 @@ void main() {
       },
     );
 
+    for (final status in [300, 305]) {
+      test(
+        'bhv misc 133 a $status response is returned as it is, even when it carries a Location header',
+        () async {
+          final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          server.listen((request) async {
+            await request.drain<void>();
+            request.response
+              ..statusCode = status
+              ..headers.set('Location', '/landed')
+              ..close();
+          });
+
+          try {
+            final client = DefaultApiClient(
+              transportOptions: TransportOptionsBuilder()
+                  .followRedirects(true)
+                  .build(),
+            );
+            final resp = await client.sendRequest(
+              'GET',
+              'http://localhost:${server.port}/start',
+              {},
+              null,
+            );
+            expect(resp.statusCode, equals(status));
+          } finally {
+            await server.close();
+          }
+        },
+      );
+    }
+
+    test(
+      'bhv misc 165 a request body is replayed across a 308 redirect that keeps the plain-text scheme',
+      () async {
+        String? landedBody;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          final body = await utf8.decodeStream(request);
+          if (request.uri.path == '/start') {
+            request.response
+              ..statusCode = 308
+              ..headers.set('Location', '/landed')
+              ..close();
+            return;
+          }
+          landedBody = body;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .followRedirects(true)
+                .build(),
+          );
+          final resp = await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/start',
+            {'Content-Type': 'application/json'},
+            Uint8List.fromList(utf8.encode('{"a":1}')),
+          );
+          expect(resp.statusCode, equals(200));
+          expect(landedBody, equals('{"a":1}'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test(
       'bhv misc 132 a per-call header whose name holds a credential word is dropped on a cross-origin redirect',
       () async {
@@ -2348,6 +2421,45 @@ void main() {
           expect(resp.statusCode, equals(302));
         } finally {
           await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 224 transport default headers are not sent on a request that goes to another origin after a redirect',
+      () async {
+        final seen = <String?>[];
+        final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        target.listen((request) {
+          seen.add(request.headers.value('x-probe'));
+          request.response.close();
+        });
+        final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        source.listen((request) {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', 'http://127.0.0.1:${target.port}/second');
+          request.response.close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .followRedirects(true)
+              .defaultHeader('X-Probe', 'transport')
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+          await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${source.port}/first',
+            {},
+            null,
+          );
+
+          expect(seen, hasLength(1));
+          expect(seen.single, isNull);
+        } finally {
+          await source.close();
+          await target.close();
         }
       },
     );
