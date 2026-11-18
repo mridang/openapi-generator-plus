@@ -349,4 +349,14 @@ class MetadataTest {
         assertTrue(section.contains("maxRetries(n)"), "the Retries subsection must name the maxRetries option")
         assertTrue(section.contains("`Retry-After`"), "the Retries subsection must name the Retry-After header")
     }
+
+    @Test
+    @DisplayName("bhvSerializationobject227 a model externalDocs description is documented verbatim without HTML entities")
+    fun bhvSerializationobject227ModelExternalDocsIsDocumentedVerbatim() {
+        // Gradle runs tests with the project root as the working directory.
+        val source = java.io.File("src/main/kotlin").walk().first { it.name == "Account.kt" }.readText()
+        assertTrue(source.contains("""<a href="https://example.com/docs/account">Account <docs> & "notes" it's here</a>"""), source)
+        assertFalse(source.contains("&lt;"), source)
+        assertFalse(source.contains("&amp;"), source)
+    }
 }

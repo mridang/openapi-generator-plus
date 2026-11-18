@@ -14,6 +14,16 @@ import org.junit.jupiter.api.Test
 
 class BearerAuthenticatorTest {
     @Test
+    @DisplayName("bhvAuthbearer026 a token and a token provider passed together are refused")
+    fun tokenAndTokenProviderTogetherAreRefused() {
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", "xyz", { "other" })
+            }
+        assertEquals("Pass either token or tokenProvider, not both", ex.message)
+    }
+
+    @Test
     @DisplayName("bhvAuthbearer028 a bearer token containing CRLF is rejected at construction")
     fun bhvAuthbearer028ABearerTokenContainingCrlfIsRejectedAtConstruction() =
         runBlocking {
@@ -201,6 +211,18 @@ class BearerAuthenticatorTest {
     }
 
     @Test
+    @DisplayName(
+        "bhvAuthscheme011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable",
+    )
+    fun bhvAuthscheme011EmptyBearerVariableIsUnsetAndNamed() {
+        val ex =
+            withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "")) {
+                assertThrows(IllegalArgumentException::class.java) { BearerAuthenticator("https://api.example.com") }
+            }
+        assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"), ex.message)
+    }
+
+    @Test
     fun bhvAuthbearer027RejectsAWhitespaceOnlyTokenAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
             BearerAuthenticator("https://api.example.com", " \t \r\n")
@@ -283,7 +305,7 @@ class BearerAuthenticatorTest {
             val provider: suspend () -> String = { "from-provider" }
             val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")
             val explicit =
-                withEnvironment(env) { BearerAuthenticator("https://api.example.com", "explicit", provider) }
+                withEnvironment(env) { BearerAuthenticator("https://api.example.com", "explicit") }
             assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
             val fromEnv =
                 withEnvironment(env) { BearerAuthenticator("https://api.example.com", tokenProvider = provider) }
@@ -325,7 +347,7 @@ class BearerAuthenticatorTest {
             val provider: suspend () -> String = { "from-provider" }
             val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "from-env")
             val explicit =
-                withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "explicit", provider) }
+                withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "explicit") }
             assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
             val fromEnv =
                 withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider) }

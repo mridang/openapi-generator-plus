@@ -536,6 +536,27 @@ class ObjectSerializerTest {
     @DisplayName("deserialize")
     inner class DeserializeTests {
         @Test
+        @DisplayName("bhvSerializationobject229 deserializing a map of models returns a model instance for each value")
+        fun deserializingAMapOfModelsReturnsAModelForEachValue() {
+            val decoded =
+                serializer.deserialize<Map<String, com.example.petstore.models.Category>>(
+                    "{\"dogs\":{\"id\":1,\"name\":\"Dogs\"},\"cats\":{\"id\":2,\"name\":\"Cats\"}}",
+                )
+            assertEquals(setOf("dogs", "cats"), decoded?.keys)
+            assertEquals(1L, decoded?.get("dogs")?.id)
+            assertEquals("Cats", decoded?.get("cats")?.name)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject231 deserializing a payload that omits optional fields leaves them unset")
+        fun deserializingAPayloadThatOmitsOptionalFieldsLeavesThemUnset() {
+            val decoded = serializer.deserialize<com.example.petstore.models.Account>("{\"username\":\"u\"}")
+            assertNotNull(decoded)
+            assertNull(decoded!!.id)
+            assertNull(decoded.password)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject189 mutually recursive models decode from nested JSON")
         fun mutuallyRecursiveModelsDecodeFromNestedJson() {
             val json = "{\"name\":\"Eng\",\"lead\":{\"name\":\"Ada\",\"department\":{\"name\":\"Core\"}}}"
@@ -1128,6 +1149,15 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("stringify")
     inner class StringifyTests {
+        @Test
+        @DisplayName("bhvSerializationobject230 a time value survives a stringify and parse round trip")
+        fun timeValueSurvivesAStringifyAndParseRoundTrip() {
+            val original = java.time.LocalTime.of(11, 22, 33)
+            val text = serializer.stringify(original)
+            assertEquals("11:22:33", text)
+            assertEquals(original, java.time.LocalTime.parse(text))
+        }
+
         @Test
         @DisplayName("bhvSerializationobject110 null returns empty string")
         fun nullReturnsEmptyString() {

@@ -28,7 +28,7 @@ open class BearerAuthenticator internal constructor(
      * @param host the base URL of the API
      * @param token the bearer token
      * @param tokenProvider returns the current bearer token on each request
-     * @throws IllegalArgumentException if there is no token, or it is not a valid header value
+     * @throws IllegalArgumentException if there is no token, if both a token and a tokenProvider are passed, or if the token is not a valid header value
      */
     constructor(
         host: String,
@@ -46,6 +46,7 @@ open class BearerAuthenticator internal constructor(
         }
 
     init {
+        require(token == null || tokenProvider == null) { "Pass either token or tokenProvider, not both" }
         this.token?.let { validateToken(it) }
     }
 

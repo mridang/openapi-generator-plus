@@ -221,4 +221,33 @@ class ServerConfigurationTest {
         source["env"] = ServerVariable("changed", null, emptyList())
         assertEquals("https://api.example.com", server.getUrl())
     }
+
+    @Test
+    @DisplayName("bhvServers021 a server URL with special characters in its default and enum values resolves to the raw characters")
+    fun specialCharactersInDefaultAndEnumValuesResolveRaw() {
+        val server =
+            ServerConfiguration(
+                "https://{host}.example.com/{path}",
+                null,
+                mapOf(
+                    "host" to ServerVariable("a b&c", null, listOf("a b&c", "d?e#f")),
+                    "path" to ServerVariable("x'y(z)", null, emptyList()),
+                ),
+            )
+        assertEquals("https://a b&c.example.com/x'y(z)", server.getUrl())
+        assertEquals("https://d?e#f.example.com/x'y(z)", server.getUrl(mapOf("host" to "d?e#f")))
+    }
+
+    @Test
+    @DisplayName("bhvServers023 a server variable value containing replacement patterns is substituted literally")
+    fun replacementPatternsInValueAreSubstitutedLiterally() {
+        val server =
+            ServerConfiguration(
+                "https://{env}.example.com",
+                null,
+                mapOf("env" to ServerVariable("x", null, emptyList())),
+            )
+        val value = "$&-$1-\${name}-\\0"
+        assertEquals("https://$value.example.com", server.getUrl(mapOf("env" to value)))
+    }
 }

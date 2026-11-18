@@ -375,6 +375,9 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
+    @DisplayName(
+        "bhvAuthscheme013 an empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable",
+    )
     fun generatedSchemeWrapperTreatsAnEmptyVariableAsUnsetAndNamesTheMissingOne() {
         val env =
             mapOf(
