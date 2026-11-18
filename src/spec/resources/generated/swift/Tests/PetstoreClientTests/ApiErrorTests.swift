@@ -47,7 +47,7 @@ import Testing
     #expect(err.responseBody == nil)
   }
 
-  @Test func testConformsToErrorAndHasDescription() {
+  @Test func testBhvLangswift001ConformsToErrorAndHasDescription() {
     let err = ApiError(statusCode: 500, message: "boom")
 
     let _: any Error = err
@@ -77,7 +77,7 @@ import Testing
 
   /* OAuth2TokenError renders its message through localizedDescription
    * instead of Foundation's generic "operation couldn't be completed". */
-  @Test func testOAuth2TokenErrorLocalizedDescriptionIsTheMessage() {
+  @Test func testBhvLangswift002OAuth2TokenErrorLocalizedDescriptionIsTheMessage() {
     let missing: any Error = OAuth2TokenError.missingAccessToken("empty access_token")
     #expect(missing.localizedDescription == "empty access_token")
     let invalid: any Error = OAuth2TokenError.invalidResponse("not a token object")
@@ -222,7 +222,7 @@ import Testing
     #expect(err.responseBody == body)
   }
 
-  @Test func testANewlineInTheBodyIsShownEscaped() {
+  @Test func testBhvErrors085ANewlineInTheBodyIsShownEscaped() {
     let err = ApiError(statusCode: 500, message: "boom", responseBody: "one\r\ntwo")
     #expect(err.errorDescription == "boom\nHTTP status code: 500\nResponse body: one\\x0D\\x0Atwo")
   }
@@ -487,7 +487,7 @@ import Testing
     #expect(typed?.name == "Cat")
   }
 
-  @Test func testAuthAndSerializationErrorsConformToOpenAPIError() {
+  @Test func testBhvErrors094AuthAndSerializationErrorsConformToOpenAPIError() {
     // INVARIANT: every SDK-thrown error type — including the auth and
     // serialization value types that do not subclass ApiError — is branded
     // with OpenAPIError, so a single `as? OpenAPIError` catch covers the
@@ -512,7 +512,7 @@ import Testing
     }
   }
 
-  @Test func testConfigurationErrorIsNotAnOpenAPIError() {
+  @Test func testBhvMisc026ConfigurationErrorIsNotAnOpenAPIError() {
     // A configuration mistake or a wrong call order is a programming error,
     // not an API failure, so ConfigurationError and
     // OAuth2AuthorizationCodeError conform to plain Error only.
@@ -533,7 +533,7 @@ import Testing
     }
   }
 
-  @Test func testTransportFailuresAreClassified() {
+  @Test func testBhvMisc027TransportFailuresAreClassified() {
     // URLError(.timedOut) is a NetworkTimeoutError; any other failure with
     // no HTTP response is a NetworkError. Both keep the URLError.
     let timeout = DefaultApiClient.transportError(URLError(.timedOut))
@@ -593,7 +593,7 @@ import Testing
     }
   }
 
-  @Test func testConnectionRefusedIsNetworkError() async throws {
+  @Test func testBhvLangswift003ConnectionRefusedIsNetworkError() async throws {
     // Port 9 (discard) on loopback is not listening, so the connection is
     // refused and no HTTP response exists.
     let client = try DefaultApiClient(
@@ -766,7 +766,7 @@ import Testing
     #expect(err.underlyingError != nil)
   }
 
-  @Test func testASchemaErrorIsAStatusErrorWhoseTypedBodyIsNilUntilOneIsDecoded() {
+  @Test func testBhvLangswift004ASchemaErrorIsAStatusErrorWhoseTypedBodyIsNilUntilOneIsDecoded() {
     let err = UnexpectedFailureError(statusCode: 400, message: "declared")
 
     #expect(err.statusCode == 400)
@@ -783,7 +783,7 @@ import Testing
     #expect(err.requestPath == "/items/7")
   }
 
-  @Test func testAttachRequestNamesTheRequestOnce() {
+  @Test func testBhvLangswift005AttachRequestNamesTheRequestOnce() {
     let err = NetworkError(statusCode: 0, message: "connection reset")
     err.attachRequest(method: "GET", path: "/items?key=secret")
     #expect(err.message == "connection reset for GET /items")

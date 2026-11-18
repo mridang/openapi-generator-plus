@@ -1942,3 +1942,8 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+langswift001 | An API error conforms to the platform error protocol and reports a non-empty description
+langswift002 | An OAuth2 token error's localized description is exactly its message
+langswift003 | A refused loopback connection with no response raises a network error with status zero that keeps the transport error
+langswift004 | A status error built with no response data has no typed body until one is decoded
+langswift005 | Attaching request context to an error a second time does not replace the first request's method and path
