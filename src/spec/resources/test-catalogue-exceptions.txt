@@ -209,3 +209,15 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+rust | options058 | The transport options hold no HTTP client: an injected client is an argument to DefaultApiClient::with_client, so there is no built options value to read it back from
+rust | options059 | Rust has no transport hook option: a caller replaces the transport by implementing the ApiClient trait and passing it to the constructor, so there is no hook value on the built options
+rust | options063 | Per-call options are plain values with public fields that are passed by reference, and TransportOptions has private fields and getters only, so immutability is enforced by the type and has no runtime behaviour to assert
+rust | serialization037 | A number field is f64 (D83) and the crate has no arbitrary-precision decimal type, so a decimal is held to floating-point precision by design
+rust | serialization044 | A date-format parameter is typed chrono::NaiveDate, so a date-time cannot be passed to it and no runtime conversion exists to assert
+rust | models014 | Model fields stay public (F868) so a value bound with mut can be reassigned, and immutability is enforced by binding without mut, which the compiler checks rather than a runtime test
+rust | models016 | A with_ method takes the inner type and stores Some, so there is no null argument to clear a field with; clearing is covered by models017 through struct update syntax
+rust | unions037 | A oneOf is a plain enum whose variant is the value itself, so there is no union wrapper to build, hold or replace
+rust | unions039 | A oneOf is a plain enum and cannot hold null or an invalid value, so building it never reaches a validation step
+rust | unions040 | A oneOf is matched with pattern matching on the enum, so there is no typed accessor that returns the held variant
+rust | unions042 | A oneOf is a plain enum that must hold one variant, so there is no empty wrapper whose is-accessors could answer false
+rust | lifecycle040 | Rust's scoped-disposal construct is Drop, and the generated DefaultApiClient Drop releases the reqwest pool without any observable hook, so the explicit close is the tested path (lifecycle036)
