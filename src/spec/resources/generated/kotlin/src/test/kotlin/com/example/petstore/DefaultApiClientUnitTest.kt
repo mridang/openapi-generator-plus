@@ -899,6 +899,18 @@ class DefaultApiClientUnitTest {
             }
             assertEquals(listOf<String?>(null, "api-only"), seen)
         }
+
+        @Test
+        @DisplayName("bhvMisc299 a caller header overrides the transport default header of the same name")
+        fun bhvMisc299CallerHeaderOverridesTransportDefault() {
+            var sent: String? = null
+            val client = mockClient(requestCapture = { req -> sent = req.headers["X-Trace"] })
+            val transport = TransportOptions.builder().defaultHeader("X-Trace", "transport").build()
+            runBlocking {
+                DefaultApiClient(client, transport).sendRequest("GET", "http://localhost/t", mapOf("X-Trace" to "caller"), null)
+            }
+            assertEquals("caller", sent)
+        }
     }
 
     @Nested
@@ -3572,6 +3584,27 @@ class DefaultApiClientUnitTest {
 
             assertEquals(listOf("{\"a\":1}", "{\"a\":1}"), seenBodies)
         }
+
+        @Test
+        @DisplayName("bhvMisc296 the default retry policy sends a failed request three times in total")
+        fun bhvMisc296DefaultRetriesSendThreeRequests() {
+            val apiClient = retrying(listOf(503, 503, 503))
+
+            assertThrows(ApiException::class.java) { get(apiClient) }
+
+            assertEquals(3, requestCount)
+        }
+
+        @Test
+        @DisplayName("bhvRetries047 a retry wait that would overrun the timeout budget is not taken")
+        fun bhvRetries047OverrunningWaitIsNotTaken() {
+            val apiClient = retrying(listOf(503, 200), retryAfter = "30", timeout = 1000L)
+
+            assertThrows(ApiException::class.java) { get(apiClient) }
+
+            assertEquals(1, requestCount)
+            assertTrue(sleeps.isEmpty(), "no wait may be taken: $sleeps")
+        }
     }
 
     @Nested
@@ -4519,6 +4552,26 @@ class DefaultApiClientUnitTest {
                     }
                 }
             assertEquals("Unsupported Content-Encoding 'made-up-codec'", ex.cause?.message)
+        }
+
+    @Test
+    fun bhvMisc298ConstructingWithAMalformedProxyUrlFailsWithInvalidProxyUrl() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    DefaultApiClient(TransportOptions.builder().proxy("http://[::1").build())
+                }
+            assertTrue(ex.message!!.startsWith("Invalid proxy URL"), ex.message)
+        }
+
+    @Test
+    fun bhvRetries045StreamedBodyIsSentOnceAfterAnUnauthorizedResponse() =
+        runBlocking<Unit> {
+            var sent = 0
+            val client = mockClient(statusCode = HttpStatusCode.Unauthorized, requestCapture = { sent++ })
+            val response = DefaultApiClient(client).sendRequest("POST", "http://localhost/upload", emptyMap(), "payload")
+            assertEquals(401, response.statusCode)
+            assertEquals(1, sent)
         }
 
     @Test

@@ -4440,3 +4440,59 @@ describe("ObjectSerializer wire behaviours (chunk 11)", () => {
     );
   });
 });
+
+describe("ObjectSerializer serialization behaviours (bhv serialization 112 to 130)", () => {
+  test("bhv serialization 112 a password property is masked in the string and debug forms of a model, while the wire value is unaffected", () => {
+    const password = "p@ss-word-value";
+    const account = new Account({ username: "user", password });
+    expect(String(account)).not.toContain(password);
+    expect(util.inspect(account)).not.toContain(password);
+    expect(ObjectSerializer.serialize(account)).toContain(
+      '"password":"p@ss-word-value"',
+    );
+  });
+
+  test("bhv serialization 115 an integral JSON number decoded into a floating-point field becomes a float", () => {
+    const defaults = ObjectSerializer.deserialize(
+      { ratio: 2 },
+      Defaults,
+    ) as Defaults;
+    expect(typeof defaults.ratio).toBe("number");
+    expect(defaults.ratio).toBe(2);
+  });
+
+  test("bhv serialization 116 a property whose name is a language keyword keeps its exact wire key on serialize and deserialize", () => {
+    const wire = ObjectSerializer.serialize(
+      new EdgeCases({ and: true, class: "economy" }),
+    );
+    expect(wire).toContain('"and":true');
+    expect(wire).toContain('"class":"economy"');
+    const decoded = ObjectSerializer.deserialize(
+      JSON.parse(wire),
+      EdgeCases,
+    ) as EdgeCases;
+    expect(decoded.and).toBe(true);
+    expect(decoded.class).toBe("economy");
+  });
+
+  test("bhv serialization 117 a protobuf duration string decodes into a duration value, both as a model property and as a standalone value", () => {
+    const ninetySeconds = Temporal.Duration.from({ seconds: 90 });
+    const edge = ObjectSerializer.deserialize(
+      { retryAfter: "90s" },
+      EdgeCases,
+    ) as EdgeCases;
+    expect(Temporal.Duration.compare(edge.retryAfter!, ninetySeconds)).toBe(0);
+    expect(
+      Temporal.Duration.compare(durationFromProtoJson("90s"), ninetySeconds),
+    ).toBe(0);
+  });
+
+  test("bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix", () => {
+    expect(() => ObjectSerializer.serialize({ count: BigInt(1) })).toThrow(
+      SerializationError,
+    );
+    expect(() => ObjectSerializer.serialize({ count: BigInt(1) })).toThrow(
+      /^Failed to serialize object to JSON: /,
+    );
+  });
+});

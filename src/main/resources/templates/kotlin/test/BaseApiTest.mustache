@@ -266,6 +266,34 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("bhvMisc072 each API group holds the default credential and the scheme credentials the client was built with")
+    fun bhvMisc072EveryGroupHoldsTheDefaultAndTheSchemeCredentials() {
+        val client = CapturingApiClient()
+        val fallback = TestAuthenticator(mapOf("X-Credential" to "default-cred"), emptyMap(), emptyMap())
+        val scheme = TestAuthenticator(mapOf("X-Credential" to "scheme-cred"), emptyMap(), emptyMap())
+        val group = TestableApiWithSchemes(client, "http://localhost", fallback, mapOf("petStoreBearer" to scheme))
+        runBlocking { group.call("/test/echo", group.pick("petStoreBearer")) }
+        assertEquals("scheme-cred", client.capturedHeaders["X-Credential"])
+        runBlocking { group.call("/test/echo", null) }
+        assertEquals("default-cred", client.capturedHeaders["X-Credential"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc159 a 401 is replayed once, even with retries turned off, when the authenticator can supply fresh credentials")
+    fun bhvMisc159A401IsReplayedOnceEvenWithRetriesOff() {
+        val (client, seen) = statusClient(401, 200)
+        val auth = RotatingOAuthAuthenticator()
+        val api = object : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+            suspend fun call() =
+                invokeApi("GET", "/items", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+        }
+        val response = runBlocking { api.call() }
+        assertEquals(200, response.statusCode)
+        assertEquals(2, seen.size)
+        assertEquals(1, auth.invalidations)
+    }
+
+    @Test
     @DisplayName("bhvRetries005 a retry asks the authenticator for the headers again")
     fun aRetryAsksTheAuthenticatorForFreshHeaders() {
         val client = ScriptedApiClient(listOf(401, 200))
@@ -683,6 +711,36 @@ class BaseApiTest {
                 runBlocking { PerCallApi(single).call(callMaxRetries = 0) }
             }
             assertEquals(1, seenOnce.size)
+        }
+
+        @Test
+        @DisplayName("bhvMisc166 a call that disables its deadline is not cut short while it waits to retry")
+        fun bhvMisc166ACallThatDisablesItsDeadlineIsNotCutShortWhileItWaitsToRetry() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val engine = MockEngine { request ->
+                seen.add(request)
+                respond(
+                    "{}",
+                    if (seen.size == 1) HttpStatusCode.ServiceUnavailable else HttpStatusCode.OK,
+                    headersOf("Content-Type", "application/json"),
+                )
+            }
+            val client = DefaultApiClient(
+                TransportOptions.builder().httpClient(HttpClient(engine)).timeout(null).maxRetries(1).build(),
+            )
+            client.sleeper = { }
+            val ok = runBlocking { PerCallApi(client).call() }
+            assertEquals(200, ok.statusCode)
+            assertEquals(2, seen.size)
+        }
+
+        @Test
+        @DisplayName("bhvMisc171 a per-call maxRetries above the transport limit applies to that call and allows more attempts")
+        fun bhvMisc171APerCallMaxRetriesAboveTheTransportLimitAppliesToThatCall() {
+            val (client, seen) = statusClient(503, 503, 200)
+            val ok = runBlocking { PerCallApi(client).call(callMaxRetries = 2) }
+            assertEquals(200, ok.statusCode)
+            assertEquals(3, seen.size)
         }
 
         @Test

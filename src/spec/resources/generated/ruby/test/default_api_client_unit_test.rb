@@ -2655,7 +2655,7 @@ describe 'DefaultApiClientUnit' do
   # number), the recorded pauses replace real sleeping, and +envs+ keeps each
   # attempt's request.
   def run_retry_probe(options: nil, verb: :get, headers: {}, body: nil, retry_headers: nil, random: nil,
-                      call_max_retries: nil, &respond)
+                      call_max_retries: nil, call_timeout: nil, &respond)
     envs = []
     delays = []
     # The request body as sent: the stub rewrites env.body with the response.
@@ -2677,7 +2677,8 @@ describe 'DefaultApiClientUnit' do
     client.stub(:build_connection, stub_connection(stubs)) do
       outcome = begin
         client.send_request(verb, 'http://localhost/r', headers, body, retry_headers: retry_headers,
-                                                                       max_retries: call_max_retries)
+                                                                       max_retries: call_max_retries,
+                                                                       timeout: call_timeout)
       rescue Petstore::Client::Errors::NetworkError => e
         e
       end
@@ -2691,6 +2692,256 @@ describe 'DefaultApiClientUnit' do
 
   def ok_after(attempts, failure)
     ->(attempt) { attempt > attempts ? [200, { 'content-type' => 'text/plain' }, 'ok'] : failure }
+  end
+
+  it 'bhv_misc_160 an error that is not a network failure is never retried' do
+    envs = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.get('/r') do |env|
+          envs << env
+          raise ArgumentError, 'bad encoding'
+        end
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.max_retries(2).build)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises(ArgumentError) { client.send_request(:GET, 'http://localhost/r', {}, nil) }
+    end
+
+    _(envs.length).must_equal 1
+  end
+
+  it 'bhv_misc_162 an idempotent request whose connection drops before any response is sent again once' do
+    outcome, envs, delays = run_retry_probe { |attempt| attempt == 1 ? raise(Faraday::ConnectionFailed, 'reset') : [200, {}, 'ok'] }
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 2
+    _(delays.length).must_equal 1
+  end
+
+  it 'bhv_misc_161 a POST or PATCH whose connection drops before any response is sent once' do
+    %i[post patch].each do |verb|
+      outcome, envs, delays = run_retry_probe(verb: verb) { raise Faraday::ConnectionFailed, 'reset' }
+
+      _(outcome).must_be_instance_of Petstore::Client::Errors::NetworkError
+      _(envs.length).must_equal 1
+      _(delays).must_be_empty
+    end
+
+    query_envs = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.send(:new_stub, :query, '/r') do |env|
+          query_envs << env
+          raise Faraday::ConnectionFailed, 'reset' if query_envs.length == 1
+
+          [200, { 'content-type' => 'text/plain' }, 'found']
+        end
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.define_singleton_method(:pause) { |_seconds| nil }
+    outcome = nil
+    client.stub(:build_connection, stub_connection(stubs)) do
+      outcome = client.send_request(:QUERY, 'http://localhost/r', {}, 'q=1')
+    end
+
+    _(outcome.status_code).must_equal 200
+    _(query_envs.length).must_equal 2
+  end
+
+  it 'bhv_misc_163 a one-shot stream body is not replayed on retry, while text, bytes and an absent body are' do
+    _outcome, envs, = run_retry_probe(verb: :put, body: StringIO.new('payload')) { [503, {}, 'busy'] }
+    _(envs.length).must_equal 1
+
+    [nil, 'payload', 'payload'.b].each do |body|
+      _outcome, envs, = run_retry_probe(verb: :put, body: body) { [503, {}, 'busy'] }
+      _(envs.length).must_equal 3
+    end
+  end
+
+  it 'bhv_misc_164 a retry whose wait fits within the remaining timeout budget is sent' do
+    options = Petstore::Client::TransportOptions.builder.timeout(60_000).build
+    outcome, envs, delays = run_retry_probe(options: options, &ok_after(1, [503, { 'retry-after' => '1' }, 'busy']))
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 2
+    _(delays).must_equal [1.0]
+  end
+
+  it 'bhv_misc_165 a request body is replayed across a redirect that keeps the same plain-text scheme' do
+    bodies = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do |env|
+        bodies << env.body
+        [307, { 'location' => 'http://localhost/final' }, '']
+      end
+      stub.post('/final') do |env|
+        bodies << env.body
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.follow_redirects(true).build)
+    outcome = nil
+    client.stub(:build_connection, stub_connection(stubs)) do
+      outcome = client.send_request(:POST, 'http://localhost/r', {}, 'payload')
+    end
+
+    _(outcome.status_code).must_equal 200
+    _(bodies).must_equal %w[payload payload]
+  end
+
+  it 'bhv_misc_166 a call that disables its deadline is not cut short while it waits to retry' do
+    options = Petstore::Client::TransportOptions.builder.timeout(1_000).build
+    outcome, envs, delays = run_retry_probe(options: options, call_timeout: false,
+                                            &ok_after(1, [503, { 'retry-after' => '30' }, 'later']))
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 2
+    _(delays).must_equal [30.0]
+  end
+
+  it 'bhv_misc_167 an operation that keeps receiving a retryable status is attempted up to the retry limit and then returned' do
+    outcome, envs, = run_retry_probe { [503, {}, 'busy'] }
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 3
+  end
+
+  it 'bhv_misc_168 with no retry setting a failing request is sent three times, pausing 0.5 s and then 1 s between attempts' do
+    _outcome, envs, delays = run_retry_probe(random: 0) { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 3
+    _(delays).must_equal [0.5, 1.0]
+  end
+
+  it 'bhv_misc_169 the pause between retries starts at 0.5 s, doubles on each attempt and never exceeds 8 s' do
+    options = Petstore::Client::TransportOptions.builder.max_retries(6).timeout(300_000).build
+    _outcome, _envs, delays = run_retry_probe(options: options) { [500, {}, 'busy'] }
+
+    ceilings = [0.5, 1.0, 2.0, 4.0, 8.0, 8.0]
+    _(delays.length).must_equal 6
+    ceilings.zip(delays).each do |ceiling, delay|
+      _(delay).must_be :<=, ceiling
+      _(delay).must_be :>=, ceiling * 0.75
+    end
+  end
+
+  it 'bhv_misc_171 a per-call maximum retry count larger than the transport limit applies to that call and allows more attempts' do
+    options = Petstore::Client::TransportOptions.builder.max_retries(1).build
+    _outcome, envs, = run_retry_probe(options: options, call_max_retries: 4) { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 5
+  end
+
+  it 'bhv_misc_173 a request body is refused across an https to http redirect when the body is not empty' do
+    envs = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.post('/items') do |env|
+          envs << env
+          [307, { 'location' => 'http://insecure.example.com/items' }, '']
+        end
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises(Petstore::Client::Errors::ApiError) do
+        client.send_request(:POST, 'https://localhost/items', {}, 'payload')
+      end
+    end
+
+    _(envs.length).must_equal 1
+  end
+
+  it 'bhv_misc_174 a header value refused for a line break or NUL byte is never repeated in the error raised for it' do
+    client = Petstore::Client::DefaultApiClient.new
+    ["abc\r\nsecret-value", "abc\0secret-value"].each do |value|
+      err = assert_raises(ArgumentError) { client.send_request(:GET, 'http://localhost/r', { 'X-Token' => value }, nil) }
+      _(err.message).wont_include 'secret-value'
+      _(err.message).wont_include 'abc'
+    end
+  end
+
+  it 'bhv_misc_175 credential header names are recognised regardless of letter case' do
+    _(Petstore::Client::TransportOptions.sensitive_header?('AUTHORIZATION')).must_equal true
+    _(Petstore::Client::TransportOptions.sensitive_header?('X-Api-Key')).must_equal true
+    _(Petstore::Client::TransportOptions.sensitive_header?('Content-Type')).must_equal false
+  end
+
+  it 'bhv_misc_177 a default Content-Type header given in any letter case is not sent when the request has no body' do
+    options = Petstore::Client::TransportOptions.builder.default_header('content-type', 'application/json').build
+    _outcome, envs, = run_retry_probe(options: options) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['content-type']).must_be_nil
+  end
+
+  it 'bhv_misc_178 a declared multipart content type other than form-data reaches the transport with its subtype kept' do
+    _outcome, envs, = run_retry_probe(verb: :post, headers: { 'Content-Type' => 'multipart/related' },
+                                      body: { 'note' => 'hello' }) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['Content-Type']).must_match %r{\Amultipart/related; boundary=}
+  end
+
+  it 'bhv_misc_179 a form-urlencoded body sends the application/x-www-form-urlencoded Content-Type' do
+    _outcome, envs, = run_retry_probe(verb: :post, headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+                                      body: 'a=1') { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['Content-Type']).must_equal 'application/x-www-form-urlencoded'
+  end
+
+  it 'bhv_misc_181 content placed in a header is sent exactly as serialised, with no percent-encoding applied' do
+    _outcome, envs, = run_retry_probe(headers: { 'X-Raw' => 'a%20b c/d' }) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['X-Raw']).must_equal 'a%20b c/d'
+  end
+
+  it 'bhv_misc_182 a cross-origin redirect removes the Authorization header whatever its letter case' do
+    %w[Authorization authorization AUTHORIZATION].each do |name|
+      followup = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('/start') { [302, { 'location' => 'http://otherhost.example.com/landing' }, ''] }
+        stub.get('http://otherhost.example.com/landing') do |env|
+          followup = env.request_headers
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.follow_redirects(true).build)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request(:GET, 'http://localhost/start', { name => 'Bearer x' }, nil)
+      end
+
+      _(followup['Authorization']).must_be_nil
+    end
+  end
+
+  it 'bhv_misc_183 closing a client whose credentials hold nothing that needs releasing succeeds' do
+    _(-> { Petstore::Client::DefaultApiClient.new.close }).must_be_silent
+  end
+
+  it 'bhv_misc_184 close does not wait for a request that is still running and does not cancel it' do
+    release = Queue.new
+    port, thread = serve_when_released(release)
+    closes = [] # : Array[bool]
+    client = client_counting_closes(closes)
+    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
+    wait_until { client.instance_variable_get(:@in_flight) == 1 && client.instance_variable_get(:@connection) }
+    client.close
+    _(closes).must_be_empty
+    release << true
+    response = request.value
+
+    _(response.status_code).must_equal 200
+    thread.join
+  end
+
+  it 'bhv_misc_188 a client reports itself as closed only after close has been called on it' do
+    client = Petstore::Client::DefaultApiClient.new
+    _(client.instance_variable_get(:@closed)).must_equal false
+    client.close
+    _(client.instance_variable_get(:@closed)).must_equal true
   end
 
   it 'bhv_retries_038 sends the request again after a 503 and returns the later success' do

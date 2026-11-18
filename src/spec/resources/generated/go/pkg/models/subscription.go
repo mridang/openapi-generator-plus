@@ -102,6 +102,16 @@ func (o *Subscription) Equal(other *Subscription) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Subscription) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Subscription{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithTier returns a copy of the model with Tier replaced; the receiver is unchanged.
 func (o Subscription) WithTier(value Tier) Subscription {
 	o.Tier = &value

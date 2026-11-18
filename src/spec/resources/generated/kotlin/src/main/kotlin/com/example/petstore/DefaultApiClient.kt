@@ -147,6 +147,20 @@ class DefaultApiClient internal constructor(
     constructor() : this(TransportOptions.builder().build())
 
     /**
+     * Sends a token-endpoint request: it never follows a redirect and is never retried, so the
+     * credentials in the body are sent once and never replayed to another origin.
+     */
+    override suspend fun sendTokenRequest(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: Any?,
+    ): ApiHttpResponse =
+        kotlinx.coroutines.withContext(CallSettings(null, 0)) {
+            sendRequest(method, url, headers, body, noRedirect = true)
+        }
+
+    /**
      * Pause between two attempts. Internal test seam: a test replaces it to run the backoff
      * without waiting; production code always suspends with [kotlinx.coroutines.delay], which
      * a cancelled caller interrupts.
@@ -232,6 +246,10 @@ class DefaultApiClient internal constructor(
                 } catch (e: NetworkTimeoutException) {
                     throw e
                 } catch (e: NetworkException) {
+                    // A dropped connection is retried only for an idempotent method, since the
+                    // server may already have acted on a POST or PATCH. A TLS or certificate
+                    // failure is never retried.
+                    if (!RetryPolicy.isIdempotentMethod(method) || isTlsFailure(e)) throw e
                     val pause = retryPause(attempt, maxRetries, null, budget) ?: throw e
                     sleeper(pause)
                     attempt++
@@ -249,6 +267,12 @@ class DefaultApiClient internal constructor(
             sleeper(pause)
             attempt++
         }
+    }
+
+    /** True when a transport failure was a TLS handshake or certificate error anywhere in its causes. */
+    private fun isTlsFailure(e: Throwable): Boolean {
+        val causes = generateSequence(e) { it.cause }
+        return causes.any { it is javax.net.ssl.SSLException }
     }
 
     /**
@@ -388,10 +412,10 @@ class DefaultApiClient internal constructor(
                 }
 
                 // Refuse to replay a request body across an HTTPS->HTTP
-                // downgrade. Only 307/308 preserve the body, so we only guard
-                // those: a TLS-protected payload (POST/PUT body) must not be
-                // silently re-sent in cleartext.
-                if (response.status.value in 307..308 &&
+                // downgrade. 301, 302, 307 and 308 would carry the body to the
+                // plain-HTTP hop (303 drops it), so a TLS-protected payload
+                // (POST/PUT body) must not be silently re-sent in cleartext.
+                if (response.status.value in setOf(301, 302, 307, 308) &&
                     currentBody != null &&
                     "https".equals(originalUri.scheme, ignoreCase = true) &&
                     "http".equals(redirectUri.scheme, ignoreCase = true)
@@ -748,6 +772,10 @@ internal object RetryPolicy {
     private const val MAX_RETRY_AFTER_MILLIS = 60_000L
     private const val JITTER_SHARE = 0.25
     private val SECONDS = Regex("^[0-9]+(\\.[0-9]+)?$")
+
+    /** True for GET, HEAD, OPTIONS, TRACE, PUT, DELETE and QUERY: safe to send again after a dropped connection. */
+    fun isIdempotentMethod(method: String): Boolean =
+        method.uppercase() in setOf("GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY")
 
     /** True for 408, 409, 429 and every 5xx except 501. */
     fun isRetryableStatus(status: Int): Boolean = status == 408 || status == 409 || status == 429 || (status in 500..599 && status != 501)

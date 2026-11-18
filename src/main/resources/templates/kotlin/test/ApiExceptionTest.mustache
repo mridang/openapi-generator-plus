@@ -892,4 +892,34 @@ class ApiExceptionTest {
 {{/-first}}
 {{/errorSchemas}}
 {{/hasErrorSchemas}}
+
+
+    @Test
+    fun bhvMisc280TruncatedBodyStatesHowManyBytesWereLeftOut() = runBlocking<Unit> {
+        val ex = ApiException.fromResponse(500, null, "a".repeat(5000))
+        assertTrue(Regex("""\(\d+ more bytes\)""").containsMatchIn(ex.toString()), ex.toString())
+    }
+
+    @Test
+    fun bhvMisc281ResponseHeadersAreCopiedOntoTheError() = runBlocking<Unit> {
+        val ex = ApiException.fromResponse(500, mapOf("X-Trace" to "abc"), "{}")
+        assertEquals("abc", ex.responseHeaders!!["X-Trace"])
+    }
+
+    @Test
+    fun bhvMisc284TypedStatusRaisesItsTypedError() = runBlocking<Unit> {
+        val expected = listOf(
+            400 to {{invokerPackage}}.errors.BadRequestException::class.java,
+            403 to {{invokerPackage}}.errors.ForbiddenException::class.java,
+            404 to {{invokerPackage}}.errors.NotFoundException::class.java,
+            409 to {{invokerPackage}}.errors.ConflictException::class.java,
+            422 to {{invokerPackage}}.errors.UnprocessableEntityException::class.java,
+            429 to {{invokerPackage}}.errors.TooManyRequestsException::class.java,
+            500 to {{invokerPackage}}.errors.InternalServerErrorException::class.java,
+            502 to {{invokerPackage}}.errors.BadGatewayException::class.java,
+        )
+        expected.forEach { (status, type) ->
+            assertInstanceOf(type, ApiException.fromResponse(status, null, null))
+        }
+    }
 }

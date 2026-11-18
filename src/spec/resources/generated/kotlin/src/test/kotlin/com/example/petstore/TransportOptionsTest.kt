@@ -806,6 +806,16 @@ class TransportOptionsTest {
     }
 
     @Test
+    fun bhvOptions068SocksProxySchemeFailsAtConstructionWithTheDocumentedMessage() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().proxy("socks5://proxy:1080").build()
+                }
+            assertEquals("Invalid proxy URL (must use http or https scheme): socks5://proxy:1080", ex.message)
+        }
+
+    @Test
     @DisplayName("bhvMisc186 combining a ready-made connection with a CA bundle setting is rejected when the options are built")
     fun bhvMisc186ReadyMadeConnectionWithCaBundleIsRejectedAtBuild() {
         assertThrows(IllegalArgumentException::class.java) {

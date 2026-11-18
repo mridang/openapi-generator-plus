@@ -1564,6 +1564,46 @@ describe Petstore::Client::Api::BaseApi do
     api.call('POST', '/items', {}, {}, body, ['application/json'], content_type, nil, auth)
   end
 
+  it 'bhv_misc_159 a 401 is replayed once even when transport retries are turned off' do
+    client = ReplayApiClient.new([401, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    replay_call(api)
+    _(client.api_requests.length).must_equal 2
+  end
+
+  it 'bhv_misc_176 a required cookie parameter is sent in the Cookie header with its value' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => 'abc' })
+    test_api.call('GET', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil, auth)
+    _(client.captured_headers['Cookie']).must_equal 'session=abc'
+  end
+
+  it 'bhv_misc_191 an auth cookie holding a character RFC 6265 forbids raises an ArgumentError that is not an OpenAPI error' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => 'a"b' })
+    error = _(-> { test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil, auth) })
+            .must_raise ArgumentError
+
+    _(error).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
+  end
+
+  it 'bhv_misc_192 an auth cookie made only of legal cookie octets is sent exactly as given' do
+    value = 'a~!#$%&\'()*+-./:<=>?@[]^_`{|}'
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => value })
+    test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil, auth)
+
+    _(client.captured_headers['Cookie']).must_equal "session=#{value}"
+  end
+
   it 'bhv_retries_001 replays a request once with a renewed token after a 401' do
     client = ReplayApiClient.new([401, 200])
     api = replay_api(client, client_credentials_auth)

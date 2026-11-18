@@ -528,3 +528,29 @@ describe('Composed Schema misc behaviours', () => {
     expect(() => ObjectSerializer.deserialize({ unrelated: 1 }, TreatmentRecord)).toThrow(SerializationError);
   });
 });
+
+describe('Composed Schema union accessors and equality (bhv unions 044 to 047)', () => {
+  test('bhv unions 044 each variant of a union has a typed constructor or factory and a typed accessor that identify the variant', () => {
+    const treatment = new PetTreatment(new Medication({ drugName: 'Amoxicillin' }));
+    expect(treatment.isMedication()).toBe(true);
+    expect(treatment.isSurgery()).toBe(false);
+    expect(treatment.getActualInstance()).toBeInstanceOf(Medication);
+    expect((treatment.getActualInstance() as Medication).drugName).toBe('Amoxicillin');
+  });
+
+  test('bhv unions 045 two union values built from the same data compare equal, whether decoded from identical JSON or built by a constructor', () => {
+    const data = { drugName: 'Amoxicillin' };
+    const decoded = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const decodedAgain = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const constructed = new PetTreatment(new Medication(data));
+    expect(decoded.equals(decodedAgain)).toBe(true);
+    expect(decoded.equals(constructed)).toBe(true);
+  });
+
+  test('bhv unions 047 a discriminator value not listed in the mapping, including an empty value, raises an error instead of falling through', () => {
+    for (const foodType of ['triangle', '']) {
+      expect(() => ObjectSerializer.deserialize({ foodType, weightKg: 2.5 }, PetFood)).toThrow(SerializationError);
+    }
+    expect(() => ObjectSerializer.deserialize({ foodType: 'triangle', weightKg: 2.5 }, PetFood)).toThrow(/triangle/);
+  });
+});

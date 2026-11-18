@@ -39,6 +39,16 @@ func (o *Photo) Equal(other *Photo) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Photo) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Photo{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithId returns a copy of the model with Id replaced; the receiver is unchanged.
 func (o Photo) WithId(value int64) Photo {
 	o.Id = &value

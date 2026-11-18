@@ -999,6 +999,31 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName(
+            "bhvMisc122 a string default from the schema is applied as the exact literal, including quotes, backslashes, control characters and template-like text",
+        )
+        fun bhvMisc122AStringDefaultIsAppliedAsTheExactLiteral() {
+            assertEquals(
+                "it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b",
+                serializer.deserialize<com.example.petstore.models.Defaults>("{}").greeting,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvMisc137 a generated enum lists its declared values and rejects any other value")
+        fun bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndRejectsOthers() {
+            assertEquals(
+                listOf("low", "medium", "high"),
+                com.example.petstore.models.Defaults.ModeEnum.entries
+                    .map { it.value },
+            )
+            assertThrowsExactly(IllegalArgumentException::class.java) {
+                com.example.petstore.models.Defaults.ModeEnum
+                    .fromValue("not-declared")
+            }
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject111 numeric schema defaults are exact typed values")
         fun numericSchemaDefaultsAreExactTypedValues() {
             val defaults = serializer.deserialize<com.example.petstore.models.Defaults>("{}")
@@ -3828,6 +3853,35 @@ class ObjectSerializerTest {
             assertNotEquals(TextMapHolder(mapOf("k" to "v")), TextMapHolder(mapOf("k" to "w")))
         }
     }
+
+    @Test
+    fun bhvMisc287WireKeyAdditionalPropertiesIsKeptAsAnExtra() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"additional_properties\":\"kept\"}")
+            assertEquals("kept", meta!!.additionalProperties["additional_properties"])
+        }
+
+    @Test
+    fun bhvMisc288SnakeCaseInputKeyAtTopLevelIsCapturedAsAnExtra() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"snake_key\":\"v\"}")
+            assertEquals("v", meta!!.additionalProperties["snake_key"])
+        }
+
+    @Test
+    fun bhvMisc289SnakeCaseInputKeyInsideAListElementIsCapturedAsAnExtra() =
+        runBlocking<Unit> {
+            val holder = serializer.deserialize<MetadataHolder>("{\"metas\":[{\"snake_key\":\"v\"}]}")
+            assertEquals("v", holder!!.metas!![0].additionalProperties["snake_key"])
+        }
+
+    @Test
+    fun bhvMisc290UndeclaredDictionaryValueSurvivesARoundTrip() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"nested\":{\"a\":1}}")
+            val back = serializer.deserialize<com.example.petstore.models.Metadata>(serializer.serialize(meta))
+            assertEquals(meta!!.additionalProperties["nested"], back!!.additionalProperties["nested"])
+        }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.
