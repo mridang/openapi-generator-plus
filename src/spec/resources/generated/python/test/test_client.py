@@ -169,6 +169,29 @@ class TestClientCredentials:
         with pytest.raises(ValueError, match="SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"):
             Client.with_token(access_token="arg-token")
 
+    def test_bhv_config_025_an_empty_base_url_environment_value_counts_as_unset(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+
+        with pytest.raises(ValueError, match="SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"):
+            Client.with_token(access_token="arg-token")
+
+    def test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_and_a_valid_token_builds(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", raising=False)
+        monkeypatch.delenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", raising=False)
+
+        with pytest.raises(ValueError):
+            Client.with_token(access_token="arg-token")
+        with pytest.raises(ValueError):
+            Client.with_token("https://arg.example.com", "")
+
+        client = Client.with_token("https://arg.example.com", "arg-token")
+
+        assert _authorization(client) == "Bearer arg-token"
+
     def test_bhv_lifecycle_017_a_token_provider_runs_for_every_request(self) -> None:
         tokens = iter(["one", "two"])
         client = Client.with_token(

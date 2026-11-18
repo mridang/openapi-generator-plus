@@ -350,6 +350,12 @@ class TestStoreApiFixtureOperations:
         assert isinstance(result.actual_instance, Reservation)
         assert result.actual_instance.reservation_id == 31
 
+    async def test_bhv_operations_154_a_201_body_that_only_fits_the_200_schema_is_refused(self) -> None:
+        api, _ = _create_mock_server(201, 'application/json', '{"reservationId":31,"quantity":4}')
+
+        with pytest.raises(SerializationException):
+            await api.reserve_stock()
+
     async def test_bhv_operations_148_an_operation_uses_the_first_scheme_of_its_security_requirement_the_client_holds(self) -> None:
         from {{packageName}}.auth.basic_authenticator import BasicAuthenticator
         from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
@@ -496,6 +502,13 @@ def _capture_server() -> tuple[StoreApi, dict[str, Any]]:
 class TestStoreApiContentParameters:
     """A `content: application/json` parameter goes through the SDK's own
     object serializer in every location."""
+
+    async def test_bhv_operations_155_an_operation_sends_its_query_parameters_in_spec_order(self) -> None:
+        api, seen = _recording_server('[]')
+
+        await api.search_store(SearchStoreOptions(labels={'red'}, at=dt.time(10, 30)))
+
+        assert list(parse_qs(urlsplit(seen['path']).query).keys()) == ['labels', 'at']
 
     async def test_bhv_operations_097_query_content_uses_the_wire_form(self) -> None:
         api, seen = _capture_server()

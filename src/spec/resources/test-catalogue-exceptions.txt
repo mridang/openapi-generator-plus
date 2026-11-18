@@ -310,3 +310,4 @@ php | options058 | TransportOptions holds no HTTP client field: the injected PSR
 php | options059 | TransportOptions holds no transport hook field: the caller's transport is the PSR-18 client constructor argument, so there is no option to read back as unset or kept
 php | redirects045 | the PSR-18 interface exposes no redirect policy, so the SDK cannot detect that an injected client follows redirects itself; the contract is documented on Psr18ApiClient instead
 php | serialization049 | format: uri is a plain string on the PHP 8.3 floor (the native URI type needs 8.5), so a relative value is not refused at decode
+python | auth015 | python has no infallible header accessor: get_auth_headers may raise the token error (D12 python row raises), so a failed token request raises and never returns headers without Authorization; only go and rust have the empty-map accessor (forced by their interface)

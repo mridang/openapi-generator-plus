@@ -506,6 +506,61 @@ class TestDiscoveryCacheLifetime:
 
         assert mock_client.send_request.call_count == 2
 
+    @pytest.mark.parametrize("cache_control", ["public", "max-age=abc", "no-cache, must-revalidate"])
+    def test_bhv_auth_011_a_discovery_cache_header_without_a_usable_max_age_uses_the_default_lifetime(
+        self, cache_control: str
+    ) -> None:
+        auth = _create_authenticator()
+        mock_client = _discovery_client(cache_control)
+        auth.set_api_client(mock_client)
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 1
+
+    def test_bhv_auth_029_after_the_cached_document_expires_later_calls_use_the_new_endpoints(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        documents = [
+            {
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+            },
+            {
+                "authorization_endpoint": "https://auth2.example.com/authorize",
+                "token_endpoint": "https://auth2.example.com/token",
+            },
+        ]
+        mock_client = MagicMock()
+
+        def respond(method: str, url: str, *args: Any, **kwargs: Any) -> ApiHttpResponse:
+            if url.endswith("openid-configuration"):
+                return ApiHttpResponse(
+                    status_code=200,
+                    body=json.dumps(documents.pop(0)),
+                    headers={"cache-control": "max-age=100", "content-type": "application/json"},
+                )
+            return ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({"access_token": "at-1", "token_type": "Bearer", "expires_in": 3600}),
+                headers={"content-type": "application/json"},
+            )
+
+        mock_client.send_request.side_effect = respond
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            assert urlparse(auth.build_authorization_url()).netloc == "auth.example.com"
+            clock.monotonic.return_value = 1100.0
+            assert urlparse(auth.build_authorization_url()).netloc == "auth2.example.com"
+            auth.exchange_code("the-code")
+
+        assert mock_client.send_request.call_args[0][1] == "https://auth2.example.com/token"
+
 
 class TestDiscoveryTransportFailure:
 

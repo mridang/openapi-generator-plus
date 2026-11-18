@@ -873,6 +873,38 @@ class TestPetApi:
         assert "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00" in body
         assert "%20" not in body
 
+    async def test_bhv_operations_156_set_pet_preferences_sends_the_form_fields_in_declaration_order(
+        self,
+    ) -> None:
+        from urllib.parse import parse_qsl
+
+        client = _RecordingApiClient()
+        api = PetApi(
+            api_client=client,
+            config=Configuration.builder().base_url("http://localhost").build(),
+        )
+        await api.set_pet_preferences(
+            1,
+            SetPetPreferencesOptions(
+                nickname="rex",
+                tags=["a"],
+                note="n",
+                renewal_date=datetime.date(2024, 1, 15),
+                reminder=datetime.datetime(
+                    2024, 1, 15, 10, 30, tzinfo=datetime.timezone.utc
+                ),
+            ),
+        )
+        keys = [key for key, _ in parse_qsl(str(client.body))]
+
+        assert list(dict.fromkeys(keys)) == [
+            "nickname",
+            "tags",
+            "note",
+            "renewalDate",
+            "reminder",
+        ]
+
     async def test_bhv_serializationwire_055_space_in_a_form_value_encodes_as_plus(
         self,
     ) -> None:
