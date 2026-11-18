@@ -876,5 +876,95 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert %{{moduleName}}.Errors.ClientError{} = {{moduleName}}.Errors.ApiError.from_response(499, %{}, nil)
   end
 
+
+  test "bhv misc 015 a typed view of an error body that is valid JSON but not an object is refused" do
+    err = {{moduleName}}.Errors.ApiError.from_response(400, %{}, "[1, 2]")
+
+    assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+      {{moduleName}}.Errors.ApiError.typed_error_body(err, "Category")
+    end
+  end
+
+  test "bhv misc 016 the rendered error body shows at most 1 KiB and states how many bytes were omitted" do
+    err =
+      {{moduleName}}.Errors.ApiError.exception(
+        message: "bad gateway",
+        status_code: 502,
+        response_body: String.duplicate("a", 3_000)
+      )
+
+    assert {{moduleName}}.Errors.ApiError.message(err) ==
+             "bad gateway\nHTTP status code: 502\nResponse body: " <>
+               String.duplicate("a", 1_024) <> "... (1976 more bytes)"
+
+    assert byte_size(err.response_body) == 3_000
+  end
+
+  test "bhv misc 018 a token endpoint error with a non-JSON body exposes the status, no code and the raw body" do
+    err = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 502, raw_body: "<html>bad gateway</html>")
+
+    assert err.status_code == 502
+    assert err.code == nil
+    assert err.raw_body == "<html>bad gateway</html>"
+    assert Exception.message(err) == "Token request failed with status 502: <html>bad gateway</html>"
+  end
+
+  test "bhv misc 019 a request target shown in an error is reduced to its path, dropping scheme, host, query and fragment" do
+    err =
+      {{moduleName}}.Errors.ApiError.with_request(
+        {{moduleName}}.Errors.ApiError.from_response(404, %{}, nil),
+        :get,
+        "https://api.example.com/items/1?token=abc#frag"
+      )
+
+    assert err.request_method == "GET"
+    assert err.request_path == "/items/1"
+    refute Exception.message(err) =~ "api.example.com"
+    refute Exception.message(err) =~ "token"
+  end
+
+  test "bhv misc 020 the rendered error text shows the request line only when the method and path are both known" do
+    err = {{moduleName}}.Errors.ApiError.from_response(404, %{}, nil)
+
+    refute Exception.message(%{err | request_method: "GET"}) =~ "Request:"
+    assert Exception.message({{moduleName}}.Errors.ApiError.with_request(err, :get, "/items")) =~ "Request: GET /items"
+  end
+
+  test "bhv misc 021 the request path an error reports includes the base URL path prefix and excludes the query string" do
+    err =
+      {{moduleName}}.Errors.ApiError.with_request(
+        {{moduleName}}.Errors.ApiError.from_response(404, %{}, nil),
+        :delete,
+        "https://api.example.com/api/v3/items/7?x=1"
+      )
+
+    assert err.request_method == "DELETE"
+    assert err.request_path == "/api/v3/items/7"
+    assert Exception.message(err) =~ "Request: DELETE /api/v3/items/7"
+    refute Exception.message(err) =~ "x=1"
+  end
+
+  test "bhv misc 022 a server error is an instance of the SDK root error type" do
+    err = {{moduleName}}.Errors.ApiError.from_response(500, %{}, nil)
+
+    assert {{moduleName}}.Errors.ServerError.server_error?(err)
+    assert {{moduleName}}.Errors.ApiError.api_error?(err)
+    assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+  end
+
+  test "bhv misc 023 a status with no specific error module becomes the generic server error or the generic other error" do
+    assert %{{moduleName}}.Errors.ServerError{status_code: 599} = {{moduleName}}.Errors.ApiError.from_response(599, %{}, nil)
+    assert %{{moduleName}}.Errors.ApiError{status_code: 302} = {{moduleName}}.Errors.ApiError.from_response(302, %{}, nil)
+  end
+
+  test "bhv misc 024 a transport failure keeps the underlying transport error reachable as its cause" do
+    transport = %RuntimeError{message: "econnrefused"}
+    err = {{moduleName}}.Errors.NetworkError.exception(message: "timed out", cause: transport)
+
+    assert err.cause == transport
+    assert err.status_code == 0
+    assert {{moduleName}}.Errors.ApiError.api_error?(err)
+  end
+
 end
 {{/generateTests}}

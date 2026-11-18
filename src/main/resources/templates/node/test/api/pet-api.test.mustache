@@ -1130,7 +1130,7 @@ describe('PetApi against a recording client', () => {
       recorded.push({ method, url, headers });
       return {
         statusCode: 200,
-        body: url.includes('/pet/born-on/') ? '[]' : '{"id":7,"name":"recorded","photoUrls":[]}',
+        body: url.includes('/pet/born-on/') || url.includes('/pet/findByStatus') ? '[]' : '{"id":7,"name":"recorded","photoUrls":[]}',
         headers: { 'content-type': 'application/json' },
       };
     },
@@ -1139,6 +1139,13 @@ describe('PetApi against a recording client', () => {
     recordingClient,
     Configuration.builder().baseUrl('https://client-base.example.com').build(),
   );
+
+  const nullClient: ApiClient = {
+    async sendRequest(): Promise<ApiHttpResponse> {
+      return { statusCode: 200, body: 'null', headers: { 'content-type': 'application/json' } };
+    },
+  };
+  const nullApi = new PetApi(nullClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
 
   beforeEach(() => {
     recorded.length = 0;
@@ -1509,6 +1516,48 @@ describe('PetApi against a recording client', () => {
     await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), { session: 'abc' });
 
     expect(recorded[0]!.headers['Cookie']).toBe('session=abc');
+  });
+
+  test('bhv misc 003 an all-optional operation runs with no arguments and sends no omitted parameter', async () => {
+    await recordingApi.findPetsByStatus();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.url).not.toContain('?');
+  });
+
+  test('bhv misc 004 calling an operation with required fields and no options object names the first missing field', async () => {
+    await expect(recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), undefined as never)).rejects.toThrow(
+      "'session'",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv misc 005 a bare null body for a list operation raises an API error', async () => {
+    await expect(nullApi.findPetsByStatus()).rejects.toThrow(ApiError);
+  });
+
+  test('bhv misc 006 a bare null response read through the HTTP-info variant gives no data and keeps the raw body', async () => {
+    const result = await nullApi.findPetsByStatusWithHttpInfo();
+
+    expect(result.data ?? null).toBeNull();
+    expect(result.rawBody).toBe('null');
+  });
+
+  test('bhv misc 007 a missing path parameter and no options object names the parameter and sends nothing', async () => {
+    await expect(recordingApi.getPetSummary(1, undefined as never, undefined as never)).rejects.toThrow("'asOf'");
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv misc 008 a supplied required cookie parameter is sent in the Cookie header', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), { session: 'abc123' });
+
+    expect(recorded[0]!.headers['Cookie']).toBe('session=abc123');
+  });
+
+  test('bhv misc 009 an operation called without an options object sends none of the per-call headers', async () => {
+    await recordingApi.getPetTag(5, 'sample');
+
+    expect(recorded[0]!.headers['X-Criteria']).toBeUndefined();
   });
 
   test('bhv operations 076 setPetAvatar rejects an undeclared request content type before sending', async () => {

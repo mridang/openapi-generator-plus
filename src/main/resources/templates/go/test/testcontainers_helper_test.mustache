@@ -60,7 +60,7 @@ func checkDevDependencies() {
 	}
 }
 
-func TestBhvLanggo098_Main(m *testing.M) {
+func TestMain(m *testing.M) {
 	checkDevDependencies()
 
 	ctx := context.Background()

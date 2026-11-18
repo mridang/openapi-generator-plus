@@ -751,4 +751,19 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
     Agent.stop(name)
   end
+
+  test "bhv misc 011 an options object for an operation with no parameters defaults the timeout and headers when omitted",
+       %{api: api} do
+    options = %PetstoreClient.Api.Options.GetInventoryOptions{}
+
+    assert options.timeout == nil
+    assert options.headers == nil
+    assert {:ok, _} = PetstoreClient.Api.StoreApi.get_inventory(api, options)
+  end
+
+  test "bhv misc 013 an operation with no parameters returns its result when called with no argument",
+       %{api: api} do
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory(api)
+    assert is_map(result)
+  end
 end

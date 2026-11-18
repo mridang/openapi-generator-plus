@@ -26,6 +26,12 @@ describe('Configuration', () => {
     expect(config.baseUrl).toBe('https://custom.example.com');
   });
 
+  test('bhv config 026 a configuration built through the builder returns the base URL set on it', () => {
+    const config = Configuration.builder().baseUrl('https://builder.example.com').build();
+
+    expect(config.baseUrl).toBe('https://builder.example.com');
+  });
+
   test('bhv config 013 builder sets single default header', () => {
     const config = Configuration.builder()
       .defaultHeader('Authorization', 'Bearer token123')
