@@ -8,6 +8,10 @@ import {{invokerPackage}}.errors.ErrorFactory;
 import {{invokerPackage}}.errors.SerializationException;
 import {{invokerPackage}}.ApiHttpResponse;
 import {{invokerPackage}}.ApiResult;
+import {{invokerPackage}}.CallHook;
+import {{invokerPackage}}.CallInfo;
+import {{invokerPackage}}.CallObserver;
+import {{invokerPackage}}.CallOutcome;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.DefaultApiClient;
 import {{invokerPackage}}.ObjectSerializer;
@@ -306,6 +310,67 @@ public abstract class BaseApi {
             @Nullable Integer maxRetries,
             @Nullable BiFunction<Integer, String, T> successDecoder,
             @Nullable Map<String, ErrorFactory> errorSchemas) {
+        return invokeApiForResult(
+                operationId,
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                returnType,
+                auth,
+                timeoutMillis,
+                maxRetries,
+                successDecoder,
+                errorSchemas,
+                operationId,
+                path);
+    }
+
+    /**
+     * Invoke an API operation and tell the configured {@link CallHook}, if any, what the
+     * operation is.
+     *
+     * @param <T>             the return type
+     * @param operationId     operation id, named in serialization errors
+     * @param method          HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path            URL path (with path params already substituted)
+     * @param queryParams     query parameters
+     * @param headerParams    custom header parameters
+     * @param body            request body (model object or null)
+     * @param accepts         acceptable response content types
+     * @param contentType     request content type
+     * @param returnType      return type for deserialization (null for void)
+     * @param auth            the credential for the scheme the operation requires, or {@code NO_AUTH}
+     * @param timeoutMillis   end-to-end timeout in milliseconds for this call, or {@code null}
+     * @param maxRetries      retry count for this call, or {@code null} to use the transport's
+     * @param successDecoder  decodes a non-empty success body from its status code and raw text,
+     *                        or {@code null} to decode with {@code returnType}
+     * @param errorSchemas    the operation's error factories by declared status, or {@code null}
+     * @param specOperationId the operation id exactly as written in the spec, given to the hook
+     * @param urlTemplate     the spec path template of the operation, given to the hook
+     * @return ApiResult containing deserialized data, status code, raw body, and headers
+     * @throws ApiException if the API call fails
+     */
+    protected <T> ApiResult<T> invokeApiForResult(
+            String operationId,
+            String method,
+            String path,
+            Map<String, Object> queryParams,
+            Map<String, String> headerParams,
+            @Nullable Object body,
+            String[] accepts,
+            String contentType,
+            @Nullable Type returnType,
+            @Nullable Authenticator auth,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries,
+            @Nullable BiFunction<Integer, String, T> successDecoder,
+            @Nullable Map<String, ErrorFactory> errorSchemas,
+            String specOperationId,
+            String urlTemplate) {
 
         String url;
         if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -342,6 +407,7 @@ public abstract class BaseApi {
             }
         }
 
+        final String urlWithoutQuery = url;
         String query = buildQueryString(queryParams);
         if (!query.isEmpty()) {
             url += "?" + query;
@@ -390,6 +456,106 @@ public abstract class BaseApi {
         }
         TraceContextUtil.injectTraceContext(headers);
 
+        CallObserver observer = null;
+        final CallHook hook = config.getCallHook();
+        if (hook != null) {
+            observer =
+                    hook.start(
+                            new CallInfo(
+                                    specOperationId,
+                                    method.toUpperCase(java.util.Locale.ROOT),
+                                    urlTemplate,
+                                    stripQueryAndFragment(urlWithoutQuery),
+                                    serverAddressOf(urlWithoutQuery)),
+                            headers);
+        }
+        if (observer == null) {
+            return sendAndDecode(
+                    operationId, method, path, url, headers, body, contentType, returnType,
+                    effectiveAuth, sentAuthHeaders, timeoutMillis, maxRetries, successDecoder,
+                    errorSchemas);
+        }
+        final ApiResult<T> result;
+        try {
+            result =
+                    sendAndDecode(
+                            operationId, method, path, url, headers, body, contentType,
+                            returnType, effectiveAuth, sentAuthHeaders, timeoutMillis,
+                            maxRetries, successDecoder, errorSchemas);
+        } catch (RuntimeException | Error failure) {
+            finishQuietly(observer, outcomeOf(failure));
+            throw failure;
+        }
+        finishQuietly(observer, new CallOutcome(result.statusCode(), result.headers(), null));
+        return result;
+    }
+
+    /** The outcome of a call that ended with an error: the response it carries, if any. */
+    private static CallOutcome outcomeOf(Throwable failure) {
+        if (failure instanceof ApiException api) {
+            return new CallOutcome(api.getStatusCode(), api.getResponseHeaders(), failure);
+        }
+        if (failure instanceof SerializationException decode) {
+            return new CallOutcome(decode.getStatusCode(), decode.getResponseHeaders(), failure);
+        }
+        return new CallOutcome(0, null, failure);
+    }
+
+    /** Finish an observer; an error it throws never replaces the result or the error of the call. */
+    private static void finishQuietly(CallObserver observer, CallOutcome outcome) {
+        try {
+            observer.finish(outcome);
+        } catch (RuntimeException ignored) {
+            /* an observer must never change what the caller gets */
+        }
+    }
+
+    /** The URL without its query string and fragment. */
+    private static String stripQueryAndFragment(String url) {
+        int end = url.length();
+        int query = url.indexOf('?');
+        if (query >= 0) {
+            end = query;
+        }
+        int fragment = url.indexOf('#');
+        if (fragment >= 0 && fragment < end) {
+            end = fragment;
+        }
+        return url.substring(0, end);
+    }
+
+    /** The lower-case host of the URL, without port and without the brackets of an IPv6 literal. */
+    private static String serverAddressOf(String url) {
+        try {
+            String host = java.net.URI.create(stripQueryAndFragment(url)).getHost();
+            if (host == null) {
+                return "";
+            }
+            if (host.startsWith("[") && host.endsWith("]")) {
+                host = host.substring(1, host.length() - 1);
+            }
+            return host.toLowerCase(java.util.Locale.ROOT);
+        } catch (IllegalArgumentException unparsable) {
+            return "";
+        }
+    }
+
+    /** Encode the body, send the request and decode the response; the part of a call the hook wraps. */
+    private <T> ApiResult<T> sendAndDecode(
+            String operationId,
+            String method,
+            String path,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            String contentType,
+            @Nullable Type returnType,
+            @Nullable Authenticator effectiveAuth,
+            Map<String, String> sentAuthHeaders,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries,
+            @Nullable BiFunction<Integer, String, T> successDecoder,
+            @Nullable Map<String, ErrorFactory> errorSchemas) {
         Object requestBody = null;
         if (body != null) {
             if (("application/octet-stream".equals(contentType)

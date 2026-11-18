@@ -359,6 +359,10 @@ Every operation takes an optional trailing `<Operation>Options` object, even one
 
 Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode()`, `data()`, `rawBody()`, `headers()`). `timeout` is one end-to-end budget in positive milliseconds. An `X-Request-ID` header is added to each request unless you set one.
 
+### Hooks and telemetry
+
+One optional hook runs around every call: `Client.builder(host).callHook(hook).build()` (or `Configuration.builder().callHook(hook)`). `CallHook.start(info, headers)` runs once per call after the headers are final and may edit them; it returns a `CallObserver` (or `null`) whose `finish(outcome)` runs exactly once with the status (`0` when no response arrived), the lower-cased headers (`null` when none arrived) and the error. An error from `start` reaches the caller; an error from `finish` is swallowed. `CallHook.chain(a, b)` starts in order and finishes in reverse. `OpenTelemetryCallHook.create()` records one span, `http.client.request.count` and `http.client.request.duration` per call; it needs `opentelemetry-api` on the classpath.
+
 ## API Methods
 
 Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

@@ -1,0 +1,20 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+/**
+ * What a {@link CallHook} is told about a call before it is sent.
+ *
+ * @param operationId the operation id exactly as written in the spec
+ * @param method the upper-case HTTP method
+ * @param urlTemplate the spec path template of the operation without the server base path
+ * @param url the request URL without its query string and fragment
+ * @param serverAddress the lower-case host of the request URL, without port and without the
+ *     brackets of an IPv6 literal
+ */
+public record CallInfo(
+        String operationId,
+        String method,
+        String urlTemplate,
+        String url,
+        String serverAddress) {}
