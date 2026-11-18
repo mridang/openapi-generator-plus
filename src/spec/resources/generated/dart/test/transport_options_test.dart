@@ -696,4 +696,37 @@ void main() {
       },
     );
   });
+  group('Transport options refusals', () {
+    test(
+      'bhv misc 034 a caller HTTP client combined with a caller proxy is refused when the client is built',
+      () {
+        expect(
+          () => TransportOptionsBuilder()
+              .httpClient(http.Client())
+              .proxy('http://proxy.example.com:3128')
+              .build(),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 042 a custom HTTP connection with disabled TLS verification is refused when built and names the setting',
+      () {
+        expect(
+          () => TransportOptionsBuilder()
+              .httpClient(http.Client())
+              .verifySsl(false)
+              .build(),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => '${e.message}',
+              'message',
+              contains('verifySsl'),
+            ),
+          ),
+        );
+      },
+    );
+  });
 }
