@@ -3148,3 +3148,33 @@ test('bhv misc 043 a user agent that is explicitly cleared is omitted from the r
 
     expect($captured)->not->toHaveKey('user-agent');
 });
+
+test('bhv misc 285 a content encoding the SDK cannot decode is refused with the unsupported encoding message', function (): void {
+    $mock = new MockHttpClient(new MockResponse('payload', [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'application/json', 'Content-Encoding' => 'made-up-codec'],
+    ]));
+    $client = new StubbedDefaultApiClient($mock);
+
+    expect(fn () => $client->sendRequest('GET', 'http://example.com/enc', [], null))
+        ->toThrow(ApiException::class, "Unsupported Content-Encoding 'made-up-codec'");
+});
+
+test('bhv misc 299 a header the caller sets on a request is sent with the caller value, overriding the transport default', function (): void {
+    $capturedHeaders = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+            $capturedHeaders = [];
+            foreach ($options['normalized_headers'] ?? [] as $values) {
+                [$name, $value] = explode(': ', $values[0], 2);
+                $capturedHeaders[$name] = $value;
+            }
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+    $transport = (new TransportOptionsBuilder())->userAgent('MyApp/1.0')->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+    $client->sendRequest('GET', 'http://example.com/test', ['User-Agent' => 'Caller/2.0'], null);
+
+    expect($capturedHeaders['User-Agent'] ?? null)->toBe('Caller/2.0');
+});

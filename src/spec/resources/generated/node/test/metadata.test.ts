@@ -462,3 +462,33 @@ describe("Metadata map equality misc behaviours", () => {
     expect(build("2")).not.toEqual(build("3"));
   });
 });
+
+describe("Metadata undeclared keys (misc)", () => {
+  test("bhv misc 288 a snake_case key at the top level of an object is captured as an undeclared extra", () => {
+    const metadata = ObjectSerializer.deserialize(
+      { region_code: "emea" },
+      Metadata,
+    ) as Metadata;
+    expect(metadata.additionalProperties).toEqual({ region_code: "emea" });
+  });
+
+  test("bhv misc 289 a snake_case key inside a list element is captured as an undeclared extra", () => {
+    const items = ObjectSerializer.deserializeArray(
+      [{ region_code: "emea" }],
+      (x: unknown) => ObjectSerializer.deserialize(x, Metadata),
+    );
+    expect(items[0]!.additionalProperties).toEqual({ region_code: "emea" });
+  });
+
+  test("bhv misc 290 an undeclared key whose value is a dictionary survives a full serialize and deserialize round trip", () => {
+    const first = ObjectSerializer.deserialize(
+      { labels: { a: "b" } },
+      Metadata,
+    ) as Metadata;
+    const second = ObjectSerializer.deserialize(
+      JSON.parse(ObjectSerializer.serialize(first)),
+      Metadata,
+    ) as Metadata;
+    expect(second.additionalProperties).toEqual({ labels: { a: "b" } });
+  });
+});

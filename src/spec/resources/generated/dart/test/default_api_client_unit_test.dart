@@ -2546,6 +2546,64 @@ void main() {
     );
 
     test(
+      'bhv misc 237 an ISO-8859-1 error response body decodes to UTF-8 text',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response.statusCode = 400;
+          request.response.headers.set(
+            'Content-Type',
+            'text/plain; charset=ISO-8859-1',
+          );
+          request.response.add([0xE9]);
+          request.response.close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/test',
+            {},
+            null,
+          );
+          expect(resp.body, equals('é'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 240 a multipart form upload sends its file part with the file content in the request',
+      () async {
+        final received = StringBuffer();
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          final bytes = await request.fold<List<int>>(
+            [],
+            (a, b) => a..addAll(b),
+          );
+          received.write(utf8.decode(bytes));
+          request.response.close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {'Content-Type': 'multipart/form-data; boundary=X'},
+            {'file': Uint8List.fromList(utf8.encode('hello'))},
+          );
+          expect(received.toString(), contains('hello'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv misc 224 transport default headers are not sent on a request that goes to another origin after a redirect',
       () async {
         final seen = <String?>[];
