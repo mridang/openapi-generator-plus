@@ -1073,7 +1073,9 @@ public sealed class SchemeAuthenticatorTest
                 )
         );
 
-        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer provided-token", headers["Authorization"]);
     }
@@ -1239,7 +1241,9 @@ public sealed class SchemeAuthenticatorTest
                 )
         );
 
-        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer provided-token", headers["Authorization"]);
     }
@@ -1867,7 +1871,7 @@ public sealed class SchemeAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string[] scopes = ["pets:read", "pets:write"];
         Assert.Equal(new Uri("https://auth.example.com/oauth/token"), client.LastUrl);
@@ -2002,7 +2006,7 @@ public sealed class SchemeAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string[] scopes = ["read"];
         Assert.Equal(new Uri("https://auth.example.com/oauth/token"), client.LastUrl);

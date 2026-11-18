@@ -337,7 +337,7 @@ public partial class OpenIdConnectAuthenticator
     /// OpenID Connect requires asynchronous discovery and token exchange.
     /// The synchronous path is not safe (it deadlocks under non-default
     /// <see cref="System.Threading.SynchronizationContext"/>); callers
-    /// must use <see cref="GetAuthHeadersAsync"/> instead.
+    /// must use <see cref="GetAuthHeadersAsync(CancellationToken)"/> instead.
     /// </remarks>
     public override Dictionary<string, string> GetAuthHeaders()
     {

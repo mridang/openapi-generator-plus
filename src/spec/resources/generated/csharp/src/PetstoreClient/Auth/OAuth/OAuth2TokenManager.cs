@@ -149,18 +149,26 @@ public sealed class OAuth2TokenManager
     /// <param name="tokenUrl">The OAuth2 token endpoint URL.</param>
     /// <param name="parameters">The token request parameters, sent unchanged.</param>
     /// <param name="extraHeaders">Optional additional headers to send with the token request.</param>
+    /// <param name="cancellationToken">Cancels the token request this call starts.</param>
     /// <returns>The new access token.</returns>
     public Task<string> ExchangeAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders = null
+        Dictionary<string, string>? extraHeaders = null,
+        CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
         Task<string> task;
         lock (_stateLock)
         {
-            task = ExchangeAfterAsync(_inflightRefresh, tokenUrl, parameters, extraHeaders);
+            task = ExchangeAfterAsync(
+                _inflightRefresh,
+                tokenUrl,
+                parameters,
+                extraHeaders,
+                cancellationToken
+            );
             _inflightRefresh = task;
         }
 
@@ -171,7 +179,8 @@ public sealed class OAuth2TokenManager
         Task<string>? previous,
         Uri tokenUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders
+        Dictionary<string, string>? extraHeaders,
+        CancellationToken cancellationToken
     )
     {
         if (previous is not null)
@@ -195,7 +204,8 @@ public sealed class OAuth2TokenManager
         RefreshToken = null;
         try
         {
-            return await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
+            return await FetchTokenAsync(tokenUrl, parameters, extraHeaders, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch
         {

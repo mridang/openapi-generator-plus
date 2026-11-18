@@ -776,8 +776,8 @@ public sealed class ClientTest : IDisposable
         var auth = new LegacyAuthPasswordAuthenticator(Host, "cid", "csecret", "alice", "s3cret");
         auth.SetApiClient(transport);
 
-        await auth.GetAuthHeadersAsync();
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, transport.Requests.Count);
         Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
@@ -816,7 +816,7 @@ public sealed class ClientTest : IDisposable
 
         string authorizeUrl = auth.BuildAuthorizationUrl().OriginalString;
         await auth.ExchangeCodeAsync("code");
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.StartsWith(
             "https://auth.example.com/authorize?",
@@ -839,7 +839,7 @@ public sealed class ClientTest : IDisposable
         var auth = new MachineAuthClientCredentialsAuthenticator(Host, "cid", "csecret");
         auth.SetApiClient(transport);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
         Assert.Contains(

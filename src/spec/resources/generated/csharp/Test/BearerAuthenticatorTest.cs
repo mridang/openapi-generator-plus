@@ -144,8 +144,8 @@ public class BearerAuthenticatorTest
             _ => Task.FromResult("t" + (++calls))
         );
 
-        var first = await auth.GetAuthHeadersAsync();
-        var second = await auth.GetAuthHeadersAsync();
+        var first = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        var second = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Bearer t1", first["Authorization"]);
         Assert.Equal("Bearer t2", second["Authorization"]);
@@ -159,7 +159,7 @@ public class BearerAuthenticatorTest
             _ => Task.FromResult("from-provider")
         );
 
-        var headers = await auth.GetAuthHeadersAsync();
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Bearer from-provider", headers["Authorization"]);
     }
@@ -227,7 +227,9 @@ public class BearerAuthenticatorTest
     {
         var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult(" "));
 
-        await Assert.ThrowsAsync<ArgumentException>(() => auth.GetAuthHeadersAsync());
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]

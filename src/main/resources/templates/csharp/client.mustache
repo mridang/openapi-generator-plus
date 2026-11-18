@@ -191,13 +191,9 @@ public sealed class {{clientClassName}} : IDisposable
             return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, tokenProvider), transportOptions);
         }
         /* The explicit token is kept as given (an empty one is refused by the
-         * authenticator, never replaced by the environment); the environment
-         * comes before the provider, which is used only when neither is set. */
+         * authenticator, never replaced by the environment); the environment is
+         * read only when no token argument is passed. */
         string? resolvedToken = token ?? FirstSet(null, "{{envVarPrefix}}_TOKEN");
-        if (resolvedToken is null && tokenProvider is not null)
-        {
-            return new {{clientClassName}}(new BearerAuthenticator(resolvedHost, tokenProvider), transportOptions);
-        }
         if (resolvedToken is null)
         {
             throw new InvalidOperationException(

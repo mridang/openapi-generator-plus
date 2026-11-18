@@ -91,7 +91,7 @@ public class OpenIdConnectAuthenticatorTest
             auth.GetAuthHeaders()
         );
         Assert.Equal(
-            "OAuth2 authenticators require async token exchange; use GetAuthHeadersAsync() instead.",
+            "OAuth2 authenticators require async token exchange; use GetAuthHeadersAsync(TestContext.Current.CancellationToken) instead.",
             ex.Message
         );
     }
@@ -199,7 +199,9 @@ public class OpenIdConnectAuthenticatorTest
         auth.SetApiClient(client);
 
         await auth.ExchangeCodeAsync("oidc-code");
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer oidc-tok", headers["Authorization"]);
     }
@@ -632,9 +634,11 @@ public class OpenIdConnectAuthenticatorTest
 
         await auth.ExchangeCodeAsync("the-code");
         await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(() =>
-            auth.GetAuthHeadersAsync()
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
         );
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer at-1", headers["Authorization"]);
     }
@@ -675,7 +679,9 @@ public class OpenIdConnectAuthenticatorTest
         auth.SetApiClient(new ExchangingApiClient());
 
         await auth.ExchangeCodeAsync("the-code");
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer at-1", headers["Authorization"]);
     }
@@ -729,7 +735,7 @@ public class OpenIdConnectAuthenticatorTest
 
         await auth.ExchangeCodeAsync("the-code");
         auth.InvalidateAccessToken();
-        _ = await auth.GetAuthHeadersAsync();
+        _ = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, client.Discoveries);
         Assert.Equal(new Uri("https://auth.example.com/token2"), client.LastTokenUrl);
@@ -742,10 +748,13 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
         await auth.ExchangeCodeAsync("the-code");
-        Assert.Equal("Bearer at-1", (await auth.GetAuthHeadersAsync())["Authorization"]);
+        Assert.Equal(
+            "Bearer at-1",
+            (await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken))["Authorization"]
+        );
 
         auth.InvalidateAccessToken();
-        var headers = await auth.GetAuthHeadersAsync();
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Bearer at-2", headers["Authorization"]);
         Assert.Contains(
@@ -967,7 +976,7 @@ public class OpenIdConnectAuthenticatorTest
         auth.SetApiClient(client);
 
         await auth.BuildAuthorizationUrlAsync();
-        await Task.Delay(TimeSpan.FromMilliseconds(1100));
+        await Task.Delay(TimeSpan.FromMilliseconds(1100), TestContext.Current.CancellationToken);
         Uri second = await auth.BuildAuthorizationUrlAsync();
 
         Assert.StartsWith(

@@ -1264,7 +1264,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// </summary>
     internal static string RedactQuery(Uri url)
     {
-        // GetLeftPart keeps user:password, so the userinfo is cleared before rendering.
+        /* GetLeftPart keeps user:password, so the userinfo is cleared before rendering. */
         var bare = new UriBuilder(url) { UserName = string.Empty, Password = string.Empty };
         string text = bare.Uri.GetLeftPart(UriPartial.Path);
         return string.IsNullOrEmpty(url.Query) ? text : text + "?***";

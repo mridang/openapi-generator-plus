@@ -70,10 +70,13 @@ public class OAuth2PasswordAuthenticatorTest
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
-        Assert.Equal("Bearer tok1", (await auth.GetAuthHeadersAsync())["Authorization"]);
+        Assert.Equal(
+            "Bearer tok1",
+            (await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken))["Authorization"]
+        );
 
         auth.InvalidateAccessToken();
-        var headers = await auth.GetAuthHeadersAsync();
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Bearer tok2", headers["Authorization"]);
         Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
@@ -89,7 +92,7 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(client.LastBody);
         Assert.Contains("grant_type=password", client.LastBody!, StringComparison.Ordinal);
@@ -104,7 +107,7 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("username=testuser", client.LastBody!, StringComparison.Ordinal);
         Assert.Contains("password=testpass", client.LastBody!, StringComparison.Ordinal);
@@ -119,7 +122,7 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("client_id=my-client-id", client.LastBody!, StringComparison.Ordinal);
         Assert.Contains(
@@ -138,7 +141,9 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer tok-pwd", headers["Authorization"]);
     }
@@ -154,9 +159,9 @@ public class OAuth2PasswordAuthenticatorTest
         auth.SetApiClient(client);
 
         // First call uses password grant
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
         // Second call should use refresh_token grant since token is expired
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
         Assert.Contains("refresh_token=ref1", client.LastBody!, StringComparison.Ordinal);
@@ -181,9 +186,9 @@ public class OAuth2PasswordAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
         Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
         Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
@@ -221,7 +226,7 @@ public class OAuth2PasswordAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.True(client.LastHeaders.TryGetValue("Authorization", out var authHeader));
         Assert.NotNull(authHeader);
@@ -271,7 +276,7 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("scope=read+write", client.LastBody!, StringComparison.Ordinal);
     }
@@ -292,7 +297,7 @@ public class OAuth2PasswordAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string body = client.LastBody!;
         Assert.Contains("username=user~%2A%21%27%28%29", body, StringComparison.Ordinal);
@@ -320,7 +325,7 @@ public class OAuth2PasswordAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string decoded = System.Text.Encoding.UTF8.GetString(
             Convert.FromBase64String(client.LastHeaders["Authorization"].Substring("Basic ".Length))
@@ -337,8 +342,8 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
         Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
@@ -362,8 +367,8 @@ public class OAuth2PasswordAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
         Assert.Equal(
@@ -391,8 +396,8 @@ public class OAuth2PasswordAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("grant_type=refresh_token&refresh_token=ref1", client.LastBody);
         Assert.Equal(
@@ -423,8 +428,10 @@ public class OAuth2PasswordAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
-        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal("Bearer tok3", headers["Authorization"]);
         Assert.Equal(3, client.Requests.Count);
@@ -442,7 +449,7 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(
             "grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
@@ -469,9 +476,9 @@ public class OAuth2PasswordAuthenticatorTest
         );
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
         Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
         Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
     }
 }

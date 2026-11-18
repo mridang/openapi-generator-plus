@@ -232,16 +232,9 @@ public sealed class Client : IDisposable
             );
         }
         /* The explicit token is kept as given (an empty one is refused by the
-         * authenticator, never replaced by the environment); the environment
-         * comes before the provider, which is used only when neither is set. */
+         * authenticator, never replaced by the environment); the environment is
+         * read only when no token argument is passed. */
         string? resolvedToken = token ?? FirstSet(null, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN");
-        if (resolvedToken is null && tokenProvider is not null)
-        {
-            return new Client(
-                new BearerAuthenticator(resolvedHost, tokenProvider),
-                transportOptions
-            );
-        }
         if (resolvedToken is null)
         {
             throw new InvalidOperationException(

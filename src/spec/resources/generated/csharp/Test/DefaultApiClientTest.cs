@@ -67,7 +67,10 @@ public class DefaultApiClientTest
         /* Reach the mock server by an IP address, which its certificate does not
            name, so the host name check would fail if it ran. */
         var httpsUri = new Uri(_fixture.HttpsBaseUrl);
-        var addresses = await Dns.GetHostAddressesAsync(httpsUri.Host);
+        var addresses = await Dns.GetHostAddressesAsync(
+            httpsUri.Host,
+            TestContext.Current.CancellationToken
+        );
         var address =
             addresses[0].AddressFamily == AddressFamily.InterNetworkV6
                 ? "[" + addresses[0] + "]"
@@ -202,13 +205,18 @@ public class DefaultApiClientTest
             DateTimeOffset.UtcNow.AddDays(-1),
             DateTimeOffset.UtcNow.AddDays(1)
         );
-        var caPem = File.ReadAllText(
-            Path.Combine(Directory.GetCurrentDirectory(), "Test", "Resources", "certs", "ca.pem")
+        var caPem = await File.ReadAllTextAsync(
+            Path.Combine(Directory.GetCurrentDirectory(), "Test", "Resources", "certs", "ca.pem"),
+            TestContext.Current.CancellationToken
         );
         var bundlePath = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(bundlePath, unrelated.ExportCertificatePem() + caPem);
+            await File.WriteAllTextAsync(
+                bundlePath,
+                unrelated.ExportCertificatePem() + caPem,
+                TestContext.Current.CancellationToken
+            );
             var transport = TransportOptions
                 .Builder()
                 .VerifySsl(true)

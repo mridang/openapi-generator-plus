@@ -313,7 +313,7 @@ public sealed class SchemeAuthenticatorTest
         WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
             auth = new {{packageName}}.Auth.{{className}}(Host, _ => Task.FromResult("provided-token")));
 
-        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Bearer provided-token", headers["Authorization"]);
     }
@@ -400,7 +400,7 @@ public sealed class SchemeAuthenticatorTest
         var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string[] scopes = {{{scopesLiteral}}};
         Assert.Equal(new Uri("{{{tokenUrl}}}"), client.LastUrl);
@@ -419,7 +419,7 @@ public sealed class SchemeAuthenticatorTest
         var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
         auth.SetApiClient(client);
 
-        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
 
         string[] scopes = {{{scopesLiteral}}};
         Assert.Equal(new Uri("{{{tokenUrl}}}"), client.LastUrl);

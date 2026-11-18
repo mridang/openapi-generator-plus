@@ -71,7 +71,7 @@ public interface IInvalidatableAuthenticator : IAuthenticator
 {
     /// <summary>
     /// Drops the cached access token so that the next call to
-    /// <see cref="IAuthenticator.GetAuthHeadersAsync"/> fetches a fresh one
+    /// <see cref="IAuthenticator.GetAuthHeadersAsync(CancellationToken)"/> fetches a fresh one
     /// (a refresh grant first when a refresh token is held, which is kept).
     /// </summary>
     void InvalidateAccessToken();

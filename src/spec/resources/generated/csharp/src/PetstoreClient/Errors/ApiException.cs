@@ -284,7 +284,7 @@ public class ApiException : OpenAPIException
     private static string RenderBody(string body)
     {
         int cut = Math.Min(body.Length, MaxRenderedBodyLength);
-        // A cut between the two halves of a surrogate pair would leave a lone surrogate.
+        /* A cut between the two halves of a surrogate pair would leave a lone surrogate. */
         if (cut < body.Length && char.IsHighSurrogate(body[cut - 1]))
         {
             cut--;
