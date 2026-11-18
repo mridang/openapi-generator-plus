@@ -348,6 +348,38 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 249 a free-form object field keeps its object and integer entries through a JSON round trip',
+      () {
+        final json = serialize({
+          'props': {'count': 3, 'tag': 'x'},
+        });
+        expect(
+          jsonDecode(json),
+          equals({
+            'props': {'count': 3, 'tag': 'x'},
+          }),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 251 a duration string with a day designator is rejected',
+      () {
+        expect(
+          () => parseProtobufDuration('1d'),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 252 an enum wire value containing separators round-trips unchanged',
+      () {
+        expect(parseJson(serialize('a,b;c d/e:f')), equals('a,b;c d/e:f'));
+      },
+    );
+
     test('bhv serializationobject 147 serialize map to JSON', () {
       final input = {'name': 'Fido', 'age': 3};
 

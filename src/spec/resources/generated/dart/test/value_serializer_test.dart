@@ -16,6 +16,16 @@ import 'package:petstore_client/src/object_serializer.dart' show stringify;
 void main() {
   group('ValueSerializer', () {
     test(
+      'bhv misc 250 array items containing a comma keep the literal comma in the path style',
+      () {
+        expect(
+          serializeValue(['a,b', 'c'], 'path', 'array', 'csv'),
+          equals('a,b,c'),
+        );
+      },
+    );
+
+    test(
       'bhv misc 232 a string path parameter in the simple style percent-encodes slashes',
       () {
         expect(serializeValue('a/b', 'path', 'string', ''), equals('a%2Fb'));

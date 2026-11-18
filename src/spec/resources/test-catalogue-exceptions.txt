@@ -751,3 +751,6 @@ csharp | misc135 | the C# client has no client-level cancellation handle: cancel
 dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
 
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
+dart | misc256 | Dart date-times are written with a fixed three-digit millisecond part by formatDateTimeOffset, so trailing zeros are kept by design and no fraction trimming exists to test
+dart | misc260 | url takes its overrides as Map<String, String>, so a null value for an enum variable cannot be passed and the compiler refuses it before any run-time check
+dart | misc262 | The SDK always wraps an http.ClientException from a cancelled request in NetworkException (abstract_api_client), so a cancellation is never surfaced to the caller unwrapped
