@@ -1389,6 +1389,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     private static void markGuardedRequiredProperties(final CodegenModel model) {
         boolean any = false;
         for (final CodegenProperty property : model.vars) {
+            if (Boolean.TRUE.equals(property.vendorExtensions.get("x-inherited"))) {
+                // A classic allOf child reads an inherited property through its base,
+                // whose OnDeserialized owns the check (the backing field is private to it).
+                continue;
+            }
             final boolean hasDefault =
                     property.defaultValue != null && !property.defaultValue.isEmpty();
             final boolean referenceTyped =

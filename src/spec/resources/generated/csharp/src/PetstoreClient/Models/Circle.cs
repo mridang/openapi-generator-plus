@@ -22,7 +22,10 @@ public record Circle : Shape
     /// <c>[JsonConstructor]</c>.
     /// </summary>
     [System.Text.Json.Serialization.JsonConstructor]
-    public Circle() { }
+    public Circle()
+    {
+        this.ShapeType = "Circle";
+    }
 
     /// <summary>
     /// Convenience constructor accepting every required property.
@@ -35,13 +38,9 @@ public record Circle : Shape
     public Circle(double radius)
     {
         this.Radius = radius;
+
+        this.ShapeType = "Circle";
     }
-
-    [JsonPropertyName("shapeType")]
-    public string ShapeType { get; init; } = "Circle";
-
-    [JsonPropertyName("label")]
-    public string? Label { get; init; }
 
     [JsonRequired]
     [JsonPropertyName("radius")]

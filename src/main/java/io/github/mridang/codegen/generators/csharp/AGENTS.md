@@ -73,6 +73,8 @@ Why: a class has one parent. `setParentOnChild` keeping the first union that cla
 Where: `BetterCSharpCodegen.setsDiscriminatorParent`, `models/model.mustache`.
 Test: `ComposedSchemaTest.mustache`.
 
+Decode and encode (S4, realised): the base is an `abstract record` with a nested converter (`csharp/allof_base_converter.mustache`) that reads the discriminator and decodes the mapped subtype; a missing or unknown value is a `JsonException` that names the value, which `ObjectSerializer` raises as `SerializationException`. The base's own properties are declared once in the base; a subtype skips every inherited property and enum, sets its discriminator default in its constructors (the shared pass sets the default on the child), and guards only its own required properties by overriding the base's virtual `OnDeserialized`. Tests: `BhvUnions301`-`BhvUnions304` and `BhvSerializationObject301`.
+
 ### Required and nullable (S5, D66, 2026-11-16)
 Rule: the key must be present on decode (missing is an error), an explicit null is kept, encode always writes the key. Target realisation: `[JsonRequired]` plus `[JsonIgnore(Condition = JsonIgnoreCondition.Never)]`, after checking current output first.
 Why: spec-faithful and the same in all twelve.

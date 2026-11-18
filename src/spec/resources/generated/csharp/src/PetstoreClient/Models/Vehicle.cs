@@ -10,8 +10,64 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public record Vehicle : global::System.Text.Json.Serialization.IJsonOnDeserialized
+[JsonConverter(typeof(VehicleConverter))]
+public abstract record Vehicle : global::System.Text.Json.Serialization.IJsonOnDeserialized
 {
+    /// <summary>
+    /// Reads this base type by its discriminator and decodes the subtype that
+    /// the value names (classic allOf inheritance). A missing or unknown value
+    /// fails with a <see cref="System.Text.Json.JsonException"/> that names it.
+    /// </summary>
+    private sealed class VehicleConverter : JsonConverter<Vehicle>
+    {
+        public override Vehicle? Read(
+            ref System.Text.Json.Utf8JsonReader reader,
+            Type typeToConvert,
+            System.Text.Json.JsonSerializerOptions options
+        )
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.ParseValue(
+                ref reader
+            );
+            string raw = doc.RootElement.GetRawText();
+            if (
+                doc.RootElement.TryGetProperty("vehicleType", out System.Text.Json.JsonElement disc)
+            )
+            {
+                if (
+                    disc.ValueKind != System.Text.Json.JsonValueKind.String
+                    && disc.ValueKind != System.Text.Json.JsonValueKind.Null
+                )
+                {
+                    throw new System.Text.Json.JsonException(
+                        $"Discriminator property 'vehicleType' of Vehicle must be a string, got {disc.ValueKind}"
+                    );
+                }
+                string? discValue = disc.GetString();
+                return discValue switch
+                {
+                    "car" => System.Text.Json.JsonSerializer.Deserialize<Car>(raw, options),
+                    "truck" => System.Text.Json.JsonSerializer.Deserialize<Truck>(raw, options),
+                    _ => throw new System.Text.Json.JsonException(
+                        $"Unknown discriminator value for Vehicle: '{discValue}'"
+                    ),
+                };
+            }
+            throw new System.Text.Json.JsonException(
+                "Missing discriminator property 'vehicleType'"
+            );
+        }
+
+        public override void Write(
+            System.Text.Json.Utf8JsonWriter writer,
+            Vehicle value,
+            System.Text.Json.JsonSerializerOptions options
+        )
+        {
+            System.Text.Json.JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        }
+    }
+
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
     /// populated through their init accessors during deserialization, so no
@@ -64,7 +120,7 @@ public record Vehicle : global::System.Text.Json.Serialization.IJsonOnDeserializ
     /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
     /// model is constructed in code: the check belongs to decoding only.
     /// </summary>
-    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
+    public virtual void OnDeserialized()
     {
         if (_vehicleType is null)
         {

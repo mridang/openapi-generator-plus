@@ -22,7 +22,10 @@ public record Square : Shape
     /// <c>[JsonConstructor]</c>.
     /// </summary>
     [System.Text.Json.Serialization.JsonConstructor]
-    public Square() { }
+    public Square()
+    {
+        this.ShapeType = "Square";
+    }
 
     /// <summary>
     /// Convenience constructor accepting every required property.
@@ -35,13 +38,9 @@ public record Square : Shape
     public Square(double side)
     {
         this.Side = side;
+
+        this.ShapeType = "Square";
     }
-
-    [JsonPropertyName("shapeType")]
-    public string ShapeType { get; init; } = "Square";
-
-    [JsonPropertyName("label")]
-    public string? Label { get; init; }
 
     [JsonRequired]
     [JsonPropertyName("side")]

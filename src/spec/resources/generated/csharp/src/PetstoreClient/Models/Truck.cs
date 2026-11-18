@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public record Truck : Vehicle, global::System.Text.Json.Serialization.IJsonOnDeserialized
+public record Truck : Vehicle
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -22,7 +22,10 @@ public record Truck : Vehicle, global::System.Text.Json.Serialization.IJsonOnDes
     /// <c>[JsonConstructor]</c>.
     /// </summary>
     [System.Text.Json.Serialization.JsonConstructor]
-    public Truck() { }
+    public Truck()
+    {
+        this.VehicleType = "truck";
+    }
 
     /// <summary>
     /// Convenience constructor accepting every required property.
@@ -35,37 +38,12 @@ public record Truck : Vehicle, global::System.Text.Json.Serialization.IJsonOnDes
     public Truck(string plate)
     {
         this.Plate = plate;
+
+        this.VehicleType = "truck";
     }
-
-    [JsonPropertyName("vehicleType")]
-    public string VehicleType { get; init; } = "truck";
-
-    [JsonRequired]
-    [JsonPropertyName("plate")]
-    public required string Plate
-    {
-        get => _plate;
-        init => _plate = value;
-    }
-
-    private readonly string _plate = null!;
 
     [JsonPropertyName("payloadKg")]
     public int? PayloadKg { get; init; }
-
-    /// <summary>
-    /// Runs after a payload is decoded into this model. A required property
-    /// that arrived as an explicit null is refused here, with a
-    /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
-    /// model is constructed in code: the check belongs to decoding only.
-    /// </summary>
-    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
-    {
-        if (_plate is null)
-        {
-            throw new System.Text.Json.JsonException("Required property 'plate' on Truck was null");
-        }
-    }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public record Car : Vehicle, global::System.Text.Json.Serialization.IJsonOnDeserialized
+public record Car : Vehicle
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -22,7 +22,10 @@ public record Car : Vehicle, global::System.Text.Json.Serialization.IJsonOnDeser
     /// <c>[JsonConstructor]</c>.
     /// </summary>
     [System.Text.Json.Serialization.JsonConstructor]
-    public Car() { }
+    public Car()
+    {
+        this.VehicleType = "car";
+    }
 
     /// <summary>
     /// Convenience constructor accepting every required property.
@@ -36,38 +39,13 @@ public record Car : Vehicle, global::System.Text.Json.Serialization.IJsonOnDeser
     {
         this.Plate = plate;
         this.DoorCount = doorCount;
+
+        this.VehicleType = "car";
     }
-
-    [JsonPropertyName("vehicleType")]
-    public string VehicleType { get; init; } = "car";
-
-    [JsonRequired]
-    [JsonPropertyName("plate")]
-    public required string Plate
-    {
-        get => _plate;
-        init => _plate = value;
-    }
-
-    private readonly string _plate = null!;
 
     [JsonRequired]
     [JsonPropertyName("doorCount")]
     public required int DoorCount { get; init; }
-
-    /// <summary>
-    /// Runs after a payload is decoded into this model. A required property
-    /// that arrived as an explicit null is refused here, with a
-    /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
-    /// model is constructed in code: the check belongs to decoding only.
-    /// </summary>
-    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
-    {
-        if (_plate is null)
-        {
-            throw new System.Text.Json.JsonException("Required property 'plate' on Car was null");
-        }
-    }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

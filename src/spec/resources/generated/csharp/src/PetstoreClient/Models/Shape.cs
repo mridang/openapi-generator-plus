@@ -10,8 +10,60 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public record Shape : global::System.Text.Json.Serialization.IJsonOnDeserialized
+[JsonConverter(typeof(ShapeConverter))]
+public abstract record Shape : global::System.Text.Json.Serialization.IJsonOnDeserialized
 {
+    /// <summary>
+    /// Reads this base type by its discriminator and decodes the subtype that
+    /// the value names (classic allOf inheritance). A missing or unknown value
+    /// fails with a <see cref="System.Text.Json.JsonException"/> that names it.
+    /// </summary>
+    private sealed class ShapeConverter : JsonConverter<Shape>
+    {
+        public override Shape? Read(
+            ref System.Text.Json.Utf8JsonReader reader,
+            Type typeToConvert,
+            System.Text.Json.JsonSerializerOptions options
+        )
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.ParseValue(
+                ref reader
+            );
+            string raw = doc.RootElement.GetRawText();
+            if (doc.RootElement.TryGetProperty("shapeType", out System.Text.Json.JsonElement disc))
+            {
+                if (
+                    disc.ValueKind != System.Text.Json.JsonValueKind.String
+                    && disc.ValueKind != System.Text.Json.JsonValueKind.Null
+                )
+                {
+                    throw new System.Text.Json.JsonException(
+                        $"Discriminator property 'shapeType' of Shape must be a string, got {disc.ValueKind}"
+                    );
+                }
+                string? discValue = disc.GetString();
+                return discValue switch
+                {
+                    "Circle" => System.Text.Json.JsonSerializer.Deserialize<Circle>(raw, options),
+                    "Square" => System.Text.Json.JsonSerializer.Deserialize<Square>(raw, options),
+                    _ => throw new System.Text.Json.JsonException(
+                        $"Unknown discriminator value for Shape: '{discValue}'"
+                    ),
+                };
+            }
+            throw new System.Text.Json.JsonException("Missing discriminator property 'shapeType'");
+        }
+
+        public override void Write(
+            System.Text.Json.Utf8JsonWriter writer,
+            Shape value,
+            System.Text.Json.JsonSerializerOptions options
+        )
+        {
+            System.Text.Json.JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        }
+    }
+
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
     /// populated through their init accessors during deserialization, so no
@@ -56,7 +108,7 @@ public record Shape : global::System.Text.Json.Serialization.IJsonOnDeserialized
     /// <see cref="System.Text.Json.JsonException"/>. Nothing is checked when a
     /// model is constructed in code: the check belongs to decoding only.
     /// </summary>
-    void global::System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized()
+    public virtual void OnDeserialized()
     {
         if (_shapeType is null)
         {
