@@ -9,7 +9,6 @@ import '../models/rejected_request.dart';
 import '../object_serializer.dart';
 import 'api_exception.dart';
 import 'client_exception.dart';
-import 'serialization_exception.dart';
 
 /// Exception for a response whose body is a [RejectedRequest], declared under HTTP
 /// 4XX.

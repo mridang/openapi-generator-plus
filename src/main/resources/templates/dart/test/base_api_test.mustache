@@ -202,24 +202,17 @@ void main() {
 
   group('BaseApi', () {
     test('error dispatch', () async {
+      // The Chasm mock serves only these status routes. Every status-to-exception
+      // pair is pinned without a server by bhv errors 006 in the api error test.
       final testCases = <int, Type>{
         400: BadRequestException,
         401: UnauthorizedException,
         403: ForbiddenException,
         404: NotFoundException,
         409: ConflictException,
+        418: ClientException,
         422: UnprocessableEntityException,
         429: TooManyRequestsException,
-        402: PaymentRequiredException,
-        405: MethodNotAllowedException,
-        408: RequestTimeoutException,
-        410: GoneException,
-        413: PayloadTooLargeException,
-        415: UnsupportedMediaTypeException,
-        423: LockedException,
-        501: NotImplementedException,
-        503: ServiceUnavailableException,
-        504: GatewayTimeoutException,
         500: InternalServerErrorException,
         502: BadGatewayException,
       };

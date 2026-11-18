@@ -9,7 +9,6 @@ import '../models/upstream_failure.dart';
 import '../object_serializer.dart';
 import 'api_exception.dart';
 import 'server_exception.dart';
-import 'serialization_exception.dart';
 
 /// Exception for a response whose body is a [UpstreamFailure], declared under HTTP
 /// 5XX.

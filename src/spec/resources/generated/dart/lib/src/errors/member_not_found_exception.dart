@@ -9,7 +9,6 @@ import '../models/member_not_found.dart';
 import '../object_serializer.dart';
 import 'api_exception.dart';
 import 'not_found_exception.dart';
-import 'serialization_exception.dart';
 
 /// Exception for a response whose body is a [MemberNotFound], declared under HTTP
 /// 404.
