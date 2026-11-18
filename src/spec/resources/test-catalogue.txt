@@ -2444,6 +2444,9 @@ langcsharp058 | A supplied cancellation token is kept when the options are read 
 langcsharp059 | Supplying both a client and a handler together fails fast
 langnode090 | The synchronous header getter throws rather than returning unauthenticated headers
 langnode091 | setAccessToken rejects a token containing a forbidden character
+langnode092 | The token request is form-encoded and asks for JSON
+langnode093 | A token_type value is accepted
+||||||| 5adbcce76
 langphp026 | Data methods declare the language's native return type rather than a generic one. | multi
 langphp027 | An operation summary and description reach its doc comment without escaping.
 langphp028 | A binary response is returned as decoded bytes and not as a base64 string.
@@ -2452,8 +2455,17 @@ langphp030 | A required cookie parameter is sent when a value is supplied.
 langphp031 | The password authenticator masks its client secret and password in debug output.
 langphp032 | The OpenID Connect authenticator masks its client secret in debug output.
 langphp033 | A third global server keeps its URL, description and variable through a round trip.
+langnode094 | A discovery URL that is not https is refused before any request
+langnode095 | The openid scope is always requested
+langnode096 | A non-2xx discovery response raises an error rather than being parsed
+langnode097 | A discovery issuer that differs only by a trailing slash is accepted
+langnode098 | Discovery accepts loopback endpoints
+||||||| 7c38cba0a
 langphp034 | A multipart text part carries only a Content-Disposition header.
 langphp035 | The retry backoff doubles from half a second up to a cap of eight seconds.
+langnode099 | A scheme wrapper fails when built with a variable unset
+langnode100 | A scheme class is exported from the package entry point and extends its base
+||||||| 7ebe2e571
 langcsharp060 | A non-finite expires_in value skips caching of the token
 langphp036 | A date-only cookie value is written as yyyy-mm-dd.
 langphp037 | Each date in a query array is written as yyyy-mm-dd.
@@ -2477,9 +2489,14 @@ langphp051 | The printable form of a bearer authenticator never shows its token.
 langphp052 | An operation with no security sends no API key even when one is configured.
 langphp053 | A typed error is caught by a catch of the SDK base exception class.
 langphp054 | A bare path or query-only target reduces to the path.
+langnode101 | The builder stores the supplied fetch and fetchOptions
+||||||| 17ee7351c
 langphp055 | An injected API client is shared by every API group of a client.
 langphp056 | A client that has not been closed still sends requests.
 langphp057 | A call hook given to the client is passed to every API group.
+langnode102 | A plain request is performed via the global fetch
+langnode103 | Plain requests are still honoured when maxRedirects is set
+||||||| b0a0768a4
 langphp058 | A composite authenticator applies the headers, query parameters and cookies of every member.
 langphp059 | A composite authenticator takes its host from its first member.
 langphp060 | A composite authenticator with no members is refused.
@@ -2487,3 +2504,67 @@ langphp061 | An anyOf variant with only numeric additional properties serializes
 langphp062 | The composer manifest declares a valid package name.
 langphp063 | A result carries its payload, headers and status together.
 langphp064 | A configured CA certificate is the only trust anchor, so an unrelated CA rejects the server.
+langnode104 | SerializationError extends the generated error root and Error
+langnode105 | A Decimal field is emitted unquoted in a plain request body
+langnode106 | A numeric-looking string in a free-form map nested in a model stays a string
+langnode107 | A plain Decimal literal nested in a plain body is emitted unquoted
+langnode108 | A nested null field inside an object is omitted
+langnode109 | A valid nested tree decodes into model instances
+langnode110 | A wrong-typed field on a nested single model is rejected
+langnode111 | A wrong-typed field on a model inside an array is rejected
+langnode112 | Required-field checks apply to a nested model
+langnode113 | The unknown-enum check applies to a nested model
+langnode114 | A non-string element of a string set is rejected
+langnode115 | A non-string element of a string set on a nested model is rejected
+langnode116 | A set of numbers serializes in numeric order
+langnode117 | A nested uniqueItems array collapses into a set and keeps decimals as strings
+langnode118 | A nested type:number field decodes losslessly
+langnode119 | A quoted string for a type:number field is rejected
+langnode120 | A quoted string for a nested type:number field is rejected
+langnode121 | An integral JSON number is accepted for an integer field
+langnode122 | A model constructor keeps an int32 outside the range and decoding rejects it
+langnode123 | A non-Buffer thumbnail is rejected when decoded
+langnode124 | deserializeMap rejects an array because a map must be an object
+langnode125 | deserializeMap of null returns an empty record
+langnode126 | A reverse-mapped member name string is used as the priority
+langnode127 | Deserialize coerces a uniqueItems array into a runtime set
+langnode128 | A hand-constructed model keeps the set it was given
+langnode129 | A null element is preserved by a primitive element deserializer
+langnode130 | deserializeMap preserves a null value for a primitive value type
+langnode131 | deserializeMap preserves a null value for a date leaf instead of the epoch
+langnode132 | A PlainTime in a path value serializes to its ISO string
+langnode133 | A Duration from another Temporal implementation is recognised structurally
+langnode134 | A bare number without an s suffix is rejected as a duration
+langnode135 | More than nine fractional digits in a duration is rejected
+langnode136 | Each enum member keeps its exact wire casing on serialize
+langnode137 | Multiple extra properties all land at the top level
+langnode138 | A model constructor ignores an own __proto__ key in its data
+langnode139 | A model built from wrong-typed values raises nothing
+langnode140 | A model built without required fields raises nothing
+langnode141 | A model built with an unknown enum string keeps the string
+langnode142 | A model decoded from a valid payload carries the coerced values
+langnode143 | A required field of a copy is checked when the copy is decoded
+langnode144 | A string is returned exactly as given
+langnode145 | A serialization error names the value
+langnode146 | A date leaf keeps a null so a nullable container is not corrupted
+langnode147 | A double leaf accepts a finite number
+langnode148 | A double leaf refuses an overflowing number
+langnode149 | A null double leaf is refused unless the element is nullable
+langnode150 | An array is matched element by element
+langnode151 | A model enum accepts its literal wire values and keeps member access
+langnode152 | An array of models rejects a value of the wrong kind
+langnode153 | An element of an array of models rejects a wrong kind
+langnode154 | A wrong-kind value is rejected
+langnode155 | A map of int32 rejects a wrong-kind value
+langnode156 | A valid value passes through
+langnode157 | A leaf rejects a wrong-kind value
+langnode158 | A null leaf is refused unless the element is nullable
+langnode159 | A value is written in its canonical string form
+langnode160 | A hand-built model keeps its value
+langnode161 | Decoding a malformed value fails with a serialization error
+langnode162 | A plain date value is accepted
+langnode163 | A non-plain-date value is not accepted as a plain date
+langnode164 | A value is refused
+langnode165 | A date leaf refuses a wrong-kind value
+langnode166 | An availability enum value round-trips through its member
+langnode167 | An enum wire value decodes to a member and re-encodes

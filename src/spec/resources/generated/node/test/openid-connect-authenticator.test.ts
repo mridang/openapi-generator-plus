@@ -316,7 +316,7 @@ describe("OpenIdConnectAuthenticator", () => {
     [["openid"], "openid"],
     [["OpenID"], "openid OpenID"],
   ] as Array<[string[], string]>)(
-    "the openid scope is always requested for scopes %j",
+    "bhv langnode 095 the openid scope is always requested for scopes %j",
     async (scopes, expected) => {
       const oidc = new OpenIdConnectAuthenticator(
         "https://api.example.com",
@@ -424,7 +424,7 @@ describe("OpenIdConnectAuthenticator", () => {
     [404, NotFoundError],
     [500, InternalServerError],
   ])(
-    "throws on a non-2xx (%i) discovery response instead of mis-parsing it",
+    "bhv langnode 096 throws on a non-2xx (%i) discovery response instead of mis-parsing it",
     async (status, errorClass) => {
       // oauth-oidc-discovery-no-status-check: a non-2xx answer (e.g. a 500
       // HTML error page) must surface as the same status-specific error an
@@ -694,7 +694,7 @@ describe("OpenIdConnectAuthenticator", () => {
       [86399, 1],
       [86401, 2],
     ])(
-      "without Cache-Control the document is cached for a day (%i seconds later: %i fetches)",
+      "bhv auth 011 without Cache-Control the document is cached for a day (%i seconds later: %i fetches)",
       async (seconds, fetches) => {
         await urlsAfter(seconds);
 
@@ -761,7 +761,7 @@ describe("OpenIdConnectAuthenticator", () => {
   ];
 
   test.each(["https://other.example.com", "https://auth.example.com/tenant"])(
-    "discovery rejects an issuer %s that is not the discovery URL prefix",
+    "bhv misc 200 discovery rejects an issuer %s that is not the discovery URL prefix",
     async (issuer) => {
       mockClient.responses = discoveryDocument({
         issuer,
@@ -780,7 +780,7 @@ describe("OpenIdConnectAuthenticator", () => {
   );
 
   test.each(["https://auth.example.com", "https://auth.example.com/"])(
-    "discovery accepts the issuer %s, ignoring a trailing slash",
+    "bhv langnode 097 discovery accepts the issuer %s, ignoring a trailing slash",
     async (issuer) => {
       mockClient.responses = discoveryDocument({
         issuer,
@@ -837,17 +837,20 @@ describe("OpenIdConnectAuthenticator", () => {
     "http://localhost:9000",
     "http://127.0.0.1:9000",
     "http://[::1]:9000",
-  ])("discovery accepts the loopback endpoints on %s", async (origin) => {
-    mockClient.responses = discoveryDocument({
-      authorization_endpoint: `${origin}/authorize`,
-      token_endpoint: `${origin}/token`,
-    });
+  ])(
+    "bhv langnode 098 discovery accepts the loopback endpoints on %s",
+    async (origin) => {
+      mockClient.responses = discoveryDocument({
+        authorization_endpoint: `${origin}/authorize`,
+        token_endpoint: `${origin}/token`,
+      });
 
-    const url = await authenticator.buildAuthorizationUrl();
-    expect(url.startsWith(`${origin}/authorize?`)).toBe(true);
-  });
+      const url = await authenticator.buildAuthorizationUrl();
+      expect(url.startsWith(`${origin}/authorize?`)).toBe(true);
+    },
+  );
 
-  test("a discovery URL that is not https is refused before any request is sent", async () => {
+  test("bhv langnode 094 a discovery URL that is not https is refused before any request is sent", async () => {
     const insecure = new OpenIdConnectAuthenticator(
       "https://api.example.com",
       "http://auth.example.com/.well-known/openid-configuration",

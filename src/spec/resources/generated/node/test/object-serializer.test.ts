@@ -67,7 +67,7 @@ describe("ObjectSerializer", () => {
     // SerializationError must extend the branded OpenAPIError root so
     // callers can catch every SDK-originated error — transport and serde
     // alike — with a single `instanceof OpenAPIError` check.
-    test("SerializationError extends OpenAPIError and Error", () => {
+    test("bhv langnode 104 SerializationError extends OpenAPIError and Error", () => {
       const err = new SerializationError("boom");
       expect(err).toBeInstanceOf(OpenAPIError);
       expect(err).toBeInstanceOf(Error);
@@ -581,7 +581,7 @@ describe("ObjectSerializer", () => {
       expect(typeof parsed.weightKg).toBe("number");
     });
 
-    test("preserves Decimal precision beyond IEEE-754 on the wire", () => {
+    test("bhv serialization 114 preserves Decimal precision beyond IEEE-754 on the wire", () => {
       // A high-precision decimal that a JS number cannot hold exactly must
       // survive verbatim in the wire text (the whole reason Decimal is a
       // string), so the unquoted emission keeps every digit.
@@ -594,7 +594,7 @@ describe("ObjectSerializer", () => {
       expect(result).toContain('"weightKg":12.34567890123456789');
     });
 
-    test("emits the Decimal field unquoted for a PLAIN-OBJECT request body", () => {
+    test("bhv langnode 105 emits the Decimal field unquoted for a PLAIN-OBJECT request body", () => {
       // Wave B — request bodies are typically passed as plain object literals
       // (the body parameter type is DeepInput<Pet>), NOT constructed Pet
       // instances. A plain object's constructor is `Object`, which carries no
@@ -630,7 +630,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("keeps a numeric-looking string in a free-form map inside a nested model a string", () => {
+    test("bhv langnode 106 keeps a numeric-looking string in a free-form map inside a nested model a string", () => {
       const passport = new PetPassport({
         pet: new Pet({ name: "Fido", photoUrls: new Set<string>() }),
       });
@@ -640,7 +640,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("still emits the Decimal unquoted for a plain literal nested in a plain literal body", () => {
+    test("bhv langnode 107 still emits the Decimal unquoted for a plain literal nested in a plain literal body", () => {
       const body = {
         pet: {
           name: "Fido",
@@ -946,7 +946,7 @@ describe("ObjectSerializer", () => {
       expect(json).not.toContain("null");
     });
 
-    test("nested null field inside an object is omitted", () => {
+    test("bhv langnode 108 nested null field inside an object is omitted", () => {
       const obj = { outer: { keep: 1, drop: null } };
       const json = ObjectSerializer.serialize(obj);
       const parsed = JSON.parse(json);
@@ -1056,7 +1056,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("still decodes a valid nested tree into model instances", () => {
+    test("bhv langnode 109 still decodes a valid nested tree into model instances", () => {
       const json = {
         value: "root",
         child: { value: "a", child: { value: "b" } },
@@ -1067,14 +1067,14 @@ describe("ObjectSerializer", () => {
       expect(root.child!.child!.value).toBe("b");
     });
 
-    test("rejects a wrong-typed field on a nested single model", () => {
+    test("bhv langnode 110 rejects a wrong-typed field on a nested single model", () => {
       const json = { name: "x", photoUrls: [], category: { id: "42" } };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
         /^Failed to deserialize JSON: id must be a number, got string$/,
       );
     });
 
-    test("rejects a wrong-typed field on a model inside an array", () => {
+    test("bhv langnode 111 rejects a wrong-typed field on a model inside an array", () => {
       const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, { id: "7" }] };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
         /^Failed to deserialize JSON: id must be a number, got string$/,
@@ -1091,7 +1091,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("applies required-field checks to a nested Pet", () => {
+    test("bhv langnode 112 applies required-field checks to a nested Pet", () => {
       const json = { pet: {} };
       expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
         /^Failed to deserialize JSON: name is required$/,
@@ -1112,7 +1112,7 @@ describe("ObjectSerializer", () => {
       expect(pet!.status).toBe(PetStatusEnum.Available);
     });
 
-    test("applies the unknown-enum check to a nested Pet", () => {
+    test("bhv langnode 113 applies the unknown-enum check to a nested Pet", () => {
       const json = { pet: { name: "x", photoUrls: [], status: "banana" } };
       expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
         /Unknown enum value for status: "banana"/,
@@ -1140,7 +1140,7 @@ describe("ObjectSerializer", () => {
       ["a number", 5, "number"],
       ["an object", { id: 1 }, "object"],
     ])(
-      "rejects %s where an array of models is expected",
+      "bhv langnode 152 rejects %s where an array of models is expected",
       (_label, value, received) => {
         const json = { name: "x", photoUrls: [], tags: value };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
@@ -1156,7 +1156,7 @@ describe("ObjectSerializer", () => {
       ["a string", "abc", "string"],
       ["an array", [1], "array"],
     ])(
-      "rejects %s as an element of an array of models",
+      "bhv langnode 153 rejects %s as an element of an array of models",
       (_label, element, received) => {
         const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, element] };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
@@ -1167,14 +1167,14 @@ describe("ObjectSerializer", () => {
       },
     );
 
-    test("rejects a non-string element of a string set", () => {
+    test("bhv langnode 114 rejects a non-string element of a string set", () => {
       const json = { name: "x", photoUrls: ["a", 1] };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
         /^Failed to deserialize JSON: photoUrls elements must be strings, got number$/,
       );
     });
 
-    test("rejects a non-string element of a string set on a nested model", () => {
+    test("bhv langnode 115 rejects a non-string element of a string set on a nested model", () => {
       const json = { pet: { name: "x", photoUrls: [true] } };
       expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
         /^Failed to deserialize JSON: photoUrls elements must be strings, got boolean$/,
@@ -1204,7 +1204,7 @@ describe("ObjectSerializer", () => {
       expect(second).toBe(first);
     });
 
-    test("orders astral characters after the rest of the BMP", () => {
+    test("bhv misc 111 orders astral characters after the rest of the BMP", () => {
       const json = ObjectSerializer.serialize({
         values: new Set(["\u{1F600}", "\uFFFD", "z"]),
       });
@@ -1213,13 +1213,13 @@ describe("ObjectSerializer", () => {
       });
     });
 
-    test("serializes a Set of numbers in numeric order", () => {
+    test("bhv langnode 116 serializes a Set of numbers in numeric order", () => {
       expect(ObjectSerializer.serialize({ values: new Set([10, 2, 1]) })).toBe(
         '{"values":[1,2,10]}',
       );
     });
 
-    test("collapses a nested uniqueItems array into a Set and keeps Decimal as a string", () => {
+    test("bhv langnode 117 collapses a nested uniqueItems array into a Set and keeps Decimal as a string", () => {
       const json = {
         pet: { name: "x", photoUrls: ["a", "a", "b"], weightKg: 12.5 },
       };
@@ -1277,7 +1277,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("keeps the written scale of a type:number field", () => {
+    test("bhv misc 088 keeps the written scale of a type:number field", () => {
       const pet = ObjectSerializer.deserialize(
         ObjectSerializer.parseJson(
           '{"name":"x","photoUrls":[],"weightKg":1.50}',
@@ -1287,7 +1287,7 @@ describe("ObjectSerializer", () => {
       expect(pet.weightKg).toBe("1.50");
     });
 
-    test("decodes a nested type:number field losslessly", () => {
+    test("bhv langnode 118 decodes a nested type:number field losslessly", () => {
       const text =
         '{"pet":{"name":"x","photoUrls":[],"weightKg":0.1000000000000000055511151231257827}}';
       const passport = ObjectSerializer.deserialize(
@@ -1299,7 +1299,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("rejects a quoted string for a type:number field", () => {
+    test("bhv langnode 119 rejects a quoted string for a type:number field", () => {
       const json = { name: "x", photoUrls: [], weightKg: "12.5" };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
         SerializationError,
@@ -1309,7 +1309,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("rejects a quoted string for a nested type:number field", () => {
+    test("bhv langnode 120 rejects a quoted string for a nested type:number field", () => {
       const json = { pet: { name: "x", photoUrls: [], weightKg: "12.5" } };
       expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
         /weightKg.*quoted string/,
@@ -1338,11 +1338,11 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("a model constructor keeps a fractional number; decoding rejects it", () => {
+    test("bhv misc 231 a model constructor keeps a fractional number; decoding rejects it", () => {
       expect(new Order({ quantity: 1.5 }).quantity).toBe(1.5);
     });
 
-    test("accepts an integral JSON number for an integer field", () => {
+    test("bhv langnode 121 accepts an integral JSON number for an integer field", () => {
       expect(
         ObjectSerializer.deserialize({ quantity: 100 }, Order)!.quantity,
       ).toBe(100);
@@ -1356,7 +1356,7 @@ describe("ObjectSerializer", () => {
       ["a boolean int32", { quantity: true }],
       ["a fractional int64", { id: 1.5 }],
       ["a quoted int64", { id: "5" }],
-    ])("rejects %s", (_label, json) => {
+    ])("bhv langnode 154 rejects %s", (_label, json) => {
       expect(() => ObjectSerializer.deserialize(json, Order)).toThrow(
         SerializationError,
       );
@@ -1374,7 +1374,7 @@ describe("ObjectSerializer", () => {
       ).toBe(2 ** 63);
     });
 
-    test("a model constructor keeps an int32 outside the range; decoding rejects it", () => {
+    test("bhv langnode 122 a model constructor keeps an int32 outside the range; decoding rejects it", () => {
       expect(new Order({ quantity: 3000000000 }).quantity).toBe(3000000000);
       expect(() =>
         ObjectSerializer.deserialize({ quantity: 3000000000 }, Order),
@@ -1388,7 +1388,7 @@ describe("ObjectSerializer", () => {
       ["a quoted element", { a: "5" }],
       ["an out-of-range element", { a: 3000000000 }],
       ["a fractional element", { a: 1.5 }],
-    ])("rejects %s of a map of int32", (_label, json) => {
+    ])("bhv langnode 155 rejects %s of a map of int32", (_label, json) => {
       expect(() => ObjectSerializer.deserializeMap(json, int32Leaf)).toThrow(
         SerializationError,
       );
@@ -1455,7 +1455,7 @@ describe("ObjectSerializer", () => {
       ["int32", -2147483648],
       ["int64", 3000000000],
       ["boolean", false],
-    ] as const)("passes a valid %s through", (kind, value) => {
+    ] as const)("bhv langnode 156 passes a valid %s through", (kind, value) => {
       expect(ObjectSerializer.deserializeLeaf(value, kind)).toBe(value);
     });
 
@@ -1473,14 +1473,17 @@ describe("ObjectSerializer", () => {
       ["date", "2024-01-01T10:00:00", "string"],
       ["date", "Jan 1 2024", "string"],
       ["date", "10:00", "string"],
-    ] as const)("rejects a %s leaf given %p", (kind, value, received) => {
-      expect(() => ObjectSerializer.deserializeLeaf(value, kind)).toThrow(
-        new SerializationError(`Expected ${kind} but received: ${received}`),
-      );
-    });
+    ] as const)(
+      "bhv langnode 157 rejects a %s leaf given %p",
+      (kind, value, received) => {
+        expect(() => ObjectSerializer.deserializeLeaf(value, kind)).toThrow(
+          new SerializationError(`Expected ${kind} but received: ${received}`),
+        );
+      },
+    );
 
     test.each(["int32", "int64", "boolean"] as const)(
-      "rejects a null %s leaf unless the element is nullable",
+      "bhv langnode 158 rejects a null %s leaf unless the element is nullable",
       (kind) => {
         expect(() => ObjectSerializer.deserializeLeaf(null, kind)).toThrow(
           new SerializationError(`Expected ${kind} but received: null`),
@@ -1555,7 +1558,7 @@ describe("ObjectSerializer", () => {
     });
 
     test.each(["dGVzdA", "dGVz dA==", "dGVz\ndA==", "-_8=", "!!!!"])(
-      "deserialize: non-canonical base64 %p is rejected with SerializationError",
+      "bhv serialization 090 deserialize: non-canonical base64 %p is rejected with SerializationError",
       (thumbnail) => {
         expect(() =>
           ObjectSerializer.deserialize({ thumbnail }, PetPassport),
@@ -1617,7 +1620,7 @@ describe("ObjectSerializer", () => {
       ).toBe(0);
     });
 
-    test("a non-Buffer, non-string thumbnail is built without complaint and rejected when decoded", () => {
+    test("bhv langnode 123 a non-Buffer, non-string thumbnail is built without complaint and rejected when decoded", () => {
       expect(
         () =>
           new PetPassport({
@@ -1651,7 +1654,7 @@ describe("ObjectSerializer", () => {
       expect(() => uuid("not-a-uuid")).toThrow(TypeError);
     });
 
-    test("uuid(): rejects a string with the wrong segment lengths", () => {
+    test("bhv misc 247 uuid(): rejects a string with the wrong segment lengths", () => {
       expect(() => uuid("550e8400-e29b-41d4-a716-44665544000")).toThrow(
         TypeError,
       );
@@ -1667,7 +1670,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("serialize writes a uuid field of a plain request body in lowercase", () => {
+    test("bhv serialization 104 serialize writes a uuid field of a plain request body in lowercase", () => {
       expect(
         JSON.parse(ObjectSerializer.serialize({ trackingId: upperUuid })),
       ).toEqual({ trackingId: lowerUuid });
@@ -1714,11 +1717,11 @@ describe("ObjectSerializer", () => {
       expect(ObjectSerializer.deserializeMap({}, Category)).toEqual({});
     });
 
-    test("deserializeMap rejects an array (must be an object)", () => {
+    test("bhv langnode 124 deserializeMap rejects an array (must be an object)", () => {
       expect(() => ObjectSerializer.deserializeMap([], Category)).toThrow();
     });
 
-    test("deserializeMap of null returns an empty record (lenient null)", () => {
+    test("bhv langnode 125 deserializeMap of null returns an empty record (lenient null)", () => {
       expect(ObjectSerializer.deserializeMap(null, Category)).toEqual({});
     });
   });
@@ -1728,7 +1731,7 @@ describe("ObjectSerializer", () => {
     // Validation must reject a string payload that happens to match a member
     // name; only the numeric wire values are valid.
 
-    test("builds a model with a reverse-mapped member name string as priority", () => {
+    test("bhv langnode 126 builds a model with a reverse-mapped member name string as priority", () => {
       expect(
         () => new StockItem({ priority: "NUMBER_1" as unknown as Priority }),
       ).not.toThrow();
@@ -1741,7 +1744,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("accepts a valid integer wire value", () => {
+    test("bhv misc 108 accepts a valid integer wire value", () => {
       const item = new StockItem({ priority: Priority.Number2 });
       expect(item.priority).toBe(2);
     });
@@ -1770,7 +1773,7 @@ describe("ObjectSerializer", () => {
     // .has()/.add() get a TypeError. A hand-built model is typed by the caller
     // and keeps the Set it was given.
 
-    test("deserialize coerces a uniqueItems array into a runtime Set", () => {
+    test("bhv langnode 127 deserialize coerces a uniqueItems array into a runtime Set", () => {
       const json = { name: "Fido", photoUrls: ["a", "b", "a"] };
       const pet = ObjectSerializer.deserialize(json, Pet);
       expect(pet!.photoUrls).toBeInstanceOf(Set);
@@ -1779,7 +1782,7 @@ describe("ObjectSerializer", () => {
       expect((pet!.photoUrls as Set<string>).has("a")).toBe(true);
     });
 
-    test("a hand-constructed model keeps the Set it was given for photoUrls", () => {
+    test("bhv langnode 128 a hand-constructed model keeps the Set it was given for photoUrls", () => {
       const urls = new Set(["x"]);
       const pet = new Pet({ name: "Fido", photoUrls: urls });
       expect(pet.photoUrls).toBe(urls);
@@ -1811,10 +1814,13 @@ describe("ObjectSerializer", () => {
     test.each([
       ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00.000Z"],
       ["2024-01-01T10:00:00.123456789+05:30", "2024-01-01T04:30:00.123Z"],
-    ])("accepts the RFC 3339 date-time %p", (shipDate, instant) => {
-      const order = ObjectSerializer.deserialize({ shipDate }, Order);
-      expect(order!.shipDate!.toISOString()).toBe(instant);
-    });
+    ])(
+      "bhv serialization 085 accepts the RFC 3339 date-time %p",
+      (shipDate, instant) => {
+        const order = ObjectSerializer.deserialize({ shipDate }, Order);
+        expect(order!.shipDate!.toISOString()).toBe(instant);
+      },
+    );
   });
 
   describe("format: uri decode", () => {
@@ -1863,7 +1869,7 @@ describe("ObjectSerializer", () => {
     // alignment intact). For a model-class element type a null is not an
     // object and is rejected, never kept and never silently dropped.
 
-    test("preserves null elements for a primitive element deserializer", () => {
+    test("bhv langnode 129 preserves null elements for a primitive element deserializer", () => {
       const out = ObjectSerializer.deserializeArray(
         ["a", null, "b"],
         (x) => x as string | null,
@@ -1890,7 +1896,7 @@ describe("ObjectSerializer", () => {
       ).toThrow(SerializationError);
     });
 
-    test("deserializeMap preserves a null value for a primitive value type", () => {
+    test("bhv langnode 130 deserializeMap preserves a null value for a primitive value type", () => {
       const out = ObjectSerializer.deserializeMap(
         { a: "x", b: null },
         (x) => x as string | null,
@@ -1910,7 +1916,7 @@ describe("ObjectSerializer", () => {
     const dateLeaf = (x: unknown) =>
       ObjectSerializer.deserializeLeaf<Date | null>(x, "date");
 
-    test("deserializeMap preserves a null value for a Date leaf instead of epoch", () => {
+    test("bhv langnode 131 deserializeMap preserves a null value for a Date leaf instead of epoch", () => {
       const out = ObjectSerializer.deserializeMap(
         { a: "2024-01-02T03:04:05.123Z", b: null },
         dateLeaf,
@@ -2013,11 +2019,14 @@ describe("ObjectSerializer", () => {
         ["10:30:00.123456789", "10:30:00.123"],
         ["10:30:00.9996", "10:30:00.999"],
         ["10:30:00.000999", "10:30:00"],
-      ])("stringify: %s is written as %s", (input, expected) => {
-        expect(ObjectSerializer.stringify(Temporal.PlainTime.from(input))).toBe(
-          expected,
-        );
-      });
+      ])(
+        "bhv langnode 159 stringify: %s is written as %s",
+        (input, expected) => {
+          expect(
+            ObjectSerializer.stringify(Temporal.PlainTime.from(input)),
+          ).toBe(expected);
+        },
+      );
 
       test("bhv serializationobject 219 a time value keeps its milliseconds when it is written", () => {
         const json = ObjectSerializer.serialize(
@@ -2057,17 +2066,17 @@ describe("ObjectSerializer", () => {
         expect(ObjectSerializer.toQueryValue(t)).toBe("06:00:00");
       });
 
-      test("toHeaderValue: PlainTime serialises to its ISO string", () => {
+      test("bhv serialization 078 toHeaderValue: PlainTime serialises to its ISO string", () => {
         const t = Temporal.PlainTime.from("23:59:59");
         expect(ObjectSerializer.toHeaderValue(t)).toBe("23:59:59");
       });
 
-      test("toPathValue: PlainTime serialises to its ISO string", () => {
+      test("bhv langnode 132 toPathValue: PlainTime serialises to its ISO string", () => {
         const t = Temporal.PlainTime.from("00:00:00");
         expect(ObjectSerializer.toPathValue(t)).toBe("00:00:00");
       });
 
-      test("serialize: PlainTime in a plain object becomes a JSON string", () => {
+      test("bhv misc 245 serialize: PlainTime in a plain object becomes a JSON string", () => {
         const json = ObjectSerializer.serialize({
           openAt: Temporal.PlainTime.from("08:00:00"),
         });
@@ -2115,12 +2124,12 @@ describe("ObjectSerializer", () => {
         expect(ObjectSerializer.stringify(d)).toBe("900s");
       });
 
-      test("stringify: composite hours/minutes/seconds collapses to seconds", () => {
+      test("bhv serialization 086 stringify: composite hours/minutes/seconds collapses to seconds", () => {
         const d = Temporal.Duration.from("PT2H30M15S");
         expect(ObjectSerializer.stringify(d)).toBe("9015s");
       });
 
-      test("stringify: day-level duration collapses to seconds", () => {
+      test("bhv misc 248 stringify: day-level duration collapses to seconds", () => {
         const d = Temporal.Duration.from("P3D");
         expect(ObjectSerializer.stringify(d)).toBe("259200s");
       });
@@ -2148,7 +2157,7 @@ describe("ObjectSerializer", () => {
         expect(JSON.parse(json)).toEqual({ ttl: "300s" });
       });
 
-      test("a Duration from another Temporal implementation is recognised structurally", () => {
+      test("bhv langnode 133 a Duration from another Temporal implementation is recognised structurally", () => {
         class ForeignDuration {
           readonly [Symbol.toStringTag] = "Temporal.Duration";
           weeks = 0;
@@ -2191,7 +2200,7 @@ describe("ObjectSerializer", () => {
           ).toBe("0s");
         });
 
-        test("one nanosecond -> 9-digit fraction", () => {
+        test("bhv serialization 129 one nanosecond -> 9-digit fraction", () => {
           expect(
             durationToProtoJson(
               Temporal.Duration.from({ seconds: 3600, nanoseconds: 1 }),
@@ -2199,7 +2208,7 @@ describe("ObjectSerializer", () => {
           ).toBe("3600.000000001s");
         });
 
-        test("millisecond fraction trims to 3 digits", () => {
+        test("bhv misc 256 millisecond fraction trims to 3 digits", () => {
           expect(
             durationToProtoJson(
               Temporal.Duration.from({ seconds: 1, milliseconds: 500 }),
@@ -2254,13 +2263,13 @@ describe("ObjectSerializer", () => {
           );
         });
 
-        test('rejects a bare number with no "s" suffix', () => {
+        test('bhv langnode 134 rejects a bare number with no "s" suffix', () => {
           expect(() => durationFromProtoJson("3600")).toThrow(
             SerializationError,
           );
         });
 
-        test("rejects more than 9 fractional digits", () => {
+        test("bhv langnode 135 rejects more than 9 fractional digits", () => {
           expect(() => durationFromProtoJson("1.0000000001s")).toThrow(
             SerializationError,
           );
@@ -2369,7 +2378,7 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("error message names the offending enum value", () => {
+    test("bhv serialization 105 error message names the offending enum value", () => {
       const wire = {
         id: 1,
         name: "Rex",
@@ -2482,7 +2491,7 @@ describe("ObjectSerializer", () => {
       expect(String(Availability.Available)).toBe("Available");
     });
 
-    test("serialize preserves the exact wire casing of each member", () => {
+    test("bhv langnode 136 serialize preserves the exact wire casing of each member", () => {
       const available = new StockItem({
         priority: Priority.Number1,
         availability: Availability.Available,
@@ -2795,7 +2804,7 @@ describe("ObjectSerializer", () => {
     });
 
     test.each([Infinity, -Infinity, Number.NaN])(
-      "a hand-built model keeps %p",
+      "bhv langnode 160 a hand-built model keeps %p",
       (value) => {
         expect(new PhotoMetadataLocation({ lat: value, lng: 0 }).lat).toBe(
           value,
@@ -2840,7 +2849,7 @@ describe("ObjectSerializer", () => {
       expect(parsed).not.toHaveProperty("additional_properties");
     });
 
-    test("multiple extra properties all land at the top level", () => {
+    test("bhv langnode 137 multiple extra properties all land at the top level", () => {
       const meta = new Metadata();
       (meta as unknown as Record<string, unknown>)["a"] = "one";
       (meta as unknown as Record<string, unknown>)["b"] = "two";
@@ -2957,7 +2966,7 @@ describe("a wire key named __proto__ is data, never a prototype", () => {
     expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
   });
 
-  test("a model constructor ignores an own __proto__ key of its data", () => {
+  test("bhv langnode 138 a model constructor ignores an own __proto__ key of its data", () => {
     const data = JSON.parse(
       '{"id":1,"name":"Dogs","__proto__":{"x":1}}',
     ) as Partial<Category>;
@@ -2968,7 +2977,7 @@ describe("a wire key named __proto__ is data, never a prototype", () => {
 });
 
 describe("validation happens at decode, never at construction (F316)", () => {
-  test("a model built from wrong-typed values raises nothing", () => {
+  test("bhv langnode 139 a model built from wrong-typed values raises nothing", () => {
     expect(
       () => new Order({ quantity: "many" as unknown as number }),
     ).not.toThrow();
@@ -2988,12 +2997,12 @@ describe("validation happens at decode, never at construction (F316)", () => {
     ).not.toThrow();
   });
 
-  test("a model built without its required fields raises nothing", () => {
+  test("bhv langnode 140 a model built without its required fields raises nothing", () => {
     expect(() => new Pet({})).not.toThrow();
     expect(() => new Pet()).not.toThrow();
   });
 
-  test("a model built with an unknown enum string raises nothing and keeps the string", () => {
+  test("bhv langnode 141 a model built with an unknown enum string raises nothing and keeps the string", () => {
     const order = new Order({
       status: "teleported" as unknown as Order["status"],
     });
@@ -3010,11 +3019,14 @@ describe("validation happens at decode, never at construction (F316)", () => {
     ["a wrong-typed required field", Pet, { name: 42, photoUrls: [] }],
     ["an unknown inline enum string", Order, { status: "teleported" }],
     ["an unknown referenced enum string", StockItem, { priority: "urgent" }],
-  ])("decoding %s fails with a SerializationError", (_label, model, json) => {
-    expect(() =>
-      ObjectSerializer.deserialize(json, model as ClassConstructor<unknown>),
-    ).toThrow(SerializationError);
-  });
+  ])(
+    "bhv langnode 161 decoding %s fails with a SerializationError",
+    (_label, model, json) => {
+      expect(() =>
+        ObjectSerializer.deserialize(json, model as ClassConstructor<unknown>),
+      ).toThrow(SerializationError);
+    },
+  );
 
   test("bhv serializationobject 192 an unknown enum string fails loudly at decode and names the value and the allowed ones", () => {
     expect(() =>
@@ -3024,7 +3036,7 @@ describe("validation happens at decode, never at construction (F316)", () => {
     );
   });
 
-  test("a nested model is validated at decode too", () => {
+  test("bhv misc 109 a nested model is validated at decode too", () => {
     expect(() =>
       ObjectSerializer.deserialize(
         { name: "Fido", photoUrls: [], category: { id: "one", name: "Dogs" } },
@@ -3033,7 +3045,7 @@ describe("validation happens at decode, never at construction (F316)", () => {
     ).toThrow(SerializationError);
   });
 
-  test("a model decoded from a valid payload still carries the coerced values", () => {
+  test("bhv langnode 142 a model decoded from a valid payload still carries the coerced values", () => {
     const pet = ObjectSerializer.deserialize(
       { name: "Fido", photoUrls: ["a", "a"] },
       Pet,
@@ -3055,7 +3067,7 @@ describe("model with (copy)", () => {
     expect(original.name).toBe("Dogs");
   });
 
-  test("an empty patch copies every field", () => {
+  test("bhv misc 146 an empty patch copies every field", () => {
     const original = new Category({ id: 1, name: "Dogs" });
     const copy = original.with({});
 
@@ -3076,21 +3088,21 @@ describe("model with (copy)", () => {
     ).toBeUndefined();
   });
 
-  test("the copy validates nothing, like any other instance built by hand", () => {
+  test("bhv misc 105 the copy validates nothing, like any other instance built by hand", () => {
     const original = new Category({ id: 1, name: "Dogs" });
 
     expect(original.with({ id: "one" as unknown as number }).id).toBe("one");
     expect(original.id).toBe(1);
   });
 
-  test("a required field of the copy is checked when the copy is decoded, not when it is built", () => {
+  test("bhv langnode 143 a required field of the copy is checked when the copy is decoded, not when it is built", () => {
     const pet = new Pet({ name: "Fido", photoUrls: new Set(["u"]) });
 
     expect(pet.with({ name: undefined }).name).toBeUndefined();
     expect(pet.with({ name: "Rex" }).name).toBe("Rex");
   });
 
-  test("a nested model is shared, not cloned", () => {
+  test("bhv misc 147 a nested model is shared, not cloned", () => {
     const category = new Category({ id: 1, name: "Dogs" });
     const pet = new Pet({ name: "Fido", photoUrls: new Set(["u"]), category });
 
@@ -3105,7 +3117,7 @@ describe("model with (copy)", () => {
     expect(copy.equals(metadata)).toBe(true);
   });
 
-  test("the copy serializes like the original with the change applied", () => {
+  test("bhv misc 148 the copy serializes like the original with the change applied", () => {
     const copy = new Category({ id: 1, name: "Dogs" }).with({ name: "Cats" });
 
     expect(JSON.parse(ObjectSerializer.serialize(copy))).toEqual({
@@ -3122,7 +3134,7 @@ describe("format: date", () => {
     "0001-01-01",
     "9999-12-31",
     "2000-02-29",
-  ])("%p is a plain date", (value) => {
+  ])("bhv langnode 162 %p is a plain date", (value) => {
     expect(isPlainDate(value)).toBe(true);
     expect(plainDate(value)).toBe(value);
   });
@@ -3142,12 +3154,12 @@ describe("format: date", () => {
     " 2024-01-15",
     "2024-01-15\n",
     "",
-  ])("%p is not a plain date", (value) => {
+  ])("bhv langnode 163 %p is not a plain date", (value) => {
     expect(isPlainDate(value)).toBe(false);
     expect(() => plainDate(value)).toThrow(TypeError);
   });
 
-  test("a string is returned exactly as given", () => {
+  test("bhv langnode 144 a string is returned exactly as given", () => {
     const value = "2024-03-05";
     expect(plainDate(value)).toBe(value);
   });
@@ -3169,11 +3181,11 @@ describe("format: date", () => {
     [true],
     [{}],
     [new Date(Number.NaN)],
-  ])("%p is refused", (value) => {
+  ])("bhv langnode 164 %p is refused", (value) => {
     expect(() => plainDate(value)).toThrow(TypeError);
   });
 
-  test("the error names the value", () => {
+  test("bhv langnode 145 the error names the value", () => {
     expect(() => plainDate("2024-02-30", "renewalDate")).toThrow(
       'renewalDate must be a YYYY-MM-DD date, got "2024-02-30"',
     );
@@ -3185,14 +3197,14 @@ describe("format: date", () => {
     ).toBe("2024-01-15");
   });
 
-  test("a date leaf keeps a null so a nullable container is not corrupted", () => {
+  test("bhv langnode 146 a date leaf keeps a null so a nullable container is not corrupted", () => {
     expect(
       ObjectSerializer.deserializeLeaf<string | null>(null, "plainDate"),
     ).toBeNull();
   });
 
   test.each(["2024-01-15T00:00:00Z", "2024-02-30", "tomorrow", 20240115, true])(
-    "a date leaf refuses %p",
+    "bhv langnode 165 a date leaf refuses %p",
     (value) => {
       expect(() =>
         ObjectSerializer.deserializeLeaf(value, "plainDate"),
@@ -3202,13 +3214,13 @@ describe("format: date", () => {
 });
 
 describe("format: double decode", () => {
-  test("a double leaf accepts a finite number", () => {
+  test("bhv langnode 147 a double leaf accepts a finite number", () => {
     expect(ObjectSerializer.deserializeLeaf<number>(1.5, "double")).toBe(1.5);
     expect(ObjectSerializer.deserializeLeaf<number>(0, "double")).toBe(0);
     expect(ObjectSerializer.deserializeLeaf<number>(-7, "double")).toBe(-7);
   });
 
-  test("a double leaf refuses an overflowing number such as 1e400", () => {
+  test("bhv langnode 148 a double leaf refuses an overflowing number such as 1e400", () => {
     const decoded = ObjectSerializer.parseJson("[1e400]") as unknown[];
     expect(decoded[0]).toBe(Infinity);
     expect(() =>
@@ -3231,7 +3243,7 @@ describe("format: double decode", () => {
     );
   });
 
-  test("a null double leaf is refused unless the element is nullable", () => {
+  test("bhv langnode 149 a null double leaf is refused unless the element is nullable", () => {
     expect(() => ObjectSerializer.deserializeLeaf(null, "double")).toThrow(
       SerializationError,
     );
@@ -3258,7 +3270,7 @@ describe("model value-equality", () => {
     expect(b.equals(a)).toBe(true);
   });
 
-  test("a model is equal to itself", () => {
+  test("bhv misc 150 a model is equal to itself", () => {
     const a = new Category({ id: 1, name: "Dogs" });
     expect(a.equals(a)).toBe(true);
   });
@@ -3492,7 +3504,7 @@ describe("reattachAdditionalProperties", () => {
     });
   });
 
-  test("matches an array element by element", () => {
+  test("bhv langnode 150 matches an array element by element", () => {
     const entries = reattachAdditionalProperties(
       [new Metadata(), new Metadata()],
       [{ region: "eu" }, { tier: "gold" }],
@@ -3536,7 +3548,7 @@ describe("reattachAdditionalProperties", () => {
 });
 
 describe("toBinary", () => {
-  test("passes a Buffer through unchanged", () => {
+  test("bhv misc 102 passes a Buffer through unchanged", () => {
     const buffer = Buffer.from([1, 2, 3]);
 
     expect(ObjectSerializer.toBinary(buffer)).toBe(buffer);
@@ -3665,7 +3677,7 @@ describe("toBinary", () => {
     });
 
     test.each([["o'clock"], ["a\\b"], ["$eq"], ["#{x}"]])(
-      "the availability value %s round-trips through its member",
+      "bhv langnode 166 the availability value %s round-trips through its member",
       (wire) => {
         const member = Object.values(Availability).find(
           (value) => value === wire,
@@ -3712,7 +3724,7 @@ describe("toBinary", () => {
     });
 
     test.each([[" "], ["@@"], ["a-b"], ["a_b"]])(
-      "the enum wire value %j decodes to a member and re-encodes",
+      "bhv langnode 167 the enum wire value %j decodes to a member and re-encodes",
       (wire) => {
         const member = ObjectSerializer.deserializeEnum<Separator>(
           wire,
@@ -3735,7 +3747,7 @@ describe("toBinary", () => {
       expect(new Set(members).size).toBe(4);
     });
 
-    test("a model enum accepts its literal wire values and keeps member access", () => {
+    test("bhv langnode 151 a model enum accepts its literal wire values and keeps member access", () => {
       const literal: Separator = "a-b";
       const member: Separator = Separator.AB2;
       const numeric: Priority = 2;
