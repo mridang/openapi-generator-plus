@@ -1262,6 +1262,7 @@ class DefaultApiClientUnitTest {
   @Test
   void bhvTransport070PerCallTimeoutReachesTheTransportRequestAndIsNeverExceeded() {
     RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder = request -> RecordingHttpClient.redirect(200, null, request);
     DefaultApiClient client =
         new DefaultApiClient(
             TransportOptions.builder().httpClient(transport).timeout(1500).build());

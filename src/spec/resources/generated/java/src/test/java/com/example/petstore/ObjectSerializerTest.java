@@ -1740,9 +1740,20 @@ class ObjectSerializerTest {
     }
   }
 
-  static class FailingGetter {
-    public String getValue() {
-      throw new IllegalStateException("boom");
+  /* The mapper reads fields only (getters are off), so the failure sits on a field's serializer. */
+  static class FailingField {
+    @com.fasterxml.jackson.databind.annotation.JsonSerialize(using = FailingSerializer.class)
+    public String value = "x";
+  }
+
+  static class FailingSerializer extends com.fasterxml.jackson.databind.JsonSerializer<String> {
+    @Override
+    public void serialize(
+        String value,
+        com.fasterxml.jackson.core.JsonGenerator gen,
+        com.fasterxml.jackson.databind.SerializerProvider serializers)
+        throws java.io.IOException {
+      throw new java.io.IOException("boom");
     }
   }
 
@@ -2351,7 +2362,7 @@ class ObjectSerializerTest {
     void bhvSerializationObject200SerializeFailureCarriesPrefixAndDetail() {
       SerializationException ex =
           assertThrowsExactly(
-              SerializationException.class, () -> serializer.serialize(new FailingGetter()));
+              SerializationException.class, () -> serializer.serialize(new FailingField()));
       String message = ex.getMessage();
       assertNotNull(message);
       assertTrue(message.startsWith("Failed to serialize object to JSON: "), message);
