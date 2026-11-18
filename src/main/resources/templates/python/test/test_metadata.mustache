@@ -363,14 +363,14 @@ class TestOptionsPerCallSettings:
             self._options()(timeout=timeout)
 
     @pytest.mark.parametrize('max_retries', [-1, True, 1.5])
-    def test_a_retry_budget_below_zero_or_not_a_whole_number_is_rejected(self, max_retries: Any) -> None:
+    def test_bhv_misc_053_a_retry_budget_below_zero_or_not_a_whole_number_is_rejected(self, max_retries: Any) -> None:
         with pytest.raises(ValueError, match='max_retries'):
             self._options()(max_retries=max_retries)
 
     def test_zero_retries_is_allowed(self) -> None:
         assert self._options()(max_retries=0).max_retries == 0
 
-    def test_the_headers_are_a_read_only_copy(self) -> None:
+    def test_bhv_misc_054_the_headers_are_a_read_only_copy(self) -> None:
         source = {'X-A': '1'}
         options = self._options()(headers=source)
         source['X-A'] = '2'

@@ -742,7 +742,9 @@ class TestOpenIdConnectRedactedRepr:
 
 
 class TestOidcPkceAndInvalidation:
-    def test_the_authorization_url_carries_an_s256_challenge_and_no_nonce(self) -> None:
+    def test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_no_nonce(
+        self,
+    ) -> None:
         auth, _ = _create_authenticator_with_discovery()
 
         params = parse_qs(urlparse(auth.build_authorization_url()).query)

@@ -571,6 +571,11 @@ class TestCollectionsOfModelsUseTheModelWireForm:
 
 
 class TestStringify:
+    def test_bhv_misc_088_a_decimal_keeps_the_decimal_places_it_was_written_with(
+        self,
+    ) -> None:
+        assert ObjectSerializer.stringify(Decimal("1.50")) == "1.50"
+
     def test_bhv_serialization_113_a_string_passes_through_without_normalising_its_form(
         self,
     ) -> None:
@@ -1761,7 +1766,9 @@ class TestDecodeValidates:
                 '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
             )
 
-    def test_a_value_outside_the_declared_constraints_is_rejected(self) -> None:
+    def test_bhv_misc_091_a_value_outside_the_declared_constraints_is_rejected(
+        self,
+    ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(
                 '{"name":"Fido","photoUrls":[],"nickname":"' + "x" * 40 + '"}', "Pet"
@@ -2609,7 +2616,7 @@ class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
         # string must NOT be mis-parsed element-by-element into a list.
         assert not isinstance(restored.actual_instance, list)
 
-    def test_array_variant_serializes_to_base64_strings(self) -> None:
+    def test_bhv_misc_049_array_variant_serializes_to_base64_strings(self) -> None:
         import json
 
         model = self._model()

@@ -74,6 +74,27 @@ class TestBearerAuthenticator:
         assert "tok\r\nInjected" not in str(exc_info.value)
         assert "Injected" not in str(exc_info.value)
 
+    def test_bhv_misc_066_a_token_provider_value_is_sent_as_the_bearer_credential(
+        self,
+    ) -> None:
+        auth = BearerAuthenticator(
+            host="https://api.example.com", token_provider=lambda: "live"
+        )
+
+        assert auth.get_auth_headers() == {"Authorization": "Bearer live"}
+
+    def test_bhv_misc_067_a_token_provider_error_reaches_the_caller_unchanged(
+        self,
+    ) -> None:
+        def failing() -> str:
+            raise ValueError("provider boom")
+
+        auth = BearerAuthenticator(
+            host="https://api.example.com", token_provider=failing
+        )
+        with pytest.raises(ValueError, match="provider boom"):
+            auth.get_auth_headers()
+
     def test_bhv_authbearer_005_rejects_empty_token(self) -> None:
         # bearer-no-empty-token-guard: an empty token would emit a bare
         # "Authorization: Bearer " header and send the request unauthenticated,

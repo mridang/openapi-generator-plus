@@ -361,7 +361,7 @@ class TestClientSchemeCredentials:
         assert _host(with_default) == "https://default.example.com"
         assert _host(scheme_only) == "https://scheme.example.com"
 
-    def test_every_api_group_holds_the_same_credentials(self) -> None:
+    def test_bhv_misc_072_every_api_group_holds_the_same_credentials(self) -> None:
         held = BearerAuthenticator("https://scheme.example.com", "tok")
         default = BearerAuthenticator("https://default.example.com", "tok")
 

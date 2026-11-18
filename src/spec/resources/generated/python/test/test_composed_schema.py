@@ -228,6 +228,16 @@ class TestAnyOfPetTreatment:
         built = PetTreatment(Medication(drugName="Amoxicillin", dosage="500mg"))
         assert decoded == built
 
+    def test_bhv_misc_046_unions_with_equal_content_are_equal_and_hash_equally(
+        self,
+    ) -> None:
+        first = PetTreatment(Medication(drugName="Amoxicillin", dosage="500mg"))
+        second = PetTreatment(Medication(drugName="Amoxicillin", dosage="500mg"))
+        other = PetTreatment(Medication(drugName="Ibuprofen", dosage="200mg"))
+        assert first == second
+        assert hash(first) == hash(second)
+        assert first != other
+
     def test_bhv_unions_001_a_factory_wraps_its_variant_and_only_that_variant_matches(
         self,
     ) -> None:
