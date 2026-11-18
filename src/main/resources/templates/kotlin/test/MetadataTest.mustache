@@ -460,9 +460,9 @@ class MetadataTest {
     @Test
     @DisplayName("bhvModels015 a changed copy of a model keeps the additional properties of the original")
     fun copyKeepsAdditionalProperties() {
-        val original = Metadata(additionalProperties = mutableMapOf("k" to 1))
+        val original = Metadata(additionalProperties = mutableMapOf("k" to "v"))
         val changed = original.copy(createdAt = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z"))
-        assertEquals(mapOf("k" to 1), changed.additionalProperties)
+        assertEquals(mapOf("k" to "v"), changed.additionalProperties)
     }
 
     @Test
@@ -500,8 +500,8 @@ class MetadataTest {
     @Test
     @DisplayName("bhvModels023 undeclared keys named like SDK methods are kept as additional properties")
     fun keysNamedLikeMethodsAreKeptAsAdditionalProperties() {
-        val metadata = ObjectSerializer().deserialize<Metadata>("{\"toString\":\"x\",\"hashCode\":1}")
+        val metadata = ObjectSerializer().deserialize<Metadata>("{\"toString\":\"x\",\"hashCode\":\"y\"}")
         assertEquals("x", metadata!!.additionalProperties["toString"])
-        assertEquals(1L, metadata.additionalProperties["hashCode"])
+        assertEquals("y", metadata.additionalProperties["hashCode"])
     }
 }

@@ -201,7 +201,7 @@ abstract class BaseApi {
         return response
     }
 
-    /** The tracker of one call: it runs the configured [CallHook], if any. */
+    /** The tracker of one call: it runs the configured [com.example.petstore.CallHook], if any. */
     @PublishedApi
     internal fun newCallTracker(): CallTracker = CallTracker(config.callHook)
 
