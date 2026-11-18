@@ -23,7 +23,7 @@ test('bhv models 013 additional properties start as an empty map, never null', f
     expect($metadata->additionalProperties)->toHaveCount(0);
 });
 
-test('undeclared wire keys land in the map and are written back flat', function (): void {
+test('bhv models 026 undeclared wire keys land in the map and are written back flat', function (): void {
     $json = '{"customField":"hello"}';
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize($json, Metadata::class);
@@ -134,7 +134,7 @@ test('bhv models 029 a free-form additionalProperties keeps every JSON value as 
     expect($freeform->additionalProperties->toArray())->toBe(['a' => 1, 'b' => 'x', 'c' => [true], 'd' => null]);
 });
 
-test('composer manifest has a valid name', function (): void {
+test('bhv langphp 062 composer manifest has a valid name', function (): void {
     /* D3-docs: composer.json must declare a "name" so `composer validate`
      * passes, Packagist accepts the package, and `composer require` works.
      * The name must be a lowercase vendor/project pair. */
