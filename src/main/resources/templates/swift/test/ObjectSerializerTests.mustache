@@ -5,6 +5,21 @@ import Testing
 
 @Suite final class ObjectSerializerTests {
 
+    /* A duration written to its wire string and decoded back is the same duration, across the edge values. */
+    @Test(arguments: [0.0, -1.5, 0.25, 259200.0, 1_000_000_000.0])
+    func testBhvSerialization077DurationRoundTripsThroughItsWireString(seconds: TimeInterval) throws {
+        let literal = try ObjectSerializer.encodeDuration(seconds)
+        #expect(try ObjectSerializer.decodeDuration(literal) == seconds)
+    }
+
+    /* The protobuf duration bound is inclusive: the largest second count decodes and one second past it is rejected. */
+    @Test func testBhvSerialization080ProtobufDurationUpperBoundIsInclusive() throws {
+        _ = try ObjectSerializer.decodeDuration("315576000000s")
+        #expect(throws: Error.self) {
+            _ = try ObjectSerializer.decodeDuration("315576000001s")
+        }
+    }
+
     @Test func testBhvSerializationobject147SerializeMapToJSON() throws {
         let input: [String: Any] = ["name": "Fido", "age": 3]
         let jsonString = try ObjectSerializer.serialize(input)

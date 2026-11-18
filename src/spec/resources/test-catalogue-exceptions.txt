@@ -335,3 +335,4 @@ swift | operations164 | Swift required parameters are non-optional typed argumen
 swift | operations157 | the fixture has no operation with a binary (format: binary) request body, so no generated call sends raw bytes to test
 swift | operations161 | the fixture has no operation whose success response is text/plain, so no generated call returns a raw text body to test
 swift | operations162 | the fixture has no date-only (format: date) parameter in form, query, header or path positions; its only temporal values are date-time fields
+swift | serialization078 | Swift maps format: time to String, as the idiom table in the swift AGENTS file records, so the SDK never formats a time of day itself and there is no zero-padding or fraction rule to test
