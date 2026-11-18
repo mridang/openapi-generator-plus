@@ -4179,4 +4179,58 @@ class DefaultApiClientUnitTest {
       assertEquals(status, response.statusCode());
     }
   }
+
+  @Test
+  void bhvMisc152ACallWhoseCancelSignalIsAlreadyAbortedSendsNothing() throws Exception {
+    java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer server = HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          hits.incrementAndGet();
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      DefaultApiClient client = new DefaultApiClient();
+      String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+      Thread.currentThread().interrupt();
+      try {
+        assertThrowsExactly(
+            java.util.concurrent.CancellationException.class,
+            () -> client.sendRequest("GET", url, Map.of(), null));
+      } finally {
+        Thread.interrupted();
+      }
+    } finally {
+      server.stop(0);
+    }
+    assertEquals(0, hits.get());
+  }
+
+  @Test
+  void bhvMisc153ACancelSignalCancelsTheSameInFlightRequest() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      DefaultApiClient client = new DefaultApiClient();
+      java.util.concurrent.atomic.AtomicReference<Throwable> failure =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      Thread caller =
+          new Thread(
+              () -> {
+                try {
+                  client.sendRequest("GET", url, Map.of(), null);
+                } catch (Throwable thrown) {
+                  failure.set(thrown);
+                }
+              });
+      caller.start();
+      Thread.sleep(300);
+      caller.interrupt();
+      caller.join(5000);
+      assertFalse(caller.isAlive(), "the cancelled call must return promptly");
+      assertTrue(failure.get() instanceof java.util.concurrent.CancellationException, String.valueOf(failure.get()));
+    }
+  }
 }

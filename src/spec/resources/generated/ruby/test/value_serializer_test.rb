@@ -697,6 +697,12 @@ describe Petstore::Client::ValueSerializer do
       _(result).must_equal('2024-01-15,2024-02-01')
     end
 
+    it 'bhv_serialization_118 a date-time path parameter keeps its full ISO-8601 time and offset' do
+      value = DateTime.new(2024, 1, 15, 1, 2, 3, '+02:00')
+      result = Petstore::Client::ValueSerializer.serialize_styled('at', value, :path, 'Time', nil, 'simple', false)
+      _(result).must_equal('2024-01-15T01:02:03+02:00')
+    end
+
     it 'bhv_serializationparam_048 keeps the time of a date-time parameter that is not a format: date' do
       value = DateTime.new(2024, 1, 15, 1, 2, 3)
       result = Petstore::Client::ValueSerializer.serialize_styled('at', value, :path, 'Time', nil, 'simple', false)

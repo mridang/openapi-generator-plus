@@ -2018,6 +2018,16 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert "Failed to serialize object to JSON: " <> detail = err.message
       assert detail != ""
     end
+
+    test "bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix" do
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.serialize(%{"bytes" => <<255>>})
+        end
+
+      assert "Failed to serialize object to JSON: " <> detail = err.message
+      assert detail != ""
+    end
   end
 
   describe "fixture rows every SDK pins (EdgeCases, Order, Availability, Pet)" do
