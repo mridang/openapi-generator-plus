@@ -94,6 +94,27 @@ describe("SchemeAuthenticators", () => {
     },
   );
 
+  it("bhv misc 073 a wrapper class exists for every declared scheme", () => {
+    const wrappers: unknown[] = [
+      PetStoreBasicAuthenticator,
+      AdminBasicAuthenticator,
+      PetStoreBearerAuthenticator,
+      ServiceTokenAuthenticator,
+      ApiKeyHeaderAuthenticator,
+      InternalApiKeyAuthenticator,
+      ApiKeyQueryAuthenticator,
+      SessionCookieAuthenticator,
+      MachineAuthClientCredentialsAuthenticator,
+      LegacyAuthPasswordAuthenticator,
+      UserAuthAuthorizationCodeAuthenticator,
+      BrowserAuthImplicitAuthenticator,
+      SsoAuthAuthenticator,
+    ];
+    for (const wrapper of wrappers) {
+      expect(typeof wrapper).toBe("function");
+    }
+  });
+
   const environmentSchemes: Array<
     [string, new (host: string, ...credentials: string[]) => unknown, string[]]
   > = [

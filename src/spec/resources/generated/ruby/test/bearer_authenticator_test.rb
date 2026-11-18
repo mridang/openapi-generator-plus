@@ -184,6 +184,14 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer first'
     end
 
+    it 'bhv_misc_067 a token provider that raises makes the request fail with that same error' do
+      boom = IOError.new('vault unavailable')
+      auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', nil, token_provider: -> { raise boom })
+
+      err = _(-> { auth.auth_headers }).must_raise IOError
+      _(err).must_be_same_as boom
+    end
+
     it 'bhv_misc_060 supplying both an API key and an API key provider is refused' do
       _(lambda {
         Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'explicit', token_provider: -> { 'p' })

@@ -621,6 +621,21 @@ void main() {
     );
 
     test(
+      'bhv misc 049 a list of binary values is written as base64 text items',
+      () {
+        final a = Uint8List.fromList(<int>[1, 2]);
+        final b = Uint8List.fromList(<int>[3, 4]);
+
+        final req = SetPetAvatarThumbnailRequest.fromJson(<String>[
+          base64Encode(a),
+          base64Encode(b),
+        ]);
+
+        expect(req.toJson(), equals(['AQI=', 'AwQ=']));
+      },
+    );
+
+    test(
       'bhv unions 019 SetPetAvatarThumbnailRequest round trips a single byte value',
       () {
         final bytes = Uint8List.fromList(<int>[10, 20, 30]);
@@ -803,6 +818,36 @@ void main() {
         final dry = DryFood(foodType: 'custom', weightKg: 1);
 
         expect(dry.toJson()['foodType'], equals('custom'));
+      },
+    );
+  });
+  group('Union schema and equality', () {
+    test(
+      'bhv misc 045 a payload that fails a variant schema is not accepted as that variant',
+      () {
+        for (final json in <Map<String, dynamic>>[
+          <String, dynamic>{'foodType': 'dry'},
+          <String, dynamic>{'foodType': 3, 'weightKg': 2.5},
+          <String, dynamic>{'FoodType': 'dry', 'weightKg': 2.5},
+          <String, dynamic>{'foodType': 'dry', 'weightKg': 'heavy'},
+        ]) {
+          expect(
+            () => PetFood.fromJson(json),
+            throwsA(isA<SerializationException>()),
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv misc 046 two unions holding equal bytes compare equal and hash equally even when their buffers differ',
+      () {
+        final first = PetFood(Uint8List.fromList([1, 2, 3]));
+        final second = PetFood(Uint8List.fromList([1, 2, 3]));
+
+        expect(first, equals(second));
+        expect(first.hashCode, equals(second.hashCode));
+        expect(first, isNot(equals(PetFood(Uint8List.fromList([1, 2, 4])))));
       },
     );
   });

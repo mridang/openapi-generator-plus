@@ -1507,4 +1507,60 @@ import Testing
     #expect(try echoedHeaders(response)["x-caller"] as? String == "1")
   }
 
+  /* A transport failure names neither the host nor the query string it was sent to. */
+  @Test func testBhvMisc019ATargetInAnErrorIsReducedToItsPath() async throws {
+    let client = DefaultApiClient()
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://127.0.0.1:9/items/7?token=secret", headers: [:], body: nil)
+    }
+    #expect(error?.message.contains("secret") == false)
+    #expect(error?.message.contains("127.0.0.1") == false)
+  }
+
+  /* A transport failure with no HTTP response keeps its underlying error as the cause. */
+  @Test func testBhvMisc024ATransportFailureKeepsItsCause() async throws {
+    let client = DefaultApiClient()
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://127.0.0.1:9/items/7", headers: [:], body: nil)
+    }
+    #expect(error?.underlyingError != nil)
+  }
+
+  /* A call whose task is already cancelled before it starts is rejected as a cancellation, never as a timeout. */
+  @Test func testBhvMisc035AnAlreadyCancelledCallIsACancellationNotATimeout() async throws {
+    let client = DefaultApiClient()
+    let task = Task { () -> ApiHttpResponse in
+      try await client.sendRequest(
+        method: "GET", url: "http://127.0.0.1:9/already-cancelled", headers: [:], body: nil)
+    }
+    task.cancel()
+    do {
+      _ = try await task.value
+      Issue.record("expected CancellationError")
+    } catch is CancellationError {
+      // expected: a cancellation is not a timeout
+    } catch {
+      Issue.record("expected CancellationError, got \(error)")
+    }
+  }
+
+  /* A cancellation the caller makes surfaces as CancellationError and is never wrapped in the SDK's ApiError. */
+  @Test func testBhvMisc029ACallerCancellationIsNotWrappedInTheSdkError() async throws {
+    let client = DefaultApiClient()
+    let task = Task { () -> ApiHttpResponse in
+      try await client.sendRequest(
+        method: "GET", url: "http://127.0.0.1:9/cancelled", headers: [:], body: nil)
+    }
+    task.cancel()
+    do {
+      _ = try await task.value
+      Issue.record("expected CancellationError")
+    } catch is CancellationError {
+      // expected
+    } catch {
+      Issue.record("expected CancellationError, got \(error)")
+    }
+  }
 }

@@ -12,6 +12,13 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('TransportOptions', () {
+    test('bhv misc 026 a configuration mistake is not an API exception', () {
+      expect(
+        () => TransportOptions.builder().timeout(-1),
+        throwsA(allOf(isA<ArgumentError>(), isNot(isA<ApiException>()))),
+      );
+    });
+
     test(
       'bhv options 060 builder is the static entry point for the builder',
       () {
@@ -406,6 +413,18 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 056 setting the proxy to an empty string removes a proxy set earlier',
+      () {
+        final opts = TransportOptionsBuilder()
+            .proxy('http://proxy.test:8080')
+            .proxy('')
+            .build();
+
+        expect(opts.proxy, isNull);
+      },
+    );
+
     test('bhv options 030 null proxy URL is accepted', () {
       final opts = TransportOptionsBuilder().proxy('').build();
 
@@ -686,6 +705,39 @@ void main() {
           equals('http://proxy.example.com:3128'),
         );
         expect(TransportOptionsBuilder().build().proxy, isNull);
+      },
+    );
+  });
+  group('Transport options refusals', () {
+    test(
+      'bhv misc 034 a caller HTTP client combined with a caller proxy is refused when the client is built',
+      () {
+        expect(
+          () => TransportOptionsBuilder()
+              .httpClient(http.Client())
+              .proxy('http://proxy.example.com:3128')
+              .build(),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 042 a custom HTTP connection with disabled TLS verification is refused when built and names the setting',
+      () {
+        expect(
+          () => TransportOptionsBuilder()
+              .httpClient(http.Client())
+              .verifySsl(false)
+              .build(),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => '${e.message}',
+              'message',
+              contains('verifySsl'),
+            ),
+          ),
+        );
       },
     );
   });

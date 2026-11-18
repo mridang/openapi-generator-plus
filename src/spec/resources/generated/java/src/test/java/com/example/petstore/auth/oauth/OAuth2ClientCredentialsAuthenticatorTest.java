@@ -117,6 +117,25 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
+  void bhvMisc063ASchemeWrapperSendsItsTokenRequestToTheDeclaredTokenUrl() {
+    AtomicReference<String> capturedUrl = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedUrl.set(url);
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    MachineAuthClientCredentialsAuthenticator auth =
+        new MachineAuthClientCredentialsAuthenticator(
+            "https://api.example.com", "my-client-id", "my-client-secret");
+    auth.setApiClient(client);
+
+    auth.getAuthHeaders();
+
+    assertEquals("https://auth.example.com/oauth/token", capturedUrl.get());
+  }
+
+  @Test
   void bhvAuthOauthTwoClientCred009SchemeWrapperSendsTheSpecScopesToTheSpecTokenUrl() {
     AtomicReference<String> capturedUrl = new AtomicReference<>();
     AtomicReference<String> capturedBody = new AtomicReference<>();

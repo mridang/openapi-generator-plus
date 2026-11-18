@@ -961,4 +961,47 @@ import Testing
         let err: any Error = ApiError.fromResponse(statusCode: 499, headers: [:], body: "")
         #expect(type(of: err) == ClientError.self)
     }
+
+
+    /* A body that is valid JSON but not an object is refused with the SDK's SerializationError. */
+    @Test func testBhvMisc015ANonObjectErrorBodyIsRefusedWithASerializationError() {
+        let err = ApiError(statusCode: 400, message: "bad", responseBody: "[1,2]")
+        #expect(throws: SerializationError.self) {
+            _ = try err.getTypedErrorBody([String: Int].self)
+        }
+    }
+
+    /* The rendered form of a long body shows at most a fixed number of characters and says how many bytes were left out. */
+    @Test func testBhvMisc016ALongBodyIsTruncatedWithTheOmittedCount() {
+        let body = String(repeating: "x", count: 5000)
+        let rendered = ApiError(statusCode: 500, message: "boom", responseBody: body).errorDescription ?? ""
+        #expect(rendered.count < 2000)
+        #expect(rendered.contains("more bytes"))
+    }
+
+    /* The request line is shown only when both the request method and the request path are known. */
+    @Test func testBhvMisc020TheRequestLineNeedsBothMethodAndPath() {
+        let methodOnly = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "", requestMethod: "GET", requestPath: nil)
+        #expect(!methodOnly.message.contains("for GET"))
+        let both = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "", requestMethod: "GET", requestPath: "/items/7")
+        #expect(both.message.hasSuffix("for GET /items/7"))
+    }
+
+    /* A server error is an instance of the SDK root error type and of the server class. */
+    @Test func testBhvMisc022AServerErrorIsTheRootAndTheServerClass() {
+        let err: any Error = ApiError.fromResponse(statusCode: 503, headers: [:], body: "{}")
+        #expect(err is ServerError)
+        #expect(err is {{errorPrefix}}Error)
+    }
+
+    /* A 5xx status with no specific class is the generic ServerError; any other unmapped status is the plain ApiError. */
+    @Test func testBhvMisc023AnUnmappedStatusFallsToItsGenericClass() {
+        let server: any Error = ApiError.fromResponse(statusCode: 599, headers: [:], body: "")
+        #expect(server is ServerError)
+        let other: any Error = ApiError.fromResponse(statusCode: 399, headers: [:], body: "")
+        #expect(other is ApiError)
+        #expect(!(other is ServerError))
+    }
 }

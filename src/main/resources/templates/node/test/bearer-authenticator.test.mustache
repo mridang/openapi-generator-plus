@@ -278,3 +278,26 @@ describe('BearerAuthenticator', () => {
     }
   });
 });
+
+describe('BearerAuthenticator misc behaviours', () => {
+  test('bhv misc 017 a rejected credential is never named in the construction error', () => {
+    const construct = (): unknown => new BearerAuthenticator('https://api.example.com', 'tok\r\nInjected: yes');
+    expect(construct).toThrow(TypeError);
+    expect(construct).not.toThrow(/Injected/);
+  });
+});
+
+describe('BearerAuthenticator token provider results', () => {
+  it('bhv misc 066 a token provider value is sent as the bearer credential', async () => {
+    const auth = new BearerAuthenticator('https://api.example.com', () => 'live');
+    expect(await auth.getAuthHeadersAsync()).toEqual({ Authorization: 'Bearer live' });
+  });
+
+  it('bhv misc 067 a token provider error reaches the caller unchanged', async () => {
+    const failure = new Error('provider boom');
+    const auth = new BearerAuthenticator('https://api.example.com', () => {
+      throw failure;
+    });
+    await expect(auth.getAuthHeadersAsync()).rejects.toBe(failure);
+  });
+});

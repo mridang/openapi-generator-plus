@@ -1202,6 +1202,187 @@ void main() {
     );
 
     test(
+      'bhv misc 008 a supplied required cookie is sent in the cookie header',
+      () async {
+        String? cookie;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          cookie = request.headers.value('cookie');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.text
+            ..write('done')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetSummary(
+            7,
+            DateTime.utc(2024, 1, 5),
+            GetPetSummaryOptions(session: 'abc'),
+          );
+
+          expect(cookie, equals('session=abc'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 014 a literal null success body for an operation that returns a body raises an API error',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('null')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetById(1, null, null),
+            throwsA(isA<ApiException>()),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 019 a request target in an error is reduced to its path',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 404
+            ..headers.contentType = ContentType.json
+            ..write('{"message":"not found"}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetById(99999, null, null),
+            throwsA(
+              isA<NotFoundException>().having(
+                (e) => e.requestPath,
+                'requestPath',
+                equals('/pet/99999'),
+              ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 021 the request path in an error keeps the base path prefix and drops the query',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 404
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}/v1')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetById(1, null, null),
+            throwsA(
+              isA<NotFoundException>().having(
+                (e) => e.requestPath,
+                'requestPath',
+                equals('/v1/pet/1'),
+              ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 024 a transport failure keeps the underlying error as its cause',
+      () async {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://127.0.0.1:1')
+            .build();
+        final api = PetApi(
+          apiClient: DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().maxRetries(0).build(),
+          ),
+          config: config,
+        );
+
+        await expectLater(
+          api.getPetById(1, null, null),
+          throwsA(
+            isA<NetworkException>().having((e) => e.cause, 'cause', isNotNull),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 025 a typed call fails with the API exception when the server answers a client error',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 404
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetById(1, null, null),
+            throwsA(
+              isA<ApiException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                equals(404),
+              ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv misc 005 bare JSON null body throws ApiException from a list operation',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
