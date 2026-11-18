@@ -28,7 +28,6 @@ module Petstore::Client
         amount: 'amount',
         ledger: 'ledger',
         wait: 'wait',
-        waits: 'waits',
         since: 'since',
         host: 'host',
         contact: 'contact'
@@ -48,7 +47,6 @@ module Petstore::Client
         amount: 'BigDecimal',
         ledger: 'BigDecimal',
         wait: 'ISO8601::Duration',
-        waits: 'Hash<String, ISO8601::Duration>',
         since: 'Date',
         host: 'String',
         contact: 'String'
@@ -138,7 +136,6 @@ module Petstore::Client
       attribute :ledger, Types::Any.optional.meta(omittable: true)
       # @example 3600s
       attribute :wait, Types::Any.optional.meta(omittable: true)
-      attribute :waits, Types::Any.optional.meta(omittable: true)
       # @example 2024-02-29
       attribute :since, Types::Any.optional.meta(omittable: true)
       # @example example.com

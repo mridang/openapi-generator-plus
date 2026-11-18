@@ -10,7 +10,7 @@ from __future__ import annotations
 from pydantic import ConfigDict, Field
 from pydantic import StrictStr
 from petstore_client._types import ApiModel, hash_model
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 
 class NativeValues(ApiModel):
@@ -31,7 +31,6 @@ class NativeValues(ApiModel):
     ledger: Optional[DecimalStr] = Field(default=None, alias="ledger")
     # Example: '3600s'
     wait: Optional[ProtobufDuration] = Field(default=None, alias="wait")
-    waits: Optional[Dict[str, ProtobufDuration]] = Field(default=None, alias="waits")
     # Example: 2024-02-29
     since: Optional[date] = Field(default=None, alias="since")
     # Example: 'example.com'

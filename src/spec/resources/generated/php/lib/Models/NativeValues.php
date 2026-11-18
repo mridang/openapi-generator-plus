@@ -45,10 +45,6 @@ class NativeValues
     #[SerializedName('wait')]
     public readonly ?\DateInterval $wait;
 
-    /** @var \Ds\Map<string, \DateInterval>|null */
-    #[SerializedName('waits')]
-    public readonly ?\Ds\Map $waits;
-
     /** @example 2024-02-29 */
     #[SerializedName('since')]
     public readonly ?\DateTime $since;
@@ -63,7 +59,6 @@ class NativeValues
 
     /**
      * @param \Ds\Vector<string>|null $addresses
-     * @param \Ds\Map<string, \DateInterval>|null $waits
      */
     public function __construct(
         ?string $address4 = null,
@@ -73,7 +68,6 @@ class NativeValues
         ?float $amount = null,
         ?float $ledger = null,
         ?\DateInterval $wait = null,
-        ?\Ds\Map $waits = null,
         ?\DateTime $since = null,
         ?string $host = null,
         ?string $contact = null,
@@ -85,7 +79,6 @@ class NativeValues
         $this->amount = $amount;
         $this->ledger = $ledger;
         $this->wait = $wait;
-        $this->waits = $waits;
         $this->since = $since;
         $this->host = $host;
         $this->contact = $contact;
@@ -104,7 +97,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $this->ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $this->since,
             host: $this->host,
             contact: $this->contact,
@@ -124,7 +116,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $this->ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $this->since,
             host: $this->host,
             contact: $this->contact,
@@ -146,7 +137,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $this->ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $this->since,
             host: $this->host,
             contact: $this->contact,
@@ -166,7 +156,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $this->ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $this->since,
             host: $this->host,
             contact: $this->contact,
@@ -186,7 +175,6 @@ class NativeValues
             amount: $amount,
             ledger: $this->ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $this->since,
             host: $this->host,
             contact: $this->contact,
@@ -206,7 +194,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $this->since,
             host: $this->host,
             contact: $this->contact,
@@ -226,29 +213,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $this->ledger,
             wait: $wait,
-            waits: $this->waits,
-            since: $this->since,
-            host: $this->host,
-            contact: $this->contact,
-        );
-    }
-
-    /**
-     * Returns a copy of this model with waits replaced. This model is not changed.
-     *
-     * @param \Ds\Map<string, \DateInterval>|null $waits
-     */
-    public function withWaits(?\Ds\Map $waits): self
-    {
-        return new self(
-            address4: $this->address4,
-            address6: $this->address6,
-            addresses: $this->addresses,
-            homepage: $this->homepage,
-            amount: $this->amount,
-            ledger: $this->ledger,
-            wait: $this->wait,
-            waits: $waits,
             since: $this->since,
             host: $this->host,
             contact: $this->contact,
@@ -268,7 +232,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $this->ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $since,
             host: $this->host,
             contact: $this->contact,
@@ -288,7 +251,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $this->ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $this->since,
             host: $host,
             contact: $this->contact,
@@ -308,7 +270,6 @@ class NativeValues
             amount: $this->amount,
             ledger: $this->ledger,
             wait: $this->wait,
-            waits: $this->waits,
             since: $this->since,
             host: $this->host,
             contact: $contact,

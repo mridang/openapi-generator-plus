@@ -20,7 +20,6 @@ defmodule PetstoreClient.Models.NativeValues do
           amount: float() | nil,
           ledger: float() | nil,
           wait: Duration.t() | nil,
-          waits: %{String.t() => Duration.t()} | nil,
           since: Date.t() | nil,
           host: String.t() | nil,
           contact: String.t() | nil
@@ -34,7 +33,6 @@ defmodule PetstoreClient.Models.NativeValues do
     :amount,
     :ledger,
     :wait,
-    :waits,
     :since,
     :host,
     :contact
@@ -51,7 +49,6 @@ defmodule PetstoreClient.Models.NativeValues do
       amount: "amount",
       ledger: "ledger",
       wait: "wait",
-      waits: "waits",
       since: "since",
       host: "host",
       contact: "contact"
@@ -75,7 +72,6 @@ defmodule PetstoreClient.Models.NativeValues do
       "amount",
       "ledger",
       "wait",
-      "waits",
       "since",
       "host",
       "contact"
@@ -121,7 +117,6 @@ defmodule PetstoreClient.Models.NativeValues do
       amount: "float()",
       ledger: "float()",
       wait: "Duration.t()",
-      waits: "%{String.t() => Duration.t()}",
       since: "Date.t()",
       host: "String.t()",
       contact: "String.t()"

@@ -20,7 +20,6 @@ import java.net.URI
 import java.time.Duration
 import java.time.LocalDate
 import kotlin.collections.List
-import kotlin.collections.Map
 
 @Serializable
 data class NativeValues(
@@ -76,12 +75,6 @@ data class NativeValues(
     @Contextual
     val wait: Duration? = null,
     /**
-     * The `waits` property.
-     */
-    @SerialName("waits")
-    @Contextual
-    val waits: Map<String, @Contextual Duration>? = null,
-    /**
      * The `since` property.
      *
      * Example: `2024-02-29`
@@ -133,7 +126,6 @@ data class NativeValues(
             return false
         }
         if (wait != other.wait) return false
-        if (waits != other.waits) return false
         if (since != other.since) return false
         if (host != other.host) return false
         if (contact != other.contact) return false
@@ -149,7 +141,6 @@ data class NativeValues(
         result = 31 * result + (amount?.stripTrailingZeros()?.hashCode() ?: 0)
         result = 31 * result + (ledger?.stripTrailingZeros()?.hashCode() ?: 0)
         result = 31 * result + (wait?.hashCode() ?: 0)
-        result = 31 * result + (waits?.hashCode() ?: 0)
         result = 31 * result + (since?.hashCode() ?: 0)
         result = 31 * result + (host?.hashCode() ?: 0)
         result = 31 * result + (contact?.hashCode() ?: 0)
@@ -171,7 +162,6 @@ data class NativeValues(
             "amount=" + renderForToString(amount),
             "ledger=" + renderForToString(ledger),
             "wait=" + renderForToString(wait),
-            "waits=" + renderForToString(waits),
             "since=" + renderForToString(since),
             "host=" + renderForToString(host),
             "contact=" + renderForToString(contact),

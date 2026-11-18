@@ -28,8 +28,7 @@ type NativeValues struct {
 	// Example: 12.50
 	Ledger *float64 `json:"ledger,omitempty"`
 	// Example: 3600s
-	Wait  *Duration            `json:"wait,omitempty"`
-	Waits *map[string]Duration `json:"waits,omitempty"`
+	Wait *Duration `json:"wait,omitempty"`
 	// Example: 2024-02-29
 	Since *string `json:"since,omitempty"`
 	// Example: example.com
@@ -140,18 +139,6 @@ func (o NativeValues) WithoutWait() NativeValues {
 	return o
 }
 
-// WithWaits returns a copy of the model with Waits replaced; the receiver is unchanged.
-func (o NativeValues) WithWaits(value map[string]Duration) NativeValues {
-	o.Waits = &value
-	return o
-}
-
-// WithoutWaits returns a copy of the model with Waits left unset; the receiver is unchanged.
-func (o NativeValues) WithoutWaits() NativeValues {
-	o.Waits = nil
-	return o
-}
-
 // WithSince returns a copy of the model with Since replaced; the receiver is unchanged.
 func (o NativeValues) WithSince(value string) NativeValues {
 	o.Since = &value
@@ -212,7 +199,7 @@ func (o *NativeValues) UnmarshalJSON(data []byte) error {
 	if err := checkAbsoluteURIField(data, "homepage"); err != nil {
 		return err
 	}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "address4", "address6", "addresses", "homepage", "amount", "ledger", "wait", "waits", "since", "host", "contact"), aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "address4", "address6", "addresses", "homepage", "amount", "ledger", "wait", "since", "host", "contact"), aux); err != nil {
 		return err
 	}
 	*o = NativeValues(*aux)

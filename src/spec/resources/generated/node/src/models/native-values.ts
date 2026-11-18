@@ -11,6 +11,7 @@ import {
   durationFromProtoJson,
   durationToProtoJson,
   isTemporalValue,
+  decodePlainNumber,
   decodeStringDecimal,
   plainDate,
 } from "../object-serializer.js";
@@ -31,7 +32,7 @@ export class NativeValues {
    * preserving the full decimal text without a lossy Number() round-trip.
    * Empty when the model has no `type: number` no-format fields.
    */
-  static readonly __decimalFields: ReadonlySet<string> = new Set([]);
+  static readonly __decimalFields: ReadonlySet<string> = new Set(["amount"]);
 
   /**
    * `format: uuid` fields. ObjectSerializer.serialize writes them in the
@@ -60,9 +61,9 @@ export class NativeValues {
   readonly homepage?: URI;
   /** @example 12.345678901234567 */
   @Expose({ name: "amount" })
-  /* A `type: string` decimal is a JSON string: decode keeps its text and
-   * rejects a bare number. */
-  @Transform(({ obj }) => decodeStringDecimal(obj, "amount"), {
+  /* A bare `type: number` is a JSON number: decode keeps its exact text (no
+   * float coercion) and rejects a quoted string. */
+  @Transform(({ obj }) => decodePlainNumber(obj, "amount"), {
     toClassOnly: true,
   })
   readonly amount?: Decimal;
@@ -94,25 +95,6 @@ export class NativeValues {
     { toPlainOnly: true },
   )
   readonly wait?: Temporal.Duration;
-  @Expose({ name: "waits" })
-  /*
-   * 4.8 — `format: duration` is a google.protobuf.Duration. The native
-   * type stays Temporal.Duration, but the wire form is protobuf-JSON
-   * ("3600s"), not ISO-8601 ("PT1H") — protobuf-JSON APIs reject the ISO form.
-   */
-  @Transform(
-    ({ value }) =>
-      typeof value === "string" ? durationFromProtoJson(value) : value,
-    { toClassOnly: true },
-  )
-  @Transform(
-    ({ value }) =>
-      isTemporalValue(value, "Duration")
-        ? durationToProtoJson(value as Temporal.Duration)
-        : value,
-    { toPlainOnly: true },
-  )
-  readonly waits?: { [key: string]: Temporal.Duration };
   /** @example 2024-02-29 */
   @Expose({ name: "since" })
   readonly since?: string;
@@ -312,9 +294,6 @@ export class NativeValues {
       return false;
     }
     if (!NativeValues.__deepEquals(this.wait, (other as NativeValues).wait)) {
-      return false;
-    }
-    if (!NativeValues.__deepEquals(this.waits, (other as NativeValues).waits)) {
       return false;
     }
     if (!NativeValues.__deepEquals(this.since, (other as NativeValues).since)) {

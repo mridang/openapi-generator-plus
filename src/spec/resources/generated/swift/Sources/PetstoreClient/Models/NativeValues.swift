@@ -22,7 +22,6 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   public let ledger: Double?
   /// Example: 3600s
   public let wait: TimeInterval?
-  public let waits: [String: TimeInterval]?
   /// Example: 2024-02-29
   public let since: String?
   /// Example: example.com
@@ -38,7 +37,6 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     case amount = "amount"
     case ledger = "ledger"
     case wait = "wait"
-    case waits = "waits"
     case since = "since"
     case host = "host"
     case contact = "contact"
@@ -48,8 +46,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   public init(
     address4: String? = nil, address6: String? = nil, addresses: [String]? = nil,
     homepage: String? = nil, amount: Double? = nil, ledger: Double? = nil,
-    wait: TimeInterval? = nil, waits: [String: TimeInterval]? = nil, since: String? = nil,
-    host: String? = nil, contact: String? = nil
+    wait: TimeInterval? = nil, since: String? = nil, host: String? = nil, contact: String? = nil
   ) {
     self.address4 = address4
     self.address6 = address6
@@ -58,7 +55,6 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     self.amount = amount
     self.ledger = ledger
     self.wait = wait
-    self.waits = waits
     self.since = since
     self.host = host
     self.contact = contact
@@ -70,15 +66,14 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   public func copy(
     address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none,
     homepage: String?? = .none, amount: Double?? = .none, ledger: Double?? = .none,
-    wait: TimeInterval?? = .none, waits: [String: TimeInterval]?? = .none, since: String?? = .none,
-    host: String?? = .none, contact: String?? = .none
+    wait: TimeInterval?? = .none, since: String?? = .none, host: String?? = .none,
+    contact: String?? = .none
   ) -> NativeValues {
     return NativeValues(
       address4: address4 ?? self.address4, address6: address6 ?? self.address6,
       addresses: addresses ?? self.addresses, homepage: homepage ?? self.homepage,
       amount: amount ?? self.amount, ledger: ledger ?? self.ledger, wait: wait ?? self.wait,
-      waits: waits ?? self.waits, since: since ?? self.since, host: host ?? self.host,
-      contact: contact ?? self.contact)
+      since: since ?? self.since, host: host ?? self.host, contact: contact ?? self.contact)
   }
 
   /// Decodes this instance from the given decoder.
@@ -102,9 +97,6 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     self.wait = try container.decodeIfPresent(String.self, forKey: .wait).map {
       try ObjectSerializer.decodeDuration($0)
     }
-    self.waits = try container.decodeIfPresent(String.self, forKey: .waits).map {
-      try ObjectSerializer.decodeDuration($0)
-    }
     self.since = try container.decodeIfPresent(String.self, forKey: .since)
     self.host = try container.decodeIfPresent(String.self, forKey: .host)
     self.contact = try container.decodeIfPresent(String.self, forKey: .contact)
@@ -126,8 +118,6 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(ledger, forKey: .ledger)
     try container.encodeIfPresent(
       try wait.map { try ObjectSerializer.encodeDuration($0) }, forKey: .wait)
-    try container.encodeIfPresent(
-      try waits.map { try ObjectSerializer.encodeDuration($0) }, forKey: .waits)
     try container.encodeIfPresent(since, forKey: .since)
     try container.encodeIfPresent(host, forKey: .host)
     try container.encodeIfPresent(contact, forKey: .contact)

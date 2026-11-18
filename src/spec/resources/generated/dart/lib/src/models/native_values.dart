@@ -31,8 +31,6 @@ class NativeValues {
   /// Example: `3600s`
   final Duration? wait;
 
-  final Map<String, Duration>? waits;
-
   /// Example: `2024-02-29`
   final DateTime? since;
 
@@ -50,7 +48,6 @@ class NativeValues {
     this.amount,
     this.ledger,
     this.wait,
-    this.waits,
     this.since,
     this.host,
     this.contact,
@@ -79,7 +76,6 @@ class NativeValues {
           ? parseProtobufDuration(json['wait'] as String)
           : null,
 
-      waits: (json['waits'] as Map<String, dynamic>?)?.cast<String, Duration>(),
       since: json['since'] != null
           ? DateTime.parse(json['since'] as String)
           : null,
@@ -114,11 +110,6 @@ class NativeValues {
     if (wait != null) {
       json['wait'] = formatProtobufDuration(wait!);
     }
-    if (waits != null) {
-      json['waits'] = waits?.map(
-        (k, v) => MapEntry(k, formatProtobufDuration(v)),
-      );
-    }
     if (since != null) {
       json['since'] = since;
     }
@@ -144,7 +135,6 @@ class NativeValues {
     Object? amount = copyUnset,
     Object? ledger = copyUnset,
     Object? wait = copyUnset,
-    Object? waits = copyUnset,
     Object? since = copyUnset,
     Object? host = copyUnset,
     Object? contact = copyUnset,
@@ -157,7 +147,6 @@ class NativeValues {
       amount: copyField<double>(amount, this.amount),
       ledger: copyField<double>(ledger, this.ledger),
       wait: copyField<Duration>(wait, this.wait),
-      waits: copyField<Map<String, Duration>>(waits, this.waits),
       since: copyField<DateTime>(since, this.since),
       host: copyField<String>(host, this.host),
       contact: copyField<String>(contact, this.contact),
@@ -179,7 +168,6 @@ class NativeValues {
         amount == other.amount &&
         ledger == other.ledger &&
         wait == other.wait &&
-        const DeepCollectionEquality().equals(waits, other.waits) &&
         since == other.since &&
         host == other.host &&
         contact == other.contact;
@@ -199,7 +187,6 @@ class NativeValues {
     amount,
     ledger,
     wait,
-    const DeepCollectionEquality().hash(waits),
     since,
     host,
     contact,
@@ -211,5 +198,5 @@ class NativeValues {
   /// unchanged.
   @override
   String toString() =>
-      'NativeValues(address4: $address4, address6: $address6, addresses: $addresses, homepage: $homepage, amount: $amount, ledger: $ledger, wait: $wait, waits: $waits, since: $since, host: $host, contact: $contact)';
+      'NativeValues(address4: $address4, address6: $address6, addresses: $addresses, homepage: $homepage, amount: $amount, ledger: $ledger, wait: $wait, since: $since, host: $host, contact: $contact)';
 }

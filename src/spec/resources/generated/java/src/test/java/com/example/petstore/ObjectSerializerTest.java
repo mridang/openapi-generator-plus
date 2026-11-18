@@ -2772,7 +2772,8 @@ class ObjectSerializerTest {
   class NativeValueFormatTests {
 
     private com.example.petstore.models.NativeValues decode(String json) {
-      return serializer.deserialize(json, com.example.petstore.models.NativeValues.class);
+      return java.util.Objects.requireNonNull(
+          serializer.deserialize(json, com.example.petstore.models.NativeValues.class));
     }
 
     @Test

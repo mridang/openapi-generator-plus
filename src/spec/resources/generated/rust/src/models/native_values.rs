@@ -40,14 +40,6 @@ pub struct NativeValues {
         with = "crate::proto_duration::option"
     )]
     pub wait: Option<chrono::TimeDelta>,
-    #[serde(
-        rename = "waits",
-        skip_serializing_if = "Option::is_none",
-        default,
-        with = "crate::proto_duration::option",
-        serialize_with = "crate::object_serializer::sorted_map::option"
-    )]
-    pub waits: Option<std::collections::HashMap<String, chrono::TimeDelta>>,
     /// Example: `2024-02-29`
     #[serde(rename = "since", skip_serializing_if = "Option::is_none")]
     pub since: Option<chrono::NaiveDate>,
@@ -70,7 +62,6 @@ impl NativeValues {
             amount: None,
             ledger: None,
             wait: None,
-            waits: None,
             since: None,
             host: None,
             contact: None,
@@ -130,17 +121,6 @@ impl NativeValues {
     /// clone to keep the original.
     pub fn with_wait(mut self, wait: chrono::TimeDelta) -> Self {
         self.wait = Some(wait);
-        self
-    }
-
-    /// Returns this value with `waits` replaced, every other field kept.
-    /// A model is not changed in place: bind the result, or call it on a
-    /// clone to keep the original.
-    pub fn with_waits(
-        mut self,
-        waits: std::collections::HashMap<String, chrono::TimeDelta>,
-    ) -> Self {
-        self.waits = Some(waits);
         self
     }
 

@@ -15,7 +15,6 @@ module Petstore::Client::Models
     attr_reader amount: BigDecimal?
     attr_reader ledger: BigDecimal?
     attr_reader wait: ISO8601::Duration?
-    attr_reader waits: Hash[String, ISO8601::Duration]?
     attr_reader since: Date?
     attr_reader host: String?
     attr_reader contact: String?

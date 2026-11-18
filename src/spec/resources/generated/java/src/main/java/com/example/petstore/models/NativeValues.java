@@ -14,7 +14,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import javax.annotation.Nullable;
 
 /** NativeValues. */
@@ -82,11 +81,6 @@ public class NativeValues {
   @Nullable
   public final Duration wait;
 
-  /** The {@code waits} property. */
-  @JsonProperty("waits")
-  @Nullable
-  public final Map<String, Duration> waits;
-
   /**
    * The {@code since} property.
    *
@@ -134,10 +128,6 @@ public class NativeValues {
     this.amount = builder.amount;
     this.ledger = builder.ledger;
     this.wait = builder.wait;
-    this.waits =
-        builder.waits == null
-            ? null
-            : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(builder.waits));
     this.since = builder.since;
     this.host = builder.host;
     this.contact = builder.contact;
@@ -167,7 +157,6 @@ public class NativeValues {
     builder.amount = this.amount;
     builder.ledger = this.ledger;
     builder.wait = this.wait;
-    builder.waits = this.waits;
     builder.since = this.since;
     builder.host = this.host;
     builder.contact = this.contact;
@@ -190,7 +179,6 @@ public class NativeValues {
     @Nullable private BigDecimal amount;
     @Nullable private BigDecimal ledger;
     @Nullable private Duration wait;
-    @Nullable private Map<String, Duration> waits;
     @Nullable private LocalDate since;
     @Nullable private String host;
     @Nullable private String contact;
@@ -287,21 +275,6 @@ public class NativeValues {
     }
 
     /**
-     * Sets the "waits" property.
-     *
-     * @param waits the new value
-     * @return this builder
-     */
-    @JsonProperty("waits")
-    public Builder waits(@Nullable Map<String, Duration> waits) {
-      this.waits =
-          waits == null
-              ? null
-              : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(waits));
-      return this;
-    }
-
-    /**
      * Sets the "since" property.
      *
      * @param since the new value
@@ -372,7 +345,6 @@ public class NativeValues {
         && com.example.petstore.ObjectSerializer.structuralEquals(this.amount, other.amount)
         && java.util.Objects.equals(this.ledger, other.ledger)
         && java.util.Objects.equals(this.wait, other.wait)
-        && com.example.petstore.ObjectSerializer.structuralEquals(this.waits, other.waits)
         && java.util.Objects.equals(this.since, other.since)
         && java.util.Objects.equals(this.host, other.host)
         && java.util.Objects.equals(this.contact, other.contact);
@@ -388,7 +360,6 @@ public class NativeValues {
         com.example.petstore.ObjectSerializer.structuralHashCode(amount),
         ledger,
         wait,
-        com.example.petstore.ObjectSerializer.structuralHashCode(waits),
         since,
         host,
         contact);
@@ -406,7 +377,6 @@ public class NativeValues {
     sb.append(", amount=").append(amount);
     sb.append(", ledger=").append(ledger);
     sb.append(", wait=").append(wait);
-    sb.append(", waits=").append(com.example.petstore.ObjectSerializer.structuralToString(waits));
     sb.append(", since=").append(since);
     sb.append(", host=").append(host);
     sb.append(", contact=").append(contact);

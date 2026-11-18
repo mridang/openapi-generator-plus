@@ -42,9 +42,6 @@ public record NativeValues
     [JsonPropertyName("wait")]
     public TimeSpan? Wait { get; init; }
 
-    [JsonPropertyName("waits")]
-    public Dictionary<string, TimeSpan>? Waits { get; init; }
-
     /// <example>2024-02-29</example>
     [JsonPropertyName("since")]
     public DateOnly? Since { get; init; }
@@ -79,10 +76,6 @@ public record NativeValues
                     && EqualityComparer<decimal?>.Default.Equals(this.Amount, other.Amount)
                     && EqualityComparer<decimal?>.Default.Equals(this.Ledger, other.Ledger)
                     && EqualityComparer<TimeSpan?>.Default.Equals(this.Wait, other.Wait)
-                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(
-                        this.Waits,
-                        other.Waits
-                    )
                     && EqualityComparer<DateOnly?>.Default.Equals(this.Since, other.Since)
                     && EqualityComparer<string?>.Default.Equals(this.Host, other.Host)
                     && EqualityComparer<string?>.Default.Equals(this.Contact, other.Contact)
@@ -99,7 +92,6 @@ public record NativeValues
         hash.Add(this.Amount);
         hash.Add(this.Ledger);
         hash.Add(this.Wait);
-        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Waits));
         hash.Add(this.Since);
         hash.Add(this.Host);
         hash.Add(this.Contact);
@@ -124,7 +116,6 @@ public record NativeValues
         sb.Append(", Ledger=")
             .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Ledger));
         sb.Append(", Wait=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Wait));
-        sb.Append(", Waits=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Waits));
         sb.Append(", Since=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Since));
         sb.Append(", Host=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Host));
         sb.Append(", Contact=")
