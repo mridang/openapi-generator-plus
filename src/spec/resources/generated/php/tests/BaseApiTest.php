@@ -502,7 +502,7 @@ test('bhv authintegration 002 a per-call oauth authenticator is given the transp
     expect($first['url'])->toBe('https://auth.example.com/token');
 });
 
-test('a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (
+test('bhv operations 157 a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (
     string $kind
 ): void {
     $client = new CapturingApiClient();
@@ -2053,4 +2053,24 @@ test('bhv auth 047 an operation with several schemes uses the first one it holds
     }
     expect($none->capturedHeaders)->not->toHaveKey('Authorization');
     expect($none->capturedHeaders)->not->toHaveKey('X-API-Key');
+});
+
+test('bhv operations 163 a request with no body sends no content type header whatever the case of the default', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost', ['content-type' => 'application/json']);
+    $api = new PetApi($client, $config);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect(array_change_key_case($client->capturedHeaders, CASE_LOWER))->not->toHaveKey('content-type');
+});
+
+test('bhv operations 164 a call with a missing required parameter raises a type error and sends no request', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    expect(fn () => $api->getPetByIdWithHttpInfo(null))->toThrow(\TypeError::class);
+    expect($client->capturedUrl ?? '')->toBe('');
 });

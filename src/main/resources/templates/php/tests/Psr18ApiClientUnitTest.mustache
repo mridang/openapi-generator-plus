@@ -379,7 +379,7 @@ test('psr18 redirect to non http scheme throws', function (): void {
         });
 });
 
-test('psr18 send after close throws logic exception', function (): void {
+test('bhv lifecycle 043 psr18 send after close throws logic exception', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, 'ok'));
     $client = newPsr18Client($stub);
     $client->close();
