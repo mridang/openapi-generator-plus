@@ -184,6 +184,19 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
+        public void BhvHeaders032AcceptHeaderListsMediaTypesWithoutQualityWeights()
+        {
+            var headers = HeaderSelector.SelectHeaders(
+                ["application/json", "application/xml"],
+                "application/json",
+                false
+            );
+
+            Assert.Equal("application/json, application/xml", headers["Accept"]);
+            Assert.DoesNotContain("q=", headers["Accept"], StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void BhvHeaders003ShouldNotReorderOrPrioritizeJson()
         {
             var headers = HeaderSelector.SelectHeaders(

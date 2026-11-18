@@ -94,6 +94,52 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BhvLifecycle036ClosingTheClientTwiceRaisesNoErrorAndTheSecondCloseReleasesNothing()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new Client(_authenticator, transport);
+
+        client.Dispose();
+        var second = Record.Exception(() => client.Dispose());
+
+        Assert.Null(second);
+        Assert.False(handler.Disposed);
+    }
+
+    [Fact]
+    public void BhvLifecycle039AnEmptyTokenIsRefusedAtConstructionAndAValidTokenBuilds()
+    {
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+            {
+                Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment(token: ""));
+
+                using var built = Client.FromEnvironment(token: "valid-token");
+                Assert.NotNull(built);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvLifecycle040LeavingAUsingBlockClosesTheClientAndItsTransport()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new Client(_authenticator, transport);
+
+        using (client) { }
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.Store.GetOrderByIdAsync(1)
+        );
+        Assert.Equal("ApiClient has been closed and can no longer send requests", ex.Message);
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
     public void BhvLifecycle026ANullAuthenticatorIsRefusedAtConstruction()
     {
         Assert.Throws<ArgumentNullException>(() => new Client((IAuthenticator)null!));
@@ -388,16 +434,22 @@ public sealed class ClientTest : IDisposable
         Assert.Equal("Bearer provided-2", handler.Authorization);
     }
 
-    [Fact]
-    public void FromEnvironmentTreatsAnEmptyVariableAsUnset()
+    [Theory]
+    [InlineData("http://localhost", "", TokenVariable)]
+    [InlineData("", "env-token", HostVariable)]
+    public void BhvConfig025AnEmptyEnvironmentValueCountsAsUnsetAndConstructionNamesTheVariable(
+        string host,
+        string token,
+        string missingVariable
+    )
     {
         WithEnvironment(
-            "http://localhost",
-            "",
+            host,
+            token,
             () =>
             {
                 var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
-                Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+                Assert.Contains(missingVariable, ex.Message, StringComparison.Ordinal);
             }
         );
     }

@@ -303,6 +303,25 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvAuth028AFailedFirstExchangeRecordsNoSessionAndStillReportsUnexchanged()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        _ = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            auth.ExchangeCodeAsync("rejected-code")
+        );
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync()
+        );
+        Assert.Equal("Must call ExchangeCodeAsync() before making API requests", ex.Message);
+    }
+
+    [Fact]
     public async Task BhvAuthoauthtwoauthcode027ThrowsBeforeExchangeCodeCalled()
     {
         var auth = CreateAuthenticator();

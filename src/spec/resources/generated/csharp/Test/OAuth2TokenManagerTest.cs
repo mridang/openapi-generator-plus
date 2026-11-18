@@ -753,6 +753,95 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task BhvAuth030ConcurrentSettersAndReadersOnlySeeAValueThatWasSet()
+    {
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(new FakeApiClient());
+        manager.SetAccessToken("alpha");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        string[] values = ["alpha", "beta", "gamma"];
+
+        using var stop = new CancellationTokenSource();
+        var writers = Enumerable
+            .Range(0, 3)
+            .Select(writer =>
+                Task.Run(
+                    () =>
+                    {
+                        for (int i = 0; !stop.IsCancellationRequested; i++)
+                        {
+                            manager.SetAccessToken(values[(i + writer) % values.Length]);
+                        }
+                    },
+                    TestContext.Current.CancellationToken
+                )
+            )
+            .ToList();
+
+        var seen = new HashSet<string>();
+        for (int i = 0; i < 2000; i++)
+        {
+            _ = seen.Add(await manager.GetAccessTokenAsync(tokenUrl, parameters));
+        }
+        await stop.CancelAsync();
+        await Task.WhenAll(writers);
+
+        Assert.All(seen, token => Assert.Contains(token, values));
+    }
+
+    [Fact]
+    public async Task BhvAuth027CancelledRefreshIsRethrownWithoutRunningTheOriginalGrant()
+    {
+        // A cancelled refresh is the caller's cancellation, not a refresh
+        // failure: it must reach the caller and the original grant must not
+        // run as a fallback (which would be a third request).
+        var client = new CancelOnExhaustedApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        Assert.Equal("tok1", await manager.GetAccessTokenAsync(tokenUrl, parameters));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            manager.GetAccessTokenAsync(tokenUrl, parameters)
+        );
+        Assert.Equal(2, client.CallCount);
+    }
+
+    private sealed class CancelOnExhaustedApiClient : IApiClient
+    {
+        private readonly Queue<ApiHttpResponse> _responses = new();
+
+        public int CallCount { get; private set; }
+
+        public void Enqueue(string body)
+        {
+            _responses.Enqueue(new ApiHttpResponse(200, body, new Dictionary<string, string>()));
+        }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            CallCount++;
+            if (_responses.Count == 0)
+            {
+                return Task.FromException<ApiHttpResponse>(
+                    new OperationCanceledException("cancelled")
+                );
+            }
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    [Fact]
     public async Task BhvAuthoauthtwotokenmgr037TokenTransportFailurePropagatesNetworkException()
     {
         // A transport failure on the token POST reaches the caller unchanged.

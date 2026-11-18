@@ -1521,6 +1521,64 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOperations156FormBodyFieldsAreSentInTheOrderTheSpecDeclaresThem()
+    {
+        var client = new BodyCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions
+            {
+                Tags = new List<string> { "x" },
+                Nickname = "n",
+            }
+        );
+
+        string wire = client.CapturedBody!.ToString()!;
+        Assert.True(
+            wire.IndexOf("nickname=", StringComparison.Ordinal)
+                < wire.IndexOf("tags=", StringComparison.Ordinal),
+            wire
+        );
+    }
+
+    [Fact]
+    public async Task BhvOptions054AnOperationAcceptsPerCallOptionsAlongsideItsArguments()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        _ = await api.FindPetsByStatusAsync(
+            new FindPetsByStatusOptions
+            {
+                Status = "available",
+                Timeout = 5,
+                MaxRetries = 0,
+                Headers = new Dictionary<string, string> { ["x-trace"] = "abc" },
+            }
+        );
+
+        Assert.Equal("abc", client.CapturedHeaders["x-trace"]);
+    }
+
+    [Fact]
+    public void BhvOptions063APerCallOptionsObjectCannotHaveItsFieldsChanged()
+    {
+        Assert.All(
+            typeof(FindPetsByStatusOptions).GetProperties(),
+            property =>
+                Assert.True(
+                    property.SetMethod is null
+                        || property
+                            .SetMethod.ReturnParameter.GetRequiredCustomModifiers()
+                            .Contains(typeof(System.Runtime.CompilerServices.IsExternalInit)),
+                    property.Name
+                )
+        );
+    }
+
+    [Fact]
     public async Task BhvOperations037TestErrorHandlingNotFound()
     {
         var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");

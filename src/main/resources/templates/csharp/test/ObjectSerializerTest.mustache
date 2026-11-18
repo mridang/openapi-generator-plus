@@ -13,6 +13,23 @@ public static class ObjectSerializerTest
     public class StringifyTests
     {
         [Fact]
+        public void BhvModels018DecimalsThatDifferOnlyInTrailingZerosCompareEqual()
+        {
+            var first = new Defaults { Ratio = 1.5m };
+            var second = new Defaults { Ratio = 1.50m };
+
+            Assert.Equal(first, second);
+        }
+
+        [Fact]
+        public void BhvModels021EachMemberOfAnIntegerEnumCarriesItsDeclaredNumber()
+        {
+            Assert.Equal(1, (int)Priority.Number1);
+            Assert.Equal(2, (int)Priority.Number2);
+            Assert.Equal(3, (int)Priority.Number3);
+        }
+
+        [Fact]
         public void BhvSerializationobject110NullReturnsEmptyString()
         {
             Assert.Equal("", ObjectSerializer.Stringify(null));

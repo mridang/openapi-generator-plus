@@ -384,6 +384,38 @@ public class MetadataTest
     }
 
     [Fact]
+    public void BhvModels016ACopyClearsAnOptionalFieldOnlyWhenNullIsPassed()
+    {
+        var original = new Metadata { CreatedAt = DateTimeOffset.UnixEpoch };
+
+        var kept = original with { };
+        var cleared = original with { CreatedAt = null };
+
+        Assert.Equal(DateTimeOffset.UnixEpoch, kept.CreatedAt);
+        Assert.Null(cleared.CreatedAt);
+    }
+
+    [Fact]
+    public void BhvModels017ACopyCanSetOrClearAnOptionalFieldAndTheOriginalKeepsItsValue()
+    {
+        var original = new Metadata { CreatedAt = DateTimeOffset.UnixEpoch };
+        var later = DateTimeOffset.UnixEpoch.AddDays(1);
+
+        var set = original with { CreatedAt = later };
+        var cleared = original with { CreatedAt = null };
+
+        Assert.Equal(later, set.CreatedAt);
+        Assert.Null(cleared.CreatedAt);
+        Assert.Equal(DateTimeOffset.UnixEpoch, original.CreatedAt);
+    }
+
+    [Fact]
+    public void BhvModels022AModelWhoseSchemaAllowsUndeclaredPropertiesReportsIt()
+    {
+        Assert.NotNull(typeof(Metadata).GetProperty(nameof(Metadata.AdditionalProperties)));
+    }
+
+    [Fact]
     public void BhvModels023KeysNamedLikeSdkMembersAreKeptAsAdditionalProperties()
     {
         var metadata = _serializer.Deserialize<Metadata>("{\"ToString\":1,\"GetHashCode\":2}")!;

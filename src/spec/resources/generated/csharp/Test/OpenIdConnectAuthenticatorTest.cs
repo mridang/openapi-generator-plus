@@ -696,6 +696,24 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvAuth029RediscoveryAfterExpirySendsTheRefreshToEndpointsOfTheNewDocument()
+    {
+        /* max-age=0 expires the discovery document at once. The second discovery
+           names a new token endpoint, so the refresh made after it must go to that
+           endpoint and not to the one from the first document. */
+        var client = new RotatingDiscoveryApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("the-code");
+        auth.InvalidateAccessToken();
+        _ = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal(2, client.Discoveries);
+        Assert.Equal(new Uri("https://auth.example.com/token2"), client.LastTokenUrl);
+    }
+
+    [Fact]
     public async Task BhvAuthoidc015InvalidatingTheAccessTokenRefreshesWithTheHeldRefreshToken()
     {
         var client = new RotatingDiscoveryApiClient();
@@ -727,6 +745,7 @@ public class OpenIdConnectAuthenticatorTest
         private int _tokens;
         public int Discoveries { get; private set; }
         public string? LastTokenBody { get; private set; }
+        public Uri? LastTokenUrl { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
@@ -751,6 +770,7 @@ public class OpenIdConnectAuthenticatorTest
             }
 
             LastTokenBody = body?.ToString();
+            LastTokenUrl = url;
             _tokens++;
             return Task.FromResult(
                 new ApiHttpResponse(

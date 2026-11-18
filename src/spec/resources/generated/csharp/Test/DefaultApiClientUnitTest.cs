@@ -2103,6 +2103,124 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvHeaders031AHeaderValueWithCrOrLfIsRefusedBeforeTheRequestIsSent()
+    {
+        var handler = new ScriptedRedirectHandler([]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("https://secure.example.com/start"),
+                new Dictionary<string, string> { ["X-Custom"] = "ok\r\nInjected: yes" },
+                null
+            )
+        );
+
+        Assert.Contains("X-Custom", ex.Message, StringComparison.Ordinal);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Theory]
+    [InlineData(301)]
+    [InlineData(302)]
+    [InlineData(303)]
+    public async Task BhvRedirects040AFollowedHttpsToHttpRedirectOf301Or302Or303IsNotRefusedForAPost(
+        int statusCode
+    )
+    {
+        // These statuses send the next request without a body, so there is
+        // nothing to replay across the downgrade and the hop is followed.
+        var handler = new RedirectingHandler(
+            firstStatus: (HttpStatusCode)statusCode,
+            location: new Uri("http://downgraded.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            "payload"
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(301)]
+    [InlineData(302)]
+    [InlineData(303)]
+    public async Task BhvRedirects041APostTurnedIntoAGetOnA301Or302Or303CarriesNoContentHeaders(
+        int statusCode
+    )
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: (HttpStatusCode)statusCode,
+            location: new Uri("https://secure.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        _ = await client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            "payload"
+        );
+
+        Assert.Equal(HttpMethod.Get, handler.Requests[1].Method);
+        Assert.Empty(handler.Bodies[1]);
+        Assert.Null(handler.ContentTypes[1]);
+        Assert.False(handler.Requests[1].Headers.Contains("Content-Length"));
+    }
+
+    [Fact]
+    public async Task BhvRedirects042A307OfABodylessPostKeepsThePostMethodWithNoBody()
+    {
+        // A 307 preserves the method. With no body to send, the follow-up is
+        // still a POST; its body stays empty.
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("https://secure.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        _ = await client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(HttpMethod.Post, handler.Requests[1].Method);
+        Assert.Empty(handler.Bodies[1]);
+    }
+
+    [Fact]
+    public async Task BhvRedirects043ARelativeLocationResolvesAgainstTheRequestThatWasRedirected()
+    {
+        // RFC 3986 section 5.2: "../d/e?y=2" resolved against "/a/b/c" is "/a/d/e".
+        var handler = new ScriptedRedirectHandler([
+            (HttpStatusCode.Redirect, new Uri("../d/e?y=2", UriKind.Relative)),
+        ]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        _ = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://secure.example.com/a/b/c?x=1"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(
+            new Uri("https://secure.example.com/a/d/e?y=2"),
+            handler.Requests[1].RequestUri
+        );
+    }
+
+    [Fact]
     public async Task BhvRetries016AllowsBodyReplayOnHttpsToHttpsRedirect()
     {
         // No downgrade — both legs are HTTPS. Body replay is allowed
@@ -2512,6 +2630,55 @@ public class DefaultApiClientUnitTest
                 null
             )
         );
+    }
+
+    [Fact]
+    public async Task BhvLifecycle037CloseDuringAnInFlightRequestCompletesItAndALaterCloseIsHarmless()
+    {
+        // Closing while a request is running lets that request finish with its
+        // response; closing again once it has finished raises no error.
+        using var gate = new GatedHandler();
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().HttpMessageHandler(gate).Build()
+        );
+        Task<ApiHttpResponse> running = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null
+        );
+        await gate.Entered.Task;
+
+        client.Dispose();
+        gate.Release.SetResult();
+        ApiHttpResponse response = await running;
+        client.Dispose();
+
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvLifecycle038CallerSuppliedTransportWithoutCloseIsValidAndCloseSucceedsRepeatedly()
+    {
+        // A handler that offers no close operation is valid. The client
+        // closes without error on each call, and the handler is only used by
+        // the request sent before the close.
+        var handler = new ScriptedRedirectHandler([]);
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().HttpMessageHandler(handler).Build()
+        );
+
+        ApiHttpResponse response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        client.Dispose();
+        client.Dispose();
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Single(handler.Requests);
     }
 
     private sealed class GatedHandler : HttpMessageHandler
