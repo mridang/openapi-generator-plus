@@ -40,6 +40,37 @@ public class OAuth2TokenManagerTest
         }
     }
 
+    private sealed class UnreachableApiClient : IApiClient
+    {
+        private readonly Exception _failure;
+
+        public UnreachableApiClient(Exception failure)
+        {
+            _failure = failure;
+        }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body) =>
+            Task.FromException<ApiHttpResponse>(_failure);
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect) =>
+            Task.FromException<ApiHttpResponse>(_failure);
+    }
+
+    [Fact]
+    public async Task BhvAuth055ANetworkFailureReachesTheCallerUnchanged()
+    {
+        var failure = new HttpRequestException("network down");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(new UnreachableApiClient(failure));
+
+        var thrown = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant(), cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Same(failure, thrown);
+    }
+
     [Fact]
     public async Task BhvAuthoauthtwotokenmgr014ExtractsAccessTokenFromResponse()
     {

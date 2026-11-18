@@ -775,6 +775,10 @@ public sealed class ClientTest : IDisposable
         Assert.StartsWith("https://auth.example.com/authorize?", authorizeUrl, StringComparison.Ordinal);
         Assert.Contains("response_type=token", authorizeUrl, StringComparison.Ordinal);
         Assert.Contains("scope=read", authorizeUrl, StringComparison.Ordinal);
+
+        var twoScopes = new OAuth2ImplicitAuthenticator(
+            Host, "cid", new Uri("https://auth.example.com/authorize"), new[] { "read", "write" });
+        Assert.Contains("scope=read%20write", twoScopes.BuildAuthorizationUrl().OriginalString, StringComparison.Ordinal);
     }
 
     [Fact]
