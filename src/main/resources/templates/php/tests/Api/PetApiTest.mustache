@@ -797,7 +797,7 @@ test('bhv operations 069 date only header param serialises without time componen
     expect($headers['report-date'])->toBe('2024-01-01');
 });
 
-test('date only form field serialises without time component', function (): void {
+test('bhv operations 162 date only form field serialises without time component', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     $api->setPetPreferences(1, new SetPetPreferencesOptions(
@@ -1915,4 +1915,37 @@ test('bhv mocking 006 a call without the per-call options reaches the full signa
 
     expect(fakeCalls($fake))->toHaveCount(1);
     expect(fakeCalls($fake)[0][1])->toBe([7, null, null]);
+test('bhv lifecycle 042 an api built on a caller supplied transport sends its requests through that transport', function (): void {
+    $transport = new CapturingApiClient();
+    $api = new PetApi($transport, new Configuration('http://localhost'));
+
+    try {
+        $api->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+
+    expect($transport->capturedUrl ?? '')->toContain('/pet');
+});
+
+test('bhv operations 158 a header supplied on an individual call is sent with that call', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    try {
+        $api->addPetWithHttpInfo(
+            new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])),
+            new AddPetOptions(headers: ['X-Call-Id' => 'per-call'])
+        );
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+
+    expect($client->capturedHeaders['X-Call-Id'] ?? '')->toBe('per-call');
+});
+
+test('bhv operations 159 a call that returns a value raises a typed api error when a success response has an empty body', function (): void {
+    $api = newPetApiForMock(200, 'application/json', '');
+
+    expect(fn (): mixed => $api->getPetById(1))->toThrow(ApiException::class);
 });
