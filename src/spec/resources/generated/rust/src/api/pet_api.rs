@@ -311,7 +311,7 @@ impl PetApi {
          * single authenticator. There is no per-call override. */
         let credential = self
             .base
-            .authenticator_for(&["petStoreBearer", "apiKeyHeader"]);
+            .authenticator_for(&["apiKeyHeader", "petStoreBearer"]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet".to_string();
@@ -633,7 +633,7 @@ impl PetApi {
         /* The credential of the first security scheme this operation lists that
          * the client holds; otherwise None, and the base client falls back to its
          * single authenticator. There is no per-call override. */
-        let credential = self.base.authenticator_for(&["machineAuth", "adminBasic"]);
+        let credential = self.base.authenticator_for(&["adminBasic", "machineAuth"]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet/{petId}".to_string();
