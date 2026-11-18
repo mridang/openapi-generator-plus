@@ -842,6 +842,14 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public void BhvSerializationwire061MultipartFilenameWithQuoteIsBackslashEscaped()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("a\"b.png");
+
+        Assert.Equal("filename=\"a\\\"b.png\"", directive);
+    }
+
+    [Fact]
     public void BhvSerializationwire042MultipartFilenameEscapesBackslashAndQuote()
     {
         string directive = DefaultApiClient.BuildFilenameDirective("a\"b\\c.png");

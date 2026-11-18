@@ -7,6 +7,7 @@
 #nullable enable
 
 using PetstoreClient;
+using PetstoreClient.Errors;
 using PetstoreClient.Models;
 using Xunit;
 
@@ -269,7 +270,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void FormStyleArrayKeepsAnEmptySlotForANullElement()
+    public void BhvSerializationparam115FormStyleArrayKeepsAnEmptySlotForANullElement()
     {
         Assert.Equal(
             "1,,3",
@@ -283,6 +284,107 @@ public class ValueSerializerTest
                 false
             )
         );
+    }
+
+    [Fact]
+    public void BhvSerializationparam108NestedObjectLeafInStyledParameterIsSerializationError()
+    {
+        var nested = new Dictionary<string, object?>
+        {
+            ["a"] = new Dictionary<string, object?> { ["b"] = 1 },
+        };
+
+        Assert.Throws<SerializationException>(() =>
+            ValueSerializer.SerializeStyled(
+                "criteria",
+                nested,
+                "query",
+                "object",
+                null,
+                "form",
+                true
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam109UnknownStyleFallsBackToPlainValue()
+    {
+        Assert.Equal(
+            "5",
+            ValueSerializer.SerializeStyled("id", "5", "query", "string", "", "unknownStyle", false)
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam110DateValueIsWrittenAsYyyyMmDd()
+    {
+        Assert.Equal(
+            "2024-01-15",
+            ValueSerializer.Serialize(new DateOnly(2024, 1, 15), "query", "string")
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam111DeepObjectWritesEachPropertyAsNameKey()
+    {
+        var result = ValueSerializer.SerializeDeepObject(
+            "filter",
+            new Dictionary<string, object?> { { "color", "blue" } }
+        );
+
+        Assert.Single(result);
+        Assert.Equal("blue", result["filter[color]"]);
+    }
+
+    [Fact]
+    public void BhvSerializationparam117SetInFormStyleWithoutExplodeJoinsLikeAnArray()
+    {
+        Assert.Equal(
+            "blue,red",
+            ValueSerializer.SerializeStyled(
+                "labels",
+                new HashSet<object> { "blue", "red" },
+                "query",
+                "array",
+                null,
+                "form",
+                false
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam119TildeIsKeptLiteralInPathValue()
+    {
+        Assert.Equal(
+            "a~b",
+            ValueSerializer.SerializeStyled("id", "a~b", "path", "string", null, "simple", false)
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam120ArrayOfDatesWritesEachAsYyyyMmDd()
+    {
+        var dates = new List<object> { new DateOnly(2024, 1, 15), new DateOnly(2024, 2, 1) };
+
+        var result = ValueSerializer.SerializeStyled(
+            "dates",
+            dates,
+            "query",
+            "array",
+            null,
+            "form",
+            true
+        );
+
+        Assert.Equal(new List<string> { "2024-01-15", "2024-02-01" }, result);
+    }
+
+    [Fact]
+    public void BhvSerializationparam122AllowReservedKeepsReservedCharsLiteral()
+    {
+        Assert.Equal("a/b:c?d=e&f;g", ValueSerializer.EncodeQueryAllowingReserved("a/b:c?d=e&f;g"));
     }
 
     [Fact]

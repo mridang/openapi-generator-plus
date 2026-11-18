@@ -1085,6 +1085,46 @@ public class BaseApiTest
     }
 
     [Fact]
+    public void BhvSerializationparam118ContentCookieValueIsEncodedToSharedBytes()
+    {
+        var api = new TestableApi("http://localhost");
+
+        Assert.Equal(
+            "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
+            api.ContentParameter(new Dictionary<string, string> { ["k"] = "a b~*é" }, "cookie"));
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire057FormUrlencodedBodyKeepsOnlyUnreservedLiteral()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "nickname", "a~b*c!d'e(f)g" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.Equal("nickname=a~b%2Ac%21d%27e%28f%29g", client.CapturedBody);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire060BinaryReturnTypeGetsRawBytesOfJsonBody()
+    {
+        const string json = "{\"id\":7,\"name\":\"photo\"}";
+        var client = new BinaryResponseApiClient { ContentType = "application/json", Body = json };
+        var testApi = new TestableApi(client, "http://localhost");
+
+        var result = await testApi.CallAsync<byte[]>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(json), result);
+    }
+
+    [Fact]
     public async Task BhvSerializationwire012FormUrlencodedBodyEncodesSpaceAsPlusNotPercent20()
     {
         // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded

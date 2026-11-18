@@ -7,6 +7,7 @@
 #nullable enable
 
 using System.Collections;
+using PetstoreClient.Errors;
 
 namespace PetstoreClient;
 
@@ -270,6 +271,18 @@ internal static class ValueSerializer
             return location == "path" ? EncodePathSegment(s) : s;
         }
 
+        if (
+            value is IDictionary dictionaryValue
+            && dictionaryValue.Values.Cast<object?>().Any(leaf => leaf is IDictionary)
+        )
+        {
+            throw new SerializationException(
+                "Parameter '"
+                    + paramName
+                    + "' holds a nested object, which a styled parameter cannot carry"
+            );
+        }
+
         if (items == null && ModelFields(value) is { } fields)
         {
             return SerializeObjectStyled(paramName, fields, style, explode, enc);
@@ -358,6 +371,14 @@ internal static class ValueSerializer
         }
         foreach (System.Text.Json.JsonProperty property in document.RootElement.EnumerateObject())
         {
+            if (property.Value.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                throw new SerializationException(
+                    "Property '"
+                        + property.Name
+                        + "' holds a nested object, which a styled parameter cannot carry"
+                );
+            }
             fields.Add(
                 new KeyValuePair<string, string>(
                     property.Name,
