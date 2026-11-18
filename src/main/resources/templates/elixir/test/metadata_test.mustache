@@ -84,7 +84,7 @@ defmodule {{moduleName}}.Models.MetadataTest do
       assert text =~ ~s(additional_properties: %{"customField" => "hello"})
     end
 
-    test "defines additional_properties function" do
+    test "bhv models 022 defines additional_properties function" do
       assert {{moduleName}}.Models.Metadata.additional_properties() == true
     end
   end

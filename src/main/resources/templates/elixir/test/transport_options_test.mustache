@@ -385,7 +385,7 @@ defmodule {{moduleName}}.TransportOptionsTest do
     end
   end
 
-  test "req_options connect_options conflicts with the SDK's own proxy settings" do
+  test "bhv transport 078 req_options connect_options conflicts with the SDK's own proxy settings" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
       {{moduleName}}.TransportOptions.new(
         proxy: "http://proxy:8080",

@@ -262,7 +262,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert err.message == "Failed to convert to DateTime: " <> Exception.message(err.cause)
     end
 
-    test "a string where an object model is expected raises, naming the model" do
+    test "bhv serialization 028 a string where an object model is expected raises, naming the model" do
       err =
         assert_raise {{moduleName}}.Errors.SerializationError, fn ->
           {{moduleName}}.ObjectSerializer.deserialize(~s("oops"), "Category")
@@ -599,7 +599,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
                ~s(Unknown enum value "bogus"; allowed values: ["available", "pending", "sold"])
     end
 
-    test "a standalone enum atom outside the declared values raises a SerializationError" do
+    test "bhv errors 076 a standalone enum atom outside the declared values raises a SerializationError" do
       item = %{{moduleName}}.Models.StockItem{priority: :bogus}
 
       err =
@@ -965,7 +965,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
-    test "keeps a null element in an array of primitives" do
+    test "bhv serialization 065 keeps a null element in an array of primitives" do
       assert {{moduleName}}.ObjectSerializer.deserialize(~s(["a",null]), "[String.t()]") == ["a", nil]
     end
 
@@ -1689,7 +1689,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
-    test "malformed temporal values" do
+    test "bhv serialization 045 malformed temporal values" do
       for {value, type} <- [
             {"not-a-date", "Date"},
             {"2024-13-45", "Date.t()"},
@@ -2081,7 +2081,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert decoded.name == "a"
     end
 
-    test "the model exposes no public from_map_strict" do
+    test "bhv serialization 051 the model exposes no public from_map_strict" do
       refute function_exported?({{moduleName}}.Models.StrictTag, :from_map_strict, 1)
       assert {{moduleName}}.Models.StrictTag.strict_properties?()
     end
