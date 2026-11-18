@@ -1563,6 +1563,108 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task BhvAuth056APaddedDecimalExpiresInIsHonouredAsALifetime()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"padded\",\"expires_in\":\"  3600  \"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+
+        Assert.Equal(
+            "padded",
+            await manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(
+            "padded",
+            await manager.GetAccessTokenAsync(
+                tokenUrl,
+                parameters,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(1, client.CallCount);
+    }
+
+    [Fact]
+    public async Task BhvAuth057ARejectedRefreshFallsBackToTheOriginalGrant()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = "cid",
+            ["client_secret"] = "secret",
+        };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var refreshUrl = new Uri("https://auth.example.com/refresh");
+
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        string second = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal("tok2", second);
+        Assert.Equal(3, client.CallCount);
+    }
+
+    [Fact]
+    public async Task BhvAuth058ARefreshTokenHeldIsUsedBeforeTheOriginalGrant()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string>
+        {
+            ["grant_type"] = "password",
+            ["client_id"] = "cid",
+            ["client_secret"] = "secret",
+        };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var refreshUrl = new Uri("https://auth.example.com/refresh");
+
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            parameters,
+            null,
+            refreshUrl,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, client.CallCount);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BhvAuthoauthtwotokenmgr029RefreshGoesToTheRefreshUrlWithTheClientCredentials()
     {
         var client = new FakeApiClient();
