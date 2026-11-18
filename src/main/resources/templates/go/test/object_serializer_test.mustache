@@ -41,6 +41,14 @@ func TestBhvSerializationparam104_ObjectSerializer_EncodeContentCookieValue_Uses
 	}
 }
 
+
+func TestBhvSerializationparam118_ObjectSerializer_EncodeContentCookieValue_SpaceIsEncodedTildeKept(t *testing.T) {
+	t.Parallel()
+	if got := encodeContentCookieValue([]byte("a b~c")); got != "a%20b~c" {
+		t.Errorf("expected 'a%%20b~c', got %s", got)
+	}
+}
+
 func TestBhvSerializationobject147_ObjectSerializer_Serialize_MapToJSON(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{
@@ -588,6 +596,15 @@ func TestObjectSerializer_ToPathValue_Nil(t *testing.T) {
 	}
 }
 
+
+func TestBhvSerializationparam115_ObjectSerializer_ToQueryValue_CsvKeepsAnEmptySlotForANullElement(t *testing.T) {
+	t.Parallel()
+	result := toQueryValue([]any{1, nil, 3}, "csv")
+	if result != "1,,3" {
+		t.Errorf("expected '1,,3', got %v", result)
+	}
+}
+
 func TestBhvSerializationobject167_ObjectSerializer_ToQueryValue_String(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue("hello", "")
@@ -821,6 +838,46 @@ func TestBhvSerializationobject155_ObjectSerializer_Stringify_Bool(t *testing.T)
 	}
 	if stringify(false) != "false" {
 		t.Error("expected 'false'")
+	}
+}
+
+
+func TestBhvSerializationobject229_ObjectSerializer_Deserialize_MapOfModelsReturnsAModelForEachValue(t *testing.T) {
+	t.Parallel()
+	input := []byte(`{"first":{"username":"ada"},"second":{"username":"grace"}}`)
+	var result map[string]models.Account
+	if err := deserialize(input, &result); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 2 || result["first"].Username != "ada" || result["second"].Username != "grace" {
+		t.Errorf("expected a model for each value, got %+v", result)
+	}
+}
+
+func TestBhvSerializationobject231_ObjectSerializer_Deserialize_OmittedOptionalFieldsStayUnset(t *testing.T) {
+	t.Parallel()
+	var account models.Account
+	if err := deserialize([]byte(`{"username":"ada"}`), &account); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if account.Id != nil || account.Password != nil || account.Username != "ada" {
+		t.Errorf("expected the optional fields unset, got %+v", account)
+	}
+}
+
+func TestBhvSerializationobject230_ObjectSerializer_TimeStringifyAndParseRoundTrip(t *testing.T) {
+	t.Parallel()
+	const original = "11:22:33"
+	raw, err := serialize(original)
+	if err != nil {
+		t.Fatalf("serialize failed: %v", err)
+	}
+	var restored string
+	if err := deserialize(raw, &restored); err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if restored != original {
+		t.Errorf("expected %q after the round trip, got %q", original, restored)
 	}
 }
 

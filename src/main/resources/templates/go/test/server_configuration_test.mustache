@@ -364,3 +364,62 @@ func TestBhvServers016_ServerConfiguration_EmptyEnumValuesMeansAnyValueIsAllowed
 		t.Errorf("URL = %q, want %q", url, want)
 	}
 }
+
+func TestBhvServers020_ServerConfiguration_URLRejectsAVariableValueOutsideItsEnum(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{region}.example.com/api",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"region": {{packageName}}.NewServerVariable("eu", "", []string{"eu", "us"}),
+		},
+	)
+	if _, err := server.URL(map[string]string{"region": "apac"}); !errors.Is(err, {{packageName}}.ErrInvalidServerVariable) {
+		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
+	}
+}
+
+func TestBhvServers021_ServerConfiguration_URLResolvesSpecialCharactersToTheRawCharacters(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{host}.example.com/{path}",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"host": {{packageName}}.NewServerVariable("a b&c", "", []string{"a b&c", "d?e#f"}),
+			"path": {{packageName}}.NewServerVariable("x'y(z)", "", nil),
+		},
+	)
+	got, err := server.URL(nil)
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://a b&c.example.com/x'y(z)"; got != want {
+		t.Errorf("expected the default resolved raw, want %q, got %q", want, got)
+	}
+	got, err = server.URL(map[string]string{"host": "d?e#f"})
+	if err != nil {
+		t.Fatalf("URL() returned error for an enum value: %v", err)
+	}
+	if want := "https://d?e#f.example.com/x'y(z)"; got != want {
+		t.Errorf("expected the enum value resolved raw, want %q, got %q", want, got)
+	}
+}
+
+func TestBhvServers023_ServerConfiguration_URLSubstitutesReplacementPatternsLiterally(t *testing.T) {
+	t.Parallel()
+	value := `$&-$1-${name}-\0`
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("x", "", nil),
+		},
+	)
+	got, err := server.URL(map[string]string{"env": value})
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://" + value + ".example.com"; got != want {
+		t.Errorf("expected the value substituted literally, want %q, got %q", want, got)
+	}
+}

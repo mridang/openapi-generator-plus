@@ -50,7 +50,7 @@ func TestModel_DeprecatedSchemaCarriesADeprecatedParagraph(t *testing.T) {
 
 // A model's externalDocs description reaches its doc comment as written, with no
 // HTML entity in place of the quote, apostrophe, ampersand or angle brackets.
-func TestModel_ExternalDocsDescriptionKeepsTheSpecProseVerbatim(t *testing.T) {
+func TestBhvSerializationobject227_Model_ExternalDocsDescriptionKeepsTheSpecProseVerbatim(t *testing.T) {
 	t.Parallel()
 	path := "../pkg/models/account.go"
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)

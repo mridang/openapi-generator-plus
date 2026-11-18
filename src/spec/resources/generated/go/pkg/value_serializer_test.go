@@ -877,9 +877,51 @@ func TestValueSerializer_ToStringSlice_TypedEnumSlice(t *testing.T) {
 	}
 }
 
+func TestBhvSerializationparam117_ValueSerializer_SerializeStyled_FormNoExplodeSetJoinsLikeAnArray(t *testing.T) {
+	t.Parallel()
+	set := models.Set[string]{"a", "b"}
+	if got := serializeStyled("ids", set, "query", "array", "", "form", false); got != "a,b" {
+		t.Errorf("expected 'a,b' for a Set in form style without explode, got %v", got)
+	}
+}
+
+func TestBhvSerializationparam110_ValueSerializer_StringifyDate_UTCMidnightIsYYYYMMDD(t *testing.T) {
+	t.Parallel()
+	when := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
+	if got := stringifyDate(when); got != "2025-01-01" {
+		t.Errorf("expected '2025-01-01', got %q", got)
+	}
+}
+
+func TestBhvSerializationparam120_ValueSerializer_DateArrayWritesEachElementAsYYYYMMDD(t *testing.T) {
+	t.Parallel()
+	days := []string{
+		stringifyDate(time.Date(2024, time.January, 15, 10, 30, 0, 0, time.UTC)),
+		stringifyDate(time.Date(2024, time.February, 1, 23, 59, 0, 0, time.UTC)),
+	}
+	if got := serializeValue(days, "query", "array", "csv"); got != "2024-01-15,2024-02-01" {
+		t.Errorf("expected '2024-01-15,2024-02-01', got %v", got)
+	}
+}
+
+func TestBhvSerializationparam119_ValueSerializer_EncodePathSegment_TildeIsKeptLiteral(t *testing.T) {
+	t.Parallel()
+	if got := encodePathSegment("a~b"); got != "a~b" {
+		t.Errorf("expected the tilde kept literal, got %q", got)
+	}
+}
+
+func TestBhvSerializationparam122_ValueSerializer_EncodeQueryValue_AllowReservedKeepsReservedLiteral(t *testing.T) {
+	t.Parallel()
+	const in = "v1.0/beta:rc1&at=a@b,c;d"
+	if got := encodeQueryValue(in, true); got != in {
+		t.Errorf("expected reserved characters kept literal, got %q", got)
+	}
+}
+
 // ── SerializeDeepObject ──
 
-func TestValueSerializer_SerializeDeepObject(t *testing.T) {
+func TestBhvSerializationparam111_ValueSerializer_SerializeDeepObject(t *testing.T) {
 	t.Parallel()
 	result := serializeDeepObject("filter", map[string]any{
 		"status": "active",
@@ -904,7 +946,7 @@ func TestBhvSerializationparam061_ValueSerializer_SerializeDeepObject_Nil(t *tes
 
 // ── SerializeStyled: fallback to SerializeValue for unknown style ──
 
-func TestValueSerializer_SerializeStyled_UnknownStyleFallback(t *testing.T) {
+func TestBhvSerializationparam109_ValueSerializer_SerializeStyled_UnknownStyleFallback(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "5", "query", "string", "", "unknownStyle", false)
 	if result != "5" {
