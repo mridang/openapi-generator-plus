@@ -478,6 +478,10 @@ php | misc034 | PHP has one caller transport, the PSR-18 client, so there is no 
 php | misc035 | PHP has no abort signal to pass to a call, so an already aborted call cannot exist
 ||||||| 3e71877dc
 ||||||| 42ed26df5
+||||||| e2e15be44
+go | misc135 | Go has no client-level cancellation handle: cancellation is the context.Context each call takes, so the ConfigurationBuilder has no field to store one
+||||||| 9c583bf17
+||||||| d4f99459d
 node | misc030 | Node's per-call timeout is a duration, not an absolute deadline, so there is no past deadline to pass; a timeout of zero or less is refused before any request is sent (bhv options 056).
 node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementation and there is no separate transport object, so there is no client and transport pair to refuse at build.
 ||||||| 9f854cdf4
