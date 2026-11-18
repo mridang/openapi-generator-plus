@@ -3360,6 +3360,13 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
+  test "bhv retries 049 max_retries of n allows n retries after the first attempt, so n plus one requests" do
+    state = retry_state([503, 503, 503, 503], max_retries: 3)
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(state)
+    assert length(attempts()) == 4
+  end
+
   test "bhv retries 018 max_retries 0 sends the request once" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
 
@@ -3406,6 +3413,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 2
   end
 
+  test "bhv retries 047 all attempts and their waits stay within the caller timeout and an overrunning wait is not taken" do
+    started = System.monotonic_time(:millisecond)
+
+    asked = retry_state([{503, [{"retry-after", "5"}]}, 200], timeout: 300)
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(asked)
+    assert length(attempts()) == 1
+
+    assert System.monotonic_time(:millisecond) - started < 1_000
+  end
+
   test "bhv retries 025 a retry never waits past the end-to-end timeout" do
     started = System.monotonic_time(:millisecond)
 
@@ -3446,6 +3463,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
            ]
   end
 
+  test "bhv retries 045 a streamed request body is sent only once and is not replayed after a 401" do
+    client = ScriptedApiClient.new(token_answer(fn _ -> 401 end))
+    body = fn -> "not rewindable" end
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{}} =
+             put_thing(oauth_state(client), body, "application/octet-stream")
+
+    assert length(api_requests(client)) == 1
+  end
+
   test "bhv retries 032 a stream body is never retried" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200])
     body = Stream.repeatedly(fn -> "payload" end) |> Stream.take(1)
@@ -3468,6 +3495,23 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert {:ok, _} = put_thing(state, "payload", "text/plain")
     assert Enum.map(attempts(), & &1.body) == ["payload", "payload", "payload"]
+  end
+
+  test "bhv retries 048 a 503 is retried and the later success is returned" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200])
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 3
+  end
+
+  test "bhv retries 050 a Retry-After given as an HTTP date is honoured and the request is retried" do
+    date =
+      Calendar.strftime(DateTime.add(DateTime.utc_now(), 1, :second), "%a, %d %b %Y %H:%M:%S GMT")
+
+    state = retry_state([{429, [{"retry-after", date}]}, 200])
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
   end
 
   test "bhv retries 038 a 503 is sent again until it succeeds" do

@@ -2538,4 +2538,116 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.serialize("a/b<c>&d") == ~s("a/b<c>&d")
     end
   end
+
+  test "bhv serialization 067 extra properties are written as top-level keys beside the declared fields" do
+    metadata = %PetstoreClient.Models.Metadata{additional_properties: %{"customField" => "hello"}}
+
+    assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(metadata)) == %{
+             "customField" => "hello"
+           }
+  end
+
+  test "bhv serialization 068 a model built in code is not validated and keeps wrong types and unknown values" do
+    pet = %PetstoreClient.Models.Pet{name: 123, status: "not-a-status"}
+
+    assert pet.name == 123
+    assert pet.status == "not-a-status"
+  end
+
+  test "bhv serialization 069 a value outside a declared bound is decoded and kept rather than rejected" do
+    order = PetstoreClient.ObjectSerializer.deserialize(~s({"quantity":-5}), "Order")
+
+    assert order.quantity == -5
+  end
+
+  test "bhv serialization 070 a JSON null for an optional field decodes to nil instead of failing" do
+    pet =
+      PetstoreClient.ObjectSerializer.deserialize(
+        ~s({"name":"Rex","photoUrls":[],"category":null}),
+        "Pet"
+      )
+
+    assert pet.category == nil
+  end
+
+  test "bhv serialization 071 JSON nested deeper than the allowed depth is refused with a fixed error before parsing" do
+    deep = String.duplicate("[", 1001) <> String.duplicate("]", 1001)
+
+    assert {:error, "JSON nesting depth 1001 exceeds limit 1000"} =
+             PetstoreClient.ObjectSerializer.parse_json(deep)
+  end
+
+  test "bhv serialization 072 keys the model does not declare are skipped without error, scalar and nested alike" do
+    pet =
+      PetstoreClient.ObjectSerializer.deserialize(
+        ~s({"name":"Rex","photoUrls":[],"extraOne":1,"extraTwo":{"deep":[1,2]}}),
+        "Pet"
+      )
+
+    assert pet.name == "Rex"
+  end
+
+  test "bhv serialization 073 a missing required field fails decoding with an error naming that field" do
+    error =
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"name":"Rex"}), "Pet")
+      end
+
+    assert error.message =~ "photoUrls"
+  end
+
+  test "bhv serialization 074 nested arrays serialize back to the same nested shape they were decoded from" do
+    nested = [[1, 2], [], [3, [4, 5]]]
+
+    assert PetstoreClient.ObjectSerializer.sanitize_for_serialization(nested) == nested
+  end
+
+  test "bhv serialization 075 a known enum value decodes from its wire casing to the matching member" do
+    assert PetstoreClient.ObjectSerializer.convert_to_type("pending", "TestEnumStatus") ==
+             :pending
+  end
+
+  test "bhv serialization 076 a union value that matches none of its candidates raises a serialization error" do
+    json = ~s({"unrelatedKey":"value","anotherUnknown":123})
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
+    end
+  end
+
+  test "bhv serialization 077 a duration written to its wire string and decoded back is the same" do
+    for duration <- [
+          %Duration{second: 0, microsecond: {0, 6}},
+          %Duration{second: -90, microsecond: {0, 6}},
+          %Duration{second: 1, microsecond: {500_000, 6}},
+          %Duration{second: 3 * 86_400, microsecond: {0, 6}},
+          %Duration{second: 315_576_000_000, microsecond: {0, 6}}
+        ] do
+      wire = PetstoreClient.ObjectSerializer.stringify(duration)
+      decoded = PetstoreClient.ObjectSerializer.convert_to_type(wire, "Duration")
+
+      assert decoded.second == duration.second
+      assert decoded.microsecond == duration.microsecond
+    end
+  end
+
+  test "bhv serialization 078 a time of day is written as zero-padded HH:MM:SS with a fraction only when sub-second" do
+    assert PetstoreClient.ObjectSerializer.stringify(~T[09:05:03]) == "09:05:03"
+    assert PetstoreClient.ObjectSerializer.stringify(~T[09:05:03.250]) == "09:05:03.250"
+  end
+
+  test "bhv serialization 080 a protobuf duration accepts the largest protobuf second count and rejects one past it" do
+    assert %Duration{second: 315_576_000_000} =
+             PetstoreClient.ObjectSerializer.convert_to_type("315576000000s", "Duration")
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.ObjectSerializer.convert_to_type("315576000001s", "Duration")
+    end
+  end
+
+  test "bhv serialization 081 a quoted number where an integer is expected raises and is never coerced" do
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.ObjectSerializer.convert_to_type("5", "integer()")
+    end
+  end
 end

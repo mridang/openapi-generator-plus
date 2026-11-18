@@ -178,6 +178,19 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert copy.additional_properties == %{"customField" => "hello"}
     end
 
+    test "bhv serialization 079 a copy with named changes leaves the original and keeps unnamed fields and additional properties" do
+      metadata = %PetstoreClient.Models.Metadata{
+        created_at: "2024-01-01T00:00:00+00:00",
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      copy = %{metadata | created_at: "2025-01-01T00:00:00+00:00"}
+
+      assert copy.created_at == "2025-01-01T00:00:00+00:00"
+      assert copy.additional_properties == %{"customField" => "hello"}
+      assert metadata.created_at == "2024-01-01T00:00:00+00:00"
+    end
+
     test "bhv models 016 a copy clears an optional field only when nil is set and keeps it when omitted" do
       metadata = %PetstoreClient.Models.Metadata{created_at: "2024-01-01T00:00:00+00:00"}
 

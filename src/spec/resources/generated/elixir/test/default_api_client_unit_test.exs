@@ -609,6 +609,33 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute Map.has_key?(headers, "x-api-key")
   end
 
+  test "bhv redirects 056 no_default_headers sends no transport default header and the next normal request sends it again" do
+    {opted_out_url, _} = start_header_capture_server()
+    {normal_url, _} = start_header_capture_server()
+
+    transport =
+      PetstoreClient.TransportOptions.new(default_headers: %{"X-Api-Key" => "for-the-api"})
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "#{opted_out_url}/test",
+      %{},
+      nil,
+      no_default_headers: true
+    )
+
+    assert_receive {:captured_headers, opted_out}, 5000
+    refute Map.has_key?(opted_out, "x-api-key")
+
+    PetstoreClient.DefaultApiClient.send_request(client, :get, "#{normal_url}/test", %{}, nil)
+
+    assert_receive {:captured_headers, normal}, 5000
+    assert normal["x-api-key"] == "for-the-api"
+  end
+
   test "bhv transport 038 generates unique X-Request-ID per request" do
     # Need two separate header capture servers for two requests
     {base_url1, _} = start_header_capture_server()
@@ -1095,6 +1122,95 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
              "HTTPS://api.example.com/x",
              "HTTP://api.example.com/y"
            )
+  end
+
+  test "bhv retries 046 a 307 that keeps the scheme does not refuse the body replay" do
+    https = "https://api.example.com/x"
+
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(
+             307,
+             https,
+             "https://api.example.com/y",
+             ~s({"a":1})
+           )
+  end
+
+  test "bhv retries 051 a request with a body is refused with status 307 when a redirect downgrades https to http" do
+    assert PetstoreClient.DefaultApiClient.refuse_body_replay?(
+             307,
+             "https://api.example.com/x",
+             "http://api.example.com/y",
+             ~s({"a":1})
+           )
+  end
+
+  test "bhv redirects 054 a redirect chain past the timeout budget fails with a timeout error shared across hops" do
+    adapter = fn request ->
+      Process.sleep(200)
+
+      case URI.to_string(request.url) do
+        "https://slow.invalid/one" ->
+          {request,
+           Req.Response.new(
+             status: 302,
+             headers: [{"location", "https://slow.invalid/two"}],
+             body: ""
+           )}
+
+        "https://slow.invalid/two" ->
+          {request,
+           Req.Response.new(
+             status: 302,
+             headers: [{"location", "https://slow.invalid/three"}],
+             body: ""
+           )}
+
+        _ ->
+          {request,
+           Req.Response.new(
+             status: 200,
+             headers: [{"content-type", "application/json"}],
+             body: ~s({"ok":true})
+           )}
+      end
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new(
+        req_options: [adapter: adapter],
+        timeout: 300,
+        follow_redirects: true,
+        max_redirects: 5
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://slow.invalid/one",
+        %{},
+        nil
+      )
+    end
+  end
+
+  test "bhv redirects 055 a redirect whose target is not http or https is refused with an error" do
+    client =
+      routed_client(%{
+        "https://scheme.invalid/start" => {302, [{"location", "ftp://files.invalid/x"}], ""}
+      })
+
+    assert_raise PetstoreClient.Errors.ApiError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://scheme.invalid/start",
+        %{},
+        nil
+      )
+    end
   end
 
   test "bhv retries 011 a 308 from HTTPS to HTTP refuses the replay of a real body" do
