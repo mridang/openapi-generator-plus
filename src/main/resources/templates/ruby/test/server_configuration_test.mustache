@@ -227,7 +227,60 @@ describe {{moduleName}}::ServerConfiguration, 'variables are not shared with the
     variables = { 'region' => {{moduleName}}::ServerVariable.new(default_value: 'eu') }
     config = {{moduleName}}::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
 
-    _(-> { variables['zone'] = {{moduleName}}::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    variables['zone'] = {{moduleName}}::ServerVariable.new(default_value: 'us')
     _(config.variables.keys).must_equal(['region'])
+  end
+
+  it 'bhv_misc_139 the variables collection is copied and frozen so the configuration cannot be changed through it' do
+    variables = { 'region' => {{moduleName}}::ServerVariable.new(default_value: 'eu') }
+    config = {{moduleName}}::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
+
+    _(-> { config.variables['zone'] = {{moduleName}}::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(variables).wont_be_same_as(config.variables)
+  end
+
+  it 'bhv_misc_156 the list of all servers keeps the order in which they are declared' do
+    {{moduleName}}::Servers::ALL.each_with_index do |server, index|
+      _(server).must_be_same_as({{moduleName}}::Servers.const_get("SERVER_#{index}"))
+    end
+  end
+
+  it 'bhv_misc_154 the variables map returned by the accessor cannot be edited' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{region}.example.com',
+      variables: { 'region' => {{moduleName}}::ServerVariable.new(default_value: 'eu') }
+    )
+
+    _(-> { config.variables['region'] = {{moduleName}}::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(config.url).must_equal 'https://eu.example.com'
+  end
+
+  it 'bhv_misc_155 an unset enum variable whose default is not allowed is refused naming it' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{region}.example.com',
+      variables: {
+        'region' => {{moduleName}}::ServerVariable.new(default_value: 'apac', enum_values: %w[eu us])
+      }
+    )
+
+    error = _(-> { config.url }).must_raise ArgumentError
+    _(error.message).must_include "'region'"
+    _(error.message).must_include 'Allowed values: [eu, us]'
+  end
+
+  it 'bhv_misc_157 explicit variable values are resolved into the URL' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/v{version}',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod'),
+        'version' => {{moduleName}}::ServerVariable.new(default_value: '2')
+      }
+    )
+    _(config.url({ 'env' => 'staging', 'version' => '5' })).must_equal 'https://staging.api.example.com/v5'
+  end
+
+  it 'bhv_misc_158 a server with a fixed URL reports exactly that URL' do
+    config = {{moduleName}}::ServerConfiguration.new(url_template: 'https://fixed.example.com/v1/items')
+    _(config.url).must_equal 'https://fixed.example.com/v1/items'
   end
 end
