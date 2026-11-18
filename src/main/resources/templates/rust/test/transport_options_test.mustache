@@ -752,3 +752,42 @@ fn test_bhv_misc_026_a_configuration_mistake_is_not_an_api_error() {
     let boxed: Box<dyn std::error::Error> = Box::new(err);
     assert!(boxed.downcast_ref::<ApiError>().is_none(), "a configuration error is not an ApiError, got: {}", boxed);
 }
+
+#[test]
+fn test_bhv_misc_052_when_an_option_is_given_twice_the_last_one_takes_effect() {
+    let opts = TransportOptions::builder()
+        .proxy("http://first.example.com:3128")
+        .proxy("http://second.example.com:3128")
+        .build()
+        .expect("valid transport options");
+    assert_eq!(Some("http://second.example.com:3128"), opts.proxy());
+}
+
+#[test]
+fn test_bhv_misc_053_a_retry_budget_of_zero_is_accepted() {
+    let opts = TransportOptions::builder()
+        .max_retries(0)
+        .build()
+        .expect("a zero retry budget is valid");
+    assert_eq!(0, opts.max_retries());
+}
+
+#[test]
+fn test_bhv_misc_055_a_zero_timeout_is_refused_as_an_invalid_timeout() {
+    let result = TransportOptionsBuilder::new().timeout(Some(0)).build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidTimeout(_))),
+        "a zero timeout must be refused, got: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_bhv_misc_056_setting_the_proxy_to_an_empty_string_removes_an_earlier_proxy() {
+    let opts = TransportOptions::builder()
+        .proxy("http://proxy.example.com:3128")
+        .proxy("")
+        .build()
+        .expect("valid transport options");
+    assert_eq!(None, opts.proxy());
+}
