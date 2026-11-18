@@ -33,6 +33,18 @@ import Testing
         #expect(resolved == "https://staging.api.example.com/v1")
     }
 
+    @Test func testBhvMisc297UrlReplacesEveryVariableWhenSeveralAreOverridden() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/v{version}",
+            variables: [
+                "env": ServerVariable(defaultValue: "prod"),
+                "version": ServerVariable(defaultValue: "1"),
+            ]
+        )
+        let resolved = try server.url(variables: ["env": "staging", "version": "2"])
+        #expect(resolved == "https://staging.api.example.com/v2")
+    }
+
     @Test func testBhvServers003UrlAcceptsOverrideInEnumValues() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com",

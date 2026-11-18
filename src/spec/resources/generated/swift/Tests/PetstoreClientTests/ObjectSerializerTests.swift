@@ -2034,6 +2034,13 @@ import Testing
       "array byte variant must round-trip both payloads' bytes through base64")
   }
 
+  /* A scalar base64 value resolves to the scalar branch, so the array branch of the byte oneOf refuses it. */
+  @Test func testBhvMisc295ByteOneOfRefusesAScalarValueForTheArrayVariant() throws {
+    let scalar = try ObjectSerializer.deserialize(
+      "\"AQIDBA==\"", as: SetPetAvatarThumbnailRequest.self)
+    #expect(scalar?.actualInstance(as: [Data].self) == nil)
+  }
+
   /* Each element of an array of byte values decodes from base64 to its raw bytes. */
   @Test func testBhvSerializationobject221DeserializeDecodesEachBase64ElementToRawBytes() throws {
     struct Scans: Codable, Equatable { let scans: [Data] }

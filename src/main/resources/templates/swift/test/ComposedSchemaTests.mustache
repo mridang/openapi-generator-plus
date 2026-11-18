@@ -234,6 +234,15 @@ import Testing
         }
     }
 
+    /// A subtype payload that omits its discriminator is decoded as the variant the
+    /// mapping names: the discriminator takes the subtype's own value.
+    @Test func testBhvMisc294CarPayloadWithoutDiscriminatorIsDecodedAsCar() throws {
+        let jsonData = Data("{\"plate\":\"AB-12\",\"doorCount\":4}".utf8)
+        let car = try JSONDecoder().decode(Car.self, from: jsonData)
+        #expect(car.vehicleType == "car")
+        #expect(car.plate == "AB-12")
+    }
+
     @Test func testBhvSerializationobject301CarWritesItsDiscriminator() throws {
         let json = try ObjectSerializer.serialize(Car(plate: "AB-12", doorCount: 4))
         #expect(json.contains("\"vehicleType\":\"car\""))
@@ -338,6 +347,16 @@ import Testing
         #expect(roundTripped?["dosage"] as? String == "250mg")
         #expect(roundTripped?["procedureName"] as? String == "Spay")
         #expect(roundTripped?["durationMinutes"] as? Int == 45)
+    }
+
+    /// An anyOf keeps every candidate that decodes and skips the candidates whose
+    /// required properties are absent.
+    @Test func testBhvMisc293AnyOfSkipsCandidatesThatDoNotMatch() throws {
+        let jsonData = Data("{\"procedureName\":\"Spay\"}".utf8)
+        let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+        #expect(treatment.matchedInstances().count == 1)
+        #expect(treatment.asMedication == nil)
+        #expect(treatment.asSurgery?.procedureName == "Spay")
     }
 
     /// Union wrappers compare by value and hash alike, as plain models do.
