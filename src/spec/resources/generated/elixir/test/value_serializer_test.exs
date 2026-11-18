@@ -594,7 +594,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert null_style == "hello%20world"
     end
 
-    test "null style falls back to location-based serialization" do
+    test "bhv langelixir 013 null style falls back to location-based serialization" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
           "id",

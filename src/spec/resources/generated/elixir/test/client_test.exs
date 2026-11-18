@@ -42,7 +42,7 @@ defmodule PetstoreClient.ClientTest do
     assert_received :through_adapter
   end
 
-  test "close releases the transport and the authenticator's token manager" do
+  test "bhv langelixir 020 close releases the transport and the authenticator's token manager" do
     authenticator =
       PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
         "/api/v3",
@@ -74,7 +74,7 @@ defmodule PetstoreClient.ClientTest do
     assert err.message == "ApiClient has been closed and can no longer send requests"
   end
 
-  test "close works for an authenticator that starts nothing" do
+  test "bhv langelixir 021 close works for an authenticator that starts nothing" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
     client = PetstoreClient.Client.new(authenticator)
 
@@ -313,7 +313,7 @@ defmodule PetstoreClient.ClientTest do
     assert schemes_only.pet.config.base_url == "https://scheme.example.com"
   end
 
-  test "a key that names no security scheme of the API raises ArgumentError" do
+  test "bhv langelixir 022 a key that names no security scheme of the API raises ArgumentError" do
     credential = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "scheme-token")
 
     assert_raise ArgumentError, ~r/unknown keys \[:no_such_scheme\]/, fn ->
@@ -384,7 +384,7 @@ defmodule PetstoreClient.ClientTest do
     end
   end
 
-  test "close releases the authenticator and every scheme credential once" do
+  test "bhv langelixir 023 close releases the authenticator and every scheme credential once" do
     default = %ClosingAuthenticator{notify: self(), label: :default}
     credential = %ClosingAuthenticator{notify: self(), label: :scheme}
     client = PetstoreClient.Client.new(default, nil, pet_store_basic: credential)
@@ -752,7 +752,7 @@ defmodule PetstoreClient.ClientTest do
     assert listed == declared
   end
 
-  test "a call hook given to the client reaches the configuration of every API" do
+  test "bhv langelixir 024 a call hook given to the client reaches the configuration of every API" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
     hook = PetstoreClient.CallHook.chain([])
 
