@@ -1141,4 +1141,154 @@ class DefaultApiClientTest {
           0, json.get("contentLength").asInt(), "POST with null body must emit Content-Length: 0");
     }
   }
+
+  @Nested
+  @DisplayName("misc behaviours")
+  class MiscBehaviours {
+
+    @Test
+    @DisplayName(
+        "bhvMisc266 caller default headers replace the user agent and request id in any case")
+    void bhvMisc266CallerHeaderReplacesTheRequestIdDefaultWhateverItsCase() throws Exception {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().injectRequestId(true).build());
+      Map<String, String> headers = new HashMap<>();
+      headers.put("USER-AGENT", "caller-agent");
+      headers.put("X-REQUEST-ID", "caller-id");
+
+      ApiHttpResponse response =
+          client.sendRequest("GET", ChasmContainer.getBaseUrl() + "/test/echo", headers, null);
+
+      JsonNode echoed = new ObjectMapper().readTree(response.body()).get("headers");
+      assertEquals("caller-agent", echoed.get("user-agent").asText());
+      assertEquals("caller-id", echoed.get("x-request-id").asText());
+    }
+
+    @Test
+    @DisplayName("bhvMisc268 a trusted CA certificate is rejected when the hostname does not match")
+    void bhvMisc268ATrustedCaCertificateIsRejectedWhenTheHostnameDoesNotMatch() throws Exception {
+      int httpsPort = java.net.URI.create(ChasmContainer.getHttpsBaseUrl()).getPort();
+      TransportOptions transport =
+          TransportOptions.builder().verifySsl(true).caCertPath(CA_CERT_PATH).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () ->
+              client.sendRequest(
+                  "GET", "https://127.0.0.1:" + httpsPort + "/test/echo", new HashMap<>(), null));
+    }
+
+    @Test
+    @DisplayName("bhvMisc269 a self-signed endpoint is reached only with verification disabled")
+    void bhvMisc269ASelfSignedEndpointIsReachedOnlyWithVerificationDisabled() throws Exception {
+      String chasmUrl = ChasmContainer.getHttpsBaseUrl();
+
+      DefaultApiClient off =
+          new DefaultApiClient(TransportOptions.builder().verifySsl(false).build());
+      assertEquals(
+          200, off.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null).statusCode());
+
+      DefaultApiClient on = new DefaultApiClient(TransportOptions.builder().build());
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () -> on.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc270 a missing CA certificate file is rejected even with verification disabled")
+    void bhvMisc270AMissingCaFileIsRejectedEvenWithVerificationDisabled() {
+      TransportOptions transport =
+          TransportOptions.builder().verifySsl(false).caCertPath("/nonexistent/ca.pem").build();
+
+      IllegalArgumentException ex =
+          assertThrows(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
+      assertTrue(ex.getMessage().contains("/nonexistent/ca.pem"), ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvMisc271 a client without a proxy connects directly")
+    void bhvMisc271AClientWithoutAProxyConnectsDirectly() throws Exception {
+      assertEquals(null, TransportOptions.builder().build().getProxy());
+
+      DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", ChasmContainer.getBaseUrl() + "/test/echo", new HashMap<>(), null);
+      assertEquals(200, response.statusCode());
+    }
+
+    @Test
+    @DisplayName("bhvMisc272 an authenticating proxy accepts credentials from the proxy URL")
+    void bhvMisc272AnAuthenticatingProxyAcceptsCredentialsFromTheProxyUrl() throws Exception {
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().proxy(SquidContainer.getAuthProxyUrl()).build());
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", ChasmContainer.getInternalHttpUrl() + "/test/echo", new HashMap<>(), null);
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("\"method\""));
+    }
+
+    @Test
+    @DisplayName("bhvMisc273 the request id is a UUID v4 when enabled and omitted when disabled")
+    void bhvMisc273TheRequestIdIsAUuidV4WhenEnabledAndOmittedWhenDisabled() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+      ObjectMapper mapper = new ObjectMapper();
+
+      DefaultApiClient enabled =
+          new DefaultApiClient(TransportOptions.builder().injectRequestId(true).build());
+      JsonNode withId =
+          mapper.readTree(
+              enabled.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null).body());
+      assertEquals(
+          4,
+          java.util.UUID.fromString(withId.get("headers").get("x-request-id").asText()).version());
+
+      DefaultApiClient disabled =
+          new DefaultApiClient(TransportOptions.builder().injectRequestId(false).build());
+      JsonNode withoutId =
+          mapper.readTree(
+              disabled.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null).body());
+      assertFalse(withoutId.get("headers").has("x-request-id"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc274 a non-2xx response is returned to the caller with its status code intact")
+    void bhvMisc274ANon2xxResponseIsReturnedWithItsStatusCodeIntact() throws Exception {
+      DefaultApiClient client = new DefaultApiClient();
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", ChasmContainer.getBaseUrl() + "/test/status/404", new HashMap<>(), null);
+      assertEquals(404, response.statusCode());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc275 the request is sent with the intended method and the response is returned")
+    void bhvMisc275TheRequestIsSentWithTheIntendedMethodAndTheResponseIsReturned()
+        throws Exception {
+      DefaultApiClient client = new DefaultApiClient();
+      ApiHttpResponse response =
+          client.sendRequest(
+              "PATCH", ChasmContainer.getBaseUrl() + "/test/echo", new HashMap<>(), null);
+      assertEquals(200, response.statusCode());
+    }
+
+    @Test
+    @DisplayName("bhvMisc282 a dropped connection keeps the transport error as the cause")
+    void bhvMisc282ADroppedConnectionKeepsTheTransportErrorAsTheCause() {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+
+      com.example.petstore.errors.NetworkException ex =
+          assertThrows(
+              com.example.petstore.errors.NetworkException.class,
+              () -> client.sendRequest("GET", "http://127.0.0.1:1/x", new HashMap<>(), null));
+      assertNotNull(ex.getCause());
+    }
+  }
 }

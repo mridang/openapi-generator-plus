@@ -696,3 +696,5 @@ php | misc083 | php takes query parameters as name and value pairs that the clie
 dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
 
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
+java | misc267 | java.net.http.HttpClient has no per-client default headers API, so headers set on a caller-supplied client cannot be sent on the wire by the SDK
+java | misc283 | Java has no package root that re-exports types, so the error types are reached only through the errors package and no root re-export can exist
