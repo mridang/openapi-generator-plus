@@ -669,6 +669,20 @@ class TestQuerySerialization:
                         ['application/json'], 'application/json', None)
         assert client.captured_url == 'http://localhost/test/echo'
 
+    async def test_bhv_misc_239_an_operation_query_parameter_is_serialized_with_no_authenticator(self) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(api_client=client, config=Configuration(base_url='http://localhost'))
+        await stub.call('GET', '/test/echo', {'q': 'a b'}, {}, None,
+                        ['application/json'], 'application/json', None, None)
+        assert client.captured_url == 'http://localhost/test/echo?q=a%20b'
+
+    async def test_bhv_misc_241_a_time_of_day_query_value_is_sent_as_hh_mm_ss(self) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(api_client=client, config=Configuration(base_url='http://localhost'))
+        await stub.call('GET', '/test/echo', {'t': datetime.time(10, 20, 30, 999000)}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert client.captured_url == 'http://localhost/test/echo?t=10%3A20%3A30'
+
 
 class TestAllowEmptyValueQueryParams:
 
