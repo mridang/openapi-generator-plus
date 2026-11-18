@@ -259,14 +259,26 @@ impl ApiClient for DefaultApiClient {
                     let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
                     let serialized = serialize_multipart_body(fields, &boundary)
                         .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-                    /* Force the multipart Content-Type (with the boundary we
-                     * generated) onto the outgoing request; if the caller set
-                     * a Content-Type it would not contain our boundary, so the
-                     * server could not parse the body. */
+                    /* Keep a declared multipart subtype (multipart/mixed, ...) and
+                     * fall back to form-data when the declared value is not a
+                     * plain multipart token. The boundary we generated is always
+                     * appended, so the server can parse the body. */
+                    let subtype = merged
+                        .iter()
+                        .find(|(k, _)| k.eq_ignore_ascii_case("Content-Type"))
+                        .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
+                        .filter(|t| {
+                            t.strip_prefix("multipart/").is_some_and(|sub| {
+                                !sub.is_empty()
+                                    && sub.chars().all(|c| c.is_ascii_alphanumeric() || "!#$&^_.+-".contains(c))
+                            })
+                        })
+                        .unwrap_or_else(|| "multipart/form-data".to_string());
+                    remove_header(&mut merged, "Content-Type");
                     insert_header(
                         &mut merged,
                         "Content-Type".to_string(),
-                        format!("multipart/form-data; boundary={}", boundary),
+                        format!("{}; boundary={}", subtype, boundary),
                     );
                     Some(serialized)
                 }
@@ -1196,6 +1208,23 @@ mod tests {
                 );
             }
         }
+    }
+
+    /* A 301 from HTTPS to plain HTTP that keeps a PUT would replay the body in cleartext, so it is refused. */
+    #[test]
+    fn test_bhv_misc_124_a_301_from_https_to_http_that_keeps_a_body_is_refused() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(is_https_to_http_body_replay(301, "PUT", Some(&https), &http, true));
+    }
+
+    /* A 307 that stays on one scheme, or upgrades HTTP to HTTPS, never sends the body in cleartext. */
+    #[test]
+    fn test_bhv_misc_125_a_307_that_stays_on_one_scheme_or_upgrades_is_not_refused() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(!is_https_to_http_body_replay(307, "POST", Some(&https), &https, true));
+        assert!(!is_https_to_http_body_replay(307, "POST", Some(&http), &https, true));
     }
 
     /* A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused:

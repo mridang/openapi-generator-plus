@@ -684,4 +684,21 @@ namespace {
     test('bhv serialization 019 a null entry in a parameter map is left out of the output', function (): void {
         expect(ValueSerializer::serializeDeepObject('filter', ['a' => null, 'b' => 'x']))->toBe(['filter[b]' => 'x']);
     });
+
+    enum WireValueProbeEnum: string
+    {
+        case Open = 'open-wire';
+    }
+
+    test('bhv misc 082 an enum value is sent as its wire value in a path, query or header parameter', function (): void {
+        expect(ValueSerializer::serialize(WireValueProbeEnum::Open, 'path', 'string'))->toBe('open-wire');
+        expect(ValueSerializer::serialize(WireValueProbeEnum::Open, 'query', 'string'))->toBe('open-wire');
+        expect(ValueSerializer::serialize(WireValueProbeEnum::Open, 'header', 'string'))->toBe('open-wire');
+    });
+
+    test('bhv misc 084 a set optional scalar is sent as its value in every location', function (): void {
+        foreach (['path', 'query', 'header', 'cookie'] as $location) {
+            expect(ValueSerializer::serialize(7, $location, 'integer'))->toBe('7');
+        }
+    });
 }

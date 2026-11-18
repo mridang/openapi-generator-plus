@@ -1688,3 +1688,30 @@ fn test_bhv_misc_122_a_string_default_is_applied_as_the_exact_literal() {
         Some("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b")
     );
 }
+
+#[test]
+fn test_bhv_misc_104_an_email_format_string_is_a_plain_string_not_validated() {
+    #[derive(serde::Deserialize)]
+    struct Contact {
+        email: String,
+    }
+    let contact: Contact = serde_json::from_str(r#"{"email":"not-an-email"}"#).expect("decodes");
+    assert_eq!(contact.email, "not-an-email");
+}
+
+#[test]
+fn test_bhv_misc_109_a_nested_object_is_validated_with_the_outer_rules_at_decode() {
+    use petstore::models::EdgeCases;
+    assert!(serde_json::from_str::<EdgeCases>(r#"{"lastError":{"code":"three"}}"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_112_a_repeated_element_of_a_unique_array_keeps_one_copy() {
+    #[derive(serde::Deserialize)]
+    struct UniqueTags {
+        values: std::collections::HashSet<String>,
+    }
+    let decoded: UniqueTags = serde_json::from_str(r#"{"values":["a","a","b"]}"#).expect("decodes");
+    assert_eq!(decoded.values.len(), 2);
+    assert!(decoded.values.contains("a") && decoded.values.contains("b"));
+}

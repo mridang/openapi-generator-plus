@@ -1004,3 +1004,14 @@ async fn test_bhv_misc_080_a_body_is_refused_against_the_schema_of_another_statu
 
     assert!(err.downcast_ref::<SerializationError>().is_some(), "{}", err);
 }
+
+/* A 201 answer to reserveStock decodes as the new receipt, whatever the body says. */
+#[tokio::test]
+async fn test_bhv_misc_114_a_success_response_is_decoded_for_the_status_actually_received() {
+    let body = r#"{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}"#;
+    let created = new_store_api_for_mock(201, "application/json", body)
+        .reserve_stock(None)
+        .await
+        .expect("a 201 must decode");
+    assert!(matches!(created, ReserveStockResponse::ReservationReceipt(_)), "{created:?}");
+}
