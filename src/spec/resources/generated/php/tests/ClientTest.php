@@ -505,3 +505,13 @@ test('bhv config 025 an empty token environment value counts as unset and constr
         putenv($previous === false ? $name : $name . '=' . $previous);
     }
 });
+
+test('bhv lifecycle 045 closing the sdk client does not close a supplied http client, which keeps sending', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new Client($this->authenticator, null, $transport);
+    $client->close();
+
+    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
+        ->not->toThrow(\LogicException::class);
+    expect($counts->closes)->toBe(0);
+});

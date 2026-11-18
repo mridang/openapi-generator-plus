@@ -1033,3 +1033,28 @@ test('bhv auth 058 a request that needs a new token uses the refresh grant first
     expect($client->capturedRequests[1]['body'])->toContain('grant_type=refresh_token');
     expect($client->capturedRequests[1]['body'])->toContain('refresh_token=held-refresh');
 });
+
+test('bhv auth 057 a rejected refresh falls back to the original grant', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'first-token',
+        'refresh_token' => 'stale-refresh',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(400, (string) json_encode([
+        'error' => 'invalid_grant',
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'fresh-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'password']);
+    $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'password']);
+
+    expect($token)->toBe('fresh-token');
+    expect($client->capturedRequests[2]['body'])->toContain('grant_type=password');
+});
