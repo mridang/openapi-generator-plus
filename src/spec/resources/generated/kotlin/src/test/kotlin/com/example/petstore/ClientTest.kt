@@ -236,7 +236,7 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("close is on the ApiClient contract: a custom transport without close can be closed")
+    @DisplayName("bhvLifecycle038 close is on the ApiClient contract: a custom transport without close can be closed")
     fun customTransportWithoutCloseCanBeClosedTwice() {
         val transport =
             object : ApiClient {

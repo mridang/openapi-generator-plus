@@ -231,3 +231,6 @@ java | auth001 | The java header accessor is synchronous and performs any token 
 java | auth023 | The per-scheme wrapper reads its variable when a credential is null or empty (settled: an empty argument is unset), so an explicitly passed empty credential is never kept and refused in java
 java | errors077 | Java records only the request path in error diagnostics (bhvErrors026 and bhvErrors036 pin it), so the scheme, host and port are never kept and the query, userinfo and fragment are dropped with the rest
 java | options059 | The only injectable transport in java is the HttpClient (S9), so there is no separate transport hook that could be left unset or kept on the built options
+kotlin | auth001 | Kotlin has no synchronous header call: getAuthHeaders is a suspend function for every authenticator, so there is no sync path that could return unauthenticated headers
+kotlin | transport075 | zstd bodies are decoded only when the optional zstd-jni library is on the classpath, and the generated build does not ship it, so the expansion-ratio behaviour cannot be reached in the petstore suite
+kotlin | servers026 | ServerVariable keeps the List the caller passed, the same reason as kotlin | servers024: a frozen copy would turn it into a regular class with hand-written equals, hashCode and copy

@@ -224,4 +224,19 @@ class BasicAuthenticatorTest {
             }
         assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD"), ex.message)
     }
+
+    @Test
+    @DisplayName("bhvErrors081 a credential refused at construction names whether the username or the password is at fault")
+    fun refusedCredentialNamesTheFaultyField() {
+        val user =
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+            }
+        assertTrue(user.message!!.contains("username"), user.message)
+        val pass =
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com", "alice", "s3\r\ncret")
+            }
+        assertTrue(pass.message!!.contains("password"), pass.message)
+    }
 }

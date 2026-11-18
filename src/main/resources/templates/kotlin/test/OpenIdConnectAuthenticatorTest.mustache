@@ -555,7 +555,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun unparseableMaxAgeFallsBackToTheOneDayDefault() {
+    fun bhvAuth011UnparseableMaxAgeFallsBackToTheOneDayDefault() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=soon"))
 
@@ -620,7 +620,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun rediscoveredEndpointsAreUsedWithTheSameSession() {
+    fun bhvAuth029RediscoveredEndpointsAreUsedWithTheSameSession() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize-v1"), headers = mapOf("Cache-Control" to "max-age=0"))
         client.enqueue("""{"access_token":"t1","refresh_token":"r1","expires_in":3600}""")

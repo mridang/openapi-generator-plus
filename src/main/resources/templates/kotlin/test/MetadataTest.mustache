@@ -99,7 +99,7 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("default values are null")
+    @DisplayName("bhvModels024 default values are null")
     fun testDefaultValues() {
         val metadata = Metadata()
 
@@ -358,5 +358,69 @@ class MetadataTest {
         assertTrue(source.contains("""<a href="https://example.com/docs/account">Account <docs> & "notes" it's here</a>"""), source)
         assertFalse(source.contains("&lt;"), source)
         assertFalse(source.contains("&amp;"), source)
+    }
+
+    @Test
+    @DisplayName("bhvModels013 a newly built model starts its additional properties as an empty collection, never null")
+    fun newModelStartsWithEmptyAdditionalProperties() {
+        val metadata = Metadata()
+        assertNotNull(metadata.additionalProperties)
+        assertTrue(metadata.additionalProperties.isEmpty())
+    }
+
+    @Test
+    @DisplayName("bhvModels014 a built model cannot have its properties reassigned")
+    fun builtModelHasOnlyFinalFields() {
+        val fields = {{modelPackage}}.Pet::class.java.declaredFields.filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }
+        assertTrue(fields.isNotEmpty())
+        assertTrue(fields.all { java.lang.reflect.Modifier.isFinal(it.modifiers) }, fields.toString())
+    }
+
+    @Test
+    @DisplayName("bhvModels015 a changed copy of a model keeps the additional properties of the original")
+    fun copyKeepsAdditionalProperties() {
+        val original = Metadata(additionalProperties = mutableMapOf("k" to 1))
+        val changed = original.copy(createdAt = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z"))
+        assertEquals(mapOf("k" to 1), changed.additionalProperties)
+    }
+
+    @Test
+    @DisplayName("bhvModels016 a copy clears an optional field only when null is passed and keeps it when the argument is omitted")
+    fun copyClearsOnlyOnExplicitNull() {
+        val pet = {{modelPackage}}.Pet(name = "dog", category = {{modelPackage}}.Category(name = "c"), photoUrls = setOf())
+        assertNull(pet.copy(category = null).category)
+        assertEquals(pet.category, pet.copy().category)
+    }
+
+    @Test
+    @DisplayName("bhvModels017 a copy can set or clear an optional field and the original keeps its value")
+    fun copyCanSetOrClearWithoutChangingTheOriginal() {
+        val pet = {{modelPackage}}.Pet(name = "dog", category = {{modelPackage}}.Category(name = "c"), photoUrls = setOf())
+        assertEquals("new", pet.copy(category = {{modelPackage}}.Category(name = "new")).category!!.name)
+        assertEquals("c", pet.category!!.name)
+    }
+
+    @Test
+    @DisplayName("bhvModels020 models with the same field values compare equal and hash alike")
+    fun sameFieldValuesCompareEqualAndHashAlike() {
+        val a = {{modelPackage}}.Tag(id = 1L, name = "x")
+        val b = {{modelPackage}}.Tag(id = 1L, name = "x")
+        assertEquals(a, b)
+        assertEquals(a.hashCode(), b.hashCode())
+        assertEquals(1, setOf(a, b).size)
+    }
+
+    @Test
+    @DisplayName("bhvModels022 a generated model whose schema allows undeclared properties reports that it does")
+    fun modelReportsItsAdditionalPropertiesBucket() {
+        assertTrue(Metadata::class.java.declaredFields.any { it.name == "additionalProperties" })
+    }
+
+    @Test
+    @DisplayName("bhvModels023 undeclared keys named like SDK methods are kept as additional properties")
+    fun keysNamedLikeMethodsAreKeptAsAdditionalProperties() {
+        val metadata = ObjectSerializer().deserialize<Metadata>("{\"toString\":\"x\",\"hashCode\":1}")
+        assertEquals("x", metadata!!.additionalProperties["toString"])
+        assertEquals(1, metadata.additionalProperties["hashCode"])
     }
 }

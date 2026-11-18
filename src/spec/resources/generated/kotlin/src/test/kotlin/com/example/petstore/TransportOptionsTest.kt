@@ -558,7 +558,7 @@ class TransportOptionsTest {
     @DisplayName("custom httpClient")
     inner class CustomHttpClient {
         @Test
-        @DisplayName("httpClient defaults to null and is kept when set")
+        @DisplayName("bhvOptions058 httpClient defaults to null and is kept when set")
         fun httpClientIsKept() {
             assertNull(TransportOptions.builder().build().httpClient)
             val custom = HttpClient(MockEngine { respondOk() })
@@ -631,6 +631,123 @@ class TransportOptionsTest {
             assertTrue(text.contains("proxy=http://***@proxy.example.com:3128"), text)
             assertTrue(text.contains("Proxy-Authorization=***"), text)
             assertTrue(text.contains("X-Trace=visible"), text)
+        }
+    }
+
+    @Nested
+    @DisplayName("transport options contract behaviours")
+    inner class TransportOptionsContractBehaviours {
+        @Test
+        @DisplayName("bhvOptions059 a caller-supplied HTTP client is kept as the same instance on the built options")
+        fun suppliedHttpClientIsKeptAsTheSameInstance() {
+            assertNull(TransportOptions.builder().build().httpClient)
+            val client = HttpClient()
+            assertSame(
+                client,
+                TransportOptions
+                    .builder()
+                    .httpClient(client)
+                    .build()
+                    .httpClient,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvOptions060 the static builder entry point carries the same defaults as the direct build")
+        fun builderEntryPointCarriesTheDefaults() {
+            val built = TransportOptions.builder().build()
+            assertTrue(built.verifySsl)
+            assertNull(built.proxy)
+            assertNull(built.userAgent)
+        }
+
+        @Test
+        @DisplayName("bhvOptions061 a user agent set on the transport options is kept as given, and none leaves it unset")
+        fun userAgentIsKeptAsGivenOrUnset() {
+            assertEquals(
+                "MyApp/2.0",
+                TransportOptions
+                    .builder()
+                    .userAgent("MyApp/2.0")
+                    .build()
+                    .userAgent,
+            )
+            assertNull(
+                TransportOptions
+                    .builder()
+                    .userAgent(null)
+                    .build()
+                    .userAgent,
+            )
+        }
+
+        @Test
+        @DisplayName("bhvOptions063 a built transport options object cannot have its fields changed")
+        fun builtOptionsHaveOnlyFinalFields() {
+            val fields =
+                TransportOptions::class.java.declaredFields.filter {
+                    !java.lang.reflect.Modifier
+                        .isStatic(it.modifiers)
+                }
+            assertTrue(fields.isNotEmpty())
+            assertTrue(
+                fields.all {
+                    java.lang.reflect.Modifier
+                        .isFinal(it.modifiers)
+                },
+                fields.toString(),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvOptions064 the printable form of transport options shows the configured maximum number of retries")
+        fun printableFormShowsMaxRetries() {
+            assertTrue(
+                TransportOptions
+                    .builder()
+                    .maxRetries(3)
+                    .build()
+                    .toString()
+                    .contains("maxRetries=3"),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvOptions065 the printable form of transport options never shows a proxy password")
+        fun printableFormHidesProxyPassword() {
+            val text =
+                TransportOptions
+                    .builder()
+                    .proxy("http://svc:hunter2@proxy.example.com:3128")
+                    .build()
+                    .toString()
+            assertFalse(text.contains("hunter2"), text)
+        }
+
+        @Test
+        @DisplayName("bhvOptions066 the printable form shows a proxy URL with no credentials exactly as configured")
+        fun printableFormShowsPlainProxyUrl() {
+            val text =
+                TransportOptions
+                    .builder()
+                    .proxy("http://proxy.example.com:3128")
+                    .build()
+                    .toString()
+            assertTrue(text.contains("proxy=http://proxy.example.com:3128,"), text)
+        }
+
+        @Test
+        @DisplayName("bhvOptions067 building transport options with a valid proxy URL keeps it, and with no proxy it is unset")
+        fun validProxyIsKeptAndNoProxyIsUnset() {
+            assertEquals(
+                "http://proxy.example.com:3128",
+                TransportOptions
+                    .builder()
+                    .proxy("http://proxy.example.com:3128")
+                    .build()
+                    .proxy,
+            )
+            assertNull(TransportOptions.builder().build().proxy)
         }
     }
 }

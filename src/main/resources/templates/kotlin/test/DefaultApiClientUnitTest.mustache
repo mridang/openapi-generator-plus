@@ -423,7 +423,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("every part carries only Content-Disposition and Content-Type; field names are backslash-escaped")
+        @DisplayName("bhvSerialization056 every part carries only Content-Disposition and Content-Type; field names are backslash-escaped")
         fun partsCarryOnlyDispositionAndContentType() {
             var bodyBytes: ByteArray? = null
             var contentLength: Long? = null
@@ -1181,7 +1181,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("the SDK's own Proxy-Authorization survives a cross-origin http hop; caller credentials do not")
+        @DisplayName("bhvRedirects044 the SDK's own Proxy-Authorization survives a cross-origin http hop; caller credentials do not")
         fun proxyCredentialsSurviveCrossOriginRedirect() {
             val hops = mutableListOf<io.ktor.http.Headers>()
             val engine = MockEngine { req ->
@@ -1606,7 +1606,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.3: HTTPS->HTTP without body still allowed (no payload to leak)")
+        @DisplayName("bhvRedirects039 Gap 3.3: HTTPS->HTTP without body still allowed (no payload to leak)")
         fun httpsToHttpAllowedWithoutBody() {
             var hopCount = 0
             val engine = MockEngine { _ ->
@@ -1904,7 +1904,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("br and zstd without their codec library raise instead of returning the encoded body")
+        @DisplayName("bhvTransport074 br and zstd without their codec library raise instead of returning the encoded body")
         fun missingCodecLibraryRaises() {
             for (encoding in listOf("br", "zstd")) {
                 val ex = assertThrows(java.io.IOException::class.java) {
@@ -2059,7 +2059,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a parameter that only ends in charset is not the charset")
+        @DisplayName("bhvSerialization055 a parameter that only ends in charset is not the charset")
         fun ignoresAParameterNameThatMerelyEndsInCharset() {
             assertEquals(Charsets.UTF_8, charsetFor("text/plain; xcharset=ISO-8859-1"))
         }
@@ -2087,7 +2087,7 @@ class DefaultApiClientUnitTest {
     inner class ProxyAuthHeader {
 
         @Test
-        @DisplayName("a literal plus in the proxy userinfo is kept, not turned into a space")
+        @DisplayName("bhvTransport076 a literal plus in the proxy userinfo is kept, not turned into a space")
         fun keepsALiteralPlus() {
             val expected = java.util.Base64.getEncoder().encodeToString("svc:pa+ss".toByteArray(Charsets.UTF_8))
             assertEquals("Basic $expected", buildProxyAuthHeader("http://svc:pa+ss@proxy.example.com:3128"))
@@ -2378,7 +2378,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("an unreadable caCertPath is reported as a read failure naming the quoted path")
+        @DisplayName("bhvErrors083 an unreadable caCertPath is reported as a read failure naming the quoted path")
         fun unreadableCaCertPathNamesTheReadFailure() {
             val path = "/nonexistent/ca.pem"
             val transport = TransportOptions.builder().caCertPath(path).build()
@@ -2901,5 +2901,257 @@ class DefaultApiClientUnitTest {
 
             assertEquals(listOf("{\"a\":1}", "{\"a\":1}"), seenBodies)
         }
+    }
+
+    @Nested
+    @DisplayName("wire transport behaviours")
+    inner class WireTransportBehaviours {
+
+        @Test
+        @DisplayName("bhvTransport067 a successful response with no body is returned as a success with an empty body")
+        fun successWithNoBodyIsReturnedAsSuccess() {
+            val apiClient = DefaultApiClient(mockClient(statusCode = HttpStatusCode.NoContent, body = ""), TransportOptions.builder().build())
+            val response = runBlocking { apiClient.sendRequest("DELETE", "http://localhost/test", emptyMap(), null) }
+            assertEquals(204, response.statusCode)
+            assertEquals("", response.body)
+        }
+
+        @Test
+        @DisplayName("bhvTransport068 a call made after its cancellation has already happened sends no request")
+        fun cancelledCallSendsNoRequest() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(content = "{}", status = HttpStatusCode.OK)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine), TransportOptions.builder().build())
+            assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+                runBlocking {
+                    this.coroutineContext[kotlinx.coroutines.Job]!!.cancel()
+                    apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                }
+            }
+            assertEquals(0, requests)
+        }
+
+        @Test
+        @DisplayName("bhvTransport071 a single configured timeout applies to every timed phase of a request")
+        fun singleTimeoutAppliesToEveryTimedPhase() {
+            var requestMs: Long? = null
+            var connectMs: Long? = null
+            var socketMs: Long? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    val armed = req.getCapabilityOrNull(io.ktor.client.plugins.HttpTimeoutCapability)!!
+                    requestMs = armed.requestTimeoutMillis
+                    connectMs = armed.connectTimeoutMillis
+                    socketMs = armed.socketTimeoutMillis
+                })
+            val apiClient = DefaultApiClient(client, TransportOptions.builder().timeout(5000L).build())
+            runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+            assertEquals(5000L, requestMs)
+            assertEquals(5000L, connectMs)
+            assertEquals(5000L, socketMs)
+        }
+
+        @Test
+        @DisplayName("bhvTransport072 a deadline that expires while connecting raises the timeout error, an unrelated failure does not")
+        fun expiredDeadlineRaisesTimeoutAndUnrelatedFailureDoesNot() {
+            val timeoutEngine =
+                MockEngine { _ -> throw io.ktor.client.plugins.HttpRequestTimeoutException("http://localhost/test", 100L) }
+            val timeoutApi = DefaultApiClient(HttpClient(timeoutEngine), TransportOptions.builder().maxRetries(0).build())
+            assertThrows({{invokerPackage}}.errors.NetworkTimeoutException::class.java) {
+                runBlocking { timeoutApi.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+            }
+            val refusedEngine = MockEngine { _ -> throw java.net.ConnectException("refused") }
+            val refusedApi = DefaultApiClient(HttpClient(refusedEngine), TransportOptions.builder().maxRetries(0).build())
+            val ex = assertThrows({{invokerPackage}}.errors.NetworkException::class.java) {
+                runBlocking { refusedApi.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+            }
+            assertFalse(ex is {{invokerPackage}}.errors.NetworkTimeoutException)
+        }
+
+        @Test
+        @DisplayName("bhvTransport073 a response that claims a compression encoding but holds a corrupt stream raises the API error")
+        fun corruptCompressedBodyRaisesTheApiError() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "not gzip data",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json", "Content-Encoding", "gzip"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine), TransportOptions.builder().build())
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.ApiException::class.java) {
+                runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+            }
+            assertTrue(ex.message!!.startsWith("Failed to decompress gzip response body"), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvTransport077 a CA certificate path that names a directory fails when the client is built, naming that path")
+        fun caPathNamingADirectoryFailsWhenBuilt() {
+            val dir = java.nio.file.Files.createTempDirectory("ca-dir").toString()
+            val transport = TransportOptions.builder().caCertPath(dir).build()
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                DefaultApiClient(transport)
+            }
+            assertTrue(ex.message!!.contains(dir), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvTransport078 a caller-supplied HTTP client is refused at construction when a proxy setting is also configured")
+        fun suppliedClientWithProxyIsRefused() {
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                TransportOptions.builder().httpClient(mockClient()).proxy("http://proxy.example.com:3128").build()
+            }
+            assertTrue(ex.message!!.startsWith("A custom httpClient cannot be combined"), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvTransport079 turning off certificate verification with a supplied client is refused at construction")
+        fun disabledVerificationWithSuppliedClientIsRefused() {
+            assertThrows(IllegalArgumentException::class.java) {
+                TransportOptions.builder().httpClient(mockClient()).verifySsl(false).build()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTransport080 a proxy setting that is not a URL makes construction fail rather than being dropped")
+        fun unusableProxySettingFailsConstruction() {
+            assertThrows(IllegalArgumentException::class.java) {
+                TransportOptions.builder().proxy("not a url").build()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTransport081 a caller-supplied HTTP client carries every request with the URL and caller headers unchanged")
+        fun suppliedClientCarriesEveryRequestUnchanged() {
+            var captured: io.ktor.client.request.HttpRequestData? = null
+            var count = 0
+            val client =
+                mockClient(requestCapture = { req ->
+                    count++
+                    captured = req
+                })
+            val apiClient = DefaultApiClient(client, TransportOptions.builder().build())
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", mapOf("X-Caller" to "yes"), null)
+            }
+            assertEquals(1, count)
+            assertEquals("http://localhost/test", captured!!.url.toString())
+            assertEquals("yes", captured!!.headers["X-Caller"])
+        }
+
+        @Test
+        @DisplayName("bhvTransport082 a request made with only a timeout configured completes and returns its response")
+        fun requestWithOnlyATimeoutCompletes() {
+            val apiClient = DefaultApiClient(mockClient(), TransportOptions.builder().timeout(1000L).build())
+            val response = runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+            assertEquals(200, response.statusCode)
+        }
+    }
+
+    @Nested
+    @DisplayName("wire redirect behaviours")
+    inner class WireRedirectBehaviours {
+
+        private fun redirectThenOk(
+            status: HttpStatusCode,
+            seen: MutableList<io.ktor.client.request.HttpRequestData>,
+        ): MockEngine =
+            MockEngine { req ->
+                seen.add(req)
+                if (seen.size == 1) {
+                    respond(content = "", status = status, headers = headersOf("Location", "http://localhost/b"))
+                } else {
+                    respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
+                }
+            }
+
+        @Test
+        @DisplayName("bhvRedirects038 a 307 redirect that keeps the method resends the original body and its content type")
+        fun temporaryRedirectResendsBodyAndType() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.TemporaryRedirect, seen)),
+                TransportOptions.builder().build(),
+            )
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/a", mapOf("Content-Type" to "text/plain"), "payload")
+            }
+            assertEquals(2, seen.size)
+            assertEquals(io.ktor.http.HttpMethod.Post, seen[1].method)
+            assertEquals("text/plain", seen[1].headers["Content-Type"])
+        }
+
+        @Test
+        @DisplayName("bhvRedirects040 a 302 redirect from HTTPS to plain HTTP is followed for a request that sends no body")
+        fun foundRedirectFromHttpsToHttpIsFollowed() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.Found, seen)),
+                TransportOptions.builder().build(),
+            )
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "https://localhost/a", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals("http://localhost/b", seen[1].url.toString())
+        }
+
+        @Test
+        @DisplayName("bhvRedirects041 a redirect that turns a POST into a GET sends no Content-Length or Content-Type")
+        fun postTurnedIntoGetSendsNoBodyHeaders() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.SeeOther, seen)),
+                TransportOptions.builder().build(),
+            )
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/a", mapOf("Content-Type" to "text/plain"), "payload")
+            }
+            assertEquals(io.ktor.http.HttpMethod.Get, seen[1].method)
+            assertNull(seen[1].headers["Content-Length"])
+            assertNull(seen[1].headers["Content-Type"])
+        }
+
+        @Test
+        @DisplayName("bhvRedirects042 a 307 redirect of a bodyless POST keeps the request a POST")
+        fun temporaryRedirectKeepsBodylessPost() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient = DefaultApiClient(
+                HttpClient(redirectThenOk(HttpStatusCode.TemporaryRedirect, seen)),
+                TransportOptions.builder().build(),
+            )
+            runBlocking { apiClient.sendRequest("POST", "http://localhost/a", emptyMap(), null) }
+            assertEquals(io.ktor.http.HttpMethod.Post, seen[1].method)
+        }
+    }
+
+    @Test
+    @DisplayName("bhvRetries043 an unauthorized response is returned to the caller after one request when no authenticator can refresh")
+    fun unauthorizedIsNotReplayedWithoutFreshCredentials() {
+        var requests = 0
+        val client =
+            mockClient(
+                statusCode = HttpStatusCode.Unauthorized,
+                requestCapture = { requests++ },
+            )
+        val apiClient = DefaultApiClient(client, TransportOptions.builder().maxRetries(3).build())
+        assertThrows({{invokerPackage}}.errors.UnauthorizedException::class.java) {
+            runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+        }
+        assertEquals(1, requests)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle036 closing a client a second time raises no error and releases nothing further")
+    fun closingTwiceRaisesNoError() {
+        val apiClient = DefaultApiClient(mockClient(), TransportOptions.builder().build())
+        apiClient.close()
+        assertDoesNotThrow { apiClient.close() }
     }
 }

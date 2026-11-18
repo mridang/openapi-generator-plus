@@ -341,7 +341,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: a scheme's authenticator takes the argument first, then the variable, then the provider")
+    @DisplayName("bhvAuth022 F862: a scheme's authenticator takes the argument first, then the variable, then the provider")
     fun schemeWrapperPrecedence() =
         runBlocking {
             val provider: suspend () -> String = { "from-provider" }
@@ -369,5 +369,61 @@ class BearerAuthenticatorTest {
                 assertThrows(IllegalArgumentException::class.java) { PetStoreBearerAuthenticator("https://api.example.com") }
             }
         assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth004 an authenticator with no argument, no environment value and no provider is refused at construction")
+    fun authenticatorWithNoCredentialIsRefusedAtConstruction() {
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com")
+            }
+        assertTrue(ex.message!!.startsWith("A bearer token is required"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth023 an explicitly passed empty token is refused and not replaced by another source")
+    fun explicitlyEmptyTokenIsRefused() {
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", "")
+            }
+        assertEquals("Bearer token must not be empty", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth009 a token returned by a provider that is blank or holds a line break or NUL is refused")
+    fun providedTokenThatIsBlankOrUnsafeIsRefused() =
+        runBlocking {
+            for (bad in listOf("   ", "tok\nInjected: yes", "tok\u0000")) {
+                val auth = BearerAuthenticator("https://api.example.com", null, { bad })
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking { auth.getAuthHeaders() }
+                }
+            }
+        }
+
+    @Test
+    @DisplayName("bhvAuth012 each refused token raises a message that states why it was refused")
+    fun refusedTokenMessageStatesTheReason() {
+        val blank =
+            assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", "  ")
+            }
+        assertEquals("Bearer token must not be empty", blank.message)
+        val unsafe =
+            assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", "tok\r\nX: y")
+            }
+        assertTrue(unsafe.message!!.contains("printable ASCII"), unsafe.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth016 the string form of the authenticator masks the token and names its own type")
+    fun stringFormMasksTheToken() {
+        val text = BearerAuthenticator("https://api.example.com", "secret-value").toString()
+        assertFalse(text.contains("secret-value"), text)
+        assertTrue(text.contains("***"), text)
+        assertTrue(text.startsWith("BearerAuthenticator("), text)
     }
 }

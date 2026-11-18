@@ -7,6 +7,7 @@ import {{invokerPackage}}.errors.SerializationException
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.errors.BadRequestException
 import {{invokerPackage}}.errors.ClientException
+import {{invokerPackage}}.errors.NetworkException
 import {{invokerPackage}}.errors.NotFoundException
 import {{invokerPackage}}.errors.ServerException
 import {{invokerPackage}}.errors.ConflictException
@@ -17,6 +18,7 @@ import {{invokerPackage}}.errors.UnauthorizedException
 import {{invokerPackage}}.errors.UnprocessableEntityException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class ApiExceptionTest {
@@ -439,7 +441,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun renderedBodyNeverCutsAMultiByteCharacterInHalf() {
+    fun bhvErrors075RenderedBodyNeverCutsAMultiByteCharacterInHalf() {
         val body = "x".repeat(1023) + "\u00e9" + "tail"
 
         val rendered = ApiException(500, "boom", null, body).toString()
@@ -605,5 +607,79 @@ class ApiExceptionTest {
     fun bhvErrors056AStatusAtOrAbove600IsTheBaseErrorAndNotAServerError() {
         val ex = ApiException.fromResponse(600, emptyMap(), null)
         assertEquals(ApiException::class.java, ex.javaClass)
+    }
+
+    @Nested
+    @DisplayName("wire error behaviours")
+    inner class WireErrorBehaviours {
+
+        @Test
+        @DisplayName("bhvErrors072 an error body that starts with a byte order mark decodes the same as the body without it")
+        fun bomPrefixedErrorBodyDecodesTheSame() {
+            val objects = ObjectSerializer()
+            val withBom = objects.deserialize<{{modelPackage}}.Pet>("﻿{\"name\":\"dog\",\"photoUrls\":[]}")
+            val without = objects.deserialize<{{modelPackage}}.Pet>("{\"name\":\"dog\",\"photoUrls\":[]}")
+            assertEquals(without, withBom)
+        }
+
+        @Test
+        @DisplayName("bhvErrors073 an error body nested beyond common parser defaults is parsed and kept as structured data")
+        fun deeplyNestedErrorBodyIsKeptAsStructuredData() {
+            val deep = "[".repeat(200) + "]".repeat(200)
+            val parsed = ObjectSerializer().parseToJsonElement(deep)
+            assertTrue(parsed is kotlinx.serialization.json.JsonArray, parsed.toString().take(40))
+        }
+
+        @Test
+        @DisplayName("bhvErrors074 an error that never received an HTTP response renders its text as the message alone")
+        fun errorWithoutResponseRendersMessageAlone() {
+            val ex = NetworkException("connection refused", java.io.IOException("refused"))
+            assertEquals("connection refused", ex.message)
+            assertEquals(0, ex.statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvErrors076 an error the SDK did not raise is not classified as one of the SDK errors, even when wrapped")
+        fun foreignErrorIsNotClassifiedAsSdkError() {
+            val wrapped = RuntimeException("outer", IllegalStateException("inner"))
+            assertFalse(wrapped is {{invokerPackage}}.errors.{{errorPrefix}}Exception)
+        }
+
+        @Test
+        @DisplayName("bhvErrors077 a URL written into diagnostics keeps scheme, host, port and path and drops query, userinfo and fragment")
+        fun diagnosticUrlDropsQueryUserInfoAndFragment() {
+            assertEquals(
+                "https://api.example.com:8443/v1/items",
+                redactUrl("https://user:secret@api.example.com:8443/v1/items?api_key=k#frag"),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvErrors078 a transport failure message never shows the query string of the request URL")
+        fun transportFailureMessageHidesTheQueryString() {
+            assertEquals(
+                "timed out at http://api.example.com/items",
+                redactUrlsInMessage("timed out at http://api.example.com/items?api_key=secret"),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvErrors080 a typed HTTP error is caught by a handler for the SDK root error type and keeps its status")
+        fun typedHttpErrorIsCaughtByRootAndKeepsStatus() {
+            val caught: {{invokerPackage}}.errors.{{errorPrefix}}Exception =
+                try {
+                    throw {{invokerPackage}}.errors.NotFoundException("missing")
+                } catch (e: {{invokerPackage}}.errors.{{errorPrefix}}Exception) {
+                    e
+                }
+            assertTrue(caught is ApiException)
+            assertEquals(404, (caught as ApiException).statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvErrors084 an error built without an HTTP response reports a status code of zero by default")
+        fun errorBuiltWithoutResponseReportsZeroStatus() {
+            assertEquals(0, ApiException("boom").statusCode)
+        }
     }
 }

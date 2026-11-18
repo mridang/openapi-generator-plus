@@ -1208,7 +1208,13 @@ internal class ObjectSerializer(
             is String -> JsonPrimitive(value)
             is ByteArray -> JsonPrimitive(Base64.getEncoder().encodeToString(value))
             is Duration -> JsonPrimitive(formatDuration(value))
-            is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJsonElementStatic(v) })
+            // Keys are written in ascending order so equal maps always produce identical bytes.
+            is Map<*, *> ->
+                JsonObject(
+                    value.entries
+                        .sortedBy { it.key.toString() }
+                        .associate { (k, v) -> k.toString() to toJsonElementStatic(v) },
+                )
             is List<*> -> JsonArray(value.map { toJsonElementStatic(it) })
             else -> JsonPrimitive(value.toString())
         }
