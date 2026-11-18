@@ -1948,3 +1948,4 @@ langkotlin003 | An API key containing a line break or a NUL character is refused
 langkotlin004 | Two result values with equal fields compare equal and hash alike
 langkotlin005 | A transport failure raised end to end carries the request method and path that were sent
 langkotlin006 | A void operation ignores a success body that is JSON but not an object
+langkotlin007 | A generated basic scheme wrapper reads its user and password from its own variables
