@@ -262,10 +262,10 @@ func TestBhvModels018_Model_NumericallyEqualDecimalFieldsCompareEqual(t *testing
 	t.Parallel()
 	a := models.NewDryFood(1.5)
 	b := models.NewDryFood(1.50)
-	if !a.Equal(*b) {
+	if !a.Equal(b) {
 		t.Error("expected models with numerically equal decimals to compare equal")
 	}
-	if a.Equal(*models.NewDryFood(1.6)) {
+	if a.Equal(models.NewDryFood(1.6)) {
 		t.Error("expected models with different decimals to compare unequal")
 	}
 }

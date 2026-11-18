@@ -66,7 +66,7 @@ func (o Sparse) WithAdditionalProperties(value map[string]*string) Sparse {
 // NewSparse creates a new Sparse instance.
 func NewSparse() *Sparse {
 	return &Sparse{
-		AdditionalProperties: make(map[string]any),
+		AdditionalProperties: make(map[string]*string),
 	}
 }
 
