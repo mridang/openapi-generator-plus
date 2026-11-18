@@ -217,7 +217,7 @@ describe("BearerAuthenticator", () => {
     });
 
     it.each([undefined, ""])(
-      "fails when it is built with no token and the variable is %p",
+      "bhv misc 196 fails when it is built with no token and the variable is %p",
       (value) => {
         if (value === undefined) {
           delete process.env[variable];
@@ -264,7 +264,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("a provider may return a promise", async () => {
+    it("bhv langnode 030 a provider may return a promise", async () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         async () => "late-token",
@@ -274,7 +274,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("a provider is used instead of the environment", async () => {
+    it("bhv langnode 031 a provider is used instead of the environment", async () => {
       process.env[variable] = "from-env";
       const auth = new BearerAuthenticator(
         "https://api.example.com",
@@ -285,7 +285,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("a synchronous provider also serves getAuthHeaders", () => {
+    it("bhv langnode 032 a synchronous provider also serves getAuthHeaders", () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         () => "sync-token",
@@ -295,7 +295,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("an asynchronous provider is refused by getAuthHeaders", () => {
+    it("bhv langnode 033 an asynchronous provider is refused by getAuthHeaders", () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         async () => "late-token",
@@ -305,7 +305,7 @@ describe("BearerAuthenticator", () => {
       );
     });
 
-    it("validates what a provider returns", async () => {
+    it("bhv misc 195 validates what a provider returns", async () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         () => "   ",
